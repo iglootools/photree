@@ -88,12 +88,17 @@ run = [
 # Test Tasks
 [tasks.test-unit]
 description = "Run unit tests"
-run = "poetry run pytest tests/ -v"
+run = "poetry run pytest tests/ --ignore=tests/integration_fs/ -v"
+
+[tasks.test-integration-fs]
+description = "Run filesystem integration tests"
+run = "poetry run pytest tests/integration_fs/ -v"
 
 [tasks.test-all]
 description = "Run all tests"
 run = [
   { task = "test-unit" },
+  { task = "test-integration-fs" },
 ]
 
 # Lint / Formatting Tasks

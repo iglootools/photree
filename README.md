@@ -8,7 +8,7 @@
 ![License](https://img.shields.io/github/license/iglootools/photree)
 ![CI Status](https://github.com/iglootools/photree/actions/workflows/test.yml/badge.svg?branch=main)
 
-Manage photos in a directory tree.
+A CLI tool to import, organize, verify, and export iOS photo albums as plain directories — preserving originals, edits, and sidecars without any proprietary database.
 
 ## Installation
 

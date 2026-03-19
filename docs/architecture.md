@@ -2,6 +2,10 @@
 
 [README.md](../README.md) documents the main use cases and philosophy that guide the design of photree.
 
+For the Image Capture file structure and iOS album on-disk layout, see [internals.md](./internals.md).
+
+## Package Layout
+
 photree follows a flat package layout with the following top-level modules:
 
 - `cli/` — Typer-based CLI entry point and command definitions
@@ -12,7 +16,26 @@ photree follows a flat package layout with the following top-level modules:
 Dependencies between top-level modules (auto-generated via `mise run depgraph`):
 ```mermaid
 graph TD
+    album["album/"]
     cli["cli/"]
+    config["config"]
+    exporter["exporter/"]
+    fsprotocol["fsprotocol"]
+    importer["importer/"]
+    uiconventions["uiconventions"]
 
+    album --> fsprotocol
+    album --> uiconventions
+    cli --> album
+    cli --> config
+    cli --> exporter
+    cli --> fsprotocol
+    cli --> importer
+    cli --> uiconventions
+    config --> fsprotocol
+    exporter --> album
+    exporter --> fsprotocol
+    importer --> album
+    importer --> fsprotocol
 ```
 <!-- END MODULE OVERVIEW -->

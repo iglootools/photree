@@ -1,0 +1,17 @@
+[importer]
+# Directory where macOS Image Capture saves imported files
+# \u2019 is the Unicode right single quotation mark (') used by macOS in device names.
+# A regular ASCII apostrophe (') won't match the actual directory name.
+image-capture-dir = "~/Pictures/Sami Dalouche\u2019s iPhone"
+
+[exporter.profiles.mega]
+share-dir = "~/MEGAsync/to-share"
+share-layout = "flat"
+album-layout = "main-jpg-only"
+link-mode = "hardlink"
+
+[exporter.profiles.rocketnano2tb-albums]
+share-dir = "/Volumes/rocketnano2tb/photos/albums"
+share-layout = "albums"
+album-layout = "full"
+link-mode = "symlink"

@@ -6,8 +6,9 @@ Run automated tests and checks:
 mise run check              # Run all checks: format + lint + type-check + compat-check + clidocs-check + depgraph-check
 mise run check-all          # Run all checks: regular checks + all tests
 
-mise run test-all           # All tests
+mise run test-all           # All tests (unit + integration)
 mise run test-unit          # Unit tests
+mise run test-integration-fs # Filesystem integration tests (full workflow)
 
 mise run format             # ruff format
 mise run lint               # ruff check
