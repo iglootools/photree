@@ -1,0 +1,167 @@
+[tools]
+python = "3.14.3"
+poetry = "2.3.2"
+github-cli = "2.88.1"
+"aqua:asciinema/asciinema" = "3.2.0"
+"aqua:asciinema/agg" = "1.7.0"
+
+[env]
+_.python.venv = { path = ".venv", create = true }
+
+[settings]
+lockfile = true
+
+# Build and Publishing Tasks
+[tasks.clean]
+description = "Clean up build artifacts"
+run = """
+rm -rf build/ dist/ *.egg-info/
+find . -type d -name __pycache__ -delete
+find . -type f -name "*.pyc" -delete
+"""
+
+[tasks.build]
+description = "Build the package"
+run = "poetry build"
+
+[tasks.publish]
+description = "Publish to PyPI (requires authentication)"
+run = "poetry publish"
+
+[tasks.shell]
+description = "Start a Poetry shell"
+run = "poetry shell"
+
+[tasks.install]
+description = "Install dependencies"
+run = "poetry install"
+
+[tasks.check]
+description = "Run all checks (format, lint, type-check, compat-check, clidocs-check, depgraph-check)"
+run = [
+  { task = "format" },
+  { task = "lint" },
+  { task = "type-check" },
+  { task = "compat-check" },
+  { task = "clidocs-check" },
+  { task = "depgraph-check" },
+]
+
+[tasks.check-all]
+description = "Run all checks (format, lint, type-check, compat-check, test)"
+run = [
+  { task = "check" },
+  { task = "test-all" },
+]
+
+# CI Workflow Tasks
+[tasks.ci-test]
+description = "Run all checks needed on CI"
+run = [
+  { task = "install" },
+  { task = "build" },
+  { task = "check-all" },
+]
+
+[tasks.ci-build]
+description = "Run all checks needed on CI"
+run = [
+  { task = "install" },
+  { task = "build" },
+]
+
+[tasks.ci-demo-record]
+description = "Record the demo on CI"
+run = [
+  { task = "install" },
+  { task = "demo-record" },
+]
+
+[tasks.ci-demo]
+description = "Record and upload the demo on CI"
+run = [
+  { task = "install" },
+  { task = "demo-record" },
+  { task = "demo-upload" },
+]
+
+# Test Tasks
+[tasks.test-unit]
+description = "Run unit tests"
+run = "poetry run pytest tests/ --ignore=tests/integration_fs/ -v"
+
+[tasks.test-integration-fs]
+description = "Run filesystem integration tests"
+run = "poetry run pytest tests/integration_fs/ -v"
+
+[tasks.test-all]
+description = "Run all tests"
+run = [
+  { task = "test-unit" },
+  { task = "test-integration-fs" },
+]
+
+# Lint / Formatting Tasks
+[tasks.format]
+description = "Format code with ruff"
+run = "poetry run ruff format ."
+
+[tasks.lint]
+description = "Run ruff linting"
+run = "poetry run ruff check photree/ tests/ build-scripts/"
+
+[tasks.type-check]
+description = "Run pyright type checking"
+run = "poetry run pyright photree/ build-scripts/"
+
+[tasks.compat-check]
+description = "Verify no Python features above 3.12 are used"
+run = "poetry run vermin --target=3.12- --no-tips --no-parse-comments photree/ tests/"
+
+# Demo Tasks
+[tasks.demo]
+description = "Record the demo and upload to asciinema.org"
+run = [
+  { task = "demo-record" },
+  { task = "demo-upload" },
+]
+
+[tasks.demo-record]
+description = "Record the demo and convert to GIF"
+run = "./demo/record-demo.sh \"$(poetry version -s)\""
+
+[tasks.demo-upload]
+description = "Upload the recorded demo to asciinema.org"
+run = "asciinema upload demo/demo.cast"
+
+# Reference Documentation Generation Tasks
+[tasks.reference-doc]
+description = "Regenerate the reference documentation"
+run = [
+  { task = "clidocs" },
+  { task = "depgraph" },
+]
+
+[tasks.clidocs]
+description = "Regenerate CLI reference in docs/cli-reference.md"
+run = "poetry run python build-scripts/clidocs.py"
+
+[tasks.clidocs-check]
+description = "Check that CLI reference in docs/cli-reference.md is up to date"
+run = "poetry run python build-scripts/clidocs.py --check"
+
+[tasks.depgraph]
+description = "Regenerate Module Overview in docs/architecture.md"
+run = "poetry run python build-scripts/depgraph.py"
+
+[tasks.depgraph-check]
+description = "Check that Module Overview in docs/architecture.md is up to date"
+run = "poetry run python build-scripts/depgraph.py --check"
+
+[tasks.depgraph-ascii]
+description = "Generate module dependency graph (ASCII art)"
+run = "poetry run python build-scripts/depgraph.py --format ascii"
+
+[tasks.depgraph-mermaid]
+description = "Print module dependency graph (mermaid syntax) to stdout"
+run = "poetry run python build-scripts/depgraph.py --format mermaid"

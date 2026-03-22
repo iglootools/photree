@@ -1,0 +1,392 @@
+"""CLI commands for the ``photree import`` sub-app."""
+
+from pathlib import Path
+from typing import Annotated, Optional
+
+import typer
+
+from ..config import ConfigError, load_config
+from ..fsprotocol import (
+    MAIN_IMG_DIR,
+    MAIN_JPG_DIR,
+    MAIN_VID_DIR,
+    LinkMode,
+    ORIG_IMG_DIR,
+    ORIG_VID_DIR,
+    EDIT_IMG_DIR,
+    EDIT_VID_DIR,
+    SELECTION_DIR,
+)
+from ..album.jpeg import convert_single_file, noop_convert_single
+from ..importer import image_capture, image_capture_all, output
+from ..importer.image_capture import (
+    plan_import_from_dirs,
+    validate_import_plan,
+)
+from ..importer.preflight import run_preflight
+from .progress import BatchProgressBar, StageProgressBar
+
+DEFAULT_IMAGE_CAPTURE_DIR = Path.home() / "Pictures" / "iPhone"
+
+import_app = typer.Typer(
+    name="import",
+    help="Import photos from external sources.",
+    no_args_is_help=True,
+)
+
+
+def _run_preflight_checks(
+    source: Path | None,
+    config_path: str | None,
+    *,
+    album_dir: Path | None = None,
+    force: bool = False,
+    skip_heic_to_jpeg: bool = False,
+) -> Path:
+    """Run all preflight checks and resolve the Image Capture directory.
+
+    Prints all check lines first, then troubleshooting for failures at the end.
+    """
+    image_capture_dir = _resolve_image_capture_dir(source, config_path)
+    result = run_preflight(
+        image_capture_dir,
+        album_dir=album_dir,
+        force=force,
+        skip_heic_to_jpeg=skip_heic_to_jpeg,
+    )
+
+    typer.echo("Preflight Checks:")
+    typer.echo(output.format_preflight_checks(result))
+
+    if not result.success:
+        troubleshoot = output.format_preflight_troubleshoot(result)
+        if troubleshoot:
+            typer.echo("")
+            typer.echo(troubleshoot, err=True)
+        raise typer.Exit(code=1)
+
+    return image_capture_dir
+
+
+def _resolve_image_capture_dir(
+    source: Path | None,
+    config_path: str | None,
+) -> Path:
+    """Resolve the Image Capture directory: CLI flag > config > default."""
+    if source is not None:
+        return source
+
+    try:
+        cfg = load_config(config_path)
+    except ConfigError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
+
+    if cfg.importer.image_capture_dir is not None:
+        return cfg.importer.image_capture_dir
+
+    return DEFAULT_IMAGE_CAPTURE_DIR
+
+
+@import_app.command("check")
+def check_cmd(
+    album_dir: Annotated[
+        Path,
+        typer.Option(
+            "--album-dir",
+            "-a",
+            help=f"Album directory (should contain a {SELECTION_DIR}/ subfolder).",
+            exists=True,
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ] = Path("."),
+    source: Annotated[
+        Optional[Path],
+        typer.Option(
+            "--source",
+            "-s",
+            help="Image Capture output directory. Overrides config and default.",
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ] = None,
+    config: Annotated[
+        Optional[str],
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to config file.",
+        ),
+    ] = None,
+) -> None:
+    """Check that system prerequisites for import commands are met."""
+    _run_preflight_checks(source, config, album_dir=album_dir)
+
+
+@import_app.command("image-capture")
+def image_capture_cmd(
+    album_dir: Annotated[
+        Path,
+        typer.Option(
+            "--album-dir",
+            "-a",
+            help=f"Album directory (must contain a {SELECTION_DIR}/ subfolder).",
+            exists=True,
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ] = Path("."),
+    source: Annotated[
+        Optional[Path],
+        typer.Option(
+            "--source",
+            "-s",
+            help="Image Capture output directory. Overrides config and default.",
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ] = None,
+    config: Annotated[
+        Optional[str],
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to config file.",
+        ),
+    ] = None,
+    link_mode: Annotated[
+        LinkMode,
+        typer.Option(
+            "--link-mode",
+            help="How to create main files: hardlink (default), symlink, or copy.",
+        ),
+    ] = LinkMode.HARDLINK,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            "-n",
+            help="Print what would happen without modifying files.",
+        ),
+    ] = False,
+    force: Annotated[
+        bool,
+        typer.Option(
+            "--force",
+            "-f",
+            help="Skip preflight checks on the source directory.",
+        ),
+    ] = False,
+    skip_heic_to_jpeg: Annotated[
+        bool,
+        typer.Option(
+            "--skip-heic-to-jpeg",
+            help="Skip HEIC-to-JPEG conversion (and the sips availability check).",
+        ),
+    ] = False,
+) -> None:
+    f"""Organize files imported by macOS Image Capture into an album directory.
+
+    Reads the {SELECTION_DIR}/ inside ALBUM_DIR, matches files from the
+    Image Capture source directory, and sorts them into {ORIG_IMG_DIR}/,
+    {ORIG_VID_DIR}/, {EDIT_IMG_DIR}/, {EDIT_VID_DIR}/, {MAIN_IMG_DIR}/,
+    {MAIN_VID_DIR}/, and {MAIN_JPG_DIR}/ subdirectories.
+
+    The source directory is resolved in this order:
+    1. --source flag (explicit)
+    2. image-capture-dir from config file
+    3. Default: ~/Pictures/iPhone
+    """
+    image_capture_dir = _run_preflight_checks(
+        source,
+        config,
+        album_dir=album_dir,
+        force=force,
+        skip_heic_to_jpeg=skip_heic_to_jpeg,
+    )
+
+    # Pre-validate the import plan
+    selection_path = album_dir / SELECTION_DIR
+    plan = plan_import_from_dirs(selection_path, image_capture_dir)
+
+    # Show dedup warnings (informational, doesn't block import)
+    if plan.dedup_warnings:
+        typer.echo("\nDedup Warnings:")
+        for w in plan.dedup_warnings:
+            typer.echo(f"  {w}")
+
+    errors = validate_import_plan(plan)
+    if errors:
+        typer.echo(output.validation_errors(album_dir.name, errors), err=True)
+        raise typer.Exit(code=1)
+
+    typer.echo("\nImport:")
+    converter = noop_convert_single if skip_heic_to_jpeg else convert_single_file
+    progress = StageProgressBar(
+        total=4,
+        labels={
+            "import-ic": "Importing from Image Capture",
+            "refresh-main-img": "Refreshing main-img",
+            "refresh-main-vid": "Refreshing main-vid",
+            "refresh-main-jpg": "Refreshing main-jpg",
+        },
+    )
+    try:
+        result = image_capture.run_import(
+            album_dir=album_dir,
+            image_capture_dir=image_capture_dir,
+            link_mode=link_mode,
+            dry_run=dry_run,
+            on_stage_start=progress.on_start,
+            on_stage_end=progress.on_end,
+            convert_file=converter,
+        )
+    except FileNotFoundError as exc:
+        progress.stop()
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+    finally:
+        progress.stop()
+
+    if result.unprocessed:
+        typer.echo(output.unprocessed_selection_files(result.unprocessed), err=True)
+        raise typer.Exit(code=1)
+
+
+@import_app.command("image-capture-all")
+def image_capture_all_cmd(
+    albums_dir: Annotated[
+        Optional[Path],
+        typer.Option(
+            "--dir",
+            "-d",
+            help="Parent directory containing album subdirectories.",
+            exists=True,
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ] = None,
+    album_dirs: Annotated[
+        Optional[list[Path]],
+        typer.Option(
+            "--album-dir",
+            "-a",
+            help="Album directory to import (repeatable).",
+            exists=True,
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ] = None,
+    source: Annotated[
+        Optional[Path],
+        typer.Option(
+            "--source",
+            "-s",
+            help="Image Capture output directory. Overrides config and default.",
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ] = None,
+    config: Annotated[
+        Optional[str],
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to config file.",
+        ),
+    ] = None,
+    link_mode: Annotated[
+        LinkMode,
+        typer.Option(
+            "--link-mode",
+            help="How to create main files: hardlink (default), symlink, or copy.",
+        ),
+    ] = LinkMode.HARDLINK,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            "-n",
+            help="Print what would happen without modifying files.",
+        ),
+    ] = False,
+    force: Annotated[
+        bool,
+        typer.Option(
+            "--force",
+            "-f",
+            help="Skip preflight checks on the source directory.",
+        ),
+    ] = False,
+    skip_heic_to_jpeg: Annotated[
+        bool,
+        typer.Option(
+            "--skip-heic-to-jpeg",
+            help="Skip HEIC-to-JPEG conversion (and the sips availability check).",
+        ),
+    ] = False,
+) -> None:
+    f"""Batch import from Image Capture for multiple albums.
+
+    Either scan immediate subdirectories of --dir for a non-empty
+    {SELECTION_DIR}/ folder, or provide explicit album directories via
+    --album-dir (repeatable). The two options are mutually exclusive.
+    Albums without {SELECTION_DIR}/ (or with an empty one) are skipped.
+    """
+    if albums_dir is not None and album_dirs is not None:
+        typer.echo("--dir and --album-dir are mutually exclusive.", err=True)
+        raise typer.Exit(code=1)
+
+    ic_dir = _run_preflight_checks(
+        source, config, force=force, skip_heic_to_jpeg=skip_heic_to_jpeg
+    )
+
+    typer.echo("\nImport:")
+    converter = noop_convert_single if skip_heic_to_jpeg else convert_single_file
+
+    if album_dirs is not None:
+        progress = BatchProgressBar(
+            total=len(album_dirs), description="Importing", done_description="import"
+        )
+    else:
+        resolved_dir = albums_dir if albums_dir is not None else Path(".").resolve()
+        all_subdirs = [p for p in resolved_dir.iterdir() if p.is_dir()]
+        progress = BatchProgressBar(
+            total=len(all_subdirs), description="Importing", done_description="import"
+        )
+
+    has_validation_errors = False
+
+    def _on_validation_error(name: str, errors: list) -> None:
+        nonlocal has_validation_errors
+        has_validation_errors = True
+        progress.stop()
+        typer.echo(output.validation_errors(name, errors), err=True)
+
+    resolved_albums_dir = (
+        None
+        if album_dirs is not None
+        else (albums_dir if albums_dir is not None else Path(".").resolve())
+    )
+
+    result = image_capture_all.run_batch_import(
+        albums_dir=resolved_albums_dir,
+        album_dirs=album_dirs,
+        image_capture_dir=ic_dir,
+        link_mode=link_mode,
+        dry_run=dry_run,
+        on_importing=progress.on_start,
+        on_imported=lambda name: progress.on_end(name, success=True),
+        on_skipped=progress.on_skipped,
+        on_error=lambda name, error: progress.on_end(name, success=False),
+        on_validation_error=_on_validation_error,
+        convert_file=converter,
+    )
+    progress.stop()
+
+    if has_validation_errors:
+        typer.echo("\nAborted: validation failed. No imports were performed.", err=True)
+        raise typer.Exit(code=1)
+
+    typer.echo(output.batch_summary(result.imported, result.skipped))

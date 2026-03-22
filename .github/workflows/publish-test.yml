@@ -1,0 +1,54 @@
+name: publish-test
+
+# This workflow is used to test the publish workflow without actually publishing to PyPI.
+
+# Differences with the publish workflow:
+# - It is triggered manually instead of being triggered by the release workflow and/or tags.
+# - It publishes to https://test.pypi.org/ instead of https://pypi.org/,
+#   which is a separate instance of the Python Package Index that allows trying distribution tools and processes without affecting the real index
+# - It enables verbose: true in the pypa/gh-action-pypi-publish action to get more detailed logs for debugging
+# - It derives the version from poetry-dynamic-versioning and adds a .devYYYYMMDDHHMMSS suffix to avoid version clashes on repeated publishes to Test PyPI, whereas the publish workflow relies on the tag name for the version and thus does not need a timestamp suffix
+#
+# Also keep in mind that OIDC authentication does not work with shared workflows,
+# so the code essentially needs to be duplicated in the `publish.yml` and `publish-test.yml` workflows.
+
+on:
+  # The workflow is usually triggered when the release workflow completes, but it can also be re-triggered manually if needed using
+  # gh workflow run publish-test.yml --ref <tag>
+  # gh run list --workflow publish-test.yml
+  workflow_dispatch:
+  repository_dispatch:
+
+env:
+  MISE_EXPERIMENTAL: true
+
+jobs:
+  pypi-publish:
+    name: Upload release to Test PyPI
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      # cosmetic URL displayed in the GitHub UI for the environment,
+      # not to be confused with the repository-url used by the pypa/gh-action-pypi-publish action,
+      # which is the actual URL of the repository where the package is published
+      url: https://test.pypi.org/p/photree/
+    permissions:
+      id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+        fetch-tags: true
+    - uses: jdx/mise-action@v4
+    - name: Resolve PyPI-compatible version
+      run: |
+        raw=$(poetry version --short)
+        clean=${raw%%+*}
+        ts=$(date -u +%Y%m%d%H%M%S)
+        echo "POETRY_DYNAMIC_VERSIONING_BYPASS=${clean}.dev${ts}" >> "$GITHUB_ENV"
+    - run: mise run ci-build
+    - name: Publish package distributions to Test PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        repository-url: https://test.pypi.org/legacy/
+        verbose: true

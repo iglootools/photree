@@ -1,0 +1,53 @@
+[project]
+name = "photree"
+description = "Manage photos in a directory tree"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Sami Dalouche", email = "sami.dalouche@gmail.com" }]
+dependencies = [
+  "typer (>=0.24.0,<1.0.0)",
+  "platformdirs (>=4.0,<5.0)",
+  "mermaid-ascii-diagrams (>=0.1.1)",
+]
+dynamic = ["version"]
+
+[tool.poetry]
+packages = [{ include = "photree" }]
+version = "0.0.0"
+
+[tool.poetry.requires-plugins]
+poetry-dynamic-versioning = { version = ">=1.0.0,<2.0.0", extras = ["plugin"] }
+
+[tool.poetry-dynamic-versioning]
+enable = true
+
+[project.scripts]
+photree = "photree.cli:main"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.15"
+pyright = "^1.1"
+pytest = "^9.0.0"
+vermin = "^1.8.0"
+pydeps = {version = ">=3.0.2", python = ">=3.12,<4.0"}
+
+[build-system]
+requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
+build-backend = "poetry_dynamic_versioning.backend"
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.pytest.ini_options]
+markers = [
+    "integration_fs: filesystem integration tests (full workflow)",
+]
+
+[tool.pyright]
+pythonVersion = "3.12"
+
+[virtualenvs]
+# works jointly with mise to ensure the correct Python version is used in the virtualenv
+in-project = true
