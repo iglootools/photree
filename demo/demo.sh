@@ -33,6 +33,29 @@ pause() { sleep "${1:-2}"; }
 # ── Setup ────────────────────────────────────────────────
 rm -rf "$DEMO_DIR"
 
+# On Linux (CI), create a fake sips shim that copies files instead of converting.
+# This lets the demo run without macOS sips — JPEG output won't be real JPEG,
+# but the demo doesn't assert file content.
+if ! command -v sips &>/dev/null; then
+    SIPS_SHIM_DIR="$DEMO_DIR/.shims"
+    mkdir -p "$SIPS_SHIM_DIR"
+    cat > "$SIPS_SHIM_DIR/sips" <<'SHIM'
+#!/usr/bin/env bash
+# Fake sips: parse --out <dst> from args and copy the source file
+src="" dst=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --out) dst="$2"; shift 2 ;;
+        -s)    shift 2 ;;  # skip -s format <fmt>
+        *)     src="$1"; shift ;;
+    esac
+done
+[[ -n "$src" && -n "$dst" ]] && cp "$src" "$dst"
+SHIM
+    chmod +x "$SIPS_SHIM_DIR/sips"
+    export PATH="$SIPS_SHIM_DIR:$PATH"
+fi
+
 p "# Display photree version"
 pe "photree --version"
 pause
