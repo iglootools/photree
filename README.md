@@ -10,6 +10,8 @@
 
 A CLI tool to import, organize, verify, and export iOS photo albums as plain directories — preserving originals, edits, and sidecars without any proprietary database.
 
+[![asciicast](https://asciinema.org/a/py48IBf4Wt0CWNji.svg)](https://asciinema.org/a/py48IBf4Wt0CWNji)
+
 ## Installation
 
 See [docs/installation.md](https://github.com/iglootools/photree/blob/main/docs/installation.md).
