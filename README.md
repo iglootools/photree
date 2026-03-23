@@ -23,3 +23,17 @@ See [docs/usage.md](https://github.com/iglootools/photree/blob/main/docs/usage.m
 ## Development
 
 See [docs/setup-development-environment.md](https://github.com/iglootools/photree/blob/main/docs/setup-development-environment.md).
+
+
+## Contribute
+
+Practical information:
+- [docs/setup-development-environment.md](https://github.com/iglootools/photree/blob/main/docs/setup-development-environment.md) — development setup
+- [docs/building-and-testing.md](https://github.com/iglootools/photree/blob/main/docs/building-and-testing.md) — running tests and checks
+- [docs/releasing-and-publishing.md](https://github.com/iglootools/photree/blob/main/docs/releasing-and-publishing.md) — releases and PyPI publishing
+- [docs/guidelines.md](https://github.com/iglootools/photree/blob/main/docs/guidelines.md) — project-specific guidelines
+- [common-guidelines](https://github.com/iglootools/common-guidelines) — shared coding guidelines
+
+Conceptual information:
+- [docs/internals.md](https://github.com/iglootools/photree/blob/main/docs/internals.md) — runtime behavior, design decisions, and external commands
+- [docs/architecture.md](https://github.com/iglootools/photree/blob/main/docs/architecture.md) — module dependency graph
