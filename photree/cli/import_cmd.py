@@ -5,6 +5,10 @@ from typing import Annotated, Optional
 
 import typer
 
+from ..album.exif import check_exiftool_available
+from ..album.naming import check_album_naming, check_exif_date_match, parse_album_name
+from ..album.output.preflight import format_naming_checks
+from ..album.naming import AlbumNamingResult
 from ..config import ConfigError, load_config
 from ..fsprotocol import (
     MAIN_IMG_DIR,
@@ -206,6 +210,24 @@ def image_capture_cmd(
         skip_heic_to_jpeg=skip_heic_to_jpeg,
     )
 
+    # Pre-import naming convention check (from directory name alone)
+    naming_issues = check_album_naming(album_dir.name)
+    if naming_issues:
+        parsed = parse_album_name(album_dir.name)
+        naming_result = AlbumNamingResult(
+            parsed=parsed,
+            issues=naming_issues,
+            exif_check=None,
+        )
+        typer.echo("\nNaming Convention Check:")
+        typer.echo(format_naming_checks(naming_result))
+        typer.echo(
+            "\nAlbum name does not follow naming conventions. "
+            "Rename the album directory before importing.",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
     # Pre-validate the import plan
     selection_path = album_dir / SELECTION_DIR
     plan = plan_import_from_dirs(selection_path, image_capture_dir)
@@ -252,6 +274,20 @@ def image_capture_cmd(
     if result.unprocessed:
         typer.echo(output.unprocessed_selection_files(result.unprocessed), err=True)
         raise typer.Exit(code=1)
+
+    # Post-import EXIF timestamp check (warning only, doesn't fail the import)
+    if not dry_run and check_exiftool_available():
+        parsed = parse_album_name(album_dir.name)
+        if parsed is not None:
+            exif_check = check_exif_date_match(album_dir, parsed.date)
+            if exif_check is not None and not exif_check.matches:
+                naming_result = AlbumNamingResult(
+                    parsed=parsed,
+                    issues=(),
+                    exif_check=exif_check,
+                )
+                typer.echo("\nPost-Import Check:")
+                typer.echo(format_naming_checks(naming_result))
 
 
 @import_app.command("image-capture-all")

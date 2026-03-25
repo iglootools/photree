@@ -7,6 +7,7 @@ from .integrity import INTEGRITY_FAILURES, INTEGRITY_OK
 
 PREFLIGHT_OK = AlbumPreflightResult(
     sips_available=True,
+    exiftool_available=True,
     album_type=AlbumType.IOS,
     dir_check=AlbumDirCheck(
         present=(
@@ -25,6 +26,7 @@ PREFLIGHT_OK = AlbumPreflightResult(
 
 PREFLIGHT_FAILURES = AlbumPreflightResult(
     sips_available=False,
+    exiftool_available=True,
     album_type=AlbumType.IOS,
     dir_check=AlbumDirCheck(
         present=("orig-img", "main-img"),
@@ -41,6 +43,7 @@ PREFLIGHT_FAILURES = AlbumPreflightResult(
 
 PREFLIGHT_OTHER = AlbumPreflightResult(
     sips_available=True,
+    exiftool_available=True,
     album_type=AlbumType.OTHER,
     dir_check=AlbumDirCheck(present=(), missing=()),
 )

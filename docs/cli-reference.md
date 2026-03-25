@@ -54,7 +54,7 @@ $ photree album [OPTIONS] COMMAND [ARGS]...
 **Commands**:
 
 * `check`: Check system prerequisites, album...
-* `check-all`: Check all iOS albums under a directory or...
+* `check-all`: Check all albums under a directory or from...
 * `optimize`: Optimize main directories by replacing...
 * `optimize-all`: Optimize all iOS albums under a directory...
 * `fix-ios`: Fix iOS album issues.
@@ -75,11 +75,12 @@ $ photree album check [OPTIONS]
 * `-a, --album-dir DIRECTORY`: Album directory to check.  [default: .]
 * `--checksum / --no-checksum`: Enable/disable SHA-256 checksum verification (default: enabled).  [default: checksum]
 * `-W, --fatal-warnings`: Treat informational warnings (e.g. missing sidecars) as errors.
+* `--check-naming / --no-check-naming`: Enable/disable album naming convention checks (default: enabled).  [default: check-naming]
 * `--help`: Show this message and exit.
 
 ### `photree album check-all`
 
-Check all iOS albums under a directory or from an explicit list.
+Check all albums under a directory or from an explicit list.
 
 **Usage**:
 
@@ -93,6 +94,8 @@ $ photree album check-all [OPTIONS]
 * `-a, --album-dir DIRECTORY`: Album directory to check (repeatable).
 * `--checksum / --no-checksum`: Enable/disable SHA-256 checksum verification (default: enabled).  [default: checksum]
 * `-W, --fatal-warnings`: Treat informational warnings (e.g. missing sidecars) as errors.
+* `--check-naming / --no-check-naming`: Enable/disable album naming convention checks (default: enabled).  [default: check-naming]
+* `--check-date-collisions / --no-check-date-collisions`: Enable/disable cross-album date collision detection (default: enabled).  [default: check-date-collisions]
 * `--help`: Show this message and exit.
 
 ### `photree album optimize`

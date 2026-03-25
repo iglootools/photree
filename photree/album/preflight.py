@@ -10,6 +10,7 @@ from enum import StrEnum
 from pathlib import Path
 
 from ..fsprotocol import (
+    ALBUM_SENTINEL,
     IOS_ALBUM_IMAGE_SUBDIRS,
     IOS_ALBUM_OPTIONAL_SUBDIRS,
     IOS_ALBUM_REQUIRED_SUBDIRS,
@@ -17,7 +18,14 @@ from ..fsprotocol import (
     IOS_ALBUM_VIDEO_SUBDIRS,
     IOS_DIR,
 )
+from .exif import check_exiftool_available
 from .integrity import IosAlbumIntegrityResult, check_ios_album_integrity
+from .naming import (
+    AlbumNamingResult,
+    check_album_naming,
+    check_exif_date_match,
+    parse_album_name,
+)
 
 
 def check_sips_available() -> bool:
@@ -163,9 +171,11 @@ class AlbumPreflightResult:
     """Structured result of all album preflight checks."""
 
     sips_available: bool
+    exiftool_available: bool
     album_type: AlbumType
     dir_check: AlbumDirCheck
     integrity: IosAlbumIntegrityResult | None = None
+    naming: AlbumNamingResult | None = None
 
     @property
     def success(self) -> bool:
@@ -173,24 +183,29 @@ class AlbumPreflightResult:
             self.sips_available
             and self.dir_check.success
             and (self.integrity is None or self.integrity.success)
+            and (self.naming is None or self.naming.success)
         )
 
     @property
     def has_warnings(self) -> bool:
-        return self.integrity is not None and self.integrity.has_warnings
+        return (self.integrity is not None and self.integrity.has_warnings) or (
+            self.naming is not None and self.naming.has_warnings
+        )
 
 
 def run_album_check(
     album_dir: Path,
     *,
     sips_available: bool,
+    exiftool_available: bool,
     checksum: bool = True,
+    check_naming_flag: bool = True,
     on_file_checked: Callable[[str, bool], None] | None = None,
 ) -> AlbumPreflightResult:
-    """Run album-specific checks (type detection, dir structure, integrity).
+    """Run album-specific checks (type detection, dir structure, integrity, naming).
 
-    Accepts ``sips_available`` as a parameter so system checks can be done once
-    for batch operations.
+    Accepts ``sips_available`` and ``exiftool_available`` as parameters so
+    system checks can be done once for batch operations.
     """
     album_type = detect_album_type(album_dir)
 
@@ -206,11 +221,26 @@ def run_album_check(
             dir_check = check_other_album_dir(album_dir)
             integrity = None
 
+    naming = None
+    if check_naming_flag:
+        issues = check_album_naming(album_dir.name)
+        parsed = parse_album_name(album_dir.name)
+        exif_check = None
+        if exiftool_available and parsed is not None:
+            exif_check = check_exif_date_match(album_dir, parsed.date)
+        naming = AlbumNamingResult(
+            parsed=parsed,
+            issues=issues,
+            exif_check=exif_check,
+        )
+
     return AlbumPreflightResult(
         sips_available=sips_available,
+        exiftool_available=exiftool_available,
         album_type=album_type,
         dir_check=dir_check,
         integrity=integrity,
+        naming=naming,
     )
 
 
@@ -218,15 +248,53 @@ def run_album_preflight(
     album_dir: Path,
     *,
     checksum: bool = True,
+    check_naming_flag: bool = True,
     on_file_checked: Callable[[str, bool], None] | None = None,
 ) -> AlbumPreflightResult:
     """Run all album preflight checks including system checks."""
     return run_album_check(
         album_dir,
         sips_available=check_sips_available(),
+        exiftool_available=check_exiftool_available(),
         checksum=checksum,
+        check_naming_flag=check_naming_flag,
         on_file_checked=on_file_checked,
     )
+
+
+def discover_albums(base_dir: Path) -> list[Path]:
+    """Recursively discover album directories under *base_dir*.
+
+    Detection rules (first match wins, per directory):
+    1. Contains ``ios/`` subdirectory → iOS album
+    2. Contains ``.album`` sentinel file → explicit album marker
+    3. Leaf directory (no non-hidden subdirectories) → implicit album
+
+    The *base_dir* itself is never returned as an album.
+    """
+    albums: list[Path] = []
+
+    def walk(directory: Path) -> None:
+        if (directory / IOS_DIR).is_dir() or (directory / ALBUM_SENTINEL).is_file():
+            albums.append(directory)
+            return
+
+        subdirs = sorted(
+            child
+            for child in directory.iterdir()
+            if child.is_dir() and not child.name.startswith(".")
+        )
+
+        if not subdirs:
+            if directory != base_dir:
+                albums.append(directory)
+            return
+
+        for subdir in subdirs:
+            walk(subdir)
+
+    walk(base_dir)
+    return albums
 
 
 def discover_ios_albums(base_dir: Path) -> list[Path]:

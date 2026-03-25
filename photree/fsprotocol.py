@@ -51,6 +51,13 @@ class ShareDirectoryLayout(StrEnum):
 
 
 SHARE_SENTINEL = ".photree-share"
+ALBUM_SENTINEL = ".album"
+
+# Date regex for naming convention validation.
+# Single dates: YYYY, YYYY-MM, YYYY-MM-DD
+# Ranges: any precision -- any precision (e.g. YYYY--YYYY-MM, YYYY-MM-DD--YYYY-MM-DD)
+_DATE_PART = r"\d{4}(?:-\d{2}(?:-\d{2})?)?"
+ALBUM_DATE_RE = re.compile(rf"^({_DATE_PART}(?:--{_DATE_PART})?) - ")
 
 _ALBUM_DATE_RE = re.compile(r"^(\d{4})-\d{2}-\d{2}")
 

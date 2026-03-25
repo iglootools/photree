@@ -6,6 +6,7 @@ from textwrap import dedent
 
 from . import CHECK, CROSS
 from .troubleshoot import suggest_fixes
+from ..naming import AlbumNamingResult, BatchNamingResult
 from ..preflight import AlbumPreflightResult, AlbumType
 
 
@@ -21,6 +22,19 @@ def sips_troubleshoot() -> str:
         sips: The macOS 'sips' tool is required for HEIC-to-JPEG conversion.
         sips is included with macOS. If you are running on a non-macOS system,
         HEIC-to-JPEG conversion is not supported.""")
+
+
+def exiftool_check(available: bool) -> str:
+    if available:
+        return f"{CHECK} exiftool"
+    else:
+        return f"{CHECK} exiftool (not found, EXIF checks skipped)"
+
+
+def exiftool_troubleshoot() -> str:
+    return dedent("""\
+        exiftool: Install via: brew install exiftool (macOS)
+        or apt install libimage-exiftool-perl (Linux).""")
 
 
 def album_type_check(album_type: str) -> str:
@@ -42,6 +56,40 @@ def album_dir_check(
     return "\n".join(lines)
 
 
+def format_naming_checks(result: AlbumNamingResult) -> str:
+    """Format naming validation results."""
+    lines: list[str] = []
+
+    if result.issues:
+        lines.append(f"{CROSS} naming: {len(result.issues)} issue(s)")
+        lines.extend(f"    {issue.message}" for issue in result.issues)
+    else:
+        lines.append(f"{CHECK} naming")
+
+    if result.exif_check is not None:
+        if result.exif_check.matches:
+            lines.append(f"{CHECK} exif timestamps match album date")
+        else:
+            lines.append(
+                f"{CROSS} exif timestamps do not match album date"
+                f" ({result.exif_check.album_date})"
+            )
+
+    return "\n".join(lines)
+
+
+def format_batch_naming_issues(result: BatchNamingResult) -> str:
+    """Format cross-album naming issues (date collisions)."""
+    if result.success:
+        return f"{CHECK} no date collisions"
+
+    lines = [f"{CROSS} date collisions: {len(result.date_collisions)} date(s)"]
+    for album_date, albums in result.date_collisions:
+        lines.append(f"  {album_date}:")
+        lines.extend(f"    {album}" for album in albums)
+    return "\n".join(lines)
+
+
 def format_album_preflight_checks(result: AlbumPreflightResult) -> str:
     """Format all album preflight check lines."""
     from .integrity import format_integrity_checks
@@ -49,6 +97,7 @@ def format_album_preflight_checks(result: AlbumPreflightResult) -> str:
     return "\n".join(
         [
             sips_check(result.sips_available),
+            exiftool_check(result.exiftool_available),
             album_type_check(result.album_type),
             *(
                 album_dir_check(
@@ -63,6 +112,11 @@ def format_album_preflight_checks(result: AlbumPreflightResult) -> str:
             *(
                 format_integrity_checks(result.integrity).splitlines()
                 if result.integrity is not None
+                else []
+            ),
+            *(
+                format_naming_checks(result.naming).splitlines()
+                if result.naming is not None
                 else []
             ),
         ]

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated, Optional
 
@@ -9,10 +10,12 @@ import typer
 
 from ..album import (
     ios_fixes,
+    naming as album_naming,
     optimize as album_optimize,
     output as album_output,
     preflight as album_preflight,
 )
+from ..album.exif import check_exiftool_available
 from ..fsprotocol import (
     MAIN_IMG_DIR,
     IMG_EXTENSIONS,
@@ -60,6 +63,13 @@ def check_cmd(
             help="Treat informational warnings (e.g. missing sidecars) as errors.",
         ),
     ] = False,
+    check_naming: Annotated[
+        bool,
+        typer.Option(
+            "--check-naming/--no-check-naming",
+            help="Enable/disable album naming convention checks (default: enabled).",
+        ),
+    ] = True,
 ) -> None:
     """Check system prerequisites, album directory structure, and file integrity."""
     # Count unique media numbers in orig dirs — the integrity check fires one
@@ -76,6 +86,7 @@ def check_cmd(
     result = album_preflight.run_album_preflight(
         album_dir,
         checksum=checksum,
+        check_naming_flag=check_naming,
         on_file_checked=progress.advance if progress else None,
     )
     if progress:
@@ -134,28 +145,44 @@ def check_all_cmd(
             help="Treat informational warnings (e.g. missing sidecars) as errors.",
         ),
     ] = False,
+    check_naming: Annotated[
+        bool,
+        typer.Option(
+            "--check-naming/--no-check-naming",
+            help="Enable/disable album naming convention checks (default: enabled).",
+        ),
+    ] = True,
+    check_date_collisions: Annotated[
+        bool,
+        typer.Option(
+            "--check-date-collisions/--no-check-date-collisions",
+            help="Enable/disable cross-album date collision detection (default: enabled).",
+        ),
+    ] = True,
 ) -> None:
-    """Check all iOS albums under a directory or from an explicit list."""
+    """Check all albums under a directory or from an explicit list."""
     from .progress import BatchProgressBar
 
     cwd = Path.cwd()
-    albums, display_base = _resolve_batch_albums(base_dir, album_dirs)
+    albums, display_base = _resolve_check_batch_albums(base_dir, album_dirs)
 
     # System checks (once)
     sips_available = album_preflight.check_sips_available()
+    exiftool_available = check_exiftool_available()
     typer.echo("System Checks:")
     typer.echo(album_output.sips_check(sips_available))
+    typer.echo(album_output.exiftool_check(exiftool_available))
     if not sips_available:
         typer.echo("")
         typer.echo(album_output.sips_troubleshoot(), err=True)
         raise typer.Exit(code=1)
 
     if not albums:
-        typer.echo("\nNo iOS albums found.")
+        typer.echo("\nNo albums found.")
         raise typer.Exit(code=0)
 
     if display_base is not None:
-        typer.echo(f"\nFound {len(albums)} iOS album(s).\n")
+        typer.echo(f"\nFound {len(albums)} album(s).\n")
     else:
         typer.echo("")
 
@@ -173,7 +200,9 @@ def check_all_cmd(
         result = album_preflight.run_album_check(
             album_dir,
             sips_available=sips_available,
+            exiftool_available=exiftool_available,
             checksum=checksum,
+            check_naming_flag=check_naming,
         )
 
         album_ok = result.success and not (fatal_warnings and result.has_warnings)
@@ -186,12 +215,25 @@ def check_all_cmd(
 
     progress.stop()
 
+    # Batch naming checks (date collisions across all albums)
+    if check_naming and check_date_collisions:
+        parsed_albums = [
+            (album.name, parsed)
+            for album in albums
+            if (parsed := album_naming.parse_album_name(album.name)) is not None
+        ]
+        batch_naming = album_naming.check_batch_date_collisions(parsed_albums)
+        typer.echo("")
+        typer.echo(album_output.format_batch_naming_issues(batch_naming))
+        if not batch_naming.success:
+            failed_albums.append(albums[0])  # ensure non-zero exit
+
     # Summary
     typer.echo(album_output.batch_check_summary(passed, len(failed_albums)))
 
     if failed_albums:
         typer.echo("\nTo investigate failures:", err=True)
-        for album_dir in failed_albums:
+        for album_dir in sorted(set(failed_albums)):
             typer.echo(
                 f'  photree album check --album-dir "{display_path(album_dir, cwd)}"',
                 err=True,
@@ -373,7 +415,9 @@ def optimize_all_cmd(
             check_result = album_preflight.run_album_check(
                 album_dir,
                 sips_available=sips_available,
+                exiftool_available=False,
                 checksum=checksum,
+                check_naming_flag=False,
             )
             if not check_result.success:
                 progress.on_end(album_name, success=False)
@@ -399,9 +443,38 @@ def optimize_all_cmd(
         raise typer.Exit(code=1)
 
 
+def _resolve_check_batch_albums(
+    base_dir: Path | None,
+    album_dirs: list[Path] | None,
+) -> tuple[list[Path], Path | None]:
+    """Resolve album list for check commands (all album types).
+
+    Uses :func:`discover_albums` which detects iOS albums, ``.album``
+    sentinels, and leaf directories.
+    """
+    return _resolve_batch_albums_with(
+        base_dir, album_dirs, album_preflight.discover_albums
+    )
+
+
 def _resolve_batch_albums(
     base_dir: Path | None,
     album_dirs: list[Path] | None,
+) -> tuple[list[Path], Path | None]:
+    """Resolve album list for iOS-specific commands.
+
+    Uses :func:`discover_ios_albums` which only finds albums with an
+    ``ios/`` subdirectory.
+    """
+    return _resolve_batch_albums_with(
+        base_dir, album_dirs, album_preflight.discover_ios_albums
+    )
+
+
+def _resolve_batch_albums_with(
+    base_dir: Path | None,
+    album_dirs: list[Path] | None,
+    discover_fn: Callable[[Path], list[Path]],
 ) -> tuple[list[Path], Path | None]:
     """Resolve album list from mutually exclusive --dir / --album-dir options.
 
@@ -429,7 +502,7 @@ def _resolve_batch_albums(
         transient=True,
     ) as progress:
         progress.add_task("Resolving album list...", total=None)
-        albums = album_preflight.discover_ios_albums(resolved_base)
+        albums = discover_fn(resolved_base)
     return (albums, resolved_base)
 
 
