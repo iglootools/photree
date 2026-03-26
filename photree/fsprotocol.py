@@ -84,41 +84,61 @@ def parse_album_year(album_name: str) -> str:
 SELECTION_DIR = "to-import"
 
 # ---------------------------------------------------------------------------
-# Contributor — a named source of photos within an iOS album
+# Contributor — a named source of photos within an album
 # ---------------------------------------------------------------------------
 
 IOS_DIR_PREFIX = "ios-"
 DEFAULT_CONTRIBUTOR = "main"
 
 
+class ContributorType(StrEnum):
+    """How a contributor's photos are stored."""
+
+    IOS = "ios"  # archival (ios-{name}/) + browsable ({name}-img/, etc.)
+    PLAIN = "plain"  # browsable only ({name}-img/, {name}-vid/)
+
+
 @dataclass(frozen=True)
 class Contributor:
-    """A named source of photos within an iOS album.
+    """A named source of photos within an album.
 
-    Each contributor has its own set of archival directories (under
-    ``ios-{name}/``) and browsable directories (``{name}-img/``,
-    ``{name}-vid/``, ``{name}-jpg/``).
+    **iOS** contributors have archival directories (under ``ios-{name}/``)
+    and browsable directories (``{name}-img/``, ``{name}-vid/``,
+    ``{name}-jpg/``).
+
+    **Plain** contributors only have browsable directories.
     """
 
     name: str  # "main", "bruno"
-    ios_dir: str  # "ios-main", "ios-bruno"
-    orig_img_dir: str  # "ios-main/orig-img"
-    edit_img_dir: str  # "ios-main/edit-img"
-    orig_vid_dir: str  # "ios-main/orig-vid"
-    edit_vid_dir: str  # "ios-main/edit-vid"
+    contributor_type: ContributorType
+    ios_dir: str  # "ios-main" (unused path for plain contributors)
+    orig_img_dir: str  # "ios-main/orig-img" (unused path for plain)
+    edit_img_dir: str  # "ios-main/edit-img" (unused path for plain)
+    orig_vid_dir: str  # "ios-main/orig-vid" (unused path for plain)
+    edit_vid_dir: str  # "ios-main/edit-vid" (unused path for plain)
     img_dir: str  # "main-img", "bruno-img"
     vid_dir: str  # "main-vid", "bruno-vid"
     jpg_dir: str  # "main-jpg", "bruno-jpg"
 
     @property
+    def is_ios(self) -> bool:
+        return self.contributor_type == ContributorType.IOS
+
+    @property
     def image_subdirs(self) -> tuple[str, ...]:
         """Required image directories for this contributor."""
-        return (self.orig_img_dir, self.img_dir, self.jpg_dir)
+        if self.is_ios:
+            return (self.orig_img_dir, self.img_dir, self.jpg_dir)
+        else:
+            return (self.img_dir,)
 
     @property
     def video_subdirs(self) -> tuple[str, ...]:
         """Required video directories for this contributor."""
-        return (self.orig_vid_dir, self.vid_dir)
+        if self.is_ios:
+            return (self.orig_vid_dir, self.vid_dir)
+        else:
+            return (self.vid_dir,)
 
     @property
     def required_subdirs(self) -> tuple[str, ...]:
@@ -127,8 +147,11 @@ class Contributor:
 
     @property
     def optional_subdirs(self) -> tuple[str, ...]:
-        """Directories only present when edits exist."""
-        return (self.edit_img_dir, self.edit_vid_dir)
+        """Directories only present when edits exist (iOS only)."""
+        if self.is_ios:
+            return (self.edit_img_dir, self.edit_vid_dir)
+        else:
+            return ()
 
     @property
     def all_subdirs(self) -> tuple[str, ...]:
@@ -136,11 +159,12 @@ class Contributor:
         return (*self.required_subdirs, *self.optional_subdirs)
 
 
-def contributor(name: str) -> Contributor:
-    """Create a :class:`Contributor` from a name."""
+def ios_contributor(name: str) -> Contributor:
+    """Create an iOS :class:`Contributor`."""
     ios = f"{IOS_DIR_PREFIX}{name}"
     return Contributor(
         name=name,
+        contributor_type=ContributorType.IOS,
         ios_dir=ios,
         orig_img_dir=f"{ios}/orig-img",
         edit_img_dir=f"{ios}/edit-img",
@@ -152,36 +176,73 @@ def contributor(name: str) -> Contributor:
     )
 
 
-MAIN_CONTRIBUTOR = contributor(DEFAULT_CONTRIBUTOR)
+def plain_contributor(name: str) -> Contributor:
+    """Create a plain (non-iOS) :class:`Contributor`.
 
-
-def _is_contributor_dir(d: Path) -> bool:
-    """Check if *d* looks like a valid ``ios-{name}/`` contributor directory.
-
-    Must start with ``ios-`` and contain at least ``orig-img/`` or ``orig-vid/``.
+    The ``ios_dir`` and archival paths are populated but don't exist on disk.
+    Code that operates on these dirs handles missing directories gracefully.
     """
-    return (
-        d.is_dir()
-        and d.name.startswith(IOS_DIR_PREFIX)
-        and ((d / "orig-img").is_dir() or (d / "orig-vid").is_dir())
+    ios = f"{IOS_DIR_PREFIX}{name}"
+    return Contributor(
+        name=name,
+        contributor_type=ContributorType.PLAIN,
+        ios_dir=ios,
+        orig_img_dir=f"{ios}/orig-img",
+        edit_img_dir=f"{ios}/edit-img",
+        orig_vid_dir=f"{ios}/orig-vid",
+        edit_vid_dir=f"{ios}/edit-vid",
+        img_dir=f"{name}-img",
+        vid_dir=f"{name}-vid",
+        jpg_dir=f"{name}-jpg",
     )
 
 
+# Backward compat alias — creates an iOS contributor
+contributor = ios_contributor
+
+MAIN_CONTRIBUTOR = ios_contributor(DEFAULT_CONTRIBUTOR)
+
+
 def discover_contributors(album_dir: Path) -> list[Contributor]:
-    """Discover all contributors in an album by scanning for ``ios-*`` directories.
+    """Discover all contributors in an album.
+
+    Scans for:
+    1. iOS contributors: ``ios-{name}/`` with ``orig-img/`` or ``orig-vid/``
+    2. Plain contributors: ``{name}-img/`` or ``{name}-vid/`` without
+       a corresponding ``ios-{name}/`` directory
 
     Returns contributors sorted with ``main`` first, then alphabetically.
-    Only directories containing ``orig-img/`` or ``orig-vid/`` are considered
-    valid contributor directories.
     """
     if not album_dir.is_dir():
         return []
+
+    # 1. Find iOS contributors
+    ios_names: set[str] = set()
+    ios_contribs: list[Contributor] = []
+    for d in album_dir.iterdir():
+        if (
+            d.is_dir()
+            and d.name.startswith(IOS_DIR_PREFIX)
+            and ((d / "orig-img").is_dir() or (d / "orig-vid").is_dir())
+        ):
+            name = d.name.removeprefix(IOS_DIR_PREFIX)
+            ios_names.add(name)
+            ios_contribs.append(ios_contributor(name))
+
+    # 2. Find plain contributors from {name}-img or {name}-vid dirs
+    plain_names: set[str] = set()
+    for d in album_dir.iterdir():
+        if not d.is_dir() or d.name.startswith("."):
+            pass
+        elif d.name.endswith("-img") or d.name.endswith("-vid"):
+            name = d.name.removesuffix("-img").removesuffix("-vid")
+            if name and name not in ios_names and name not in plain_names:
+                plain_names.add(name)
+
+    plain_contribs = [plain_contributor(name) for name in plain_names]
+
     return sorted(
-        (
-            contributor(d.name.removeprefix(IOS_DIR_PREFIX))
-            for d in album_dir.iterdir()
-            if _is_contributor_dir(d)
-        ),
+        [*ios_contribs, *plain_contribs],
         key=lambda c: (c.name != DEFAULT_CONTRIBUTOR, c.name),
     )
 

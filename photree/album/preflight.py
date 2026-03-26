@@ -10,7 +10,7 @@ from enum import StrEnum
 from pathlib import Path
 
 from ..fsprotocol import (
-    IOS_DIR_PREFIX,
+    Contributor,
     MAIN_CONTRIBUTOR,
     discover_contributors,
 )
@@ -29,41 +29,41 @@ def check_sips_available() -> bool:
     return shutil.which("sips") is not None
 
 
+@dataclass(frozen=True)
+class AlbumContributorSummary:
+    """Summary of contributors discovered in an album."""
+
+    contributors: tuple[Contributor, ...]
+
+    @property
+    def has_ios(self) -> bool:
+        return any(c.is_ios for c in self.contributors)
+
+    @property
+    def has_plain(self) -> bool:
+        return any(not c.is_ios for c in self.contributors)
+
+    @property
+    def ios_contributors(self) -> tuple[Contributor, ...]:
+        return tuple(c for c in self.contributors if c.is_ios)
+
+    @property
+    def description(self) -> str:
+        """Human-readable summary, e.g. ``main (ios), bruno (plain)``."""
+        return ", ".join(f"{c.name} ({c.contributor_type})" for c in self.contributors)
+
+
+# Backward compat — kept for exporter and tests that still import it.
+# Will be removed once all callers migrate.
 class AlbumType(StrEnum):
-    """Type of album directory.
-
-    Detection is currently based on directory structure heuristics.
-    In the future, this will be stored as metadata in the album directory.
-    """
-
     IOS = "ios"
     OTHER = "other"
 
 
-def _is_ios_contributor_dir(d: Path) -> bool:
-    """Check if *d* looks like an ``ios-{name}/`` contributor directory.
-
-    A valid contributor dir starts with ``ios-`` and contains at least one
-    of the expected subdirectories (``orig-img``, ``orig-vid``).
-    """
-    return (
-        d.is_dir()
-        and d.name.startswith(IOS_DIR_PREFIX)
-        and ((d / "orig-img").is_dir() or (d / "orig-vid").is_dir())
-    )
-
-
-def _has_ios_contributor(directory: Path) -> bool:
-    """Check if directory contains any valid ``ios-*`` contributor subdirectory."""
-    return any(_is_ios_contributor_dir(child) for child in directory.iterdir())
-
-
 def detect_album_type(album_dir: Path) -> AlbumType:
-    """Detect the album type based on directory structure.
-
-    An album is considered iOS if it contains any ``ios-*`` subdirectory.
-    """
-    if _has_ios_contributor(album_dir):
+    """Detect album type. Deprecated — use discover_contributors() instead."""
+    contribs = discover_contributors(album_dir)
+    if any(c.is_ios for c in contribs):
         return AlbumType.IOS
     else:
         return AlbumType.OTHER
@@ -203,10 +203,18 @@ class AlbumPreflightResult:
 
     sips_available: bool
     exiftool_available: bool
-    album_type: AlbumType
+    contributor_summary: AlbumContributorSummary
     dir_check: AlbumDirCheck
     integrity: IosAlbumFullIntegrityResult | None = None
     naming: AlbumNamingResult | None = None
+
+    # Backward compat — derived from contributor_summary
+    @property
+    def album_type(self) -> AlbumType:
+        if self.contributor_summary.has_ios:
+            return AlbumType.IOS
+        else:
+            return AlbumType.OTHER
 
     @property
     def success(self) -> bool:
@@ -233,24 +241,24 @@ def run_album_check(
     check_naming_flag: bool = True,
     on_file_checked: Callable[[str, bool], None] | None = None,
 ) -> AlbumPreflightResult:
-    """Run album-specific checks (type detection, dir structure, integrity, naming).
+    """Run album-specific checks (dir structure, integrity, naming).
 
     Accepts ``sips_available`` and ``exiftool_available`` as parameters so
     system checks can be done once for batch operations.
     """
-    album_type = detect_album_type(album_dir)
+    contribs = discover_contributors(album_dir)
+    summary = AlbumContributorSummary(contributors=tuple(contribs))
 
-    match album_type:
-        case AlbumType.IOS:
-            dir_check = check_ios_album_dir(album_dir)
-            integrity = check_ios_album_integrity(
-                album_dir,
-                checksum=checksum,
-                on_file_checked=on_file_checked,
-            )
-        case AlbumType.OTHER:
-            dir_check = check_other_album_dir(album_dir)
-            integrity = None
+    if summary.has_ios:
+        dir_check = check_ios_album_dir(album_dir)
+        integrity = check_ios_album_integrity(
+            album_dir,
+            checksum=checksum,
+            on_file_checked=on_file_checked,
+        )
+    else:
+        dir_check = check_other_album_dir(album_dir)
+        integrity = None
 
     naming = None
     if check_naming_flag:
@@ -268,7 +276,7 @@ def run_album_check(
     return AlbumPreflightResult(
         sips_available=sips_available,
         exiftool_available=exiftool_available,
-        album_type=album_type,
+        contributor_summary=summary,
         dir_check=dir_check,
         integrity=integrity,
         naming=naming,
@@ -294,18 +302,8 @@ def run_album_preflight(
 
 
 def _is_album(directory: Path) -> bool:
-    """Check if a directory is an album.
-
-    An album is either:
-    - An iOS album (has any ``ios-*`` contributor directory)
-    - A non-iOS album (has ``main-img/`` or ``main-vid/``)
-    """
-    return _has_ios_contributor(directory) or _has_browsable_dirs(directory)
-
-
-def _has_browsable_dirs(directory: Path) -> bool:
-    """Check if directory contains ``main-img/`` or ``main-vid/``."""
-    return (directory / "main-img").is_dir() or (directory / "main-vid").is_dir()
+    """Check if a directory is an album (has at least one contributor)."""
+    return bool(discover_contributors(directory))
 
 
 def discover_albums(base_dir: Path) -> list[Path]:

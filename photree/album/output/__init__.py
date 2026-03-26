@@ -13,6 +13,7 @@ def refresh_jpeg_summary(converted: int, copied: int, skipped: int) -> str:
 from .preflight import (  # noqa: E402, F401
     album_dir_check,
     album_type_check,
+    contributors_check,
     exiftool_check,
     exiftool_troubleshoot,
     format_album_preflight_checks,

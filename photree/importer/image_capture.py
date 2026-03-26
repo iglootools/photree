@@ -22,7 +22,7 @@ from ..fsprotocol import (
     IOS_VID_EXTENSIONS,
     SIDECAR_EXTENSIONS,
     SELECTION_DIR,
-    contributor,
+    ios_contributor,
     list_files,
     pick_media_priority,
 )
@@ -466,8 +466,8 @@ def run_import(
     # Plan
     plan = plan_import(selection_files, image_capture_files)
 
-    # Output directories — derived from contributor
-    contrib = contributor(contributor_name)
+    # Output directories — derived from contributor (always iOS for Image Capture)
+    contrib = ios_contributor(contributor_name)
     album_orig_img = album_dir / contrib.orig_img_dir
     album_orig_vid = album_dir / contrib.orig_vid_dir
     album_edit_img = album_dir / contrib.edit_img_dir

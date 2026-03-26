@@ -72,6 +72,7 @@ def refresh_combined(
     Stage callbacks fire for: ``delete``, ``refresh-heic``, ``refresh-mov``,
     ``refresh-jpeg``.
     """
+    assert contrib.is_ios, "ios_fixes operations require an iOS contributor"
     main_img = album_dir / contrib.img_dir
     main_vid = album_dir / contrib.vid_dir
     main_jpg = album_dir / contrib.jpg_dir
@@ -146,6 +147,7 @@ def refresh_jpeg(
 
     Raises FileNotFoundError if main-img/ does not exist.
     """
+    assert contrib.is_ios, "ios_fixes operations require an iOS contributor"
     src_dir = album_dir / contrib.img_dir
     if not src_dir.is_dir():
         raise FileNotFoundError(f"Directory not found: {src_dir}")
@@ -258,6 +260,7 @@ def _rm_upstream_heic(
 
     Both are merged and propagated to all upstream dirs.
     """
+    assert contrib.is_ios, "ios_fixes operations require an iOS contributor"
     main_img_dir = album_dir / contrib.img_dir
     main_jpg_dir = album_dir / contrib.jpg_dir
     orig_img_dir = album_dir / contrib.orig_img_dir
@@ -327,6 +330,7 @@ def _rm_upstream_mov(
     Files missing from main-vid (relative to orig-vid/edit-vid) are treated
     as intentional deletions. The corresponding files are removed from upstream dirs.
     """
+    assert contrib.is_ios, "ios_fixes operations require an iOS contributor"
     main_vid_dir = album_dir / contrib.vid_dir
     orig_vid_dir = album_dir / contrib.orig_vid_dir
 
@@ -385,6 +389,7 @@ def rm_upstream(
     Videos: files missing from main-vid (relative to orig-vid) are
     removed from edit-vid and orig-vid.
     """
+    assert contrib.is_ios, "ios_fixes operations require an iOS contributor"
     return RmUpstreamResult(
         heic=_rm_upstream_heic(album_dir, contrib, dry_run=dry_run, log_cwd=log_cwd),
         mov=_rm_upstream_mov(album_dir, contrib, dry_run=dry_run, log_cwd=log_cwd),
@@ -483,6 +488,7 @@ def rm_orphan(
     Videos: files in edit-vid and main-vid whose image number is not
     present in orig-vid are deleted.
     """
+    assert contrib.is_ios, "ios_fixes operations require an iOS contributor"
     heic_numbers = _orig_numbers(album_dir / contrib.orig_img_dir, IOS_IMG_EXTENSIONS)
     mov_numbers = _orig_numbers(album_dir / contrib.orig_vid_dir, IOS_VID_EXTENSIONS)
 
@@ -552,6 +558,7 @@ def rm_orphan_sidecar(
 
     Scans orig-img/, edit-img/, orig-vid/, and edit-vid/.
     """
+    assert contrib.is_ios, "ios_fixes operations require an iOS contributor"
     directories = (
         album_dir / contrib.orig_img_dir,
         album_dir / contrib.edit_img_dir,
@@ -620,6 +627,7 @@ def prefer_higher_quality_when_dups(
     format variants, keeps the highest-quality file (DNG > HEIC > JPG/PNG)
     and deletes the rest.
     """
+    assert contrib.is_ios, "ios_fixes operations require an iOS contributor"
     directories = (
         album_dir / contrib.orig_img_dir,
         album_dir / contrib.edit_img_dir,
@@ -775,6 +783,7 @@ def rm_miscategorized(
     log_cwd: Path | None = None,
 ) -> MiscategorizedResult:
     """Delete files that are in the wrong directory (edited in orig or vice versa)."""
+    assert contrib.is_ios, "ios_fixes operations require an iOS contributor"
     return MiscategorizedResult(
         heic=_fix_miscategorized_pair(
             album_dir / contrib.orig_img_dir,
@@ -801,6 +810,7 @@ def rm_miscategorized_safe(
     log_cwd: Path | None = None,
 ) -> MiscategorizedResult:
     """Delete miscategorized files only if they already exist in the correct directory."""
+    assert contrib.is_ios, "ios_fixes operations require an iOS contributor"
     return MiscategorizedResult(
         heic=_fix_miscategorized_pair(
             album_dir / contrib.orig_img_dir,
@@ -827,6 +837,7 @@ def mv_miscategorized(
     log_cwd: Path | None = None,
 ) -> MiscategorizedResult:
     """Move files that are in the wrong directory to the correct one."""
+    assert contrib.is_ios, "ios_fixes operations require an iOS contributor"
     return MiscategorizedResult(
         heic=_fix_miscategorized_pair(
             album_dir / contrib.orig_img_dir,

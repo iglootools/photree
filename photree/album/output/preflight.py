@@ -7,7 +7,7 @@ from textwrap import dedent
 from . import CHECK, CROSS
 from .troubleshoot import suggest_fixes
 from ..naming import AlbumNamingResult, BatchNamingResult
-from ..preflight import AlbumPreflightResult, AlbumType
+from ..preflight import AlbumContributorSummary, AlbumPreflightResult
 
 
 def sips_check(available: bool) -> str:
@@ -38,7 +38,14 @@ def exiftool_troubleshoot() -> str:
 
 
 def album_type_check(album_type: str) -> str:
+    """Deprecated — use contributors_check instead."""
     return f"{CHECK} album type: {album_type}"
+
+
+def contributors_check(summary: AlbumContributorSummary) -> str:
+    if not summary.contributors:
+        return f"{CROSS} contributors: none detected"
+    return f"{CHECK} contributors: {summary.description}"
 
 
 def album_dir_check(
@@ -98,7 +105,7 @@ def format_album_preflight_checks(result: AlbumPreflightResult) -> str:
         [
             sips_check(result.sips_available),
             exiftool_check(result.exiftool_available),
-            album_type_check(result.album_type),
+            contributors_check(result.contributor_summary),
             *(
                 album_dir_check(
                     result.dir_check.present,
@@ -106,7 +113,7 @@ def format_album_preflight_checks(result: AlbumPreflightResult) -> str:
                     result.dir_check.optional_present,
                     result.dir_check.optional_absent,
                 ).splitlines()
-                if result.album_type == AlbumType.IOS
+                if result.contributor_summary.has_ios
                 else []
             ),
             *(

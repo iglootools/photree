@@ -944,7 +944,12 @@ def _run_fix_ios(
     *show_progress* enables progress bars and summary lines.
     Both can be set independently.
     """
-    contributors = discover_contributors(album_dir)
+    # Fix-ios operations only apply to iOS contributors
+    contributors = [c for c in discover_contributors(album_dir) if c.is_ios]
+
+    if not contributors:
+        typer.echo("No iOS contributors found in this album.", err=True)
+        return
 
     if refresh_combined:
         _check_sips_or_exit()

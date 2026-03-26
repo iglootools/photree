@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
-from ..preflight import AlbumDirCheck, AlbumPreflightResult, AlbumType
+from ...fsprotocol import MAIN_CONTRIBUTOR, plain_contributor
+from ..preflight import (
+    AlbumContributorSummary,
+    AlbumDirCheck,
+    AlbumPreflightResult,
+)
 from .integrity import FULL_INTEGRITY_FAILURES, FULL_INTEGRITY_OK
 
 PREFLIGHT_OK = AlbumPreflightResult(
     sips_available=True,
     exiftool_available=True,
-    album_type=AlbumType.IOS,
+    contributor_summary=AlbumContributorSummary(contributors=(MAIN_CONTRIBUTOR,)),
     dir_check=AlbumDirCheck(
         present=(
             "orig-img",
@@ -27,7 +32,7 @@ PREFLIGHT_OK = AlbumPreflightResult(
 PREFLIGHT_FAILURES = AlbumPreflightResult(
     sips_available=False,
     exiftool_available=True,
-    album_type=AlbumType.IOS,
+    contributor_summary=AlbumContributorSummary(contributors=(MAIN_CONTRIBUTOR,)),
     dir_check=AlbumDirCheck(
         present=("orig-img", "main-img"),
         missing=(
@@ -44,6 +49,8 @@ PREFLIGHT_FAILURES = AlbumPreflightResult(
 PREFLIGHT_OTHER = AlbumPreflightResult(
     sips_available=True,
     exiftool_available=True,
-    album_type=AlbumType.OTHER,
+    contributor_summary=AlbumContributorSummary(
+        contributors=(plain_contributor("main"),)
+    ),
     dir_check=AlbumDirCheck(present=(), missing=()),
 )

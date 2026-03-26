@@ -161,7 +161,9 @@ def _export_ios_full_managed(
         if (album_dir / d).is_dir()
     )
 
-    for contrib in contributors:
+    # Only rebuild browsable dirs for iOS contributors (they have archival sources).
+    # Plain contributors' browsable dirs are already copied as-is above.
+    for contrib in (c for c in contributors if c.is_ios):
         heic_result = refresh_main_dir(
             target_dir / contrib.orig_img_dir,
             target_dir / contrib.edit_img_dir,

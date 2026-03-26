@@ -39,10 +39,14 @@ def optimize_album(
 
     Does NOT touch {contributor}-jpg (HEIC→JPEG conversions cannot be linked).
     """
+    # Only optimize iOS contributors — plain contributors' browsable dirs
+    # are the source of truth and must never be rebuilt.
+    ios_contributors = [c for c in discover_contributors(album_dir) if c.is_ios]
+
     total_heic = 0
     total_mov = 0
 
-    for contrib in discover_contributors(album_dir):
+    for contrib in ios_contributors:
         heic_result = combined_module.refresh_main_dir(
             album_dir / contrib.orig_img_dir,
             album_dir / contrib.edit_img_dir,

@@ -545,6 +545,7 @@ def check_ios_contributor_integrity(
     on_file_checked: Callable[[str, bool], None] | None = None,
 ) -> IosAlbumIntegrityResult:
     """Run all integrity checks for a single contributor within an iOS album."""
+    assert contrib.is_ios, "integrity checks require an iOS contributor"
     combined_heic = check_main_dir(
         album_dir / contrib.orig_img_dir,
         album_dir / contrib.edit_img_dir,
@@ -622,8 +623,8 @@ def check_ios_album_integrity(
     checksum: bool = True,
     on_file_checked: Callable[[str, bool], None] | None = None,
 ) -> IosAlbumFullIntegrityResult:
-    """Run integrity checks for all contributors in an iOS album."""
-    contributors = discover_contributors(album_dir)
+    """Run integrity checks for all iOS contributors in an album."""
+    contributors = [c for c in discover_contributors(album_dir) if c.is_ios]
     return IosAlbumFullIntegrityResult(
         by_contributor=tuple(
             (
