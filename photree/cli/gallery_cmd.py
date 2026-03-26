@@ -799,6 +799,168 @@ def fix_ios_cmd(
         raise typer.Exit(code=1)
 
 
+@gallery_app.command("rename-from-csv")
+def rename_from_csv_cmd(
+    current_csv: Annotated[
+        Path,
+        typer.Argument(
+            help="CSV with current album state (from gallery list-albums --format csv).",
+            exists=True,
+            dir_okay=False,
+            resolve_path=True,
+        ),
+    ],
+    desired_csv: Annotated[
+        Path,
+        typer.Argument(
+            help="CSV with desired album state (edited copy of current).",
+            exists=True,
+            dir_okay=False,
+            resolve_path=True,
+        ),
+    ],
+    base_dir: Annotated[
+        Path,
+        typer.Option(
+            "--dir",
+            "-d",
+            help="Root directory (base for relative paths in CSV).",
+            exists=True,
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ] = Path("."),
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            "-n",
+            help="Show what would be renamed without making changes.",
+        ),
+    ] = False,
+) -> None:
+    """Rename albums by diffing current vs desired CSV files (from list-albums --format csv).
+
+    Only the title and location columns may differ between the two files.
+    """
+    import csv
+    import unicodedata
+
+    from ..album.naming import ParsedAlbumName, reconstruct_name
+
+    def _nfc(s: str) -> str:
+        return unicodedata.normalize("NFC", s)
+
+    def _name_from_row(row: dict[str, str]) -> str:
+        parsed = ParsedAlbumName(
+            date=row["date"],
+            part=row["part"] or None,
+            private="private" in row.get("tags", ""),
+            series=row["series"] or None,
+            title=row["title"],
+            location=row["location"] or None,
+        )
+        return reconstruct_name(parsed)
+
+    with open(current_csv, encoding="utf-8") as f:
+        current_rows = {r["path"]: r for r in csv.DictReader(f)}
+
+    with open(desired_csv, encoding="utf-8") as f:
+        desired_rows = {r["path"]: r for r in csv.DictReader(f)}
+
+    if not desired_rows:
+        typer.echo("Desired CSV is empty.")
+        raise typer.Exit(code=0)
+
+    # Fields that must not differ between current and desired
+    immutable_fields = ("path", "date", "part", "series", "tags", "contributors")
+
+    renames: list[tuple[Path, str]] = []
+    errors: list[str] = []
+
+    for path, desired in desired_rows.items():
+        current = current_rows.get(path)
+        if current is None:
+            errors.append(f"Path not found in current CSV: {path}")
+            continue
+
+        # Safety: only title and location may be changed
+        for field in immutable_fields:
+            if _nfc(current.get(field, "")) != _nfc(desired.get(field, "")):
+                errors.append(
+                    f"{path}: field '{field}' was modified "
+                    f"({current.get(field, '')!r} → {desired.get(field, '')!r}). "
+                    f"Only 'title' and 'location' may be changed."
+                )
+
+        # Only process rows where title or location actually changed
+        title_changed = _nfc(current.get("title", "")) != _nfc(
+            desired.get("title", "")
+        )
+        location_changed = _nfc(current.get("location", "")) != _nfc(
+            desired.get("location", "")
+        )
+        if not title_changed and not location_changed:
+            continue
+
+        album_path = base_dir / path
+        if not album_path.is_dir():
+            errors.append(f"Directory not found: {path}")
+            continue
+
+        desired_name = _name_from_row(desired)
+        renames.append((album_path, desired_name))
+
+    if errors:
+        for err in errors:
+            typer.echo(f"  {err}", err=True)
+        raise typer.Exit(code=1)
+
+    if not renames:
+        typer.echo(
+            f"Current: {len(current_rows)} rows, "
+            f"desired: {len(desired_rows)} rows. Nothing to rename."
+        )
+        raise typer.Exit(code=0)
+
+    # Check for collisions (resolve() handles case-insensitive macOS)
+    renamed_resolved = {album_path.resolve() for album_path, _ in renames}
+    for album_path, desired_name in renames:
+        target = album_path.parent / desired_name
+        if (
+            target.exists()
+            and target.resolve() != album_path.resolve()
+            and target.resolve() not in renamed_resolved
+        ):
+            typer.echo(
+                f"Collision: {album_path.relative_to(base_dir)} → {desired_name} "
+                f"conflicts with {target.relative_to(base_dir)}",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+
+    # Display plan
+    typer.echo(
+        f"Current: {len(current_rows)} rows, desired: {len(desired_rows)} rows, "
+        f"changes: {len(renames)}"
+    )
+    typer.echo()
+
+    for album_path, desired_name in renames:
+        typer.echo(f"  {album_path.relative_to(base_dir)}")
+        typer.echo(f"  → {desired_name}")
+        typer.echo()
+
+    if dry_run:
+        typer.echo(f"[dry run] {len(renames)} album(s) would be renamed.")
+    else:
+        for album_path, desired_name in renames:
+            new_path = album_path.parent / desired_name
+            album_path.rename(new_path)
+
+        typer.echo(f"Renamed {len(renames)} album(s).")
+
+
 # Re-register the export batch command from export_cmd
 from .export_cmd import export_all_cmd  # noqa: E402
 

@@ -293,6 +293,7 @@ $ photree gallery [OPTIONS] COMMAND [ARGS]...
 * `fix`: Fix all albums under a directory or from...
 * `optimize`: Optimize all iOS albums under a directory...
 * `fix-ios`: Apply fix-ios to all iOS albums under a...
+* `rename-from-csv`: Rename albums by diffing current vs...
 * `export`: Batch export multiple albums to a shared...
 
 ### `photree gallery list-albums`
@@ -405,6 +406,29 @@ $ photree gallery fix-ios [OPTIONS]
 * `--rm-miscategorized-safe`: Delete miscategorized files only if they already exist in the correct directory.
 * `--mv-miscategorized`: Move files in the wrong directory to the correct one.
 * `-n, --dry-run`: Print what would happen without modifying files.
+* `--help`: Show this message and exit.
+
+### `photree gallery rename-from-csv`
+
+Rename albums by diffing current vs desired CSV files (from list-albums --format csv).
+
+Only the title and location columns may differ between the two files.
+
+**Usage**:
+
+```console
+$ photree gallery rename-from-csv [OPTIONS] CURRENT_CSV DESIRED_CSV
+```
+
+**Arguments**:
+
+* `CURRENT_CSV`: CSV with current album state (from gallery list-albums --format csv).  [required]
+* `DESIRED_CSV`: CSV with desired album state (edited copy of current).  [required]
+
+**Options**:
+
+* `-d, --dir DIRECTORY`: Root directory (base for relative paths in CSV).  [default: .]
+* `-n, --dry-run`: Show what would be renamed without making changes.
 * `--help`: Show this message and exit.
 
 ### `photree gallery export`
