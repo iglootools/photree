@@ -20,7 +20,7 @@ from ..album import (
     output as album_output,
     preflight as album_preflight,
 )
-from ..album.exif import check_exiftool_available
+from ..album.exif import try_start_exiftool
 from ..fsprotocol import (
     LinkMode,
     discover_contributors,
@@ -180,7 +180,16 @@ def list_albums_cmd(
     if output_format == "csv":
         writer = csv.writer(sys.stdout)
         writer.writerow(
-            ["path", "date", "part", "series", "title", "location", "tags", "contributors"]
+            [
+                "path",
+                "date",
+                "part",
+                "series",
+                "title",
+                "location",
+                "tags",
+                "contributors",
+            ]
         )
         for album_dir in albums:
             rel_path = _display_name(album_dir, display_base, cwd)
@@ -191,18 +200,22 @@ def list_albums_cmd(
             )
             if parsed is not None:
                 tags = "private" if parsed.private else ""
-                writer.writerow([
-                    rel_path,
-                    parsed.date,
-                    parsed.part or "",
-                    parsed.series or "",
-                    parsed.title,
-                    parsed.location or "",
-                    tags,
-                    contrib_desc,
-                ])
+                writer.writerow(
+                    [
+                        rel_path,
+                        parsed.date,
+                        parsed.part or "",
+                        parsed.series or "",
+                        parsed.title,
+                        parsed.location or "",
+                        tags,
+                        contrib_desc,
+                    ]
+                )
             else:
-                writer.writerow([rel_path, "", "", "", album_dir.name, "", "", contrib_desc])
+                writer.writerow(
+                    [rel_path, "", "", "", album_dir.name, "", "", contrib_desc]
+                )
         return
 
     typer.echo(f"Found {len(albums)} album(s).\n")
@@ -305,7 +318,8 @@ def check_cmd(
 
     # System checks (once)
     sips_available = album_preflight.check_sips_available()
-    exiftool_available = check_exiftool_available() if check_exif else False
+    exiftool = try_start_exiftool() if check_exif else None
+    exiftool_available = exiftool is not None
     typer.echo("System Checks:")
     typer.echo(album_output.sips_check(sips_available))
     typer.echo(album_output.exiftool_check(exiftool_available))
@@ -330,25 +344,29 @@ def check_cmd(
     passed = 0
     failed_albums: list[Path] = []
 
-    for album_dir in albums:
-        album_name = _display_name(album_dir, display_base, cwd)
+    try:
+        for album_dir in albums:
+            album_name = _display_name(album_dir, display_base, cwd)
 
-        progress.on_start(album_name)
-        result = album_preflight.run_album_check(
-            album_dir,
-            sips_available=sips_available,
-            exiftool_available=exiftool_available,
-            checksum=checksum,
-            check_naming_flag=check_naming,
-        )
+            progress.on_start(album_name)
+            result = album_preflight.run_album_check(
+                album_dir,
+                sips_available=sips_available,
+                exiftool=exiftool,
+                checksum=checksum,
+                check_naming_flag=check_naming,
+            )
 
-        album_ok = result.success and not (fatal_warnings and result.has_warnings)
-        if album_ok:
-            progress.on_end(album_name, success=True)
-            passed += 1
-        else:
-            progress.on_end(album_name, success=False)
-            failed_albums.append(album_dir)
+            album_ok = result.success and not (fatal_warnings and result.has_warnings)
+            if album_ok:
+                progress.on_end(album_name, success=True)
+                passed += 1
+            else:
+                progress.on_end(album_name, success=False)
+                failed_albums.append(album_dir)
+    finally:
+        if exiftool is not None:
+            exiftool.__exit__(None, None, None)
 
     progress.stop()
 
@@ -579,7 +597,7 @@ def optimize_cmd(
             check_result = album_preflight.run_album_check(
                 album_dir,
                 sips_available=sips_available,
-                exiftool_available=False,
+                exiftool=None,
                 checksum=checksum,
                 check_naming_flag=False,
             )
@@ -894,9 +912,7 @@ def rename_from_csv_cmd(
                 )
 
         # Only process rows where title or location actually changed
-        title_changed = _nfc(current.get("title", "")) != _nfc(
-            desired.get("title", "")
-        )
+        title_changed = _nfc(current.get("title", "")) != _nfc(desired.get("title", ""))
         location_changed = _nfc(current.get("location", "")) != _nfc(
             desired.get("location", "")
         )

@@ -15,7 +15,9 @@ from ..fsprotocol import (
     discover_albums,  # noqa: F401 — re-exported for backward compat
     discover_contributors,
 )
-from .exif import check_exiftool_available
+from exiftool import ExifToolHelper  # type: ignore[import-untyped]
+
+from .exif import try_start_exiftool
 from .integrity import (
     AlbumJpegIntegrityResult,
     IosAlbumFullIntegrityResult,
@@ -249,14 +251,14 @@ def run_album_check(
     album_dir: Path,
     *,
     sips_available: bool,
-    exiftool_available: bool,
+    exiftool: ExifToolHelper | None,
     checksum: bool = True,
     check_naming_flag: bool = True,
     on_file_checked: Callable[[str, bool], None] | None = None,
 ) -> AlbumPreflightResult:
     """Run album-specific checks (dir structure, integrity, naming).
 
-    Accepts ``sips_available`` and ``exiftool_available`` as parameters so
+    Accepts ``sips_available`` and ``exiftool`` as parameters so
     system checks can be done once for batch operations.
     """
     contribs = discover_contributors(album_dir)
@@ -281,8 +283,10 @@ def run_album_check(
         issues = check_album_naming(album_dir.name)
         parsed = parse_album_name(album_dir.name)
         exif_check = None
-        if exiftool_available and parsed is not None:
-            exif_check = check_exif_date_match(album_dir, parsed.date)
+        if exiftool is not None and parsed is not None:
+            exif_check = check_exif_date_match(
+                album_dir, parsed.date, exiftool=exiftool
+            )
         naming = AlbumNamingResult(
             parsed=parsed,
             issues=issues,
@@ -291,7 +295,7 @@ def run_album_check(
 
     return AlbumPreflightResult(
         sips_available=sips_available,
-        exiftool_available=exiftool_available,
+        exiftool_available=exiftool is not None,
         contributor_summary=summary,
         dir_check=dir_check,
         ios_integrity=ios_integrity,
@@ -309,14 +313,19 @@ def run_album_preflight(
     on_file_checked: Callable[[str, bool], None] | None = None,
 ) -> AlbumPreflightResult:
     """Run all album preflight checks including system checks."""
-    return run_album_check(
-        album_dir,
-        sips_available=check_sips_available(),
-        exiftool_available=check_exiftool_available() if check_exif else False,
-        checksum=checksum,
-        check_naming_flag=check_naming_flag,
-        on_file_checked=on_file_checked,
-    )
+    exiftool = try_start_exiftool() if check_exif else None
+    try:
+        return run_album_check(
+            album_dir,
+            sips_available=check_sips_available(),
+            exiftool=exiftool,
+            checksum=checksum,
+            check_naming_flag=check_naming_flag,
+            on_file_checked=on_file_checked,
+        )
+    finally:
+        if exiftool is not None:
+            exiftool.__exit__(None, None, None)
 
 
 def discover_ios_albums(base_dir: Path) -> list[Path]:

@@ -1,8 +1,34 @@
 # Installation
 
+## Supported Platforms
+
+photree currently requires **macOS** due to its dependency on `sips` (Scriptable
+Image Processing System) for HEIC/DNG-to-JPEG conversion and Image Capture for
+iOS imports. Linux support could be added in the future for non-iOS albums and
+imports that do not rely on these macOS-specific tools.
+
 ## System Requirements
 
+- macOS
 - Python 3.12+
+- [exiftool](https://exiftool.org/) (optional, for EXIF timestamp validation)
+
+### exiftool
+
+photree uses exiftool to validate that media file timestamps match album dates.
+If exiftool is not installed, EXIF checks are skipped gracefully.
+
+**macOS** (Homebrew):
+
+```bash
+brew install exiftool
+```
+
+Verify the installation:
+
+```bash
+exiftool -ver
+```
 
 ## Install with pipx
 

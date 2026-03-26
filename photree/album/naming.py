@@ -21,6 +21,8 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from ..fsprotocol import ALBUM_DATE_RE
+from exiftool import ExifToolHelper  # type: ignore[import-untyped]
+
 from .exif import read_exif_timestamps, sample_media_files
 
 # ---------------------------------------------------------------------------
@@ -388,18 +390,20 @@ def check_exif_date_match(
     album_dir: Path,
     album_date: str,
     *,
+    exiftool: ExifToolHelper | None = None,
     max_samples: int = 2,
     tolerance_days: int = 1,
 ) -> ExifTimestampCheck | None:
     """Sample media files and check EXIF timestamps match the album date.
 
     Returns ``None`` if no media files found or no timestamps could be read.
+    When *exiftool* is provided, the persistent process is reused.
     """
     files = sample_media_files(album_dir, max_samples)
     if not files:
         return None
 
-    timestamps = read_exif_timestamps(files)
+    timestamps = read_exif_timestamps(files, exiftool=exiftool)
     if not timestamps:
         return None
 

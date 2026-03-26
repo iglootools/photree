@@ -1,15 +1,17 @@
-"""EXIF metadata extraction via exiftool subprocess.
+"""EXIF metadata extraction via PyExifTool.
 
-This module isolates the exiftool dependency so it can be replaced with
-a pure-Python library later.
+This module uses the PyExifTool library which maintains a persistent
+exiftool process via the ``-stay_open`` protocol, avoiding per-call
+subprocess overhead.
 """
 
 from __future__ import annotations
 
 import shutil
-import subprocess
 from datetime import datetime
 from pathlib import Path
+
+from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ..fsprotocol import (
     IMG_EXTENSIONS,
@@ -22,10 +24,30 @@ MEDIA_EXTENSIONS = IMG_EXTENSIONS | VID_EXTENSIONS
 # Keep low while iterating; increase for accuracy once stable.
 DEFAULT_MAX_SAMPLES = 2
 
+_EXIF_DATE_FORMAT = "%Y:%m:%d %H:%M:%S"
+_TIMESTAMP_TAGS = ["DateTimeOriginal", "CreateDate"]
+
 
 def check_exiftool_available() -> bool:
     """Check whether ``exiftool`` is on PATH."""
     return shutil.which("exiftool") is not None
+
+
+def try_start_exiftool() -> ExifToolHelper | None:
+    """Start a persistent exiftool process if available.
+
+    Returns ``None`` when the ``exiftool`` binary is not installed or
+    fails to start.  The caller must close the returned helper (use as
+    a context manager or call ``__exit__`` in a ``finally`` block).
+    """
+    if not shutil.which("exiftool"):
+        return None
+    try:
+        et = ExifToolHelper()
+        et.__enter__()
+        return et
+    except (OSError, FileNotFoundError):
+        return None
 
 
 def sample_media_files(
@@ -62,48 +84,62 @@ def sample_media_files(
     return sorted(candidates)[:max_samples]
 
 
-def read_exif_timestamps(files: list[Path]) -> list[datetime]:
+def _extract_timestamp(metadata: dict[str, object]) -> datetime | None:
+    """Extract the best timestamp from a single file's metadata dict.
+
+    Prefers ``DateTimeOriginal`` over ``CreateDate``.  Tag keys are
+    group-prefixed (e.g. ``EXIF:DateTimeOriginal``) due to ExifToolHelper's
+    default ``-G`` flag.
+    """
+    for tag in _TIMESTAMP_TAGS:
+        for key, value in metadata.items():
+            if key.endswith(f":{tag}") and isinstance(value, str) and value.strip():
+                try:
+                    return datetime.strptime(value.strip(), _EXIF_DATE_FORMAT)
+                except ValueError:
+                    pass
+    return None
+
+
+def read_exif_timestamps(
+    files: list[Path],
+    *,
+    exiftool: ExifToolHelper | None = None,
+) -> list[datetime]:
     """Read the earliest available date tag from files using exiftool.
 
     Tries ``DateTimeOriginal`` first (photos), then falls back to
-    ``CreateDate`` (videos).  Returns parsed timestamps for every line
-    that exiftool successfully outputs.
+    ``CreateDate`` (videos).  Returns parsed timestamps for every file
+    that has a readable date tag.
+
+    When *exiftool* is provided, the persistent process is reused.
+    Otherwise a short-lived ``ExifToolHelper`` is created for this call.
     """
     if not files:
         return []
 
-    result = subprocess.run(
-        [
-            "exiftool",
-            "-DateTimeOriginal",
-            "-CreateDate",
-            "-s3",
-            "-d",
-            "%Y-%m-%dT%H:%M:%S",
-            *files,
-        ],
-        capture_output=True,
-        text=True,
-    )
+    str_files = [str(f) for f in files]
 
-    timestamps: list[datetime] = []
-    for line in result.stdout.strip().splitlines():
-        stripped = line.strip()
-        if not stripped or stripped == "-":
-            pass
-        else:
-            try:
-                timestamps.append(datetime.strptime(stripped, "%Y-%m-%dT%H:%M:%S"))
-            except ValueError:
-                pass
-    return timestamps
+    if exiftool is not None:
+        metadata_list = exiftool.get_tags(str_files, _TIMESTAMP_TAGS)
+    else:
+        with ExifToolHelper() as et:
+            metadata_list = et.get_tags(str_files, _TIMESTAMP_TAGS)
+
+    return [
+        ts
+        for metadata in metadata_list
+        if (ts := _extract_timestamp(metadata)) is not None
+    ]
 
 
 def read_album_min_timestamp(
     album_dir: Path,
     max_samples: int = DEFAULT_MAX_SAMPLES,
+    *,
+    exiftool: ExifToolHelper | None = None,
 ) -> datetime | None:
     """Sample media files from an album and return the earliest EXIF timestamp."""
     files = sample_media_files(album_dir, max_samples)
-    timestamps = read_exif_timestamps(files)
+    timestamps = read_exif_timestamps(files, exiftool=exiftool)
     return min(timestamps) if timestamps else None
