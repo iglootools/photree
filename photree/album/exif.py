@@ -21,9 +21,6 @@ from ..fsprotocol import (
 
 MEDIA_EXTENSIONS = IMG_EXTENSIONS | VID_EXTENSIONS
 
-# Keep low while iterating; increase for accuracy once stable.
-DEFAULT_MAX_SAMPLES = 2
-
 _EXIF_DATE_FORMAT = "%Y:%m:%d %H:%M:%S"
 _TIMESTAMP_TAGS = ["DateTimeOriginal", "CreateDate"]
 
@@ -50,13 +47,10 @@ def try_start_exiftool() -> ExifToolHelper | None:
         return None
 
 
-def sample_media_files(
-    album_dir: Path,
-    max_samples: int = DEFAULT_MAX_SAMPLES,
-) -> list[Path]:
-    """Pick up to *max_samples* media files from an album.
+def discover_media_files(album_dir: Path) -> list[Path]:
+    """Collect all media files from an album.
 
-    For iOS albums (any ``ios-*`` subdir present), searches all contributors'
+    For albums with contributors, searches all contributors'
     ``{name}-jpg/`` and ``{name}-vid/`` directories.  For other albums,
     searches recursively from the album root.
     """
@@ -71,17 +65,12 @@ def sample_media_files(
     else:
         search_dirs = [album_dir]
 
-    candidates = [
+    return [
         f
         for search_dir in search_dirs
         for f in search_dir.rglob("*")
         if f.is_file() and f.suffix.lower() in MEDIA_EXTENSIONS
     ]
-
-    if len(candidates) <= max_samples:
-        return candidates
-    # Deterministic: sort and take the first N for reproducible results
-    return sorted(candidates)[:max_samples]
 
 
 def _extract_timestamp(metadata: dict[str, object]) -> datetime | None:
@@ -135,11 +124,10 @@ def read_exif_timestamps(
 
 def read_album_min_timestamp(
     album_dir: Path,
-    max_samples: int = DEFAULT_MAX_SAMPLES,
     *,
     exiftool: ExifToolHelper | None = None,
 ) -> datetime | None:
-    """Sample media files from an album and return the earliest EXIF timestamp."""
-    files = sample_media_files(album_dir, max_samples)
+    """Read all media files from an album and return the earliest EXIF timestamp."""
+    files = discover_media_files(album_dir)
     timestamps = read_exif_timestamps(files, exiftool=exiftool)
     return min(timestamps) if timestamps else None

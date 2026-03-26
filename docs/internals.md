@@ -118,10 +118,9 @@ photree reads EXIF timestamps (`DateTimeOriginal` for photos, `CreateDate` for
 videos) to validate that media files match the album's date-based name. This is
 a read-only, optional check — EXIF mismatches produce warnings, not errors.
 
-During album and gallery checks, photree samples a small number of media files
-(default 2) from each album's browsable directories (`{name}-jpg/`,
-`{name}-vid/`) and compares their EXIF timestamps against the album date with
-a 1-day tolerance.
+During album and gallery checks, photree reads all media files from each
+album's browsable directories (`{name}-jpg/`, `{name}-vid/`) and compares
+their EXIF timestamps against the album date with a 1-day tolerance.
 
 ### Why exiftool / PyExifTool
 
