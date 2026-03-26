@@ -290,6 +290,13 @@ def check_cmd(
             help="Enable/disable cross-album date collision detection (default: enabled).",
         ),
     ] = True,
+    check_exif: Annotated[
+        bool,
+        typer.Option(
+            "--check-exif/--no-check-exif",
+            help="Enable/disable EXIF timestamp vs album date validation (default: enabled).",
+        ),
+    ] = True,
 ) -> None:
     """Check all albums under a directory or from an explicit list."""
 
@@ -298,7 +305,7 @@ def check_cmd(
 
     # System checks (once)
     sips_available = album_preflight.check_sips_available()
-    exiftool_available = check_exiftool_available()
+    exiftool_available = check_exiftool_available() if check_exif else False
     typer.echo("System Checks:")
     typer.echo(album_output.sips_check(sips_available))
     typer.echo(album_output.exiftool_check(exiftool_available))

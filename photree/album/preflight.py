@@ -305,13 +305,14 @@ def run_album_preflight(
     *,
     checksum: bool = True,
     check_naming_flag: bool = True,
+    check_exif: bool = True,
     on_file_checked: Callable[[str, bool], None] | None = None,
 ) -> AlbumPreflightResult:
     """Run all album preflight checks including system checks."""
     return run_album_check(
         album_dir,
         sips_available=check_sips_available(),
-        exiftool_available=check_exiftool_available(),
+        exiftool_available=check_exiftool_available() if check_exif else False,
         checksum=checksum,
         check_naming_flag=check_naming_flag,
         on_file_checked=on_file_checked,

@@ -73,6 +73,7 @@ $ photree album check [OPTIONS]
 * `--checksum / --no-checksum`: Enable/disable SHA-256 checksum verification (default: enabled).  [default: checksum]
 * `-W, --fatal-warnings`: Treat informational warnings (e.g. missing sidecars) as errors.
 * `--check-naming / --no-check-naming`: Enable/disable album naming convention checks (default: enabled).  [default: check-naming]
+* `--check-exif / --no-check-exif`: Enable/disable EXIF timestamp vs album date validation (default: enabled).  [default: check-exif]
 * `--help`: Show this message and exit.
 
 ### `photree album fix-ios`
@@ -309,6 +310,7 @@ $ photree gallery list-albums [OPTIONS]
 * `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
 * `-a, --album-dir DIRECTORY`: Album directory (repeatable).
 * `--metadata / --no-metadata`: Show parsed album metadata and contributors (default: enabled).  [default: metadata]
+* `--format TEXT`: Output format: text (default) or csv.  [default: text]
 * `--help`: Show this message and exit.
 
 ### `photree gallery check`
@@ -329,6 +331,7 @@ $ photree gallery check [OPTIONS]
 * `-W, --fatal-warnings`: Treat informational warnings (e.g. missing sidecars) as errors.
 * `--check-naming / --no-check-naming`: Enable/disable album naming convention checks (default: enabled).  [default: check-naming]
 * `--check-date-collisions / --no-check-date-collisions`: Enable/disable cross-album date collision detection (default: enabled).  [default: check-date-collisions]
+* `--check-exif / --no-check-exif`: Enable/disable EXIF timestamp vs album date validation (default: enabled).  [default: check-exif]
 * `--help`: Show this message and exit.
 
 ### `photree gallery fix`

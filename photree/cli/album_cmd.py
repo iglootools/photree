@@ -66,6 +66,13 @@ def check_cmd(
             help="Enable/disable album naming convention checks (default: enabled).",
         ),
     ] = True,
+    check_exif: Annotated[
+        bool,
+        typer.Option(
+            "--check-exif/--no-check-exif",
+            help="Enable/disable EXIF timestamp vs album date validation (default: enabled).",
+        ),
+    ] = True,
 ) -> None:
     """Check system prerequisites, album directory structure, and file integrity."""
     # Count unique media numbers across all contributors' orig dirs
@@ -84,6 +91,7 @@ def check_cmd(
         album_dir,
         checksum=checksum,
         check_naming_flag=check_naming,
+        check_exif=check_exif,
         on_file_checked=progress.advance if progress else None,
     )
     if progress:
