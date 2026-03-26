@@ -143,23 +143,18 @@ def refresh_jpeg(
     on_file_start: Callable[[str], None] | None = None,
     on_file_end: Callable[[str, bool], None] | None = None,
 ) -> RefreshResult:
-    """Refresh main-jpg/ from main-img/.
+    """Refresh main-jpg/ from main-img/ (iOS contributor only).
 
-    Raises FileNotFoundError if main-img/ does not exist.
+    Delegates to :func:`fixes.refresh_jpeg` with an iOS assertion.
     """
     assert contrib.is_ios, "ios_fixes operations require an iOS contributor"
-    src_dir = album_dir / contrib.img_dir
-    if not src_dir.is_dir():
-        raise FileNotFoundError(f"Directory not found: {src_dir}")
+    from .fixes import refresh_jpeg as generic_refresh_jpeg
 
-    # When progress callbacks are provided, skip per-file verbose logging —
-    # the progress bar already provides feedback.
-    jpeg_log_cwd = log_cwd if on_file_end is None else None
-    return jpeg.refresh_jpeg_dir(
-        src_dir,
-        album_dir / contrib.jpg_dir,
+    return generic_refresh_jpeg(
+        album_dir,
+        contrib,
         dry_run=dry_run,
-        log_cwd=jpeg_log_cwd,
+        log_cwd=log_cwd,
         convert_file=convert_file,
         on_file_start=on_file_start,
         on_file_end=on_file_end,

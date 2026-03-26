@@ -55,6 +55,8 @@ $ photree album [OPTIONS] COMMAND [ARGS]...
 
 * `check`: Check system prerequisites, album...
 * `check-all`: Check all albums under a directory or from...
+* `fix`: Fix album issues.
+* `fix-all`: Fix all albums under a directory or from...
 * `optimize`: Optimize main directories by replacing...
 * `optimize-all`: Optimize all iOS albums under a directory...
 * `fix-ios`: Fix iOS album issues.
@@ -96,6 +98,48 @@ $ photree album check-all [OPTIONS]
 * `-W, --fatal-warnings`: Treat informational warnings (e.g. missing sidecars) as errors.
 * `--check-naming / --no-check-naming`: Enable/disable album naming convention checks (default: enabled).  [default: check-naming]
 * `--check-date-collisions / --no-check-date-collisions`: Enable/disable cross-album date collision detection (default: enabled).  [default: check-date-collisions]
+* `--help`: Show this message and exit.
+
+### `photree album fix`
+
+Fix album issues. Works on all contributor types (iOS + plain).
+
+--refresh-jpeg: Deletes all files in {contributor}-jpg/ and re-converts
+every file from {contributor}-img/. HEIC/HEIF/DNG files are converted
+via sips; JPEG/PNG files are copied as-is.
+
+**Usage**:
+
+```console
+$ photree album fix [OPTIONS]
+```
+
+**Options**:
+
+* `-a, --album-dir DIRECTORY`: Album directory to fix.  [default: .]
+* `--refresh-jpeg`: Refresh {contributor}-jpg/ from {contributor}-img/ for all contributors.
+* `-n, --dry-run`: Print what would happen without modifying files.
+* `--help`: Show this message and exit.
+
+### `photree album fix-all`
+
+Fix all albums under a directory or from an explicit list.
+
+Works on all contributor types (iOS + plain). At least one fix flag
+must be specified.
+
+**Usage**:
+
+```console
+$ photree album fix-all [OPTIONS]
+```
+
+**Options**:
+
+* `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
+* `-a, --album-dir DIRECTORY`: Album directory to fix (repeatable).
+* `--refresh-jpeg`: Refresh {contributor}-jpg/ from {contributor}-img/ for all contributors.
+* `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
 ### `photree album optimize`

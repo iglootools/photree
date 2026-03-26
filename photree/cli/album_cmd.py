@@ -9,6 +9,7 @@ from typing import Annotated, Optional
 import typer
 
 from ..album import (
+    fixes as album_fixes,
     ios_fixes,
     naming as album_naming,
     optimize as album_optimize,
@@ -235,6 +236,195 @@ def check_all_cmd(
         for album_dir in sorted(set(failed_albums)):
             typer.echo(
                 f'  photree album check --album-dir "{display_path(album_dir, cwd)}"',
+                err=True,
+            )
+        raise typer.Exit(code=1)
+
+
+@album_app.command("fix")
+def fix_cmd(
+    album_dir: Annotated[
+        Path,
+        typer.Option(
+            "--album-dir",
+            "-a",
+            help="Album directory to fix.",
+            exists=True,
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ] = Path("."),
+    refresh_jpeg: Annotated[
+        bool,
+        typer.Option(
+            "--refresh-jpeg",
+            help="Refresh {contributor}-jpg/ from {contributor}-img/ for all contributors.",
+        ),
+    ] = False,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            "-n",
+            help="Print what would happen without modifying files.",
+        ),
+    ] = False,
+) -> None:
+    """Fix album issues. Works on all contributor types (iOS + plain).
+
+    --refresh-jpeg: Deletes all files in {contributor}-jpg/ and re-converts
+    every file from {contributor}-img/. HEIC/HEIF/DNG files are converted
+    via sips; JPEG/PNG files are copied as-is.
+    """
+    if not refresh_jpeg:
+        typer.echo(
+            "No fix specified. Run photree album fix --help for available fixes.",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    if refresh_jpeg:
+        _check_sips_or_exit()
+        contributors = discover_contributors(album_dir)
+        if not contributors:
+            typer.echo("No contributors found in this album.", err=True)
+            raise typer.Exit(code=1)
+
+        file_count = sum(
+            len(list_files(album_dir / c.img_dir))
+            for c in contributors
+            if (album_dir / c.img_dir).is_dir()
+        )
+        progress = FileProgressBar(
+            total=file_count,
+            description="Converting JPEG",
+            done_description="convert-jpeg",
+        )
+        total_converted = 0
+        total_copied = 0
+        total_skipped = 0
+        for contrib in contributors:
+            if not (album_dir / contrib.img_dir).is_dir():
+                continue
+            prefix = f"{contrib.img_dir}/"
+            result = album_fixes.refresh_jpeg(
+                album_dir,
+                contrib,
+                dry_run=dry_run,
+                on_file_start=lambda name, p=prefix: progress.on_start(f"{p}{name}"),
+                on_file_end=lambda name, ok, p=prefix: progress.on_end(
+                    f"{p}{name}", ok
+                ),
+            )
+            total_converted += result.converted
+            total_copied += result.copied
+            total_skipped += result.skipped
+        progress.stop()
+        typer.echo(
+            album_output.refresh_jpeg_summary(
+                total_converted, total_copied, total_skipped
+            )
+        )
+
+
+@album_app.command("fix-all")
+def fix_all_cmd(
+    base_dir: Annotated[
+        Optional[Path],
+        typer.Option(
+            "--dir",
+            "-d",
+            help="Base directory to recursively scan for albums.",
+            exists=True,
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ] = None,
+    album_dirs: Annotated[
+        Optional[list[Path]],
+        typer.Option(
+            "--album-dir",
+            "-a",
+            help="Album directory to fix (repeatable).",
+            exists=True,
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ] = None,
+    refresh_jpeg: Annotated[
+        bool,
+        typer.Option(
+            "--refresh-jpeg",
+            help="Refresh {contributor}-jpg/ from {contributor}-img/ for all contributors.",
+        ),
+    ] = False,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            "-n",
+            help="Print what would happen without modifying files.",
+        ),
+    ] = False,
+) -> None:
+    """Fix all albums under a directory or from an explicit list.
+
+    Works on all contributor types (iOS + plain). At least one fix flag
+    must be specified.
+    """
+    from .progress import BatchProgressBar
+
+    if not refresh_jpeg:
+        typer.echo(
+            "No fix specified. Run photree album fix-all --help for available fixes.",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    if refresh_jpeg:
+        _check_sips_or_exit()
+
+    cwd = Path.cwd()
+    albums, display_base = _resolve_check_batch_albums(base_dir, album_dirs)
+
+    if not albums:
+        typer.echo("\nNo albums found.")
+        raise typer.Exit(code=0)
+
+    if display_base is not None:
+        typer.echo(f"\nFound {len(albums)} album(s).\n")
+
+    progress = BatchProgressBar(
+        total=len(albums), description="Fixing", done_description="fix"
+    )
+    fixed = 0
+    failed_albums: list[Path] = []
+
+    for album_dir in albums:
+        album_name = _display_name(album_dir, display_base, cwd)
+        progress.on_start(album_name)
+
+        try:
+            contributors = discover_contributors(album_dir)
+            if refresh_jpeg:
+                for contrib in contributors:
+                    if (album_dir / contrib.img_dir).is_dir():
+                        album_fixes.refresh_jpeg(album_dir, contrib, dry_run=dry_run)
+            progress.on_end(album_name, success=True)
+            fixed += 1
+        except Exception:
+            progress.on_end(album_name, success=False)
+            failed_albums.append(album_dir)
+
+    progress.stop()
+
+    typer.echo(f"\nDone. {fixed} album(s) fixed, {len(failed_albums)} failed.")
+
+    if failed_albums:
+        typer.echo("\nFailed albums:", err=True)
+        for album_dir in failed_albums:
+            typer.echo(
+                f'  photree album fix --album-dir "{display_path(album_dir, cwd)}"',
                 err=True,
             )
         raise typer.Exit(code=1)

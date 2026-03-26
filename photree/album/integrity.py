@@ -199,6 +199,17 @@ class IosAlbumFullIntegrityResult:
         return any(result.has_warnings for _, result in self.by_contributor)
 
 
+@dataclass(frozen=True)
+class AlbumJpegIntegrityResult:
+    """JPEG integrity check result across all contributors (iOS + plain)."""
+
+    by_contributor: tuple[tuple[Contributor, JpegCheck], ...]
+
+    @property
+    def success(self) -> bool:
+        return all(check.success for _, check in self.by_contributor)
+
+
 # ---------------------------------------------------------------------------
 # Check functions
 # ---------------------------------------------------------------------------
@@ -637,5 +648,27 @@ def check_ios_album_integrity(
                 ),
             )
             for contrib in contributors
+        )
+    )
+
+
+def check_album_jpeg_integrity(
+    album_dir: Path,
+) -> AlbumJpegIntegrityResult:
+    """Check ``{contributor}-jpg/`` for every contributor (iOS + plain).
+
+    Only checks contributors that have a ``{contributor}-img/`` directory.
+    """
+    contributors = discover_contributors(album_dir)
+    return AlbumJpegIntegrityResult(
+        by_contributor=tuple(
+            (
+                contrib,
+                check_jpeg_dir(
+                    album_dir / contrib.img_dir, album_dir / contrib.jpg_dir
+                ),
+            )
+            for contrib in contributors
+            if (album_dir / contrib.img_dir).is_dir()
         )
     )

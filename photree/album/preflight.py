@@ -15,7 +15,12 @@ from ..fsprotocol import (
     discover_contributors,
 )
 from .exif import check_exiftool_available
-from .integrity import IosAlbumFullIntegrityResult, check_ios_album_integrity
+from .integrity import (
+    AlbumJpegIntegrityResult,
+    IosAlbumFullIntegrityResult,
+    check_album_jpeg_integrity,
+    check_ios_album_integrity,
+)
 from .naming import (
     AlbumNamingResult,
     check_album_naming,
@@ -205,7 +210,8 @@ class AlbumPreflightResult:
     exiftool_available: bool
     contributor_summary: AlbumContributorSummary
     dir_check: AlbumDirCheck
-    integrity: IosAlbumFullIntegrityResult | None = None
+    ios_integrity: IosAlbumFullIntegrityResult | None = None
+    jpeg_check: AlbumJpegIntegrityResult | None = None
     naming: AlbumNamingResult | None = None
 
     # Backward compat — derived from contributor_summary
@@ -216,18 +222,24 @@ class AlbumPreflightResult:
         else:
             return AlbumType.OTHER
 
+    # Backward compat alias
+    @property
+    def integrity(self) -> IosAlbumFullIntegrityResult | None:
+        return self.ios_integrity
+
     @property
     def success(self) -> bool:
         return (
             self.sips_available
             and self.dir_check.success
-            and (self.integrity is None or self.integrity.success)
+            and (self.ios_integrity is None or self.ios_integrity.success)
+            and (self.jpeg_check is None or self.jpeg_check.success)
             and (self.naming is None or self.naming.success)
         )
 
     @property
     def has_warnings(self) -> bool:
-        return (self.integrity is not None and self.integrity.has_warnings) or (
+        return (self.ios_integrity is not None and self.ios_integrity.has_warnings) or (
             self.naming is not None and self.naming.has_warnings
         )
 
@@ -251,14 +263,17 @@ def run_album_check(
 
     if summary.has_ios:
         dir_check = check_ios_album_dir(album_dir)
-        integrity = check_ios_album_integrity(
+        ios_integrity = check_ios_album_integrity(
             album_dir,
             checksum=checksum,
             on_file_checked=on_file_checked,
         )
     else:
         dir_check = check_other_album_dir(album_dir)
-        integrity = None
+        ios_integrity = None
+
+    # JPEG check runs for ALL contributors (iOS + plain)
+    jpeg_check = check_album_jpeg_integrity(album_dir) if contribs else None
 
     naming = None
     if check_naming_flag:
@@ -278,7 +293,8 @@ def run_album_check(
         exiftool_available=exiftool_available,
         contributor_summary=summary,
         dir_check=dir_check,
-        integrity=integrity,
+        ios_integrity=ios_integrity,
+        jpeg_check=jpeg_check,
         naming=naming,
     )
 

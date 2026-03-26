@@ -26,7 +26,7 @@ PREFLIGHT_OK = AlbumPreflightResult(
         ),
         missing=(),
     ),
-    integrity=FULL_INTEGRITY_OK,
+    ios_integrity=FULL_INTEGRITY_OK,
 )
 
 PREFLIGHT_FAILURES = AlbumPreflightResult(
@@ -43,7 +43,7 @@ PREFLIGHT_FAILURES = AlbumPreflightResult(
             "main-jpg",
         ),
     ),
-    integrity=FULL_INTEGRITY_FAILURES,
+    ios_integrity=FULL_INTEGRITY_FAILURES,
 )
 
 PREFLIGHT_OTHER = AlbumPreflightResult(

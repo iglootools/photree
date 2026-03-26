@@ -99,7 +99,7 @@ def format_batch_naming_issues(result: BatchNamingResult) -> str:
 
 def format_album_preflight_checks(result: AlbumPreflightResult) -> str:
     """Format all album preflight check lines."""
-    from .integrity import format_integrity_checks
+    from .integrity import format_integrity_checks, format_jpeg_integrity_checks
 
     return "\n".join(
         [
@@ -117,8 +117,13 @@ def format_album_preflight_checks(result: AlbumPreflightResult) -> str:
                 else []
             ),
             *(
-                format_integrity_checks(result.integrity).splitlines()
-                if result.integrity is not None
+                format_integrity_checks(result.ios_integrity).splitlines()
+                if result.ios_integrity is not None
+                else []
+            ),
+            *(
+                format_jpeg_integrity_checks(result.jpeg_check).splitlines()
+                if result.jpeg_check is not None
                 else []
             ),
             *(
@@ -140,7 +145,9 @@ def format_album_preflight_troubleshoot(
     all_suggestions = [
         suggestion
         for _, contrib_result in (
-            result.integrity.by_contributor if result.integrity is not None else ()
+            result.ios_integrity.by_contributor
+            if result.ios_integrity is not None
+            else ()
         )
         for suggestion in suggest_fixes(contrib_result, album_dir_flag)
     ]

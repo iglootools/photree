@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from . import CHECK, CROSS
 from ..integrity import (
+    AlbumJpegIntegrityResult,
     CombinedDirCheck,
     IosAlbumFullIntegrityResult,
     IosAlbumIntegrityResult,
@@ -127,4 +128,16 @@ def format_integrity_checks(result: IosAlbumFullIntegrityResult) -> str:
             prefix=f"[{contrib.name}]" if multi else "",
         )
         for contrib, contrib_result in result.by_contributor
+    )
+
+
+def format_jpeg_integrity_checks(result: AlbumJpegIntegrityResult) -> str:
+    """Format JPEG integrity checks across all contributors."""
+    multi = len(result.by_contributor) > 1
+    return "\n".join(
+        format_jpeg_check(
+            check,
+            f"{'[' + contrib.name + '] ' if multi else ''}{contrib.jpg_dir}",
+        )
+        for contrib, check in result.by_contributor
     )
