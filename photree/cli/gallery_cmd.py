@@ -111,6 +111,132 @@ def _display_name(album_dir: Path, base_dir: Path | None, cwd: Path) -> str:
     return str(display_path(album_dir, cwd))
 
 
+@gallery_app.command("list-albums")
+def list_albums_cmd(
+    base_dir: Annotated[
+        Optional[Path],
+        typer.Option(
+            "--dir",
+            "-d",
+            help="Base directory to recursively scan for albums.",
+            exists=True,
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ] = None,
+    album_dirs: Annotated[
+        Optional[list[Path]],
+        typer.Option(
+            "--album-dir",
+            "-a",
+            help="Album directory (repeatable).",
+            exists=True,
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ] = None,
+    metadata: Annotated[
+        bool,
+        typer.Option(
+            "--metadata/--no-metadata",
+            help="Show parsed album metadata and contributors (default: enabled).",
+        ),
+    ] = True,
+    output_format: Annotated[
+        str,
+        typer.Option(
+            "--format",
+            help="Output format: text (default) or csv.",
+        ),
+    ] = "text",
+) -> None:
+    """List all discovered albums with their metadata and contributors."""
+    import csv
+    import sys
+
+    from ..album.naming import parse_album_name
+
+    if output_format == "csv":
+        # Resolve without spinner to avoid polluting stdout
+        from ..fsprotocol import discover_albums as _discover
+
+        if base_dir is not None and album_dirs is not None:
+            typer.echo("--dir and --album-dir are mutually exclusive.", err=True)
+            raise typer.Exit(code=1)
+        if album_dirs is not None:
+            albums, display_base = album_dirs, None
+        else:
+            resolved = base_dir if base_dir is not None else Path(".").resolve()
+            albums, display_base = _discover(resolved), resolved
+    else:
+        albums, display_base = _resolve_check_batch_albums(base_dir, album_dirs)
+
+    cwd = Path.cwd()
+
+    if not albums:
+        typer.echo("No albums found.", err=output_format == "csv")
+        raise typer.Exit(code=0)
+
+    if output_format == "csv":
+        writer = csv.writer(sys.stdout)
+        writer.writerow(
+            ["path", "date", "part", "series", "title", "location", "tags", "contributors"]
+        )
+        for album_dir in albums:
+            rel_path = _display_name(album_dir, display_base, cwd)
+            parsed = parse_album_name(album_dir.name)
+            contribs = discover_contributors(album_dir)
+            contrib_desc = ", ".join(
+                f"{c.name} ({c.contributor_type})" for c in contribs
+            )
+            if parsed is not None:
+                tags = "private" if parsed.private else ""
+                writer.writerow([
+                    rel_path,
+                    parsed.date,
+                    parsed.part or "",
+                    parsed.series or "",
+                    parsed.title,
+                    parsed.location or "",
+                    tags,
+                    contrib_desc,
+                ])
+            else:
+                writer.writerow([rel_path, "", "", "", album_dir.name, "", "", contrib_desc])
+        return
+
+    typer.echo(f"Found {len(albums)} album(s).\n")
+
+    for album_dir in albums:
+        name = _display_name(album_dir, display_base, cwd)
+        typer.echo(name)
+
+        if metadata:
+            parsed = parse_album_name(album_dir.name)
+            contribs = discover_contributors(album_dir)
+
+            if parsed is not None:
+                parts = [f"date={parsed.date}"]
+                if parsed.part is not None:
+                    parts.append(f"part={parsed.part}")
+                if parsed.series is not None:
+                    parts.append(f"series={parsed.series}")
+                parts.append(f"title={parsed.title}")
+                if parsed.location is not None:
+                    parts.append(f"location={parsed.location}")
+                if parsed.private:
+                    parts.append("private")
+                typer.echo(f"  {', '.join(parts)}")
+            else:
+                typer.echo("  (name not parseable)")
+
+            if contribs:
+                contrib_desc = ", ".join(
+                    f"{c.name} ({c.contributor_type})" for c in contribs
+                )
+                typer.echo(f"  contributors: {contrib_desc}")
+
+
 @gallery_app.command("check")
 def check_cmd(
     base_dir: Annotated[

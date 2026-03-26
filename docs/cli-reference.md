@@ -287,11 +287,29 @@ $ photree gallery [OPTIONS] COMMAND [ARGS]...
 
 **Commands**:
 
+* `list-albums`: List all discovered albums with their...
 * `check`: Check all albums under a directory or from...
 * `fix`: Fix all albums under a directory or from...
 * `optimize`: Optimize all iOS albums under a directory...
 * `fix-ios`: Apply fix-ios to all iOS albums under a...
 * `export`: Batch export multiple albums to a shared...
+
+### `photree gallery list-albums`
+
+List all discovered albums with their metadata and contributors.
+
+**Usage**:
+
+```console
+$ photree gallery list-albums [OPTIONS]
+```
+
+**Options**:
+
+* `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
+* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
+* `--metadata / --no-metadata`: Show parsed album metadata and contributors (default: enabled).  [default: metadata]
+* `--help`: Show this message and exit.
 
 ### `photree gallery check`
 
