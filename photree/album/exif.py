@@ -13,11 +13,11 @@ from pathlib import Path
 
 from ..fsprotocol import (
     IMG_EXTENSIONS,
-    MOV_EXTENSIONS,
+    VID_EXTENSIONS,
     discover_contributors,
 )
 
-MEDIA_EXTENSIONS = IMG_EXTENSIONS | MOV_EXTENSIONS
+MEDIA_EXTENSIONS = IMG_EXTENSIONS | VID_EXTENSIONS
 
 # Keep low while iterating; increase for accuracy once stable.
 DEFAULT_MAX_SAMPLES = 2

@@ -14,7 +14,7 @@ from . import combined as combined_module
 from ..fsprotocol import (
     IMG_EXTENSIONS,
     LinkMode,
-    MOV_EXTENSIONS,
+    VID_EXTENSIONS,
     discover_contributors,
 )
 
@@ -57,7 +57,7 @@ def optimize_album(
             album_dir / contrib.orig_vid_dir,
             album_dir / contrib.edit_vid_dir,
             album_dir / contrib.vid_dir,
-            media_extensions=MOV_EXTENSIONS,
+            media_extensions=VID_EXTENSIONS,
             link_mode=link_mode,
             dry_run=dry_run,
             log_cwd=log_cwd,

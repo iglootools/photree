@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 from photree.album.combined import RefreshMainDirResult, refresh_main_dir
-from photree.fsprotocol import IMG_EXTENSIONS, MOV_EXTENSIONS, LinkMode
+from photree.fsprotocol import IMG_EXTENSIONS, VID_EXTENSIONS, LinkMode
 
 
 def _setup_dir(path: Path, filenames: list[str]) -> Path:
@@ -86,7 +86,7 @@ class TestRefreshMainDir:
         combined = tmp_path / "main-vid"
 
         result = refresh_main_dir(
-            orig, rendered, combined, media_extensions=MOV_EXTENSIONS
+            orig, rendered, combined, media_extensions=VID_EXTENSIONS
         )
 
         assert result.copied == 1

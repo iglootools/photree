@@ -10,7 +10,6 @@ from enum import StrEnum
 from pathlib import Path
 
 from ..fsprotocol import (
-    ALBUM_SENTINEL,
     IOS_DIR_PREFIX,
     MAIN_CONTRIBUTOR,
     discover_contributors,
@@ -294,20 +293,34 @@ def run_album_preflight(
     )
 
 
+def _is_album(directory: Path) -> bool:
+    """Check if a directory is an album.
+
+    An album is either:
+    - An iOS album (has any ``ios-*`` contributor directory)
+    - A non-iOS album (has ``main-img/`` or ``main-vid/``)
+    """
+    return _has_ios_contributor(directory) or _has_browsable_dirs(directory)
+
+
+def _has_browsable_dirs(directory: Path) -> bool:
+    """Check if directory contains ``main-img/`` or ``main-vid/``."""
+    return (directory / "main-img").is_dir() or (directory / "main-vid").is_dir()
+
+
 def discover_albums(base_dir: Path) -> list[Path]:
     """Recursively discover album directories under *base_dir*.
 
     Detection rules (first match wins, per directory):
-    1. Contains any ``ios-*`` subdirectory → iOS album
-    2. Contains ``.album`` sentinel file → explicit album marker
-    3. Leaf directory (no non-hidden subdirectories) → implicit album
+    1. Contains any ``ios-*`` contributor directory → iOS album
+    2. Contains ``main-img/`` or ``main-vid/`` → non-iOS album
 
     The *base_dir* itself is never returned as an album.
     """
     albums: list[Path] = []
 
     def walk(directory: Path) -> None:
-        if _has_ios_contributor(directory) or (directory / ALBUM_SENTINEL).is_file():
+        if _is_album(directory):
             albums.append(directory)
             return
 
@@ -316,11 +329,6 @@ def discover_albums(base_dir: Path) -> list[Path]:
             for child in directory.iterdir()
             if child.is_dir() and not child.name.startswith(".")
         )
-
-        if not subdirs:
-            if directory != base_dir:
-                albums.append(directory)
-            return
 
         for subdir in subdirs:
             walk(subdir)

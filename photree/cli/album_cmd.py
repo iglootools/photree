@@ -19,7 +19,7 @@ from ..album.exif import check_exiftool_available
 from ..fsprotocol import (
     IMG_EXTENSIONS,
     LinkMode,
-    MOV_EXTENSIONS,
+    VID_EXTENSIONS,
     discover_contributors,
     display_path,
     list_files,
@@ -73,7 +73,7 @@ def check_cmd(
     # Count unique media numbers across all contributors' orig dirs
     file_count = sum(
         _count_unique_media_numbers(album_dir / c.orig_img_dir, IMG_EXTENSIONS)
-        + _count_unique_media_numbers(album_dir / c.orig_vid_dir, MOV_EXTENSIONS)
+        + _count_unique_media_numbers(album_dir / c.orig_vid_dir, VID_EXTENSIONS)
         for c in discover_contributors(album_dir)
     )
     progress = (
@@ -288,7 +288,7 @@ def optimize_cmd(
         # Run checks first
         file_count = sum(
             _count_unique_media_numbers(album_dir / c.orig_img_dir, IMG_EXTENSIONS)
-            + _count_unique_media_numbers(album_dir / c.orig_vid_dir, MOV_EXTENSIONS)
+            + _count_unique_media_numbers(album_dir / c.orig_vid_dir, VID_EXTENSIONS)
             for c in discover_contributors(album_dir)
         )
         progress = (

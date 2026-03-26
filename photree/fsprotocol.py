@@ -52,7 +52,6 @@ class ShareDirectoryLayout(StrEnum):
 
 
 SHARE_SENTINEL = ".photree-share"
-ALBUM_SENTINEL = ".album"
 
 # Date regex for naming convention validation.
 # Single dates: YYYY, YYYY-MM, YYYY-MM-DD
@@ -187,9 +186,17 @@ def discover_contributors(album_dir: Path) -> list[Contributor]:
     )
 
 
+# ---------------------------------------------------------------------------
 # File extensions
-IMG_EXTENSIONS = frozenset({".dng", ".heic", ".jpeg", ".jpg", ".png"})
-MOV_EXTENSIONS = frozenset({".mov"})
+# ---------------------------------------------------------------------------
+
+# All recognized media formats
+IMG_EXTENSIONS = frozenset({".dng", ".heic", ".heif", ".jpeg", ".jpg", ".png"})
+VID_EXTENSIONS = frozenset({".avi", ".mov", ".mp4", ".wmv"})
+
+# iOS-specific subsets (used by importer, iOS fixes, integrity checks)
+IOS_IMG_EXTENSIONS = frozenset({".dng", ".heic", ".jpeg", ".jpg", ".png"})
+IOS_VID_EXTENSIONS = frozenset({".mov"})
 SIDECAR_EXTENSIONS = frozenset({".aae"})
 
 # Preferred formats when multiple variants exist for the same image number.
@@ -199,8 +206,8 @@ SIDECAR_EXTENSIONS = frozenset({".aae"})
 # Tuple (not set) to express priority order: first match wins.
 PICTURE_PRIORITY_EXTENSIONS = (".dng", ".heic")
 
-# JPEG conversion — extensions that sips can convert to JPEG
-CONVERT_TO_JPEG_EXTENSIONS = frozenset({".dng", ".heic"})
+# JPEG conversion — formats sips can convert to JPEG
+CONVERT_TO_JPEG_EXTENSIONS = frozenset({".dng", ".heic", ".heif"})
 COPY_AS_IS_TO_JPEG_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png"})
 
 

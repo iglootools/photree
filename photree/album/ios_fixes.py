@@ -23,9 +23,9 @@ from ..fsprotocol import (
     CONVERT_TO_JPEG_EXTENSIONS,
     COPY_AS_IS_TO_JPEG_EXTENSIONS,
     Contributor,
-    IMG_EXTENSIONS,
+    IOS_IMG_EXTENSIONS,
     LinkMode,
-    MOV_EXTENSIONS,
+    IOS_VID_EXTENSIONS,
     PICTURE_PRIORITY_EXTENSIONS,
     SIDECAR_EXTENSIONS,
     display_path,
@@ -91,7 +91,7 @@ def refresh_combined(
         album_dir / contrib.orig_img_dir,
         album_dir / contrib.edit_img_dir,
         main_img,
-        media_extensions=IMG_EXTENSIONS,
+        media_extensions=IOS_IMG_EXTENSIONS,
         link_mode=link_mode,
         dry_run=dry_run,
     )
@@ -105,7 +105,7 @@ def refresh_combined(
         album_dir / contrib.orig_vid_dir,
         album_dir / contrib.edit_vid_dir,
         main_vid,
-        media_extensions=MOV_EXTENSIONS,
+        media_extensions=IOS_VID_EXTENSIONS,
         link_mode=link_mode,
         dry_run=dry_run,
     )
@@ -278,7 +278,7 @@ def _rm_upstream_heic(
     expected_main = {
         filename
         for filename, _source_dir in combined_module.compute_main_files(
-            orig_img_dir, edit_img_dir, IMG_EXTENSIONS
+            orig_img_dir, edit_img_dir, IOS_IMG_EXTENSIONS
         )
     }
     numbers_from_heic = {
@@ -336,7 +336,7 @@ def _rm_upstream_mov(
     # Find image numbers present in orig-vid but missing from main-vid
     main_numbers = {_img_number(f) for f in main_vid_files}
     orig_numbers = {
-        _img_number(f): f for f in orig_vid_files if _ext(f) in MOV_EXTENSIONS
+        _img_number(f): f for f in orig_vid_files if _ext(f) in IOS_VID_EXTENSIONS
     }
     numbers_to_remove = {num for num in orig_numbers if num not in main_numbers}
 
@@ -483,8 +483,8 @@ def rm_orphan(
     Videos: files in edit-vid and main-vid whose image number is not
     present in orig-vid are deleted.
     """
-    heic_numbers = _orig_numbers(album_dir / contrib.orig_img_dir, IMG_EXTENSIONS)
-    mov_numbers = _orig_numbers(album_dir / contrib.orig_vid_dir, MOV_EXTENSIONS)
+    heic_numbers = _orig_numbers(album_dir / contrib.orig_img_dir, IOS_IMG_EXTENSIONS)
+    mov_numbers = _orig_numbers(album_dir / contrib.orig_vid_dir, IOS_VID_EXTENSIONS)
 
     return RmOrphanResult(
         heic=_rm_orphans_in_dirs(
@@ -527,7 +527,7 @@ def _find_orphan_sidecars(directory: Path) -> list[str]:
 
 def _is_media(filename: str) -> bool:
     ext = _ext(filename)
-    return ext in IMG_EXTENSIONS or ext in MOV_EXTENSIONS
+    return ext in IOS_IMG_EXTENSIONS or ext in IOS_VID_EXTENSIONS
 
 
 @dataclass(frozen=True)
@@ -630,7 +630,7 @@ def prefer_higher_quality_when_dups(
     def _process_dir(d: Path) -> tuple[str, tuple[str, ...]] | None:
         if not d.is_dir():
             return None
-        dups = _find_non_heic_dups_in_dir(d, IMG_EXTENSIONS)
+        dups = _find_non_heic_dups_in_dir(d, IOS_IMG_EXTENSIONS)
         if not dups:
             return None
         _delete_files(d, dups, dry_run=dry_run, log_cwd=log_cwd)

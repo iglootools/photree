@@ -27,7 +27,7 @@ from ..fsprotocol import (
     Contributor,
     IMG_EXTENSIONS,
     LinkMode,
-    MOV_EXTENSIONS,
+    VID_EXTENSIONS,
     ShareDirectoryLayout,
     discover_contributors,
     parse_album_year,
@@ -173,7 +173,7 @@ def _export_ios_full_managed(
             target_dir / contrib.orig_vid_dir,
             target_dir / contrib.edit_vid_dir,
             target_dir / contrib.vid_dir,
-            media_extensions=MOV_EXTENSIONS,
+            media_extensions=VID_EXTENSIONS,
             link_mode=link_mode,
         )
         copied += heic_result.copied + mov_result.copied

@@ -17,8 +17,8 @@ from ..fsprotocol import (
     CONVERT_TO_JPEG_EXTENSIONS,
     COPY_AS_IS_TO_JPEG_EXTENSIONS,
     Contributor,
-    IMG_EXTENSIONS,
-    MOV_EXTENSIONS,
+    IOS_IMG_EXTENSIONS,
+    IOS_VID_EXTENSIONS,
     SIDECAR_EXTENSIONS,
     dedup_media_dict,
     discover_contributors,
@@ -32,7 +32,7 @@ def _ext(filename: str) -> str:
 
 def _is_media(filename: str) -> bool:
     ext = _ext(filename)
-    return ext in IMG_EXTENSIONS or ext in MOV_EXTENSIONS
+    return ext in IOS_IMG_EXTENSIONS or ext in IOS_VID_EXTENSIONS
 
 
 def _img_number(filename: str) -> str:
@@ -549,7 +549,7 @@ def check_ios_contributor_integrity(
         album_dir / contrib.orig_img_dir,
         album_dir / contrib.edit_img_dir,
         album_dir / contrib.img_dir,
-        media_extensions=IMG_EXTENSIONS,
+        media_extensions=IOS_IMG_EXTENSIONS,
         checksum=checksum,
         on_file_checked=on_file_checked,
     )
@@ -558,7 +558,7 @@ def check_ios_contributor_integrity(
         album_dir / contrib.orig_vid_dir,
         album_dir / contrib.edit_vid_dir,
         album_dir / contrib.vid_dir,
-        media_extensions=MOV_EXTENSIONS,
+        media_extensions=IOS_VID_EXTENSIONS,
         checksum=checksum,
         on_file_checked=on_file_checked,
     )
@@ -587,7 +587,7 @@ def check_ios_contributor_integrity(
         ),
     )
 
-    all_media = IMG_EXTENSIONS | MOV_EXTENSIONS
+    all_media = IOS_IMG_EXTENSIONS | IOS_VID_EXTENSIONS
     duplicate_numbers = tuple(
         w
         for subdir_name in contrib.all_subdirs

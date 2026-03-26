@@ -17,9 +17,9 @@ from ..album.jpeg import convert_single_file, refresh_jpeg_dir
 
 from ..fsprotocol import (
     DEFAULT_CONTRIBUTOR,
-    IMG_EXTENSIONS,
+    IOS_IMG_EXTENSIONS,
     LinkMode,
-    MOV_EXTENSIONS,
+    IOS_VID_EXTENSIONS,
     SIDECAR_EXTENSIONS,
     SELECTION_DIR,
     contributor,
@@ -44,11 +44,11 @@ def _ext(filename: str) -> str:
 
 
 def _is_img(filename: str) -> bool:
-    return _ext(filename) in IMG_EXTENSIONS
+    return _ext(filename) in IOS_IMG_EXTENSIONS
 
 
 def _is_mov(filename: str) -> bool:
-    return _ext(filename) in MOV_EXTENSIONS
+    return _ext(filename) in IOS_VID_EXTENSIONS
 
 
 def _is_sidecar(filename: str) -> bool:
@@ -513,7 +513,7 @@ def run_import(
         album_orig_img,
         album_edit_img,
         album_main_img,
-        media_extensions=IMG_EXTENSIONS,
+        media_extensions=IOS_IMG_EXTENSIONS,
         link_mode=link_mode,
         dry_run=dry_run,
     )
@@ -525,7 +525,7 @@ def run_import(
         album_orig_vid,
         album_edit_vid,
         album_dir / contrib.vid_dir,
-        media_extensions=MOV_EXTENSIONS,
+        media_extensions=IOS_VID_EXTENSIONS,
         link_mode=link_mode,
         dry_run=dry_run,
     )
