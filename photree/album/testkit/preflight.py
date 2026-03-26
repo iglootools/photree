@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ..preflight import AlbumDirCheck, AlbumPreflightResult, AlbumType
-from .integrity import INTEGRITY_FAILURES, INTEGRITY_OK
+from .integrity import FULL_INTEGRITY_FAILURES, FULL_INTEGRITY_OK
 
 PREFLIGHT_OK = AlbumPreflightResult(
     sips_available=True,
@@ -21,7 +21,7 @@ PREFLIGHT_OK = AlbumPreflightResult(
         ),
         missing=(),
     ),
-    integrity=INTEGRITY_OK,
+    integrity=FULL_INTEGRITY_OK,
 )
 
 PREFLIGHT_FAILURES = AlbumPreflightResult(
@@ -38,7 +38,7 @@ PREFLIGHT_FAILURES = AlbumPreflightResult(
             "main-jpg",
         ),
     ),
-    integrity=INTEGRITY_FAILURES,
+    integrity=FULL_INTEGRITY_FAILURES,
 )
 
 PREFLIGHT_OTHER = AlbumPreflightResult(

@@ -130,15 +130,22 @@ def format_album_preflight_troubleshoot(
     """Format troubleshooting info for failed album checks. Returns None if no failures."""
     album_dir_flag = f'--album-dir "{album_dir}"'
 
+    all_suggestions = [
+        suggestion
+        for _, contrib_result in (
+            result.integrity.by_contributor if result.integrity is not None else ()
+        )
+        for suggestion in suggest_fixes(contrib_result, album_dir_flag)
+    ]
+
     lines = [
         *([sips_troubleshoot()] if not result.sips_available else []),
         *(
             [
                 "Suggested fixes (remove --dry-run to apply):\n\n"
-                + "\n\n".join(suggestions)
+                + "\n\n".join(all_suggestions)
             ]
-            if result.integrity is not None
-            and (suggestions := suggest_fixes(result.integrity, album_dir_flag))
+            if all_suggestions
             else []
         ),
     ]

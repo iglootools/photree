@@ -424,6 +424,7 @@ $ photree import image-capture [OPTIONS]
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `-f, --force`: Skip preflight checks on the source directory.
 * `--skip-heic-to-jpeg`: Skip HEIC-to-JPEG conversion (and the sips availability check).
+* `--contributor TEXT`: Target contributor within the album (default: main).  [default: main]
 * `--help`: Show this message and exit.
 
 ### `photree import image-capture-all`

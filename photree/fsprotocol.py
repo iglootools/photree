@@ -2,6 +2,7 @@
 
 import os
 import re
+from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from textwrap import dedent
@@ -83,17 +84,108 @@ def parse_album_year(album_name: str) -> str:
 # Input
 SELECTION_DIR = "to-import"
 
-# iOS-internal directories (archival, under ios/)
-IOS_DIR = "ios"
-ORIG_IMG_DIR = f"{IOS_DIR}/orig-img"
-EDIT_IMG_DIR = f"{IOS_DIR}/edit-img"
-ORIG_VID_DIR = f"{IOS_DIR}/orig-vid"
-EDIT_VID_DIR = f"{IOS_DIR}/edit-vid"
+# ---------------------------------------------------------------------------
+# Contributor — a named source of photos within an iOS album
+# ---------------------------------------------------------------------------
 
-# Browsable directories (top-level, no sidecars)
-MAIN_IMG_DIR = "main-img"
-MAIN_JPG_DIR = "main-jpg"
-MAIN_VID_DIR = "main-vid"
+IOS_DIR_PREFIX = "ios-"
+DEFAULT_CONTRIBUTOR = "main"
+
+
+@dataclass(frozen=True)
+class Contributor:
+    """A named source of photos within an iOS album.
+
+    Each contributor has its own set of archival directories (under
+    ``ios-{name}/``) and browsable directories (``{name}-img/``,
+    ``{name}-vid/``, ``{name}-jpg/``).
+    """
+
+    name: str  # "main", "bruno"
+    ios_dir: str  # "ios-main", "ios-bruno"
+    orig_img_dir: str  # "ios-main/orig-img"
+    edit_img_dir: str  # "ios-main/edit-img"
+    orig_vid_dir: str  # "ios-main/orig-vid"
+    edit_vid_dir: str  # "ios-main/edit-vid"
+    img_dir: str  # "main-img", "bruno-img"
+    vid_dir: str  # "main-vid", "bruno-vid"
+    jpg_dir: str  # "main-jpg", "bruno-jpg"
+
+    @property
+    def image_subdirs(self) -> tuple[str, ...]:
+        """Required image directories for this contributor."""
+        return (self.orig_img_dir, self.img_dir, self.jpg_dir)
+
+    @property
+    def video_subdirs(self) -> tuple[str, ...]:
+        """Required video directories for this contributor."""
+        return (self.orig_vid_dir, self.vid_dir)
+
+    @property
+    def required_subdirs(self) -> tuple[str, ...]:
+        """All required subdirectories (images + videos)."""
+        return (*self.image_subdirs, *self.video_subdirs)
+
+    @property
+    def optional_subdirs(self) -> tuple[str, ...]:
+        """Directories only present when edits exist."""
+        return (self.edit_img_dir, self.edit_vid_dir)
+
+    @property
+    def all_subdirs(self) -> tuple[str, ...]:
+        """All possible subdirectories for this contributor."""
+        return (*self.required_subdirs, *self.optional_subdirs)
+
+
+def contributor(name: str) -> Contributor:
+    """Create a :class:`Contributor` from a name."""
+    ios = f"{IOS_DIR_PREFIX}{name}"
+    return Contributor(
+        name=name,
+        ios_dir=ios,
+        orig_img_dir=f"{ios}/orig-img",
+        edit_img_dir=f"{ios}/edit-img",
+        orig_vid_dir=f"{ios}/orig-vid",
+        edit_vid_dir=f"{ios}/edit-vid",
+        img_dir=f"{name}-img",
+        vid_dir=f"{name}-vid",
+        jpg_dir=f"{name}-jpg",
+    )
+
+
+MAIN_CONTRIBUTOR = contributor(DEFAULT_CONTRIBUTOR)
+
+
+def _is_contributor_dir(d: Path) -> bool:
+    """Check if *d* looks like a valid ``ios-{name}/`` contributor directory.
+
+    Must start with ``ios-`` and contain at least ``orig-img/`` or ``orig-vid/``.
+    """
+    return (
+        d.is_dir()
+        and d.name.startswith(IOS_DIR_PREFIX)
+        and ((d / "orig-img").is_dir() or (d / "orig-vid").is_dir())
+    )
+
+
+def discover_contributors(album_dir: Path) -> list[Contributor]:
+    """Discover all contributors in an album by scanning for ``ios-*`` directories.
+
+    Returns contributors sorted with ``main`` first, then alphabetically.
+    Only directories containing ``orig-img/`` or ``orig-vid/`` are considered
+    valid contributor directories.
+    """
+    if not album_dir.is_dir():
+        return []
+    return sorted(
+        (
+            contributor(d.name.removeprefix(IOS_DIR_PREFIX))
+            for d in album_dir.iterdir()
+            if _is_contributor_dir(d)
+        ),
+        key=lambda c: (c.name != DEFAULT_CONTRIBUTOR, c.name),
+    )
+
 
 # File extensions
 IMG_EXTENSIONS = frozenset({".dng", ".heic", ".jpeg", ".jpg", ".png"})
@@ -110,22 +202,6 @@ PICTURE_PRIORITY_EXTENSIONS = (".dng", ".heic")
 # JPEG conversion — extensions that sips can convert to JPEG
 CONVERT_TO_JPEG_EXTENSIONS = frozenset({".dng", ".heic"})
 COPY_AS_IS_TO_JPEG_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png"})
-
-# iOS album: directory groups — at least one group must be fully present
-IOS_ALBUM_IMAGE_SUBDIRS = (ORIG_IMG_DIR, MAIN_IMG_DIR, MAIN_JPG_DIR)
-IOS_ALBUM_VIDEO_SUBDIRS = (ORIG_VID_DIR, MAIN_VID_DIR)
-
-# All required subdirectories (union of all groups, for reference)
-IOS_ALBUM_REQUIRED_SUBDIRS = (*IOS_ALBUM_IMAGE_SUBDIRS, *IOS_ALBUM_VIDEO_SUBDIRS)
-
-# iOS album: optional subdirectories (only present if some files had edits)
-IOS_ALBUM_OPTIONAL_SUBDIRS = (
-    EDIT_IMG_DIR,
-    EDIT_VID_DIR,
-)
-
-# iOS album: all possible subdirectories
-IOS_ALBUM_SUBDIRS = (*IOS_ALBUM_REQUIRED_SUBDIRS, *IOS_ALBUM_OPTIONAL_SUBDIRS)
 
 
 # ---------------------------------------------------------------------------

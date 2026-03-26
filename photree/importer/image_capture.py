@@ -16,18 +16,13 @@ from ..album import combined
 from ..album.jpeg import convert_single_file, refresh_jpeg_dir
 
 from ..fsprotocol import (
-    MAIN_IMG_DIR,
-    MAIN_JPG_DIR,
-    MAIN_VID_DIR,
+    DEFAULT_CONTRIBUTOR,
     IMG_EXTENSIONS,
     LinkMode,
-    SIDECAR_EXTENSIONS,
     MOV_EXTENSIONS,
-    ORIG_IMG_DIR,
-    ORIG_VID_DIR,
-    EDIT_IMG_DIR,
-    EDIT_VID_DIR,
+    SIDECAR_EXTENSIONS,
     SELECTION_DIR,
+    contributor,
     list_files,
     pick_media_priority,
 )
@@ -429,6 +424,7 @@ def run_import(
     *,
     album_dir: Path,
     image_capture_dir: Path,
+    contributor_name: str = DEFAULT_CONTRIBUTOR,
     link_mode: LinkMode = LinkMode.HARDLINK,
     dry_run: bool = False,
     on_stage_start: Callable[[str], None] | None = None,
@@ -470,13 +466,14 @@ def run_import(
     # Plan
     plan = plan_import(selection_files, image_capture_files)
 
-    # Output directories
-    album_orig_img = album_dir / ORIG_IMG_DIR
-    album_orig_vid = album_dir / ORIG_VID_DIR
-    album_edit_img = album_dir / EDIT_IMG_DIR
-    album_edit_vid = album_dir / EDIT_VID_DIR
-    album_main_img = album_dir / MAIN_IMG_DIR
-    album_main_jpg = album_dir / MAIN_JPG_DIR
+    # Output directories — derived from contributor
+    contrib = contributor(contributor_name)
+    album_orig_img = album_dir / contrib.orig_img_dir
+    album_orig_vid = album_dir / contrib.orig_vid_dir
+    album_edit_img = album_dir / contrib.edit_img_dir
+    album_edit_vid = album_dir / contrib.edit_vid_dir
+    album_main_img = album_dir / contrib.img_dir
+    album_main_jpg = album_dir / contrib.jpg_dir
 
     # ── Stage 1: import-ic ──
     # Copy files from Image Capture to orig/edited dirs.
@@ -527,7 +524,7 @@ def run_import(
     combined.refresh_main_dir(
         album_orig_vid,
         album_edit_vid,
-        album_dir / MAIN_VID_DIR,
+        album_dir / contrib.vid_dir,
         media_extensions=MOV_EXTENSIONS,
         link_mode=link_mode,
         dry_run=dry_run,

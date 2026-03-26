@@ -13,10 +13,8 @@ from pathlib import Path
 
 from ..fsprotocol import (
     IMG_EXTENSIONS,
-    IOS_DIR,
-    MAIN_JPG_DIR,
-    MAIN_VID_DIR,
     MOV_EXTENSIONS,
+    discover_contributors,
 )
 
 MEDIA_EXTENSIONS = IMG_EXTENSIONS | MOV_EXTENSIONS
@@ -34,14 +32,20 @@ def sample_media_files(
     album_dir: Path,
     max_samples: int = DEFAULT_MAX_SAMPLES,
 ) -> list[Path]:
-    """Pick up to *max_samples* random media files from an album.
+    """Pick up to *max_samples* media files from an album.
 
-    For iOS albums (``ios/`` subdir present), searches ``main-jpg/`` and
-    ``main-vid/``.  For other albums, searches recursively from the album
-    root.
+    For iOS albums (any ``ios-*`` subdir present), searches all contributors'
+    ``{name}-jpg/`` and ``{name}-vid/`` directories.  For other albums,
+    searches recursively from the album root.
     """
-    if (album_dir / IOS_DIR).is_dir():
-        search_dirs = [album_dir / MAIN_JPG_DIR, album_dir / MAIN_VID_DIR]
+    contributors = discover_contributors(album_dir)
+    if contributors:
+        search_dirs = [
+            album_dir / d
+            for c in contributors
+            for d in (c.jpg_dir, c.vid_dir)
+            if (album_dir / d).is_dir()
+        ]
     else:
         search_dirs = [album_dir]
 

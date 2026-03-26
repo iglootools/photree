@@ -17,12 +17,10 @@ from ..album import (
 )
 from ..album.exif import check_exiftool_available
 from ..fsprotocol import (
-    MAIN_IMG_DIR,
     IMG_EXTENSIONS,
     LinkMode,
     MOV_EXTENSIONS,
-    ORIG_IMG_DIR,
-    ORIG_VID_DIR,
+    discover_contributors,
     display_path,
     list_files,
 )
@@ -72,11 +70,12 @@ def check_cmd(
     ] = True,
 ) -> None:
     """Check system prerequisites, album directory structure, and file integrity."""
-    # Count unique media numbers in orig dirs — the integrity check fires one
-    # callback per expected main file, which is one per orig media number.
-    file_count = _count_unique_media_numbers(
-        album_dir / ORIG_IMG_DIR, IMG_EXTENSIONS
-    ) + _count_unique_media_numbers(album_dir / ORIG_VID_DIR, MOV_EXTENSIONS)
+    # Count unique media numbers across all contributors' orig dirs
+    file_count = sum(
+        _count_unique_media_numbers(album_dir / c.orig_img_dir, IMG_EXTENSIONS)
+        + _count_unique_media_numbers(album_dir / c.orig_vid_dir, MOV_EXTENSIONS)
+        for c in discover_contributors(album_dir)
+    )
     progress = (
         SilentProgressBar(total=max(file_count, 1), description="Checking")
         if file_count > 0
@@ -287,9 +286,11 @@ def optimize_cmd(
     """
     if check:
         # Run checks first
-        file_count = _count_unique_media_numbers(
-            album_dir / ORIG_IMG_DIR, IMG_EXTENSIONS
-        ) + _count_unique_media_numbers(album_dir / ORIG_VID_DIR, MOV_EXTENSIONS)
+        file_count = sum(
+            _count_unique_media_numbers(album_dir / c.orig_img_dir, IMG_EXTENSIONS)
+            + _count_unique_media_numbers(album_dir / c.orig_vid_dir, MOV_EXTENSIONS)
+            for c in discover_contributors(album_dir)
+        )
         progress = (
             SilentProgressBar(total=max(file_count, 1), description="Checking")
             if file_count > 0
@@ -943,6 +944,7 @@ def _run_fix_ios(
     *show_progress* enables progress bars and summary lines.
     Both can be set independently.
     """
+    contributors = discover_contributors(album_dir)
 
     if refresh_combined:
         _check_sips_or_exit()
@@ -959,32 +961,44 @@ def _run_fix_ios(
             if show_progress
             else None
         )
-        result = ios_fixes.refresh_combined(
-            album_dir,
-            link_mode=link_mode,
-            dry_run=dry_run,
-            on_stage_start=stage_progress.on_start if stage_progress else None,
-            on_stage_end=stage_progress.on_end if stage_progress else None,
-        )
+        total_heic = 0
+        total_mov = 0
+        total_jpeg_converted = 0
+        total_jpeg_copied = 0
+        total_jpeg_skipped = 0
+        for contrib in contributors:
+            result = ios_fixes.refresh_combined(
+                album_dir,
+                contrib,
+                link_mode=link_mode,
+                dry_run=dry_run,
+                on_stage_start=stage_progress.on_start if stage_progress else None,
+                on_stage_end=stage_progress.on_end if stage_progress else None,
+            )
+            total_heic += result.heic.copied
+            total_mov += result.mov.copied
+            total_jpeg_converted += result.jpeg.converted if result.jpeg else 0
+            total_jpeg_copied += result.jpeg.copied if result.jpeg else 0
+            total_jpeg_skipped += result.jpeg.skipped if result.jpeg else 0
         if stage_progress:
             stage_progress.stop()
         if show_progress:
             typer.echo(
                 album_output.refresh_combined_summary(
-                    heic_copied=result.heic.copied,
-                    mov_copied=result.mov.copied,
-                    jpeg_converted=result.jpeg.converted if result.jpeg else 0,
-                    jpeg_copied=result.jpeg.copied if result.jpeg else 0,
-                    jpeg_skipped=result.jpeg.skipped if result.jpeg else 0,
+                    heic_copied=total_heic,
+                    mov_copied=total_mov,
+                    jpeg_converted=total_jpeg_converted,
+                    jpeg_copied=total_jpeg_copied,
+                    jpeg_skipped=total_jpeg_skipped,
                 )
             )
     elif refresh_jpeg:
         _check_sips_or_exit()
-        src_dir = album_dir / MAIN_IMG_DIR
-        if not src_dir.is_dir():
-            typer.echo(f"Directory not found: {src_dir}", err=True)
-            raise typer.Exit(code=1)
-        file_count = len(list_files(src_dir))
+        file_count = sum(
+            len(list_files(album_dir / c.img_dir))
+            for c in contributors
+            if (album_dir / c.img_dir).is_dir()
+        )
         progress = (
             FileProgressBar(
                 total=file_count,
@@ -994,65 +1008,85 @@ def _run_fix_ios(
             if show_progress
             else None
         )
-        result_jpeg = ios_fixes.refresh_jpeg(
-            album_dir,
-            dry_run=dry_run,
-            log_cwd=log_cwd,
-            on_file_start=progress.on_start if progress else None,
-            on_file_end=progress.on_end if progress else None,
-        )
+        total_converted = 0
+        total_copied = 0
+        total_skipped = 0
+        for contrib in contributors:
+            if not (album_dir / contrib.img_dir).is_dir():
+                continue
+            result_jpeg = ios_fixes.refresh_jpeg(
+                album_dir,
+                contrib,
+                dry_run=dry_run,
+                log_cwd=log_cwd,
+                on_file_start=progress.on_start if progress else None,
+                on_file_end=progress.on_end if progress else None,
+            )
+            total_converted += result_jpeg.converted
+            total_copied += result_jpeg.copied
+            total_skipped += result_jpeg.skipped
         if progress:
             progress.stop()
         if show_progress:
             typer.echo(
                 album_output.refresh_jpeg_summary(
-                    result_jpeg.converted, result_jpeg.copied, result_jpeg.skipped
+                    total_converted, total_copied, total_skipped
                 )
             )
 
     if rm_upstream:
-        result_rm = ios_fixes.rm_upstream(album_dir, dry_run=dry_run, log_cwd=log_cwd)
-        if show_progress:
-            typer.echo(
-                album_output.rm_upstream_summary(
-                    heic_jpeg=len(result_rm.heic.removed_jpeg),
-                    heic_combined=len(result_rm.heic.removed_combined),
-                    heic_rendered=len(result_rm.heic.removed_rendered),
-                    heic_orig=len(result_rm.heic.removed_orig),
-                    mov_rendered=len(result_rm.mov.removed_rendered),
-                    mov_orig=len(result_rm.mov.removed_orig),
-                )
+        for contrib in contributors:
+            result_rm = ios_fixes.rm_upstream(
+                album_dir, contrib, dry_run=dry_run, log_cwd=log_cwd
             )
-
-    if rm_orphan:
-        result_orphan = ios_fixes.rm_orphan(album_dir, dry_run=dry_run, log_cwd=log_cwd)
-        if show_progress:
-            typer.echo(
-                album_output.rm_orphan_summary(
-                    (
-                        *result_orphan.heic.removed_by_dir,
-                        *result_orphan.mov.removed_by_dir,
+            if show_progress:
+                typer.echo(
+                    album_output.rm_upstream_summary(
+                        heic_jpeg=len(result_rm.heic.removed_jpeg),
+                        heic_combined=len(result_rm.heic.removed_combined),
+                        heic_rendered=len(result_rm.heic.removed_rendered),
+                        heic_orig=len(result_rm.heic.removed_orig),
+                        mov_rendered=len(result_rm.mov.removed_rendered),
+                        mov_orig=len(result_rm.mov.removed_orig),
                     )
                 )
+
+    if rm_orphan:
+        for contrib in contributors:
+            result_orphan = ios_fixes.rm_orphan(
+                album_dir, contrib, dry_run=dry_run, log_cwd=log_cwd
             )
+            if show_progress:
+                typer.echo(
+                    album_output.rm_orphan_summary(
+                        (
+                            *result_orphan.heic.removed_by_dir,
+                            *result_orphan.mov.removed_by_dir,
+                        )
+                    )
+                )
 
     if rm_orphan_sidecar:
-        result_meta = ios_fixes.rm_orphan_sidecar(
-            album_dir, dry_run=dry_run, log_cwd=log_cwd
-        )
-        if show_progress:
-            typer.echo(
-                album_output.rm_orphan_sidecar_summary(result_meta.removed_by_dir)
+        for contrib in contributors:
+            result_meta = ios_fixes.rm_orphan_sidecar(
+                album_dir, contrib, dry_run=dry_run, log_cwd=log_cwd
             )
+            if show_progress:
+                typer.echo(
+                    album_output.rm_orphan_sidecar_summary(result_meta.removed_by_dir)
+                )
 
     if prefer_higher_quality_when_dups:
-        result_heic = ios_fixes.prefer_higher_quality_when_dups(
-            album_dir, dry_run=dry_run, log_cwd=log_cwd
-        )
-        if show_progress:
-            typer.echo(
-                album_output.prefer_higher_quality_summary(result_heic.removed_by_dir)
+        for contrib in contributors:
+            result_heic = ios_fixes.prefer_higher_quality_when_dups(
+                album_dir, contrib, dry_run=dry_run, log_cwd=log_cwd
             )
+            if show_progress:
+                typer.echo(
+                    album_output.prefer_higher_quality_summary(
+                        result_heic.removed_by_dir
+                    )
+                )
 
     miscat_action = (
         "rm"
@@ -1069,17 +1103,18 @@ def _run_fix_ios(
             "rm-safe": ios_fixes.rm_miscategorized_safe,
             "mv": ios_fixes.mv_miscategorized,
         }[miscat_action]
-        result_miscat = fix_fn(album_dir, dry_run=dry_run, log_cwd=log_cwd)
-        if show_progress:
-            typer.echo(
-                album_output.miscategorized_summary(
-                    action=miscat_action,
-                    heic_from_orig=len(result_miscat.heic.fixed_from_orig),
-                    heic_from_rendered=len(result_miscat.heic.fixed_from_rendered),
-                    mov_from_orig=len(result_miscat.mov.fixed_from_orig),
-                    mov_from_rendered=len(result_miscat.mov.fixed_from_rendered),
+        for contrib in contributors:
+            result_miscat = fix_fn(album_dir, contrib, dry_run=dry_run, log_cwd=log_cwd)
+            if show_progress:
+                typer.echo(
+                    album_output.miscategorized_summary(
+                        action=miscat_action,
+                        heic_from_orig=len(result_miscat.heic.fixed_from_orig),
+                        heic_from_rendered=len(result_miscat.heic.fixed_from_rendered),
+                        mov_from_orig=len(result_miscat.mov.fixed_from_orig),
+                        mov_from_rendered=len(result_miscat.mov.fixed_from_rendered),
+                    )
                 )
-            )
 
 
 def _check_sips_or_exit() -> None:

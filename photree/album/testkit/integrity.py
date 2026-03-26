@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from ...fsprotocol import MAIN_CONTRIBUTOR
 from ..integrity import (
     CombinedDirCheck,
     FileComparison,
+    IosAlbumFullIntegrityResult,
     IosAlbumIntegrityResult,
     JpegCheck,
     MissingFile,
@@ -72,4 +74,13 @@ INTEGRITY_FAILURES = IosAlbumIntegrityResult(
         "IMG_E0410.HEIC in orig-img/ looks like an edited file (IMG_E prefix)",
         "IMG_0100.HEIC in edit-img/ looks like an original file (no E/O prefix)",
     ),
+)
+
+# Wrapped in IosAlbumFullIntegrityResult for preflight tests
+FULL_INTEGRITY_OK = IosAlbumFullIntegrityResult(
+    by_contributor=((MAIN_CONTRIBUTOR, INTEGRITY_OK),)
+)
+
+FULL_INTEGRITY_FAILURES = IosAlbumFullIntegrityResult(
+    by_contributor=((MAIN_CONTRIBUTOR, INTEGRITY_FAILURES),)
 )

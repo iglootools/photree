@@ -11,14 +11,7 @@ from ..album.output.preflight import format_naming_checks
 from ..album.naming import AlbumNamingResult
 from ..config import ConfigError, load_config
 from ..fsprotocol import (
-    MAIN_IMG_DIR,
-    MAIN_JPG_DIR,
-    MAIN_VID_DIR,
     LinkMode,
-    ORIG_IMG_DIR,
-    ORIG_VID_DIR,
-    EDIT_IMG_DIR,
-    EDIT_VID_DIR,
     SELECTION_DIR,
 )
 from ..album.jpeg import convert_single_file, noop_convert_single
@@ -189,13 +182,19 @@ def image_capture_cmd(
             help="Skip HEIC-to-JPEG conversion (and the sips availability check).",
         ),
     ] = False,
+    album_contributor: Annotated[
+        str,
+        typer.Option(
+            "--contributor",
+            help="Target contributor within the album (default: main).",
+        ),
+    ] = "main",
 ) -> None:
     f"""Organize files imported by macOS Image Capture into an album directory.
 
     Reads the {SELECTION_DIR}/ inside ALBUM_DIR, matches files from the
-    Image Capture source directory, and sorts them into {ORIG_IMG_DIR}/,
-    {ORIG_VID_DIR}/, {EDIT_IMG_DIR}/, {EDIT_VID_DIR}/, {MAIN_IMG_DIR}/,
-    {MAIN_VID_DIR}/, and {MAIN_JPG_DIR}/ subdirectories.
+    Image Capture source directory, and sorts them into the contributor's
+    archival and browsable subdirectories.
 
     The source directory is resolved in this order:
     1. --source flag (explicit)
@@ -258,6 +257,7 @@ def image_capture_cmd(
         result = image_capture.run_import(
             album_dir=album_dir,
             image_capture_dir=image_capture_dir,
+            contributor_name=album_contributor,
             link_mode=link_mode,
             dry_run=dry_run,
             on_stage_start=progress.on_start,

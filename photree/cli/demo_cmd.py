@@ -12,7 +12,10 @@ from rich.panel import Panel
 
 from ..album import output as album_output
 from ..album.output.integrity import format_integrity_checks
-from ..album.testkit.integrity import INTEGRITY_FAILURES, INTEGRITY_OK
+from ..album.testkit.integrity import (
+    FULL_INTEGRITY_FAILURES,
+    FULL_INTEGRITY_OK,
+)
 from ..album.testkit.preflight import PREFLIGHT_FAILURES, PREFLIGHT_OK, PREFLIGHT_OTHER
 from ..importer import output as importer_output
 from ..importer.testkit.preflight import (
@@ -144,12 +147,12 @@ def output_cmd() -> None:
 
     _panel(
         "integrity_output.format_integrity_checks (all ok)",
-        format_integrity_checks(INTEGRITY_OK),
+        format_integrity_checks(FULL_INTEGRITY_OK),
     )
 
     _panel(
         "integrity_output.format_integrity_checks (failures)",
-        format_integrity_checks(INTEGRITY_FAILURES),
+        format_integrity_checks(FULL_INTEGRITY_FAILURES),
     )
 
     _panel(

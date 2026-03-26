@@ -5,6 +5,7 @@ from __future__ import annotations
 from . import CHECK, CROSS
 from ..integrity import (
     CombinedDirCheck,
+    IosAlbumFullIntegrityResult,
     IosAlbumIntegrityResult,
     JpegCheck,
     SidecarCheck,
@@ -35,16 +36,16 @@ def format_combined_dir_check(label: str, check: CombinedDirCheck) -> str:
         return f"{CROSS} {label}: {len(issues)} issue(s)\n" + "\n".join(issues)
 
 
-def format_jpeg_check(check: JpegCheck) -> str:
+def format_jpeg_check(check: JpegCheck, label: str = "main-jpg") -> str:
     """Format a JPEG directory check result."""
     if check.success:
-        return f"{CHECK} main-jpg: {len(check.present)} file(s) verified"
+        return f"{CHECK} {label}: {len(check.present)} file(s) verified"
     else:
         issues = [
             *[f"  - missing: {f}" for f in check.missing],
             *[f"  - extra: {f}" for f in check.extra],
         ]
-        return f"{CROSS} main-jpg: {len(issues)} issue(s)\n" + "\n".join(issues)
+        return f"{CROSS} {label}: {len(issues)} issue(s)\n" + "\n".join(issues)
 
 
 def format_sidecar_check(check: SidecarCheck) -> str:
@@ -84,8 +85,12 @@ def format_miscategorized(warnings: tuple[str, ...]) -> str | None:
         )
 
 
-def format_integrity_checks(result: IosAlbumIntegrityResult) -> str:
-    """Format all integrity check lines."""
+def _format_contributor_integrity(
+    result: IosAlbumIntegrityResult,
+    prefix: str = "",
+) -> str:
+    """Format integrity checks for a single contributor."""
+    p = f"{prefix} " if prefix else ""
     sidecar_line = format_sidecar_check(result.sidecars)
     duplicate_line = (
         format_duplicate_numbers(result.duplicate_numbers) or ""
@@ -99,11 +104,27 @@ def format_integrity_checks(result: IosAlbumIntegrityResult) -> str:
     )
     return "\n".join(
         [
-            format_combined_dir_check("main-img", result.combined_heic),
-            format_combined_dir_check("main-vid", result.combined_mov),
-            format_jpeg_check(result.jpeg),
+            format_combined_dir_check(f"{p}main-img", result.combined_heic),
+            format_combined_dir_check(f"{p}main-vid", result.combined_mov),
+            format_jpeg_check(result.jpeg, f"{p}main-jpg"),
             sidecar_line,
             duplicate_line,
             miscategorized_line,
         ]
+    )
+
+
+def format_integrity_checks(result: IosAlbumFullIntegrityResult) -> str:
+    """Format all integrity check lines across contributors.
+
+    Single-contributor: no prefix (identical output to previous behavior).
+    Multi-contributor: each section prefixed with ``[name]``.
+    """
+    multi = len(result.by_contributor) > 1
+    return "\n".join(
+        _format_contributor_integrity(
+            contrib_result,
+            prefix=f"[{contrib.name}]" if multi else "",
+        )
+        for contrib, contrib_result in result.by_contributor
     )

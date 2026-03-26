@@ -20,20 +20,14 @@ from . import jpeg
 from .combined import RefreshMainDirResult
 from .jpeg import RefreshResult, convert_single_file
 from ..fsprotocol import (
-    MAIN_IMG_DIR,
-    MAIN_JPG_DIR,
-    MAIN_VID_DIR,
     CONVERT_TO_JPEG_EXTENSIONS,
     COPY_AS_IS_TO_JPEG_EXTENSIONS,
-    PICTURE_PRIORITY_EXTENSIONS,
+    Contributor,
     IMG_EXTENSIONS,
     LinkMode,
-    SIDECAR_EXTENSIONS,
     MOV_EXTENSIONS,
-    ORIG_IMG_DIR,
-    ORIG_VID_DIR,
-    EDIT_IMG_DIR,
-    EDIT_VID_DIR,
+    PICTURE_PRIORITY_EXTENSIONS,
+    SIDECAR_EXTENSIONS,
     display_path,
     list_files,
 )
@@ -64,6 +58,7 @@ class RefreshCombinedResult:
 
 def refresh_combined(
     album_dir: Path,
+    contrib: Contributor,
     *,
     link_mode: LinkMode = LinkMode.HARDLINK,
     dry_run: bool = False,
@@ -77,9 +72,9 @@ def refresh_combined(
     Stage callbacks fire for: ``delete``, ``refresh-heic``, ``refresh-mov``,
     ``refresh-jpeg``.
     """
-    main_img = album_dir / MAIN_IMG_DIR
-    main_vid = album_dir / MAIN_VID_DIR
-    main_jpg = album_dir / MAIN_JPG_DIR
+    main_img = album_dir / contrib.img_dir
+    main_vid = album_dir / contrib.vid_dir
+    main_jpg = album_dir / contrib.jpg_dir
 
     # Delete all main directories
     if on_stage_start:
@@ -93,8 +88,8 @@ def refresh_combined(
     if on_stage_start:
         on_stage_start("refresh-heic")
     heic_result = combined_module.refresh_main_dir(
-        album_dir / ORIG_IMG_DIR,
-        album_dir / EDIT_IMG_DIR,
+        album_dir / contrib.orig_img_dir,
+        album_dir / contrib.edit_img_dir,
         main_img,
         media_extensions=IMG_EXTENSIONS,
         link_mode=link_mode,
@@ -107,8 +102,8 @@ def refresh_combined(
     if on_stage_start:
         on_stage_start("refresh-mov")
     mov_result = combined_module.refresh_main_dir(
-        album_dir / ORIG_VID_DIR,
-        album_dir / EDIT_VID_DIR,
+        album_dir / contrib.orig_vid_dir,
+        album_dir / contrib.edit_vid_dir,
         main_vid,
         media_extensions=MOV_EXTENSIONS,
         link_mode=link_mode,
@@ -139,6 +134,7 @@ def refresh_combined(
 
 def refresh_jpeg(
     album_dir: Path,
+    contrib: Contributor,
     *,
     dry_run: bool = False,
     log_cwd: Path | None = None,
@@ -150,7 +146,7 @@ def refresh_jpeg(
 
     Raises FileNotFoundError if main-img/ does not exist.
     """
-    src_dir = album_dir / MAIN_IMG_DIR
+    src_dir = album_dir / contrib.img_dir
     if not src_dir.is_dir():
         raise FileNotFoundError(f"Directory not found: {src_dir}")
 
@@ -159,7 +155,7 @@ def refresh_jpeg(
     jpeg_log_cwd = log_cwd if on_file_end is None else None
     return jpeg.refresh_jpeg_dir(
         src_dir,
-        album_dir / MAIN_JPG_DIR,
+        album_dir / contrib.jpg_dir,
         dry_run=dry_run,
         log_cwd=jpeg_log_cwd,
         convert_file=convert_file,
@@ -249,6 +245,7 @@ class RmUpstreamResult:
 
 def _rm_upstream_heic(
     album_dir: Path,
+    contrib: Contributor,
     *,
     dry_run: bool,
     log_cwd: Path | None,
@@ -261,10 +258,10 @@ def _rm_upstream_heic(
 
     Both are merged and propagated to all upstream dirs.
     """
-    main_img_dir = album_dir / MAIN_IMG_DIR
-    main_jpg_dir = album_dir / MAIN_JPG_DIR
-    orig_img_dir = album_dir / ORIG_IMG_DIR
-    edit_img_dir = album_dir / EDIT_IMG_DIR
+    main_img_dir = album_dir / contrib.img_dir
+    main_jpg_dir = album_dir / contrib.jpg_dir
+    orig_img_dir = album_dir / contrib.orig_img_dir
+    edit_img_dir = album_dir / contrib.edit_img_dir
 
     main_img_files = set(list_files(main_img_dir))
     main_jpg_files = set(list_files(main_jpg_dir))
@@ -320,6 +317,7 @@ def _rm_upstream_heic(
 
 def _rm_upstream_mov(
     album_dir: Path,
+    contrib: Contributor,
     *,
     dry_run: bool,
     log_cwd: Path | None,
@@ -329,8 +327,8 @@ def _rm_upstream_mov(
     Files missing from main-vid (relative to orig-vid/edit-vid) are treated
     as intentional deletions. The corresponding files are removed from upstream dirs.
     """
-    main_vid_dir = album_dir / MAIN_VID_DIR
-    orig_vid_dir = album_dir / ORIG_VID_DIR
+    main_vid_dir = album_dir / contrib.vid_dir
+    orig_vid_dir = album_dir / contrib.orig_vid_dir
 
     main_vid_files = set(list_files(main_vid_dir))
     orig_vid_files = list_files(orig_vid_dir)
@@ -346,17 +344,24 @@ def _rm_upstream_mov(
         return RmUpstreamMovResult(removed_rendered=(), removed_orig=())
 
     # Delete matching files from edit-vid and orig-vid (by image number)
-    edit_to_remove = _find_upstream_files(numbers_to_remove, album_dir / EDIT_VID_DIR)
+    edit_to_remove = _find_upstream_files(
+        numbers_to_remove, album_dir / contrib.edit_vid_dir
+    )
     _delete_files(
-        album_dir / EDIT_VID_DIR,
+        album_dir / contrib.edit_vid_dir,
         edit_to_remove,
         dry_run=dry_run,
         log_cwd=log_cwd,
     )
 
-    orig_to_remove = _find_upstream_files(numbers_to_remove, album_dir / ORIG_VID_DIR)
+    orig_to_remove = _find_upstream_files(
+        numbers_to_remove, album_dir / contrib.orig_vid_dir
+    )
     _delete_files(
-        album_dir / ORIG_VID_DIR, orig_to_remove, dry_run=dry_run, log_cwd=log_cwd
+        album_dir / contrib.orig_vid_dir,
+        orig_to_remove,
+        dry_run=dry_run,
+        log_cwd=log_cwd,
     )
 
     return RmUpstreamMovResult(
@@ -367,6 +372,7 @@ def _rm_upstream_mov(
 
 def rm_upstream(
     album_dir: Path,
+    contrib: Contributor,
     *,
     dry_run: bool = False,
     log_cwd: Path | None = None,
@@ -380,8 +386,8 @@ def rm_upstream(
     removed from edit-vid and orig-vid.
     """
     return RmUpstreamResult(
-        heic=_rm_upstream_heic(album_dir, dry_run=dry_run, log_cwd=log_cwd),
-        mov=_rm_upstream_mov(album_dir, dry_run=dry_run, log_cwd=log_cwd),
+        heic=_rm_upstream_heic(album_dir, contrib, dry_run=dry_run, log_cwd=log_cwd),
+        mov=_rm_upstream_mov(album_dir, contrib, dry_run=dry_run, log_cwd=log_cwd),
     )
 
 
@@ -464,6 +470,7 @@ def _find_orphan_files(orig_numbers: set[str], directory: Path) -> list[str]:
 
 def rm_orphan(
     album_dir: Path,
+    contrib: Contributor,
     *,
     dry_run: bool = False,
     log_cwd: Path | None = None,
@@ -476,16 +483,16 @@ def rm_orphan(
     Videos: files in edit-vid and main-vid whose image number is not
     present in orig-vid are deleted.
     """
-    heic_numbers = _orig_numbers(album_dir / ORIG_IMG_DIR, IMG_EXTENSIONS)
-    mov_numbers = _orig_numbers(album_dir / ORIG_VID_DIR, MOV_EXTENSIONS)
+    heic_numbers = _orig_numbers(album_dir / contrib.orig_img_dir, IMG_EXTENSIONS)
+    mov_numbers = _orig_numbers(album_dir / contrib.orig_vid_dir, MOV_EXTENSIONS)
 
     return RmOrphanResult(
         heic=_rm_orphans_in_dirs(
             heic_numbers,
             (
-                album_dir / EDIT_IMG_DIR,
-                album_dir / MAIN_IMG_DIR,
-                album_dir / MAIN_JPG_DIR,
+                album_dir / contrib.edit_img_dir,
+                album_dir / contrib.img_dir,
+                album_dir / contrib.jpg_dir,
             ),
             dry_run=dry_run,
             log_cwd=log_cwd,
@@ -493,8 +500,8 @@ def rm_orphan(
         mov=_rm_orphans_in_dirs(
             mov_numbers,
             (
-                album_dir / EDIT_VID_DIR,
-                album_dir / MAIN_VID_DIR,
+                album_dir / contrib.edit_vid_dir,
+                album_dir / contrib.vid_dir,
             ),
             dry_run=dry_run,
             log_cwd=log_cwd,
@@ -536,6 +543,7 @@ class RmOrphanSidecarResult:
 
 def rm_orphan_sidecar(
     album_dir: Path,
+    contrib: Contributor,
     *,
     dry_run: bool = False,
     log_cwd: Path | None = None,
@@ -545,10 +553,10 @@ def rm_orphan_sidecar(
     Scans orig-img/, edit-img/, orig-vid/, and edit-vid/.
     """
     directories = (
-        album_dir / ORIG_IMG_DIR,
-        album_dir / EDIT_IMG_DIR,
-        album_dir / ORIG_VID_DIR,
-        album_dir / EDIT_VID_DIR,
+        album_dir / contrib.orig_img_dir,
+        album_dir / contrib.edit_img_dir,
+        album_dir / contrib.orig_vid_dir,
+        album_dir / contrib.edit_vid_dir,
     )
 
     results: list[tuple[str, tuple[str, ...]]] = []
@@ -601,6 +609,7 @@ class PreferHigherQualityResult:
 
 def prefer_higher_quality_when_dups(
     album_dir: Path,
+    contrib: Contributor,
     *,
     dry_run: bool = False,
     log_cwd: Path | None = None,
@@ -612,10 +621,10 @@ def prefer_higher_quality_when_dups(
     and deletes the rest.
     """
     directories = (
-        album_dir / ORIG_IMG_DIR,
-        album_dir / EDIT_IMG_DIR,
-        album_dir / MAIN_IMG_DIR,
-        album_dir / MAIN_JPG_DIR,
+        album_dir / contrib.orig_img_dir,
+        album_dir / contrib.edit_img_dir,
+        album_dir / contrib.img_dir,
+        album_dir / contrib.jpg_dir,
     )
 
     def _process_dir(d: Path) -> tuple[str, tuple[str, ...]] | None:
@@ -760,6 +769,7 @@ def _fix_miscategorized_pair(
 
 def rm_miscategorized(
     album_dir: Path,
+    contrib: Contributor,
     *,
     dry_run: bool = False,
     log_cwd: Path | None = None,
@@ -767,15 +777,15 @@ def rm_miscategorized(
     """Delete files that are in the wrong directory (edited in orig or vice versa)."""
     return MiscategorizedResult(
         heic=_fix_miscategorized_pair(
-            album_dir / ORIG_IMG_DIR,
-            album_dir / EDIT_IMG_DIR,
+            album_dir / contrib.orig_img_dir,
+            album_dir / contrib.edit_img_dir,
             action="rm",
             dry_run=dry_run,
             log_cwd=log_cwd,
         ),
         mov=_fix_miscategorized_pair(
-            album_dir / ORIG_VID_DIR,
-            album_dir / EDIT_VID_DIR,
+            album_dir / contrib.orig_vid_dir,
+            album_dir / contrib.edit_vid_dir,
             action="rm",
             dry_run=dry_run,
             log_cwd=log_cwd,
@@ -785,6 +795,7 @@ def rm_miscategorized(
 
 def rm_miscategorized_safe(
     album_dir: Path,
+    contrib: Contributor,
     *,
     dry_run: bool = False,
     log_cwd: Path | None = None,
@@ -792,15 +803,15 @@ def rm_miscategorized_safe(
     """Delete miscategorized files only if they already exist in the correct directory."""
     return MiscategorizedResult(
         heic=_fix_miscategorized_pair(
-            album_dir / ORIG_IMG_DIR,
-            album_dir / EDIT_IMG_DIR,
+            album_dir / contrib.orig_img_dir,
+            album_dir / contrib.edit_img_dir,
             action="rm-safe",
             dry_run=dry_run,
             log_cwd=log_cwd,
         ),
         mov=_fix_miscategorized_pair(
-            album_dir / ORIG_VID_DIR,
-            album_dir / EDIT_VID_DIR,
+            album_dir / contrib.orig_vid_dir,
+            album_dir / contrib.edit_vid_dir,
             action="rm-safe",
             dry_run=dry_run,
             log_cwd=log_cwd,
@@ -810,6 +821,7 @@ def rm_miscategorized_safe(
 
 def mv_miscategorized(
     album_dir: Path,
+    contrib: Contributor,
     *,
     dry_run: bool = False,
     log_cwd: Path | None = None,
@@ -817,15 +829,15 @@ def mv_miscategorized(
     """Move files that are in the wrong directory to the correct one."""
     return MiscategorizedResult(
         heic=_fix_miscategorized_pair(
-            album_dir / ORIG_IMG_DIR,
-            album_dir / EDIT_IMG_DIR,
+            album_dir / contrib.orig_img_dir,
+            album_dir / contrib.edit_img_dir,
             action="mv",
             dry_run=dry_run,
             log_cwd=log_cwd,
         ),
         mov=_fix_miscategorized_pair(
-            album_dir / ORIG_VID_DIR,
-            album_dir / EDIT_VID_DIR,
+            album_dir / contrib.orig_vid_dir,
+            album_dir / contrib.edit_vid_dir,
             action="mv",
             dry_run=dry_run,
             log_cwd=log_cwd,

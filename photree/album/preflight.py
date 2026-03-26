@@ -11,15 +11,12 @@ from pathlib import Path
 
 from ..fsprotocol import (
     ALBUM_SENTINEL,
-    IOS_ALBUM_IMAGE_SUBDIRS,
-    IOS_ALBUM_OPTIONAL_SUBDIRS,
-    IOS_ALBUM_REQUIRED_SUBDIRS,
-    IOS_ALBUM_SUBDIRS,
-    IOS_ALBUM_VIDEO_SUBDIRS,
-    IOS_DIR,
+    IOS_DIR_PREFIX,
+    MAIN_CONTRIBUTOR,
+    discover_contributors,
 )
 from .exif import check_exiftool_available
-from .integrity import IosAlbumIntegrityResult, check_ios_album_integrity
+from .integrity import IosAlbumFullIntegrityResult, check_ios_album_integrity
 from .naming import (
     AlbumNamingResult,
     check_album_naming,
@@ -44,12 +41,30 @@ class AlbumType(StrEnum):
     OTHER = "other"
 
 
+def _is_ios_contributor_dir(d: Path) -> bool:
+    """Check if *d* looks like an ``ios-{name}/`` contributor directory.
+
+    A valid contributor dir starts with ``ios-`` and contains at least one
+    of the expected subdirectories (``orig-img``, ``orig-vid``).
+    """
+    return (
+        d.is_dir()
+        and d.name.startswith(IOS_DIR_PREFIX)
+        and ((d / "orig-img").is_dir() or (d / "orig-vid").is_dir())
+    )
+
+
+def _has_ios_contributor(directory: Path) -> bool:
+    """Check if directory contains any valid ``ios-*`` contributor subdirectory."""
+    return any(_is_ios_contributor_dir(child) for child in directory.iterdir())
+
+
 def detect_album_type(album_dir: Path) -> AlbumType:
     """Detect the album type based on directory structure.
 
-    An album is considered iOS if it contains the ``ios/`` subdirectory.
+    An album is considered iOS if it contains any ``ios-*`` subdirectory.
     """
-    if (album_dir / IOS_DIR).is_dir():
+    if _has_ios_contributor(album_dir):
         return AlbumType.IOS
     else:
         return AlbumType.OTHER
@@ -74,73 +89,90 @@ def _is_group_present(album_dir: Path, group: tuple[str, ...]) -> bool:
     return all((album_dir / d).is_dir() for d in group)
 
 
-def check_ios_album_dir(album_dir: Path) -> AlbumDirCheck:
-    """Check which expected iOS album subdirectories are present in *album_dir*.
-
-    At least one directory group must be fully present:
-    - Image group: orig-img, main-img, main-jpg
-    - Video group: orig-vid, main-vid
-
-    Within present groups, all directories are required.
-    Directories from absent groups are reported as optional.
-    Optional directories (edit-img, edit-vid) are always informational.
-    """
-    image_present = _is_group_present(album_dir, IOS_ALBUM_IMAGE_SUBDIRS)
-    video_present = _is_group_present(album_dir, IOS_ALBUM_VIDEO_SUBDIRS)
-
-    # Required: directories from groups that are (at least partially) present
-    # If a group has some dirs but not all, the missing ones are required
-    required = [
-        *(
-            IOS_ALBUM_IMAGE_SUBDIRS
-            if image_present or _has_any(album_dir, IOS_ALBUM_IMAGE_SUBDIRS)
-            else ()
-        ),
-        *(
-            IOS_ALBUM_VIDEO_SUBDIRS
-            if video_present or _has_any(album_dir, IOS_ALBUM_VIDEO_SUBDIRS)
-            else ()
-        ),
-    ]
-
-    # If neither group is even partially present, both groups are required
-    # (to report meaningful missing dirs)
-    if not required:
-        required = list(IOS_ALBUM_REQUIRED_SUBDIRS)
-
-    # Directories from fully absent groups are optional
-    optional_from_groups = [
-        *(
-            IOS_ALBUM_IMAGE_SUBDIRS
-            if not image_present and not _has_any(album_dir, IOS_ALBUM_IMAGE_SUBDIRS)
-            else ()
-        ),
-        *(
-            IOS_ALBUM_VIDEO_SUBDIRS
-            if not video_present and not _has_any(album_dir, IOS_ALBUM_VIDEO_SUBDIRS)
-            else ()
-        ),
-    ]
-
-    return AlbumDirCheck(
-        present=tuple(d for d in required if (album_dir / d).is_dir()),
-        missing=tuple(d for d in required if not (album_dir / d).is_dir()),
-        optional_present=tuple(
-            d
-            for d in (*IOS_ALBUM_OPTIONAL_SUBDIRS, *optional_from_groups)
-            if (album_dir / d).is_dir()
-        ),
-        optional_absent=tuple(
-            d
-            for d in (*IOS_ALBUM_OPTIONAL_SUBDIRS, *optional_from_groups)
-            if not (album_dir / d).is_dir()
-        ),
-    )
-
-
 def _has_any(album_dir: Path, group: tuple[str, ...]) -> bool:
     """Check if any directory in a group is present."""
     return any((album_dir / d).is_dir() for d in group)
+
+
+def check_ios_album_dir(album_dir: Path) -> AlbumDirCheck:
+    """Check which expected iOS album subdirectories are present in *album_dir*.
+
+    Iterates over all contributors (``ios-*`` directories) and checks each
+    contributor's directory groups independently. Results are aggregated.
+
+    Per contributor, at least one directory group must be fully present:
+    - Image group: ``ios-{name}/orig-img``, ``{name}-img``, ``{name}-jpg``
+    - Video group: ``ios-{name}/orig-vid``, ``{name}-vid``
+
+    Within present groups, all directories are required.
+    Directories from absent groups are reported as optional.
+    Optional directories (``edit-img``, ``edit-vid``) are always informational.
+    """
+    contributors = discover_contributors(album_dir)
+    if not contributors:
+        # No contributors found — report missing for main contributor
+        return AlbumDirCheck(
+            present=(),
+            missing=MAIN_CONTRIBUTOR.required_subdirs,
+        )
+
+    all_present: list[str] = []
+    all_missing: list[str] = []
+    all_optional_present: list[str] = []
+    all_optional_absent: list[str] = []
+
+    for contrib in contributors:
+        image_present = _is_group_present(album_dir, contrib.image_subdirs)
+        video_present = _is_group_present(album_dir, contrib.video_subdirs)
+
+        required = [
+            *(
+                contrib.image_subdirs
+                if image_present or _has_any(album_dir, contrib.image_subdirs)
+                else ()
+            ),
+            *(
+                contrib.video_subdirs
+                if video_present or _has_any(album_dir, contrib.video_subdirs)
+                else ()
+            ),
+        ]
+
+        if not required:
+            required = list(contrib.required_subdirs)
+
+        optional_from_groups = [
+            *(
+                contrib.image_subdirs
+                if not image_present and not _has_any(album_dir, contrib.image_subdirs)
+                else ()
+            ),
+            *(
+                contrib.video_subdirs
+                if not video_present and not _has_any(album_dir, contrib.video_subdirs)
+                else ()
+            ),
+        ]
+
+        all_present.extend(d for d in required if (album_dir / d).is_dir())
+        all_missing.extend(d for d in required if not (album_dir / d).is_dir())
+        all_optional_present.extend(
+            d
+            for d in (*contrib.optional_subdirs, *optional_from_groups)
+            if (album_dir / d).is_dir()
+        )
+        all_optional_absent.extend(
+            d
+            for d in (*contrib.optional_subdirs, *optional_from_groups)
+            if not (album_dir / d).is_dir()
+        )
+
+    return AlbumDirCheck(
+        present=tuple(all_present),
+        missing=tuple(all_missing),
+        optional_present=tuple(all_optional_present),
+        optional_absent=tuple(all_optional_absent),
+    )
 
 
 def check_other_album_dir(album_dir: Path) -> AlbumDirCheck:
@@ -154,7 +186,7 @@ def check_other_album_dir(album_dir: Path) -> AlbumDirCheck:
 
 def check_album_dir(
     album_dir: Path,
-    expected: tuple[str, ...] = IOS_ALBUM_SUBDIRS,
+    expected: tuple[str, ...] = MAIN_CONTRIBUTOR.all_subdirs,
 ) -> AlbumDirCheck:
     """Check which expected subdirectories are present in *album_dir*.
 
@@ -174,7 +206,7 @@ class AlbumPreflightResult:
     exiftool_available: bool
     album_type: AlbumType
     dir_check: AlbumDirCheck
-    integrity: IosAlbumIntegrityResult | None = None
+    integrity: IosAlbumFullIntegrityResult | None = None
     naming: AlbumNamingResult | None = None
 
     @property
@@ -266,7 +298,7 @@ def discover_albums(base_dir: Path) -> list[Path]:
     """Recursively discover album directories under *base_dir*.
 
     Detection rules (first match wins, per directory):
-    1. Contains ``ios/`` subdirectory → iOS album
+    1. Contains any ``ios-*`` subdirectory → iOS album
     2. Contains ``.album`` sentinel file → explicit album marker
     3. Leaf directory (no non-hidden subdirectories) → implicit album
 
@@ -275,7 +307,7 @@ def discover_albums(base_dir: Path) -> list[Path]:
     albums: list[Path] = []
 
     def walk(directory: Path) -> None:
-        if (directory / IOS_DIR).is_dir() or (directory / ALBUM_SENTINEL).is_file():
+        if _has_ios_contributor(directory) or (directory / ALBUM_SENTINEL).is_file():
             albums.append(directory)
             return
 
