@@ -165,6 +165,7 @@ $ photree album optimize [OPTIONS]
 * `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.  [default: hardlink]
 * `--check / --no-check`: Run integrity checks before optimizing (default: enabled).  [default: check]
 * `--checksum / --no-checksum`: Enable/disable SHA-256 checksum verification (default: enabled).  [default: checksum]
+* `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
 ### `photree album optimize-all`
@@ -187,6 +188,7 @@ $ photree album optimize-all [OPTIONS]
 * `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.  [default: hardlink]
 * `--check / --no-check`: Run integrity checks before optimizing (default: enabled).  [default: check]
 * `--checksum / --no-checksum`: Enable/disable SHA-256 checksum verification (default: enabled).  [default: checksum]
+* `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
 ### `photree album fix-ios`

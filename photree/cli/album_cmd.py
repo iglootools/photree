@@ -464,6 +464,14 @@ def optimize_cmd(
             help="Enable/disable SHA-256 checksum verification (default: enabled).",
         ),
     ] = True,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            "-n",
+            help="Print what would happen without modifying files.",
+        ),
+    ] = False,
 ) -> None:
     """Optimize main directories by replacing file copies with links.
 
@@ -508,7 +516,7 @@ def optimize_cmd(
             raise typer.Exit(code=1)
 
     # Optimize
-    result = album_optimize.optimize_album(album_dir, link_mode=link_mode)
+    result = album_optimize.optimize_album(album_dir, link_mode=link_mode, dry_run=dry_run)
     typer.echo(
         album_output.optimize_summary(result.heic_count, result.mov_count, link_mode)
     )
@@ -559,6 +567,14 @@ def optimize_all_cmd(
             help="Enable/disable SHA-256 checksum verification (default: enabled).",
         ),
     ] = True,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            "-n",
+            help="Print what would happen without modifying files.",
+        ),
+    ] = False,
 ) -> None:
     """Optimize all iOS albums under a directory or from an explicit list.
 
@@ -615,7 +631,7 @@ def optimize_all_cmd(
                 failed_albums.append(album_dir)
                 continue
 
-        album_optimize.optimize_album(album_dir, link_mode=link_mode)
+        album_optimize.optimize_album(album_dir, link_mode=link_mode, dry_run=dry_run)
         progress.on_end(album_name, success=True)
         optimized += 1
 
