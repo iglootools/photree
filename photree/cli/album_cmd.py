@@ -516,7 +516,9 @@ def optimize_cmd(
             raise typer.Exit(code=1)
 
     # Optimize
-    result = album_optimize.optimize_album(album_dir, link_mode=link_mode, dry_run=dry_run)
+    result = album_optimize.optimize_album(
+        album_dir, link_mode=link_mode, dry_run=dry_run
+    )
     typer.echo(
         album_output.optimize_summary(result.heic_count, result.mov_count, link_mode)
     )

@@ -203,6 +203,47 @@ contributor = ios_contributor
 MAIN_CONTRIBUTOR = ios_contributor(DEFAULT_CONTRIBUTOR)
 
 
+PHOTREE_DIR = ".photree"
+
+
+def is_album(directory: Path) -> bool:
+    """Check if a directory is a photree album.
+
+    A directory is an album if it contains a ``.photree/`` directory
+    **and** at least one contributor (iOS or plain).
+    """
+    return (directory / PHOTREE_DIR).is_dir() and bool(discover_contributors(directory))
+
+
+def discover_albums(base_dir: Path) -> list[Path]:
+    """Recursively discover album directories under *base_dir*.
+
+    A directory is considered an album when it contains:
+    1. A ``.photree/`` directory (album marker), **and**
+    2. At least one contributor (``ios-{name}/`` or ``{name}-img/``/``{name}-vid/``)
+
+    The *base_dir* itself is never returned as an album.
+    """
+    albums: list[Path] = []
+
+    def walk(directory: Path) -> None:
+        if is_album(directory):
+            albums.append(directory)
+            return
+
+        subdirs = sorted(
+            child
+            for child in directory.iterdir()
+            if child.is_dir() and not child.name.startswith(".")
+        )
+
+        for subdir in subdirs:
+            walk(subdir)
+
+    walk(base_dir)
+    return albums
+
+
 def discover_contributors(album_dir: Path) -> list[Contributor]:
     """Discover all contributors in an album.
 

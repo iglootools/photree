@@ -12,6 +12,7 @@ from pathlib import Path
 from ..fsprotocol import (
     Contributor,
     MAIN_CONTRIBUTOR,
+    discover_albums,  # noqa: F401 — re-exported for backward compat
     discover_contributors,
 )
 from .exif import check_exiftool_available
@@ -315,40 +316,6 @@ def run_album_preflight(
         check_naming_flag=check_naming_flag,
         on_file_checked=on_file_checked,
     )
-
-
-def _is_album(directory: Path) -> bool:
-    """Check if a directory is an album (has at least one contributor)."""
-    return bool(discover_contributors(directory))
-
-
-def discover_albums(base_dir: Path) -> list[Path]:
-    """Recursively discover album directories under *base_dir*.
-
-    Detection rules (first match wins, per directory):
-    1. Contains any ``ios-*`` contributor directory → iOS album
-    2. Contains ``main-img/`` or ``main-vid/`` → non-iOS album
-
-    The *base_dir* itself is never returned as an album.
-    """
-    albums: list[Path] = []
-
-    def walk(directory: Path) -> None:
-        if _is_album(directory):
-            albums.append(directory)
-            return
-
-        subdirs = sorted(
-            child
-            for child in directory.iterdir()
-            if child.is_dir() and not child.name.startswith(".")
-        )
-
-        for subdir in subdirs:
-            walk(subdir)
-
-    walk(base_dir)
-    return albums
 
 
 def discover_ios_albums(base_dir: Path) -> list[Path]:
