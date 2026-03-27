@@ -121,6 +121,20 @@ def suggest_exif_fixes(
 
     has_ios = any(m.is_ios for m in mismatches)
 
+    def _expand_date(d: str) -> str:
+        """Expand a partial or range date to YYYY-MM-DD for exiftool."""
+        # For ranges, use the start date
+        base = d.split("--")[0]
+        parts = base.split("-")
+        if len(parts) == 1:  # YYYY
+            return f"{parts[0]}-01-01"
+        elif len(parts) == 2:  # YYYY-MM
+            return f"{parts[0]}-{parts[1]}-01"
+        else:  # YYYY-MM-DD
+            return base
+
+    exif_date = _expand_date(album_date)
+
     def _sh(path: str) -> str:
         """Shell-quote a path, then escape for Rich markup."""
         return escape(shlex.quote(path))
@@ -139,13 +153,13 @@ def suggest_exif_fixes(
         fix_lines = (
             [
                 "# fix: overwrite EXIF date on upstream source files",
-                f'exiftool -CreationDate="{album_date}T00:00:00"'
+                f'exiftool -CreationDate="{exif_date}T00:00:00"'
                 f" -overwrite_original {upstream_paths}",
             ]
             if upstream
             else [
                 "# fix: overwrite EXIF date (no upstream files found, fixing in place)",
-                f'exiftool -CreationDate="{album_date}T00:00:00"'
+                f'exiftool -CreationDate="{exif_date}T00:00:00"'
                 f" -overwrite_original "
                 + " ".join(_sh(f"{album_dir}/{f}") for f in file_names),
             ]
