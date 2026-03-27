@@ -22,7 +22,24 @@ from ..fsprotocol import (
 MEDIA_EXTENSIONS = IMG_EXTENSIONS | VID_EXTENSIONS
 
 _EXIF_DATE_FORMAT = "%Y:%m:%d %H:%M:%S"
-_TIMESTAMP_TAGS = ["DateTimeOriginal", "CreateDate"]
+_EXIF_DATE_TZ_FORMAT = "%Y:%m:%d %H:%M:%S%z"
+
+# Tag priority for timestamp extraction (first match wins):
+#
+# 1. CreationDate — QuickTime tag with timezone info. For edited iOS videos
+#    (IMG_E*.MOV), this is the only tag that reflects the original capture
+#    date. The other tags (CreateDate, ModifyDate) contain the UTC date/time
+#    when the edit was rendered, which can be days after the shoot.
+#
+# 2. DateTimeOriginal — standard EXIF tag for photos (HEIC, JPEG, DNG).
+#    Not present in QuickTime containers.
+#
+# 3. CreateDate — fallback for videos without CreationDate, or photos
+#    without DateTimeOriginal.
+#
+# For photos, CreationDate is simply absent (QuickTime-only tag), so the
+# priority naturally falls through to DateTimeOriginal.
+_TIMESTAMP_TAGS = ["CreationDate", "DateTimeOriginal", "CreateDate"]
 
 
 def check_exiftool_available() -> bool:
@@ -83,10 +100,19 @@ def _extract_timestamp(metadata: dict[str, object]) -> datetime | None:
     for tag in _TIMESTAMP_TAGS:
         for key, value in metadata.items():
             if key.endswith(f":{tag}") and isinstance(value, str) and value.strip():
-                try:
-                    return datetime.strptime(value.strip(), _EXIF_DATE_FORMAT)
-                except ValueError:
-                    pass
+                ts = _parse_timestamp(value.strip())
+                if ts is not None:
+                    return ts
+    return None
+
+
+def _parse_timestamp(value: str) -> datetime | None:
+    """Parse an exiftool timestamp, with or without timezone."""
+    for fmt in (_EXIF_DATE_TZ_FORMAT, _EXIF_DATE_FORMAT):
+        try:
+            return datetime.strptime(value, fmt)
+        except ValueError:
+            pass
     return None
 
 

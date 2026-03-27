@@ -67,6 +67,37 @@ class TestExtractTimestamp:
         }
         assert _extract_timestamp(metadata) is None
 
+    def test_creation_date_preferred_over_create_date(self) -> None:
+        """QuickTime CreationDate (with timezone) is preferred for videos."""
+        metadata = {
+            "SourceFile": "test.mov",
+            "QuickTime:CreationDate": "2024:07:20 13:55:20-06:00",
+            "QuickTime:CreateDate": "2024:07:23 04:52:27",
+        }
+        ts = _extract_timestamp(metadata)
+        assert ts is not None
+        assert ts.date() == datetime(2024, 7, 20).date()
+
+    def test_creation_date_with_timezone_parsed(self) -> None:
+        metadata = {
+            "SourceFile": "test.mov",
+            "QuickTime:CreationDate": "2024:07:20 13:55:20-06:00",
+        }
+        ts = _extract_timestamp(metadata)
+        assert ts is not None
+        assert ts.date() == datetime(2024, 7, 20).date()
+        assert ts.tzinfo is not None
+
+    def test_creation_date_preferred_over_date_time_original(self) -> None:
+        metadata = {
+            "SourceFile": "test.mov",
+            "QuickTime:CreationDate": "2024:07:20 13:55:20-06:00",
+            "EXIF:DateTimeOriginal": "2024:07:23 04:52:27",
+        }
+        ts = _extract_timestamp(metadata)
+        assert ts is not None
+        assert ts.date() == datetime(2024, 7, 20).date()
+
 
 # ---------------------------------------------------------------------------
 # try_start_exiftool
