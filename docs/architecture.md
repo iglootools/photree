@@ -35,6 +35,7 @@ graph TD
     config --> fsprotocol
     exporter --> album
     exporter --> fsprotocol
+    fsprotocol --> uiconventions
     importer --> album
     importer --> fsprotocol
 ```

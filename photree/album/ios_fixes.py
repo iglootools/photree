@@ -29,8 +29,11 @@ from ..fsprotocol import (
     IOS_VID_EXTENSIONS,
     PICTURE_PRIORITY_EXTENSIONS,
     SIDECAR_EXTENSIONS,
+    delete_files,
     display_path,
+    find_files_by_number,
     list_files,
+    move_files,
 )
 
 _console = Console(highlight=False)
@@ -188,35 +191,6 @@ def _expected_jpeg_name(heic_filename: str) -> str | None:
         return None
 
 
-def _find_upstream_files(
-    numbers_to_remove: set[str],
-    directory: Path,
-) -> list[str]:
-    """Find all files in a directory whose image number is in the removal set."""
-    return sorted(
-        f for f in list_files(directory) if _img_number(f) in numbers_to_remove
-    )
-
-
-def _delete_files(
-    directory: Path,
-    filenames: list[str],
-    *,
-    dry_run: bool,
-    log_cwd: Path | None,
-) -> int:
-    """Delete files from a directory. Returns the number of files deleted."""
-    for f in filenames:
-        path = directory / f
-        if not dry_run:
-            path.unlink()
-        if log_cwd is not None:
-            _console.print(
-                f"{CHECK} {'[dry-run] ' if dry_run else ''}delete {display_path(path, log_cwd)}"
-            )
-    return len(filenames)
-
-
 @dataclass(frozen=True)
 class RmUpstreamHeicResult:
     """Result of propagating image deletions."""
@@ -294,19 +268,19 @@ def _rm_upstream_heic(
         )
 
     # Delete from main-jpg
-    jpeg_to_remove = _find_upstream_files(numbers_to_remove, main_jpg_dir)
-    _delete_files(main_jpg_dir, jpeg_to_remove, dry_run=dry_run, log_cwd=log_cwd)
+    jpeg_to_remove = find_files_by_number(numbers_to_remove, main_jpg_dir)
+    delete_files(main_jpg_dir, jpeg_to_remove, dry_run=dry_run, log_cwd=log_cwd)
 
     # Delete from main-img
-    heic_to_remove = _find_upstream_files(numbers_to_remove, main_img_dir)
-    _delete_files(main_img_dir, heic_to_remove, dry_run=dry_run, log_cwd=log_cwd)
+    heic_to_remove = find_files_by_number(numbers_to_remove, main_img_dir)
+    delete_files(main_img_dir, heic_to_remove, dry_run=dry_run, log_cwd=log_cwd)
 
     # Delete from edit-img and orig-img
-    edit_to_remove = _find_upstream_files(numbers_to_remove, edit_img_dir)
-    _delete_files(edit_img_dir, edit_to_remove, dry_run=dry_run, log_cwd=log_cwd)
+    edit_to_remove = find_files_by_number(numbers_to_remove, edit_img_dir)
+    delete_files(edit_img_dir, edit_to_remove, dry_run=dry_run, log_cwd=log_cwd)
 
-    orig_to_remove = _find_upstream_files(numbers_to_remove, orig_img_dir)
-    _delete_files(orig_img_dir, orig_to_remove, dry_run=dry_run, log_cwd=log_cwd)
+    orig_to_remove = find_files_by_number(numbers_to_remove, orig_img_dir)
+    delete_files(orig_img_dir, orig_to_remove, dry_run=dry_run, log_cwd=log_cwd)
 
     return RmUpstreamHeicResult(
         removed_jpeg=tuple(jpeg_to_remove),
@@ -346,20 +320,20 @@ def _rm_upstream_mov(
         return RmUpstreamMovResult(removed_rendered=(), removed_orig=())
 
     # Delete matching files from edit-vid and orig-vid (by image number)
-    edit_to_remove = _find_upstream_files(
+    edit_to_remove = find_files_by_number(
         numbers_to_remove, album_dir / contrib.edit_vid_dir
     )
-    _delete_files(
+    delete_files(
         album_dir / contrib.edit_vid_dir,
         edit_to_remove,
         dry_run=dry_run,
         log_cwd=log_cwd,
     )
 
-    orig_to_remove = _find_upstream_files(
+    orig_to_remove = find_files_by_number(
         numbers_to_remove, album_dir / contrib.orig_vid_dir
     )
-    _delete_files(
+    delete_files(
         album_dir / contrib.orig_vid_dir,
         orig_to_remove,
         dry_run=dry_run,
@@ -438,7 +412,7 @@ def _rm_orphans_in_dir(
     orphans = _find_orphan_files(orig_numbers, directory)
     if not orphans:
         return None
-    _delete_files(directory, orphans, dry_run=dry_run, log_cwd=log_cwd)
+    delete_files(directory, orphans, dry_run=dry_run, log_cwd=log_cwd)
     return (directory.name, tuple(orphans))
 
 
@@ -571,7 +545,7 @@ def rm_orphan_sidecar(
         orphans = _find_orphan_sidecars(d)
         if not orphans:
             continue
-        _delete_files(d, orphans, dry_run=dry_run, log_cwd=log_cwd)
+        delete_files(d, orphans, dry_run=dry_run, log_cwd=log_cwd)
         results.append((d.name, tuple(orphans)))
 
     return RmOrphanSidecarResult(removed_by_dir=tuple(results))
@@ -639,7 +613,7 @@ def prefer_higher_quality_when_dups(
         dups = _find_non_heic_dups_in_dir(d, IOS_IMG_EXTENSIONS)
         if not dups:
             return None
-        _delete_files(d, dups, dry_run=dry_run, log_cwd=log_cwd)
+        delete_files(d, dups, dry_run=dry_run, log_cwd=log_cwd)
         return (d.name, tuple(dups))
 
     return PreferHigherQualityResult(
@@ -709,30 +683,6 @@ class MiscategorizedResult:
         )
 
 
-def _move_files(
-    src_dir: Path,
-    dst_dir: Path,
-    filenames: list[str],
-    *,
-    dry_run: bool,
-    log_cwd: Path | None,
-) -> None:
-    """Move files from src_dir to dst_dir."""
-    if not filenames:
-        return
-    if not dry_run:
-        dst_dir.mkdir(parents=True, exist_ok=True)
-    for f in filenames:
-        src = src_dir / f
-        dst = dst_dir / f
-        if not dry_run:
-            shutil.move(str(src), str(dst))
-        if log_cwd is not None:
-            _console.print(
-                f"{CHECK} {'[dry-run] ' if dry_run else ''}move {display_path(src, log_cwd)} → {display_path(dst, log_cwd)}"
-            )
-
-
 def _filter_safe(files: list[str], target_dir: Path) -> list[str]:
     """Keep only files that already exist in the target directory."""
     target_files = set(list_files(target_dir))
@@ -759,13 +709,11 @@ def _fix_miscategorized_pair(
         orig_in_edit = _filter_safe(orig_in_edit, orig_dir)
 
     if action in ("rm", "rm-safe"):
-        _delete_files(orig_dir, edited_in_orig, dry_run=dry_run, log_cwd=log_cwd)
-        _delete_files(edit_dir, orig_in_edit, dry_run=dry_run, log_cwd=log_cwd)
+        delete_files(orig_dir, edited_in_orig, dry_run=dry_run, log_cwd=log_cwd)
+        delete_files(edit_dir, orig_in_edit, dry_run=dry_run, log_cwd=log_cwd)
     elif action == "mv":
-        _move_files(
-            orig_dir, edit_dir, edited_in_orig, dry_run=dry_run, log_cwd=log_cwd
-        )
-        _move_files(edit_dir, orig_dir, orig_in_edit, dry_run=dry_run, log_cwd=log_cwd)
+        move_files(orig_dir, edit_dir, edited_in_orig, dry_run=dry_run, log_cwd=log_cwd)
+        move_files(edit_dir, orig_dir, orig_in_edit, dry_run=dry_run, log_cwd=log_cwd)
 
     return MiscategorizedDirResult(
         fixed_from_orig=tuple(edited_in_orig),

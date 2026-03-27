@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from textwrap import dedent
+from textwrap import dedent, indent
 
 from rich.markup import escape
 
 from . import CHECK, CROSS, WARNING
 from .troubleshoot import suggest_fixes
-from ..naming import AlbumNamingResult, BatchNamingResult
+from ..naming import AlbumNamingResult, BatchNamingResult, ExifMismatch
 from ..preflight import AlbumContributorSummary, AlbumPreflightResult
 
 
@@ -69,6 +69,7 @@ def format_naming_checks(
     result: AlbumNamingResult,
     *,
     fatal_exif: bool = False,
+    album_dir: str = ".",
 ) -> str:
     """Format naming validation results."""
     lines: list[str] = []
@@ -96,7 +97,55 @@ def format_naming_checks(
             if remaining > 0:
                 lines.append(f"    ... and {remaining} more")
 
+            lines.append("")
+            lines.extend(
+                _format_exif_mismatch_commands(
+                    result.exif_check.mismatches,
+                    album_date=result.exif_check.album_date,
+                    album_dir=album_dir,
+                )
+            )
+
     return "\n".join(lines)
+
+
+def _format_exif_mismatch_commands(
+    mismatches: tuple[ExifMismatch, ...],
+    *,
+    album_date: str,
+    album_dir: str,
+) -> list[str]:
+    """Generate fix, move, and rm command suggestions grouped by date."""
+    from collections import defaultdict
+
+    by_date: defaultdict[str, list[str]] = defaultdict(list)
+    for m in mismatches:
+        date = m.timestamp.split("T")[0] if "T" in m.timestamp else "unknown"
+        by_date[date].append(m.file_name)
+
+    escaped_dir = escape(album_dir)
+
+    def _commands_for_date(date: str, file_names: list[str]) -> str:
+        escaped_files = " ".join(escape(f'"{f}"') for f in file_names)
+        escaped_full_paths = " ".join(escape(f'"{album_dir}/{f}"') for f in file_names)
+        return dedent(f"""\
+            # {date} ({len(file_names)} file(s)):
+            # fix: overwrite EXIF date to match album date
+            exiftool -CreationDate="{album_date}T00:00:00" -overwrite_original {escaped_full_paths}
+            # move: move files to another album (remove --dry-run to apply)
+            photree album mv-media --dry-run -s "{escaped_dir}" -d DEST_ALBUM {escaped_files}
+            # rm: remove files from this album (remove --dry-run to apply)
+            photree album rm-media --dry-run -a "{escaped_dir}" {escaped_files}""")
+
+    return "\n".join(
+        [
+            "  Suggested commands:",
+            *(
+                indent(_commands_for_date(date, file_names), "    ")
+                for date, file_names in sorted(by_date.items())
+            ),
+        ]
+    ).splitlines()
 
 
 def format_batch_naming_issues(result: BatchNamingResult) -> str:
@@ -116,6 +165,7 @@ def format_album_preflight_checks(
     *,
     fatal_sidecar: bool = False,
     fatal_exif: bool = False,
+    album_dir: str = ".",
 ) -> str:
     """Format all album preflight check lines."""
     from .integrity import format_integrity_checks, format_jpeg_integrity_checks
@@ -148,7 +198,9 @@ def format_album_preflight_checks(
                 else []
             ),
             *(
-                format_naming_checks(result.naming, fatal_exif=fatal_exif).splitlines()
+                format_naming_checks(
+                    result.naming, fatal_exif=fatal_exif, album_dir=album_dir
+                ).splitlines()
                 if result.naming is not None
                 else []
             ),

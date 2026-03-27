@@ -10,6 +10,7 @@ import typer
 from ..album import (
     fixes as album_fixes,
     ios_fixes,
+    media_ops,
     naming as album_naming,
     optimize as album_optimize,
     output as album_output,
@@ -124,9 +125,15 @@ def check_cmd(
     fatal_sidecar = fatal_warnings or fatal_sidecar_arg
     fatal_exif = fatal_warnings or fatal_exif_date_match
 
+    cwd = Path.cwd()
+    album_dir_display = str(display_path(album_dir, cwd))
+
     console.print(
         album_output.format_album_preflight_checks(
-            result, fatal_sidecar=fatal_sidecar, fatal_exif=fatal_exif
+            result,
+            fatal_sidecar=fatal_sidecar,
+            fatal_exif=fatal_exif,
+            album_dir=album_dir_display,
         )
     )
     failed = not result.success or result.has_fatal_warnings(
@@ -147,9 +154,8 @@ def check_cmd(
             failed = True
 
     if failed:
-        cwd = Path.cwd()
         troubleshoot = album_output.format_album_preflight_troubleshoot(
-            result, album_dir=str(display_path(album_dir, cwd))
+            result, album_dir=album_dir_display
         )
         if troubleshoot:
             typer.echo("")
@@ -772,4 +778,120 @@ def _count_unique_media_numbers(directory: Path, extensions: frozenset[str]) -> 
             for f in list_files(directory)
             if Path(f).suffix.lower() in extensions
         }
+    )
+
+
+@album_app.command("mv-media")
+def mv_media_cmd(
+    source_album: Annotated[
+        Path,
+        typer.Option(
+            "--source-album",
+            "-s",
+            help="Source album directory.",
+            exists=True,
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ],
+    dest_album: Annotated[
+        Path,
+        typer.Option(
+            "--dest-album",
+            "-d",
+            help="Destination album directory.",
+            exists=True,
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ],
+    files: Annotated[
+        list[str],
+        typer.Argument(
+            help="Relative file paths to move (e.g. main-jpg/IMG_E3219.jpg).",
+        ),
+    ],
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            "-n",
+            help="Print what would happen without modifying files.",
+        ),
+    ] = False,
+) -> None:
+    """Move media files and all their variants from one album to another.
+
+    For each specified file, resolves all associated variants by image number
+    (iOS) or filename stem (plain) across the contributor's directory structure
+    and moves them all. Any variant file can be used to identify the media.
+    """
+    cwd = Path.cwd()
+    try:
+        result = media_ops.move_media(
+            source_album, dest_album, files, dry_run=dry_run, log_cwd=cwd
+        )
+    except ValueError as exc:
+        err_console.print(str(exc))
+        raise typer.Exit(code=1) from None
+
+    typer.echo(album_output.media_op_summary("Moved", result.files_by_dir))
+    typer.echo(
+        album_output.media_op_check_suggestions(
+            [
+                str(display_path(source_album, cwd)),
+                str(display_path(dest_album, cwd)),
+            ]
+        )
+    )
+
+
+@album_app.command("rm-media")
+def rm_media_cmd(
+    album_dir: Annotated[
+        Path,
+        typer.Option(
+            "--album-dir",
+            "-a",
+            help="Album directory.",
+            exists=True,
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ] = Path("."),
+    files: Annotated[
+        list[str],
+        typer.Argument(
+            help="Relative file paths to remove (e.g. main-jpg/IMG_E3219.jpg).",
+        ),
+    ] = [],  # noqa: B006
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            "-n",
+            help="Print what would happen without modifying files.",
+        ),
+    ] = False,
+) -> None:
+    """Remove media files and all their variants from an album.
+
+    For each specified file, resolves all associated variants by image number
+    (iOS) or filename stem (plain) across the contributor's directory structure
+    and removes them all. Any variant file can be used to identify the media.
+    """
+    if not files:
+        err_console.print("No files specified.")
+        raise typer.Exit(code=1)
+
+    cwd = Path.cwd()
+    try:
+        result = media_ops.rm_media(album_dir, files, dry_run=dry_run, log_cwd=cwd)
+    except ValueError as exc:
+        err_console.print(str(exc))
+        raise typer.Exit(code=1) from None
+
+    typer.echo(album_output.media_op_summary("Removed", result.files_by_dir))
+    typer.echo(
+        album_output.media_op_check_suggestions([str(display_path(album_dir, cwd))])
     )

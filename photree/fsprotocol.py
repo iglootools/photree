@@ -2,10 +2,15 @@
 
 import os
 import re
+import shutil
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from textwrap import dedent
+
+from rich.console import Console
+
+from .uiconventions import CHECK
 
 
 def display_path(path: Path, cwd: Path) -> Path:
@@ -130,7 +135,7 @@ class Contributor:
         if self.is_ios:
             return (self.orig_img_dir, self.img_dir, self.jpg_dir)
         else:
-            return (self.img_dir,)
+            return (self.img_dir, self.jpg_dir)
 
     @property
     def video_subdirs(self) -> tuple[str, ...]:
@@ -275,8 +280,12 @@ def discover_contributors(album_dir: Path) -> list[Contributor]:
     for d in album_dir.iterdir():
         if not d.is_dir() or d.name.startswith("."):
             pass
-        elif d.name.endswith("-img") or d.name.endswith("-vid"):
-            name = d.name.removesuffix("-img").removesuffix("-vid")
+        elif (
+            d.name.endswith("-img")
+            or d.name.endswith("-vid")
+            or d.name.endswith("-jpg")
+        ):
+            name = d.name.removesuffix("-img").removesuffix("-vid").removesuffix("-jpg")
             if name and name not in ios_names and name not in plain_names:
                 plain_names.add(name)
 
@@ -367,3 +376,67 @@ def dedup_media_dict(
         num: (pick_media_priority(candidates) if len(candidates) > 1 else candidates[0])
         for num, candidates in _group_by_number(files, media_extensions).items()
     }
+
+
+def find_files_by_number(
+    numbers: set[str],
+    directory: Path,
+) -> list[str]:
+    """Find all files in *directory* whose image number is in *numbers*."""
+    return sorted(f for f in list_files(directory) if img_number(f) in numbers)
+
+
+def find_files_by_stem(
+    stems: set[str],
+    directory: Path,
+) -> list[str]:
+    """Find all files in *directory* whose stem (name without extension) is in *stems*."""
+    return sorted(f for f in list_files(directory) if Path(f).stem in stems)
+
+
+_console = Console(highlight=False)
+
+
+def move_files(
+    src_dir: Path,
+    dst_dir: Path,
+    filenames: list[str],
+    *,
+    dry_run: bool,
+    log_cwd: Path | None,
+) -> None:
+    """Move *filenames* from *src_dir* to *dst_dir*, creating *dst_dir* if needed."""
+    if not filenames:
+        return
+    if not dry_run:
+        dst_dir.mkdir(parents=True, exist_ok=True)
+    for f in filenames:
+        src = src_dir / f
+        dst = dst_dir / f
+        if not dry_run:
+            shutil.move(str(src), str(dst))
+        if log_cwd is not None:
+            _console.print(
+                f"{CHECK} {'[dry-run] ' if dry_run else ''}move"
+                f" {display_path(src, log_cwd)} → {display_path(dst, log_cwd)}"
+            )
+
+
+def delete_files(
+    directory: Path,
+    filenames: list[str],
+    *,
+    dry_run: bool,
+    log_cwd: Path | None,
+) -> int:
+    """Delete *filenames* from *directory*. Returns the number of files deleted."""
+    for f in filenames:
+        path = directory / f
+        if not dry_run:
+            path.unlink()
+        if log_cwd is not None:
+            _console.print(
+                f"{CHECK} {'[dry-run] ' if dry_run else ''}delete"
+                f" {display_path(path, log_cwd)}"
+            )
+    return len(filenames)

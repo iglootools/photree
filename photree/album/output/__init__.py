@@ -177,3 +177,23 @@ def batch_optimize_summary(optimized: int, failed: int) -> str:
 
 def batch_fix_ios_summary(fixed: int, failed: int) -> str:
     return f"\nDone. {fixed} album(s) fixed, {failed} failed."
+
+
+def media_op_summary(
+    verb: str,
+    files_by_dir: tuple[tuple[str, tuple[str, ...]], ...],
+) -> str:
+    total = sum(len(files) for _, files in files_by_dir)
+    if total == 0:
+        return f"Done. No files to {verb.lower()}."
+    parts = ", ".join(f"{len(files)} from {name}" for name, files in files_by_dir)
+    return f"Done. {verb} {total} file(s): {parts}."
+
+
+def media_op_check_suggestions(album_dirs: list[str]) -> str:
+    lines = ["", "Suggested next steps:"]
+    lines.extend(
+        f'  photree album check --fatal-exif-date-match --album-dir "{d}"'
+        for d in album_dirs
+    )
+    return "\n".join(lines)

@@ -56,6 +56,8 @@ $ photree album [OPTIONS] COMMAND [ARGS]...
 
 * `check`: Check system prerequisites, album...
 * `fix-ios`: Fix iOS album issues.
+* `mv-media`: Move media files and all their variants...
+* `rm-media`: Remove media files and all their variants...
 
 ### `photree album check`
 
@@ -139,6 +141,55 @@ $ photree album fix-ios [OPTIONS]
 * `--rm-miscategorized`: Delete files in the wrong directory (edited in orig or vice versa).
 * `--rm-miscategorized-safe`: Delete miscategorized files only if they already exist in the correct directory.
 * `--mv-miscategorized`: Move files in the wrong directory to the correct one.
+* `-n, --dry-run`: Print what would happen without modifying files.
+* `--help`: Show this message and exit.
+
+### `photree album mv-media`
+
+Move media files and all their variants from one album to another.
+
+For each specified file, resolves all associated variants by image number
+(iOS) or filename stem (plain) across the contributor&#x27;s directory structure
+and moves them all. Any variant file can be used to identify the media.
+
+**Usage**:
+
+```console
+$ photree album mv-media [OPTIONS] FILES...
+```
+
+**Arguments**:
+
+* `FILES...`: Relative file paths to move (e.g. main-jpg/IMG_E3219.jpg).  [required]
+
+**Options**:
+
+* `-s, --source-album DIRECTORY`: Source album directory.  [required]
+* `-d, --dest-album DIRECTORY`: Destination album directory.  [required]
+* `-n, --dry-run`: Print what would happen without modifying files.
+* `--help`: Show this message and exit.
+
+### `photree album rm-media`
+
+Remove media files and all their variants from an album.
+
+For each specified file, resolves all associated variants by image number
+(iOS) or filename stem (plain) across the contributor&#x27;s directory structure
+and removes them all. Any variant file can be used to identify the media.
+
+**Usage**:
+
+```console
+$ photree album rm-media [OPTIONS] [FILES]...
+```
+
+**Arguments**:
+
+* `[FILES]...`: Relative file paths to remove (e.g. main-jpg/IMG_E3219.jpg).
+
+**Options**:
+
+* `-a, --album-dir DIRECTORY`: Album directory.  [default: .]
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 

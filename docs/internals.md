@@ -141,6 +141,8 @@ from other sources like other people's cameras).
 **Plain contributor** (`{name}-img/` or `{name}-vid/`):
 - Detected by: `{name}-img/` or `{name}-vid/` directory without a corresponding `ios-{name}/`
 - Has browsable directories only (no archival originals)
+- No filename naming requirements (no `IMG_` prefix convention)
+- Files are matched across directories by stem (base name without extension)
 - JPEG conversion applies, but iOS-specific checks and fixes do not
 - Browsable directories are the source of truth — never rebuilt
 
