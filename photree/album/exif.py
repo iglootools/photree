@@ -90,34 +90,48 @@ def _extract_timestamp(metadata: dict[str, object]) -> datetime | None:
     return None
 
 
+def _get_metadata(
+    files: list[Path],
+    *,
+    exiftool: ExifToolHelper | None = None,
+) -> list[dict[str, object]]:
+    """Fetch timestamp tags for *files* via exiftool."""
+    if not files:
+        return []
+    str_files = [str(f) for f in files]
+    if exiftool is not None:
+        return exiftool.get_tags(str_files, _TIMESTAMP_TAGS)  # type: ignore[no-any-return]
+    else:
+        with ExifToolHelper() as et:
+            return et.get_tags(str_files, _TIMESTAMP_TAGS)  # type: ignore[no-any-return]
+
+
 def read_exif_timestamps(
     files: list[Path],
     *,
     exiftool: ExifToolHelper | None = None,
 ) -> list[datetime]:
-    """Read the earliest available date tag from files using exiftool.
-
-    Tries ``DateTimeOriginal`` first (photos), then falls back to
-    ``CreateDate`` (videos).  Returns parsed timestamps for every file
-    that has a readable date tag.
-
-    When *exiftool* is provided, the persistent process is reused.
-    Otherwise a short-lived ``ExifToolHelper`` is created for this call.
-    """
-    if not files:
-        return []
-
-    str_files = [str(f) for f in files]
-
-    if exiftool is not None:
-        metadata_list = exiftool.get_tags(str_files, _TIMESTAMP_TAGS)
-    else:
-        with ExifToolHelper() as et:
-            metadata_list = et.get_tags(str_files, _TIMESTAMP_TAGS)
-
+    """Read timestamps from files, returning only successfully parsed ones."""
     return [
         ts
-        for metadata in metadata_list
+        for metadata in _get_metadata(files, exiftool=exiftool)
+        if (ts := _extract_timestamp(metadata)) is not None
+    ]
+
+
+def read_exif_timestamps_by_file(
+    files: list[Path],
+    *,
+    exiftool: ExifToolHelper | None = None,
+) -> list[tuple[Path, datetime]]:
+    """Read timestamps from files, returning ``(file, timestamp)`` pairs.
+
+    Files whose timestamp cannot be read are silently skipped.
+    """
+    metadata_list = _get_metadata(files, exiftool=exiftool)
+    return [
+        (files[i], ts)
+        for i, metadata in enumerate(metadata_list)
         if (ts := _extract_timestamp(metadata)) is not None
     ]
 

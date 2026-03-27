@@ -23,7 +23,7 @@ from pathlib import Path
 from ..fsprotocol import ALBUM_DATE_RE
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
-from .exif import discover_media_files, read_exif_timestamps
+from .exif import discover_media_files, read_exif_timestamps_by_file
 
 # ---------------------------------------------------------------------------
 # Regexes
@@ -68,13 +68,24 @@ class NamingIssue:
 
 
 @dataclass(frozen=True)
+class ExifMismatch:
+    """A single file whose EXIF timestamp falls outside the album date range."""
+
+    file_name: str
+    timestamp: str
+
+
+@dataclass(frozen=True)
 class ExifTimestampCheck:
     """Result of validating EXIF timestamps against album date."""
 
     album_date: str
-    sampled_files: tuple[str, ...]
-    timestamps: tuple[str, ...]
-    matches: bool
+    total_files: int
+    mismatches: tuple[ExifMismatch, ...]
+
+    @property
+    def matches(self) -> bool:
+        return not self.mismatches
 
 
 @dataclass(frozen=True)
@@ -272,6 +283,16 @@ def check_album_naming(album_name: str) -> tuple[NamingIssue, ...]:
                         f'tag "{tag}" is not allowed (allowed: {", ".join(sorted(VALID_TAGS))})',
                     )
                 )
+
+    # Part numbers are only valid for single-day dates (YYYY-MM-DD)
+    if parsed.part is not None and not _is_day_precision(parsed.date):
+        issues.append(
+            NamingIssue(
+                "part-requires-day-date",
+                f"part number is only allowed for single-day dates (YYYY-MM-DD)"
+                f', got date "{parsed.date}"',
+            )
+        )
 
     # Check canonical spacing: parse → reconstruct should be identity
     canonical = reconstruct_name(parsed)

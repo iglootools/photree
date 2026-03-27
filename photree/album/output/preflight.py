@@ -77,10 +77,17 @@ def format_naming_checks(result: AlbumNamingResult) -> str:
         if result.exif_check.matches:
             lines.append(f"{CHECK} exif timestamps match album date")
         else:
+            n = len(result.exif_check.mismatches)
             lines.append(
-                f"{CROSS} exif timestamps do not match album date"
+                f"{CROSS} exif: {n} file(s) outside album date"
                 f" ({result.exif_check.album_date})"
             )
+            max_examples = 5
+            for m in result.exif_check.mismatches[:max_examples]:
+                lines.append(f"    {m.file_name}  {m.timestamp}")
+            remaining = n - max_examples
+            if remaining > 0:
+                lines.append(f"    ... and {remaining} more")
 
     return "\n".join(lines)
 
