@@ -10,6 +10,7 @@ import typer
 from ..album import (
     fixes as album_fixes,
     ios_fixes,
+    naming as album_naming,
     optimize as album_optimize,
     output as album_output,
     preflight as album_preflight,
@@ -18,10 +19,12 @@ from ..fsprotocol import (
     IMG_EXTENSIONS,
     LinkMode,
     VID_EXTENSIONS,
+    discover_albums,
     discover_contributors,
     display_path,
     list_files,
 )
+from .console import console, err_console
 from .progress import FileProgressBar, SilentProgressBar, StageProgressBar
 
 album_app = typer.Typer(
@@ -56,7 +59,21 @@ def check_cmd(
         typer.Option(
             "--fatal-warnings",
             "-W",
-            help="Treat informational warnings (e.g. missing sidecars) as errors.",
+            help="Treat all warnings as errors (implies --fatal-sidecar and --fatal-exif-date-match).",
+        ),
+    ] = False,
+    fatal_sidecar_arg: Annotated[
+        bool,
+        typer.Option(
+            "--fatal-sidecar",
+            help="Treat missing-sidecar warnings as errors.",
+        ),
+    ] = False,
+    fatal_exif_date_match: Annotated[
+        bool,
+        typer.Option(
+            "--fatal-exif-date-match",
+            help="Treat EXIF date mismatch warnings as errors.",
         ),
     ] = False,
     check_naming: Annotated[
@@ -66,11 +83,18 @@ def check_cmd(
             help="Enable/disable album naming convention checks (default: enabled).",
         ),
     ] = True,
-    check_exif: Annotated[
+    check_exif_date_match: Annotated[
         bool,
         typer.Option(
-            "--check-exif/--no-check-exif",
+            "--check-exif-date-match/--no-check-exif-date-match",
             help="Enable/disable EXIF timestamp vs album date validation (default: enabled).",
+        ),
+    ] = True,
+    check_date_part_collision: Annotated[
+        bool,
+        typer.Option(
+            "--check-date-part-collision/--no-check-date-part-collision",
+            help="Enable/disable date collision detection with sibling albums (default: enabled).",
         ),
     ] = True,
 ) -> None:
@@ -91,15 +115,37 @@ def check_cmd(
         album_dir,
         checksum=checksum,
         check_naming_flag=check_naming,
-        check_exif=check_exif,
+        check_exif_date_match=check_exif_date_match,
         on_file_checked=progress.advance if progress else None,
     )
     if progress:
         progress.stop()
 
-    typer.echo(album_output.format_album_preflight_checks(result))
+    fatal_sidecar = fatal_warnings or fatal_sidecar_arg
+    fatal_exif = fatal_warnings or fatal_exif_date_match
 
-    failed = not result.success or (fatal_warnings and result.has_warnings)
+    console.print(
+        album_output.format_album_preflight_checks(
+            result, fatal_sidecar=fatal_sidecar, fatal_exif=fatal_exif
+        )
+    )
+    failed = not result.success or result.has_fatal_warnings(
+        fatal_sidecar=fatal_sidecar, fatal_exif=fatal_exif
+    )
+
+    # Date collision detection against sibling albums
+    if check_naming and check_date_part_collision:
+        siblings = discover_albums(album_dir.parent)
+        parsed_siblings = [
+            (a.name, parsed)
+            for a in siblings
+            if (parsed := album_naming.parse_album_name(a.name)) is not None
+        ]
+        batch_naming = album_naming.check_batch_date_collisions(parsed_siblings)
+        console.print(album_output.format_batch_naming_issues(batch_naming))
+        if not batch_naming.success:
+            failed = True
+
     if failed:
         cwd = Path.cwd()
         troubleshoot = album_output.format_album_preflight_troubleshoot(
@@ -107,7 +153,18 @@ def check_cmd(
         )
         if troubleshoot:
             typer.echo("")
-            typer.echo(troubleshoot, err=True)
+            err_console.print(troubleshoot)
+        if result.success and result.has_fatal_warnings(
+            fatal_sidecar=fatal_sidecar, fatal_exif=fatal_exif
+        ):
+            typer.echo("")
+            err_console.print(
+                album_output.format_fatal_warnings(
+                    result,
+                    fatal_sidecar=fatal_sidecar,
+                    fatal_exif=fatal_exif,
+                ),
+            )
         raise typer.Exit(code=1)
 
 
@@ -268,7 +325,7 @@ def optimize_cmd(
         if progress:
             progress.stop()
 
-        typer.echo(album_output.format_album_preflight_checks(check_result))
+        console.print(album_output.format_album_preflight_checks(check_result))
 
         if not check_result.success:
             cwd = Path.cwd()
@@ -277,7 +334,7 @@ def optimize_cmd(
             )
             if troubleshoot:
                 typer.echo("")
-                typer.echo(troubleshoot, err=True)
+                err_console.print(troubleshoot)
             raise typer.Exit(code=1)
 
     # Optimize
@@ -702,8 +759,8 @@ def _run_fix_ios(
 
 def _check_sips_or_exit() -> None:
     if not album_preflight.check_sips_available():
-        typer.echo(album_output.sips_check(False), err=True)
-        typer.echo(album_output.sips_troubleshoot(), err=True)
+        err_console.print(album_output.sips_check(False))
+        err_console.print(album_output.sips_troubleshoot())
         raise typer.Exit(code=1)
 
 

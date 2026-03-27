@@ -21,6 +21,7 @@ from ..importer.image_capture import (
     validate_import_plan,
 )
 from ..importer.preflight import run_preflight
+from .console import console, err_console
 from .progress import BatchProgressBar, StageProgressBar
 
 DEFAULT_IMAGE_CAPTURE_DIR = Path.home() / "Pictures" / "iPhone"
@@ -53,13 +54,13 @@ def _run_preflight_checks(
     )
 
     typer.echo("Preflight Checks:")
-    typer.echo(output.format_preflight_checks(result))
+    console.print(output.format_preflight_checks(result))
 
     if not result.success:
         troubleshoot = output.format_preflight_troubleshoot(result)
         if troubleshoot:
             typer.echo("")
-            typer.echo(troubleshoot, err=True)
+            err_console.print(troubleshoot)
         raise typer.Exit(code=1)
 
     return image_capture_dir
@@ -76,7 +77,7 @@ def _resolve_image_capture_dir(
     try:
         cfg = load_config(config_path)
     except ConfigError as exc:
-        typer.echo(str(exc), err=True)
+        err_console.print(str(exc))
         raise typer.Exit(code=2) from exc
 
     if cfg.importer.image_capture_dir is not None:
@@ -219,11 +220,10 @@ def image_capture_cmd(
             exif_check=None,
         )
         typer.echo("\nNaming Convention Check:")
-        typer.echo(format_naming_checks(naming_result))
-        typer.echo(
+        console.print(format_naming_checks(naming_result))
+        err_console.print(
             "\nAlbum name does not follow naming conventions. "
-            "Rename the album directory before importing.",
-            err=True,
+            "Rename the album directory before importing."
         )
         raise typer.Exit(code=1)
 
@@ -239,7 +239,7 @@ def image_capture_cmd(
 
     errors = validate_import_plan(plan)
     if errors:
-        typer.echo(output.validation_errors(album_dir.name, errors), err=True)
+        err_console.print(output.validation_errors(album_dir.name, errors))
         raise typer.Exit(code=1)
 
     typer.echo("\nImport:")
@@ -266,13 +266,13 @@ def image_capture_cmd(
         )
     except FileNotFoundError as exc:
         progress.stop()
-        typer.echo(str(exc), err=True)
+        err_console.print(str(exc))
         raise typer.Exit(code=1) from exc
     finally:
         progress.stop()
 
     if result.unprocessed:
-        typer.echo(output.unprocessed_selection_files(result.unprocessed), err=True)
+        err_console.print(output.unprocessed_selection_files(result.unprocessed))
         raise typer.Exit(code=1)
 
     # Post-import EXIF timestamp check (warning only, doesn't fail the import)
@@ -287,7 +287,7 @@ def image_capture_cmd(
                     exif_check=exif_check,
                 )
                 typer.echo("\nPost-Import Check:")
-                typer.echo(format_naming_checks(naming_result))
+                console.print(format_naming_checks(naming_result))
 
 
 @import_app.command("image-capture-all")
@@ -398,7 +398,7 @@ def image_capture_all_cmd(
         nonlocal has_validation_errors
         has_validation_errors = True
         progress.stop()
-        typer.echo(output.validation_errors(name, errors), err=True)
+        err_console.print(output.validation_errors(name, errors))
 
     resolved_albums_dir = (
         None
@@ -422,7 +422,7 @@ def image_capture_all_cmd(
     progress.stop()
 
     if has_validation_errors:
-        typer.echo("\nAborted: validation failed. No imports were performed.", err=True)
+        err_console.print("\nAborted: validation failed. No imports were performed.")
         raise typer.Exit(code=1)
 
     typer.echo(output.batch_summary(result.imported, result.skipped))

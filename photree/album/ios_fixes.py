@@ -12,9 +12,10 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-import typer
+from rich.console import Console
 
 from ..uiconventions import CHECK
+
 from . import combined as combined_module
 from . import jpeg
 from .combined import RefreshMainDirResult
@@ -32,6 +33,8 @@ from ..fsprotocol import (
     list_files,
 )
 
+_console = Console(highlight=False)
+
 
 def _delete_dir(directory: Path, *, dry_run: bool, log_cwd: Path | None) -> None:
     """Delete a directory and all its contents."""
@@ -42,7 +45,7 @@ def _delete_dir(directory: Path, *, dry_run: bool, log_cwd: Path | None) -> None
         shutil.rmtree(directory)
 
     if log_cwd is not None:
-        typer.echo(
+        _console.print(
             f"{CHECK} {'[dry-run] ' if dry_run else ''}delete {display_path(directory, log_cwd)}"
         )
 
@@ -208,7 +211,7 @@ def _delete_files(
         if not dry_run:
             path.unlink()
         if log_cwd is not None:
-            typer.echo(
+            _console.print(
                 f"{CHECK} {'[dry-run] ' if dry_run else ''}delete {display_path(path, log_cwd)}"
             )
     return len(filenames)
@@ -725,7 +728,7 @@ def _move_files(
         if not dry_run:
             shutil.move(str(src), str(dst))
         if log_cwd is not None:
-            typer.echo(
+            _console.print(
                 f"{CHECK} {'[dry-run] ' if dry_run else ''}move {display_path(src, log_cwd)} → {display_path(dst, log_cwd)}"
             )
 

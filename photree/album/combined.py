@@ -17,10 +17,12 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-import typer
+from rich.console import Console
 
 from ..fsprotocol import LinkMode, dedup_media_dict, display_path, list_files
 from ..uiconventions import CHECK
+
+_console = Console(highlight=False)
 
 
 def compute_main_files(
@@ -122,9 +124,9 @@ def refresh_main_dir(
                 (main_dir / f).unlink()
         main_dir.mkdir(parents=True, exist_ok=True)
         if log_cwd is not None:
-            typer.echo(f"{CHECK} clear {display_path(main_dir, log_cwd)}")
+            _console.print(f"{CHECK} clear {display_path(main_dir, log_cwd)}")
     elif log_cwd is not None:
-        typer.echo(f"{CHECK} [dry-run] clear {display_path(main_dir, log_cwd)}")
+        _console.print(f"{CHECK} [dry-run] clear {display_path(main_dir, log_cwd)}")
 
     verb = _LINK_MODE_VERBS[link_mode]
 
@@ -138,7 +140,7 @@ def refresh_main_dir(
         if log_cwd is not None:
             src = source_dir / filename
             dst = main_dir / filename
-            typer.echo(
+            _console.print(
                 f"{CHECK} {'[dry-run] ' if dry_run else ''}{verb} {display_path(src, log_cwd)} → {display_path(dst, log_cwd)}"
             )
 

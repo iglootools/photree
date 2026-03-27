@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ...uiconventions import CHECK, CROSS  # noqa: F401
+from ...uiconventions import CHECK, CROSS, WARNING  # noqa: F401
 
 
 def refresh_jpeg_summary(converted: int, copied: int, skipped: int) -> str:
@@ -19,6 +19,7 @@ from .preflight import (  # noqa: E402, F401
     format_album_preflight_checks,
     format_album_preflight_troubleshoot,
     format_batch_naming_issues,
+    format_fatal_warnings,
     format_naming_checks,
     sips_check,
     sips_troubleshoot,
@@ -149,8 +150,12 @@ def miscategorized_summary(
     return f"Done. {verb} {total} miscategorized file(s): {parts}."
 
 
-def batch_check_summary(passed: int, failed: int) -> str:
-    return f"\nDone. {passed} album(s) passed, {failed} failed."
+def batch_check_summary(passed: int, failed: int, warned: int = 0) -> str:
+    parts = [f"{passed} album(s) passed"]
+    if warned:
+        parts.append(f"{warned} with warnings")
+    parts.append(f"{failed} failed")
+    return f"\nDone. {', '.join(parts)}."
 
 
 def optimize_summary(heic_count: int, mov_count: int, link_mode: str) -> str:

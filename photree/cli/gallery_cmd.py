@@ -31,6 +31,7 @@ from .album_cmd import (
     _run_fix_ios,
     _validate_fix_flags,
 )
+from .console import console, err_console
 from .progress import BatchProgressBar
 
 gallery_app = typer.Typer(
@@ -286,7 +287,21 @@ def check_cmd(
         typer.Option(
             "--fatal-warnings",
             "-W",
-            help="Treat informational warnings (e.g. missing sidecars) as errors.",
+            help="Treat all warnings as errors (implies --fatal-sidecar and --fatal-exif-date-match).",
+        ),
+    ] = False,
+    fatal_sidecar_arg: Annotated[
+        bool,
+        typer.Option(
+            "--fatal-sidecar",
+            help="Treat missing-sidecar warnings as errors.",
+        ),
+    ] = False,
+    fatal_exif_date_match: Annotated[
+        bool,
+        typer.Option(
+            "--fatal-exif-date-match",
+            help="Treat EXIF date mismatch warnings as errors.",
         ),
     ] = False,
     check_naming: Annotated[
@@ -296,17 +311,17 @@ def check_cmd(
             help="Enable/disable album naming convention checks (default: enabled).",
         ),
     ] = True,
-    check_date_collisions: Annotated[
+    check_date_part_collision: Annotated[
         bool,
         typer.Option(
-            "--check-date-collisions/--no-check-date-collisions",
+            "--check-date-part-collision/--no-check-date-part-collision",
             help="Enable/disable cross-album date collision detection (default: enabled).",
         ),
     ] = True,
-    check_exif: Annotated[
+    check_exif_date_match: Annotated[
         bool,
         typer.Option(
-            "--check-exif/--no-check-exif",
+            "--check-exif-date-match/--no-check-exif-date-match",
             help="Enable/disable EXIF timestamp vs album date validation (default: enabled).",
         ),
     ] = True,
@@ -318,14 +333,14 @@ def check_cmd(
 
     # System checks (once)
     sips_available = album_preflight.check_sips_available()
-    exiftool = try_start_exiftool() if check_exif else None
+    exiftool = try_start_exiftool() if check_exif_date_match else None
     exiftool_available = exiftool is not None
     typer.echo("System Checks:")
-    typer.echo(album_output.sips_check(sips_available))
-    typer.echo(album_output.exiftool_check(exiftool_available))
+    console.print(album_output.sips_check(sips_available))
+    console.print(album_output.exiftool_check(exiftool_available))
     if not sips_available:
         typer.echo("")
-        typer.echo(album_output.sips_troubleshoot(), err=True)
+        err_console.print(album_output.sips_troubleshoot())
         raise typer.Exit(code=1)
 
     if not albums:
@@ -338,10 +353,14 @@ def check_cmd(
         typer.echo("")
 
     # Check each album
+    fatal_sidecar = fatal_warnings or fatal_sidecar_arg
+    fatal_exif = fatal_warnings or fatal_exif_date_match
+
     progress = BatchProgressBar(
         total=len(albums), description="Checking", done_description="check"
     )
     passed = 0
+    warned = 0
     failed_albums: list[Path] = []
 
     try:
@@ -357,12 +376,36 @@ def check_cmd(
                 check_naming_flag=check_naming,
             )
 
-            album_ok = result.success and not (fatal_warnings and result.has_warnings)
+            album_ok = result.success and not result.has_fatal_warnings(
+                fatal_sidecar=fatal_sidecar, fatal_exif=fatal_exif
+            )
+            # Error labels = real errors + fatal-promoted warnings (red)
+            # Warning labels = non-fatal warnings only (orange)
+            err_labels = (
+                *result.error_labels,
+                *result.fatal_warning_labels(
+                    fatal_sidecar=fatal_sidecar, fatal_exif=fatal_exif
+                ),
+            )
+            warn_labels = result.non_fatal_warning_labels(
+                fatal_sidecar=fatal_sidecar, fatal_exif=fatal_exif
+            )
             if album_ok:
-                progress.on_end(album_name, success=True)
+                progress.on_end(
+                    album_name,
+                    success=True,
+                    warning_labels=warn_labels,
+                )
                 passed += 1
+                if result.has_warnings:
+                    warned += 1
             else:
-                progress.on_end(album_name, success=False)
+                progress.on_end(
+                    album_name,
+                    success=False,
+                    error_labels=err_labels,
+                    warning_labels=warn_labels,
+                )
                 failed_albums.append(album_dir)
     finally:
         if exiftool is not None:
@@ -371,7 +414,7 @@ def check_cmd(
     progress.stop()
 
     # Batch naming checks (date collisions across all albums)
-    if check_naming and check_date_collisions:
+    if check_naming and check_date_part_collision:
         parsed_albums = [
             (album.name, parsed)
             for album in albums
@@ -379,19 +422,28 @@ def check_cmd(
         ]
         batch_naming = album_naming.check_batch_date_collisions(parsed_albums)
         typer.echo("")
-        typer.echo(album_output.format_batch_naming_issues(batch_naming))
+        console.print(album_output.format_batch_naming_issues(batch_naming))
         if not batch_naming.success:
-            failed_albums.append(albums[0])  # ensure non-zero exit
+            colliding_names = {
+                name for _, names in batch_naming.date_collisions for name in names
+            }
+            failed_albums.extend(a for a in albums if a.name in colliding_names)
 
     # Summary
-    typer.echo(album_output.batch_check_summary(passed, len(failed_albums)))
+    console.print(album_output.batch_check_summary(passed, len(failed_albums), warned))
 
     if failed_albums:
-        typer.echo("\nTo investigate failures:", err=True)
+        extra_flags = "".join(
+            [
+                " --fatal-warnings" if fatal_warnings else "",
+                " --fatal-sidecar" if fatal_sidecar_arg else "",
+                " --fatal-exif-date-match" if fatal_exif_date_match else "",
+            ]
+        )
+        err_console.print("\nTo investigate failures:")
         for album_dir in sorted(set(failed_albums)):
-            typer.echo(
-                f'  photree album check --album-dir "{display_path(album_dir, cwd)}"',
-                err=True,
+            err_console.print(
+                f'  photree album check --album-dir "{display_path(album_dir, cwd)}"{extra_flags}'
             )
         raise typer.Exit(code=1)
 
@@ -489,11 +541,10 @@ def fix_cmd(
     typer.echo(f"\nDone. {fixed} album(s) fixed, {len(failed_albums)} failed.")
 
     if failed_albums:
-        typer.echo("\nFailed albums:", err=True)
+        err_console.print("\nFailed albums:")
         for album_dir in failed_albums:
-            typer.echo(
-                f'  photree album fix --album-dir "{display_path(album_dir, cwd)}"',
-                err=True,
+            err_console.print(
+                f'  photree album fix --album-dir "{display_path(album_dir, cwd)}"'
             )
         raise typer.Exit(code=1)
 
@@ -566,10 +617,10 @@ def optimize_cmd(
         # System checks (once)
         sips_available = album_preflight.check_sips_available()
         typer.echo("System Checks:")
-        typer.echo(album_output.sips_check(sips_available))
+        console.print(album_output.sips_check(sips_available))
         if not sips_available:
             typer.echo("")
-            typer.echo(album_output.sips_troubleshoot(), err=True)
+            err_console.print(album_output.sips_troubleshoot())
             raise typer.Exit(code=1)
 
     if not albums:
@@ -613,14 +664,13 @@ def optimize_cmd(
     progress.stop()
 
     # Summary
-    typer.echo(album_output.batch_optimize_summary(optimized, len(failed_albums)))
+    console.print(album_output.batch_optimize_summary(optimized, len(failed_albums)))
 
     if failed_albums:
-        typer.echo("\nTo investigate failures:", err=True)
+        err_console.print("\nTo investigate failures:")
         for album_dir in failed_albums:
-            typer.echo(
-                f'  photree album check --album-dir "{display_path(album_dir, cwd)}"',
-                err=True,
+            err_console.print(
+                f'  photree album check --album-dir "{display_path(album_dir, cwd)}"'
             )
         raise typer.Exit(code=1)
 
@@ -805,14 +855,13 @@ def fix_ios_cmd(
             typer.echo(f"{album_name}:")
             typer.echo(report, color=True)
 
-    typer.echo(album_output.batch_fix_ios_summary(fixed, len(failed_albums)))
+    console.print(album_output.batch_fix_ios_summary(fixed, len(failed_albums)))
 
     if failed_albums:
-        typer.echo("\nFailed albums:", err=True)
+        err_console.print("\nFailed albums:")
         for album_dir in failed_albums:
-            typer.echo(
-                f'  photree album fix-ios --album-dir "{display_path(album_dir, cwd)}"',
-                err=True,
+            err_console.print(
+                f'  photree album fix-ios --album-dir "{display_path(album_dir, cwd)}"'
             )
         raise typer.Exit(code=1)
 

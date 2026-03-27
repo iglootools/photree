@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from . import CHECK, CROSS
+from . import CHECK, CROSS, WARNING
 from ..integrity import (
     AlbumJpegIntegrityResult,
     CombinedDirCheck,
@@ -49,7 +49,7 @@ def format_jpeg_check(check: JpegCheck, label: str = "main-jpg") -> str:
         return f"{CROSS} {label}: {len(issues)} issue(s)\n" + "\n".join(issues)
 
 
-def format_sidecar_check(check: SidecarCheck) -> str:
+def format_sidecar_check(check: SidecarCheck, *, fatal_sidecar: bool = False) -> str:
     """Format sidecar check result."""
     lines: list[str] = []
     if check.orphan_sidecars:
@@ -59,8 +59,8 @@ def format_sidecar_check(check: SidecarCheck) -> str:
 
     if not lines:
         return f"{CHECK} sidecars"
-    # Use CROSS if there are orphans (errors); CHECK if only missing (informational)
-    icon = CROSS if check.orphan_sidecars else CHECK
+    # CROSS if orphans (errors) or if missing sidecars are fatal; WARNING otherwise
+    icon = CROSS if check.orphan_sidecars or fatal_sidecar else WARNING
     return f"{icon} sidecars: {len(lines)} issue(s)\n" + "\n".join(lines)
 
 
@@ -89,10 +89,12 @@ def format_miscategorized(warnings: tuple[str, ...]) -> str | None:
 def _format_contributor_integrity(
     result: IosAlbumIntegrityResult,
     prefix: str = "",
+    *,
+    fatal_sidecar: bool = False,
 ) -> str:
     """Format integrity checks for a single contributor."""
     p = f"{prefix} " if prefix else ""
-    sidecar_line = format_sidecar_check(result.sidecars)
+    sidecar_line = format_sidecar_check(result.sidecars, fatal_sidecar=fatal_sidecar)
     duplicate_line = (
         format_duplicate_numbers(result.duplicate_numbers) or ""
         if result.duplicate_numbers
@@ -115,7 +117,11 @@ def _format_contributor_integrity(
     )
 
 
-def format_integrity_checks(result: IosAlbumFullIntegrityResult) -> str:
+def format_integrity_checks(
+    result: IosAlbumFullIntegrityResult,
+    *,
+    fatal_sidecar: bool = False,
+) -> str:
     """Format all integrity check lines across contributors.
 
     Single-contributor: no prefix (identical output to previous behavior).
@@ -126,6 +132,7 @@ def format_integrity_checks(result: IosAlbumFullIntegrityResult) -> str:
         _format_contributor_integrity(
             contrib_result,
             prefix=f"[{contrib.name}]" if multi else "",
+            fatal_sidecar=fatal_sidecar,
         )
         for contrib, contrib_result in result.by_contributor
     )

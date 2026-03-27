@@ -17,7 +17,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-import typer
+from rich.console import Console
 
 from ..fsprotocol import (
     CONVERT_TO_JPEG_EXTENSIONS,
@@ -26,6 +26,8 @@ from ..fsprotocol import (
     list_files,
 )
 from ..uiconventions import CHECK
+
+_console = Console(highlight=False)
 
 
 def _ext(filename: str) -> str:
@@ -125,9 +127,9 @@ def refresh_jpeg_dir(
         for f in os.listdir(dst_dir):
             (dst_dir / f).unlink()
         if log_cwd is not None:
-            typer.echo(f"{CHECK} clear {display_path(dst_dir, log_cwd)}")
+            _console.print(f"{CHECK} clear {display_path(dst_dir, log_cwd)}")
     elif log_cwd is not None:
-        typer.echo(f"{CHECK} [dry-run] clear {display_path(dst_dir, log_cwd)}")
+        _console.print(f"{CHECK} [dry-run] clear {display_path(dst_dir, log_cwd)}")
 
     converted = 0
     copied = 0
@@ -147,7 +149,7 @@ def refresh_jpeg_dir(
         if result is None:
             skipped += 1
             if log_cwd is not None:
-                typer.echo(
+                _console.print(
                     f"{CHECK} {'[dry-run] ' if dry_run else ''}skip {display_path(src, log_cwd)} (not convertible)"
                 )
             if on_file_end:
@@ -155,7 +157,7 @@ def refresh_jpeg_dir(
         elif _ext(filename) in CONVERT_TO_JPEG_EXTENSIONS:
             converted += 1
             if log_cwd is not None:
-                typer.echo(
+                _console.print(
                     f"{CHECK} {'[dry-run] ' if dry_run else ''}convert {display_path(src, log_cwd)} → {display_path(result, log_cwd)}"
                 )
             if on_file_end:
@@ -163,7 +165,7 @@ def refresh_jpeg_dir(
         else:
             copied += 1
             if log_cwd is not None:
-                typer.echo(
+                _console.print(
                     f"{CHECK} {'[dry-run] ' if dry_run else ''}copy {display_path(src, log_cwd)} → {display_path(result, log_cwd)}"
                 )
             if on_file_end:

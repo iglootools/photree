@@ -15,11 +15,11 @@ from rich.progress import (
     TextColumn,
 )
 
-from ..uiconventions import RICH_CHECK, RICH_CROSS
+from ..uiconventions import CHECK, CROSS, WARNING, rich_warning_text
 
 
 def _result_icon(success: bool) -> str:
-    return RICH_CHECK if success else RICH_CROSS
+    return CHECK if success else CROSS
 
 
 class SilentProgressBar:
@@ -147,7 +147,7 @@ class StageProgressBar:
     def on_end(self, stage: str) -> None:
         if self._progress is not None:
             assert self._task_id is not None
-            self._progress.console.print(f"{RICH_CHECK} {stage}")
+            self._progress.console.print(f"{CHECK} {stage}")
             self._progress.advance(self._task_id)
 
     def stop(self) -> None:
@@ -199,11 +199,26 @@ class BatchProgressBar:
     def on_start(self, album_name: str) -> None:
         self._ensure_started(f"{self._description} {album_name}...")
 
-    def on_end(self, album_name: str, success: bool) -> None:
+    def on_end(
+        self,
+        album_name: str,
+        *,
+        success: bool,
+        error_labels: tuple[str, ...] = (),
+        warning_labels: tuple[str, ...] = (),
+    ) -> None:
         if self._progress is not None:
             assert self._task_id is not None
+            has_warnings = bool(warning_labels)
+            icon = WARNING if success and has_warnings else _result_icon(success)
+            parts: list[str] = []
+            if error_labels:
+                parts.append(f"[red]| {', '.join(error_labels)}[/red]")
+            if warning_labels:
+                parts.append(rich_warning_text("| " + ", ".join(warning_labels)))
+            suffix = f" {' '.join(parts)}" if parts else ""
             self._progress.console.print(
-                f"{_result_icon(success)} {self._done_description} {album_name}"
+                f"{icon} {self._done_description} {album_name}{suffix}"
             )
             self._progress.advance(self._task_id)
 
@@ -211,7 +226,7 @@ class BatchProgressBar:
         self._ensure_started(f"Skipping {album_name}...")
         if self._progress is not None:
             assert self._task_id is not None
-            self._progress.console.print(f"{RICH_CROSS} {album_name} ({reason})")
+            self._progress.console.print(f"{CROSS} {album_name} ({reason})")
             self._progress.advance(self._task_id)
 
     def stop(self) -> None:

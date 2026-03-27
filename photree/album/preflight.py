@@ -242,9 +242,66 @@ class AlbumPreflightResult:
 
     @property
     def has_warnings(self) -> bool:
-        return (self.ios_integrity is not None and self.ios_integrity.has_warnings) or (
-            self.naming is not None and self.naming.has_warnings
+        return self.has_sidecar_warnings or self.has_exif_warnings
+
+    @property
+    def has_sidecar_warnings(self) -> bool:
+        return self.ios_integrity is not None and self.ios_integrity.has_warnings
+
+    @property
+    def has_exif_warnings(self) -> bool:
+        return self.naming is not None and self.naming.has_warnings
+
+    @property
+    def warning_labels(self) -> tuple[str, ...]:
+        labels: list[str] = []
+        if self.has_sidecar_warnings:
+            labels.append("missing sidecars")
+        if self.has_exif_warnings:
+            labels.append("exif date mismatch")
+        return tuple(labels)
+
+    @property
+    def error_labels(self) -> tuple[str, ...]:
+        labels: list[str] = []
+        if not self.sips_available:
+            labels.append("sips not found")
+        if not self.dir_check.success:
+            labels.append("missing dirs")
+        if self.ios_integrity is not None and not self.ios_integrity.success:
+            labels.append("integrity errors")
+        if self.jpeg_check is not None and not self.jpeg_check.success:
+            labels.append("jpeg errors")
+        if self.naming is not None and not self.naming.success:
+            labels.append("naming errors")
+        return tuple(labels)
+
+    def has_fatal_warnings(self, *, fatal_sidecar: bool, fatal_exif: bool) -> bool:
+        return (fatal_sidecar and self.has_sidecar_warnings) or (
+            fatal_exif and self.has_exif_warnings
         )
+
+    def fatal_warning_labels(
+        self, *, fatal_sidecar: bool, fatal_exif: bool
+    ) -> tuple[str, ...]:
+        """Warning labels that are promoted to errors by fatal flags."""
+        labels: list[str] = []
+        if fatal_sidecar and self.has_sidecar_warnings:
+            labels.append("missing sidecars")
+        if fatal_exif and self.has_exif_warnings:
+            labels.append("exif date mismatch")
+        return tuple(labels)
+
+    def non_fatal_warning_labels(
+        self, *, fatal_sidecar: bool, fatal_exif: bool
+    ) -> tuple[str, ...]:
+        """Warning labels that remain warnings (not promoted by fatal flags)."""
+        labels: list[str] = []
+        if not fatal_sidecar and self.has_sidecar_warnings:
+            labels.append("missing sidecars")
+        if not fatal_exif and self.has_exif_warnings:
+            labels.append("exif date mismatch")
+        return tuple(labels)
 
 
 def run_album_check(
@@ -309,11 +366,11 @@ def run_album_preflight(
     *,
     checksum: bool = True,
     check_naming_flag: bool = True,
-    check_exif: bool = True,
+    check_exif_date_match: bool = True,
     on_file_checked: Callable[[str, bool], None] | None = None,
 ) -> AlbumPreflightResult:
     """Run all album preflight checks including system checks."""
-    exiftool = try_start_exiftool() if check_exif else None
+    exiftool = try_start_exiftool() if check_exif_date_match else None
     try:
         return run_album_check(
             album_dir,

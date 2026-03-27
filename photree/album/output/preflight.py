@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from textwrap import dedent
 
-from . import CHECK, CROSS
+from rich.markup import escape
+
+from . import CHECK, CROSS, WARNING
 from .troubleshoot import suggest_fixes
 from ..naming import AlbumNamingResult, BatchNamingResult
 from ..preflight import AlbumContributorSummary, AlbumPreflightResult
@@ -63,7 +65,11 @@ def album_dir_check(
     return "\n".join(lines)
 
 
-def format_naming_checks(result: AlbumNamingResult) -> str:
+def format_naming_checks(
+    result: AlbumNamingResult,
+    *,
+    fatal_exif: bool = False,
+) -> str:
     """Format naming validation results."""
     lines: list[str] = []
 
@@ -77,9 +83,10 @@ def format_naming_checks(result: AlbumNamingResult) -> str:
         if result.exif_check.matches:
             lines.append(f"{CHECK} exif timestamps match album date")
         else:
+            icon = CROSS if fatal_exif else WARNING
             n = len(result.exif_check.mismatches)
             lines.append(
-                f"{CROSS} exif: {n} file(s) outside album date"
+                f"{icon} exif: {n} file(s) outside album date"
                 f" ({result.exif_check.album_date})"
             )
             max_examples = 5
@@ -100,11 +107,16 @@ def format_batch_naming_issues(result: BatchNamingResult) -> str:
     lines = [f"{CROSS} date collisions: {len(result.date_collisions)} date(s)"]
     for album_date, albums in result.date_collisions:
         lines.append(f"  {album_date}:")
-        lines.extend(f"    {album}" for album in albums)
+        lines.extend(f"    {escape(album)}" for album in albums)
     return "\n".join(lines)
 
 
-def format_album_preflight_checks(result: AlbumPreflightResult) -> str:
+def format_album_preflight_checks(
+    result: AlbumPreflightResult,
+    *,
+    fatal_sidecar: bool = False,
+    fatal_exif: bool = False,
+) -> str:
     """Format all album preflight check lines."""
     from .integrity import format_integrity_checks, format_jpeg_integrity_checks
 
@@ -124,7 +136,9 @@ def format_album_preflight_checks(result: AlbumPreflightResult) -> str:
                 else []
             ),
             *(
-                format_integrity_checks(result.ios_integrity).splitlines()
+                format_integrity_checks(
+                    result.ios_integrity, fatal_sidecar=fatal_sidecar
+                ).splitlines()
                 if result.ios_integrity is not None
                 else []
             ),
@@ -134,12 +148,39 @@ def format_album_preflight_checks(result: AlbumPreflightResult) -> str:
                 else []
             ),
             *(
-                format_naming_checks(result.naming).splitlines()
+                format_naming_checks(result.naming, fatal_exif=fatal_exif).splitlines()
                 if result.naming is not None
                 else []
             ),
         ]
     )
+
+
+def format_fatal_warnings(
+    result: AlbumPreflightResult,
+    *,
+    fatal_sidecar: bool = True,
+    fatal_exif: bool = True,
+) -> str:
+    """Format the warnings that caused failure due to fatal-warning flags."""
+    lines = ["Failed due to fatal warning flags:"]
+
+    if fatal_sidecar and result.ios_integrity is not None:
+        for _, contrib_result in result.ios_integrity.by_contributor:
+            lines.extend(
+                f"  {CROSS} sidecars: {w}"
+                for w in contrib_result.sidecars.missing_sidecars
+            )
+
+    if (
+        fatal_exif
+        and result.naming is not None
+        and result.naming.exif_check is not None
+    ):
+        for m in result.naming.exif_check.mismatches:
+            lines.append(f"  {CROSS} exif: {m.file_name}  {m.timestamp}")
+
+    return "\n".join(lines)
 
 
 def format_album_preflight_troubleshoot(

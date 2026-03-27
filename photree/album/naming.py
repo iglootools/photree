@@ -431,20 +431,22 @@ def check_exif_date_match(
     if not files:
         return None
 
-    timestamps = read_exif_timestamps(files, exiftool=exiftool)
-    if not timestamps:
+    file_timestamps = read_exif_timestamps_by_file(files, exiftool=exiftool)
+    if not file_timestamps:
         return None
 
-    matches = all(
-        _timestamp_matches_album_date(ts, album_date, tolerance_days=tolerance_days)
-        for ts in timestamps
+    mismatches = tuple(
+        ExifMismatch(file_name=f.name, timestamp=ts.isoformat())
+        for f, ts in file_timestamps
+        if not _timestamp_matches_album_date(
+            ts, album_date, tolerance_days=tolerance_days
+        )
     )
 
     return ExifTimestampCheck(
         album_date=album_date,
-        sampled_files=tuple(f.name for f in files),
-        timestamps=tuple(ts.isoformat() for ts in timestamps),
-        matches=matches,
+        total_files=len(file_timestamps),
+        mismatches=mismatches,
     )
 
 
