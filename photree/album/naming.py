@@ -35,11 +35,19 @@ _TAGS_RE = re.compile(r"\s*\[([^\]]+)\]\s*$")
 # Prefix-style part number: "XX - rest"
 _PREFIX_PART_RE = re.compile(r"^(\d{2}) - (.+)$")
 
+# Single-day date: exactly YYYY-MM-DD (no range, no lower precision)
+_DAY_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
 # Kebab-case slug validation for tags
 _KEBAB_SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 # Valid tags (whitelist)
 VALID_TAGS = frozenset({"private"})
+
+
+def _is_day_precision(date_str: str) -> bool:
+    """Return True when *date_str* is a single day (YYYY-MM-DD)."""
+    return _DAY_DATE_RE.match(date_str) is not None
 
 
 # ---------------------------------------------------------------------------

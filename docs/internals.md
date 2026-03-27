@@ -33,6 +33,88 @@ macOS Image Capture exports files from iOS devices in the following structure:
 - `IMG_O0115.MOV` (optional, only if edits) — sidecar for the edited video file
 - ProRes videos use the same `.MOV` container but are much larger (~663 MB vs ~45 MB).
 
+## Album Naming Conventions
+
+Album directory names follow a structured format that encodes date, optional
+part number, optional series, title, optional location, and optional tags.
+
+### Format
+
+```
+DATE - [PART - ] [Series - ] Title [@ Location] [tags]
+```
+
+### Fields
+
+**DATE** (required) — one of the following precisions, or a range of any two:
+
+| Precision | Example |
+|-----------|---------|
+| Year | `2024` |
+| Month | `2024-07` |
+| Day | `2024-07-14` |
+| Year range | `2024--2025` |
+| Month range | `2024-07--2024-08` |
+| Day range | `2024-07-14--2024-07-16` |
+| Mixed-precision range | `2024-07--2024-08-03` or `2024--2024-07` |
+
+Any start–end combination of precisions is valid (e.g. `YYYY-MM--YYYY-MM-DD`
+or `YYYY--YYYY-MM`).
+
+**PART** (optional) — zero-padded two-digit number: `01`, `02`, ...
+Only valid for single-day dates (`YYYY-MM-DD`). Albums with date ranges
+or lower precisions (`YYYY`, `YYYY-MM`) must not have a part number.
+
+**Series** (optional) — free text, must not contain ` - ` (the three-character
+separator with surrounding spaces).
+
+**Title** (required) — free text, must not contain ` - `.
+
+**Location** (optional) — free text after `@`. May contain commas
+(e.g. `Banff NP, AB, CA`).
+
+**Tags** (optional) — `[kebab-case-slug, ...]` at the end. Only `private` is
+currently allowed.
+
+### Constraints
+
+- 255 bytes maximum for the full directory name.
+- ` - ` (space-dash-space) is reserved as the field separator and must not
+  appear inside Title or Series (it is fine as part of a hyphenated word
+  without surrounding spaces).
+- `@` is reserved for the location separator.
+- All fields except DATE and Title are optional.
+- PART is only allowed when DATE is a single day (`YYYY-MM-DD`). Date ranges
+  and lower precisions (`YYYY`, `YYYY-MM`) do not support part numbers.
+- Tags are valid with any combination of fields.
+
+### Examples
+
+```
+2024-07-14 - Hiking the Rockies
+2024-07-14 - 01 - Hiking the Rockies
+2024-07-14 - 01 - Canada Trip - Hiking the Rockies
+2024-07-14 - Hiking the Rockies @ Banff NP, AB, CA
+2024-07-14 - 01 - Canada Trip - Hiking the Rockies @ Banff NP, AB, CA
+2024-07--2024-08 - Summer Road Trip
+2024 - Family Photos
+2024-07-14 - Hiking the Rockies [private]
+2024-07-14 - 01 - Canada Trip - Hiking the Rockies @ Banff NP, AB, CA [private]
+```
+
+### Private Albums
+
+Private albums are tagged with `[private]` like any other tag. Additional
+rules apply when an album set uses part numbering:
+
+- Part numbering is independent from public albums.
+- When numbered, part numbers correspond to the matching public part
+  (e.g. `01 [private]` is the private counterpart of public `01`).
+- Gaps in private part numbers are expected — only parts with private content
+  get a private album.
+- Private albums may be unnumbered even when public albums are numbered
+  (catch-all private content for the day).
+
 ## Album On-Disk Layout
 
 ### Album Detection

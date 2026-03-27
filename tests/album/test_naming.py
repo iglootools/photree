@@ -420,6 +420,34 @@ class TestCheckAlbumNaming:
         codes = [i.code for i in issues]
         assert "name-too-long" not in codes
 
+    def test_part_with_day_date_is_valid(self) -> None:
+        assert check_album_naming("2024-06-15 - 01 - Morning Walk") == ()
+
+    def test_part_with_year_date_is_invalid(self) -> None:
+        issues = check_album_naming("2024 - 01 - Year Album")
+        codes = [i.code for i in issues]
+        assert "part-requires-day-date" in codes
+
+    def test_part_with_month_date_is_invalid(self) -> None:
+        issues = check_album_naming("2024-06 - 01 - Summer")
+        codes = [i.code for i in issues]
+        assert "part-requires-day-date" in codes
+
+    def test_part_with_day_range_is_invalid(self) -> None:
+        issues = check_album_naming("2024-06-15--2024-06-20 - 01 - Road Trip")
+        codes = [i.code for i in issues]
+        assert "part-requires-day-date" in codes
+
+    def test_part_with_year_range_is_invalid(self) -> None:
+        issues = check_album_naming("2023--2024 - 01 - Two Years")
+        codes = [i.code for i in issues]
+        assert "part-requires-day-date" in codes
+
+    def test_part_with_mixed_range_is_invalid(self) -> None:
+        issues = check_album_naming("2024-06--2024-08-15 - 01 - Summer Trip")
+        codes = [i.code for i in issues]
+        assert "part-requires-day-date" in codes
+
 
 # ---------------------------------------------------------------------------
 # _timestamp_matches_album_date
