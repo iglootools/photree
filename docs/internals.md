@@ -198,9 +198,22 @@ directories at the top level are the browsable/shareable versions:
 
 ### Usage
 
-photree reads EXIF timestamps (`DateTimeOriginal` for photos, `CreateDate` for
-videos) to validate that media files match the album's date-based name. This is
-a read-only, optional check — EXIF mismatches produce warnings, not errors.
+photree reads EXIF timestamps to validate that media files match the album's
+date-based name. This is a read-only, optional check — EXIF mismatches
+produce warnings, not errors.
+
+Tags are checked in priority order (first match wins):
+
+1. `CreationDate` — QuickTime tag with timezone info. Preferred for videos,
+   especially edited iOS videos (`IMG_E*.MOV`) where `CreateDate` reflects
+   the edit render date (UTC), not the original capture date.
+2. `DateTimeOriginal` — standard EXIF tag for photos (HEIC, JPEG, DNG).
+   Not present in QuickTime containers.
+3. `CreateDate` — fallback for videos without `CreationDate`, or photos
+   without `DateTimeOriginal`.
+
+For photos, `CreationDate` is simply absent (QuickTime-only tag), so the
+priority naturally falls through to `DateTimeOriginal`.
 
 During album and gallery checks, photree reads all media files from each
 album's browsable directories (`{name}-jpg/`, `{name}-vid/`) and compares
