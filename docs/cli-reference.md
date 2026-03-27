@@ -527,7 +527,7 @@ $ photree gallery fix-ios [OPTIONS]
 
 Rename albums by diffing current vs desired CSV files (from list-albums --format csv).
 
-Only the title and location columns may differ between the two files.
+Only the series, title, and location columns may differ between the two files.
 
 **Usage**:
 

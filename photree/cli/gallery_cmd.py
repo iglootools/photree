@@ -912,7 +912,7 @@ def rename_from_csv_cmd(
 ) -> None:
     """Rename albums by diffing current vs desired CSV files (from list-albums --format csv).
 
-    Only the title and location columns may differ between the two files.
+    Only the series, title, and location columns may differ between the two files.
     """
     import csv
     import unicodedata
@@ -944,7 +944,7 @@ def rename_from_csv_cmd(
         raise typer.Exit(code=0)
 
     # Fields that must not differ between current and desired
-    immutable_fields = ("path", "date", "part", "series", "tags", "contributors")
+    immutable_fields = ("path", "date", "part", "tags", "contributors")
 
     renames: list[tuple[Path, str]] = []
     errors: list[str] = []
@@ -961,15 +961,18 @@ def rename_from_csv_cmd(
                 errors.append(
                     f"{path}: field '{field}' was modified "
                     f"({current.get(field, '')!r} → {desired.get(field, '')!r}). "
-                    f"Only 'title' and 'location' may be changed."
+                    f"Only 'series', 'title', and 'location' may be changed."
                 )
 
-        # Only process rows where title or location actually changed
+        # Only process rows where series, title, or location actually changed
+        series_changed = _nfc(current.get("series", "")) != _nfc(
+            desired.get("series", "")
+        )
         title_changed = _nfc(current.get("title", "")) != _nfc(desired.get("title", ""))
         location_changed = _nfc(current.get("location", "")) != _nfc(
             desired.get("location", "")
         )
-        if not title_changed and not location_changed:
+        if not series_changed and not title_changed and not location_changed:
             continue
 
         album_path = base_dir / path
