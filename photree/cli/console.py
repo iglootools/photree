@@ -2,5 +2,5 @@
 
 from rich.console import Console
 
-console = Console(highlight=False)
-err_console = Console(stderr=True, highlight=False)
+console = Console(highlight=False, soft_wrap=True)
+err_console = Console(stderr=True, highlight=False, soft_wrap=True)
