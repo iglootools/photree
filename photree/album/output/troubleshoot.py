@@ -152,15 +152,13 @@ def suggest_exif_fixes(
 
         fix_lines = (
             [
-                "# fix: overwrite EXIF date on upstream source files",
-                f'exiftool -CreationDate="{exif_date}T00:00:00"'
-                f" -overwrite_original {upstream_paths}",
+                "# fix: set EXIF date on upstream source files",
+                f"photree album fix-exif --set-date {exif_date} {upstream_paths}",
             ]
             if upstream
             else [
-                "# fix: overwrite EXIF date (no upstream files found, fixing in place)",
-                f'exiftool -CreationDate="{exif_date}T00:00:00"'
-                f" -overwrite_original "
+                "# fix: set EXIF date (no upstream files found, fixing in place)",
+                f"photree album fix-exif --set-date {exif_date} "
                 + " ".join(_sh(f"{album_dir}/{f}") for f in file_names),
             ]
         )

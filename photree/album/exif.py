@@ -12,12 +12,16 @@ from datetime import datetime
 from pathlib import Path
 
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
+from rich.console import Console
 
 from ..fsprotocol import (
     IMG_EXTENSIONS,
     VID_EXTENSIONS,
     discover_contributors,
 )
+from ..uiconventions import CHECK
+
+_console = Console(highlight=False)
 
 MEDIA_EXTENSIONS = IMG_EXTENSIONS | VID_EXTENSIONS
 
@@ -160,6 +164,157 @@ def read_exif_timestamps_by_file(
         for i, metadata in enumerate(metadata_list)
         if (ts := _extract_timestamp(metadata)) is not None
     ]
+
+
+# ---------------------------------------------------------------------------
+# EXIF writing
+# ---------------------------------------------------------------------------
+
+
+def set_exif_date(
+    files: list[Path],
+    date: str,
+    *,
+    log_cwd: Path | None = None,
+) -> int:
+    """Set the date portion of EXIF timestamps, preserving the original time.
+
+    *date* must be ``YYYY-MM-DD`` format.  Reads each file's existing
+    timestamp, replaces the date part, and writes it back.
+    Returns the number of files updated.
+    """
+    import json
+    import subprocess
+
+    exif_date = date.replace("-", ":")  # "2024:07:20"
+
+    result = subprocess.run(
+        [
+            "exiftool",
+            "-json",
+            *[f"-{t}" for t in _TIMESTAMP_TAGS],
+            *[str(f) for f in files],
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return 0
+
+    updated = 0
+    for entry in json.loads(result.stdout):
+        path = entry.get("SourceFile", "")
+        original = next(
+            (
+                entry[t]
+                for t in _TIMESTAMP_TAGS
+                if isinstance(entry.get(t), str) and entry[t].strip()
+            ),
+            None,
+        )
+        if not original:
+            continue
+
+        time_part = original.split(" ", 1)[1] if " " in original else "00:00:00"
+        new_date = f"{exif_date} {time_part}"
+
+        if log_cwd is not None:
+            from ..fsprotocol import display_path
+
+            _console.print(
+                f"{CHECK} fix-exif {display_path(Path(path), log_cwd)}: {original} -> {new_date}"
+            )
+
+        subprocess.run(
+            [
+                "exiftool",
+                f"-AllDates={new_date}",
+                f"-CreationDate={new_date}",
+                "-overwrite_original",
+                path,
+            ],
+            capture_output=True,
+        )
+        updated += 1
+
+    return updated
+
+
+def set_exif_date_time(
+    files: list[Path],
+    timestamp: str,
+    *,
+    log_cwd: Path | None = None,
+) -> int:
+    """Set the full EXIF timestamp on all files.
+
+    *timestamp* is an ISO-like string (e.g. ``2024-07-20T13:55:20``
+    or ``2024-07-20T13:55:20-06:00``).
+    Returns the number of files updated.
+    """
+    import subprocess
+
+    # Convert ISO separators to exiftool format: "2024-07-20T13:55:20" -> "2024:07:20 13:55:20"
+    exif_ts = timestamp.replace("T", " ").replace("-", ":", 2)
+
+    if log_cwd is not None:
+        from ..fsprotocol import display_path
+
+        for f in files:
+            _console.print(f"{CHECK} fix-exif {display_path(f, log_cwd)}: -> {exif_ts}")
+
+    result = subprocess.run(
+        [
+            "exiftool",
+            f"-AllDates={exif_ts}",
+            f"-CreationDate={exif_ts}",
+            "-overwrite_original",
+            *[str(f) for f in files],
+        ],
+    )
+    return len(files) if result.returncode == 0 else 0
+
+
+def shift_exif_date(
+    files: list[Path],
+    days: int,
+    *,
+    log_cwd: Path | None = None,
+) -> int:
+    """Shift EXIF timestamps by a number of days.
+
+    Positive *days* shifts forward, negative shifts backward.
+    Returns the number of files updated.
+    """
+    import subprocess
+
+    if days >= 0:
+        op = "+="
+    else:
+        op = "-="
+        days = -days
+
+    shift = f"0:0:{days} 0:0:0"  # Y:M:D H:M:S
+
+    if log_cwd is not None:
+        from ..fsprotocol import display_path
+
+        for f in files:
+            _console.print(
+                f"{CHECK} fix-exif shift {'+' if op == '+=' else '-'}{days}d"
+                f" {display_path(f, log_cwd)}"
+            )
+
+    result = subprocess.run(
+        [
+            "exiftool",
+            f"-AllDates{op}{shift}",
+            f"-CreationDate{op}{shift}",
+            "-overwrite_original",
+            *[str(f) for f in files],
+        ],
+    )
+    return len(files) if result.returncode == 0 else 0
 
 
 def read_album_min_timestamp(

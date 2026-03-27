@@ -57,6 +57,7 @@ $ photree album [OPTIONS] COMMAND [ARGS]...
 * `check`: Check system prerequisites, album...
 * `fix`: Fix album issues.
 * `fix-ios`: Fix iOS album issues.
+* `fix-exif`: Fix EXIF dates on media files.
 * `mv-media`: Move media files and all their variants...
 * `rm-media`: Remove media files and all their variants...
 
@@ -164,6 +165,38 @@ $ photree album fix-ios [OPTIONS]
 * `--rm-miscategorized-safe`: Delete miscategorized files only if they already exist in the correct directory.
 * `--mv-miscategorized`: Move files in the wrong directory to the correct one.
 * `-n, --dry-run`: Print what would happen without modifying files.
+* `--help`: Show this message and exit.
+
+### `photree album fix-exif`
+
+Fix EXIF dates on media files.
+
+Exactly one of --set-date, --set-date-time, or --shift-date must be
+specified.
+
+--set-date preserves the original time portion of each file&#x27;s
+timestamp, only replacing the date.
+
+--set-date-time sets the full timestamp (date + time) on all files.
+
+--shift-date shifts all date tags (AllDates + CreationDate) by the
+given number of days.
+
+**Usage**:
+
+```console
+$ photree album fix-exif [OPTIONS] [FILES]...
+```
+
+**Arguments**:
+
+* `[FILES]...`: File paths to fix (relative from cwd).
+
+**Options**:
+
+* `--set-date TEXT`: Set EXIF date to YYYY-MM-DD (preserves original time).
+* `--set-date-time TEXT`: Set EXIF date+time to an ISO timestamp (e.g. 2024-07-20T13:55:20).
+* `--shift-date INTEGER`: Shift EXIF date by N days (e.g. -1, +2).
 * `--help`: Show this message and exit.
 
 ### `photree album mv-media`
