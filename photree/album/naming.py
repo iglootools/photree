@@ -436,7 +436,7 @@ def check_exif_date_match(
         return None
 
     mismatches = tuple(
-        ExifMismatch(file_name=f.name, timestamp=ts.isoformat())
+        ExifMismatch(file_name=str(f.relative_to(album_dir)), timestamp=ts.isoformat())
         for f, ts in file_timestamps
         if not _timestamp_matches_album_date(
             ts, album_date, tolerance_days=tolerance_days
