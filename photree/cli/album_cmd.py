@@ -174,6 +174,7 @@ def check_cmd(
         raise typer.Exit(code=1)
 
 
+@album_app.command("fix")
 def fix_cmd(
     album_dir: Annotated[
         Path,

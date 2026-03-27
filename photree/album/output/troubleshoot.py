@@ -154,14 +154,16 @@ def suggest_exif_fixes(
         rebuild_lines = [
             *(
                 [
-                    "# rebuild: recreate main dirs from archival (iOS)",
+                    "# rebuild: recreate main dirs from archival + regenerate JPEGs",
                     f"photree album optimize --album-dir {_sh(album_dir)}",
+                    f"photree album fix-ios --album-dir {_sh(album_dir)} --refresh-jpeg",
                 ]
                 if has_ios
-                else []
+                else [
+                    "# rebuild: regenerate JPEGs from source",
+                    f"photree album fix --album-dir {_sh(album_dir)} --refresh-jpeg",
+                ]
             ),
-            "# rebuild: regenerate JPEGs from source",
-            f"photree album fix --album-dir {_sh(album_dir)} --refresh-jpeg",
         ]
 
         move_rm_lines = [

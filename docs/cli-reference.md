@@ -55,6 +55,7 @@ $ photree album [OPTIONS] COMMAND [ARGS]...
 **Commands**:
 
 * `check`: Check system prerequisites, album...
+* `fix`: Fix album issues.
 * `fix-ios`: Fix iOS album issues.
 * `mv-media`: Move media files and all their variants...
 * `rm-media`: Remove media files and all their variants...
@@ -79,6 +80,27 @@ $ photree album check [OPTIONS]
 * `--check-naming / --no-check-naming`: Enable/disable album naming convention checks (default: enabled).  [default: check-naming]
 * `--check-exif-date-match / --no-check-exif-date-match`: Enable/disable EXIF timestamp vs album date validation (default: enabled).  [default: check-exif-date-match]
 * `--check-date-part-collision / --no-check-date-part-collision`: Enable/disable date collision detection with sibling albums (default: enabled).  [default: check-date-part-collision]
+* `--help`: Show this message and exit.
+
+### `photree album fix`
+
+Fix album issues. Works on all contributor types (iOS + plain).
+
+--refresh-jpeg: Deletes all files in {contributor}-jpg/ and re-converts
+every file from {contributor}-img/. HEIC/HEIF/DNG files are converted
+via sips; JPEG/PNG files are copied as-is.
+
+**Usage**:
+
+```console
+$ photree album fix [OPTIONS]
+```
+
+**Options**:
+
+* `-a, --album-dir DIRECTORY`: Album directory to fix.  [default: .]
+* `--refresh-jpeg`: Refresh {contributor}-jpg/ from {contributor}-img/ for all contributors.
+* `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
 ### `photree album fix-ios`

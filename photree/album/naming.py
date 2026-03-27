@@ -466,7 +466,9 @@ def _resolve_upstream_files(
         if is_video:
             dirs = (contrib.vid_dir,)
         else:
-            dirs = (contrib.img_dir,)
+            # Include both img (source of truth) and jpg (derived) so the
+            # exiftool fix command updates all files in one go.
+            dirs = (contrib.img_dir, contrib.jpg_dir)
         upstream = [
             f"{d}/{uf}"
             for d in dirs
