@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from textwrap import dedent, indent
+from textwrap import dedent
 
 from rich.markup import escape
 
 from . import CHECK, CROSS, WARNING
-from .troubleshoot import suggest_fixes
-from ..naming import AlbumNamingResult, BatchNamingResult, ExifMismatch
+from .troubleshoot import suggest_exif_fixes, suggest_fixes
+from ..naming import AlbumNamingResult, BatchNamingResult
 from ..preflight import AlbumContributorSummary, AlbumPreflightResult
 
 
@@ -99,7 +99,7 @@ def format_naming_checks(
 
             lines.append("")
             lines.extend(
-                _format_exif_mismatch_commands(
+                suggest_exif_fixes(
                     result.exif_check.mismatches,
                     album_date=result.exif_check.album_date,
                     album_dir=album_dir,
@@ -107,45 +107,6 @@ def format_naming_checks(
             )
 
     return "\n".join(lines)
-
-
-def _format_exif_mismatch_commands(
-    mismatches: tuple[ExifMismatch, ...],
-    *,
-    album_date: str,
-    album_dir: str,
-) -> list[str]:
-    """Generate fix, move, and rm command suggestions grouped by date."""
-    from collections import defaultdict
-
-    by_date: defaultdict[str, list[str]] = defaultdict(list)
-    for m in mismatches:
-        date = m.timestamp.split("T")[0] if "T" in m.timestamp else "unknown"
-        by_date[date].append(m.file_name)
-
-    escaped_dir = escape(album_dir)
-
-    def _commands_for_date(date: str, file_names: list[str]) -> str:
-        escaped_files = " ".join(escape(f'"{f}"') for f in file_names)
-        escaped_full_paths = " ".join(escape(f'"{album_dir}/{f}"') for f in file_names)
-        return dedent(f"""\
-            # {date} ({len(file_names)} file(s)):
-            # fix: overwrite EXIF date to match album date
-            exiftool -CreationDate="{album_date}T00:00:00" -overwrite_original {escaped_full_paths}
-            # move: move files to another album (remove --dry-run to apply)
-            photree album mv-media --dry-run -s "{escaped_dir}" -d DEST_ALBUM {escaped_files}
-            # rm: remove files from this album (remove --dry-run to apply)
-            photree album rm-media --dry-run -a "{escaped_dir}" {escaped_files}""")
-
-    return "\n".join(
-        [
-            "  Suggested commands:",
-            *(
-                indent(_commands_for_date(date, file_names), "    ")
-                for date, file_names in sorted(by_date.items())
-            ),
-        ]
-    ).splitlines()
 
 
 def format_batch_naming_issues(result: BatchNamingResult) -> str:

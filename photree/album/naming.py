@@ -20,7 +20,14 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from ..fsprotocol import ALBUM_DATE_RE
+from ..fsprotocol import (
+    ALBUM_DATE_RE,
+    Contributor,
+    discover_contributors,
+    find_files_by_number,
+    find_files_by_stem,
+    img_number,
+)
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from .exif import discover_media_files, read_exif_timestamps_by_file
@@ -81,6 +88,8 @@ class ExifMismatch:
 
     file_name: str
     timestamp: str
+    upstream_files: tuple[str, ...] = ()
+    is_ios: bool = False
 
 
 @dataclass(frozen=True)
@@ -415,6 +424,59 @@ def _timestamp_matches_album_date(
     return (start - tolerance) <= ts_date <= (end + tolerance)
 
 
+def _resolve_upstream_files(
+    album_dir: Path,
+    file_path: Path,
+    contributors: list[Contributor],
+) -> tuple[tuple[str, ...], bool]:
+    """Find upstream source files for a browsable file.
+
+    Returns ``(upstream_relative_paths, is_ios)``.
+    """
+    from ..fsprotocol import VID_EXTENSIONS, file_ext
+
+    rel = str(file_path.relative_to(album_dir))
+    dir_part = str(Path(rel).parent)
+    filename = file_path.name
+
+    # Find the contributor that owns this directory
+    contrib = next(
+        (c for c in contributors if dir_part in (c.jpg_dir, c.vid_dir, c.img_dir)),
+        None,
+    )
+    if contrib is None:
+        return ((), False)
+
+    is_video = file_ext(filename) in VID_EXTENSIONS
+
+    if contrib.is_ios:
+        number = img_number(filename)
+        if is_video:
+            dirs = (contrib.orig_vid_dir, contrib.edit_vid_dir)
+        else:
+            dirs = (contrib.orig_img_dir, contrib.edit_img_dir)
+        upstream = [
+            f"{d}/{uf}"
+            for d in dirs
+            if (album_dir / d).is_dir()
+            for uf in find_files_by_number({number}, album_dir / d)
+        ]
+    else:
+        stem = Path(filename).stem
+        if is_video:
+            dirs = (contrib.vid_dir,)
+        else:
+            dirs = (contrib.img_dir,)
+        upstream = [
+            f"{d}/{uf}"
+            for d in dirs
+            if (album_dir / d).is_dir()
+            for uf in find_files_by_stem({stem}, album_dir / d)
+        ]
+
+    return (tuple(upstream), contrib.is_ios)
+
+
 def check_exif_date_match(
     album_dir: Path,
     album_date: str,
@@ -435,12 +497,20 @@ def check_exif_date_match(
     if not file_timestamps:
         return None
 
+    contributors = discover_contributors(album_dir)
+
     mismatches = tuple(
-        ExifMismatch(file_name=str(f.relative_to(album_dir)), timestamp=ts.isoformat())
+        ExifMismatch(
+            file_name=str(f.relative_to(album_dir)),
+            timestamp=ts.isoformat(),
+            upstream_files=upstream,
+            is_ios=is_ios,
+        )
         for f, ts in file_timestamps
         if not _timestamp_matches_album_date(
             ts, album_date, tolerance_days=tolerance_days
         )
+        for upstream, is_ios in [_resolve_upstream_files(album_dir, f, contributors)]
     )
 
     return ExifTimestampCheck(

@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
-from textwrap import dedent
+import shlex
+from collections import defaultdict
+from textwrap import dedent, indent
+
+from rich.markup import escape
 
 from ..integrity import IosAlbumIntegrityResult
+from ..naming import ExifMismatch
 
 
 def suggest_fixes(
@@ -100,3 +105,88 @@ def suggest_fixes(
             else []
         ),
     ]
+
+
+def suggest_exif_fixes(
+    mismatches: tuple[ExifMismatch, ...],
+    *,
+    album_date: str,
+    album_dir: str,
+) -> list[str]:
+    """Generate fix, move, and rm command suggestions for EXIF mismatches."""
+    by_date: defaultdict[str, list[ExifMismatch]] = defaultdict(list)
+    for m in mismatches:
+        date = m.timestamp.split("T")[0] if "T" in m.timestamp else "unknown"
+        by_date[date].append(m)
+
+    has_ios = any(m.is_ios for m in mismatches)
+
+    def _sh(path: str) -> str:
+        """Shell-quote a path, then escape for Rich markup."""
+        return escape(shlex.quote(path))
+
+    def _commands_for_date(date: str, items: list[ExifMismatch]) -> str:
+        file_names = [m.file_name for m in items]
+        escaped_files = " ".join(_sh(f) for f in file_names)
+
+        # Collect upstream source files for the exiftool fix command
+        # Exclude .AAE sidecars — they don't contain EXIF dates
+        upstream = sorted(
+            f for m in items for f in m.upstream_files if not f.lower().endswith(".aae")
+        )
+        upstream_paths = " ".join(_sh(f"{album_dir}/{f}") for f in upstream)
+
+        fix_lines = (
+            [
+                "# fix: overwrite EXIF date on upstream source files",
+                f'exiftool -CreationDate="{album_date}T00:00:00"'
+                f" -overwrite_original {upstream_paths}",
+            ]
+            if upstream
+            else [
+                "# fix: overwrite EXIF date (no upstream files found, fixing in place)",
+                f'exiftool -CreationDate="{album_date}T00:00:00"'
+                f" -overwrite_original "
+                + " ".join(_sh(f"{album_dir}/{f}") for f in file_names),
+            ]
+        )
+
+        rebuild_lines = [
+            *(
+                [
+                    "# rebuild: recreate main dirs from archival (iOS)",
+                    f"photree album optimize --album-dir {_sh(album_dir)}",
+                ]
+                if has_ios
+                else []
+            ),
+            "# rebuild: regenerate JPEGs from source",
+            f"photree album fix --album-dir {_sh(album_dir)} --refresh-jpeg",
+        ]
+
+        move_rm_lines = [
+            "# move: move files to another album (remove --dry-run to apply)",
+            f"photree album mv-media --dry-run -s {_sh(album_dir)}"
+            f" -d DEST_ALBUM {escaped_files}",
+            "# rm: remove files from this album (remove --dry-run to apply)",
+            f"photree album rm-media --dry-run -a {_sh(album_dir)} {escaped_files}",
+        ]
+
+        return "\n".join(
+            [
+                f"# {date} ({len(items)} file(s)):",
+                *fix_lines,
+                *rebuild_lines,
+                *move_rm_lines,
+            ]
+        )
+
+    return "\n".join(
+        [
+            "  Suggested commands:",
+            *(
+                indent(_commands_for_date(date, items), "    ")
+                for date, items in sorted(by_date.items())
+            ),
+        ]
+    ).splitlines()
