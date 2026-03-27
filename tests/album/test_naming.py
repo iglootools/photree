@@ -7,7 +7,8 @@ from datetime import datetime
 from photree.album.naming import (
     ParsedAlbumName,
     _album_date_range,
-    _timestamp_matches_album_date,
+    _timestamp_in_album_range,
+    _timestamp_matches_album_date_exactly,
     check_album_naming,
     check_batch_date_collisions,
     parse_album_name,
@@ -454,70 +455,131 @@ class TestCheckAlbumNaming:
 # ---------------------------------------------------------------------------
 
 
-class TestTimestampMatchesAlbumDate:
+class TestTimestampInAlbumRange:
+    # --- Single day ---
+
     def test_exact_match(self) -> None:
-        ts = datetime(2024, 6, 15, 10, 30)
-        assert _timestamp_matches_album_date(ts, "2024-06-15") is True
-
-    def test_within_tolerance(self) -> None:
-        ts = datetime(2024, 6, 16, 1, 0)  # next day, 1am
-        assert _timestamp_matches_album_date(ts, "2024-06-15", tolerance_days=1) is True
-
-    def test_outside_tolerance(self) -> None:
-        ts = datetime(2024, 6, 18, 10, 0)  # 3 days later
         assert (
-            _timestamp_matches_album_date(ts, "2024-06-15", tolerance_days=1) is False
+            _timestamp_in_album_range(datetime(2024, 6, 15, 10, 30), "2024-06-15")
+            is True
         )
 
-    def test_date_range_within(self) -> None:
-        ts = datetime(2024, 6, 18, 12, 0)
-        assert _timestamp_matches_album_date(ts, "2024-06-15--2024-06-20") is True
-
-    def test_date_range_outside(self) -> None:
-        ts = datetime(2024, 7, 1, 12, 0)
+    def test_next_day_allowed(self) -> None:
+        # +1 day tolerance for timezone / midnight crossover
         assert (
-            _timestamp_matches_album_date(
-                ts, "2024-06-15--2024-06-20", tolerance_days=1
-            )
+            _timestamp_in_album_range(datetime(2024, 6, 16, 1, 0), "2024-06-15") is True
+        )
+
+    def test_two_days_later_rejected(self) -> None:
+        # +2 days is outside the [album_date, album_date + 2) range
+        assert (
+            _timestamp_in_album_range(datetime(2024, 6, 17, 0, 0), "2024-06-15")
             is False
         )
 
-    def test_date_range_tolerance_at_boundary(self) -> None:
-        ts = datetime(2024, 6, 14, 23, 0)  # day before start
+    def test_day_before_rejected(self) -> None:
         assert (
-            _timestamp_matches_album_date(
-                ts, "2024-06-15--2024-06-20", tolerance_days=1
+            _timestamp_in_album_range(datetime(2024, 6, 14, 23, 59), "2024-06-15")
+            is False
+        )
+
+    # --- Date ranges (exclusive end) ---
+
+    def test_range_within(self) -> None:
+        assert (
+            _timestamp_in_album_range(
+                datetime(2024, 6, 18, 12, 0), "2024-06-15--2024-06-20"
             )
             is True
         )
 
-    def test_year_only_matches_any_day_in_year(self) -> None:
+    def test_range_last_day(self) -> None:
+        # End date is included (exclusive end is end + 1)
         assert (
-            _timestamp_matches_album_date(datetime(2024, 7, 15, 10, 0), "2024") is True
-        )
-        assert (
-            _timestamp_matches_album_date(
-                datetime(2025, 1, 1, 0, 0), "2024", tolerance_days=1
+            _timestamp_in_album_range(
+                datetime(2024, 6, 20, 23, 59), "2024-06-15--2024-06-20"
             )
             is True
         )
+
+    def test_range_day_after_end_rejected(self) -> None:
         assert (
-            _timestamp_matches_album_date(
-                datetime(2025, 1, 3, 0, 0), "2024", tolerance_days=1
+            _timestamp_in_album_range(
+                datetime(2024, 6, 21, 0, 0), "2024-06-15--2024-06-20"
             )
             is False
         )
 
-    def test_month_only_matches_any_day_in_month(self) -> None:
+    def test_range_day_before_start_rejected(self) -> None:
         assert (
-            _timestamp_matches_album_date(datetime(2024, 6, 20, 10, 0), "2024-06")
+            _timestamp_in_album_range(
+                datetime(2024, 6, 14, 23, 59), "2024-06-15--2024-06-20"
+            )
+            is False
+        )
+
+    # --- Year precision ---
+
+    def test_year_any_day(self) -> None:
+        assert _timestamp_in_album_range(datetime(2024, 7, 15, 10, 0), "2024") is True
+
+    def test_year_last_day(self) -> None:
+        assert _timestamp_in_album_range(datetime(2024, 12, 31, 23, 59), "2024") is True
+
+    def test_year_next_year_rejected(self) -> None:
+        # Jan 1 of next year is exclusive
+        assert _timestamp_in_album_range(datetime(2025, 1, 1, 0, 0), "2024") is False
+
+    # --- Month precision ---
+
+    def test_month_any_day(self) -> None:
+        assert (
+            _timestamp_in_album_range(datetime(2024, 6, 20, 10, 0), "2024-06") is True
+        )
+
+    def test_month_last_day(self) -> None:
+        assert (
+            _timestamp_in_album_range(datetime(2024, 6, 30, 23, 59), "2024-06") is True
+        )
+
+    def test_month_next_month_rejected(self) -> None:
+        assert _timestamp_in_album_range(datetime(2024, 7, 1, 0, 0), "2024-06") is False
+
+
+class TestTimestampMatchesExactly:
+    def test_exact_match(self) -> None:
+        assert (
+            _timestamp_matches_album_date_exactly(
+                datetime(2024, 6, 15, 10, 0), "2024-06-15"
+            )
+            is True
+        )
+
+    def test_next_day_does_not_match(self) -> None:
+        assert (
+            _timestamp_matches_album_date_exactly(
+                datetime(2024, 6, 16, 1, 0), "2024-06-15"
+            )
+            is False
+        )
+
+    def test_non_day_precision_always_true(self) -> None:
+        # Only relevant for single-day albums
+        assert (
+            _timestamp_matches_album_date_exactly(datetime(2024, 7, 15, 10, 0), "2024")
             is True
         )
         assert (
-            _timestamp_matches_album_date(
-                datetime(2024, 7, 5, 10, 0), "2024-06", tolerance_days=1
+            _timestamp_matches_album_date_exactly(
+                datetime(2024, 7, 15, 10, 0), "2024-06"
             )
-            is False
+            is True
+        )
+        assert (
+            _timestamp_matches_album_date_exactly(
+                datetime(2024, 7, 15, 10, 0), "2024-06--2024-08"
+            )
+            is True
         )
 
 

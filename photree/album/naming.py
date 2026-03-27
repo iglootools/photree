@@ -99,10 +99,11 @@ class ExifTimestampCheck:
     album_date: str
     total_files: int
     mismatches: tuple[ExifMismatch, ...]
+    no_exact_album_date_match: bool = False
 
     @property
     def matches(self) -> bool:
-        return not self.mismatches
+        return not self.mismatches and not self.no_exact_album_date_match
 
 
 @dataclass(frozen=True)
@@ -407,21 +408,46 @@ def _album_date_range(album_date: str) -> tuple[date, date] | None:
         return None
 
 
-def _timestamp_matches_album_date(
+def _timestamp_in_album_range(
     timestamp: datetime,
     album_date: str,
-    *,
-    tolerance_days: int = 1,
 ) -> bool:
-    """Check if a timestamp falls within tolerance of the album date(s)."""
+    """Check if a timestamp falls within the album's date range.
+
+    All cases use exclusive end:
+    - Single day (``YYYY-MM-DD``): ``[album_date, album_date + 2 days)``
+      — allows album date and the next day (timezone / midnight tolerance).
+    - Range (``--``): ``[start, end + 1 day)``
+    - Lower precision (``YYYY``, ``YYYY-MM``): ``[start, end + 1 day)``
+    """
     date_range = _album_date_range(album_date)
     if date_range is None:
         return True  # can't validate, assume ok
 
     start, end = date_range
     ts_date = timestamp.date()
-    tolerance = timedelta(days=tolerance_days)
-    return (start - tolerance) <= ts_date <= (end + tolerance)
+
+    if _is_day_precision(album_date):
+        # Single day: allow album date + next day
+        end_exclusive = end + timedelta(days=2)
+    else:
+        # Ranges and lower precisions: strict [start, end + 1)
+        end_exclusive = end + timedelta(days=1)
+
+    return start <= ts_date < end_exclusive
+
+
+def _timestamp_matches_album_date_exactly(
+    timestamp: datetime,
+    album_date: str,
+) -> bool:
+    """Check if a timestamp's date matches the album date exactly (day precision only)."""
+    if not _is_day_precision(album_date):
+        return True  # only relevant for single-day albums
+    try:
+        return timestamp.date() == date.fromisoformat(album_date)
+    except ValueError:
+        return True
 
 
 def _resolve_upstream_files(
@@ -484,7 +510,7 @@ def check_exif_date_match(
     album_date: str,
     *,
     exiftool: ExifToolHelper | None = None,
-    tolerance_days: int = 1,
+    part: str | None = None,
 ) -> ExifTimestampCheck | None:
     """Check EXIF timestamps of all media files against the album date.
 
@@ -509,16 +535,28 @@ def check_exif_date_match(
             is_ios=is_ios,
         )
         for f, ts in file_timestamps
-        if not _timestamp_matches_album_date(
-            ts, album_date, tolerance_days=tolerance_days
-        )
+        if not _timestamp_in_album_range(ts, album_date)
         for upstream, is_ios in [_resolve_upstream_files(album_dir, f, contributors)]
+    )
+
+    # For single-day albums, at least one file must match the album date exactly.
+    # Relaxed for part > 01 (continuation albums where all files may spill into
+    # the next day).
+    is_continuation = part is not None and part > "01"
+    no_exact_match = (
+        _is_day_precision(album_date)
+        and not is_continuation
+        and not any(
+            _timestamp_matches_album_date_exactly(ts, album_date)
+            for _, ts in file_timestamps
+        )
     )
 
     return ExifTimestampCheck(
         album_date=album_date,
         total_files=len(file_timestamps),
         mismatches=mismatches,
+        no_exact_album_date_match=no_exact_match,
     )
 
 

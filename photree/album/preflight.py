@@ -342,7 +342,7 @@ def run_album_check(
         exif_check = None
         if exiftool is not None and parsed is not None:
             exif_check = check_exif_date_match(
-                album_dir, parsed.date, exiftool=exiftool
+                album_dir, parsed.date, exiftool=exiftool, part=parsed.part
             )
         naming = AlbumNamingResult(
             parsed=parsed,

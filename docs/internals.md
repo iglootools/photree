@@ -217,7 +217,19 @@ priority naturally falls through to `DateTimeOriginal`.
 
 During album and gallery checks, photree reads all media files from each
 album's browsable directories (`{name}-jpg/`, `{name}-vid/`) and compares
-their EXIF timestamps against the album date with a 1-day tolerance.
+their EXIF timestamps against the album date. All ranges use an exclusive
+end boundary:
+
+- **Single-day albums** (`YYYY-MM-DD`): each file must fall in
+  `[album_date, album_date + 2 days)` — the next day is allowed for
+  timezone/midnight tolerance. Additionally, at least one file must match
+  the album date exactly (relaxed for part > 01, since continuation
+  albums may have all files from the next day).
+- **Date ranges** (`YYYY-MM-DD--YYYY-MM-DD`): each file must fall in
+  `[start, end + 1 day)` — strict, no extra tolerance.
+- **Lower precisions** (`YYYY`, `YYYY-MM`): each file must fall in
+  `[start, end + 1 day)` — e.g. `2024` means Jan 1 inclusive to
+  Jan 1 of the next year exclusive.
 
 ### Why exiftool / PyExifTool
 

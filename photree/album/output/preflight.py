@@ -85,26 +85,32 @@ def format_naming_checks(
             lines.append(f"{CHECK} exif timestamps match album date")
         else:
             icon = CROSS if fatal_exif else WARNING
-            n = len(result.exif_check.mismatches)
-            lines.append(
-                f"{icon} exif: {n} file(s) outside album date"
-                f" ({result.exif_check.album_date})"
-            )
-            max_examples = 5
-            for m in result.exif_check.mismatches[:max_examples]:
-                lines.append(f"    {m.file_name}  {m.timestamp}")
-            remaining = n - max_examples
-            if remaining > 0:
-                lines.append(f"    ... and {remaining} more")
-
-            lines.append("")
-            lines.extend(
-                suggest_exif_fixes(
-                    result.exif_check.mismatches,
-                    album_date=result.exif_check.album_date,
-                    album_dir=album_dir,
+            if result.exif_check.mismatches:
+                n = len(result.exif_check.mismatches)
+                lines.append(
+                    f"{icon} exif: {n} file(s) outside album date"
+                    f" ({result.exif_check.album_date})"
                 )
-            )
+                max_examples = 5
+                for m in result.exif_check.mismatches[:max_examples]:
+                    lines.append(f"    {m.file_name}  {m.timestamp}")
+                remaining = n - max_examples
+                if remaining > 0:
+                    lines.append(f"    ... and {remaining} more")
+
+                lines.append("")
+                lines.extend(
+                    suggest_exif_fixes(
+                        result.exif_check.mismatches,
+                        album_date=result.exif_check.album_date,
+                        album_dir=album_dir,
+                    )
+                )
+            if result.exif_check.no_exact_album_date_match:
+                lines.append(
+                    f"{icon} exif: no file matches the album date"
+                    f" ({result.exif_check.album_date}) exactly"
+                )
 
     return "\n".join(lines)
 
