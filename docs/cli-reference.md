@@ -438,8 +438,12 @@ $ photree gallery fix [OPTIONS]
 
 Optimize all iOS albums under a directory or from an explicit list.
 
-Runs integrity checks on each album first (unless --no-check), then
-replaces main-img/ and main-vid/ file copies with links.
+Runs structural integrity checks on each album first (unless --no-check):
+directory structure, file matching, checksums, sidecars, duplicates, and
+miscategorized files. Naming and EXIF checks are not performed.
+
+Albums that pass are optimized by replacing main-img/ and main-vid/
+file copies with links.
 
 **Usage**:
 

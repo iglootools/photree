@@ -308,8 +308,10 @@ def optimize_cmd(
     symbolic links, or copies depending on --link-mode. Does not touch
     main-jpg/ (those are HEIC-to-JPEG conversions that cannot be linked).
 
-    Runs integrity checks first (unless --no-check) and refuses to optimize
-    if errors are found.
+    Runs structural integrity checks first (unless --no-check): directory
+    structure, file matching, checksums, sidecars, duplicates, and
+    miscategorized files. Naming and EXIF checks are not performed.
+    Refuses to optimize if errors are found.
     """
     if check:
         # Run checks first
