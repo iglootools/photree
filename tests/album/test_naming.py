@@ -703,3 +703,59 @@ class TestCheckBatchDateCollisions:
         ]
         result = check_batch_date_collisions(albums)
         assert result.success is True
+
+    def test_date_ranges_excluded_from_collisions(self) -> None:
+        albums = [
+            (
+                "2024-06-15--2024-06-20 - Trip A",
+                ParsedAlbumName(
+                    date="2024-06-15--2024-06-20",
+                    part=None,
+                    private=False,
+                    series=None,
+                    title="Trip A",
+                    location=None,
+                ),
+            ),
+            (
+                "2024-06-15--2024-06-20 - Trip B",
+                ParsedAlbumName(
+                    date="2024-06-15--2024-06-20",
+                    part=None,
+                    private=False,
+                    series=None,
+                    title="Trip B",
+                    location=None,
+                ),
+            ),
+        ]
+        result = check_batch_date_collisions(albums)
+        assert result.success is True
+
+    def test_year_and_month_dates_excluded_from_collisions(self) -> None:
+        albums = [
+            (
+                "2024 - Album A",
+                ParsedAlbumName(
+                    date="2024",
+                    part=None,
+                    private=False,
+                    series=None,
+                    title="Album A",
+                    location=None,
+                ),
+            ),
+            (
+                "2024 - Album B",
+                ParsedAlbumName(
+                    date="2024",
+                    part=None,
+                    private=False,
+                    series=None,
+                    title="Album B",
+                    location=None,
+                ),
+            ),
+        ]
+        result = check_batch_date_collisions(albums)
+        assert result.success is True

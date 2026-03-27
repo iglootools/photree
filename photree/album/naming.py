@@ -466,7 +466,9 @@ def check_batch_date_collisions(
 
     by_date: defaultdict[str, list[str]] = defaultdict(list)
     for name, parsed in albums:
-        if not parsed.private:
+        # Date ranges are excluded: parts are not valid for ranges, so
+        # collisions cannot be resolved by adding a part number.
+        if not parsed.private and _is_day_precision(parsed.date):
             by_date[parsed.date].append(name)
 
     collisions = tuple(
