@@ -126,7 +126,7 @@ pe "mkdir -p \"$SHARE\" && touch \"$SHARE/.photree-share\""
 pause
 
 p "# Export album (main-only layout)"
-pe "photree export album --share-dir \"$SHARE\" --album-layout main-only"
+pe "photree export album --share-dir \"$SHARE\" --album-layout main"
 pause 3
 
 p "# Show the exported album"
