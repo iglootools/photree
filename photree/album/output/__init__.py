@@ -193,7 +193,7 @@ def media_op_summary(
 def media_op_check_suggestions(album_dirs: list[str]) -> str:
     lines = ["", "Suggested next steps:"]
     lines.extend(
-        f'  photree album check --fatal-exif-date-match --album-dir "{d}"'
+        f'  photree album check --album-dir "{d}"'
         for d in album_dirs
     )
     return "\n".join(lines)

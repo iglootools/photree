@@ -287,7 +287,7 @@ def check_cmd(
         typer.Option(
             "--fatal-warnings",
             "-W",
-            help="Treat all warnings as errors (implies --fatal-sidecar and --fatal-exif-date-match).",
+            help="Treat all warnings as errors (implies --fatal-sidecar).",
         ),
     ] = False,
     fatal_sidecar_arg: Annotated[
@@ -300,10 +300,10 @@ def check_cmd(
     fatal_exif_date_match: Annotated[
         bool,
         typer.Option(
-            "--fatal-exif-date-match",
-            help="Treat EXIF date mismatch warnings as errors.",
+            "--fatal-exif-date-match/--no-fatal-exif-date-match",
+            help="Treat EXIF date mismatch warnings as errors (default: enabled).",
         ),
-    ] = False,
+    ] = True,
     check_naming: Annotated[
         bool,
         typer.Option(
@@ -437,7 +437,7 @@ def check_cmd(
             [
                 " --fatal-warnings" if fatal_warnings else "",
                 " --fatal-sidecar" if fatal_sidecar_arg else "",
-                " --fatal-exif-date-match" if fatal_exif_date_match else "",
+                " --no-fatal-exif-date-match" if not fatal_exif_date_match else "",
             ]
         )
         err_console.print("\nTo investigate failures:")
