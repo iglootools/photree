@@ -275,11 +275,11 @@ class TestRunImport:
         assert isinstance(result, ImportResult)
         assert result.unprocessed == ()
         # orig
-        assert (album / "ios/orig-img" / "IMG_0410.HEIC").exists()
-        assert (album / "ios/orig-img" / "IMG_0410.AAE").exists()
+        assert (album / "ios-main/orig-img" / "IMG_0410.HEIC").exists()
+        assert (album / "ios-main/orig-img" / "IMG_0410.AAE").exists()
         # rendered
-        assert (album / "ios/edit-img" / "IMG_E0410.HEIC").exists()
-        assert (album / "ios/edit-img" / "IMG_O0410.AAE").exists()
+        assert (album / "ios-main/edit-img" / "IMG_E0410.HEIC").exists()
+        assert (album / "ios-main/edit-img" / "IMG_O0410.AAE").exists()
         # combined should have rendered version (not orig)
         assert (album / "main-img" / "IMG_E0410.HEIC").exists()
         assert not (album / "main-img" / "IMG_0410.HEIC").exists()
@@ -308,8 +308,8 @@ class TestRunImport:
             album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
         )
         assert result.unprocessed == ()
-        assert (album / "ios/orig-vid" / "IMG_0115.MOV").exists()
-        assert (album / "ios/edit-vid" / "IMG_E0115.MOV").exists()
+        assert (album / "ios-main/orig-vid" / "IMG_0115.MOV").exists()
+        assert (album / "ios-main/edit-vid" / "IMG_E0115.MOV").exists()
         assert (album / "main-vid" / "IMG_E0115.MOV").exists()
 
     def test_removes_processed_selection_files(self, tmp_path: Path) -> None:
@@ -334,7 +334,7 @@ class TestRunImport:
         )
 
         assert (album / SELECTION_DIR).exists()
-        assert not (album / "ios/orig-img").exists()
+        assert not (album / "ios-main/orig-img").exists()
 
     def test_error_when_selection_empty(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
@@ -367,9 +367,9 @@ class TestRunImport:
             album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
         )
 
-        assert (album / "ios/orig-img" / "IMG_0001.HEIC").exists()
-        assert not (album / "ios/orig-img" / "IMG_0002.HEIC").exists()
-        assert not (album / "ios/orig-img" / "IMG_0003.HEIC").exists()
+        assert (album / "ios-main/orig-img" / "IMG_0001.HEIC").exists()
+        assert not (album / "ios-main/orig-img" / "IMG_0002.HEIC").exists()
+        assert not (album / "ios-main/orig-img" / "IMG_0003.HEIC").exists()
 
     def test_returns_import_result_with_processed(self, tmp_path: Path) -> None:
         album = _setup_album(tmp_path, ["IMG_0001.HEIC", "IMG_0002.MOV"])
@@ -425,11 +425,11 @@ class TestRunImportLinkMode:
 
         # Combined should be hardlinked to rendered
         combined = album / "main-img" / "IMG_E0410.HEIC"
-        rendered = album / "ios/edit-img" / "IMG_E0410.HEIC"
+        rendered = album / "ios-main/edit-img" / "IMG_E0410.HEIC"
         assert os.stat(combined).st_ino == os.stat(rendered).st_ino
 
         # Orig files should be copies (not hardlinks to IC dir)
-        orig = album / "ios/orig-img" / "IMG_0410.HEIC"
+        orig = album / "ios-main/orig-img" / "IMG_0410.HEIC"
         ic_file = ic_dir / "IMG_0410.HEIC"
         assert os.stat(orig).st_ino != os.stat(ic_file).st_ino
 
@@ -448,7 +448,8 @@ class TestRunImportLinkMode:
         assert combined.is_symlink()
         assert not os.path.isabs(os.readlink(combined))
         assert (
-            combined.resolve() == (album / "ios/orig-img" / "IMG_0100.HEIC").resolve()
+            combined.resolve()
+            == (album / "ios-main/orig-img" / "IMG_0100.HEIC").resolve()
         )
 
     def test_copy_mode_creates_independent_copies(self, tmp_path: Path) -> None:
@@ -463,6 +464,6 @@ class TestRunImportLinkMode:
         )
 
         combined = album / "main-img" / "IMG_0100.HEIC"
-        orig = album / "ios/orig-img" / "IMG_0100.HEIC"
+        orig = album / "ios-main/orig-img" / "IMG_0100.HEIC"
         assert not combined.is_symlink()
         assert os.stat(combined).st_ino != os.stat(orig).st_ino

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-from . import CHECK, CROSS
+from . import CHECK, CROSS, WARNING
 from ..integrity import (
+    AlbumJpegIntegrityResult,
     CombinedDirCheck,
+    IosAlbumFullIntegrityResult,
     IosAlbumIntegrityResult,
     JpegCheck,
     SidecarCheck,
@@ -35,19 +37,19 @@ def format_combined_dir_check(label: str, check: CombinedDirCheck) -> str:
         return f"{CROSS} {label}: {len(issues)} issue(s)\n" + "\n".join(issues)
 
 
-def format_jpeg_check(check: JpegCheck) -> str:
+def format_jpeg_check(check: JpegCheck, label: str = "main-jpg") -> str:
     """Format a JPEG directory check result."""
     if check.success:
-        return f"{CHECK} main-jpg: {len(check.present)} file(s) verified"
+        return f"{CHECK} {label}: {len(check.present)} file(s) verified"
     else:
         issues = [
             *[f"  - missing: {f}" for f in check.missing],
             *[f"  - extra: {f}" for f in check.extra],
         ]
-        return f"{CROSS} main-jpg: {len(issues)} issue(s)\n" + "\n".join(issues)
+        return f"{CROSS} {label}: {len(issues)} issue(s)\n" + "\n".join(issues)
 
 
-def format_sidecar_check(check: SidecarCheck) -> str:
+def format_sidecar_check(check: SidecarCheck, *, fatal_sidecar: bool = False) -> str:
     """Format sidecar check result."""
     lines: list[str] = []
     if check.orphan_sidecars:
@@ -57,8 +59,8 @@ def format_sidecar_check(check: SidecarCheck) -> str:
 
     if not lines:
         return f"{CHECK} sidecars"
-    # Use CROSS if there are orphans (errors); CHECK if only missing (informational)
-    icon = CROSS if check.orphan_sidecars else CHECK
+    # CROSS if orphans (errors) or if missing sidecars are fatal; WARNING otherwise
+    icon = CROSS if check.orphan_sidecars or fatal_sidecar else WARNING
     return f"{icon} sidecars: {len(lines)} issue(s)\n" + "\n".join(lines)
 
 
@@ -84,9 +86,15 @@ def format_miscategorized(warnings: tuple[str, ...]) -> str | None:
         )
 
 
-def format_integrity_checks(result: IosAlbumIntegrityResult) -> str:
-    """Format all integrity check lines."""
-    sidecar_line = format_sidecar_check(result.sidecars)
+def _format_contributor_integrity(
+    result: IosAlbumIntegrityResult,
+    prefix: str = "",
+    *,
+    fatal_sidecar: bool = False,
+) -> str:
+    """Format integrity checks for a single contributor."""
+    p = f"{prefix} " if prefix else ""
+    sidecar_line = format_sidecar_check(result.sidecars, fatal_sidecar=fatal_sidecar)
     duplicate_line = (
         format_duplicate_numbers(result.duplicate_numbers) or ""
         if result.duplicate_numbers
@@ -99,11 +107,44 @@ def format_integrity_checks(result: IosAlbumIntegrityResult) -> str:
     )
     return "\n".join(
         [
-            format_combined_dir_check("main-img", result.combined_heic),
-            format_combined_dir_check("main-vid", result.combined_mov),
-            format_jpeg_check(result.jpeg),
+            format_combined_dir_check(f"{p}main-img", result.combined_heic),
+            format_combined_dir_check(f"{p}main-vid", result.combined_mov),
+            format_jpeg_check(result.jpeg, f"{p}main-jpg"),
             sidecar_line,
             duplicate_line,
             miscategorized_line,
         ]
+    )
+
+
+def format_integrity_checks(
+    result: IosAlbumFullIntegrityResult,
+    *,
+    fatal_sidecar: bool = False,
+) -> str:
+    """Format all integrity check lines across contributors.
+
+    Single-contributor: no prefix (identical output to previous behavior).
+    Multi-contributor: each section prefixed with ``[name]``.
+    """
+    multi = len(result.by_contributor) > 1
+    return "\n".join(
+        _format_contributor_integrity(
+            contrib_result,
+            prefix=f"[{contrib.name}]" if multi else "",
+            fatal_sidecar=fatal_sidecar,
+        )
+        for contrib, contrib_result in result.by_contributor
+    )
+
+
+def format_jpeg_integrity_checks(result: AlbumJpegIntegrityResult) -> str:
+    """Format JPEG integrity checks across all contributors."""
+    multi = len(result.by_contributor) > 1
+    return "\n".join(
+        format_jpeg_check(
+            check,
+            f"{'[' + contrib.name + '] ' if multi else ''}{contrib.jpg_dir}",
+        )
+        for contrib, check in result.by_contributor
     )

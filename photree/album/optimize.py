@@ -1,7 +1,8 @@
 """Optimize main directories by replacing copies with links.
 
-Recreates main-img and main-vid as hardlinks (default) or symlinks,
-without touching main-jpg (HEIC→JPEG conversions cannot be linked).
+Recreates {contributor}-img and {contributor}-vid as hardlinks (default) or
+symlinks for each contributor, without touching {contributor}-jpg (HEIC→JPEG
+conversions cannot be linked).
 """
 
 from __future__ import annotations
@@ -11,15 +12,10 @@ from pathlib import Path
 
 from . import combined as combined_module
 from ..fsprotocol import (
-    MAIN_IMG_DIR,
-    MAIN_VID_DIR,
     IMG_EXTENSIONS,
     LinkMode,
-    MOV_EXTENSIONS,
-    ORIG_IMG_DIR,
-    ORIG_VID_DIR,
-    EDIT_IMG_DIR,
-    EDIT_VID_DIR,
+    VID_EXTENSIONS,
+    discover_contributors,
 )
 
 
@@ -39,32 +35,43 @@ def optimize_album(
     dry_run: bool = False,
     log_cwd: Path | None = None,
 ) -> OptimizeResult:
-    """Recreate main-img and main-vid as links.
+    """Recreate browsable image and video directories as links for all contributors.
 
-    Does NOT touch main-jpg (HEIC→JPEG conversions cannot be linked).
+    Does NOT touch {contributor}-jpg (HEIC→JPEG conversions cannot be linked).
     """
-    heic_result = combined_module.refresh_main_dir(
-        album_dir / ORIG_IMG_DIR,
-        album_dir / EDIT_IMG_DIR,
-        album_dir / MAIN_IMG_DIR,
-        media_extensions=IMG_EXTENSIONS,
-        link_mode=link_mode,
-        dry_run=dry_run,
-        log_cwd=log_cwd,
-    )
+    # Only optimize iOS contributors — plain contributors' browsable dirs
+    # are the source of truth and must never be rebuilt.
+    ios_contributors = [c for c in discover_contributors(album_dir) if c.is_ios]
 
-    mov_result = combined_module.refresh_main_dir(
-        album_dir / ORIG_VID_DIR,
-        album_dir / EDIT_VID_DIR,
-        album_dir / MAIN_VID_DIR,
-        media_extensions=MOV_EXTENSIONS,
-        link_mode=link_mode,
-        dry_run=dry_run,
-        log_cwd=log_cwd,
-    )
+    total_heic = 0
+    total_mov = 0
+
+    for contrib in ios_contributors:
+        heic_result = combined_module.refresh_main_dir(
+            album_dir / contrib.orig_img_dir,
+            album_dir / contrib.edit_img_dir,
+            album_dir / contrib.img_dir,
+            media_extensions=IMG_EXTENSIONS,
+            link_mode=link_mode,
+            dry_run=dry_run,
+            log_cwd=log_cwd,
+        )
+
+        mov_result = combined_module.refresh_main_dir(
+            album_dir / contrib.orig_vid_dir,
+            album_dir / contrib.edit_vid_dir,
+            album_dir / contrib.vid_dir,
+            media_extensions=VID_EXTENSIONS,
+            link_mode=link_mode,
+            dry_run=dry_run,
+            log_cwd=log_cwd,
+        )
+
+        total_heic += heic_result.copied
+        total_mov += mov_result.copied
 
     return OptimizeResult(
-        heic_count=heic_result.copied,
-        mov_count=mov_result.copied,
+        heic_count=total_heic,
+        mov_count=total_mov,
         link_mode=link_mode,
     )

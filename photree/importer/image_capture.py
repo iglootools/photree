@@ -16,18 +16,13 @@ from ..album import combined
 from ..album.jpeg import convert_single_file, refresh_jpeg_dir
 
 from ..fsprotocol import (
-    MAIN_IMG_DIR,
-    MAIN_JPG_DIR,
-    MAIN_VID_DIR,
-    IMG_EXTENSIONS,
+    DEFAULT_CONTRIBUTOR,
+    IOS_IMG_EXTENSIONS,
     LinkMode,
+    IOS_VID_EXTENSIONS,
     SIDECAR_EXTENSIONS,
-    MOV_EXTENSIONS,
-    ORIG_IMG_DIR,
-    ORIG_VID_DIR,
-    EDIT_IMG_DIR,
-    EDIT_VID_DIR,
     SELECTION_DIR,
+    ios_contributor,
     list_files,
     pick_media_priority,
 )
@@ -49,11 +44,11 @@ def _ext(filename: str) -> str:
 
 
 def _is_img(filename: str) -> bool:
-    return _ext(filename) in IMG_EXTENSIONS
+    return _ext(filename) in IOS_IMG_EXTENSIONS
 
 
 def _is_mov(filename: str) -> bool:
-    return _ext(filename) in MOV_EXTENSIONS
+    return _ext(filename) in IOS_VID_EXTENSIONS
 
 
 def _is_sidecar(filename: str) -> bool:
@@ -429,6 +424,7 @@ def run_import(
     *,
     album_dir: Path,
     image_capture_dir: Path,
+    contributor_name: str = DEFAULT_CONTRIBUTOR,
     link_mode: LinkMode = LinkMode.HARDLINK,
     dry_run: bool = False,
     on_stage_start: Callable[[str], None] | None = None,
@@ -470,13 +466,14 @@ def run_import(
     # Plan
     plan = plan_import(selection_files, image_capture_files)
 
-    # Output directories
-    album_orig_img = album_dir / ORIG_IMG_DIR
-    album_orig_vid = album_dir / ORIG_VID_DIR
-    album_edit_img = album_dir / EDIT_IMG_DIR
-    album_edit_vid = album_dir / EDIT_VID_DIR
-    album_main_img = album_dir / MAIN_IMG_DIR
-    album_main_jpg = album_dir / MAIN_JPG_DIR
+    # Output directories — derived from contributor (always iOS for Image Capture)
+    contrib = ios_contributor(contributor_name)
+    album_orig_img = album_dir / contrib.orig_img_dir
+    album_orig_vid = album_dir / contrib.orig_vid_dir
+    album_edit_img = album_dir / contrib.edit_img_dir
+    album_edit_vid = album_dir / contrib.edit_vid_dir
+    album_main_img = album_dir / contrib.img_dir
+    album_main_jpg = album_dir / contrib.jpg_dir
 
     # ── Stage 1: import-ic ──
     # Copy files from Image Capture to orig/edited dirs.
@@ -516,7 +513,7 @@ def run_import(
         album_orig_img,
         album_edit_img,
         album_main_img,
-        media_extensions=IMG_EXTENSIONS,
+        media_extensions=IOS_IMG_EXTENSIONS,
         link_mode=link_mode,
         dry_run=dry_run,
     )
@@ -527,8 +524,8 @@ def run_import(
     combined.refresh_main_dir(
         album_orig_vid,
         album_edit_vid,
-        album_dir / MAIN_VID_DIR,
-        media_extensions=MOV_EXTENSIONS,
+        album_dir / contrib.vid_dir,
+        media_extensions=IOS_VID_EXTENSIONS,
         link_mode=link_mode,
         dry_run=dry_run,
     )

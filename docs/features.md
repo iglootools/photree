@@ -13,29 +13,52 @@ Import photos and videos from an iOS device via macOS Image Capture into an orga
 - Batch import across multiple albums (`image-capture-all`)
 - Dry-run mode for all operations
 
+## Contributors
+
+Albums support multiple **contributors** — named sources of photos from different people or devices.
+
+- **iOS contributors** (`ios-{name}/`): imported via Image Capture, with archival and browsable directories
+- **Plain contributors** (`{name}-img/`, `{name}-vid/`): photos from non-iOS sources (other cameras, shared files)
+- The default contributor is `main`; additional contributors are detected automatically
+- Each contributor gets its own set of browsable directories (`{name}-img/`, `{name}-vid/`, `{name}-jpg/`)
+- JPEG conversion applies to all contributors; iOS-specific checks and fixes apply only to iOS contributors
+
+## Album Naming Conventions
+
+Enforce and validate a structured naming convention for album directories.
+
+- Target format: `DATE - [PART - ] [Series - ] Title [@ Location] [tags]`
+- Dates: `YYYY-MM-DD`, `YYYY-MM`, `YYYY`, or ranges (`YYYY-MM-DD--YYYY-MM-DD`)
+- Optional part number (`01`, `02`, ...) for multi-part albums
+- Optional series prefix for grouping related albums
+- Optional `[private]` tag
+- Optional `@ Location` suffix
+- Validates canonical spacing, allowed tags, and name length
+- Cross-album date collision detection (warns when unrelated albums share the same date)
+- EXIF timestamp validation: samples media files and checks that their timestamps match the album date (optional, requires exiftool)
+
 ## Album Integrity Checks
 
 Validate that album directories are consistent and well-formed.
 
-- Verifies `main-img/` and `main-vid/` match expected content from `orig/` and `edit/` sources
-- Checks `main-jpg/` has a JPEG counterpart for every file in `main-img/`
+- Verifies `{name}-img/` and `{name}-vid/` match expected content from `orig/` and `edit/` sources
+- Checks `{name}-jpg/` has a JPEG counterpart for every file in `{name}-img/`
 - Detects missing, extra, and wrong-source files
 - File comparison via size and optional SHA-256 checksum
 - Hardlink/symlink-aware: skips checksum when link integrity is verified
 - Sidecar validation: detects orphan and missing AAE files
 - Detects miscategorized files (edits in orig dirs or vice versa)
 - Detects duplicate image numbers within the same prefix category
-- Batch checking across multiple albums (`check-all`)
 - Troubleshooting suggestions with actionable fix commands
 
 ## Album Optimization
 
 Reduce disk usage by replacing file copies with links.
 
-- Rebuilds `main-img/` and `main-vid/` as hardlinks (default), symlinks, or copies
-- Does not touch `main-jpg/` (JPEG conversions cannot be linked)
+- Rebuilds `{name}-img/` and `{name}-vid/` as hardlinks (default), symlinks, or copies
+- Does not touch `{name}-jpg/` (JPEG conversions cannot be linked)
 - Runs integrity checks before optimizing (unless `--no-check`)
-- Batch optimization across multiple albums (`optimize-all`)
+- Dry-run mode for all operations
 
 ## Album Fixes
 
@@ -48,7 +71,20 @@ Repair and maintain iOS album consistency with targeted fix commands.
 - **`--rm-orphan-sidecar`**: Remove AAE sidecar files with no matching media file
 - **`--prefer-higher-quality-when-dups`**: Remove lower-quality duplicates (DNG > HEIC > JPG/PNG)
 - **`--rm-miscategorized`** / **`--rm-miscategorized-safe`** / **`--mv-miscategorized`**: Fix files in the wrong directory
-- All fixes support dry-run mode and batch operation (`fix-ios-all`)
+- All fixes support dry-run mode
+
+## Gallery Commands
+
+Batch operations across multiple albums under a directory.
+
+- **`gallery list-albums`**: List all discovered albums with parsed metadata (date, title, series, location, contributors); supports text and CSV output formats
+- **`gallery check`**: Check all albums (integrity, naming conventions, EXIF timestamps, cross-album date collisions)
+- **`gallery fix`**: Apply fixes to all albums
+- **`gallery fix-ios`**: Apply iOS-specific fixes to all iOS albums
+- **`gallery optimize`**: Optimize all iOS albums (replace copies with links)
+- **`gallery rename-from-csv`**: Rename albums by diffing current vs desired CSV files (exported from `list-albums --format csv`); only title and location may be changed
+- **`gallery export`**: Batch export to a shared directory
+- All gallery commands accept `--dir` (scan recursively) or `--album-dir` (explicit list)
 
 ## Export to Shared Directories
 
@@ -65,7 +101,7 @@ Export albums to external volumes or cloud sync folders.
   - `albums`: Albums organized by year (`<YYYY>/<album-name>`), parsed from album name (`YYYY-MM-DD - Title`)
 - Sentinel file (`.photree-share`) required to prevent accidental exports to wrong directories
 - Validation: `albums` share layout requires `album-layout=full`
-- Batch export across multiple albums (`album-all`)
+- Batch export via `gallery export`
 
 ## Configuration
 

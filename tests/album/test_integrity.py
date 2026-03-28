@@ -11,14 +11,8 @@ from photree.album.integrity import (
     check_miscategorized_files,
 )
 from photree.fsprotocol import (
-    MAIN_IMG_DIR,
-    MAIN_JPG_DIR,
-    MAIN_VID_DIR,
+    MAIN_CONTRIBUTOR,
     IMG_EXTENSIONS,
-    ORIG_IMG_DIR,
-    ORIG_VID_DIR,
-    EDIT_IMG_DIR,
-    EDIT_VID_DIR,
 )
 
 
@@ -30,28 +24,28 @@ def _write(path: Path, content: str = "data") -> None:
 def _setup_ios_album(album: Path) -> None:
     """Create a well-formed iOS album with matching files across all dirs."""
     # ios/orig-img: IMG_0001.HEIC + AAE, IMG_0002.PNG (no AAE for PNG)
-    _write(album / ORIG_IMG_DIR / "IMG_0001.HEIC", "heic-orig")
-    _write(album / ORIG_IMG_DIR / "IMG_0001.AAE", "aae-orig")
-    _write(album / ORIG_IMG_DIR / "IMG_0002.PNG", "png-orig")
+    _write(album / MAIN_CONTRIBUTOR.orig_img_dir / "IMG_0001.HEIC", "heic-orig")
+    _write(album / MAIN_CONTRIBUTOR.orig_img_dir / "IMG_0001.AAE", "aae-orig")
+    _write(album / MAIN_CONTRIBUTOR.orig_img_dir / "IMG_0002.PNG", "png-orig")
 
     # ios/edit-img: IMG_E0001.HEIC + IMG_O0001.AAE (rendered for 0001)
-    _write(album / EDIT_IMG_DIR / "IMG_E0001.HEIC", "heic-rendered")
-    _write(album / EDIT_IMG_DIR / "IMG_O0001.AAE", "aae-rendered")
+    _write(album / MAIN_CONTRIBUTOR.edit_img_dir / "IMG_E0001.HEIC", "heic-rendered")
+    _write(album / MAIN_CONTRIBUTOR.edit_img_dir / "IMG_O0001.AAE", "aae-rendered")
 
     # main-img: rendered for 0001, orig PNG for 0002
-    _write(album / MAIN_IMG_DIR / "IMG_E0001.HEIC", "heic-rendered")
-    _write(album / MAIN_IMG_DIR / "IMG_0002.PNG", "png-orig")
+    _write(album / MAIN_CONTRIBUTOR.img_dir / "IMG_E0001.HEIC", "heic-rendered")
+    _write(album / MAIN_CONTRIBUTOR.img_dir / "IMG_0002.PNG", "png-orig")
 
     # ios/orig-vid + main-vid: simple MOV
-    _write(album / ORIG_VID_DIR / "IMG_0003.MOV", "mov-orig")
-    _write(album / MAIN_VID_DIR / "IMG_0003.MOV", "mov-orig")
+    _write(album / MAIN_CONTRIBUTOR.orig_vid_dir / "IMG_0003.MOV", "mov-orig")
+    _write(album / MAIN_CONTRIBUTOR.vid_dir / "IMG_0003.MOV", "mov-orig")
 
     # ios/edit-vid: empty
-    (album / EDIT_VID_DIR).mkdir(parents=True, exist_ok=True)
+    (album / MAIN_CONTRIBUTOR.edit_vid_dir).mkdir(parents=True, exist_ok=True)
 
     # main-jpg: one for each main-img file
-    _write(album / MAIN_JPG_DIR / "IMG_E0001.jpg", "jpeg-converted")
-    _write(album / MAIN_JPG_DIR / "IMG_0002.PNG", "png-copied")
+    _write(album / MAIN_CONTRIBUTOR.jpg_dir / "IMG_E0001.jpg", "jpeg-converted")
+    _write(album / MAIN_CONTRIBUTOR.jpg_dir / "IMG_0002.PNG", "png-copied")
 
 
 class TestCheckCombinedDir:
@@ -60,9 +54,9 @@ class TestCheckCombinedDir:
         _setup_ios_album(album)
 
         result = check_main_dir(
-            album / ORIG_IMG_DIR,
-            album / EDIT_IMG_DIR,
-            album / MAIN_IMG_DIR,
+            album / MAIN_CONTRIBUTOR.orig_img_dir,
+            album / MAIN_CONTRIBUTOR.edit_img_dir,
+            album / MAIN_CONTRIBUTOR.img_dir,
             media_extensions=IMG_EXTENSIONS,
             checksum=True,
         )
@@ -74,12 +68,12 @@ class TestCheckCombinedDir:
     def test_missing_file_detected(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_ios_album(album)
-        (album / MAIN_IMG_DIR / "IMG_E0001.HEIC").unlink()
+        (album / MAIN_CONTRIBUTOR.img_dir / "IMG_E0001.HEIC").unlink()
 
         result = check_main_dir(
-            album / ORIG_IMG_DIR,
-            album / EDIT_IMG_DIR,
-            album / MAIN_IMG_DIR,
+            album / MAIN_CONTRIBUTOR.orig_img_dir,
+            album / MAIN_CONTRIBUTOR.edit_img_dir,
+            album / MAIN_CONTRIBUTOR.img_dir,
             media_extensions=IMG_EXTENSIONS,
         )
         assert not result.success
@@ -89,12 +83,12 @@ class TestCheckCombinedDir:
     def test_extra_file_detected(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_ios_album(album)
-        _write(album / MAIN_IMG_DIR / "EXTRA.HEIC", "extra")
+        _write(album / MAIN_CONTRIBUTOR.img_dir / "EXTRA.HEIC", "extra")
 
         result = check_main_dir(
-            album / ORIG_IMG_DIR,
-            album / EDIT_IMG_DIR,
-            album / MAIN_IMG_DIR,
+            album / MAIN_CONTRIBUTOR.orig_img_dir,
+            album / MAIN_CONTRIBUTOR.edit_img_dir,
+            album / MAIN_CONTRIBUTOR.img_dir,
             media_extensions=IMG_EXTENSIONS,
         )
         assert not result.success
@@ -104,13 +98,13 @@ class TestCheckCombinedDir:
         album = tmp_path / "album"
         _setup_ios_album(album)
         # Replace rendered with original in combined (wrong)
-        (album / MAIN_IMG_DIR / "IMG_E0001.HEIC").unlink()
-        _write(album / MAIN_IMG_DIR / "IMG_0001.HEIC", "heic-orig")
+        (album / MAIN_CONTRIBUTOR.img_dir / "IMG_E0001.HEIC").unlink()
+        _write(album / MAIN_CONTRIBUTOR.img_dir / "IMG_0001.HEIC", "heic-orig")
 
         result = check_main_dir(
-            album / ORIG_IMG_DIR,
-            album / EDIT_IMG_DIR,
-            album / MAIN_IMG_DIR,
+            album / MAIN_CONTRIBUTOR.orig_img_dir,
+            album / MAIN_CONTRIBUTOR.edit_img_dir,
+            album / MAIN_CONTRIBUTOR.img_dir,
             media_extensions=IMG_EXTENSIONS,
         )
         assert not result.success
@@ -120,14 +114,14 @@ class TestCheckCombinedDir:
         album = tmp_path / "album"
         _setup_ios_album(album)
         # Corrupt the combined file
-        (album / MAIN_IMG_DIR / "IMG_E0001.HEIC").write_text(
+        (album / MAIN_CONTRIBUTOR.img_dir / "IMG_E0001.HEIC").write_text(
             "corrupted-different-size!!"
         )
 
         result = check_main_dir(
-            album / ORIG_IMG_DIR,
-            album / EDIT_IMG_DIR,
-            album / MAIN_IMG_DIR,
+            album / MAIN_CONTRIBUTOR.orig_img_dir,
+            album / MAIN_CONTRIBUTOR.edit_img_dir,
+            album / MAIN_CONTRIBUTOR.img_dir,
             media_extensions=IMG_EXTENSIONS,
         )
         assert not result.success
@@ -137,12 +131,12 @@ class TestCheckCombinedDir:
         album = tmp_path / "album"
         _setup_ios_album(album)
         # Same size but different content
-        (album / MAIN_IMG_DIR / "IMG_E0001.HEIC").write_text("heic-DIFFER")
+        (album / MAIN_CONTRIBUTOR.img_dir / "IMG_E0001.HEIC").write_text("heic-DIFFER")
 
         result = check_main_dir(
-            album / ORIG_IMG_DIR,
-            album / EDIT_IMG_DIR,
-            album / MAIN_IMG_DIR,
+            album / MAIN_CONTRIBUTOR.orig_img_dir,
+            album / MAIN_CONTRIBUTOR.edit_img_dir,
+            album / MAIN_CONTRIBUTOR.img_dir,
             media_extensions=IMG_EXTENSIONS,
             checksum=True,
         )
@@ -159,8 +153,8 @@ class TestCheckJpegDir:
         _setup_ios_album(album)
 
         result = check_jpeg_dir(
-            album / MAIN_IMG_DIR,
-            album / MAIN_JPG_DIR,
+            album / MAIN_CONTRIBUTOR.img_dir,
+            album / MAIN_CONTRIBUTOR.jpg_dir,
         )
         assert result.success
         assert len(result.present) == 2
@@ -168,11 +162,11 @@ class TestCheckJpegDir:
     def test_missing_jpeg_detected(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_ios_album(album)
-        (album / MAIN_JPG_DIR / "IMG_E0001.jpg").unlink()
+        (album / MAIN_CONTRIBUTOR.jpg_dir / "IMG_E0001.jpg").unlink()
 
         result = check_jpeg_dir(
-            album / MAIN_IMG_DIR,
-            album / MAIN_JPG_DIR,
+            album / MAIN_CONTRIBUTOR.img_dir,
+            album / MAIN_CONTRIBUTOR.jpg_dir,
         )
         assert not result.success
         assert "IMG_E0001.jpg" in result.missing
@@ -180,11 +174,11 @@ class TestCheckJpegDir:
     def test_extra_jpeg_detected(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_ios_album(album)
-        _write(album / MAIN_JPG_DIR / "EXTRA.jpg", "extra")
+        _write(album / MAIN_CONTRIBUTOR.jpg_dir / "EXTRA.jpg", "extra")
 
         result = check_jpeg_dir(
-            album / MAIN_IMG_DIR,
-            album / MAIN_JPG_DIR,
+            album / MAIN_CONTRIBUTOR.img_dir,
+            album / MAIN_CONTRIBUTOR.jpg_dir,
         )
         assert not result.success
         assert "EXTRA.jpg" in result.extra
@@ -196,8 +190,8 @@ class TestCheckSidecars:
         _setup_ios_album(album)
 
         result = check_sidecars(
-            album / ORIG_IMG_DIR,
-            album / EDIT_IMG_DIR,
+            album / MAIN_CONTRIBUTOR.orig_img_dir,
+            album / MAIN_CONTRIBUTOR.edit_img_dir,
         )
         assert result.missing_sidecars == ()
         assert result.orphan_sidecars == ()
@@ -205,11 +199,11 @@ class TestCheckSidecars:
     def test_missing_aae_for_heic(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_ios_album(album)
-        (album / ORIG_IMG_DIR / "IMG_0001.AAE").unlink()
+        (album / MAIN_CONTRIBUTOR.orig_img_dir / "IMG_0001.AAE").unlink()
 
         result = check_sidecars(
-            album / ORIG_IMG_DIR,
-            album / EDIT_IMG_DIR,
+            album / MAIN_CONTRIBUTOR.orig_img_dir,
+            album / MAIN_CONTRIBUTOR.edit_img_dir,
         )
         assert any(
             "IMG_0001.HEIC" in w and "no AAE" in w for w in result.missing_sidecars
@@ -218,11 +212,11 @@ class TestCheckSidecars:
     def test_missing_o_aae_for_rendered(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_ios_album(album)
-        (album / EDIT_IMG_DIR / "IMG_O0001.AAE").unlink()
+        (album / MAIN_CONTRIBUTOR.edit_img_dir / "IMG_O0001.AAE").unlink()
 
         result = check_sidecars(
-            album / ORIG_IMG_DIR,
-            album / EDIT_IMG_DIR,
+            album / MAIN_CONTRIBUTOR.orig_img_dir,
+            album / MAIN_CONTRIBUTOR.edit_img_dir,
         )
         assert any(
             "IMG_E0001.HEIC" in w and "O-prefixed AAE" in w
@@ -232,11 +226,11 @@ class TestCheckSidecars:
     def test_orphan_aae_in_orig(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_ios_album(album)
-        (album / ORIG_IMG_DIR / "IMG_0001.HEIC").unlink()
+        (album / MAIN_CONTRIBUTOR.orig_img_dir / "IMG_0001.HEIC").unlink()
 
         result = check_sidecars(
-            album / ORIG_IMG_DIR,
-            album / EDIT_IMG_DIR,
+            album / MAIN_CONTRIBUTOR.orig_img_dir,
+            album / MAIN_CONTRIBUTOR.edit_img_dir,
         )
         assert any(
             "IMG_0001.AAE" in w and "no matching media" in w
@@ -246,11 +240,11 @@ class TestCheckSidecars:
     def test_orphan_o_aae_in_rendered(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_ios_album(album)
-        (album / EDIT_IMG_DIR / "IMG_E0001.HEIC").unlink()
+        (album / MAIN_CONTRIBUTOR.edit_img_dir / "IMG_E0001.HEIC").unlink()
 
         result = check_sidecars(
-            album / ORIG_IMG_DIR,
-            album / EDIT_IMG_DIR,
+            album / MAIN_CONTRIBUTOR.orig_img_dir,
+            album / MAIN_CONTRIBUTOR.edit_img_dir,
         )
         assert any(
             "IMG_O0001.AAE" in w and "no matching edited media" in w
@@ -260,8 +254,8 @@ class TestCheckSidecars:
 
 class TestCheckMiscategorizedFiles:
     def test_rendered_in_orig_detected(self, tmp_path: Path) -> None:
-        orig = tmp_path / "ios/orig-img"
-        rendered = tmp_path / "ios/edit-img"
+        orig = tmp_path / "ios-main/orig-img"
+        rendered = tmp_path / "ios-main/edit-img"
         orig.mkdir(parents=True)
         rendered.mkdir(parents=True)
         (orig / "IMG_0001.HEIC").write_text("data")
@@ -272,8 +266,8 @@ class TestCheckMiscategorizedFiles:
         assert any("IMG_E0001.HEIC" in w and "edited file" in w for w in warnings)
 
     def test_original_in_rendered_detected(self, tmp_path: Path) -> None:
-        orig = tmp_path / "ios/orig-img"
-        rendered = tmp_path / "ios/edit-img"
+        orig = tmp_path / "ios-main/orig-img"
+        rendered = tmp_path / "ios-main/edit-img"
         orig.mkdir(parents=True)
         rendered.mkdir(parents=True)
         (rendered / "IMG_0001.HEIC").write_text("data")  # original in rendered
@@ -283,8 +277,8 @@ class TestCheckMiscategorizedFiles:
         assert any("IMG_0001.HEIC" in w and "original file" in w for w in warnings)
 
     def test_no_warnings_when_correct(self, tmp_path: Path) -> None:
-        orig = tmp_path / "ios/orig-img"
-        rendered = tmp_path / "ios/edit-img"
+        orig = tmp_path / "ios-main/orig-img"
+        rendered = tmp_path / "ios-main/edit-img"
         orig.mkdir(parents=True)
         rendered.mkdir(parents=True)
         (orig / "IMG_0001.HEIC").write_text("data")
@@ -298,7 +292,7 @@ class TestCheckMiscategorizedFiles:
 
     def test_missing_dirs_are_safe(self, tmp_path: Path) -> None:
         warnings = check_miscategorized_files(
-            tmp_path / "ios/orig-img", tmp_path / "ios/edit-img"
+            tmp_path / "ios-main/orig-img", tmp_path / "ios-main/edit-img"
         )
 
         assert warnings == ()
@@ -306,71 +300,71 @@ class TestCheckMiscategorizedFiles:
 
 def _setup_hardlinked_album(album: Path) -> None:
     """Create an iOS album where combined files are hardlinks to orig/rendered."""
-    _write(album / ORIG_IMG_DIR / "IMG_0001.HEIC", "heic-orig")
-    _write(album / ORIG_IMG_DIR / "IMG_0001.AAE", "aae-orig")
-    _write(album / ORIG_IMG_DIR / "IMG_0002.PNG", "png-orig")
-    _write(album / EDIT_IMG_DIR / "IMG_E0001.HEIC", "heic-rendered")
-    _write(album / EDIT_IMG_DIR / "IMG_O0001.AAE", "aae-rendered")
+    _write(album / MAIN_CONTRIBUTOR.orig_img_dir / "IMG_0001.HEIC", "heic-orig")
+    _write(album / MAIN_CONTRIBUTOR.orig_img_dir / "IMG_0001.AAE", "aae-orig")
+    _write(album / MAIN_CONTRIBUTOR.orig_img_dir / "IMG_0002.PNG", "png-orig")
+    _write(album / MAIN_CONTRIBUTOR.edit_img_dir / "IMG_E0001.HEIC", "heic-rendered")
+    _write(album / MAIN_CONTRIBUTOR.edit_img_dir / "IMG_O0001.AAE", "aae-rendered")
 
-    (album / MAIN_IMG_DIR).mkdir(parents=True, exist_ok=True)
+    (album / MAIN_CONTRIBUTOR.img_dir).mkdir(parents=True, exist_ok=True)
     os.link(
-        album / EDIT_IMG_DIR / "IMG_E0001.HEIC",
-        album / MAIN_IMG_DIR / "IMG_E0001.HEIC",
+        album / MAIN_CONTRIBUTOR.edit_img_dir / "IMG_E0001.HEIC",
+        album / MAIN_CONTRIBUTOR.img_dir / "IMG_E0001.HEIC",
     )
     os.link(
-        album / ORIG_IMG_DIR / "IMG_0002.PNG",
-        album / MAIN_IMG_DIR / "IMG_0002.PNG",
+        album / MAIN_CONTRIBUTOR.orig_img_dir / "IMG_0002.PNG",
+        album / MAIN_CONTRIBUTOR.img_dir / "IMG_0002.PNG",
     )
 
-    _write(album / ORIG_VID_DIR / "IMG_0003.MOV", "mov-orig")
-    (album / EDIT_VID_DIR).mkdir(parents=True, exist_ok=True)
-    (album / MAIN_VID_DIR).mkdir(parents=True, exist_ok=True)
+    _write(album / MAIN_CONTRIBUTOR.orig_vid_dir / "IMG_0003.MOV", "mov-orig")
+    (album / MAIN_CONTRIBUTOR.edit_vid_dir).mkdir(parents=True, exist_ok=True)
+    (album / MAIN_CONTRIBUTOR.vid_dir).mkdir(parents=True, exist_ok=True)
     os.link(
-        album / ORIG_VID_DIR / "IMG_0003.MOV",
-        album / MAIN_VID_DIR / "IMG_0003.MOV",
+        album / MAIN_CONTRIBUTOR.orig_vid_dir / "IMG_0003.MOV",
+        album / MAIN_CONTRIBUTOR.vid_dir / "IMG_0003.MOV",
     )
 
-    _write(album / MAIN_JPG_DIR / "IMG_E0001.jpg", "jpeg-converted")
-    _write(album / MAIN_JPG_DIR / "IMG_0002.PNG", "png-copied")
+    _write(album / MAIN_CONTRIBUTOR.jpg_dir / "IMG_E0001.jpg", "jpeg-converted")
+    _write(album / MAIN_CONTRIBUTOR.jpg_dir / "IMG_0002.PNG", "png-copied")
 
 
 def _setup_symlinked_album(album: Path) -> None:
     """Create an iOS album where combined files are relative symlinks."""
-    _write(album / ORIG_IMG_DIR / "IMG_0001.HEIC", "heic-orig")
-    _write(album / ORIG_IMG_DIR / "IMG_0001.AAE", "aae-orig")
-    _write(album / ORIG_IMG_DIR / "IMG_0002.PNG", "png-orig")
-    _write(album / EDIT_IMG_DIR / "IMG_E0001.HEIC", "heic-rendered")
-    _write(album / EDIT_IMG_DIR / "IMG_O0001.AAE", "aae-rendered")
+    _write(album / MAIN_CONTRIBUTOR.orig_img_dir / "IMG_0001.HEIC", "heic-orig")
+    _write(album / MAIN_CONTRIBUTOR.orig_img_dir / "IMG_0001.AAE", "aae-orig")
+    _write(album / MAIN_CONTRIBUTOR.orig_img_dir / "IMG_0002.PNG", "png-orig")
+    _write(album / MAIN_CONTRIBUTOR.edit_img_dir / "IMG_E0001.HEIC", "heic-rendered")
+    _write(album / MAIN_CONTRIBUTOR.edit_img_dir / "IMG_O0001.AAE", "aae-rendered")
 
-    (album / MAIN_IMG_DIR).mkdir(parents=True, exist_ok=True)
+    (album / MAIN_CONTRIBUTOR.img_dir).mkdir(parents=True, exist_ok=True)
     os.symlink(
         os.path.relpath(
-            album / EDIT_IMG_DIR / "IMG_E0001.HEIC",
-            album / MAIN_IMG_DIR,
+            album / MAIN_CONTRIBUTOR.edit_img_dir / "IMG_E0001.HEIC",
+            album / MAIN_CONTRIBUTOR.img_dir,
         ),
-        album / MAIN_IMG_DIR / "IMG_E0001.HEIC",
+        album / MAIN_CONTRIBUTOR.img_dir / "IMG_E0001.HEIC",
     )
     os.symlink(
         os.path.relpath(
-            album / ORIG_IMG_DIR / "IMG_0002.PNG",
-            album / MAIN_IMG_DIR,
+            album / MAIN_CONTRIBUTOR.orig_img_dir / "IMG_0002.PNG",
+            album / MAIN_CONTRIBUTOR.img_dir,
         ),
-        album / MAIN_IMG_DIR / "IMG_0002.PNG",
+        album / MAIN_CONTRIBUTOR.img_dir / "IMG_0002.PNG",
     )
 
-    _write(album / ORIG_VID_DIR / "IMG_0003.MOV", "mov-orig")
-    (album / EDIT_VID_DIR).mkdir(parents=True, exist_ok=True)
-    (album / MAIN_VID_DIR).mkdir(parents=True, exist_ok=True)
+    _write(album / MAIN_CONTRIBUTOR.orig_vid_dir / "IMG_0003.MOV", "mov-orig")
+    (album / MAIN_CONTRIBUTOR.edit_vid_dir).mkdir(parents=True, exist_ok=True)
+    (album / MAIN_CONTRIBUTOR.vid_dir).mkdir(parents=True, exist_ok=True)
     os.symlink(
         os.path.relpath(
-            album / ORIG_VID_DIR / "IMG_0003.MOV",
-            album / MAIN_VID_DIR,
+            album / MAIN_CONTRIBUTOR.orig_vid_dir / "IMG_0003.MOV",
+            album / MAIN_CONTRIBUTOR.vid_dir,
         ),
-        album / MAIN_VID_DIR / "IMG_0003.MOV",
+        album / MAIN_CONTRIBUTOR.vid_dir / "IMG_0003.MOV",
     )
 
-    _write(album / MAIN_JPG_DIR / "IMG_E0001.jpg", "jpeg-converted")
-    _write(album / MAIN_JPG_DIR / "IMG_0002.PNG", "png-copied")
+    _write(album / MAIN_CONTRIBUTOR.jpg_dir / "IMG_E0001.jpg", "jpeg-converted")
+    _write(album / MAIN_CONTRIBUTOR.jpg_dir / "IMG_0002.PNG", "png-copied")
 
 
 class TestCheckCombinedDirLinkAware:
@@ -379,9 +373,9 @@ class TestCheckCombinedDirLinkAware:
         _setup_hardlinked_album(album)
 
         result = check_main_dir(
-            album / ORIG_IMG_DIR,
-            album / EDIT_IMG_DIR,
-            album / MAIN_IMG_DIR,
+            album / MAIN_CONTRIBUTOR.orig_img_dir,
+            album / MAIN_CONTRIBUTOR.edit_img_dir,
+            album / MAIN_CONTRIBUTOR.img_dir,
             media_extensions=IMG_EXTENSIONS,
             checksum=True,
         )
@@ -394,9 +388,9 @@ class TestCheckCombinedDirLinkAware:
         _setup_symlinked_album(album)
 
         result = check_main_dir(
-            album / ORIG_IMG_DIR,
-            album / EDIT_IMG_DIR,
-            album / MAIN_IMG_DIR,
+            album / MAIN_CONTRIBUTOR.orig_img_dir,
+            album / MAIN_CONTRIBUTOR.edit_img_dir,
+            album / MAIN_CONTRIBUTOR.img_dir,
             media_extensions=IMG_EXTENSIONS,
             checksum=True,
         )
@@ -408,12 +402,12 @@ class TestCheckCombinedDirLinkAware:
         album = tmp_path / "album"
         _setup_symlinked_album(album)
         # Remove the source file to break the symlink
-        (album / EDIT_IMG_DIR / "IMG_E0001.HEIC").unlink()
+        (album / MAIN_CONTRIBUTOR.edit_img_dir / "IMG_E0001.HEIC").unlink()
 
         result = check_main_dir(
-            album / ORIG_IMG_DIR,
-            album / EDIT_IMG_DIR,
-            album / MAIN_IMG_DIR,
+            album / MAIN_CONTRIBUTOR.orig_img_dir,
+            album / MAIN_CONTRIBUTOR.edit_img_dir,
+            album / MAIN_CONTRIBUTOR.img_dir,
             media_extensions=IMG_EXTENSIONS,
         )
         # The combined file points to rendered, but rendered no longer has it,

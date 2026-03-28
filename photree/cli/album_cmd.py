@@ -3,26 +3,30 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
 from ..album import (
+    exif as album_exif,
+    fixes as album_fixes,
     ios_fixes,
+    media_ops,
+    naming as album_naming,
     optimize as album_optimize,
     output as album_output,
     preflight as album_preflight,
 )
 from ..fsprotocol import (
-    MAIN_IMG_DIR,
     IMG_EXTENSIONS,
     LinkMode,
-    MOV_EXTENSIONS,
-    ORIG_IMG_DIR,
-    ORIG_VID_DIR,
+    VID_EXTENSIONS,
+    discover_albums,
+    discover_contributors,
     display_path,
     list_files,
 )
+from .console import console, err_console
 from .progress import FileProgressBar, SilentProgressBar, StageProgressBar
 
 album_app = typer.Typer(
@@ -57,16 +61,52 @@ def check_cmd(
         typer.Option(
             "--fatal-warnings",
             "-W",
-            help="Treat informational warnings (e.g. missing sidecars) as errors.",
+            help="Treat all warnings as errors (implies --fatal-sidecar and --fatal-exif-date-match).",
         ),
     ] = False,
+    fatal_sidecar_arg: Annotated[
+        bool,
+        typer.Option(
+            "--fatal-sidecar",
+            help="Treat missing-sidecar warnings as errors.",
+        ),
+    ] = False,
+    fatal_exif_date_match: Annotated[
+        bool,
+        typer.Option(
+            "--fatal-exif-date-match",
+            help="Treat EXIF date mismatch warnings as errors.",
+        ),
+    ] = False,
+    check_naming: Annotated[
+        bool,
+        typer.Option(
+            "--check-naming/--no-check-naming",
+            help="Enable/disable album naming convention checks (default: enabled).",
+        ),
+    ] = True,
+    check_exif_date_match: Annotated[
+        bool,
+        typer.Option(
+            "--check-exif-date-match/--no-check-exif-date-match",
+            help="Enable/disable EXIF timestamp vs album date validation (default: enabled).",
+        ),
+    ] = True,
+    check_date_part_collision: Annotated[
+        bool,
+        typer.Option(
+            "--check-date-part-collision/--no-check-date-part-collision",
+            help="Enable/disable date collision detection with sibling albums (default: enabled).",
+        ),
+    ] = True,
 ) -> None:
     """Check system prerequisites, album directory structure, and file integrity."""
-    # Count unique media numbers in orig dirs — the integrity check fires one
-    # callback per expected main file, which is one per orig media number.
-    file_count = _count_unique_media_numbers(
-        album_dir / ORIG_IMG_DIR, IMG_EXTENSIONS
-    ) + _count_unique_media_numbers(album_dir / ORIG_VID_DIR, MOV_EXTENSIONS)
+    # Count unique media numbers across all contributors' orig dirs
+    file_count = sum(
+        _count_unique_media_numbers(album_dir / c.orig_img_dir, IMG_EXTENSIONS)
+        + _count_unique_media_numbers(album_dir / c.orig_vid_dir, VID_EXTENSIONS)
+        for c in discover_contributors(album_dir)
+    )
     progress = (
         SilentProgressBar(total=max(file_count, 1), description="Checking")
         if file_count > 0
@@ -76,130 +116,151 @@ def check_cmd(
     result = album_preflight.run_album_preflight(
         album_dir,
         checksum=checksum,
+        check_naming_flag=check_naming,
+        check_exif_date_match=check_exif_date_match,
         on_file_checked=progress.advance if progress else None,
     )
     if progress:
         progress.stop()
 
-    typer.echo(album_output.format_album_preflight_checks(result))
+    fatal_sidecar = fatal_warnings or fatal_sidecar_arg
+    fatal_exif = fatal_warnings or fatal_exif_date_match
 
-    failed = not result.success or (fatal_warnings and result.has_warnings)
+    cwd = Path.cwd()
+    album_dir_display = str(display_path(album_dir, cwd))
+
+    console.print(
+        album_output.format_album_preflight_checks(
+            result,
+            fatal_sidecar=fatal_sidecar,
+            fatal_exif=fatal_exif,
+            album_dir=album_dir_display,
+        )
+    )
+    failed = not result.success or result.has_fatal_warnings(
+        fatal_sidecar=fatal_sidecar, fatal_exif=fatal_exif
+    )
+
+    # Date collision detection against sibling albums
+    if check_naming and check_date_part_collision:
+        siblings = discover_albums(album_dir.parent)
+        parsed_siblings = [
+            (a.name, parsed)
+            for a in siblings
+            if (parsed := album_naming.parse_album_name(a.name)) is not None
+        ]
+        batch_naming = album_naming.check_batch_date_collisions(parsed_siblings)
+        console.print(album_output.format_batch_naming_issues(batch_naming))
+        if not batch_naming.success:
+            failed = True
+
     if failed:
-        cwd = Path.cwd()
         troubleshoot = album_output.format_album_preflight_troubleshoot(
-            result, album_dir=str(display_path(album_dir, cwd))
+            result, album_dir=album_dir_display
         )
         if troubleshoot:
             typer.echo("")
-            typer.echo(troubleshoot, err=True)
-        raise typer.Exit(code=1)
-
-
-@album_app.command("check-all")
-def check_all_cmd(
-    base_dir: Annotated[
-        Optional[Path],
-        typer.Option(
-            "--dir",
-            "-d",
-            help="Base directory to recursively scan for iOS albums.",
-            exists=True,
-            file_okay=False,
-            resolve_path=True,
-        ),
-    ] = None,
-    album_dirs: Annotated[
-        Optional[list[Path]],
-        typer.Option(
-            "--album-dir",
-            "-a",
-            help="Album directory to check (repeatable).",
-            exists=True,
-            file_okay=False,
-            resolve_path=True,
-        ),
-    ] = None,
-    checksum: Annotated[
-        bool,
-        typer.Option(
-            "--checksum/--no-checksum",
-            help="Enable/disable SHA-256 checksum verification (default: enabled).",
-        ),
-    ] = True,
-    fatal_warnings: Annotated[
-        bool,
-        typer.Option(
-            "--fatal-warnings",
-            "-W",
-            help="Treat informational warnings (e.g. missing sidecars) as errors.",
-        ),
-    ] = False,
-) -> None:
-    """Check all iOS albums under a directory or from an explicit list."""
-    from .progress import BatchProgressBar
-
-    cwd = Path.cwd()
-    albums, display_base = _resolve_batch_albums(base_dir, album_dirs)
-
-    # System checks (once)
-    sips_available = album_preflight.check_sips_available()
-    typer.echo("System Checks:")
-    typer.echo(album_output.sips_check(sips_available))
-    if not sips_available:
-        typer.echo("")
-        typer.echo(album_output.sips_troubleshoot(), err=True)
-        raise typer.Exit(code=1)
-
-    if not albums:
-        typer.echo("\nNo iOS albums found.")
-        raise typer.Exit(code=0)
-
-    if display_base is not None:
-        typer.echo(f"\nFound {len(albums)} iOS album(s).\n")
-    else:
-        typer.echo("")
-
-    # Check each album
-    progress = BatchProgressBar(
-        total=len(albums), description="Checking", done_description="check"
-    )
-    passed = 0
-    failed_albums: list[Path] = []
-
-    for album_dir in albums:
-        album_name = _display_name(album_dir, display_base, cwd)
-
-        progress.on_start(album_name)
-        result = album_preflight.run_album_check(
-            album_dir,
-            sips_available=sips_available,
-            checksum=checksum,
-        )
-
-        album_ok = result.success and not (fatal_warnings and result.has_warnings)
-        if album_ok:
-            progress.on_end(album_name, success=True)
-            passed += 1
-        else:
-            progress.on_end(album_name, success=False)
-            failed_albums.append(album_dir)
-
-    progress.stop()
-
-    # Summary
-    typer.echo(album_output.batch_check_summary(passed, len(failed_albums)))
-
-    if failed_albums:
-        typer.echo("\nTo investigate failures:", err=True)
-        for album_dir in failed_albums:
-            typer.echo(
-                f'  photree album check --album-dir "{display_path(album_dir, cwd)}"',
-                err=True,
+            err_console.print(troubleshoot)
+        if result.success and result.has_fatal_warnings(
+            fatal_sidecar=fatal_sidecar, fatal_exif=fatal_exif
+        ):
+            typer.echo("")
+            err_console.print(
+                album_output.format_fatal_warnings(
+                    result,
+                    fatal_sidecar=fatal_sidecar,
+                    fatal_exif=fatal_exif,
+                ),
             )
         raise typer.Exit(code=1)
 
 
-@album_app.command("optimize")
+@album_app.command("fix")
+def fix_cmd(
+    album_dir: Annotated[
+        Path,
+        typer.Option(
+            "--album-dir",
+            "-a",
+            help="Album directory to fix.",
+            exists=True,
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ] = Path("."),
+    refresh_jpeg: Annotated[
+        bool,
+        typer.Option(
+            "--refresh-jpeg",
+            help="Refresh {contributor}-jpg/ from {contributor}-img/ for all contributors.",
+        ),
+    ] = False,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            "-n",
+            help="Print what would happen without modifying files.",
+        ),
+    ] = False,
+) -> None:
+    """Fix album issues. Works on all contributor types (iOS + plain).
+
+    --refresh-jpeg: Deletes all files in {contributor}-jpg/ and re-converts
+    every file from {contributor}-img/. HEIC/HEIF/DNG files are converted
+    via sips; JPEG/PNG files are copied as-is.
+    """
+    if not refresh_jpeg:
+        typer.echo(
+            "No fix specified. Run photree album fix --help for available fixes.",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    if refresh_jpeg:
+        _check_sips_or_exit()
+        contributors = discover_contributors(album_dir)
+        if not contributors:
+            typer.echo("No contributors found in this album.", err=True)
+            raise typer.Exit(code=1)
+
+        file_count = sum(
+            len(list_files(album_dir / c.img_dir))
+            for c in contributors
+            if (album_dir / c.img_dir).is_dir()
+        )
+        progress = FileProgressBar(
+            total=file_count,
+            description="Converting JPEG",
+            done_description="convert-jpeg",
+        )
+        total_converted = 0
+        total_copied = 0
+        total_skipped = 0
+        for contrib in contributors:
+            if not (album_dir / contrib.img_dir).is_dir():
+                continue
+            prefix = f"{contrib.img_dir}/"
+            result = album_fixes.refresh_jpeg(
+                album_dir,
+                contrib,
+                dry_run=dry_run,
+                on_file_start=lambda name, p=prefix: progress.on_start(f"{p}{name}"),
+                on_file_end=lambda name, ok, p=prefix: progress.on_end(
+                    f"{p}{name}", ok
+                ),
+            )
+            total_converted += result.converted
+            total_copied += result.copied
+            total_skipped += result.skipped
+        progress.stop()
+        typer.echo(
+            album_output.refresh_jpeg_summary(
+                total_converted, total_copied, total_skipped
+            )
+        )
+
+
 def optimize_cmd(
     album_dir: Annotated[
         Path,
@@ -233,6 +294,14 @@ def optimize_cmd(
             help="Enable/disable SHA-256 checksum verification (default: enabled).",
         ),
     ] = True,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            "-n",
+            help="Print what would happen without modifying files.",
+        ),
+    ] = False,
 ) -> None:
     """Optimize main directories by replacing file copies with links.
 
@@ -240,14 +309,18 @@ def optimize_cmd(
     symbolic links, or copies depending on --link-mode. Does not touch
     main-jpg/ (those are HEIC-to-JPEG conversions that cannot be linked).
 
-    Runs integrity checks first (unless --no-check) and refuses to optimize
-    if errors are found.
+    Runs structural integrity checks first (unless --no-check): directory
+    structure, file matching, checksums, sidecars, duplicates, and
+    miscategorized files. Naming and EXIF checks are not performed.
+    Refuses to optimize if errors are found.
     """
     if check:
         # Run checks first
-        file_count = _count_unique_media_numbers(
-            album_dir / ORIG_IMG_DIR, IMG_EXTENSIONS
-        ) + _count_unique_media_numbers(album_dir / ORIG_VID_DIR, MOV_EXTENSIONS)
+        file_count = sum(
+            _count_unique_media_numbers(album_dir / c.orig_img_dir, IMG_EXTENSIONS)
+            + _count_unique_media_numbers(album_dir / c.orig_vid_dir, VID_EXTENSIONS)
+            for c in discover_contributors(album_dir)
+        )
         progress = (
             SilentProgressBar(total=max(file_count, 1), description="Checking")
             if file_count > 0
@@ -262,7 +335,7 @@ def optimize_cmd(
         if progress:
             progress.stop()
 
-        typer.echo(album_output.format_album_preflight_checks(check_result))
+        console.print(album_output.format_album_preflight_checks(check_result))
 
         if not check_result.success:
             cwd = Path.cwd()
@@ -271,174 +344,16 @@ def optimize_cmd(
             )
             if troubleshoot:
                 typer.echo("")
-                typer.echo(troubleshoot, err=True)
+                err_console.print(troubleshoot)
             raise typer.Exit(code=1)
 
     # Optimize
-    result = album_optimize.optimize_album(album_dir, link_mode=link_mode)
+    result = album_optimize.optimize_album(
+        album_dir, link_mode=link_mode, dry_run=dry_run
+    )
     typer.echo(
         album_output.optimize_summary(result.heic_count, result.mov_count, link_mode)
     )
-
-
-@album_app.command("optimize-all")
-def optimize_all_cmd(
-    base_dir: Annotated[
-        Optional[Path],
-        typer.Option(
-            "--dir",
-            "-d",
-            help="Base directory to recursively scan for iOS albums.",
-            exists=True,
-            file_okay=False,
-            resolve_path=True,
-        ),
-    ] = None,
-    album_dirs: Annotated[
-        Optional[list[Path]],
-        typer.Option(
-            "--album-dir",
-            "-a",
-            help="Album directory to optimize (repeatable).",
-            exists=True,
-            file_okay=False,
-            resolve_path=True,
-        ),
-    ] = None,
-    link_mode: Annotated[
-        LinkMode,
-        typer.Option(
-            "--link-mode",
-            help="How to create main files: hardlink (default), symlink, or copy.",
-        ),
-    ] = LinkMode.HARDLINK,
-    check: Annotated[
-        bool,
-        typer.Option(
-            "--check/--no-check",
-            help="Run integrity checks before optimizing (default: enabled).",
-        ),
-    ] = True,
-    checksum: Annotated[
-        bool,
-        typer.Option(
-            "--checksum/--no-checksum",
-            help="Enable/disable SHA-256 checksum verification (default: enabled).",
-        ),
-    ] = True,
-) -> None:
-    """Optimize all iOS albums under a directory or from an explicit list.
-
-    Runs integrity checks on each album first (unless --no-check), then
-    replaces main-img/ and main-vid/ file copies with links.
-    """
-    from .progress import BatchProgressBar
-
-    cwd = Path.cwd()
-    albums, display_base = _resolve_batch_albums(base_dir, album_dirs)
-
-    sips_available = True
-    if check:
-        # System checks (once)
-        sips_available = album_preflight.check_sips_available()
-        typer.echo("System Checks:")
-        typer.echo(album_output.sips_check(sips_available))
-        if not sips_available:
-            typer.echo("")
-            typer.echo(album_output.sips_troubleshoot(), err=True)
-            raise typer.Exit(code=1)
-
-    if not albums:
-        typer.echo("\nNo iOS albums found.")
-        raise typer.Exit(code=0)
-
-    if display_base is not None:
-        typer.echo(f"\nFound {len(albums)} iOS album(s).\n")
-    else:
-        typer.echo("")
-
-    # Check and optimize each album
-    progress = BatchProgressBar(
-        total=len(albums), description="Optimizing", done_description="optimize"
-    )
-    optimized = 0
-    failed_albums: list[Path] = []
-
-    for album_dir in albums:
-        album_name = _display_name(album_dir, display_base, cwd)
-
-        progress.on_start(album_name)
-
-        if check:
-            check_result = album_preflight.run_album_check(
-                album_dir,
-                sips_available=sips_available,
-                checksum=checksum,
-            )
-            if not check_result.success:
-                progress.on_end(album_name, success=False)
-                failed_albums.append(album_dir)
-                continue
-
-        album_optimize.optimize_album(album_dir, link_mode=link_mode)
-        progress.on_end(album_name, success=True)
-        optimized += 1
-
-    progress.stop()
-
-    # Summary
-    typer.echo(album_output.batch_optimize_summary(optimized, len(failed_albums)))
-
-    if failed_albums:
-        typer.echo("\nTo investigate failures:", err=True)
-        for album_dir in failed_albums:
-            typer.echo(
-                f'  photree album check --album-dir "{display_path(album_dir, cwd)}"',
-                err=True,
-            )
-        raise typer.Exit(code=1)
-
-
-def _resolve_batch_albums(
-    base_dir: Path | None,
-    album_dirs: list[Path] | None,
-) -> tuple[list[Path], Path | None]:
-    """Resolve album list from mutually exclusive --dir / --album-dir options.
-
-    Returns ``(albums, display_base)`` where *display_base* is the base
-    directory when --dir was used (for relative display names), or ``None``
-    when --album-dir was used (display names are CWD-relative).
-    """
-    from rich.progress import Progress, SpinnerColumn, TextColumn
-
-    if base_dir is not None and album_dirs is not None:
-        typer.echo(
-            "--dir and --album-dir are mutually exclusive.",
-            err=True,
-        )
-        raise typer.Exit(code=1)
-
-    if album_dirs is not None:
-        return (album_dirs, None)
-
-    # --dir mode (explicit or default)
-    resolved_base = base_dir if base_dir is not None else Path(".").resolve()
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        transient=True,
-    ) as progress:
-        progress.add_task("Resolving album list...", total=None)
-        albums = album_preflight.discover_ios_albums(resolved_base)
-    return (albums, resolved_base)
-
-
-def _display_name(album_dir: Path, base_dir: Path | None, cwd: Path) -> str:
-    """Human-readable album name relative to *base_dir* or *cwd*."""
-    if base_dir is not None:
-        return str(album_dir.relative_to(base_dir))
-
-    return str(display_path(album_dir, cwd))
 
 
 @album_app.command("fix-ios")
@@ -612,202 +527,6 @@ def fix_ios_cmd(
     )
 
 
-@album_app.command("fix-ios-all")
-def fix_ios_all_cmd(
-    base_dir: Annotated[
-        Optional[Path],
-        typer.Option(
-            "--dir",
-            "-d",
-            help="Base directory to recursively scan for iOS albums.",
-            exists=True,
-            file_okay=False,
-            resolve_path=True,
-        ),
-    ] = None,
-    album_dirs: Annotated[
-        Optional[list[Path]],
-        typer.Option(
-            "--album-dir",
-            "-a",
-            help="iOS album directory to fix (repeatable).",
-            exists=True,
-            file_okay=False,
-            resolve_path=True,
-        ),
-    ] = None,
-    link_mode: Annotated[
-        LinkMode,
-        typer.Option(
-            "--link-mode",
-            help="How to create main files: hardlink (default), symlink, or copy.",
-        ),
-    ] = LinkMode.HARDLINK,
-    refresh_combined: Annotated[
-        bool,
-        typer.Option(
-            "--refresh-combined",
-            help="Rebuild main-img/ and main-vid/ from orig/edit, then regenerate main-jpg/.",
-        ),
-    ] = False,
-    refresh_jpeg: Annotated[
-        bool,
-        typer.Option(
-            "--refresh-jpeg",
-            help="Refresh main-jpg/ from main-img/ (re-convert all HEIC→JPEG).",
-        ),
-    ] = False,
-    rm_upstream: Annotated[
-        bool,
-        typer.Option(
-            "--rm-upstream",
-            help="Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.",
-        ),
-    ] = False,
-    rm_orphan: Annotated[
-        bool,
-        typer.Option(
-            "--rm-orphan",
-            help="Delete edited and main files that have no corresponding orig file.",
-        ),
-    ] = False,
-    prefer_higher_quality_when_dups: Annotated[
-        bool,
-        typer.Option(
-            "--prefer-higher-quality-when-dups",
-            help="Delete lower-quality duplicates (e.g. JPG when DNG or HEIC exists for the same number).",
-        ),
-    ] = False,
-    rm_orphan_sidecar: Annotated[
-        bool,
-        typer.Option(
-            "--rm-orphan-sidecar",
-            help="Delete AAE sidecar files that have no matching media file.",
-        ),
-    ] = False,
-    rm_miscategorized: Annotated[
-        bool,
-        typer.Option(
-            "--rm-miscategorized",
-            help="Delete files in the wrong directory (edited in orig or vice versa).",
-        ),
-    ] = False,
-    rm_miscategorized_safe: Annotated[
-        bool,
-        typer.Option(
-            "--rm-miscategorized-safe",
-            help="Delete miscategorized files only if they already exist in the correct directory.",
-        ),
-    ] = False,
-    mv_miscategorized: Annotated[
-        bool,
-        typer.Option(
-            "--mv-miscategorized",
-            help="Move files in the wrong directory to the correct one.",
-        ),
-    ] = False,
-    dry_run: Annotated[
-        bool,
-        typer.Option(
-            "--dry-run",
-            "-n",
-            help="Print what would happen without modifying files.",
-        ),
-    ] = False,
-) -> None:
-    """Apply fix-ios to all iOS albums under a directory or from an explicit list.
-
-    Accepts the same fix flags as fix-ios. At least one fix flag must be specified.
-    """
-    from .progress import BatchProgressBar
-
-    cwd = Path.cwd()
-
-    _validate_fix_flags(
-        refresh_combined=refresh_combined,
-        refresh_jpeg=refresh_jpeg,
-        rm_upstream=rm_upstream,
-        rm_orphan=rm_orphan,
-        rm_orphan_sidecar=rm_orphan_sidecar,
-        prefer_higher_quality_when_dups=prefer_higher_quality_when_dups,
-        rm_miscategorized=rm_miscategorized,
-        rm_miscategorized_safe=rm_miscategorized_safe,
-        mv_miscategorized=mv_miscategorized,
-    )
-
-    albums, display_base = _resolve_batch_albums(base_dir, album_dirs)
-
-    if not albums:
-        typer.echo("No iOS albums found.")
-        raise typer.Exit(code=0)
-
-    if display_base is not None:
-        typer.echo(f"Found {len(albums)} iOS album(s).\n")
-
-    import io
-    from contextlib import redirect_stdout
-
-    progress = BatchProgressBar(
-        total=len(albums), description="Fixing", done_description="fix-ios"
-    )
-    fixed = 0
-    failed_albums: list[Path] = []
-    album_reports: list[tuple[str, str]] = []
-
-    for album_dir in albums:
-        album_name = _display_name(album_dir, display_base, cwd)
-        progress.on_start(album_name)
-
-        buf = io.StringIO()
-        try:
-            with redirect_stdout(buf):
-                _run_fix_ios(
-                    album_dir,
-                    link_mode=link_mode,
-                    dry_run=dry_run,
-                    log_cwd=cwd,
-                    show_progress=False,
-                    refresh_combined=refresh_combined,
-                    refresh_jpeg=refresh_jpeg,
-                    rm_upstream=rm_upstream,
-                    rm_orphan=rm_orphan,
-                    rm_orphan_sidecar=rm_orphan_sidecar,
-                    prefer_higher_quality_when_dups=prefer_higher_quality_when_dups,
-                    rm_miscategorized=rm_miscategorized,
-                    rm_miscategorized_safe=rm_miscategorized_safe,
-                    mv_miscategorized=mv_miscategorized,
-                )
-            progress.on_end(album_name, success=True)
-            fixed += 1
-            captured = buf.getvalue()
-            if captured.strip():
-                album_reports.append((album_name, captured))
-        except Exception:
-            progress.on_end(album_name, success=False)
-            failed_albums.append(album_dir)
-
-    progress.stop()
-
-    # Print per-album action reports (e.g. dry-run details).
-    # Use color=True to preserve ANSI escapes captured from the fix run.
-    if album_reports:
-        typer.echo("")
-        for album_name, report in album_reports:
-            typer.echo(f"{album_name}:")
-            typer.echo(report, color=True)
-
-    typer.echo(album_output.batch_fix_ios_summary(fixed, len(failed_albums)))
-
-    if failed_albums:
-        typer.echo("\nFailed albums:", err=True)
-        for album_dir in failed_albums:
-            typer.echo(
-                f'  photree album fix-ios --album-dir "{display_path(album_dir, cwd)}"',
-                err=True,
-            )
-        raise typer.Exit(code=1)
-
-
 def _validate_fix_flags(
     *,
     refresh_combined: bool,
@@ -870,6 +589,12 @@ def _run_fix_ios(
     *show_progress* enables progress bars and summary lines.
     Both can be set independently.
     """
+    # Fix-ios operations only apply to iOS contributors
+    contributors = [c for c in discover_contributors(album_dir) if c.is_ios]
+
+    if not contributors:
+        typer.echo("No iOS contributors found in this album.", err=True)
+        return
 
     if refresh_combined:
         _check_sips_or_exit()
@@ -886,32 +611,44 @@ def _run_fix_ios(
             if show_progress
             else None
         )
-        result = ios_fixes.refresh_combined(
-            album_dir,
-            link_mode=link_mode,
-            dry_run=dry_run,
-            on_stage_start=stage_progress.on_start if stage_progress else None,
-            on_stage_end=stage_progress.on_end if stage_progress else None,
-        )
+        total_heic = 0
+        total_mov = 0
+        total_jpeg_converted = 0
+        total_jpeg_copied = 0
+        total_jpeg_skipped = 0
+        for contrib in contributors:
+            result = ios_fixes.refresh_combined(
+                album_dir,
+                contrib,
+                link_mode=link_mode,
+                dry_run=dry_run,
+                on_stage_start=stage_progress.on_start if stage_progress else None,
+                on_stage_end=stage_progress.on_end if stage_progress else None,
+            )
+            total_heic += result.heic.copied
+            total_mov += result.mov.copied
+            total_jpeg_converted += result.jpeg.converted if result.jpeg else 0
+            total_jpeg_copied += result.jpeg.copied if result.jpeg else 0
+            total_jpeg_skipped += result.jpeg.skipped if result.jpeg else 0
         if stage_progress:
             stage_progress.stop()
         if show_progress:
             typer.echo(
                 album_output.refresh_combined_summary(
-                    heic_copied=result.heic.copied,
-                    mov_copied=result.mov.copied,
-                    jpeg_converted=result.jpeg.converted if result.jpeg else 0,
-                    jpeg_copied=result.jpeg.copied if result.jpeg else 0,
-                    jpeg_skipped=result.jpeg.skipped if result.jpeg else 0,
+                    heic_copied=total_heic,
+                    mov_copied=total_mov,
+                    jpeg_converted=total_jpeg_converted,
+                    jpeg_copied=total_jpeg_copied,
+                    jpeg_skipped=total_jpeg_skipped,
                 )
             )
     elif refresh_jpeg:
         _check_sips_or_exit()
-        src_dir = album_dir / MAIN_IMG_DIR
-        if not src_dir.is_dir():
-            typer.echo(f"Directory not found: {src_dir}", err=True)
-            raise typer.Exit(code=1)
-        file_count = len(list_files(src_dir))
+        file_count = sum(
+            len(list_files(album_dir / c.img_dir))
+            for c in contributors
+            if (album_dir / c.img_dir).is_dir()
+        )
         progress = (
             FileProgressBar(
                 total=file_count,
@@ -921,65 +658,85 @@ def _run_fix_ios(
             if show_progress
             else None
         )
-        result_jpeg = ios_fixes.refresh_jpeg(
-            album_dir,
-            dry_run=dry_run,
-            log_cwd=log_cwd,
-            on_file_start=progress.on_start if progress else None,
-            on_file_end=progress.on_end if progress else None,
-        )
+        total_converted = 0
+        total_copied = 0
+        total_skipped = 0
+        for contrib in contributors:
+            if not (album_dir / contrib.img_dir).is_dir():
+                continue
+            result_jpeg = ios_fixes.refresh_jpeg(
+                album_dir,
+                contrib,
+                dry_run=dry_run,
+                log_cwd=log_cwd,
+                on_file_start=progress.on_start if progress else None,
+                on_file_end=progress.on_end if progress else None,
+            )
+            total_converted += result_jpeg.converted
+            total_copied += result_jpeg.copied
+            total_skipped += result_jpeg.skipped
         if progress:
             progress.stop()
         if show_progress:
             typer.echo(
                 album_output.refresh_jpeg_summary(
-                    result_jpeg.converted, result_jpeg.copied, result_jpeg.skipped
+                    total_converted, total_copied, total_skipped
                 )
             )
 
     if rm_upstream:
-        result_rm = ios_fixes.rm_upstream(album_dir, dry_run=dry_run, log_cwd=log_cwd)
-        if show_progress:
-            typer.echo(
-                album_output.rm_upstream_summary(
-                    heic_jpeg=len(result_rm.heic.removed_jpeg),
-                    heic_combined=len(result_rm.heic.removed_combined),
-                    heic_rendered=len(result_rm.heic.removed_rendered),
-                    heic_orig=len(result_rm.heic.removed_orig),
-                    mov_rendered=len(result_rm.mov.removed_rendered),
-                    mov_orig=len(result_rm.mov.removed_orig),
-                )
+        for contrib in contributors:
+            result_rm = ios_fixes.rm_upstream(
+                album_dir, contrib, dry_run=dry_run, log_cwd=log_cwd
             )
-
-    if rm_orphan:
-        result_orphan = ios_fixes.rm_orphan(album_dir, dry_run=dry_run, log_cwd=log_cwd)
-        if show_progress:
-            typer.echo(
-                album_output.rm_orphan_summary(
-                    (
-                        *result_orphan.heic.removed_by_dir,
-                        *result_orphan.mov.removed_by_dir,
+            if show_progress:
+                typer.echo(
+                    album_output.rm_upstream_summary(
+                        heic_jpeg=len(result_rm.heic.removed_jpeg),
+                        heic_combined=len(result_rm.heic.removed_combined),
+                        heic_rendered=len(result_rm.heic.removed_rendered),
+                        heic_orig=len(result_rm.heic.removed_orig),
+                        mov_rendered=len(result_rm.mov.removed_rendered),
+                        mov_orig=len(result_rm.mov.removed_orig),
                     )
                 )
+
+    if rm_orphan:
+        for contrib in contributors:
+            result_orphan = ios_fixes.rm_orphan(
+                album_dir, contrib, dry_run=dry_run, log_cwd=log_cwd
             )
+            if show_progress:
+                typer.echo(
+                    album_output.rm_orphan_summary(
+                        (
+                            *result_orphan.heic.removed_by_dir,
+                            *result_orphan.mov.removed_by_dir,
+                        )
+                    )
+                )
 
     if rm_orphan_sidecar:
-        result_meta = ios_fixes.rm_orphan_sidecar(
-            album_dir, dry_run=dry_run, log_cwd=log_cwd
-        )
-        if show_progress:
-            typer.echo(
-                album_output.rm_orphan_sidecar_summary(result_meta.removed_by_dir)
+        for contrib in contributors:
+            result_meta = ios_fixes.rm_orphan_sidecar(
+                album_dir, contrib, dry_run=dry_run, log_cwd=log_cwd
             )
+            if show_progress:
+                typer.echo(
+                    album_output.rm_orphan_sidecar_summary(result_meta.removed_by_dir)
+                )
 
     if prefer_higher_quality_when_dups:
-        result_heic = ios_fixes.prefer_higher_quality_when_dups(
-            album_dir, dry_run=dry_run, log_cwd=log_cwd
-        )
-        if show_progress:
-            typer.echo(
-                album_output.prefer_higher_quality_summary(result_heic.removed_by_dir)
+        for contrib in contributors:
+            result_heic = ios_fixes.prefer_higher_quality_when_dups(
+                album_dir, contrib, dry_run=dry_run, log_cwd=log_cwd
             )
+            if show_progress:
+                typer.echo(
+                    album_output.prefer_higher_quality_summary(
+                        result_heic.removed_by_dir
+                    )
+                )
 
     miscat_action = (
         "rm"
@@ -996,23 +753,116 @@ def _run_fix_ios(
             "rm-safe": ios_fixes.rm_miscategorized_safe,
             "mv": ios_fixes.mv_miscategorized,
         }[miscat_action]
-        result_miscat = fix_fn(album_dir, dry_run=dry_run, log_cwd=log_cwd)
-        if show_progress:
-            typer.echo(
-                album_output.miscategorized_summary(
-                    action=miscat_action,
-                    heic_from_orig=len(result_miscat.heic.fixed_from_orig),
-                    heic_from_rendered=len(result_miscat.heic.fixed_from_rendered),
-                    mov_from_orig=len(result_miscat.mov.fixed_from_orig),
-                    mov_from_rendered=len(result_miscat.mov.fixed_from_rendered),
+        for contrib in contributors:
+            result_miscat = fix_fn(album_dir, contrib, dry_run=dry_run, log_cwd=log_cwd)
+            if show_progress:
+                typer.echo(
+                    album_output.miscategorized_summary(
+                        action=miscat_action,
+                        heic_from_orig=len(result_miscat.heic.fixed_from_orig),
+                        heic_from_rendered=len(result_miscat.heic.fixed_from_rendered),
+                        mov_from_orig=len(result_miscat.mov.fixed_from_orig),
+                        mov_from_rendered=len(result_miscat.mov.fixed_from_rendered),
+                    )
                 )
-            )
+
+
+@album_app.command("fix-exif")
+def fix_exif_cmd(
+    set_date: Annotated[
+        str | None,
+        typer.Option(
+            "--set-date",
+            help="Set EXIF date to YYYY-MM-DD (preserves original time).",
+        ),
+    ] = None,
+    set_date_time: Annotated[
+        str | None,
+        typer.Option(
+            "--set-date-time",
+            help="Set EXIF date+time to an ISO timestamp (e.g. 2024-07-20T13:55:20).",
+        ),
+    ] = None,
+    shift_date: Annotated[
+        int | None,
+        typer.Option(
+            "--shift-date",
+            help="Shift EXIF date by N days (e.g. -1, +2).",
+        ),
+    ] = None,
+    shift_time: Annotated[
+        int | None,
+        typer.Option(
+            "--shift-time",
+            help="Shift EXIF time by N hours (e.g. -6, +3).",
+        ),
+    ] = None,
+    files: Annotated[
+        list[str],
+        typer.Argument(
+            help="File paths to fix (relative from cwd).",
+        ),
+    ] = [],  # noqa: B006
+) -> None:
+    """Fix EXIF dates on media files.
+
+    Exactly one of --set-date, --set-date-time, --shift-date, or
+    --shift-time must be specified.
+
+    --set-date preserves the original time portion of each file's
+    timestamp, only replacing the date.
+
+    --set-date-time sets the full timestamp (date + time) on all files.
+
+    --shift-date shifts all date tags by N days.
+
+    --shift-time shifts all date tags by N hours.
+    """
+    flags = sum(
+        x is not None for x in (set_date, set_date_time, shift_date, shift_time)
+    )
+    if flags == 0:
+        err_console.print(
+            "Specify exactly one of --set-date, --set-date-time,"
+            " --shift-date, or --shift-time."
+        )
+        raise typer.Exit(code=1)
+    if flags > 1:
+        err_console.print(
+            "--set-date, --set-date-time, --shift-date, and --shift-time"
+            " are mutually exclusive."
+        )
+        raise typer.Exit(code=1)
+    if not files:
+        err_console.print("No files specified.")
+        raise typer.Exit(code=1)
+
+    if set_date is not None:
+        parts = set_date.split("-")
+        if len(parts) != 3 or not all(p.isdigit() for p in parts):
+            err_console.print(f'Invalid date "{set_date}", expected YYYY-MM-DD.')
+            raise typer.Exit(code=1)
+
+    cwd = Path.cwd()
+    file_paths = [Path(f) for f in files]
+
+    if set_date is not None:
+        updated = album_exif.set_exif_date(file_paths, set_date, log_cwd=cwd)
+    elif set_date_time is not None:
+        updated = album_exif.set_exif_date_time(file_paths, set_date_time, log_cwd=cwd)
+    elif shift_date is not None:
+        updated = album_exif.shift_exif_date(file_paths, shift_date, log_cwd=cwd)
+    else:
+        assert shift_time is not None
+        updated = album_exif.shift_exif_time(file_paths, shift_time, log_cwd=cwd)
+
+    typer.echo(f"Done. {updated} file(s) updated.")
 
 
 def _check_sips_or_exit() -> None:
     if not album_preflight.check_sips_available():
-        typer.echo(album_output.sips_check(False), err=True)
-        typer.echo(album_output.sips_troubleshoot(), err=True)
+        err_console.print(album_output.sips_check(False))
+        err_console.print(album_output.sips_troubleshoot())
         raise typer.Exit(code=1)
 
 
@@ -1024,4 +874,120 @@ def _count_unique_media_numbers(directory: Path, extensions: frozenset[str]) -> 
             for f in list_files(directory)
             if Path(f).suffix.lower() in extensions
         }
+    )
+
+
+@album_app.command("mv-media")
+def mv_media_cmd(
+    source_album: Annotated[
+        Path,
+        typer.Option(
+            "--source-album",
+            "-s",
+            help="Source album directory.",
+            exists=True,
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ],
+    dest_album: Annotated[
+        Path,
+        typer.Option(
+            "--dest-album",
+            "-d",
+            help="Destination album directory.",
+            exists=True,
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ],
+    files: Annotated[
+        list[str],
+        typer.Argument(
+            help="Relative file paths to move (e.g. main-jpg/IMG_E3219.jpg).",
+        ),
+    ],
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            "-n",
+            help="Print what would happen without modifying files.",
+        ),
+    ] = False,
+) -> None:
+    """Move media files and all their variants from one album to another.
+
+    For each specified file, resolves all associated variants by image number
+    (iOS) or filename stem (plain) across the contributor's directory structure
+    and moves them all. Any variant file can be used to identify the media.
+    """
+    cwd = Path.cwd()
+    try:
+        result = media_ops.move_media(
+            source_album, dest_album, files, dry_run=dry_run, log_cwd=cwd
+        )
+    except ValueError as exc:
+        err_console.print(str(exc))
+        raise typer.Exit(code=1) from None
+
+    typer.echo(album_output.media_op_summary("Moved", result.files_by_dir))
+    typer.echo(
+        album_output.media_op_check_suggestions(
+            [
+                str(display_path(source_album, cwd)),
+                str(display_path(dest_album, cwd)),
+            ]
+        )
+    )
+
+
+@album_app.command("rm-media")
+def rm_media_cmd(
+    album_dir: Annotated[
+        Path,
+        typer.Option(
+            "--album-dir",
+            "-a",
+            help="Album directory.",
+            exists=True,
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ] = Path("."),
+    files: Annotated[
+        list[str],
+        typer.Argument(
+            help="Relative file paths to remove (e.g. main-jpg/IMG_E3219.jpg).",
+        ),
+    ] = [],  # noqa: B006
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            "-n",
+            help="Print what would happen without modifying files.",
+        ),
+    ] = False,
+) -> None:
+    """Remove media files and all their variants from an album.
+
+    For each specified file, resolves all associated variants by image number
+    (iOS) or filename stem (plain) across the contributor's directory structure
+    and removes them all. Any variant file can be used to identify the media.
+    """
+    if not files:
+        err_console.print("No files specified.")
+        raise typer.Exit(code=1)
+
+    cwd = Path.cwd()
+    try:
+        result = media_ops.rm_media(album_dir, files, dry_run=dry_run, log_cwd=cwd)
+    except ValueError as exc:
+        err_console.print(str(exc))
+        raise typer.Exit(code=1) from None
+
+    typer.echo(album_output.media_op_summary("Removed", result.files_by_dir))
+    typer.echo(
+        album_output.media_op_check_suggestions([str(display_path(album_dir, cwd))])
     )

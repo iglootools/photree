@@ -1,17 +1,13 @@
 """Shared UI constants for check marks and crosses.
 
-Three representations for three rendering contexts:
-
-- ``CHECK`` / ``CROSS`` — ANSI-escaped strings for use with ``typer.echo``
-- ``RICH_CHECK`` / ``RICH_CROSS`` — Rich markup for use with ``console.print``
+All constants use Rich markup and must be printed via ``console.print``.
 """
 
-GREEN = "\033[32m"
-RED = "\033[31m"
-RESET = "\033[0m"
+CHECK = "[green]\u2713[/green]"
+WARNING = "[dark_orange]\u2713[/dark_orange]"
+CROSS = "[red]\u2717[/red]"
 
-CHECK = f"{GREEN}\u2713{RESET}"
-CROSS = f"{RED}\u2717{RESET}"
 
-RICH_CHECK = "[green]\u2713[/green]"
-RICH_CROSS = "[red]\u2717[/red]"
+def rich_warning_text(text: str) -> str:
+    """Wrap *text* in Rich warning markup (dark orange)."""
+    return f"[dark_orange]{text}[/dark_orange]"

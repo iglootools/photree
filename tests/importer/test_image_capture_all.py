@@ -108,9 +108,13 @@ class TestBatchImport:
 
         assert result.imported == 2
         assert result.skipped == 2
-        assert (albums_dir / "trip-paris" / "ios/orig-img" / "IMG_0001.HEIC").exists()
-        assert (albums_dir / "trip-london" / "ios/orig-img" / "IMG_0002.HEIC").exists()
-        assert not (albums_dir / "empty-album" / "ios/orig-img").exists()
+        assert (
+            albums_dir / "trip-paris" / "ios-main/orig-img" / "IMG_0001.HEIC"
+        ).exists()
+        assert (
+            albums_dir / "trip-london" / "ios-main/orig-img" / "IMG_0002.HEIC"
+        ).exists()
+        assert not (albums_dir / "empty-album" / "ios-main/orig-img").exists()
 
     def test_dry_run_does_not_modify(self, tmp_path: Path) -> None:
         albums_dir = tmp_path / "albums"
@@ -127,7 +131,7 @@ class TestBatchImport:
 
         assert result.imported == 1
         assert (albums_dir / "trip" / SELECTION_DIR).exists()
-        assert not (albums_dir / "trip" / "ios/orig-img").exists()
+        assert not (albums_dir / "trip" / "ios-main/orig-img").exists()
 
     def test_empty_parent_dir(self, tmp_path: Path) -> None:
         albums_dir = tmp_path / "albums"
@@ -157,8 +161,8 @@ class TestBatchImport:
 
         assert result.imported == 2
         assert result.skipped == 0
-        assert (album_a / "ios/orig-img" / "IMG_0001.HEIC").exists()
-        assert (album_b / "ios/orig-img" / "IMG_0002.HEIC").exists()
+        assert (album_a / "ios-main/orig-img" / "IMG_0001.HEIC").exists()
+        assert (album_b / "ios-main/orig-img" / "IMG_0002.HEIC").exists()
 
     def test_aborts_all_when_any_album_fails_validation(self, tmp_path: Path) -> None:
         albums_dir = tmp_path / "albums"
@@ -179,4 +183,4 @@ class TestBatchImport:
         assert len(validation_errors) == 1
         assert "invalid" in validation_errors
         # valid album should NOT have been processed either
-        assert not (albums_dir / "valid" / "ios/orig-img").exists()
+        assert not (albums_dir / "valid" / "ios-main/orig-img").exists()

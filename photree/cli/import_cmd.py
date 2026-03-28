@@ -5,16 +5,13 @@ from typing import Annotated, Optional
 
 import typer
 
+from ..album.exif import check_exiftool_available
+from ..album.naming import check_album_naming, check_exif_date_match, parse_album_name
+from ..album.output.preflight import format_naming_checks
+from ..album.naming import AlbumNamingResult
 from ..config import ConfigError, load_config
 from ..fsprotocol import (
-    MAIN_IMG_DIR,
-    MAIN_JPG_DIR,
-    MAIN_VID_DIR,
     LinkMode,
-    ORIG_IMG_DIR,
-    ORIG_VID_DIR,
-    EDIT_IMG_DIR,
-    EDIT_VID_DIR,
     SELECTION_DIR,
 )
 from ..album.jpeg import convert_single_file, noop_convert_single
@@ -24,6 +21,7 @@ from ..importer.image_capture import (
     validate_import_plan,
 )
 from ..importer.preflight import run_preflight
+from .console import console, err_console
 from .progress import BatchProgressBar, StageProgressBar
 
 DEFAULT_IMAGE_CAPTURE_DIR = Path.home() / "Pictures" / "iPhone"
@@ -56,13 +54,13 @@ def _run_preflight_checks(
     )
 
     typer.echo("Preflight Checks:")
-    typer.echo(output.format_preflight_checks(result))
+    console.print(output.format_preflight_checks(result))
 
     if not result.success:
         troubleshoot = output.format_preflight_troubleshoot(result)
         if troubleshoot:
             typer.echo("")
-            typer.echo(troubleshoot, err=True)
+            err_console.print(troubleshoot)
         raise typer.Exit(code=1)
 
     return image_capture_dir
@@ -79,7 +77,7 @@ def _resolve_image_capture_dir(
     try:
         cfg = load_config(config_path)
     except ConfigError as exc:
-        typer.echo(str(exc), err=True)
+        err_console.print(str(exc))
         raise typer.Exit(code=2) from exc
 
     if cfg.importer.image_capture_dir is not None:
@@ -185,13 +183,19 @@ def image_capture_cmd(
             help="Skip HEIC-to-JPEG conversion (and the sips availability check).",
         ),
     ] = False,
+    album_contributor: Annotated[
+        str,
+        typer.Option(
+            "--contributor",
+            help="Target contributor within the album (default: main).",
+        ),
+    ] = "main",
 ) -> None:
     f"""Organize files imported by macOS Image Capture into an album directory.
 
     Reads the {SELECTION_DIR}/ inside ALBUM_DIR, matches files from the
-    Image Capture source directory, and sorts them into {ORIG_IMG_DIR}/,
-    {ORIG_VID_DIR}/, {EDIT_IMG_DIR}/, {EDIT_VID_DIR}/, {MAIN_IMG_DIR}/,
-    {MAIN_VID_DIR}/, and {MAIN_JPG_DIR}/ subdirectories.
+    Image Capture source directory, and sorts them into the contributor's
+    archival and browsable subdirectories.
 
     The source directory is resolved in this order:
     1. --source flag (explicit)
@@ -206,6 +210,23 @@ def image_capture_cmd(
         skip_heic_to_jpeg=skip_heic_to_jpeg,
     )
 
+    # Pre-import naming convention check (from directory name alone)
+    naming_issues = check_album_naming(album_dir.name)
+    if naming_issues:
+        parsed = parse_album_name(album_dir.name)
+        naming_result = AlbumNamingResult(
+            parsed=parsed,
+            issues=naming_issues,
+            exif_check=None,
+        )
+        typer.echo("\nNaming Convention Check:")
+        console.print(format_naming_checks(naming_result))
+        err_console.print(
+            "\nAlbum name does not follow naming conventions. "
+            "Rename the album directory before importing."
+        )
+        raise typer.Exit(code=1)
+
     # Pre-validate the import plan
     selection_path = album_dir / SELECTION_DIR
     plan = plan_import_from_dirs(selection_path, image_capture_dir)
@@ -218,7 +239,7 @@ def image_capture_cmd(
 
     errors = validate_import_plan(plan)
     if errors:
-        typer.echo(output.validation_errors(album_dir.name, errors), err=True)
+        err_console.print(output.validation_errors(album_dir.name, errors))
         raise typer.Exit(code=1)
 
     typer.echo("\nImport:")
@@ -236,6 +257,7 @@ def image_capture_cmd(
         result = image_capture.run_import(
             album_dir=album_dir,
             image_capture_dir=image_capture_dir,
+            contributor_name=album_contributor,
             link_mode=link_mode,
             dry_run=dry_run,
             on_stage_start=progress.on_start,
@@ -244,14 +266,28 @@ def image_capture_cmd(
         )
     except FileNotFoundError as exc:
         progress.stop()
-        typer.echo(str(exc), err=True)
+        err_console.print(str(exc))
         raise typer.Exit(code=1) from exc
     finally:
         progress.stop()
 
     if result.unprocessed:
-        typer.echo(output.unprocessed_selection_files(result.unprocessed), err=True)
+        err_console.print(output.unprocessed_selection_files(result.unprocessed))
         raise typer.Exit(code=1)
+
+    # Post-import EXIF timestamp check (warning only, doesn't fail the import)
+    if not dry_run and check_exiftool_available():
+        parsed = parse_album_name(album_dir.name)
+        if parsed is not None:
+            exif_check = check_exif_date_match(album_dir, parsed.date)
+            if exif_check is not None and not exif_check.matches:
+                naming_result = AlbumNamingResult(
+                    parsed=parsed,
+                    issues=(),
+                    exif_check=exif_check,
+                )
+                typer.echo("\nPost-Import Check:")
+                console.print(format_naming_checks(naming_result))
 
 
 @import_app.command("image-capture-all")
@@ -362,7 +398,7 @@ def image_capture_all_cmd(
         nonlocal has_validation_errors
         has_validation_errors = True
         progress.stop()
-        typer.echo(output.validation_errors(name, errors), err=True)
+        err_console.print(output.validation_errors(name, errors))
 
     resolved_albums_dir = (
         None
@@ -386,7 +422,7 @@ def image_capture_all_cmd(
     progress.stop()
 
     if has_validation_errors:
-        typer.echo("\nAborted: validation failed. No imports were performed.", err=True)
+        err_console.print("\nAborted: validation failed. No imports were performed.")
         raise typer.Exit(code=1)
 
     typer.echo(output.batch_summary(result.imported, result.skipped))

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ...uiconventions import CHECK, CROSS  # noqa: F401
+from ...uiconventions import CHECK, CROSS, WARNING  # noqa: F401
 
 
 def refresh_jpeg_summary(converted: int, copied: int, skipped: int) -> str:
@@ -13,8 +13,14 @@ def refresh_jpeg_summary(converted: int, copied: int, skipped: int) -> str:
 from .preflight import (  # noqa: E402, F401
     album_dir_check,
     album_type_check,
+    contributors_check,
+    exiftool_check,
+    exiftool_troubleshoot,
     format_album_preflight_checks,
     format_album_preflight_troubleshoot,
+    format_batch_naming_issues,
+    format_fatal_warnings,
+    format_naming_checks,
     sips_check,
     sips_troubleshoot,
 )
@@ -144,8 +150,12 @@ def miscategorized_summary(
     return f"Done. {verb} {total} miscategorized file(s): {parts}."
 
 
-def batch_check_summary(passed: int, failed: int) -> str:
-    return f"\nDone. {passed} album(s) passed, {failed} failed."
+def batch_check_summary(passed: int, failed: int, warned: int = 0) -> str:
+    parts = [f"{passed} album(s) passed"]
+    if warned:
+        parts.append(f"{warned} with warnings")
+    parts.append(f"{failed} failed")
+    return f"\nDone. {', '.join(parts)}."
 
 
 def optimize_summary(heic_count: int, mov_count: int, link_mode: str) -> str:
@@ -167,3 +177,23 @@ def batch_optimize_summary(optimized: int, failed: int) -> str:
 
 def batch_fix_ios_summary(fixed: int, failed: int) -> str:
     return f"\nDone. {fixed} album(s) fixed, {failed} failed."
+
+
+def media_op_summary(
+    verb: str,
+    files_by_dir: tuple[tuple[str, tuple[str, ...]], ...],
+) -> str:
+    total = sum(len(files) for _, files in files_by_dir)
+    if total == 0:
+        return f"Done. No files to {verb.lower()}."
+    parts = ", ".join(f"{len(files)} from {name}" for name, files in files_by_dir)
+    return f"Done. {verb} {total} file(s): {parts}."
+
+
+def media_op_check_suggestions(album_dirs: list[str]) -> str:
+    lines = ["", "Suggested next steps:"]
+    lines.extend(
+        f'  photree album check --fatal-exif-date-match --album-dir "{d}"'
+        for d in album_dirs
+    )
+    return "\n".join(lines)

@@ -14,20 +14,14 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..fsprotocol import (
-    MAIN_IMG_DIR,
-    MAIN_JPG_DIR,
-    MAIN_VID_DIR,
     CONVERT_TO_JPEG_EXTENSIONS,
     COPY_AS_IS_TO_JPEG_EXTENSIONS,
-    IMG_EXTENSIONS,
-    IOS_ALBUM_SUBDIRS,
+    Contributor,
+    IOS_IMG_EXTENSIONS,
+    IOS_VID_EXTENSIONS,
     SIDECAR_EXTENSIONS,
-    MOV_EXTENSIONS,
-    ORIG_IMG_DIR,
-    ORIG_VID_DIR,
-    EDIT_IMG_DIR,
-    EDIT_VID_DIR,
     dedup_media_dict,
+    discover_contributors,
     list_files,
 )
 
@@ -38,7 +32,7 @@ def _ext(filename: str) -> str:
 
 def _is_media(filename: str) -> bool:
     ext = _ext(filename)
-    return ext in IMG_EXTENSIONS or ext in MOV_EXTENSIONS
+    return ext in IOS_IMG_EXTENSIONS or ext in IOS_VID_EXTENSIONS
 
 
 def _img_number(filename: str) -> str:
@@ -188,6 +182,32 @@ class IosAlbumIntegrityResult:
     def has_warnings(self) -> bool:
         """True if there are informational warnings (e.g. missing sidecars)."""
         return bool(self.sidecars.missing_sidecars)
+
+
+@dataclass(frozen=True)
+class IosAlbumFullIntegrityResult:
+    """Full integrity check result across all contributors."""
+
+    by_contributor: tuple[tuple[Contributor, IosAlbumIntegrityResult], ...]
+
+    @property
+    def success(self) -> bool:
+        return all(result.success for _, result in self.by_contributor)
+
+    @property
+    def has_warnings(self) -> bool:
+        return any(result.has_warnings for _, result in self.by_contributor)
+
+
+@dataclass(frozen=True)
+class AlbumJpegIntegrityResult:
+    """JPEG integrity check result across all contributors (iOS + plain)."""
+
+    by_contributor: tuple[tuple[Contributor, JpegCheck], ...]
+
+    @property
+    def success(self) -> bool:
+        return all(check.success for _, check in self.by_contributor)
 
 
 # ---------------------------------------------------------------------------
@@ -528,45 +548,45 @@ def check_sidecars(
     )
 
 
-def check_ios_album_integrity(
+def check_ios_contributor_integrity(
     album_dir: Path,
+    contrib: Contributor,
     *,
     checksum: bool = True,
     on_file_checked: Callable[[str, bool], None] | None = None,
 ) -> IosAlbumIntegrityResult:
-    """Run all integrity checks for an iOS album."""
+    """Run all integrity checks for a single contributor within an iOS album."""
+    assert contrib.is_ios, "integrity checks require an iOS contributor"
     combined_heic = check_main_dir(
-        album_dir / ORIG_IMG_DIR,
-        album_dir / EDIT_IMG_DIR,
-        album_dir / MAIN_IMG_DIR,
-        media_extensions=IMG_EXTENSIONS,
+        album_dir / contrib.orig_img_dir,
+        album_dir / contrib.edit_img_dir,
+        album_dir / contrib.img_dir,
+        media_extensions=IOS_IMG_EXTENSIONS,
         checksum=checksum,
         on_file_checked=on_file_checked,
     )
 
     combined_mov = check_main_dir(
-        album_dir / ORIG_VID_DIR,
-        album_dir / EDIT_VID_DIR,
-        album_dir / MAIN_VID_DIR,
-        media_extensions=MOV_EXTENSIONS,
+        album_dir / contrib.orig_vid_dir,
+        album_dir / contrib.edit_vid_dir,
+        album_dir / contrib.vid_dir,
+        media_extensions=IOS_VID_EXTENSIONS,
         checksum=checksum,
         on_file_checked=on_file_checked,
     )
 
-    # Progress is driven by orig files (via check_main_dir callbacks).
-    # jpeg and sidecar checks are fast and don't fire progress callbacks.
     jpeg = check_jpeg_dir(
-        album_dir / MAIN_IMG_DIR,
-        album_dir / MAIN_JPG_DIR,
+        album_dir / contrib.img_dir,
+        album_dir / contrib.jpg_dir,
     )
 
     heic_sidecars = check_sidecars(
-        album_dir / ORIG_IMG_DIR,
-        album_dir / EDIT_IMG_DIR,
+        album_dir / contrib.orig_img_dir,
+        album_dir / contrib.edit_img_dir,
     )
     mov_sidecars = check_sidecars(
-        album_dir / ORIG_VID_DIR,
-        album_dir / EDIT_VID_DIR,
+        album_dir / contrib.orig_vid_dir,
+        album_dir / contrib.edit_vid_dir,
     )
     sidecars = SidecarCheck(
         missing_sidecars=(
@@ -579,23 +599,22 @@ def check_ios_album_integrity(
         ),
     )
 
-    # Check for duplicate numbers in all subdirectories
-    all_media = IMG_EXTENSIONS | MOV_EXTENSIONS
+    all_media = IOS_IMG_EXTENSIONS | IOS_VID_EXTENSIONS
     duplicate_numbers = tuple(
         w
-        for subdir_name in IOS_ALBUM_SUBDIRS
+        for subdir_name in contrib.all_subdirs
         if (album_dir / subdir_name).is_dir()
         for w in check_duplicate_numbers(album_dir / subdir_name, all_media)
     )
 
     miscategorized = (
         *check_miscategorized_files(
-            album_dir / ORIG_IMG_DIR,
-            album_dir / EDIT_IMG_DIR,
+            album_dir / contrib.orig_img_dir,
+            album_dir / contrib.edit_img_dir,
         ),
         *check_miscategorized_files(
-            album_dir / ORIG_VID_DIR,
-            album_dir / EDIT_VID_DIR,
+            album_dir / contrib.orig_vid_dir,
+            album_dir / contrib.edit_vid_dir,
         ),
     )
 
@@ -606,4 +625,50 @@ def check_ios_album_integrity(
         sidecars=sidecars,
         duplicate_numbers=duplicate_numbers,
         miscategorized=miscategorized,
+    )
+
+
+def check_ios_album_integrity(
+    album_dir: Path,
+    *,
+    checksum: bool = True,
+    on_file_checked: Callable[[str, bool], None] | None = None,
+) -> IosAlbumFullIntegrityResult:
+    """Run integrity checks for all iOS contributors in an album."""
+    contributors = [c for c in discover_contributors(album_dir) if c.is_ios]
+    return IosAlbumFullIntegrityResult(
+        by_contributor=tuple(
+            (
+                contrib,
+                check_ios_contributor_integrity(
+                    album_dir,
+                    contrib,
+                    checksum=checksum,
+                    on_file_checked=on_file_checked,
+                ),
+            )
+            for contrib in contributors
+        )
+    )
+
+
+def check_album_jpeg_integrity(
+    album_dir: Path,
+) -> AlbumJpegIntegrityResult:
+    """Check ``{contributor}-jpg/`` for every contributor (iOS + plain).
+
+    Only checks contributors that have a ``{contributor}-img/`` directory.
+    """
+    contributors = discover_contributors(album_dir)
+    return AlbumJpegIntegrityResult(
+        by_contributor=tuple(
+            (
+                contrib,
+                check_jpeg_dir(
+                    album_dir / contrib.img_dir, album_dir / contrib.jpg_dir
+                ),
+            )
+            for contrib in contributors
+            if (album_dir / contrib.img_dir).is_dir()
+        )
     )
