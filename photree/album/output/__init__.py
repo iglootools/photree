@@ -25,6 +25,7 @@ from .preflight import (  # noqa: E402, F401
     sips_troubleshoot,
 )
 from .integrity import format_integrity_checks  # noqa: E402, F401
+from .stats import format_album_stats, format_gallery_stats  # noqa: E402, F401
 
 
 def refresh_combined_summary(

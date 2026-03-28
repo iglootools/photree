@@ -16,6 +16,7 @@ from ..album import (
     optimize as album_optimize,
     output as album_output,
     preflight as album_preflight,
+    stats as album_stats,
 )
 from ..fsprotocol import (
     IMG_EXTENSIONS,
@@ -992,3 +993,27 @@ def rm_media_cmd(
     typer.echo(
         album_output.media_op_check_suggestions([str(display_path(album_dir, cwd))])
     )
+
+
+@album_app.command("stats")
+def stats_cmd(
+    album_dir: Annotated[
+        Path,
+        typer.Option(
+            "--album-dir",
+            "-a",
+            help="Album directory to analyze.",
+            exists=True,
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ] = Path("."),
+) -> None:
+    """Show disk usage and content statistics for a single album."""
+    try:
+        result = album_stats.compute_album_stats(album_dir)
+    except ValueError as exc:
+        err_console.print(str(exc))
+        raise typer.Exit(code=1) from None
+
+    console.print(album_output.format_album_stats(result))

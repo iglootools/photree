@@ -61,6 +61,7 @@ $ photree album [OPTIONS] COMMAND [ARGS]...
 * `fix-exif`: Fix EXIF dates on media files.
 * `mv-media`: Move media files and all their variants...
 * `rm-media`: Remove media files and all their variants...
+* `stats`: Show disk usage and content statistics for...
 
 ### `photree album check`
 
@@ -279,6 +280,21 @@ $ photree album rm-media [OPTIONS] [FILES]...
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
+### `photree album stats`
+
+Show disk usage and content statistics for a single album.
+
+**Usage**:
+
+```console
+$ photree album stats [OPTIONS]
+```
+
+**Options**:
+
+* `-a, --album-dir DIRECTORY`: Album directory to analyze.  [default: .]
+* `--help`: Show this message and exit.
+
 ## `photree demo`
 
 Demo commands for development.
@@ -434,6 +450,7 @@ $ photree gallery [OPTIONS] COMMAND [ARGS]...
 * `optimize`: Optimize all iOS albums under a directory...
 * `fix-ios`: Apply fix-ios to all iOS albums under a...
 * `rename-from-csv`: Rename albums by diffing current vs...
+* `stats`: Show aggregated disk usage and content...
 * `export`: Batch export multiple albums to a shared...
 
 ### `photree gallery list-albums`
@@ -575,6 +592,22 @@ $ photree gallery rename-from-csv [OPTIONS] CURRENT_CSV DESIRED_CSV
 
 * `-d, --dir DIRECTORY`: Root directory (base for relative paths in CSV).  [default: .]
 * `-n, --dry-run`: Show what would be renamed without making changes.
+* `--help`: Show this message and exit.
+
+### `photree gallery stats`
+
+Show aggregated disk usage and content statistics for all albums.
+
+**Usage**:
+
+```console
+$ photree gallery stats [OPTIONS]
+```
+
+**Options**:
+
+* `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
+* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
 * `--help`: Show this message and exit.
 
 ### `photree gallery export`

@@ -19,6 +19,7 @@ from ..album import (
     optimize as album_optimize,
     output as album_output,
     preflight as album_preflight,
+    stats as album_stats,
 )
 from ..album.exif import try_start_exiftool
 from ..fsprotocol import (
@@ -1029,6 +1030,74 @@ def rename_from_csv_cmd(
             album_path.rename(new_path)
 
         typer.echo(f"Renamed {len(renames)} album(s).")
+
+
+@gallery_app.command("stats")
+def stats_cmd(
+    base_dir: Annotated[
+        Optional[Path],
+        typer.Option(
+            "--dir",
+            "-d",
+            help="Base directory to recursively scan for albums.",
+            exists=True,
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ] = None,
+    album_dirs: Annotated[
+        Optional[list[Path]],
+        typer.Option(
+            "--album-dir",
+            "-a",
+            help="Album directory (repeatable).",
+            exists=True,
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ] = None,
+) -> None:
+    """Show aggregated disk usage and content statistics for all albums."""
+    from ..album.naming import parse_album_name
+
+    cwd = Path.cwd()
+    albums, display_base = _resolve_check_batch_albums(base_dir, album_dirs)
+
+    if not albums:
+        typer.echo("No albums found.")
+        raise typer.Exit(code=0)
+
+    # Validate all album names are parseable before computing stats
+    unparseable = [a for a in albums if parse_album_name(a.name) is None]
+    if unparseable:
+        err_console.print(
+            f"{len(unparseable)} album(s) have unparseable names. "
+            f"Run photree gallery check to identify and fix naming issues:"
+        )
+        for album_dir in unparseable:
+            err_console.print(f"  {display_path(album_dir, cwd)}")
+        raise typer.Exit(code=1)
+
+    if display_base is not None:
+        typer.echo(f"Found {len(albums)} album(s).\n")
+
+    progress = BatchProgressBar(
+        total=len(albums), description="Computing stats", done_description="stats"
+    )
+
+    album_stats_list: list[album_stats.AlbumStats] = []
+    for album_dir in albums:
+        album_name = _display_name(album_dir, display_base, cwd)
+        progress.on_start(album_name)
+        stats = album_stats.compute_album_stats(album_dir)
+        album_stats_list.append(stats)
+        progress.on_end(album_name, success=True)
+
+    progress.stop()
+
+    result = album_stats.gallery_stats_from_album_stats(album_stats_list)
+    typer.echo("")
+    console.print(album_output.format_gallery_stats(result))
 
 
 # Re-register the export batch command from export_cmd

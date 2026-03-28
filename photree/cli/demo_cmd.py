@@ -304,6 +304,19 @@ def output_cmd() -> None:
         importer_output.unprocessed_selection_files(("IMG_0001.HEIC", "IMG_0002.HEIC")),
     )
 
+    # ── album stats ─────────────────────────────────────────────
+
+    from ..album.output.stats import format_album_stats, format_gallery_stats
+    from ..album.testkit.stats import ALBUM_STATS, GALLERY_STATS
+
+    console.print("\n[bold cyan]── format_album_stats ──[/bold cyan]\n")
+    console.print(format_album_stats(ALBUM_STATS))
+
+    # ── gallery stats ───────────────────────────────────────────
+
+    console.print("\n[bold cyan]── format_gallery_stats ──[/bold cyan]\n")
+    console.print(format_gallery_stats(GALLERY_STATS))
+
 
 @demo_app.command("seed")
 def seed_cmd(

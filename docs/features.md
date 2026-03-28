@@ -86,6 +86,20 @@ Batch operations across multiple albums under a directory.
 - **`gallery export`**: Batch export to a shared directory
 - All gallery commands accept `--dir` (scan recursively) or `--album-dir` (explicit list)
 
+## Album and Gallery Statistics
+
+Analyze disk usage, file counts, and content breakdowns.
+
+- **`album stats`**: Show statistics for a single album
+- **`gallery stats`**: Show aggregated statistics across all albums, with per-year breakdown
+- **Size columns**: On-Disk (inode-deduplicated), Size (apparent), Archive (`ios-{name}/`), Browsable (`{name}-img/`, `{name}-vid/`), Derived (`{name}-jpg/`); Size = Archive + Browsable + Derived
+- **Content breakdown**: By media type (images, videos, sidecars), by file format (extension), and by media source
+- **Media source analysis**: Per-source file counts, archive/browsable/derived sizes, unique picture and video counts
+- **Year breakdown** (gallery): Albums, pictures, videos, and sizes grouped by year
+- **Unique media counting**: iOS pictures deduplicated by image number (originals), plain pictures by filename stem
+- **Legend**: Printed at the end of output explaining each metric
+- **Limitation**: Albums spanning multiple years (date ranges) are attributed to the start year only
+
 ## Export to Shared Directories
 
 Export albums to external volumes or cloud sync folders.
