@@ -20,6 +20,7 @@ from ..fsprotocol import (
     IOS_IMG_EXTENSIONS,
     LinkMode,
     IOS_VID_EXTENSIONS,
+    PHOTREE_DIR,
     SIDECAR_EXTENSIONS,
     SELECTION_DIR,
     ios_media_source,
@@ -393,6 +394,9 @@ def _copy_file(src_dir: Path, dst_dir: Path, filename: str, *, dry_run: bool) ->
 
 def _remove_empty_folders(root: Path) -> None:
     for dirpath, _dirnames, _filenames in list(os.walk(root))[::-1]:
+        p = Path(dirpath)
+        if p == root or p.name.startswith("."):
+            continue
         if not os.listdir(dirpath):
             os.rmdir(dirpath)
 
@@ -474,6 +478,10 @@ def run_import(
     album_edit_vid = album_dir / ms.edit_vid_dir
     album_main_img = album_dir / ms.img_dir
     album_main_jpg = album_dir / ms.jpg_dir
+
+    # Create album marker so gallery commands can discover this album
+    if not dry_run:
+        (album_dir / PHOTREE_DIR).mkdir(exist_ok=True)
 
     # ── Stage 1: import-ic ──
     # Copy files from Image Capture to orig/edited dirs.
