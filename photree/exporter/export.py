@@ -27,6 +27,7 @@ from ..fsprotocol import (
     MediaSource,
     IMG_EXTENSIONS,
     LinkMode,
+    PHOTREE_DIR,
     VID_EXTENSIONS,
     ShareDirectoryLayout,
     discover_media_sources,
@@ -110,12 +111,25 @@ def _copy_dir(src: Path, dst: Path) -> int:
     return count
 
 
+def _is_dotfile(name: str) -> bool:
+    """Check if a filename is a dotfile (starts with ``'.'``)."""
+    return name.startswith(".")
+
+
+def _ignore_dotfiles(_directory: str, contents: list[str]) -> set[str]:
+    """``shutil.copytree`` ignore function that skips dotfiles."""
+    return {name for name in contents if _is_dotfile(name)}
+
+
 def _copytree(src: Path, dst: Path) -> int:
-    """Recursively copy a directory tree. Returns the number of files copied."""
+    """Recursively copy a directory tree, skipping dotfiles.
+
+    Returns the number of files copied.
+    """
     if not src.is_dir():
         return 0
 
-    shutil.copytree(src, dst, dirs_exist_ok=True)
+    shutil.copytree(src, dst, dirs_exist_ok=True, ignore=_ignore_dotfiles)
     return sum(1 for _ in dst.rglob("*") if _.is_file())
 
 
@@ -144,7 +158,7 @@ def _export_ios_main_jpg_only(album_dir: Path, target_dir: Path) -> int:
     )
 
 
-def _export_ios_full_managed(
+def _export_full_managed(
     album_dir: Path,
     target_dir: Path,
     *,
@@ -152,6 +166,7 @@ def _export_ios_full_managed(
 ) -> int:
     """Export archival + JPEG dirs, then recreate browsable dirs for all media sources."""
     target_dir.mkdir(parents=True, exist_ok=True)
+    (target_dir / PHOTREE_DIR).mkdir(exist_ok=True)
     media_sources = discover_media_sources(album_dir)
 
     copied = sum(
@@ -183,18 +198,18 @@ def _export_ios_full_managed(
     return copied
 
 
-def _export_ios_full(
+def _export_full(
     album_dir: Path,
     target_dir: Path,
     *,
     link_mode: LinkMode,
 ) -> int:
     """Export full-managed content plus unmanaged files and directories."""
-    copied = _export_ios_full_managed(album_dir, target_dir, link_mode=link_mode)
+    copied = _export_full_managed(album_dir, target_dir, link_mode=link_mode)
 
     managed = _all_managed_subdirs(discover_media_sources(album_dir))
     for entry in sorted(os.listdir(album_dir)):
-        if entry.startswith(".") or entry in managed:
+        if _is_dotfile(entry) or entry in managed:
             continue
         src_path = album_dir / entry
         dst_path = target_dir / entry
@@ -235,11 +250,11 @@ def export_album(
                 case AlbumShareLayout.MAIN_JPG_ONLY:
                     files_copied = _export_ios_main_jpg_only(album_dir, target_dir)
                 case AlbumShareLayout.FULL_MANAGED:
-                    files_copied = _export_ios_full_managed(
+                    files_copied = _export_full_managed(
                         album_dir, target_dir, link_mode=link_mode
                     )
                 case AlbumShareLayout.FULL:
-                    files_copied = _export_ios_full(
+                    files_copied = _export_full(
                         album_dir, target_dir, link_mode=link_mode
                     )
 

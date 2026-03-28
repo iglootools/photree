@@ -10,6 +10,7 @@ from photree.exporter.export import (
 )
 from photree.fsprotocol import (
     MAIN_MEDIA_SOURCE,
+    PHOTREE_DIR,
     AlbumShareLayout,
     LinkMode,
     ShareDirectoryLayout,
@@ -115,6 +116,21 @@ class TestExportOtherAlbum:
         assert (target / "sub" / "nested.jpg").exists()
         assert result.files_copied == 2
 
+    def test_skips_dotfiles(self, tmp_path: Path) -> None:
+        album_dir = tmp_path / "my-album"
+        _setup_dir(album_dir, ["photo.jpg"])
+        (album_dir / ".hidden").write_text("secret")
+        (album_dir / ".photree").mkdir()
+        (album_dir / ".photree" / "title.bkp").write_text("backup")
+        target = tmp_path / "share" / "my-album"
+
+        result = export_album(album_dir, target)
+
+        assert (target / "photo.jpg").exists()
+        assert not (target / ".hidden").exists()
+        assert not (target / ".photree").exists()
+        assert result.files_copied == 1
+
 
 class TestExportIosCombinedOnly:
     def test_strips_combined_prefix(self, tmp_path: Path) -> None:
@@ -212,6 +228,17 @@ class TestExportIosFullManaged:
         assert not (target / "notes.txt").exists()
         assert not (target / "extra-dir").exists()
 
+    def test_creates_empty_photree_dir(self, tmp_path: Path) -> None:
+        album_dir = _setup_ios_album(tmp_path / "trip")
+        (album_dir / PHOTREE_DIR).mkdir()
+        (album_dir / PHOTREE_DIR / "title.bkp").write_text("backup")
+        target = tmp_path / "share" / "trip"
+
+        export_album(album_dir, target, album_layout=AlbumShareLayout.FULL_MANAGED)
+
+        assert (target / PHOTREE_DIR).is_dir()
+        assert not list((target / PHOTREE_DIR).iterdir())
+
 
 class TestExportIosFull:
     def test_includes_unmanaged_files(self, tmp_path: Path) -> None:
@@ -249,3 +276,19 @@ class TestExportIosFull:
         )
 
         assert not (target / ".hidden").exists()
+
+    def test_creates_empty_photree_dir(self, tmp_path: Path) -> None:
+        album_dir = _setup_ios_album(tmp_path / "trip")
+        (album_dir / PHOTREE_DIR).mkdir()
+        (album_dir / PHOTREE_DIR / "title.bkp").write_text("backup")
+        target = tmp_path / "share" / "trip"
+
+        export_album(
+            album_dir,
+            target,
+            album_layout=AlbumShareLayout.FULL,
+            link_mode=LinkMode.COPY,
+        )
+
+        assert (target / PHOTREE_DIR).is_dir()
+        assert not list((target / PHOTREE_DIR).iterdir())
