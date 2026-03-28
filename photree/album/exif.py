@@ -317,6 +317,48 @@ def shift_exif_date(
     return len(files) if result.returncode == 0 else 0
 
 
+def shift_exif_time(
+    files: list[Path],
+    hours: int,
+    *,
+    log_cwd: Path | None = None,
+) -> int:
+    """Shift EXIF timestamps by a number of hours.
+
+    Positive *hours* shifts forward, negative shifts backward.
+    Returns the number of files updated.
+    """
+    import subprocess
+
+    if hours >= 0:
+        op = "+="
+    else:
+        op = "-="
+        hours = -hours
+
+    shift = f"0:0:0 {hours}:0:0"  # Y:M:D H:M:S
+
+    if log_cwd is not None:
+        from ..fsprotocol import display_path
+
+        for f in files:
+            _console.print(
+                f"{CHECK} fix-exif shift {'+' if op == '+=' else '-'}{hours}h"
+                f" {display_path(f, log_cwd)}"
+            )
+
+    result = subprocess.run(
+        [
+            "exiftool",
+            f"-AllDates{op}{shift}",
+            f"-CreationDate{op}{shift}",
+            "-overwrite_original",
+            *[str(f) for f in files],
+        ],
+    )
+    return len(files) if result.returncode == 0 else 0
+
+
 def read_album_min_timestamp(
     album_dir: Path,
     *,

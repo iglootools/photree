@@ -790,6 +790,13 @@ def fix_exif_cmd(
             help="Shift EXIF date by N days (e.g. -1, +2).",
         ),
     ] = None,
+    shift_time: Annotated[
+        int | None,
+        typer.Option(
+            "--shift-time",
+            help="Shift EXIF time by N hours (e.g. -6, +3).",
+        ),
+    ] = None,
     files: Annotated[
         list[str],
         typer.Argument(
@@ -799,26 +806,31 @@ def fix_exif_cmd(
 ) -> None:
     """Fix EXIF dates on media files.
 
-    Exactly one of --set-date, --set-date-time, or --shift-date must be
-    specified.
+    Exactly one of --set-date, --set-date-time, --shift-date, or
+    --shift-time must be specified.
 
     --set-date preserves the original time portion of each file's
     timestamp, only replacing the date.
 
     --set-date-time sets the full timestamp (date + time) on all files.
 
-    --shift-date shifts all date tags (AllDates + CreationDate) by the
-    given number of days.
+    --shift-date shifts all date tags by N days.
+
+    --shift-time shifts all date tags by N hours.
     """
-    flags = sum(x is not None for x in (set_date, set_date_time, shift_date))
+    flags = sum(
+        x is not None for x in (set_date, set_date_time, shift_date, shift_time)
+    )
     if flags == 0:
         err_console.print(
-            "Specify exactly one of --set-date, --set-date-time, or --shift-date."
+            "Specify exactly one of --set-date, --set-date-time,"
+            " --shift-date, or --shift-time."
         )
         raise typer.Exit(code=1)
     if flags > 1:
         err_console.print(
-            "--set-date, --set-date-time, and --shift-date are mutually exclusive."
+            "--set-date, --set-date-time, --shift-date, and --shift-time"
+            " are mutually exclusive."
         )
         raise typer.Exit(code=1)
     if not files:
@@ -838,9 +850,11 @@ def fix_exif_cmd(
         updated = album_exif.set_exif_date(file_paths, set_date, log_cwd=cwd)
     elif set_date_time is not None:
         updated = album_exif.set_exif_date_time(file_paths, set_date_time, log_cwd=cwd)
-    else:
-        assert shift_date is not None
+    elif shift_date is not None:
         updated = album_exif.shift_exif_date(file_paths, shift_date, log_cwd=cwd)
+    else:
+        assert shift_time is not None
+        updated = album_exif.shift_exif_time(file_paths, shift_time, log_cwd=cwd)
 
     typer.echo(f"Done. {updated} file(s) updated.")
 

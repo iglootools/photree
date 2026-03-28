@@ -171,16 +171,17 @@ $ photree album fix-ios [OPTIONS]
 
 Fix EXIF dates on media files.
 
-Exactly one of --set-date, --set-date-time, or --shift-date must be
-specified.
+Exactly one of --set-date, --set-date-time, --shift-date, or
+--shift-time must be specified.
 
 --set-date preserves the original time portion of each file&#x27;s
 timestamp, only replacing the date.
 
 --set-date-time sets the full timestamp (date + time) on all files.
 
---shift-date shifts all date tags (AllDates + CreationDate) by the
-given number of days.
+--shift-date shifts all date tags by N days.
+
+--shift-time shifts all date tags by N hours.
 
 **Usage**:
 
@@ -197,6 +198,7 @@ $ photree album fix-exif [OPTIONS] [FILES]...
 * `--set-date TEXT`: Set EXIF date to YYYY-MM-DD (preserves original time).
 * `--set-date-time TEXT`: Set EXIF date+time to an ISO timestamp (e.g. 2024-07-20T13:55:20).
 * `--shift-date INTEGER`: Shift EXIF date by N days (e.g. -1, +2).
+* `--shift-time INTEGER`: Shift EXIF time by N hours (e.g. -6, +3).
 * `--help`: Show this message and exit.
 
 ### `photree album mv-media`
