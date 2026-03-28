@@ -106,15 +106,14 @@ Export albums to external volumes or cloud sync folders.
 
 - **Profiles**: Named export configurations in TOML config (share directory, layout, link mode)
 - **Album share layouts**:
-  - `main-only`: Export `main-img/`, `main-jpg/`, `main-vid/` (stripped `main-` prefix)
-  - `main-jpg-only`: Export `main-jpg/` and `main-vid/` only (most compatible formats)
-  - `full-managed`: Export orig/edit/main-jpg, recreate main-img and main-vid with links
-  - `full`: Full-managed plus any unmanaged files
+  - `main-jpg` (default): Export `main-jpg/` and `main-vid/` (most compatible formats)
+  - `main`: Export `main-img/`, `main-jpg/`, `main-vid/`
+  - `all`: Export archival directories (orig/edit) and main-jpg, recreate main-img and main-vid with links
 - **Share directory layouts**:
   - `flat`: Albums exported directly under share directory
   - `albums`: Albums organized by year (`<YYYY>/<album-name>`), parsed from album name (`YYYY-MM-DD - Title`)
 - Sentinel file (`.photree-share`) required to prevent accidental exports to wrong directories
-- Validation: `albums` share layout requires `album-layout=full`
+- Validation: `albums` share layout requires `album-layout=all`
 - Batch export via `gallery export`
 
 ## Configuration

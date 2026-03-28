@@ -150,7 +150,7 @@ class TestDemoWorkflow:
         integrity_after = check_ios_album_integrity(album_dir, checksum=True)
         assert integrity_after.success
 
-        # ── Export (main-only) ───────────────────────────────
+        # ── Export (main-jpg) ─────────────────────────────────
         share_dir = tmp_path / "share"
         share_dir.mkdir()
         (share_dir / SHARE_SENTINEL).touch()
@@ -161,25 +161,21 @@ class TestDemoWorkflow:
         export_result = export_album(
             album_dir,
             target_dir,
-            album_layout=AlbumShareLayout.MAIN_ONLY,
+            album_layout=AlbumShareLayout.MAIN_JPG,
             link_mode=LinkMode.COPY,
         )
 
         assert export_result.album_type == AlbumType.IOS
         assert export_result.files_copied > 0
 
-        # Exported structure: img/, jpg/, vid/ (main- prefix stripped)
+        # Exported structure: main-jpg/ and main-vid/ (main-jpg layout)
         exported = target_dir
-        assert (exported / "main-img").is_dir()
+        assert not (exported / "main-img").exists()
         assert (exported / "main-jpg").is_dir()
         assert (exported / "main-vid").is_dir()
 
         # iOS internal dirs should NOT be exported
         assert not (exported / MAIN_MEDIA_SOURCE.ios_dir).exists()
-
-        # Exported img/ matches main-img content
-        exported_img = sorted(os.listdir(exported / "main-img"))
-        assert exported_img == main_img_files
 
         # Exported vid/ matches main-vid content
         exported_vid = sorted(os.listdir(exported / "main-vid"))

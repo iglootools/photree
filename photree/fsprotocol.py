@@ -33,12 +33,11 @@ def list_files(directory: Path) -> list[str]:
 
 
 class AlbumShareLayout(StrEnum):
-    """How an iOS album is exported."""
+    """How an album is exported."""
 
-    MAIN_ONLY = "main-only"
-    MAIN_JPG_ONLY = "main-jpg-only"
-    FULL = "full"
-    FULL_MANAGED = "full-managed"
+    MAIN_JPG = "main-jpg"
+    MAIN = "main"
+    ALL = "all"
 
 
 class LinkMode(StrEnum):

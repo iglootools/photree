@@ -2,13 +2,10 @@
 
 Supports three album layouts for iOS albums:
 
-- **combined-only**: Copies main-* directories, stripping the ``main-``
-  prefix (e.g. ``main-img/`` becomes ``img/``).
-- **full-managed**: Copies orig-*, edit-*, and main-jpg directories
-  as-is, then recreates main-img and main-vid using the specified
-  link mode.
-- **full**: Same as full-managed, plus copies any unmanaged files and
-  directories from the album.
+- **main-jpg** (default): Copies main-jpg/ and main-vid/ (most compatible formats).
+- **main**: Copies main-img/, main-jpg/, and main-vid/.
+- **all**: Copies archival directories (orig-*, edit-*) and main-jpg/ as-is,
+  then recreates main-img/ and main-vid/ using the specified link mode.
 
 Non-iOS albums are copied in their entirety regardless of album layout.
 """
@@ -35,6 +32,14 @@ from ..fsprotocol import (
 )
 
 
+def _main_jpg_dirs(ms: MediaSource) -> tuple[tuple[str, str], ...]:
+    """JPEG + video directories for the ``main-jpg`` layout."""
+    return (
+        (ms.jpg_dir, ms.jpg_dir),
+        (ms.vid_dir, ms.vid_dir),
+    )
+
+
 def _main_dirs(ms: MediaSource) -> tuple[tuple[str, str], ...]:
     """Browsable directories and their export names for a media source."""
     return (
@@ -44,29 +49,14 @@ def _main_dirs(ms: MediaSource) -> tuple[tuple[str, str], ...]:
     )
 
 
-def _main_jpg_dirs(ms: MediaSource) -> tuple[tuple[str, str], ...]:
-    """JPEG + video directories for main-jpg-only export."""
-    return (
-        (ms.jpg_dir, ms.jpg_dir),
-        (ms.vid_dir, ms.vid_dir),
-    )
-
-
 def _full_copy_dirs(ms: MediaSource) -> tuple[str, ...]:
-    """Directories copied as-is in full/full-managed modes."""
+    """Directories copied as-is in the ``all`` layout."""
     return (
         ms.orig_img_dir,
         ms.orig_vid_dir,
         ms.edit_img_dir,
         ms.edit_vid_dir,
         ms.jpg_dir,
-    )
-
-
-def _all_managed_subdirs(media_sources: list[MediaSource]) -> frozenset[str]:
-    """All managed subdirectory names across media sources."""
-    return frozenset(
-        subdir for ms in media_sources for subdir in (*ms.all_subdirs, ms.ios_dir)
     )
 
 
@@ -138,17 +128,7 @@ def _export_other(album_dir: Path, target_dir: Path) -> int:
     return _copytree(album_dir, target_dir)
 
 
-def _export_ios_main_only(album_dir: Path, target_dir: Path) -> int:
-    """Export browsable dirs for all media sources."""
-    target_dir.mkdir(parents=True, exist_ok=True)
-    return sum(
-        _copy_dir(album_dir / src_name, target_dir / dst_name)
-        for ms in discover_media_sources(album_dir)
-        for src_name, dst_name in _main_dirs(ms)
-    )
-
-
-def _export_ios_main_jpg_only(album_dir: Path, target_dir: Path) -> int:
+def _export_ios_main_jpg(album_dir: Path, target_dir: Path) -> int:
     """Export JPEG + video dirs for all media sources."""
     target_dir.mkdir(parents=True, exist_ok=True)
     return sum(
@@ -158,7 +138,17 @@ def _export_ios_main_jpg_only(album_dir: Path, target_dir: Path) -> int:
     )
 
 
-def _export_full_managed(
+def _export_ios_main(album_dir: Path, target_dir: Path) -> int:
+    """Export browsable dirs for all media sources."""
+    target_dir.mkdir(parents=True, exist_ok=True)
+    return sum(
+        _copy_dir(album_dir / src_name, target_dir / dst_name)
+        for ms in discover_media_sources(album_dir)
+        for src_name, dst_name in _main_dirs(ms)
+    )
+
+
+def _export_all(
     album_dir: Path,
     target_dir: Path,
     *,
@@ -198,35 +188,11 @@ def _export_full_managed(
     return copied
 
 
-def _export_full(
-    album_dir: Path,
-    target_dir: Path,
-    *,
-    link_mode: LinkMode,
-) -> int:
-    """Export full-managed content plus unmanaged files and directories."""
-    copied = _export_full_managed(album_dir, target_dir, link_mode=link_mode)
-
-    managed = _all_managed_subdirs(discover_media_sources(album_dir))
-    for entry in sorted(os.listdir(album_dir)):
-        if _is_dotfile(entry) or entry in managed:
-            continue
-        src_path = album_dir / entry
-        dst_path = target_dir / entry
-        if src_path.is_file():
-            shutil.copy2(src_path, dst_path)
-            copied += 1
-        elif src_path.is_dir():
-            copied += _copytree(src_path, dst_path)
-
-    return copied
-
-
 def export_album(
     album_dir: Path,
     target_dir: Path,
     *,
-    album_layout: AlbumShareLayout = AlbumShareLayout.MAIN_ONLY,
+    album_layout: AlbumShareLayout = AlbumShareLayout.MAIN_JPG,
     link_mode: LinkMode = LinkMode.HARDLINK,
 ) -> ExportResult:
     """Export a single album to *target_dir*.
@@ -245,16 +211,12 @@ def export_album(
             files_copied = _export_other(album_dir, target_dir)
         case AlbumType.IOS:
             match album_layout:
-                case AlbumShareLayout.MAIN_ONLY:
-                    files_copied = _export_ios_main_only(album_dir, target_dir)
-                case AlbumShareLayout.MAIN_JPG_ONLY:
-                    files_copied = _export_ios_main_jpg_only(album_dir, target_dir)
-                case AlbumShareLayout.FULL_MANAGED:
-                    files_copied = _export_full_managed(
-                        album_dir, target_dir, link_mode=link_mode
-                    )
-                case AlbumShareLayout.FULL:
-                    files_copied = _export_full(
+                case AlbumShareLayout.MAIN_JPG:
+                    files_copied = _export_ios_main_jpg(album_dir, target_dir)
+                case AlbumShareLayout.MAIN:
+                    files_copied = _export_ios_main(album_dir, target_dir)
+                case AlbumShareLayout.ALL:
+                    files_copied = _export_all(
                         album_dir, target_dir, link_mode=link_mode
                     )
 

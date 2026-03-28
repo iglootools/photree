@@ -109,7 +109,7 @@ class TestLoadConfig:
             "[exporter.profiles.mega]\n"
             'share-dir = "/mnt/share"\n'
             'share-layout = "flat"\n'
-            'album-layout = "main-only"\n'
+            'album-layout = "main-jpg"\n'
             'link-mode = "hardlink"\n'
         )
         cfg = load_config(str(cfg_file))
@@ -117,7 +117,7 @@ class TestLoadConfig:
         p = cfg.exporter.profiles["mega"]
         assert p.share_dir == Path("/mnt/share")
         assert p.share_layout == ShareDirectoryLayout.FLAT
-        assert p.album_layout == AlbumShareLayout.MAIN_ONLY
+        assert p.album_layout == AlbumShareLayout.MAIN_JPG
         assert p.link_mode == LinkMode.HARDLINK
 
     def test_parses_multiple_profiles(self, tmp_path: Path) -> None:
@@ -129,7 +129,7 @@ class TestLoadConfig:
             "[exporter.profiles.backup]\n"
             'share-dir = "/mnt/backup"\n'
             'share-layout = "albums"\n'
-            'album-layout = "full"\n'
+            'album-layout = "all"\n'
             'link-mode = "symlink"\n'
         )
         cfg = load_config(str(cfg_file))
@@ -145,7 +145,7 @@ class TestLoadConfig:
         cfg = load_config(str(cfg_file))
         p = cfg.exporter.profiles["minimal"]
         assert p.share_layout == ShareDirectoryLayout.FLAT
-        assert p.album_layout == AlbumShareLayout.MAIN_ONLY
+        assert p.album_layout == AlbumShareLayout.MAIN_JPG
         assert p.link_mode == LinkMode.HARDLINK
 
     def test_profile_expands_tilde(self, tmp_path: Path) -> None:

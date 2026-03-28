@@ -405,7 +405,7 @@ def seed_cmd(
 
         # Export to a shared directory
         mkdir -p "$SHARE" && touch "$SHARE/.photree-share"
-        photree export album --share-dir "$SHARE" --album-layout main-only
+        photree export album --share-dir "$SHARE" --album-layout main-jpg
 
         # Show the album tree after export
         tree .""")

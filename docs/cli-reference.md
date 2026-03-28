@@ -373,18 +373,13 @@ For non-iOS albums, all files are copied regardless of --album-layout.
 
 For iOS albums:
 
---album-layout=main-only (default): Copies main-img/, main-jpg/,
-and main-vid/ to the target, stripping the &quot;main-&quot; prefix
-(e.g. main-img/ becomes img/).
+--album-layout=main-jpg (default): Copies main-jpg/ and main-vid/
+(most compatible formats).
 
---album-layout=main-jpg-only: Like main-only, but excludes main-img/.
-Exports only main-jpg/ and main-vid/ (most compatible formats).
+--album-layout=main: Copies main-img/, main-jpg/, and main-vid/.
 
---album-layout=full-managed: Copies orig-*, edit-*, and main-jpg/
-as-is, then recreates main-img/ and main-vid/ using --link-mode.
-
---album-layout=full: Same as full-managed, plus copies any unmanaged files
-and directories from the album.
+--album-layout=all: Copies archival directories (orig-*, edit-*) and
+main-jpg/ as-is, then recreates main-img/ and main-vid/ using --link-mode.
 
 **Usage**:
 
@@ -399,8 +394,8 @@ $ photree export album [OPTIONS]
 * `-p, --profile TEXT`: Exporter profile name from config.
 * `-c, --config TEXT`: Path to config file.
 * `--share-layout [flat|albums]`: Share layout: flat (default) or albums.
-* `--album-layout [main-only|main-jpg-only|full|full-managed]`: Export layout for iOS albums: combined-only (default), full, or full-managed.
-* `--link-mode [copy|hardlink|symlink]`: How to create main files in full/full-managed: hardlink (default), symlink, or copy.
+* `--album-layout [main-jpg|main|all]`: Export layout: main-jpg (default), main, or all.
+* `--link-mode [copy|hardlink|symlink]`: How to create main files in all layout: hardlink (default), symlink, or copy.
 * `--help`: Show this message and exit.
 
 ### `photree export album-all`
@@ -424,8 +419,8 @@ $ photree export album-all [OPTIONS]
 * `-p, --profile TEXT`: Exporter profile name from config.
 * `-c, --config TEXT`: Path to config file.
 * `--share-layout [flat|albums]`: Share layout: flat (default) or albums.
-* `--album-layout [main-only|main-jpg-only|full|full-managed]`: Export layout for iOS albums: combined-only (default), full, or full-managed.
-* `--link-mode [copy|hardlink|symlink]`: How to create main files in full/full-managed: hardlink (default), symlink, or copy.
+* `--album-layout [main-jpg|main|all]`: Export layout: main-jpg (default), main, or all.
+* `--link-mode [copy|hardlink|symlink]`: How to create main files in all layout: hardlink (default), symlink, or copy.
 * `--help`: Show this message and exit.
 
 ## `photree gallery`
@@ -631,8 +626,8 @@ $ photree gallery export [OPTIONS]
 * `-p, --profile TEXT`: Exporter profile name from config.
 * `-c, --config TEXT`: Path to config file.
 * `--share-layout [flat|albums]`: Share layout: flat (default) or albums.
-* `--album-layout [main-only|main-jpg-only|full|full-managed]`: Export layout for iOS albums: combined-only (default), full, or full-managed.
-* `--link-mode [copy|hardlink|symlink]`: How to create main files in full/full-managed: hardlink (default), symlink, or copy.
+* `--album-layout [main-jpg|main|all]`: Export layout: main-jpg (default), main, or all.
+* `--link-mode [copy|hardlink|symlink]`: How to create main files in all layout: hardlink (default), symlink, or copy.
 * `--help`: Show this message and exit.
 
 ## `photree import`

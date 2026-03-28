@@ -132,14 +132,43 @@ class TestExportOtherAlbum:
         assert result.files_copied == 1
 
 
-class TestExportIosCombinedOnly:
+class TestExportIosMainJpg:
+    def test_exports_jpg_and_vid_only(self, tmp_path: Path) -> None:
+        album_dir = _setup_ios_album(tmp_path / "trip")
+        target = tmp_path / "share" / "trip"
+
+        result = export_album(album_dir, target, album_layout=AlbumShareLayout.MAIN_JPG)
+
+        assert result.album_type == "ios"
+        # main-jpg/ and main-vid/ exported
+        assert (target / "main-jpg" / "IMG_E0001.JPEG").exists()
+        assert (target / "main-jpg" / "IMG_0002.JPEG").exists()
+        assert (target / "main-vid" / "IMG_E0010.MOV").exists()
+        # main-img/ should NOT be exported
+        assert not (target / "main-img").exists()
+        # archival dirs should NOT be exported
+        assert not (target / MAIN_MEDIA_SOURCE.orig_img_dir).exists()
+        assert not (target / MAIN_MEDIA_SOURCE.edit_img_dir).exists()
+        assert result.files_copied == 3
+
+    def test_is_the_default_layout(self, tmp_path: Path) -> None:
+        album_dir = _setup_ios_album(tmp_path / "trip")
+        target = tmp_path / "share" / "trip"
+
+        result = export_album(album_dir, target)
+
+        assert (target / "main-jpg").exists()
+        assert (target / "main-vid").exists()
+        assert not (target / "main-img").exists()
+        assert result.files_copied == 3
+
+
+class TestExportIosMain:
     def test_strips_combined_prefix(self, tmp_path: Path) -> None:
         album_dir = _setup_ios_album(tmp_path / "trip")
         target = tmp_path / "share" / "trip"
 
-        result = export_album(
-            album_dir, target, album_layout=AlbumShareLayout.MAIN_ONLY
-        )
+        result = export_album(album_dir, target, album_layout=AlbumShareLayout.MAIN)
 
         assert result.album_type == "ios"
         # main-img/ -> img/
@@ -164,9 +193,7 @@ class TestExportIosCombinedOnly:
         _setup_dir(album_dir / MAIN_MEDIA_SOURCE.vid_dir, ["IMG_0010.MOV"])
         target = tmp_path / "share" / "minimal"
 
-        result = export_album(
-            album_dir, target, album_layout=AlbumShareLayout.MAIN_ONLY
-        )
+        result = export_album(album_dir, target, album_layout=AlbumShareLayout.MAIN)
 
         assert (target / "main-img" / "IMG_0001.HEIC").exists()
         assert (target / "main-jpg" / "IMG_0001.JPEG").exists()
@@ -174,7 +201,7 @@ class TestExportIosCombinedOnly:
         assert result.files_copied == 3
 
 
-class TestExportIosFullManaged:
+class TestExportIosAll:
     def test_copies_orig_rendered_jpeg_and_recreates_combined(
         self, tmp_path: Path
     ) -> None:
@@ -184,7 +211,7 @@ class TestExportIosFullManaged:
         result = export_album(
             album_dir,
             target,
-            album_layout=AlbumShareLayout.FULL_MANAGED,
+            album_layout=AlbumShareLayout.ALL,
             link_mode=LinkMode.COPY,
         )
 
@@ -208,7 +235,7 @@ class TestExportIosFullManaged:
         album_dir = _setup_ios_album(tmp_path / "trip")
         target = tmp_path / "share" / "trip"
 
-        export_album(album_dir, target, album_layout=AlbumShareLayout.FULL_MANAGED)
+        export_album(album_dir, target, album_layout=AlbumShareLayout.ALL)
 
         # main-img files should be hardlinks to orig/rendered
         combined_file = target / MAIN_MEDIA_SOURCE.img_dir / "IMG_0002.HEIC"
@@ -223,7 +250,7 @@ class TestExportIosFullManaged:
         (album_dir / "extra-dir" / "file.txt").write_text("extra")
         target = tmp_path / "share" / "trip"
 
-        export_album(album_dir, target, album_layout=AlbumShareLayout.FULL_MANAGED)
+        export_album(album_dir, target, album_layout=AlbumShareLayout.ALL)
 
         assert not (target / "notes.txt").exists()
         assert not (target / "extra-dir").exists()
@@ -234,61 +261,7 @@ class TestExportIosFullManaged:
         (album_dir / PHOTREE_DIR / "title.bkp").write_text("backup")
         target = tmp_path / "share" / "trip"
 
-        export_album(album_dir, target, album_layout=AlbumShareLayout.FULL_MANAGED)
-
-        assert (target / PHOTREE_DIR).is_dir()
-        assert not list((target / PHOTREE_DIR).iterdir())
-
-
-class TestExportIosFull:
-    def test_includes_unmanaged_files(self, tmp_path: Path) -> None:
-        album_dir = _setup_ios_album(tmp_path / "trip")
-        (album_dir / "notes.txt").write_text("my notes")
-        (album_dir / "extra-dir").mkdir()
-        (album_dir / "extra-dir" / "file.txt").write_text("extra")
-        target = tmp_path / "share" / "trip"
-
-        export_album(
-            album_dir,
-            target,
-            album_layout=AlbumShareLayout.FULL,
-            link_mode=LinkMode.COPY,
-        )
-
-        # Managed dirs present
-        assert (target / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.HEIC").exists()
-        assert (target / MAIN_MEDIA_SOURCE.img_dir / "IMG_E0001.HEIC").exists()
-        # Unmanaged present too
-        assert (target / "notes.txt").exists()
-        assert (target / "notes.txt").read_text() == "my notes"
-        assert (target / "extra-dir" / "file.txt").exists()
-
-    def test_skips_dotfiles(self, tmp_path: Path) -> None:
-        album_dir = _setup_ios_album(tmp_path / "trip")
-        (album_dir / ".hidden").write_text("secret")
-        target = tmp_path / "share" / "trip"
-
-        export_album(
-            album_dir,
-            target,
-            album_layout=AlbumShareLayout.FULL,
-            link_mode=LinkMode.COPY,
-        )
-
-        assert not (target / ".hidden").exists()
-
-    def test_creates_empty_photree_dir(self, tmp_path: Path) -> None:
-        album_dir = _setup_ios_album(tmp_path / "trip")
-        (album_dir / PHOTREE_DIR).mkdir()
-        (album_dir / PHOTREE_DIR / "title.bkp").write_text("backup")
-        target = tmp_path / "share" / "trip"
-
-        export_album(
-            album_dir,
-            target,
-            album_layout=AlbumShareLayout.FULL,
-            link_mode=LinkMode.COPY,
-        )
+        export_album(album_dir, target, album_layout=AlbumShareLayout.ALL)
 
         assert (target / PHOTREE_DIR).is_dir()
         assert not list((target / PHOTREE_DIR).iterdir())

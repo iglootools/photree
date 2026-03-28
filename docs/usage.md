@@ -31,13 +31,13 @@ image-capture-dir = "~/Pictures/Sami Dalouche\u2019s iPhone"
 [exporter.profiles.mega]
 share-dir = "~/MEGAsync/to-share"
 share-layout = "flat"
-album-layout = "main-jpg-only"
+album-layout = "main"
 link-mode = "hardlink"
 
 [exporter.profiles.rocketnano2tb-albums]
 share-dir = "/Volumes/rocketnano2tb/photos/albums"
 share-layout = "albums"
-album-layout = "full"
+album-layout = "all"
 link-mode = "symlink"
 ```
 
@@ -152,17 +152,16 @@ photree export album -a "2024-06-15 - Summer Vacation" -p mega
 # Export with explicit flags
 photree export album -a "2024-06-15 - Summer Vacation" \
   --share-dir ~/MEGAsync/to-share \
-  --album-layout main-jpg-only
+  --album-layout main-jpg
 
 # Batch export all albums
 photree export album-all -d ~/Pictures/albums -p mega
 ```
 
 **Album share layouts:**
-- `main-only` (default): exports `main-img/`, `main-jpg/`, `main-vid/`
-- `main-jpg-only`: exports `main-jpg/` and `main-vid/` only (most compatible)
-- `full-managed`: exports everything, recreates main dirs with links
-- `full`: full-managed plus any unmanaged files
+- `main-jpg` (default): exports `main-jpg/` and `main-vid/` (most compatible formats)
+- `main`: exports `main-img/`, `main-jpg/`, `main-vid/`
+- `all`: exports archival directories (orig/edit) and main-jpg, recreates main dirs with links
 
 **Share directory layouts:**
 - `flat`: albums placed directly under the share directory
