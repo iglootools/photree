@@ -261,6 +261,7 @@ def fix_cmd(
         )
 
 
+@album_app.command("optimize")
 def optimize_cmd(
     album_dir: Annotated[
         Path,

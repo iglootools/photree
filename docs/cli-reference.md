@@ -56,6 +56,7 @@ $ photree album [OPTIONS] COMMAND [ARGS]...
 
 * `check`: Check system prerequisites, album...
 * `fix`: Fix album issues.
+* `optimize`: Optimize main directories by replacing...
 * `fix-ios`: Fix iOS album issues.
 * `fix-exif`: Fix EXIF dates on media files.
 * `mv-media`: Move media files and all their variants...
@@ -101,6 +102,34 @@ $ photree album fix [OPTIONS]
 
 * `-a, --album-dir DIRECTORY`: Album directory to fix.  [default: .]
 * `--refresh-jpeg`: Refresh {contributor}-jpg/ from {contributor}-img/ for all contributors.
+* `-n, --dry-run`: Print what would happen without modifying files.
+* `--help`: Show this message and exit.
+
+### `photree album optimize`
+
+Optimize main directories by replacing file copies with links.
+
+Recreates main-img/ and main-vid/ files as hard links (default),
+symbolic links, or copies depending on --link-mode. Does not touch
+main-jpg/ (those are HEIC-to-JPEG conversions that cannot be linked).
+
+Runs structural integrity checks first (unless --no-check): directory
+structure, file matching, checksums, sidecars, duplicates, and
+miscategorized files. Naming and EXIF checks are not performed.
+Refuses to optimize if errors are found.
+
+**Usage**:
+
+```console
+$ photree album optimize [OPTIONS]
+```
+
+**Options**:
+
+* `-a, --album-dir DIRECTORY`: Album directory to optimize.  [default: .]
+* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.  [default: hardlink]
+* `--check / --no-check`: Run integrity checks before optimizing (default: enabled).  [default: check]
+* `--checksum / --no-checksum`: Enable/disable SHA-256 checksum verification (default: enabled).  [default: checksum]
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
