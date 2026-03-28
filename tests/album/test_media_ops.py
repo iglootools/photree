@@ -5,9 +5,9 @@ from pathlib import Path
 import pytest
 
 from photree.album.media_ops import move_media, rm_media, resolve_variants
-from photree.fsprotocol import MAIN_CONTRIBUTOR
+from photree.fsprotocol import MAIN_MEDIA_SOURCE
 
-MC = MAIN_CONTRIBUTOR
+MC = MAIN_MEDIA_SOURCE
 PHOTREE_DIR = ".photree"
 
 
@@ -50,11 +50,11 @@ def _setup_ios_album_with_video(album: Path) -> None:
     _setup_dir(album / "main-vid", ["IMG_E0115.MOV"])
 
 
-def _setup_plain_album(album: Path, contributor_name: str = "nelu") -> None:
+def _setup_plain_album(album: Path, media_source_name: str = "nelu") -> None:
     """Create a minimal plain contributor album."""
     _setup_dir(album / PHOTREE_DIR, [])
-    _setup_dir(album / f"{contributor_name}-img", ["sunset.heic", "beach.png"])
-    _setup_dir(album / f"{contributor_name}-jpg", ["sunset.jpg", "beach.png"])
+    _setup_dir(album / f"{media_source_name}-img", ["sunset.heic", "beach.png"])
+    _setup_dir(album / f"{media_source_name}-jpg", ["sunset.jpg", "beach.png"])
 
 
 # ---------------------------------------------------------------------------
@@ -144,7 +144,7 @@ class TestResolveVariants:
         album = tmp_path / "album"
         _setup_ios_album(album)
 
-        with pytest.raises(ValueError, match="does not match any contributor"):
+        with pytest.raises(ValueError, match="does not match any media source"):
             resolve_variants(album, ["unknown-dir/IMG_0410.jpg"])
 
     def test_no_directory_in_path_raises(self, tmp_path: Path) -> None:

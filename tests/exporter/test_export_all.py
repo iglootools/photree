@@ -7,7 +7,7 @@ from photree.exporter.export_all import (
     run_batch_export,
 )
 from photree.fsprotocol import (
-    MAIN_CONTRIBUTOR,
+    MAIN_MEDIA_SOURCE,
     AlbumShareLayout,
     LinkMode,
     ShareDirectoryLayout,
@@ -23,11 +23,11 @@ def _setup_dir(path: Path, filenames: list[str]) -> Path:
 
 def _setup_ios_album(album_dir: Path) -> Path:
     """Create a minimal iOS album."""
-    _setup_dir(album_dir / MAIN_CONTRIBUTOR.orig_img_dir, ["IMG_0001.HEIC"])
-    _setup_dir(album_dir / MAIN_CONTRIBUTOR.img_dir, ["IMG_0001.HEIC"])
-    _setup_dir(album_dir / MAIN_CONTRIBUTOR.jpg_dir, ["IMG_0001.JPEG"])
-    _setup_dir(album_dir / MAIN_CONTRIBUTOR.orig_vid_dir, ["IMG_0010.MOV"])
-    _setup_dir(album_dir / MAIN_CONTRIBUTOR.vid_dir, ["IMG_0010.MOV"])
+    _setup_dir(album_dir / MAIN_MEDIA_SOURCE.orig_img_dir, ["IMG_0001.HEIC"])
+    _setup_dir(album_dir / MAIN_MEDIA_SOURCE.img_dir, ["IMG_0001.HEIC"])
+    _setup_dir(album_dir / MAIN_MEDIA_SOURCE.jpg_dir, ["IMG_0001.JPEG"])
+    _setup_dir(album_dir / MAIN_MEDIA_SOURCE.orig_vid_dir, ["IMG_0010.MOV"])
+    _setup_dir(album_dir / MAIN_MEDIA_SOURCE.vid_dir, ["IMG_0010.MOV"])
     return album_dir
 
 
@@ -153,7 +153,7 @@ class TestBatchExport:
 
         assert result.exported == 1
         target = share_dir / "2024" / "2024-06-15 - Vacation"
-        assert (target / MAIN_CONTRIBUTOR.orig_img_dir / "IMG_0001.HEIC").exists()
+        assert (target / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.HEIC").exists()
 
     def test_albums_share_layout_invalid_name_fails_gracefully(
         self, tmp_path: Path

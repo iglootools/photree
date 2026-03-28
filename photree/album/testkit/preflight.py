@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from ...fsprotocol import MAIN_CONTRIBUTOR, plain_contributor
+from ...fsprotocol import MAIN_MEDIA_SOURCE, plain_media_source
 from ..preflight import (
-    AlbumContributorSummary,
+    AlbumMediaSourceSummary,
     AlbumDirCheck,
     AlbumPreflightResult,
 )
@@ -13,7 +13,7 @@ from .integrity import FULL_INTEGRITY_FAILURES, FULL_INTEGRITY_OK
 PREFLIGHT_OK = AlbumPreflightResult(
     sips_available=True,
     exiftool_available=True,
-    contributor_summary=AlbumContributorSummary(contributors=(MAIN_CONTRIBUTOR,)),
+    media_source_summary=AlbumMediaSourceSummary(media_sources=(MAIN_MEDIA_SOURCE,)),
     dir_check=AlbumDirCheck(
         present=(
             "orig-img",
@@ -32,7 +32,7 @@ PREFLIGHT_OK = AlbumPreflightResult(
 PREFLIGHT_FAILURES = AlbumPreflightResult(
     sips_available=False,
     exiftool_available=True,
-    contributor_summary=AlbumContributorSummary(contributors=(MAIN_CONTRIBUTOR,)),
+    media_source_summary=AlbumMediaSourceSummary(media_sources=(MAIN_MEDIA_SOURCE,)),
     dir_check=AlbumDirCheck(
         present=("orig-img", "main-img"),
         missing=(
@@ -49,8 +49,8 @@ PREFLIGHT_FAILURES = AlbumPreflightResult(
 PREFLIGHT_OTHER = AlbumPreflightResult(
     sips_available=True,
     exiftool_available=True,
-    contributor_summary=AlbumContributorSummary(
-        contributors=(plain_contributor("main"),)
+    media_source_summary=AlbumMediaSourceSummary(
+        media_sources=(plain_media_source("main"),)
     ),
     dir_check=AlbumDirCheck(present=(), missing=()),
 )

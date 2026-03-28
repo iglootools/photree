@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ...fsprotocol import MAIN_CONTRIBUTOR
+from ...fsprotocol import MAIN_MEDIA_SOURCE
 from ..integrity import (
     CombinedDirCheck,
     FileComparison,
@@ -78,9 +78,9 @@ INTEGRITY_FAILURES = IosAlbumIntegrityResult(
 
 # Wrapped in IosAlbumFullIntegrityResult for preflight tests
 FULL_INTEGRITY_OK = IosAlbumFullIntegrityResult(
-    by_contributor=((MAIN_CONTRIBUTOR, INTEGRITY_OK),)
+    by_media_source=((MAIN_MEDIA_SOURCE, INTEGRITY_OK),)
 )
 
 FULL_INTEGRITY_FAILURES = IosAlbumFullIntegrityResult(
-    by_contributor=((MAIN_CONTRIBUTOR, INTEGRITY_FAILURES),)
+    by_media_source=((MAIN_MEDIA_SOURCE, INTEGRITY_FAILURES),)
 )

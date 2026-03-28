@@ -9,7 +9,7 @@ from photree.exporter.export import (
     export_album,
 )
 from photree.fsprotocol import (
-    MAIN_CONTRIBUTOR,
+    MAIN_MEDIA_SOURCE,
     AlbumShareLayout,
     LinkMode,
     ShareDirectoryLayout,
@@ -27,18 +27,18 @@ def _setup_dir(path: Path, filenames: list[str]) -> Path:
 def _setup_ios_album(album_dir: Path) -> Path:
     """Create a typical iOS album with orig, rendered, combined dirs."""
     _setup_dir(
-        album_dir / MAIN_CONTRIBUTOR.orig_img_dir, ["IMG_0001.HEIC", "IMG_0002.HEIC"]
+        album_dir / MAIN_MEDIA_SOURCE.orig_img_dir, ["IMG_0001.HEIC", "IMG_0002.HEIC"]
     )
-    _setup_dir(album_dir / MAIN_CONTRIBUTOR.edit_img_dir, ["IMG_E0001.HEIC"])
+    _setup_dir(album_dir / MAIN_MEDIA_SOURCE.edit_img_dir, ["IMG_E0001.HEIC"])
     _setup_dir(
-        album_dir / MAIN_CONTRIBUTOR.img_dir, ["IMG_E0001.HEIC", "IMG_0002.HEIC"]
+        album_dir / MAIN_MEDIA_SOURCE.img_dir, ["IMG_E0001.HEIC", "IMG_0002.HEIC"]
     )
     _setup_dir(
-        album_dir / MAIN_CONTRIBUTOR.jpg_dir, ["IMG_E0001.JPEG", "IMG_0002.JPEG"]
+        album_dir / MAIN_MEDIA_SOURCE.jpg_dir, ["IMG_E0001.JPEG", "IMG_0002.JPEG"]
     )
-    _setup_dir(album_dir / MAIN_CONTRIBUTOR.orig_vid_dir, ["IMG_0010.MOV"])
-    _setup_dir(album_dir / MAIN_CONTRIBUTOR.edit_vid_dir, ["IMG_E0010.MOV"])
-    _setup_dir(album_dir / MAIN_CONTRIBUTOR.vid_dir, ["IMG_E0010.MOV"])
+    _setup_dir(album_dir / MAIN_MEDIA_SOURCE.orig_vid_dir, ["IMG_0010.MOV"])
+    _setup_dir(album_dir / MAIN_MEDIA_SOURCE.edit_vid_dir, ["IMG_E0010.MOV"])
+    _setup_dir(album_dir / MAIN_MEDIA_SOURCE.vid_dir, ["IMG_E0010.MOV"])
     return album_dir
 
 
@@ -134,18 +134,18 @@ class TestExportIosCombinedOnly:
         # main-vid/ -> vid/
         assert (target / "main-vid" / "IMG_E0010.MOV").exists()
         # orig and rendered should NOT be exported
-        assert not (target / MAIN_CONTRIBUTOR.orig_img_dir).exists()
-        assert not (target / MAIN_CONTRIBUTOR.edit_img_dir).exists()
-        assert not (target / MAIN_CONTRIBUTOR.orig_vid_dir).exists()
-        assert not (target / MAIN_CONTRIBUTOR.edit_vid_dir).exists()
+        assert not (target / MAIN_MEDIA_SOURCE.orig_img_dir).exists()
+        assert not (target / MAIN_MEDIA_SOURCE.edit_img_dir).exists()
+        assert not (target / MAIN_MEDIA_SOURCE.orig_vid_dir).exists()
+        assert not (target / MAIN_MEDIA_SOURCE.edit_vid_dir).exists()
 
     def test_handles_missing_combined_dirs(self, tmp_path: Path) -> None:
         album_dir = tmp_path / "minimal"
-        _setup_dir(album_dir / MAIN_CONTRIBUTOR.orig_img_dir, ["IMG_0001.HEIC"])
-        _setup_dir(album_dir / MAIN_CONTRIBUTOR.img_dir, ["IMG_0001.HEIC"])
-        _setup_dir(album_dir / MAIN_CONTRIBUTOR.jpg_dir, ["IMG_0001.JPEG"])
-        _setup_dir(album_dir / MAIN_CONTRIBUTOR.orig_vid_dir, ["IMG_0010.MOV"])
-        _setup_dir(album_dir / MAIN_CONTRIBUTOR.vid_dir, ["IMG_0010.MOV"])
+        _setup_dir(album_dir / MAIN_MEDIA_SOURCE.orig_img_dir, ["IMG_0001.HEIC"])
+        _setup_dir(album_dir / MAIN_MEDIA_SOURCE.img_dir, ["IMG_0001.HEIC"])
+        _setup_dir(album_dir / MAIN_MEDIA_SOURCE.jpg_dir, ["IMG_0001.JPEG"])
+        _setup_dir(album_dir / MAIN_MEDIA_SOURCE.orig_vid_dir, ["IMG_0010.MOV"])
+        _setup_dir(album_dir / MAIN_MEDIA_SOURCE.vid_dir, ["IMG_0010.MOV"])
         target = tmp_path / "share" / "minimal"
 
         result = export_album(
@@ -173,19 +173,19 @@ class TestExportIosFullManaged:
         )
 
         # orig dirs copied
-        assert (target / MAIN_CONTRIBUTOR.orig_img_dir / "IMG_0001.HEIC").exists()
-        assert (target / MAIN_CONTRIBUTOR.orig_img_dir / "IMG_0002.HEIC").exists()
-        assert (target / MAIN_CONTRIBUTOR.orig_vid_dir / "IMG_0010.MOV").exists()
+        assert (target / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.HEIC").exists()
+        assert (target / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0002.HEIC").exists()
+        assert (target / MAIN_MEDIA_SOURCE.orig_vid_dir / "IMG_0010.MOV").exists()
         # rendered dirs copied
-        assert (target / MAIN_CONTRIBUTOR.edit_img_dir / "IMG_E0001.HEIC").exists()
-        assert (target / MAIN_CONTRIBUTOR.edit_vid_dir / "IMG_E0010.MOV").exists()
+        assert (target / MAIN_MEDIA_SOURCE.edit_img_dir / "IMG_E0001.HEIC").exists()
+        assert (target / MAIN_MEDIA_SOURCE.edit_vid_dir / "IMG_E0010.MOV").exists()
         # main-jpg copied
-        assert (target / MAIN_CONTRIBUTOR.jpg_dir / "IMG_E0001.JPEG").exists()
+        assert (target / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_E0001.JPEG").exists()
         # main-img recreated (rendered preferred over orig)
-        assert (target / MAIN_CONTRIBUTOR.img_dir / "IMG_E0001.HEIC").exists()
-        assert (target / MAIN_CONTRIBUTOR.img_dir / "IMG_0002.HEIC").exists()
+        assert (target / MAIN_MEDIA_SOURCE.img_dir / "IMG_E0001.HEIC").exists()
+        assert (target / MAIN_MEDIA_SOURCE.img_dir / "IMG_0002.HEIC").exists()
         # main-vid recreated
-        assert (target / MAIN_CONTRIBUTOR.vid_dir / "IMG_E0010.MOV").exists()
+        assert (target / MAIN_MEDIA_SOURCE.vid_dir / "IMG_E0010.MOV").exists()
         assert result.files_copied > 0
 
     def test_combined_uses_hardlinks_by_default(self, tmp_path: Path) -> None:
@@ -195,8 +195,8 @@ class TestExportIosFullManaged:
         export_album(album_dir, target, album_layout=AlbumShareLayout.FULL_MANAGED)
 
         # main-img files should be hardlinks to orig/rendered
-        combined_file = target / MAIN_CONTRIBUTOR.img_dir / "IMG_0002.HEIC"
-        orig_file = target / MAIN_CONTRIBUTOR.orig_img_dir / "IMG_0002.HEIC"
+        combined_file = target / MAIN_MEDIA_SOURCE.img_dir / "IMG_0002.HEIC"
+        orig_file = target / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0002.HEIC"
         assert combined_file.stat().st_ino == orig_file.stat().st_ino
 
     def test_does_not_export_unmanaged(self, tmp_path: Path) -> None:
@@ -229,8 +229,8 @@ class TestExportIosFull:
         )
 
         # Managed dirs present
-        assert (target / MAIN_CONTRIBUTOR.orig_img_dir / "IMG_0001.HEIC").exists()
-        assert (target / MAIN_CONTRIBUTOR.img_dir / "IMG_E0001.HEIC").exists()
+        assert (target / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.HEIC").exists()
+        assert (target / MAIN_MEDIA_SOURCE.img_dir / "IMG_E0001.HEIC").exists()
         # Unmanaged present too
         assert (target / "notes.txt").exists()
         assert (target / "notes.txt").read_text() == "my notes"

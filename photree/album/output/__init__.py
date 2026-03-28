@@ -13,7 +13,7 @@ def refresh_jpeg_summary(converted: int, copied: int, skipped: int) -> str:
 from .preflight import (  # noqa: E402, F401
     album_dir_check,
     album_type_check,
-    contributors_check,
+    media_sources_check,
     exiftool_check,
     exiftool_troubleshoot,
     format_album_preflight_checks,
@@ -192,8 +192,5 @@ def media_op_summary(
 
 def media_op_check_suggestions(album_dirs: list[str]) -> str:
     lines = ["", "Suggested next steps:"]
-    lines.extend(
-        f'  photree album check --album-dir "{d}"'
-        for d in album_dirs
-    )
+    lines.extend(f'  photree album check --album-dir "{d}"' for d in album_dirs)
     return "\n".join(lines)

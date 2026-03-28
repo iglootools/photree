@@ -23,7 +23,7 @@ from ..album import (
 from ..album.exif import try_start_exiftool
 from ..fsprotocol import (
     LinkMode,
-    discover_contributors,
+    discover_media_sources,
     display_path,
 )
 from .album_cmd import (
@@ -140,7 +140,7 @@ def list_albums_cmd(
         bool,
         typer.Option(
             "--metadata/--no-metadata",
-            help="Show parsed album metadata and contributors (default: enabled).",
+            help="Show parsed album metadata and media sources (default: enabled).",
         ),
     ] = True,
     output_format: Annotated[
@@ -151,7 +151,7 @@ def list_albums_cmd(
         ),
     ] = "text",
 ) -> None:
-    """List all discovered albums with their metadata and contributors."""
+    """List all discovered albums with their metadata and media sources."""
     import csv
     import sys
 
@@ -189,15 +189,15 @@ def list_albums_cmd(
                 "title",
                 "location",
                 "tags",
-                "contributors",
+                "media_sources",
             ]
         )
         for album_dir in albums:
             rel_path = _display_name(album_dir, display_base, cwd)
             parsed = parse_album_name(album_dir.name)
-            contribs = discover_contributors(album_dir)
-            contrib_desc = ", ".join(
-                f"{c.name} ({c.contributor_type})" for c in contribs
+            media_sources = discover_media_sources(album_dir)
+            ms_desc = ", ".join(
+                f"{c.name} ({c.media_source_type})" for c in media_sources
             )
             if parsed is not None:
                 tags = "private" if parsed.private else ""
@@ -210,13 +210,11 @@ def list_albums_cmd(
                         parsed.title,
                         parsed.location or "",
                         tags,
-                        contrib_desc,
+                        ms_desc,
                     ]
                 )
             else:
-                writer.writerow(
-                    [rel_path, "", "", "", album_dir.name, "", "", contrib_desc]
-                )
+                writer.writerow([rel_path, "", "", "", album_dir.name, "", "", ms_desc])
         return
 
     typer.echo(f"Found {len(albums)} album(s).\n")
@@ -227,7 +225,7 @@ def list_albums_cmd(
 
         if metadata:
             parsed = parse_album_name(album_dir.name)
-            contribs = discover_contributors(album_dir)
+            media_sources = discover_media_sources(album_dir)
 
             if parsed is not None:
                 parts = [f"date={parsed.date}"]
@@ -244,11 +242,11 @@ def list_albums_cmd(
             else:
                 typer.echo("  (name not parseable)")
 
-            if contribs:
-                contrib_desc = ", ".join(
-                    f"{c.name} ({c.contributor_type})" for c in contribs
+            if media_sources:
+                ms_desc = ", ".join(
+                    f"{c.name} ({c.media_source_type})" for c in media_sources
                 )
-                typer.echo(f"  contributors: {contrib_desc}")
+                typer.echo(f"  media sources: {ms_desc}")
 
 
 @gallery_app.command("check")
@@ -476,7 +474,7 @@ def fix_cmd(
         bool,
         typer.Option(
             "--refresh-jpeg",
-            help="Refresh {contributor}-jpg/ from {contributor}-img/ for all contributors.",
+            help="Refresh {name}-jpg/ from {name}-img/ for all media sources.",
         ),
     ] = False,
     dry_run: Annotated[
@@ -490,7 +488,7 @@ def fix_cmd(
 ) -> None:
     """Fix all albums under a directory or from an explicit list.
 
-    Works on all contributor types (iOS + plain). At least one fix flag
+    Works on all media source types (iOS + plain). At least one fix flag
     must be specified.
     """
 
@@ -525,11 +523,11 @@ def fix_cmd(
         progress.on_start(album_name)
 
         try:
-            contributors = discover_contributors(album_dir)
+            sources = discover_media_sources(album_dir)
             if refresh_jpeg:
-                for contrib in contributors:
-                    if (album_dir / contrib.img_dir).is_dir():
-                        album_fixes.refresh_jpeg(album_dir, contrib, dry_run=dry_run)
+                for ms in sources:
+                    if (album_dir / ms.img_dir).is_dir():
+                        album_fixes.refresh_jpeg(album_dir, ms, dry_run=dry_run)
             progress.on_end(album_name, success=True)
             fixed += 1
         except Exception:
@@ -944,7 +942,7 @@ def rename_from_csv_cmd(
         raise typer.Exit(code=0)
 
     # Fields that must not differ between current and desired
-    immutable_fields = ("path", "date", "part", "tags", "contributors")
+    immutable_fields = ("path", "date", "part", "tags", "media_sources")
 
     renames: list[tuple[Path, str]] = []
     errors: list[str] = []

@@ -24,48 +24,48 @@ from ..album.combined import refresh_main_dir
 from ..album.preflight import AlbumType, detect_album_type
 from ..fsprotocol import (
     AlbumShareLayout,
-    Contributor,
+    MediaSource,
     IMG_EXTENSIONS,
     LinkMode,
     VID_EXTENSIONS,
     ShareDirectoryLayout,
-    discover_contributors,
+    discover_media_sources,
     parse_album_year,
 )
 
 
-def _main_dirs(contrib: Contributor) -> tuple[tuple[str, str], ...]:
-    """Browsable directories and their export names for a contributor."""
+def _main_dirs(ms: MediaSource) -> tuple[tuple[str, str], ...]:
+    """Browsable directories and their export names for a media source."""
     return (
-        (contrib.img_dir, contrib.img_dir),
-        (contrib.jpg_dir, contrib.jpg_dir),
-        (contrib.vid_dir, contrib.vid_dir),
+        (ms.img_dir, ms.img_dir),
+        (ms.jpg_dir, ms.jpg_dir),
+        (ms.vid_dir, ms.vid_dir),
     )
 
 
-def _main_jpg_dirs(contrib: Contributor) -> tuple[tuple[str, str], ...]:
+def _main_jpg_dirs(ms: MediaSource) -> tuple[tuple[str, str], ...]:
     """JPEG + video directories for main-jpg-only export."""
     return (
-        (contrib.jpg_dir, contrib.jpg_dir),
-        (contrib.vid_dir, contrib.vid_dir),
+        (ms.jpg_dir, ms.jpg_dir),
+        (ms.vid_dir, ms.vid_dir),
     )
 
 
-def _full_copy_dirs(contrib: Contributor) -> tuple[str, ...]:
+def _full_copy_dirs(ms: MediaSource) -> tuple[str, ...]:
     """Directories copied as-is in full/full-managed modes."""
     return (
-        contrib.orig_img_dir,
-        contrib.orig_vid_dir,
-        contrib.edit_img_dir,
-        contrib.edit_vid_dir,
-        contrib.jpg_dir,
+        ms.orig_img_dir,
+        ms.orig_vid_dir,
+        ms.edit_img_dir,
+        ms.edit_vid_dir,
+        ms.jpg_dir,
     )
 
 
-def _all_managed_subdirs(contributors: list[Contributor]) -> frozenset[str]:
-    """All managed subdirectory names across contributors."""
+def _all_managed_subdirs(media_sources: list[MediaSource]) -> frozenset[str]:
+    """All managed subdirectory names across media sources."""
     return frozenset(
-        subdir for c in contributors for subdir in (*c.all_subdirs, c.ios_dir)
+        subdir for ms in media_sources for subdir in (*ms.all_subdirs, ms.ios_dir)
     )
 
 
@@ -125,22 +125,22 @@ def _export_other(album_dir: Path, target_dir: Path) -> int:
 
 
 def _export_ios_main_only(album_dir: Path, target_dir: Path) -> int:
-    """Export browsable dirs for all contributors."""
+    """Export browsable dirs for all media sources."""
     target_dir.mkdir(parents=True, exist_ok=True)
     return sum(
         _copy_dir(album_dir / src_name, target_dir / dst_name)
-        for contrib in discover_contributors(album_dir)
-        for src_name, dst_name in _main_dirs(contrib)
+        for ms in discover_media_sources(album_dir)
+        for src_name, dst_name in _main_dirs(ms)
     )
 
 
 def _export_ios_main_jpg_only(album_dir: Path, target_dir: Path) -> int:
-    """Export JPEG + video dirs for all contributors."""
+    """Export JPEG + video dirs for all media sources."""
     target_dir.mkdir(parents=True, exist_ok=True)
     return sum(
         _copy_dir(album_dir / src_name, target_dir / dst_name)
-        for contrib in discover_contributors(album_dir)
-        for src_name, dst_name in _main_jpg_dirs(contrib)
+        for ms in discover_media_sources(album_dir)
+        for src_name, dst_name in _main_jpg_dirs(ms)
     )
 
 
@@ -150,31 +150,31 @@ def _export_ios_full_managed(
     *,
     link_mode: LinkMode,
 ) -> int:
-    """Export archival + JPEG dirs, then recreate browsable dirs for all contributors."""
+    """Export archival + JPEG dirs, then recreate browsable dirs for all media sources."""
     target_dir.mkdir(parents=True, exist_ok=True)
-    contributors = discover_contributors(album_dir)
+    media_sources = discover_media_sources(album_dir)
 
     copied = sum(
         _copy_dir(album_dir / d, target_dir / d)
-        for contrib in contributors
-        for d in _full_copy_dirs(contrib)
+        for ms in media_sources
+        for d in _full_copy_dirs(ms)
         if (album_dir / d).is_dir()
     )
 
-    # Only rebuild browsable dirs for iOS contributors (they have archival sources).
-    # Plain contributors' browsable dirs are already copied as-is above.
-    for contrib in (c for c in contributors if c.is_ios):
+    # Only rebuild browsable dirs for iOS media sources (they have archival sources).
+    # Plain media sources' browsable dirs are already copied as-is above.
+    for ms in (m for m in media_sources if m.is_ios):
         heic_result = refresh_main_dir(
-            target_dir / contrib.orig_img_dir,
-            target_dir / contrib.edit_img_dir,
-            target_dir / contrib.img_dir,
+            target_dir / ms.orig_img_dir,
+            target_dir / ms.edit_img_dir,
+            target_dir / ms.img_dir,
             media_extensions=IMG_EXTENSIONS,
             link_mode=link_mode,
         )
         mov_result = refresh_main_dir(
-            target_dir / contrib.orig_vid_dir,
-            target_dir / contrib.edit_vid_dir,
-            target_dir / contrib.vid_dir,
+            target_dir / ms.orig_vid_dir,
+            target_dir / ms.edit_vid_dir,
+            target_dir / ms.vid_dir,
             media_extensions=VID_EXTENSIONS,
             link_mode=link_mode,
         )
@@ -192,7 +192,7 @@ def _export_ios_full(
     """Export full-managed content plus unmanaged files and directories."""
     copied = _export_ios_full_managed(album_dir, target_dir, link_mode=link_mode)
 
-    managed = _all_managed_subdirs(discover_contributors(album_dir))
+    managed = _all_managed_subdirs(discover_media_sources(album_dir))
     for entry in sorted(os.listdir(album_dir)):
         if entry.startswith(".") or entry in managed:
             continue

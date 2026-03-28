@@ -13,15 +13,15 @@ Import photos and videos from an iOS device via macOS Image Capture into an orga
 - Batch import across multiple albums (`image-capture-all`)
 - Dry-run mode for all operations
 
-## Contributors
+## Media Sources
 
-Albums support multiple **contributors** — named sources of photos from different people or devices.
+Albums support multiple **media sources** — named sources of photos from different people or devices.
 
-- **iOS contributors** (`ios-{name}/`): imported via Image Capture, with archival and browsable directories
-- **Plain contributors** (`{name}-img/`, `{name}-vid/`): photos from non-iOS sources (other cameras, shared files)
-- The default contributor is `main`; additional contributors are detected automatically
-- Each contributor gets its own set of browsable directories (`{name}-img/`, `{name}-vid/`, `{name}-jpg/`)
-- JPEG conversion applies to all contributors; iOS-specific checks and fixes apply only to iOS contributors
+- **iOS media sources** (`ios-{name}/`): imported via Image Capture, with archival and browsable directories
+- **Plain media sources** (`{name}-img/`, `{name}-vid/`): photos from non-iOS sources (other cameras, shared files)
+- The default media source is `main`; additional media sources are detected automatically
+- Each media source gets its own set of browsable directories (`{name}-img/`, `{name}-vid/`, `{name}-jpg/`)
+- JPEG conversion applies to all media sources; iOS-specific checks and fixes apply only to iOS media sources
 
 ## Album Naming Conventions
 
@@ -77,7 +77,7 @@ Repair and maintain iOS album consistency with targeted fix commands.
 
 Batch operations across multiple albums under a directory.
 
-- **`gallery list-albums`**: List all discovered albums with parsed metadata (date, title, series, location, contributors); supports text and CSV output formats
+- **`gallery list-albums`**: List all discovered albums with parsed metadata (date, title, series, location, media sources); supports text and CSV output formats
 - **`gallery check`**: Check all albums (integrity, naming conventions, EXIF timestamps, cross-album date collisions)
 - **`gallery fix`**: Apply fixes to all albums
 - **`gallery fix-ios`**: Apply iOS-specific fixes to all iOS albums

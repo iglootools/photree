@@ -22,8 +22,8 @@ from pathlib import Path
 
 from ..fsprotocol import (
     ALBUM_DATE_RE,
-    Contributor,
-    discover_contributors,
+    MediaSource,
+    discover_media_sources,
     find_files_by_number,
     find_files_by_stem,
     img_number,
@@ -453,7 +453,7 @@ def _timestamp_matches_album_date_exactly(
 def _resolve_upstream_files(
     album_dir: Path,
     file_path: Path,
-    contributors: list[Contributor],
+    media_sources: list[MediaSource],
 ) -> tuple[tuple[str, ...], bool]:
     """Find upstream source files for a browsable file.
 
@@ -465,22 +465,22 @@ def _resolve_upstream_files(
     dir_part = str(Path(rel).parent)
     filename = file_path.name
 
-    # Find the contributor that owns this directory
-    contrib = next(
-        (c for c in contributors if dir_part in (c.jpg_dir, c.vid_dir, c.img_dir)),
+    # Find the media source that owns this directory
+    ms = next(
+        (m for m in media_sources if dir_part in (m.jpg_dir, m.vid_dir, m.img_dir)),
         None,
     )
-    if contrib is None:
+    if ms is None:
         return ((), False)
 
     is_video = file_ext(filename) in VID_EXTENSIONS
 
-    if contrib.is_ios:
+    if ms.is_ios:
         number = img_number(filename)
         if is_video:
-            dirs = (contrib.orig_vid_dir, contrib.edit_vid_dir)
+            dirs = (ms.orig_vid_dir, ms.edit_vid_dir)
         else:
-            dirs = (contrib.orig_img_dir, contrib.edit_img_dir)
+            dirs = (ms.orig_img_dir, ms.edit_img_dir)
         upstream = [
             f"{d}/{uf}"
             for d in dirs
@@ -490,11 +490,11 @@ def _resolve_upstream_files(
     else:
         stem = Path(filename).stem
         if is_video:
-            dirs = (contrib.vid_dir,)
+            dirs = (ms.vid_dir,)
         else:
             # Include both img (source of truth) and jpg (derived) so the
             # exiftool fix command updates all files in one go.
-            dirs = (contrib.img_dir, contrib.jpg_dir)
+            dirs = (ms.img_dir, ms.jpg_dir)
         upstream = [
             f"{d}/{uf}"
             for d in dirs
@@ -502,7 +502,7 @@ def _resolve_upstream_files(
             for uf in find_files_by_stem({stem}, album_dir / d)
         ]
 
-    return (tuple(upstream), contrib.is_ios)
+    return (tuple(upstream), ms.is_ios)
 
 
 def check_exif_date_match(
@@ -525,7 +525,7 @@ def check_exif_date_match(
     if not file_timestamps:
         return None
 
-    contributors = discover_contributors(album_dir)
+    media_sources = discover_media_sources(album_dir)
 
     mismatches = tuple(
         ExifMismatch(
@@ -536,7 +536,7 @@ def check_exif_date_match(
         )
         for f, ts in file_timestamps
         if not _timestamp_in_album_range(ts, album_date)
-        for upstream, is_ios in [_resolve_upstream_files(album_dir, f, contributors)]
+        for upstream, is_ios in [_resolve_upstream_files(album_dir, f, media_sources)]
     )
 
     # For single-day albums, at least one file must match the album date exactly.

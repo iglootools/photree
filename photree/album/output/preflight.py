@@ -9,7 +9,7 @@ from rich.markup import escape
 from . import CHECK, CROSS, WARNING
 from .troubleshoot import suggest_exif_fixes, suggest_fixes
 from ..naming import AlbumNamingResult, BatchNamingResult
-from ..preflight import AlbumContributorSummary, AlbumPreflightResult
+from ..preflight import AlbumMediaSourceSummary, AlbumPreflightResult
 
 
 def sips_check(available: bool) -> str:
@@ -40,14 +40,14 @@ def exiftool_troubleshoot() -> str:
 
 
 def album_type_check(album_type: str) -> str:
-    """Deprecated — use contributors_check instead."""
+    """Deprecated — use media_sources_check instead."""
     return f"{CHECK} album type: {album_type}"
 
 
-def contributors_check(summary: AlbumContributorSummary) -> str:
-    if not summary.contributors:
-        return f"{CROSS} contributors: none detected"
-    return f"{CHECK} contributors: {summary.description}"
+def media_sources_check(summary: AlbumMediaSourceSummary) -> str:
+    if not summary.media_sources:
+        return f"{CROSS} media sources: none detected"
+    return f"{CHECK} media sources: {summary.description}"
 
 
 def album_dir_check(
@@ -141,7 +141,7 @@ def format_album_preflight_checks(
         [
             sips_check(result.sips_available),
             exiftool_check(result.exiftool_available),
-            contributors_check(result.contributor_summary),
+            media_sources_check(result.media_source_summary),
             *(
                 album_dir_check(
                     result.dir_check.present,
@@ -149,7 +149,7 @@ def format_album_preflight_checks(
                     result.dir_check.optional_present,
                     result.dir_check.optional_absent,
                 ).splitlines()
-                if result.contributor_summary.has_ios
+                if result.media_source_summary.has_ios
                 else []
             ),
             *(
@@ -185,7 +185,7 @@ def format_fatal_warnings(
     lines = ["Failed due to fatal warning flags:"]
 
     if fatal_sidecar and result.ios_integrity is not None:
-        for _, contrib_result in result.ios_integrity.by_contributor:
+        for _, contrib_result in result.ios_integrity.by_media_source:
             lines.extend(
                 f"  {CROSS} sidecars: {w}"
                 for w in contrib_result.sidecars.missing_sidecars
@@ -212,7 +212,7 @@ def format_album_preflight_troubleshoot(
     all_suggestions = [
         suggestion
         for _, contrib_result in (
-            result.ios_integrity.by_contributor
+            result.ios_integrity.by_media_source
             if result.ios_integrity is not None
             else ()
         )

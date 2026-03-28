@@ -11,9 +11,9 @@ from photree.album.ios_fixes import (
     rm_orphan_sidecar,
     rm_upstream,
 )
-from photree.fsprotocol import MAIN_CONTRIBUTOR
+from photree.fsprotocol import MAIN_MEDIA_SOURCE
 
-MC = MAIN_CONTRIBUTOR
+MC = MAIN_MEDIA_SOURCE
 
 
 def _setup_dir(path: Path, filenames: list[str]) -> Path:

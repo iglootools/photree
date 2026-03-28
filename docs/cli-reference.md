@@ -86,10 +86,10 @@ $ photree album check [OPTIONS]
 
 ### `photree album fix`
 
-Fix album issues. Works on all contributor types (iOS + plain).
+Fix album issues. Works on all msutor types (iOS + plain).
 
---refresh-jpeg: Deletes all files in {contributor}-jpg/ and re-converts
-every file from {contributor}-img/. HEIC/HEIF/DNG files are converted
+--refresh-jpeg: Deletes all files in {msutor}-jpg/ and re-converts
+every file from {msutor}-img/. HEIC/HEIF/DNG files are converted
 via sips; JPEG/PNG files are copied as-is.
 
 **Usage**:
@@ -101,7 +101,7 @@ $ photree album fix [OPTIONS]
 **Options**:
 
 * `-a, --album-dir DIRECTORY`: Album directory to fix.  [default: .]
-* `--refresh-jpeg`: Refresh {contributor}-jpg/ from {contributor}-img/ for all contributors.
+* `--refresh-jpeg`: Refresh {msutor}-jpg/ from {msutor}-img/ for all media_sources.
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
@@ -235,7 +235,7 @@ $ photree album fix-exif [OPTIONS] [FILES]...
 Move media files and all their variants from one album to another.
 
 For each specified file, resolves all associated variants by image number
-(iOS) or filename stem (plain) across the contributor&#x27;s directory structure
+(iOS) or filename stem (plain) across the msutor&#x27;s directory structure
 and moves them all. Any variant file can be used to identify the media.
 
 **Usage**:
@@ -260,7 +260,7 @@ $ photree album mv-media [OPTIONS] FILES...
 Remove media files and all their variants from an album.
 
 For each specified file, resolves all associated variants by image number
-(iOS) or filename stem (plain) across the contributor&#x27;s directory structure
+(iOS) or filename stem (plain) across the msutor&#x27;s directory structure
 and removes them all. Any variant file can be used to identify the media.
 
 **Usage**:
@@ -438,7 +438,7 @@ $ photree gallery [OPTIONS] COMMAND [ARGS]...
 
 ### `photree gallery list-albums`
 
-List all discovered albums with their metadata and contributors.
+List all discovered albums with their metadata and media sources.
 
 **Usage**:
 
@@ -450,7 +450,7 @@ $ photree gallery list-albums [OPTIONS]
 
 * `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
 * `-a, --album-dir DIRECTORY`: Album directory (repeatable).
-* `--metadata / --no-metadata`: Show parsed album metadata and contributors (default: enabled).  [default: metadata]
+* `--metadata / --no-metadata`: Show parsed album metadata and media sources (default: enabled).  [default: metadata]
 * `--format TEXT`: Output format: text (default) or csv.  [default: text]
 * `--help`: Show this message and exit.
 
@@ -481,7 +481,7 @@ $ photree gallery check [OPTIONS]
 
 Fix all albums under a directory or from an explicit list.
 
-Works on all contributor types (iOS + plain). At least one fix flag
+Works on all media source types (iOS + plain). At least one fix flag
 must be specified.
 
 **Usage**:
@@ -494,7 +494,7 @@ $ photree gallery fix [OPTIONS]
 
 * `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
 * `-a, --album-dir DIRECTORY`: Album directory to fix (repeatable).
-* `--refresh-jpeg`: Refresh {contributor}-jpg/ from {contributor}-img/ for all contributors.
+* `--refresh-jpeg`: Refresh {name}-jpg/ from {name}-img/ for all media sources.
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
@@ -656,7 +656,7 @@ $ photree import image-capture [OPTIONS]
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `-f, --force`: Skip preflight checks on the source directory.
 * `--skip-heic-to-jpeg`: Skip HEIC-to-JPEG conversion (and the sips availability check).
-* `--contributor TEXT`: Target contributor within the album (default: main).  [default: main]
+* `--media-source TEXT`: Target media source within the album (default: main).  [default: main]
 * `--help`: Show this message and exit.
 
 ### `photree import image-capture-all`
