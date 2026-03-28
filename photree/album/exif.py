@@ -17,7 +17,7 @@ from rich.console import Console
 from ..fsprotocol import (
     IMG_EXTENSIONS,
     VID_EXTENSIONS,
-    discover_contributors,
+    discover_media_sources,
 )
 from ..uiconventions import CHECK
 
@@ -75,12 +75,12 @@ def discover_media_files(album_dir: Path) -> list[Path]:
     ``{name}-jpg/`` and ``{name}-vid/`` directories.  For other albums,
     searches recursively from the album root.
     """
-    contributors = discover_contributors(album_dir)
-    if contributors:
+    media_sources = discover_media_sources(album_dir)
+    if media_sources:
         search_dirs = [
             album_dir / d
-            for c in contributors
-            for d in (c.jpg_dir, c.vid_dir)
+            for ms in media_sources
+            for d in (ms.jpg_dir, ms.vid_dir)
             if (album_dir / d).is_dir()
         ]
     else:

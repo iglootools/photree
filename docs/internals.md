@@ -121,24 +121,24 @@ rules apply when an album set uses part numbering:
 
 A directory is recognized as a photree album when it contains:
 1. A `.photree/` directory (album marker), **and**
-2. At least one contributor (iOS or plain)
+2. At least one media source (iOS or plain)
 
 The `.photree/` directory stores album metadata such as the original directory
 name backup (`title.bkp`).
 
-### Contributors
+### Media Sources
 
-An album can have multiple **contributors** — named sources of photos. Each
-contributor is either **iOS** (imported via Image Capture) or **plain** (photos
+An album can have multiple **media sources** — named sources of photos. Each
+media source is either **iOS** (imported via Image Capture) or **plain** (photos
 from other sources like other people's cameras).
 
-**iOS contributor** (`ios-{name}/`):
+**iOS media source** (`ios-{name}/`):
 - Detected by: `ios-{name}/` directory containing `orig-img/` or `orig-vid/`
 - Has archival directories (originals, edits, sidecars)
 - Has browsable directories (best version, JPEG conversion)
 - Integrity checks, optimization, and iOS-specific fixes apply
 
-**Plain contributor** (`{name}-img/` or `{name}-vid/`):
+**Plain media source** (`{name}-img/` or `{name}-vid/`):
 - Detected by: `{name}-img/` or `{name}-vid/` directory without a corresponding `ios-{name}/`
 - Has browsable directories only (no archival originals)
 - No filename naming requirements (no `IMG_` prefix convention)
@@ -146,7 +146,7 @@ from other sources like other people's cameras).
 - JPEG conversion applies, but iOS-specific checks and fixes do not
 - Browsable directories are the source of truth — never rebuilt
 
-The default contributor is named `main`.
+The default media source is named `main`.
 
 ### Directory Structure
 
@@ -156,7 +156,7 @@ The default contributor is named `main`.
     title.bkp             original directory name backup
   to-import/              user selection files (workflow input)
 
-  # iOS contributor "main"
+  # iOS media source "main"
   ios-main/               archival files
     orig-img/             originals + AAE sidecars
     edit-img/             edited versions (IMG_E*) + sidecars (IMG_O*)
@@ -166,7 +166,7 @@ The default contributor is named `main`.
   main-jpg/               JPEG for sharing/web/compatibility
   main-vid/               best version video
 
-  # iOS contributor "bruno" (additional contributor)
+  # iOS media source "bruno" (additional media source)
   ios-bruno/              archival files from bruno
     orig-img/
     edit-img/
@@ -176,7 +176,7 @@ The default contributor is named `main`.
   bruno-jpg/              JPEG from bruno
   bruno-vid/              best version video from bruno
 
-  # Plain contributor "nelu" (non-iOS, browsable only)
+  # Plain media source "nelu" (non-iOS, browsable only)
   nelu-img/               images from nelu
   nelu-vid/               videos from nelu
   nelu-jpg/               JPEG versions of nelu's images
@@ -184,11 +184,11 @@ The default contributor is named `main`.
 
 ### Browsable Directories
 
-For each contributor, the `{name}-img/`, `{name}-vid/`, and `{name}-jpg/`
+For each media source, the `{name}-img/`, `{name}-vid/`, and `{name}-jpg/`
 directories at the top level are the browsable/shareable versions:
 
-- **`{name}-img/`**: For iOS contributors, built from the best available source
-  (edited if present, otherwise original). For plain contributors, this is the
+- **`{name}-img/`**: For iOS media sources, built from the best available source
+  (edited if present, otherwise original). For plain media sources, this is the
   source of truth.
 - **`{name}-vid/`**: Same logic as `{name}-img/` but for videos.
 - **`{name}-jpg/`**: JPEG versions for sharing/web. Generated from `{name}-img/`

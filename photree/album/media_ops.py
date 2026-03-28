@@ -1,4 +1,4 @@
-"""Move and remove media files across album contributor directories.
+"""Move and remove media files across album media source directories.
 
 Given relative file paths (as reported by ``album check``), resolves all
 associated variants by image number (iOS) or filename stem (plain) and
@@ -12,9 +12,9 @@ from pathlib import Path
 
 from ..fsprotocol import (
     VID_EXTENSIONS,
-    Contributor,
+    MediaSource,
     delete_files,
-    discover_contributors,
+    discover_media_sources,
     file_ext,
     find_files_by_number,
     find_files_by_stem,
@@ -40,18 +40,18 @@ class MediaOpResult:
 
 
 # ---------------------------------------------------------------------------
-# Directory-to-contributor mapping
+# Directory-to-media-source mapping
 # ---------------------------------------------------------------------------
 
 
-def _build_dir_to_contributor(
-    contributors: list[Contributor],
-) -> dict[str, Contributor]:
-    """Map every contributor subdirectory name to its contributor."""
-    mapping: dict[str, Contributor] = {}
-    for c in contributors:
-        for d in c.all_subdirs:
-            mapping[d] = c
+def _build_dir_to_media_source(
+    media_sources: list[MediaSource],
+) -> dict[str, MediaSource]:
+    """Map every media source subdirectory name to its media source."""
+    mapping: dict[str, MediaSource] = {}
+    for ms in media_sources:
+        for d in ms.all_subdirs:
+            mapping[d] = ms
     return mapping
 
 
@@ -60,21 +60,21 @@ def _build_dir_to_contributor(
 # ---------------------------------------------------------------------------
 
 
-def _dirs_for_images(contrib: Contributor) -> tuple[str, ...]:
-    if contrib.is_ios:
+def _dirs_for_images(ms: MediaSource) -> tuple[str, ...]:
+    if ms.is_ios:
         return (
-            contrib.orig_img_dir,
-            contrib.edit_img_dir,
-            contrib.img_dir,
-            contrib.jpg_dir,
+            ms.orig_img_dir,
+            ms.edit_img_dir,
+            ms.img_dir,
+            ms.jpg_dir,
         )
-    return (contrib.img_dir, contrib.jpg_dir)
+    return (ms.img_dir, ms.jpg_dir)
 
 
-def _dirs_for_videos(contrib: Contributor) -> tuple[str, ...]:
-    if contrib.is_ios:
-        return (contrib.orig_vid_dir, contrib.edit_vid_dir, contrib.vid_dir)
-    return (contrib.vid_dir,)
+def _dirs_for_videos(ms: MediaSource) -> tuple[str, ...]:
+    if ms.is_ios:
+        return (ms.orig_vid_dir, ms.edit_vid_dir, ms.vid_dir)
+    return (ms.vid_dir,)
 
 
 def _is_video(filename: str) -> bool:
@@ -90,8 +90,8 @@ def _find_matching_files(
 ) -> list[str]:
     """Find files in *album_dir/subdir* matching *keys*.
 
-    When *use_stem* is True, matches by filename stem (plain contributors).
-    Otherwise matches by image number (iOS contributors).
+    When *use_stem* is True, matches by filename stem (plain media sources).
+    Otherwise matches by image number (iOS media sources).
     """
     directory = album_dir / subdir
     if not directory.is_dir():
@@ -108,17 +108,17 @@ def resolve_variants(
     """Resolve all file variants for the given relative paths.
 
     Returns ``[(subdir, [filename, ...])]`` with all variant files found
-    across the contributor directory structure.
+    across the media source directory structure.
     """
-    contributors = discover_contributors(album_dir)
-    if not contributors:
-        raise ValueError(f"No contributors found in {album_dir}")
+    media_sources = discover_media_sources(album_dir)
+    if not media_sources:
+        raise ValueError(f"No media sources found in {album_dir}")
 
-    dir_to_contrib = _build_dir_to_contributor(contributors)
+    dir_to_ms = _build_dir_to_media_source(media_sources)
 
-    # Group input paths by (contributor, is_video) → set of match keys
+    # Group input paths by (media_source, is_video) → set of match keys
     groups: dict[tuple[str, bool], set[str]] = {}
-    contrib_by_name: dict[str, Contributor] = {}
+    ms_by_name: dict[str, MediaSource] = {}
 
     for rel_path in relative_paths:
         parts = Path(rel_path).parts
@@ -131,26 +131,26 @@ def resolve_variants(
         subdir = str(Path(*parts[:-1]))
         filename = parts[-1]
 
-        contrib = dir_to_contrib.get(subdir)
-        if contrib is None:
+        ms = dir_to_ms.get(subdir)
+        if ms is None:
             raise ValueError(
-                f'directory "{subdir}" does not match any contributor in {album_dir}'
+                f'directory "{subdir}" does not match any media source in {album_dir}'
             )
 
         video = _is_video(filename)
-        use_stem = not contrib.is_ios
+        use_stem = not ms.is_ios
         key = Path(filename).stem if use_stem else img_number(filename)
 
-        group_key = (contrib.name, video)
+        group_key = (ms.name, video)
         groups.setdefault(group_key, set()).add(key)
-        contrib_by_name[contrib.name] = contrib
+        ms_by_name[ms.name] = ms
 
     # Resolve variants across all directories
     result: list[tuple[str, list[str]]] = []
-    for (contrib_name, video), keys in groups.items():
-        contrib = contrib_by_name[contrib_name]
-        dirs = _dirs_for_videos(contrib) if video else _dirs_for_images(contrib)
-        use_stem = not contrib.is_ios
+    for (ms_name, video), keys in groups.items():
+        ms = ms_by_name[ms_name]
+        dirs = _dirs_for_videos(ms) if video else _dirs_for_images(ms)
+        use_stem = not ms.is_ios
 
         for subdir in dirs:
             files = _find_matching_files(album_dir, subdir, keys, use_stem=use_stem)

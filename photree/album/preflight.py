@@ -10,10 +10,10 @@ from enum import StrEnum
 from pathlib import Path
 
 from ..fsprotocol import (
-    Contributor,
-    MAIN_CONTRIBUTOR,
+    MediaSource,
+    MAIN_MEDIA_SOURCE,
     discover_albums,  # noqa: F401 — re-exported for backward compat
-    discover_contributors,
+    discover_media_sources,
 )
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
@@ -38,27 +38,29 @@ def check_sips_available() -> bool:
 
 
 @dataclass(frozen=True)
-class AlbumContributorSummary:
-    """Summary of contributors discovered in an album."""
+class AlbumMediaSourceSummary:
+    """Summary of media sources discovered in an album."""
 
-    contributors: tuple[Contributor, ...]
+    media_sources: tuple[MediaSource, ...]
 
     @property
     def has_ios(self) -> bool:
-        return any(c.is_ios for c in self.contributors)
+        return any(ms.is_ios for ms in self.media_sources)
 
     @property
     def has_plain(self) -> bool:
-        return any(not c.is_ios for c in self.contributors)
+        return any(not ms.is_ios for ms in self.media_sources)
 
     @property
-    def ios_contributors(self) -> tuple[Contributor, ...]:
-        return tuple(c for c in self.contributors if c.is_ios)
+    def ios_media_sources(self) -> tuple[MediaSource, ...]:
+        return tuple(ms for ms in self.media_sources if ms.is_ios)
 
     @property
     def description(self) -> str:
         """Human-readable summary, e.g. ``main (ios), bruno (plain)``."""
-        return ", ".join(f"{c.name} ({c.contributor_type})" for c in self.contributors)
+        return ", ".join(
+            f"{ms.name} ({ms.media_source_type})" for ms in self.media_sources
+        )
 
 
 # Backward compat — kept for exporter and tests that still import it.
@@ -69,9 +71,9 @@ class AlbumType(StrEnum):
 
 
 def detect_album_type(album_dir: Path) -> AlbumType:
-    """Detect album type. Deprecated — use discover_contributors() instead."""
-    contribs = discover_contributors(album_dir)
-    if any(c.is_ios for c in contribs):
+    """Detect album type. Deprecated — use discover_media_sources() instead."""
+    media_sources = discover_media_sources(album_dir)
+    if any(ms.is_ios for ms in media_sources):
         return AlbumType.IOS
     else:
         return AlbumType.OTHER
@@ -104,10 +106,10 @@ def _has_any(album_dir: Path, group: tuple[str, ...]) -> bool:
 def check_ios_album_dir(album_dir: Path) -> AlbumDirCheck:
     """Check which expected iOS album subdirectories are present in *album_dir*.
 
-    Iterates over all contributors (``ios-*`` directories) and checks each
-    contributor's directory groups independently. Results are aggregated.
+    Iterates over all media sources (``ios-*`` directories) and checks each
+    media source's directory groups independently. Results are aggregated.
 
-    Per contributor, at least one directory group must be fully present:
+    Per media source, at least one directory group must be fully present:
     - Image group: ``ios-{name}/orig-img``, ``{name}-img``, ``{name}-jpg``
     - Video group: ``ios-{name}/orig-vid``, ``{name}-vid``
 
@@ -115,12 +117,12 @@ def check_ios_album_dir(album_dir: Path) -> AlbumDirCheck:
     Directories from absent groups are reported as optional.
     Optional directories (``edit-img``, ``edit-vid``) are always informational.
     """
-    contributors = discover_contributors(album_dir)
-    if not contributors:
-        # No contributors found — report missing for main contributor
+    media_sources = discover_media_sources(album_dir)
+    if not media_sources:
+        # No media sources found — report missing for main media source
         return AlbumDirCheck(
             present=(),
-            missing=MAIN_CONTRIBUTOR.required_subdirs,
+            missing=MAIN_MEDIA_SOURCE.required_subdirs,
         )
 
     all_present: list[str] = []
@@ -128,35 +130,35 @@ def check_ios_album_dir(album_dir: Path) -> AlbumDirCheck:
     all_optional_present: list[str] = []
     all_optional_absent: list[str] = []
 
-    for contrib in contributors:
-        image_present = _is_group_present(album_dir, contrib.image_subdirs)
-        video_present = _is_group_present(album_dir, contrib.video_subdirs)
+    for ms in media_sources:
+        image_present = _is_group_present(album_dir, ms.image_subdirs)
+        video_present = _is_group_present(album_dir, ms.video_subdirs)
 
         required = [
             *(
-                contrib.image_subdirs
-                if image_present or _has_any(album_dir, contrib.image_subdirs)
+                ms.image_subdirs
+                if image_present or _has_any(album_dir, ms.image_subdirs)
                 else ()
             ),
             *(
-                contrib.video_subdirs
-                if video_present or _has_any(album_dir, contrib.video_subdirs)
+                ms.video_subdirs
+                if video_present or _has_any(album_dir, ms.video_subdirs)
                 else ()
             ),
         ]
 
         if not required:
-            required = list(contrib.required_subdirs)
+            required = list(ms.required_subdirs)
 
         optional_from_groups = [
             *(
-                contrib.image_subdirs
-                if not image_present and not _has_any(album_dir, contrib.image_subdirs)
+                ms.image_subdirs
+                if not image_present and not _has_any(album_dir, ms.image_subdirs)
                 else ()
             ),
             *(
-                contrib.video_subdirs
-                if not video_present and not _has_any(album_dir, contrib.video_subdirs)
+                ms.video_subdirs
+                if not video_present and not _has_any(album_dir, ms.video_subdirs)
                 else ()
             ),
         ]
@@ -165,12 +167,12 @@ def check_ios_album_dir(album_dir: Path) -> AlbumDirCheck:
         all_missing.extend(d for d in required if not (album_dir / d).is_dir())
         all_optional_present.extend(
             d
-            for d in (*contrib.optional_subdirs, *optional_from_groups)
+            for d in (*ms.optional_subdirs, *optional_from_groups)
             if (album_dir / d).is_dir()
         )
         all_optional_absent.extend(
             d
-            for d in (*contrib.optional_subdirs, *optional_from_groups)
+            for d in (*ms.optional_subdirs, *optional_from_groups)
             if not (album_dir / d).is_dir()
         )
 
@@ -193,7 +195,7 @@ def check_other_album_dir(album_dir: Path) -> AlbumDirCheck:
 
 def check_album_dir(
     album_dir: Path,
-    expected: tuple[str, ...] = MAIN_CONTRIBUTOR.all_subdirs,
+    expected: tuple[str, ...] = MAIN_MEDIA_SOURCE.all_subdirs,
 ) -> AlbumDirCheck:
     """Check which expected subdirectories are present in *album_dir*.
 
@@ -211,16 +213,16 @@ class AlbumPreflightResult:
 
     sips_available: bool
     exiftool_available: bool
-    contributor_summary: AlbumContributorSummary
+    media_source_summary: AlbumMediaSourceSummary
     dir_check: AlbumDirCheck
     ios_integrity: IosAlbumFullIntegrityResult | None = None
     jpeg_check: AlbumJpegIntegrityResult | None = None
     naming: AlbumNamingResult | None = None
 
-    # Backward compat — derived from contributor_summary
+    # Backward compat — derived from media_source_summary
     @property
     def album_type(self) -> AlbumType:
-        if self.contributor_summary.has_ios:
+        if self.media_source_summary.has_ios:
             return AlbumType.IOS
         else:
             return AlbumType.OTHER
@@ -318,8 +320,8 @@ def run_album_check(
     Accepts ``sips_available`` and ``exiftool`` as parameters so
     system checks can be done once for batch operations.
     """
-    contribs = discover_contributors(album_dir)
-    summary = AlbumContributorSummary(contributors=tuple(contribs))
+    media_sources = discover_media_sources(album_dir)
+    summary = AlbumMediaSourceSummary(media_sources=tuple(media_sources))
 
     if summary.has_ios:
         dir_check = check_ios_album_dir(album_dir)
@@ -332,8 +334,8 @@ def run_album_check(
         dir_check = check_other_album_dir(album_dir)
         ios_integrity = None
 
-    # JPEG check runs for ALL contributors (iOS + plain)
-    jpeg_check = check_album_jpeg_integrity(album_dir) if contribs else None
+    # JPEG check runs for ALL media sources (iOS + plain)
+    jpeg_check = check_album_jpeg_integrity(album_dir) if media_sources else None
 
     naming = None
     if check_naming_flag:
@@ -353,7 +355,7 @@ def run_album_check(
     return AlbumPreflightResult(
         sips_available=sips_available,
         exiftool_available=exiftool is not None,
-        contributor_summary=summary,
+        media_source_summary=summary,
         dir_check=dir_check,
         ios_integrity=ios_integrity,
         jpeg_check=jpeg_check,

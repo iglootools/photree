@@ -16,13 +16,14 @@ from ..album import (
     optimize as album_optimize,
     output as album_output,
     preflight as album_preflight,
+    stats as album_stats,
 )
 from ..fsprotocol import (
     IMG_EXTENSIONS,
     LinkMode,
     VID_EXTENSIONS,
     discover_albums,
-    discover_contributors,
+    discover_media_sources,
     display_path,
     list_files,
 )
@@ -61,7 +62,7 @@ def check_cmd(
         typer.Option(
             "--fatal-warnings",
             "-W",
-            help="Treat all warnings as errors (implies --fatal-sidecar and --fatal-exif-date-match).",
+            help="Treat all warnings as errors (implies --fatal-sidecar).",
         ),
     ] = False,
     fatal_sidecar_arg: Annotated[
@@ -74,10 +75,10 @@ def check_cmd(
     fatal_exif_date_match: Annotated[
         bool,
         typer.Option(
-            "--fatal-exif-date-match",
-            help="Treat EXIF date mismatch warnings as errors.",
+            "--fatal-exif-date-match/--no-fatal-exif-date-match",
+            help="Treat EXIF date mismatch warnings as errors (default: enabled).",
         ),
-    ] = False,
+    ] = True,
     check_naming: Annotated[
         bool,
         typer.Option(
@@ -101,11 +102,11 @@ def check_cmd(
     ] = True,
 ) -> None:
     """Check system prerequisites, album directory structure, and file integrity."""
-    # Count unique media numbers across all contributors' orig dirs
+    # Count unique media numbers across all media_sources' orig dirs
     file_count = sum(
         _count_unique_media_numbers(album_dir / c.orig_img_dir, IMG_EXTENSIONS)
         + _count_unique_media_numbers(album_dir / c.orig_vid_dir, VID_EXTENSIONS)
-        for c in discover_contributors(album_dir)
+        for c in discover_media_sources(album_dir)
     )
     progress = (
         SilentProgressBar(total=max(file_count, 1), description="Checking")
@@ -192,7 +193,7 @@ def fix_cmd(
         bool,
         typer.Option(
             "--refresh-jpeg",
-            help="Refresh {contributor}-jpg/ from {contributor}-img/ for all contributors.",
+            help="Refresh {msutor}-jpg/ from {msutor}-img/ for all media_sources.",
         ),
     ] = False,
     dry_run: Annotated[
@@ -204,10 +205,10 @@ def fix_cmd(
         ),
     ] = False,
 ) -> None:
-    """Fix album issues. Works on all contributor types (iOS + plain).
+    """Fix album issues. Works on all msutor types (iOS + plain).
 
-    --refresh-jpeg: Deletes all files in {contributor}-jpg/ and re-converts
-    every file from {contributor}-img/. HEIC/HEIF/DNG files are converted
+    --refresh-jpeg: Deletes all files in {msutor}-jpg/ and re-converts
+    every file from {msutor}-img/. HEIC/HEIF/DNG files are converted
     via sips; JPEG/PNG files are copied as-is.
     """
     if not refresh_jpeg:
@@ -219,14 +220,14 @@ def fix_cmd(
 
     if refresh_jpeg:
         _check_sips_or_exit()
-        contributors = discover_contributors(album_dir)
-        if not contributors:
-            typer.echo("No contributors found in this album.", err=True)
+        media_sources = discover_media_sources(album_dir)
+        if not media_sources:
+            typer.echo("No media_sources found in this album.", err=True)
             raise typer.Exit(code=1)
 
         file_count = sum(
             len(list_files(album_dir / c.img_dir))
-            for c in contributors
+            for c in media_sources
             if (album_dir / c.img_dir).is_dir()
         )
         progress = FileProgressBar(
@@ -237,13 +238,13 @@ def fix_cmd(
         total_converted = 0
         total_copied = 0
         total_skipped = 0
-        for contrib in contributors:
-            if not (album_dir / contrib.img_dir).is_dir():
+        for ms in media_sources:
+            if not (album_dir / ms.img_dir).is_dir():
                 continue
-            prefix = f"{contrib.img_dir}/"
+            prefix = f"{ms.img_dir}/"
             result = album_fixes.refresh_jpeg(
                 album_dir,
-                contrib,
+                ms,
                 dry_run=dry_run,
                 on_file_start=lambda name, p=prefix: progress.on_start(f"{p}{name}"),
                 on_file_end=lambda name, ok, p=prefix: progress.on_end(
@@ -261,6 +262,7 @@ def fix_cmd(
         )
 
 
+@album_app.command("optimize")
 def optimize_cmd(
     album_dir: Annotated[
         Path,
@@ -319,7 +321,7 @@ def optimize_cmd(
         file_count = sum(
             _count_unique_media_numbers(album_dir / c.orig_img_dir, IMG_EXTENSIONS)
             + _count_unique_media_numbers(album_dir / c.orig_vid_dir, VID_EXTENSIONS)
-            for c in discover_contributors(album_dir)
+            for c in discover_media_sources(album_dir)
         )
         progress = (
             SilentProgressBar(total=max(file_count, 1), description="Checking")
@@ -589,11 +591,11 @@ def _run_fix_ios(
     *show_progress* enables progress bars and summary lines.
     Both can be set independently.
     """
-    # Fix-ios operations only apply to iOS contributors
-    contributors = [c for c in discover_contributors(album_dir) if c.is_ios]
+    # Fix-ios operations only apply to iOS media_sources
+    media_sources = [c for c in discover_media_sources(album_dir) if c.is_ios]
 
-    if not contributors:
-        typer.echo("No iOS contributors found in this album.", err=True)
+    if not media_sources:
+        typer.echo("No iOS media_sources found in this album.", err=True)
         return
 
     if refresh_combined:
@@ -616,10 +618,10 @@ def _run_fix_ios(
         total_jpeg_converted = 0
         total_jpeg_copied = 0
         total_jpeg_skipped = 0
-        for contrib in contributors:
+        for ms in media_sources:
             result = ios_fixes.refresh_combined(
                 album_dir,
-                contrib,
+                ms,
                 link_mode=link_mode,
                 dry_run=dry_run,
                 on_stage_start=stage_progress.on_start if stage_progress else None,
@@ -646,7 +648,7 @@ def _run_fix_ios(
         _check_sips_or_exit()
         file_count = sum(
             len(list_files(album_dir / c.img_dir))
-            for c in contributors
+            for c in media_sources
             if (album_dir / c.img_dir).is_dir()
         )
         progress = (
@@ -661,12 +663,12 @@ def _run_fix_ios(
         total_converted = 0
         total_copied = 0
         total_skipped = 0
-        for contrib in contributors:
-            if not (album_dir / contrib.img_dir).is_dir():
+        for ms in media_sources:
+            if not (album_dir / ms.img_dir).is_dir():
                 continue
             result_jpeg = ios_fixes.refresh_jpeg(
                 album_dir,
-                contrib,
+                ms,
                 dry_run=dry_run,
                 log_cwd=log_cwd,
                 on_file_start=progress.on_start if progress else None,
@@ -685,9 +687,9 @@ def _run_fix_ios(
             )
 
     if rm_upstream:
-        for contrib in contributors:
+        for ms in media_sources:
             result_rm = ios_fixes.rm_upstream(
-                album_dir, contrib, dry_run=dry_run, log_cwd=log_cwd
+                album_dir, ms, dry_run=dry_run, log_cwd=log_cwd
             )
             if show_progress:
                 typer.echo(
@@ -702,9 +704,9 @@ def _run_fix_ios(
                 )
 
     if rm_orphan:
-        for contrib in contributors:
+        for ms in media_sources:
             result_orphan = ios_fixes.rm_orphan(
-                album_dir, contrib, dry_run=dry_run, log_cwd=log_cwd
+                album_dir, ms, dry_run=dry_run, log_cwd=log_cwd
             )
             if show_progress:
                 typer.echo(
@@ -717,9 +719,9 @@ def _run_fix_ios(
                 )
 
     if rm_orphan_sidecar:
-        for contrib in contributors:
+        for ms in media_sources:
             result_meta = ios_fixes.rm_orphan_sidecar(
-                album_dir, contrib, dry_run=dry_run, log_cwd=log_cwd
+                album_dir, ms, dry_run=dry_run, log_cwd=log_cwd
             )
             if show_progress:
                 typer.echo(
@@ -727,9 +729,9 @@ def _run_fix_ios(
                 )
 
     if prefer_higher_quality_when_dups:
-        for contrib in contributors:
+        for ms in media_sources:
             result_heic = ios_fixes.prefer_higher_quality_when_dups(
-                album_dir, contrib, dry_run=dry_run, log_cwd=log_cwd
+                album_dir, ms, dry_run=dry_run, log_cwd=log_cwd
             )
             if show_progress:
                 typer.echo(
@@ -753,8 +755,8 @@ def _run_fix_ios(
             "rm-safe": ios_fixes.rm_miscategorized_safe,
             "mv": ios_fixes.mv_miscategorized,
         }[miscat_action]
-        for contrib in contributors:
-            result_miscat = fix_fn(album_dir, contrib, dry_run=dry_run, log_cwd=log_cwd)
+        for ms in media_sources:
+            result_miscat = fix_fn(album_dir, ms, dry_run=dry_run, log_cwd=log_cwd)
             if show_progress:
                 typer.echo(
                     album_output.miscategorized_summary(
@@ -919,7 +921,7 @@ def mv_media_cmd(
     """Move media files and all their variants from one album to another.
 
     For each specified file, resolves all associated variants by image number
-    (iOS) or filename stem (plain) across the contributor's directory structure
+    (iOS) or filename stem (plain) across the msutor's directory structure
     and moves them all. Any variant file can be used to identify the media.
     """
     cwd = Path.cwd()
@@ -973,7 +975,7 @@ def rm_media_cmd(
     """Remove media files and all their variants from an album.
 
     For each specified file, resolves all associated variants by image number
-    (iOS) or filename stem (plain) across the contributor's directory structure
+    (iOS) or filename stem (plain) across the msutor's directory structure
     and removes them all. Any variant file can be used to identify the media.
     """
     if not files:
@@ -991,3 +993,27 @@ def rm_media_cmd(
     typer.echo(
         album_output.media_op_check_suggestions([str(display_path(album_dir, cwd))])
     )
+
+
+@album_app.command("stats")
+def stats_cmd(
+    album_dir: Annotated[
+        Path,
+        typer.Option(
+            "--album-dir",
+            "-a",
+            help="Album directory to analyze.",
+            exists=True,
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ] = Path("."),
+) -> None:
+    """Show disk usage and content statistics for a single album."""
+    try:
+        result = album_stats.compute_album_stats(album_dir)
+    except ValueError as exc:
+        err_console.print(str(exc))
+        raise typer.Exit(code=1) from None
+
+    console.print(album_output.format_album_stats(result))

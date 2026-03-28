@@ -13,15 +13,15 @@ Import photos and videos from an iOS device via macOS Image Capture into an orga
 - Batch import across multiple albums (`image-capture-all`)
 - Dry-run mode for all operations
 
-## Contributors
+## Media Sources
 
-Albums support multiple **contributors** — named sources of photos from different people or devices.
+Albums support multiple **media sources** — named sources of photos from different people or devices.
 
-- **iOS contributors** (`ios-{name}/`): imported via Image Capture, with archival and browsable directories
-- **Plain contributors** (`{name}-img/`, `{name}-vid/`): photos from non-iOS sources (other cameras, shared files)
-- The default contributor is `main`; additional contributors are detected automatically
-- Each contributor gets its own set of browsable directories (`{name}-img/`, `{name}-vid/`, `{name}-jpg/`)
-- JPEG conversion applies to all contributors; iOS-specific checks and fixes apply only to iOS contributors
+- **iOS media sources** (`ios-{name}/`): imported via Image Capture, with archival and browsable directories
+- **Plain media sources** (`{name}-img/`, `{name}-vid/`): photos from non-iOS sources (other cameras, shared files)
+- The default media source is `main`; additional media sources are detected automatically
+- Each media source gets its own set of browsable directories (`{name}-img/`, `{name}-vid/`, `{name}-jpg/`)
+- JPEG conversion applies to all media sources; iOS-specific checks and fixes apply only to iOS media sources
 
 ## Album Naming Conventions
 
@@ -77,7 +77,7 @@ Repair and maintain iOS album consistency with targeted fix commands.
 
 Batch operations across multiple albums under a directory.
 
-- **`gallery list-albums`**: List all discovered albums with parsed metadata (date, title, series, location, contributors); supports text and CSV output formats
+- **`gallery list-albums`**: List all discovered albums with parsed metadata (date, title, series, location, media sources); supports text and CSV output formats
 - **`gallery check`**: Check all albums (integrity, naming conventions, EXIF timestamps, cross-album date collisions)
 - **`gallery fix`**: Apply fixes to all albums
 - **`gallery fix-ios`**: Apply iOS-specific fixes to all iOS albums
@@ -86,21 +86,34 @@ Batch operations across multiple albums under a directory.
 - **`gallery export`**: Batch export to a shared directory
 - All gallery commands accept `--dir` (scan recursively) or `--album-dir` (explicit list)
 
+## Album and Gallery Statistics
+
+Analyze disk usage, file counts, and content breakdowns.
+
+- **`album stats`**: Show statistics for a single album
+- **`gallery stats`**: Show aggregated statistics across all albums, with per-year breakdown
+- **Size columns**: On-Disk (inode-deduplicated), Size (apparent), Archive (`ios-{name}/`), Browsable (`{name}-img/`, `{name}-vid/`), Derived (`{name}-jpg/`); Size = Archive + Browsable + Derived
+- **Content breakdown**: By media type (images, videos, sidecars), by file format (extension), and by media source
+- **Media source analysis**: Per-source file counts, archive/browsable/derived sizes, unique picture and video counts
+- **Year breakdown** (gallery): Albums, pictures, videos, and sizes grouped by year
+- **Unique media counting**: iOS pictures deduplicated by image number (originals), plain pictures by filename stem
+- **Legend**: Printed at the end of output explaining each metric
+- **Limitation**: Albums spanning multiple years (date ranges) are attributed to the start year only
+
 ## Export to Shared Directories
 
 Export albums to external volumes or cloud sync folders.
 
 - **Profiles**: Named export configurations in TOML config (share directory, layout, link mode)
 - **Album share layouts**:
-  - `main-only`: Export `main-img/`, `main-jpg/`, `main-vid/` (stripped `main-` prefix)
-  - `main-jpg-only`: Export `main-jpg/` and `main-vid/` only (most compatible formats)
-  - `full-managed`: Export orig/edit/main-jpg, recreate main-img and main-vid with links
-  - `full`: Full-managed plus any unmanaged files
+  - `main-jpg` (default): Export `main-jpg/` and `main-vid/` (most compatible formats)
+  - `main`: Export `main-img/`, `main-jpg/`, `main-vid/`
+  - `all`: Export archival directories (orig/edit) and main-jpg, recreate main-img and main-vid with links
 - **Share directory layouts**:
   - `flat`: Albums exported directly under share directory
   - `albums`: Albums organized by year (`<YYYY>/<album-name>`), parsed from album name (`YYYY-MM-DD - Title`)
 - Sentinel file (`.photree-share`) required to prevent accidental exports to wrong directories
-- Validation: `albums` share layout requires `album-layout=full`
+- Validation: `albums` share layout requires `album-layout=all`
 - Batch export via `gallery export`
 
 ## Configuration

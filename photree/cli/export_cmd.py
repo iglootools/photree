@@ -80,7 +80,7 @@ def _resolve_export_settings(
     resolved_album_layout = (
         album_layout
         or (profile.album_layout if profile else None)
-        or AlbumShareLayout.MAIN_ONLY
+        or AlbumShareLayout.MAIN_JPG
     )
     resolved_link_mode = (
         link_mode or (profile.link_mode if profile else None) or LinkMode.HARDLINK
@@ -98,10 +98,10 @@ def _validate_settings(settings: _ResolvedExportSettings) -> None:
     """Validate resolved settings, checking sentinel and layout constraints."""
     if (
         settings.share_layout == ShareDirectoryLayout.ALBUMS
-        and settings.album_layout != AlbumShareLayout.FULL
+        and settings.album_layout != AlbumShareLayout.ALL
     ):
         typer.echo(
-            f'The "albums" share layout requires --album-layout=full, '
+            f'The "albums" share layout requires --album-layout=all, '
             f"but got --album-layout={settings.album_layout.value}.",
             err=True,
         )
@@ -173,14 +173,14 @@ def export_cmd(
         Optional[AlbumShareLayout],
         typer.Option(
             "--album-layout",
-            help="Export layout for iOS albums: combined-only (default), full, or full-managed.",
+            help="Export layout: main-jpg (default), main, or all.",
         ),
     ] = None,
     link_mode: Annotated[
         Optional[LinkMode],
         typer.Option(
             "--link-mode",
-            help="How to create main files in full/full-managed: hardlink (default), symlink, or copy.",
+            help="How to create main files in all layout: hardlink (default), symlink, or copy.",
         ),
     ] = None,
 ) -> None:
@@ -192,18 +192,13 @@ def export_cmd(
 
     For iOS albums:
 
-    --album-layout=main-only (default): Copies main-img/, main-jpg/,
-    and main-vid/ to the target, stripping the "main-" prefix
-    (e.g. main-img/ becomes img/).
+    --album-layout=main-jpg (default): Copies main-jpg/ and main-vid/
+    (most compatible formats).
 
-    --album-layout=main-jpg-only: Like main-only, but excludes main-img/.
-    Exports only main-jpg/ and main-vid/ (most compatible formats).
+    --album-layout=main: Copies main-img/, main-jpg/, and main-vid/.
 
-    --album-layout=full-managed: Copies orig-*, edit-*, and main-jpg/
-    as-is, then recreates main-img/ and main-vid/ using --link-mode.
-
-    --album-layout=full: Same as full-managed, plus copies any unmanaged files
-    and directories from the album.
+    --album-layout=all: Copies archival directories (orig-*, edit-*) and
+    main-jpg/ as-is, then recreates main-img/ and main-vid/ using --link-mode.
     """
     settings = _resolve_export_settings(
         profile_name=profile,
@@ -294,14 +289,14 @@ def export_all_cmd(
         Optional[AlbumShareLayout],
         typer.Option(
             "--album-layout",
-            help="Export layout for iOS albums: combined-only (default), full, or full-managed.",
+            help="Export layout: main-jpg (default), main, or all.",
         ),
     ] = None,
     link_mode: Annotated[
         Optional[LinkMode],
         typer.Option(
             "--link-mode",
-            help="How to create main files in full/full-managed: hardlink (default), symlink, or copy.",
+            help="How to create main files in all layout: hardlink (default), symlink, or copy.",
         ),
     ] = None,
 ) -> None:

@@ -7,7 +7,7 @@ from photree.exporter.export_all import (
     run_batch_export,
 )
 from photree.fsprotocol import (
-    MAIN_CONTRIBUTOR,
+    MAIN_MEDIA_SOURCE,
     AlbumShareLayout,
     LinkMode,
     ShareDirectoryLayout,
@@ -23,11 +23,11 @@ def _setup_dir(path: Path, filenames: list[str]) -> Path:
 
 def _setup_ios_album(album_dir: Path) -> Path:
     """Create a minimal iOS album."""
-    _setup_dir(album_dir / MAIN_CONTRIBUTOR.orig_img_dir, ["IMG_0001.HEIC"])
-    _setup_dir(album_dir / MAIN_CONTRIBUTOR.img_dir, ["IMG_0001.HEIC"])
-    _setup_dir(album_dir / MAIN_CONTRIBUTOR.jpg_dir, ["IMG_0001.JPEG"])
-    _setup_dir(album_dir / MAIN_CONTRIBUTOR.orig_vid_dir, ["IMG_0010.MOV"])
-    _setup_dir(album_dir / MAIN_CONTRIBUTOR.vid_dir, ["IMG_0010.MOV"])
+    _setup_dir(album_dir / MAIN_MEDIA_SOURCE.orig_img_dir, ["IMG_0001.HEIC"])
+    _setup_dir(album_dir / MAIN_MEDIA_SOURCE.img_dir, ["IMG_0001.HEIC"])
+    _setup_dir(album_dir / MAIN_MEDIA_SOURCE.jpg_dir, ["IMG_0001.JPEG"])
+    _setup_dir(album_dir / MAIN_MEDIA_SOURCE.orig_vid_dir, ["IMG_0010.MOV"])
+    _setup_dir(album_dir / MAIN_MEDIA_SOURCE.vid_dir, ["IMG_0010.MOV"])
     return album_dir
 
 
@@ -63,13 +63,13 @@ class TestBatchExport:
         result = run_batch_export(
             base_dir=base,
             share_dir=share_dir,
-            album_layout=AlbumShareLayout.MAIN_ONLY,
+            album_layout=AlbumShareLayout.MAIN_JPG,
         )
 
         assert result.exported == 2
         assert len(result.failed) == 0
-        assert (share_dir / "trip-paris" / "main-img" / "IMG_0001.HEIC").exists()
-        assert (share_dir / "trip-london" / "main-img" / "IMG_0001.HEIC").exists()
+        assert (share_dir / "trip-paris" / "main-jpg" / "IMG_0001.JPEG").exists()
+        assert (share_dir / "trip-london" / "main-jpg" / "IMG_0001.JPEG").exists()
 
     def test_exports_explicit_album_dirs(self, tmp_path: Path) -> None:
         album_a = _setup_ios_album(tmp_path / "trip-a")
@@ -80,12 +80,12 @@ class TestBatchExport:
         result = run_batch_export(
             album_dirs=[album_a, album_b],
             share_dir=share_dir,
-            album_layout=AlbumShareLayout.MAIN_ONLY,
+            album_layout=AlbumShareLayout.MAIN_JPG,
         )
 
         assert result.exported == 2
-        assert (share_dir / "trip-a" / "main-img" / "IMG_0001.HEIC").exists()
-        assert (share_dir / "trip-b" / "main-img" / "IMG_0001.HEIC").exists()
+        assert (share_dir / "trip-a" / "main-jpg" / "IMG_0001.JPEG").exists()
+        assert (share_dir / "trip-b" / "main-jpg" / "IMG_0001.JPEG").exists()
 
     def test_empty_base_dir(self, tmp_path: Path) -> None:
         base = tmp_path / "albums"
@@ -128,13 +128,13 @@ class TestBatchExport:
         result = run_batch_export(
             base_dir=base,
             share_dir=share_dir,
-            album_layout=AlbumShareLayout.MAIN_ONLY,
+            album_layout=AlbumShareLayout.MAIN_JPG,
             link_mode=LinkMode.COPY,
         )
 
         assert result.exported == 2
-        # iOS album uses main-only layout
-        assert (share_dir / "ios-album" / "main-img" / "IMG_0001.HEIC").exists()
+        # iOS album uses main-jpg layout
+        assert (share_dir / "ios-album" / "main-jpg" / "IMG_0001.JPEG").exists()
         # Other album copies everything
         assert (share_dir / "plain-album" / "photo.jpg").exists()
 
@@ -147,13 +147,13 @@ class TestBatchExport:
             album_dirs=[album],
             share_dir=share_dir,
             share_layout=ShareDirectoryLayout.ALBUMS,
-            album_layout=AlbumShareLayout.FULL,
+            album_layout=AlbumShareLayout.ALL,
             link_mode=LinkMode.COPY,
         )
 
         assert result.exported == 1
         target = share_dir / "2024" / "2024-06-15 - Vacation"
-        assert (target / MAIN_CONTRIBUTOR.orig_img_dir / "IMG_0001.HEIC").exists()
+        assert (target / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.HEIC").exists()
 
     def test_albums_share_layout_invalid_name_fails_gracefully(
         self, tmp_path: Path
@@ -168,7 +168,7 @@ class TestBatchExport:
             album_dirs=[album],
             share_dir=share_dir,
             share_layout=ShareDirectoryLayout.ALBUMS,
-            album_layout=AlbumShareLayout.FULL,
+            album_layout=AlbumShareLayout.ALL,
             link_mode=LinkMode.COPY,
             on_error=lambda name, msg: errors.append((name, msg)),
         )

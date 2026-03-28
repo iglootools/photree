@@ -41,7 +41,7 @@ class ExporterProfile:
 
     share_dir: Path
     share_layout: ShareDirectoryLayout = ShareDirectoryLayout.FLAT
-    album_layout: AlbumShareLayout = AlbumShareLayout.MAIN_ONLY
+    album_layout: AlbumShareLayout = AlbumShareLayout.MAIN_JPG
     link_mode: LinkMode = LinkMode.HARDLINK
 
 
@@ -130,7 +130,7 @@ def _parse_profile(name: str, section: object) -> ExporterProfile:
             name,
         ),
         album_layout=_parse_enum(
-            section.get("album-layout", AlbumShareLayout.MAIN_ONLY),
+            section.get("album-layout", AlbumShareLayout.MAIN_JPG),
             AlbumShareLayout,
             "album-layout",
             name,

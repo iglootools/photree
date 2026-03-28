@@ -19,10 +19,12 @@ from photree.album.preflight import (
 )
 from photree.exporter.export import AlbumShareLayout, compute_target_dir, export_album
 from photree.fsprotocol import (
-    MAIN_CONTRIBUTOR,
+    MAIN_MEDIA_SOURCE,
+    PHOTREE_DIR,
     SHARE_SENTINEL,
     LinkMode,
     ShareDirectoryLayout,
+    is_album,
 )
 from photree.importer.image_capture import run_import
 from photree.importer.testkit import seed_demo
@@ -69,44 +71,46 @@ class TestDemoWorkflow:
         assert len(import_result.plan.unmatched) == 0
         assert len(import_result.unprocessed) == 0
 
-        # iOS directory structure created
-        assert (album_dir / MAIN_CONTRIBUTOR.ios_dir).is_dir()
+        # Album marker and iOS directory structure created
+        assert (album_dir / PHOTREE_DIR).is_dir()
+        assert is_album(album_dir)
+        assert (album_dir / MAIN_MEDIA_SOURCE.ios_dir).is_dir()
         assert detect_album_type(album_dir) == AlbumType.IOS
 
         # Originals imported
-        assert (album_dir / MAIN_CONTRIBUTOR.orig_img_dir).is_dir()
-        orig_img_files = sorted(os.listdir(album_dir / MAIN_CONTRIBUTOR.orig_img_dir))
+        assert (album_dir / MAIN_MEDIA_SOURCE.orig_img_dir).is_dir()
+        orig_img_files = sorted(os.listdir(album_dir / MAIN_MEDIA_SOURCE.orig_img_dir))
         assert "IMG_0001.HEIC" in orig_img_files
         assert "IMG_0001.AAE" in orig_img_files
         assert "IMG_0003.DNG" in orig_img_files
         assert "IMG_0005.PNG" in orig_img_files
 
         # Edits imported
-        assert (album_dir / MAIN_CONTRIBUTOR.edit_img_dir).is_dir()
-        edit_img_files = sorted(os.listdir(album_dir / MAIN_CONTRIBUTOR.edit_img_dir))
+        assert (album_dir / MAIN_MEDIA_SOURCE.edit_img_dir).is_dir()
+        edit_img_files = sorted(os.listdir(album_dir / MAIN_MEDIA_SOURCE.edit_img_dir))
         assert "IMG_E0001.HEIC" in edit_img_files
         assert "IMG_E0003.JPG" in edit_img_files
 
         # Videos imported
-        assert (album_dir / MAIN_CONTRIBUTOR.orig_vid_dir).is_dir()
-        assert "IMG_0006.MOV" in os.listdir(album_dir / MAIN_CONTRIBUTOR.orig_vid_dir)
-        assert "IMG_0007.MOV" in os.listdir(album_dir / MAIN_CONTRIBUTOR.orig_vid_dir)
-        assert (album_dir / MAIN_CONTRIBUTOR.edit_vid_dir).is_dir()
-        assert "IMG_E0007.MOV" in os.listdir(album_dir / MAIN_CONTRIBUTOR.edit_vid_dir)
+        assert (album_dir / MAIN_MEDIA_SOURCE.orig_vid_dir).is_dir()
+        assert "IMG_0006.MOV" in os.listdir(album_dir / MAIN_MEDIA_SOURCE.orig_vid_dir)
+        assert "IMG_0007.MOV" in os.listdir(album_dir / MAIN_MEDIA_SOURCE.orig_vid_dir)
+        assert (album_dir / MAIN_MEDIA_SOURCE.edit_vid_dir).is_dir()
+        assert "IMG_E0007.MOV" in os.listdir(album_dir / MAIN_MEDIA_SOURCE.edit_vid_dir)
 
         # Main directories created
-        assert (album_dir / MAIN_CONTRIBUTOR.img_dir).is_dir()
-        assert (album_dir / MAIN_CONTRIBUTOR.vid_dir).is_dir()
-        assert (album_dir / MAIN_CONTRIBUTOR.jpg_dir).is_dir()
+        assert (album_dir / MAIN_MEDIA_SOURCE.img_dir).is_dir()
+        assert (album_dir / MAIN_MEDIA_SOURCE.vid_dir).is_dir()
+        assert (album_dir / MAIN_MEDIA_SOURCE.jpg_dir).is_dir()
 
         # Main-img picks edit when available, orig otherwise
-        main_img_files = sorted(os.listdir(album_dir / MAIN_CONTRIBUTOR.img_dir))
+        main_img_files = sorted(os.listdir(album_dir / MAIN_MEDIA_SOURCE.img_dir))
         assert "IMG_E0001.HEIC" in main_img_files  # edit preferred
         assert "IMG_0002.HEIC" in main_img_files  # no edit, orig used
         assert "IMG_0005.PNG" in main_img_files  # screenshot
 
         # Main-vid picks edit when available
-        main_vid_files = sorted(os.listdir(album_dir / MAIN_CONTRIBUTOR.vid_dir))
+        main_vid_files = sorted(os.listdir(album_dir / MAIN_MEDIA_SOURCE.vid_dir))
         assert "IMG_0006.MOV" in main_vid_files  # no edit
         assert "IMG_E0007.MOV" in main_vid_files  # edit preferred
 
@@ -129,24 +133,24 @@ class TestDemoWorkflow:
 
         # Main-img files should now be symlinks
         for name in main_img_files:
-            p = album_dir / MAIN_CONTRIBUTOR.img_dir / name
+            p = album_dir / MAIN_MEDIA_SOURCE.img_dir / name
             assert p.is_symlink(), f"{name} should be a symlink after optimize"
 
         # Main-vid files should now be symlinks
         for name in main_vid_files:
-            p = album_dir / MAIN_CONTRIBUTOR.vid_dir / name
+            p = album_dir / MAIN_MEDIA_SOURCE.vid_dir / name
             assert p.is_symlink(), f"{name} should be a symlink after optimize"
 
         # Main-jpg should NOT be symlinks (JPEG conversions)
-        for name in os.listdir(album_dir / MAIN_CONTRIBUTOR.jpg_dir):
-            p = album_dir / MAIN_CONTRIBUTOR.jpg_dir / name
+        for name in os.listdir(album_dir / MAIN_MEDIA_SOURCE.jpg_dir):
+            p = album_dir / MAIN_MEDIA_SOURCE.jpg_dir / name
             assert not p.is_symlink(), f"{name} in main-jpg should not be a symlink"
 
         # Integrity still passes after optimization
         integrity_after = check_ios_album_integrity(album_dir, checksum=True)
         assert integrity_after.success
 
-        # ── Export (main-only) ───────────────────────────────
+        # ── Export (main-jpg) ─────────────────────────────────
         share_dir = tmp_path / "share"
         share_dir.mkdir()
         (share_dir / SHARE_SENTINEL).touch()
@@ -157,25 +161,21 @@ class TestDemoWorkflow:
         export_result = export_album(
             album_dir,
             target_dir,
-            album_layout=AlbumShareLayout.MAIN_ONLY,
+            album_layout=AlbumShareLayout.MAIN_JPG,
             link_mode=LinkMode.COPY,
         )
 
         assert export_result.album_type == AlbumType.IOS
         assert export_result.files_copied > 0
 
-        # Exported structure: img/, jpg/, vid/ (main- prefix stripped)
+        # Exported structure: main-jpg/ and main-vid/ (main-jpg layout)
         exported = target_dir
-        assert (exported / "main-img").is_dir()
+        assert not (exported / "main-img").exists()
         assert (exported / "main-jpg").is_dir()
         assert (exported / "main-vid").is_dir()
 
         # iOS internal dirs should NOT be exported
-        assert not (exported / MAIN_CONTRIBUTOR.ios_dir).exists()
-
-        # Exported img/ matches main-img content
-        exported_img = sorted(os.listdir(exported / "main-img"))
-        assert exported_img == main_img_files
+        assert not (exported / MAIN_MEDIA_SOURCE.ios_dir).exists()
 
         # Exported vid/ matches main-vid content
         exported_vid = sorted(os.listdir(exported / "main-vid"))

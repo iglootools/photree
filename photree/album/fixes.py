@@ -1,7 +1,7 @@
-"""Generic fix operations for all album contributor types.
+"""Generic fix operations for all album media source types.
 
-Unlike :mod:`ios_fixes` which requires iOS contributors, these operations
-work with both iOS and plain contributors.
+Unlike :mod:`ios_fixes` which requires iOS media sources, these operations
+work with both iOS and plain media sources.
 """
 
 from __future__ import annotations
@@ -11,12 +11,12 @@ from pathlib import Path
 
 from . import jpeg
 from .jpeg import RefreshResult, convert_single_file
-from ..fsprotocol import Contributor
+from ..fsprotocol import MediaSource
 
 
 def refresh_jpeg(
     album_dir: Path,
-    contrib: Contributor,
+    ms: MediaSource,
     *,
     dry_run: bool = False,
     log_cwd: Path | None = None,
@@ -24,12 +24,12 @@ def refresh_jpeg(
     on_file_start: Callable[[str], None] | None = None,
     on_file_end: Callable[[str, bool], None] | None = None,
 ) -> RefreshResult:
-    """Refresh ``{contributor}-jpg/`` from ``{contributor}-img/``.
+    """Refresh ``{name}-jpg/`` from ``{name}-img/``.
 
-    Works for both iOS and plain contributors. Raises
+    Works for both iOS and plain media sources. Raises
     :class:`FileNotFoundError` if the source image directory does not exist.
     """
-    src_dir = album_dir / contrib.img_dir
+    src_dir = album_dir / ms.img_dir
     if not src_dir.is_dir():
         raise FileNotFoundError(f"Directory not found: {src_dir}")
 
@@ -38,7 +38,7 @@ def refresh_jpeg(
     jpeg_log_cwd = log_cwd if on_file_end is None else None
     return jpeg.refresh_jpeg_dir(
         src_dir,
-        album_dir / contrib.jpg_dir,
+        album_dir / ms.jpg_dir,
         dry_run=dry_run,
         log_cwd=jpeg_log_cwd,
         convert_file=convert_file,

@@ -16,13 +16,14 @@ from ..album import combined
 from ..album.jpeg import convert_single_file, refresh_jpeg_dir
 
 from ..fsprotocol import (
-    DEFAULT_CONTRIBUTOR,
+    DEFAULT_MEDIA_SOURCE,
     IOS_IMG_EXTENSIONS,
     LinkMode,
     IOS_VID_EXTENSIONS,
+    PHOTREE_DIR,
     SIDECAR_EXTENSIONS,
     SELECTION_DIR,
-    ios_contributor,
+    ios_media_source,
     list_files,
     pick_media_priority,
 )
@@ -393,6 +394,9 @@ def _copy_file(src_dir: Path, dst_dir: Path, filename: str, *, dry_run: bool) ->
 
 def _remove_empty_folders(root: Path) -> None:
     for dirpath, _dirnames, _filenames in list(os.walk(root))[::-1]:
+        p = Path(dirpath)
+        if p == root or p.name.startswith("."):
+            continue
         if not os.listdir(dirpath):
             os.rmdir(dirpath)
 
@@ -424,7 +428,7 @@ def run_import(
     *,
     album_dir: Path,
     image_capture_dir: Path,
-    contributor_name: str = DEFAULT_CONTRIBUTOR,
+    media_source_name: str = DEFAULT_MEDIA_SOURCE,
     link_mode: LinkMode = LinkMode.HARDLINK,
     dry_run: bool = False,
     on_stage_start: Callable[[str], None] | None = None,
@@ -466,14 +470,18 @@ def run_import(
     # Plan
     plan = plan_import(selection_files, image_capture_files)
 
-    # Output directories — derived from contributor (always iOS for Image Capture)
-    contrib = ios_contributor(contributor_name)
-    album_orig_img = album_dir / contrib.orig_img_dir
-    album_orig_vid = album_dir / contrib.orig_vid_dir
-    album_edit_img = album_dir / contrib.edit_img_dir
-    album_edit_vid = album_dir / contrib.edit_vid_dir
-    album_main_img = album_dir / contrib.img_dir
-    album_main_jpg = album_dir / contrib.jpg_dir
+    # Output directories — derived from media source (always iOS for Image Capture)
+    ms = ios_media_source(media_source_name)
+    album_orig_img = album_dir / ms.orig_img_dir
+    album_orig_vid = album_dir / ms.orig_vid_dir
+    album_edit_img = album_dir / ms.edit_img_dir
+    album_edit_vid = album_dir / ms.edit_vid_dir
+    album_main_img = album_dir / ms.img_dir
+    album_main_jpg = album_dir / ms.jpg_dir
+
+    # Create album marker so gallery commands can discover this album
+    if not dry_run:
+        (album_dir / PHOTREE_DIR).mkdir(exist_ok=True)
 
     # ── Stage 1: import-ic ──
     # Copy files from Image Capture to orig/edited dirs.
@@ -524,7 +532,7 @@ def run_import(
     combined.refresh_main_dir(
         album_orig_vid,
         album_edit_vid,
-        album_dir / contrib.vid_dir,
+        album_dir / ms.vid_dir,
         media_extensions=IOS_VID_EXTENSIONS,
         link_mode=link_mode,
         dry_run=dry_run,

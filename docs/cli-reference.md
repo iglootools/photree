@@ -56,10 +56,12 @@ $ photree album [OPTIONS] COMMAND [ARGS]...
 
 * `check`: Check system prerequisites, album...
 * `fix`: Fix album issues.
+* `optimize`: Optimize main directories by replacing...
 * `fix-ios`: Fix iOS album issues.
 * `fix-exif`: Fix EXIF dates on media files.
 * `mv-media`: Move media files and all their variants...
 * `rm-media`: Remove media files and all their variants...
+* `stats`: Show disk usage and content statistics for...
 
 ### `photree album check`
 
@@ -75,9 +77,9 @@ $ photree album check [OPTIONS]
 
 * `-a, --album-dir DIRECTORY`: Album directory to check.  [default: .]
 * `--checksum / --no-checksum`: Enable/disable SHA-256 checksum verification (default: enabled).  [default: checksum]
-* `-W, --fatal-warnings`: Treat all warnings as errors (implies --fatal-sidecar and --fatal-exif-date-match).
+* `-W, --fatal-warnings`: Treat all warnings as errors (implies --fatal-sidecar).
 * `--fatal-sidecar`: Treat missing-sidecar warnings as errors.
-* `--fatal-exif-date-match`: Treat EXIF date mismatch warnings as errors.
+* `--fatal-exif-date-match / --no-fatal-exif-date-match`: Treat EXIF date mismatch warnings as errors (default: enabled).  [default: fatal-exif-date-match]
 * `--check-naming / --no-check-naming`: Enable/disable album naming convention checks (default: enabled).  [default: check-naming]
 * `--check-exif-date-match / --no-check-exif-date-match`: Enable/disable EXIF timestamp vs album date validation (default: enabled).  [default: check-exif-date-match]
 * `--check-date-part-collision / --no-check-date-part-collision`: Enable/disable date collision detection with sibling albums (default: enabled).  [default: check-date-part-collision]
@@ -85,10 +87,10 @@ $ photree album check [OPTIONS]
 
 ### `photree album fix`
 
-Fix album issues. Works on all contributor types (iOS + plain).
+Fix album issues. Works on all msutor types (iOS + plain).
 
---refresh-jpeg: Deletes all files in {contributor}-jpg/ and re-converts
-every file from {contributor}-img/. HEIC/HEIF/DNG files are converted
+--refresh-jpeg: Deletes all files in {msutor}-jpg/ and re-converts
+every file from {msutor}-img/. HEIC/HEIF/DNG files are converted
 via sips; JPEG/PNG files are copied as-is.
 
 **Usage**:
@@ -100,7 +102,35 @@ $ photree album fix [OPTIONS]
 **Options**:
 
 * `-a, --album-dir DIRECTORY`: Album directory to fix.  [default: .]
-* `--refresh-jpeg`: Refresh {contributor}-jpg/ from {contributor}-img/ for all contributors.
+* `--refresh-jpeg`: Refresh {msutor}-jpg/ from {msutor}-img/ for all media_sources.
+* `-n, --dry-run`: Print what would happen without modifying files.
+* `--help`: Show this message and exit.
+
+### `photree album optimize`
+
+Optimize main directories by replacing file copies with links.
+
+Recreates main-img/ and main-vid/ files as hard links (default),
+symbolic links, or copies depending on --link-mode. Does not touch
+main-jpg/ (those are HEIC-to-JPEG conversions that cannot be linked).
+
+Runs structural integrity checks first (unless --no-check): directory
+structure, file matching, checksums, sidecars, duplicates, and
+miscategorized files. Naming and EXIF checks are not performed.
+Refuses to optimize if errors are found.
+
+**Usage**:
+
+```console
+$ photree album optimize [OPTIONS]
+```
+
+**Options**:
+
+* `-a, --album-dir DIRECTORY`: Album directory to optimize.  [default: .]
+* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.  [default: hardlink]
+* `--check / --no-check`: Run integrity checks before optimizing (default: enabled).  [default: check]
+* `--checksum / --no-checksum`: Enable/disable SHA-256 checksum verification (default: enabled).  [default: checksum]
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
@@ -206,7 +236,7 @@ $ photree album fix-exif [OPTIONS] [FILES]...
 Move media files and all their variants from one album to another.
 
 For each specified file, resolves all associated variants by image number
-(iOS) or filename stem (plain) across the contributor&#x27;s directory structure
+(iOS) or filename stem (plain) across the msutor&#x27;s directory structure
 and moves them all. Any variant file can be used to identify the media.
 
 **Usage**:
@@ -231,7 +261,7 @@ $ photree album mv-media [OPTIONS] FILES...
 Remove media files and all their variants from an album.
 
 For each specified file, resolves all associated variants by image number
-(iOS) or filename stem (plain) across the contributor&#x27;s directory structure
+(iOS) or filename stem (plain) across the msutor&#x27;s directory structure
 and removes them all. Any variant file can be used to identify the media.
 
 **Usage**:
@@ -248,6 +278,21 @@ $ photree album rm-media [OPTIONS] [FILES]...
 
 * `-a, --album-dir DIRECTORY`: Album directory.  [default: .]
 * `-n, --dry-run`: Print what would happen without modifying files.
+* `--help`: Show this message and exit.
+
+### `photree album stats`
+
+Show disk usage and content statistics for a single album.
+
+**Usage**:
+
+```console
+$ photree album stats [OPTIONS]
+```
+
+**Options**:
+
+* `-a, --album-dir DIRECTORY`: Album directory to analyze.  [default: .]
 * `--help`: Show this message and exit.
 
 ## `photree demo`
@@ -328,18 +373,13 @@ For non-iOS albums, all files are copied regardless of --album-layout.
 
 For iOS albums:
 
---album-layout=main-only (default): Copies main-img/, main-jpg/,
-and main-vid/ to the target, stripping the &quot;main-&quot; prefix
-(e.g. main-img/ becomes img/).
+--album-layout=main-jpg (default): Copies main-jpg/ and main-vid/
+(most compatible formats).
 
---album-layout=main-jpg-only: Like main-only, but excludes main-img/.
-Exports only main-jpg/ and main-vid/ (most compatible formats).
+--album-layout=main: Copies main-img/, main-jpg/, and main-vid/.
 
---album-layout=full-managed: Copies orig-*, edit-*, and main-jpg/
-as-is, then recreates main-img/ and main-vid/ using --link-mode.
-
---album-layout=full: Same as full-managed, plus copies any unmanaged files
-and directories from the album.
+--album-layout=all: Copies archival directories (orig-*, edit-*) and
+main-jpg/ as-is, then recreates main-img/ and main-vid/ using --link-mode.
 
 **Usage**:
 
@@ -354,8 +394,8 @@ $ photree export album [OPTIONS]
 * `-p, --profile TEXT`: Exporter profile name from config.
 * `-c, --config TEXT`: Path to config file.
 * `--share-layout [flat|albums]`: Share layout: flat (default) or albums.
-* `--album-layout [main-only|main-jpg-only|full|full-managed]`: Export layout for iOS albums: combined-only (default), full, or full-managed.
-* `--link-mode [copy|hardlink|symlink]`: How to create main files in full/full-managed: hardlink (default), symlink, or copy.
+* `--album-layout [main-jpg|main|all]`: Export layout: main-jpg (default), main, or all.
+* `--link-mode [copy|hardlink|symlink]`: How to create main files in all layout: hardlink (default), symlink, or copy.
 * `--help`: Show this message and exit.
 
 ### `photree export album-all`
@@ -379,8 +419,8 @@ $ photree export album-all [OPTIONS]
 * `-p, --profile TEXT`: Exporter profile name from config.
 * `-c, --config TEXT`: Path to config file.
 * `--share-layout [flat|albums]`: Share layout: flat (default) or albums.
-* `--album-layout [main-only|main-jpg-only|full|full-managed]`: Export layout for iOS albums: combined-only (default), full, or full-managed.
-* `--link-mode [copy|hardlink|symlink]`: How to create main files in full/full-managed: hardlink (default), symlink, or copy.
+* `--album-layout [main-jpg|main|all]`: Export layout: main-jpg (default), main, or all.
+* `--link-mode [copy|hardlink|symlink]`: How to create main files in all layout: hardlink (default), symlink, or copy.
 * `--help`: Show this message and exit.
 
 ## `photree gallery`
@@ -405,11 +445,12 @@ $ photree gallery [OPTIONS] COMMAND [ARGS]...
 * `optimize`: Optimize all iOS albums under a directory...
 * `fix-ios`: Apply fix-ios to all iOS albums under a...
 * `rename-from-csv`: Rename albums by diffing current vs...
+* `stats`: Show aggregated disk usage and content...
 * `export`: Batch export multiple albums to a shared...
 
 ### `photree gallery list-albums`
 
-List all discovered albums with their metadata and contributors.
+List all discovered albums with their metadata and media sources.
 
 **Usage**:
 
@@ -421,7 +462,7 @@ $ photree gallery list-albums [OPTIONS]
 
 * `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
 * `-a, --album-dir DIRECTORY`: Album directory (repeatable).
-* `--metadata / --no-metadata`: Show parsed album metadata and contributors (default: enabled).  [default: metadata]
+* `--metadata / --no-metadata`: Show parsed album metadata and media sources (default: enabled).  [default: metadata]
 * `--format TEXT`: Output format: text (default) or csv.  [default: text]
 * `--help`: Show this message and exit.
 
@@ -440,9 +481,9 @@ $ photree gallery check [OPTIONS]
 * `-d, --dir DIRECTORY`: Base directory to recursively scan for iOS albums.
 * `-a, --album-dir DIRECTORY`: Album directory to check (repeatable).
 * `--checksum / --no-checksum`: Enable/disable SHA-256 checksum verification (default: enabled).  [default: checksum]
-* `-W, --fatal-warnings`: Treat all warnings as errors (implies --fatal-sidecar and --fatal-exif-date-match).
+* `-W, --fatal-warnings`: Treat all warnings as errors (implies --fatal-sidecar).
 * `--fatal-sidecar`: Treat missing-sidecar warnings as errors.
-* `--fatal-exif-date-match`: Treat EXIF date mismatch warnings as errors.
+* `--fatal-exif-date-match / --no-fatal-exif-date-match`: Treat EXIF date mismatch warnings as errors (default: enabled).  [default: fatal-exif-date-match]
 * `--check-naming / --no-check-naming`: Enable/disable album naming convention checks (default: enabled).  [default: check-naming]
 * `--check-date-part-collision / --no-check-date-part-collision`: Enable/disable cross-album date collision detection (default: enabled).  [default: check-date-part-collision]
 * `--check-exif-date-match / --no-check-exif-date-match`: Enable/disable EXIF timestamp vs album date validation (default: enabled).  [default: check-exif-date-match]
@@ -452,7 +493,7 @@ $ photree gallery check [OPTIONS]
 
 Fix all albums under a directory or from an explicit list.
 
-Works on all contributor types (iOS + plain). At least one fix flag
+Works on all media source types (iOS + plain). At least one fix flag
 must be specified.
 
 **Usage**:
@@ -465,7 +506,7 @@ $ photree gallery fix [OPTIONS]
 
 * `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
 * `-a, --album-dir DIRECTORY`: Album directory to fix (repeatable).
-* `--refresh-jpeg`: Refresh {contributor}-jpg/ from {contributor}-img/ for all contributors.
+* `--refresh-jpeg`: Refresh {name}-jpg/ from {name}-img/ for all media sources.
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
@@ -548,6 +589,22 @@ $ photree gallery rename-from-csv [OPTIONS] CURRENT_CSV DESIRED_CSV
 * `-n, --dry-run`: Show what would be renamed without making changes.
 * `--help`: Show this message and exit.
 
+### `photree gallery stats`
+
+Show aggregated disk usage and content statistics for all albums.
+
+**Usage**:
+
+```console
+$ photree gallery stats [OPTIONS]
+```
+
+**Options**:
+
+* `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
+* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
+* `--help`: Show this message and exit.
+
 ### `photree gallery export`
 
 Batch export multiple albums to a shared directory.
@@ -569,8 +626,8 @@ $ photree gallery export [OPTIONS]
 * `-p, --profile TEXT`: Exporter profile name from config.
 * `-c, --config TEXT`: Path to config file.
 * `--share-layout [flat|albums]`: Share layout: flat (default) or albums.
-* `--album-layout [main-only|main-jpg-only|full|full-managed]`: Export layout for iOS albums: combined-only (default), full, or full-managed.
-* `--link-mode [copy|hardlink|symlink]`: How to create main files in full/full-managed: hardlink (default), symlink, or copy.
+* `--album-layout [main-jpg|main|all]`: Export layout: main-jpg (default), main, or all.
+* `--link-mode [copy|hardlink|symlink]`: How to create main files in all layout: hardlink (default), symlink, or copy.
 * `--help`: Show this message and exit.
 
 ## `photree import`
@@ -627,7 +684,7 @@ $ photree import image-capture [OPTIONS]
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `-f, --force`: Skip preflight checks on the source directory.
 * `--skip-heic-to-jpeg`: Skip HEIC-to-JPEG conversion (and the sips availability check).
-* `--contributor TEXT`: Target contributor within the album (default: main).  [default: main]
+* `--media-source TEXT`: Target media source within the album (default: main).  [default: main]
 * `--help`: Show this message and exit.
 
 ### `photree import image-capture-all`

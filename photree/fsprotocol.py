@@ -33,12 +33,11 @@ def list_files(directory: Path) -> list[str]:
 
 
 class AlbumShareLayout(StrEnum):
-    """How an iOS album is exported."""
+    """How an album is exported."""
 
-    MAIN_ONLY = "main-only"
-    MAIN_JPG_ONLY = "main-jpg-only"
-    FULL = "full"
-    FULL_MANAGED = "full-managed"
+    MAIN_JPG = "main-jpg"
+    MAIN = "main"
+    ALL = "all"
 
 
 class LinkMode(StrEnum):
@@ -89,34 +88,34 @@ def parse_album_year(album_name: str) -> str:
 SELECTION_DIR = "to-import"
 
 # ---------------------------------------------------------------------------
-# Contributor — a named source of photos within an album
+# MediaSource — a named source of photos within an album
 # ---------------------------------------------------------------------------
 
 IOS_DIR_PREFIX = "ios-"
-DEFAULT_CONTRIBUTOR = "main"
+DEFAULT_MEDIA_SOURCE = "main"
 
 
-class ContributorType(StrEnum):
-    """How a contributor's photos are stored."""
+class MediaSourceType(StrEnum):
+    """How a media source's photos are stored."""
 
     IOS = "ios"  # archival (ios-{name}/) + browsable ({name}-img/, etc.)
     PLAIN = "plain"  # browsable only ({name}-img/, {name}-vid/)
 
 
 @dataclass(frozen=True)
-class Contributor:
+class MediaSource:
     """A named source of photos within an album.
 
-    **iOS** contributors have archival directories (under ``ios-{name}/``)
+    **iOS** media sources have archival directories (under ``ios-{name}/``)
     and browsable directories (``{name}-img/``, ``{name}-vid/``,
     ``{name}-jpg/``).
 
-    **Plain** contributors only have browsable directories.
+    **Plain** media sources only have browsable directories.
     """
 
     name: str  # "main", "bruno"
-    contributor_type: ContributorType
-    ios_dir: str  # "ios-main" (unused path for plain contributors)
+    media_source_type: MediaSourceType
+    ios_dir: str  # "ios-main" (unused path for plain media sources)
     orig_img_dir: str  # "ios-main/orig-img" (unused path for plain)
     edit_img_dir: str  # "ios-main/edit-img" (unused path for plain)
     orig_vid_dir: str  # "ios-main/orig-vid" (unused path for plain)
@@ -127,11 +126,11 @@ class Contributor:
 
     @property
     def is_ios(self) -> bool:
-        return self.contributor_type == ContributorType.IOS
+        return self.media_source_type == MediaSourceType.IOS
 
     @property
     def image_subdirs(self) -> tuple[str, ...]:
-        """Required image directories for this contributor."""
+        """Required image directories for this media source."""
         if self.is_ios:
             return (self.orig_img_dir, self.img_dir, self.jpg_dir)
         else:
@@ -139,7 +138,7 @@ class Contributor:
 
     @property
     def video_subdirs(self) -> tuple[str, ...]:
-        """Required video directories for this contributor."""
+        """Required video directories for this media source."""
         if self.is_ios:
             return (self.orig_vid_dir, self.vid_dir)
         else:
@@ -160,16 +159,16 @@ class Contributor:
 
     @property
     def all_subdirs(self) -> tuple[str, ...]:
-        """All possible subdirectories for this contributor."""
+        """All possible subdirectories for this media source."""
         return (*self.required_subdirs, *self.optional_subdirs)
 
 
-def ios_contributor(name: str) -> Contributor:
-    """Create an iOS :class:`Contributor`."""
+def ios_media_source(name: str) -> MediaSource:
+    """Create an iOS :class:`MediaSource`."""
     ios = f"{IOS_DIR_PREFIX}{name}"
-    return Contributor(
+    return MediaSource(
         name=name,
-        contributor_type=ContributorType.IOS,
+        media_source_type=MediaSourceType.IOS,
         ios_dir=ios,
         orig_img_dir=f"{ios}/orig-img",
         edit_img_dir=f"{ios}/edit-img",
@@ -181,16 +180,16 @@ def ios_contributor(name: str) -> Contributor:
     )
 
 
-def plain_contributor(name: str) -> Contributor:
-    """Create a plain (non-iOS) :class:`Contributor`.
+def plain_media_source(name: str) -> MediaSource:
+    """Create a plain (non-iOS) :class:`MediaSource`.
 
     The ``ios_dir`` and archival paths are populated but don't exist on disk.
     Code that operates on these dirs handles missing directories gracefully.
     """
     ios = f"{IOS_DIR_PREFIX}{name}"
-    return Contributor(
+    return MediaSource(
         name=name,
-        contributor_type=ContributorType.PLAIN,
+        media_source_type=MediaSourceType.PLAIN,
         ios_dir=ios,
         orig_img_dir=f"{ios}/orig-img",
         edit_img_dir=f"{ios}/edit-img",
@@ -202,10 +201,7 @@ def plain_contributor(name: str) -> Contributor:
     )
 
 
-# Backward compat alias — creates an iOS contributor
-contributor = ios_contributor
-
-MAIN_CONTRIBUTOR = ios_contributor(DEFAULT_CONTRIBUTOR)
+MAIN_MEDIA_SOURCE = ios_media_source(DEFAULT_MEDIA_SOURCE)
 
 
 PHOTREE_DIR = ".photree"
@@ -215,9 +211,11 @@ def is_album(directory: Path) -> bool:
     """Check if a directory is a photree album.
 
     A directory is an album if it contains a ``.photree/`` directory
-    **and** at least one contributor (iOS or plain).
+    **and** at least one media source (iOS or plain).
     """
-    return (directory / PHOTREE_DIR).is_dir() and bool(discover_contributors(directory))
+    return (directory / PHOTREE_DIR).is_dir() and bool(
+        discover_media_sources(directory)
+    )
 
 
 def discover_albums(base_dir: Path) -> list[Path]:
@@ -225,7 +223,7 @@ def discover_albums(base_dir: Path) -> list[Path]:
 
     A directory is considered an album when it contains:
     1. A ``.photree/`` directory (album marker), **and**
-    2. At least one contributor (``ios-{name}/`` or ``{name}-img/``/``{name}-vid/``)
+    2. At least one media source (``ios-{name}/`` or ``{name}-img/``/``{name}-vid/``)
 
     The *base_dir* itself is never returned as an album.
     """
@@ -249,22 +247,22 @@ def discover_albums(base_dir: Path) -> list[Path]:
     return albums
 
 
-def discover_contributors(album_dir: Path) -> list[Contributor]:
-    """Discover all contributors in an album.
+def discover_media_sources(album_dir: Path) -> list[MediaSource]:
+    """Discover all media sources in an album.
 
     Scans for:
-    1. iOS contributors: ``ios-{name}/`` with ``orig-img/`` or ``orig-vid/``
-    2. Plain contributors: ``{name}-img/`` or ``{name}-vid/`` without
+    1. iOS media sources: ``ios-{name}/`` with ``orig-img/`` or ``orig-vid/``
+    2. Plain media sources: ``{name}-img/`` or ``{name}-vid/`` without
        a corresponding ``ios-{name}/`` directory
 
-    Returns contributors sorted with ``main`` first, then alphabetically.
+    Returns media sources sorted with ``main`` first, then alphabetically.
     """
     if not album_dir.is_dir():
         return []
 
-    # 1. Find iOS contributors
+    # 1. Find iOS media sources
     ios_names: set[str] = set()
-    ios_contribs: list[Contributor] = []
+    ios_sources: list[MediaSource] = []
     for d in album_dir.iterdir():
         if (
             d.is_dir()
@@ -273,9 +271,9 @@ def discover_contributors(album_dir: Path) -> list[Contributor]:
         ):
             name = d.name.removeprefix(IOS_DIR_PREFIX)
             ios_names.add(name)
-            ios_contribs.append(ios_contributor(name))
+            ios_sources.append(ios_media_source(name))
 
-    # 2. Find plain contributors from {name}-img or {name}-vid dirs
+    # 2. Find plain media sources from {name}-img or {name}-vid dirs
     plain_names: set[str] = set()
     for d in album_dir.iterdir():
         if not d.is_dir() or d.name.startswith("."):
@@ -289,11 +287,11 @@ def discover_contributors(album_dir: Path) -> list[Contributor]:
             if name and name not in ios_names and name not in plain_names:
                 plain_names.add(name)
 
-    plain_contribs = [plain_contributor(name) for name in plain_names]
+    plain_sources = [plain_media_source(name) for name in plain_names]
 
     return sorted(
-        [*ios_contribs, *plain_contribs],
-        key=lambda c: (c.name != DEFAULT_CONTRIBUTOR, c.name),
+        [*ios_sources, *plain_sources],
+        key=lambda ms: (ms.name != DEFAULT_MEDIA_SOURCE, ms.name),
     )
 
 

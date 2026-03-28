@@ -1,7 +1,7 @@
 """Optimize main directories by replacing copies with links.
 
-Recreates {contributor}-img and {contributor}-vid as hardlinks (default) or
-symlinks for each contributor, without touching {contributor}-jpg (HEIC→JPEG
+Recreates {name}-img and {name}-vid as hardlinks (default) or
+symlinks for each media source, without touching {name}-jpg (HEIC→JPEG
 conversions cannot be linked).
 """
 
@@ -15,7 +15,7 @@ from ..fsprotocol import (
     IMG_EXTENSIONS,
     LinkMode,
     VID_EXTENSIONS,
-    discover_contributors,
+    discover_media_sources,
 )
 
 
@@ -35,22 +35,22 @@ def optimize_album(
     dry_run: bool = False,
     log_cwd: Path | None = None,
 ) -> OptimizeResult:
-    """Recreate browsable image and video directories as links for all contributors.
+    """Recreate browsable image and video directories as links for all media sources.
 
-    Does NOT touch {contributor}-jpg (HEIC→JPEG conversions cannot be linked).
+    Does NOT touch {name}-jpg (HEIC→JPEG conversions cannot be linked).
     """
-    # Only optimize iOS contributors — plain contributors' browsable dirs
+    # Only optimize iOS media sources — plain media sources' browsable dirs
     # are the source of truth and must never be rebuilt.
-    ios_contributors = [c for c in discover_contributors(album_dir) if c.is_ios]
+    ios_sources = [ms for ms in discover_media_sources(album_dir) if ms.is_ios]
 
     total_heic = 0
     total_mov = 0
 
-    for contrib in ios_contributors:
+    for ms in ios_sources:
         heic_result = combined_module.refresh_main_dir(
-            album_dir / contrib.orig_img_dir,
-            album_dir / contrib.edit_img_dir,
-            album_dir / contrib.img_dir,
+            album_dir / ms.orig_img_dir,
+            album_dir / ms.edit_img_dir,
+            album_dir / ms.img_dir,
             media_extensions=IMG_EXTENSIONS,
             link_mode=link_mode,
             dry_run=dry_run,
@@ -58,9 +58,9 @@ def optimize_album(
         )
 
         mov_result = combined_module.refresh_main_dir(
-            album_dir / contrib.orig_vid_dir,
-            album_dir / contrib.edit_vid_dir,
-            album_dir / contrib.vid_dir,
+            album_dir / ms.orig_vid_dir,
+            album_dir / ms.edit_vid_dir,
+            album_dir / ms.vid_dir,
             media_extensions=VID_EXTENSIONS,
             link_mode=link_mode,
             dry_run=dry_run,

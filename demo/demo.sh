@@ -109,6 +109,16 @@ p "# Verify integrity after optimization"
 pe "photree album check"
 pause 3
 
+# ── Stats ───────────────────────────────────────────────
+
+p "# Show album disk usage and content statistics"
+pe "photree album stats"
+pause 3
+
+p "# Show gallery-wide statistics with per-year breakdown"
+pe "photree gallery stats -d \"$DEMO_DIR\""
+pause 3
+
 # ── Export ───────────────────────────────────────────────
 
 p "# Create a share directory with sentinel file"

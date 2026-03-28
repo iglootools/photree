@@ -13,7 +13,7 @@ def refresh_jpeg_summary(converted: int, copied: int, skipped: int) -> str:
 from .preflight import (  # noqa: E402, F401
     album_dir_check,
     album_type_check,
-    contributors_check,
+    media_sources_check,
     exiftool_check,
     exiftool_troubleshoot,
     format_album_preflight_checks,
@@ -25,6 +25,7 @@ from .preflight import (  # noqa: E402, F401
     sips_troubleshoot,
 )
 from .integrity import format_integrity_checks  # noqa: E402, F401
+from .stats import format_album_stats, format_gallery_stats  # noqa: E402, F401
 
 
 def refresh_combined_summary(
@@ -192,8 +193,5 @@ def media_op_summary(
 
 def media_op_check_suggestions(album_dirs: list[str]) -> str:
     lines = ["", "Suggested next steps:"]
-    lines.extend(
-        f'  photree album check --fatal-exif-date-match --album-dir "{d}"'
-        for d in album_dirs
-    )
+    lines.extend(f'  photree album check --album-dir "{d}"' for d in album_dirs)
     return "\n".join(lines)

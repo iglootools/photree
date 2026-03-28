@@ -183,18 +183,18 @@ def image_capture_cmd(
             help="Skip HEIC-to-JPEG conversion (and the sips availability check).",
         ),
     ] = False,
-    album_contributor: Annotated[
+    album_media_source: Annotated[
         str,
         typer.Option(
-            "--contributor",
-            help="Target contributor within the album (default: main).",
+            "--media-source",
+            help="Target media source within the album (default: main).",
         ),
     ] = "main",
 ) -> None:
     f"""Organize files imported by macOS Image Capture into an album directory.
 
     Reads the {SELECTION_DIR}/ inside ALBUM_DIR, matches files from the
-    Image Capture source directory, and sorts them into the contributor's
+    Image Capture source directory, and sorts them into the media source's
     archival and browsable subdirectories.
 
     The source directory is resolved in this order:
@@ -257,7 +257,7 @@ def image_capture_cmd(
         result = image_capture.run_import(
             album_dir=album_dir,
             image_capture_dir=image_capture_dir,
-            contributor_name=album_contributor,
+            media_source_name=album_media_source,
             link_mode=link_mode,
             dry_run=dry_run,
             on_stage_start=progress.on_start,

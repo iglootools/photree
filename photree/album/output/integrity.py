@@ -86,13 +86,13 @@ def format_miscategorized(warnings: tuple[str, ...]) -> str | None:
         )
 
 
-def _format_contributor_integrity(
+def _format_media_source_integrity(
     result: IosAlbumIntegrityResult,
     prefix: str = "",
     *,
     fatal_sidecar: bool = False,
 ) -> str:
-    """Format integrity checks for a single contributor."""
+    """Format integrity checks for a single media source."""
     p = f"{prefix} " if prefix else ""
     sidecar_line = format_sidecar_check(result.sidecars, fatal_sidecar=fatal_sidecar)
     duplicate_line = (
@@ -122,29 +122,29 @@ def format_integrity_checks(
     *,
     fatal_sidecar: bool = False,
 ) -> str:
-    """Format all integrity check lines across contributors.
+    """Format all integrity check lines across media sources.
 
-    Single-contributor: no prefix (identical output to previous behavior).
-    Multi-contributor: each section prefixed with ``[name]``.
+    Single media source: no prefix (identical output to previous behavior).
+    Multiple media sources: each section prefixed with ``[name]``.
     """
-    multi = len(result.by_contributor) > 1
+    multi = len(result.by_media_source) > 1
     return "\n".join(
-        _format_contributor_integrity(
-            contrib_result,
-            prefix=f"[{contrib.name}]" if multi else "",
+        _format_media_source_integrity(
+            ms_result,
+            prefix=f"[{ms.name}]" if multi else "",
             fatal_sidecar=fatal_sidecar,
         )
-        for contrib, contrib_result in result.by_contributor
+        for ms, ms_result in result.by_media_source
     )
 
 
 def format_jpeg_integrity_checks(result: AlbumJpegIntegrityResult) -> str:
-    """Format JPEG integrity checks across all contributors."""
-    multi = len(result.by_contributor) > 1
+    """Format JPEG integrity checks across all media sources."""
+    multi = len(result.by_media_source) > 1
     return "\n".join(
         format_jpeg_check(
             check,
-            f"{'[' + contrib.name + '] ' if multi else ''}{contrib.jpg_dir}",
+            f"{'[' + ms.name + '] ' if multi else ''}{ms.jpg_dir}",
         )
-        for contrib, check in result.by_contributor
+        for ms, check in result.by_media_source
     )
