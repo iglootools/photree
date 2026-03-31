@@ -24,8 +24,11 @@ from ..album import (
 )
 from ..album.exif import try_start_exiftool
 from ..fsprotocol import (
+    GALLERY_YAML,
     AlbumMetadata,
+    GalleryMetadata,
     LinkMode,
+    PHOTREE_DIR,
     discover_all_albums,
     discover_media_sources,
     display_path,
@@ -34,6 +37,7 @@ from ..fsprotocol import (
     load_album_metadata,
     resolve_link_mode,
     save_album_metadata,
+    save_gallery_metadata,
 )
 from .album_cmd import (
     _check_sips_or_exit,
@@ -48,6 +52,43 @@ gallery_app = typer.Typer(
     help="Batch operations on multiple albums.",
     no_args_is_help=True,
 )
+
+
+@gallery_app.command("init")
+def init_cmd(
+    gallery_dir: Annotated[
+        Path,
+        typer.Option(
+            "--dir",
+            "-d",
+            help="Gallery root directory.",
+            exists=True,
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ] = Path("."),
+    link_mode: Annotated[
+        LinkMode,
+        typer.Option(
+            "--link-mode",
+            help="Default link mode for optimize and other link-mode operations.",
+        ),
+    ] = LinkMode.HARDLINK,
+) -> None:
+    """Initialize gallery metadata (.photree/gallery.yaml)."""
+    gallery_yaml = gallery_dir / PHOTREE_DIR / GALLERY_YAML
+    if gallery_yaml.is_file():
+        typer.echo(
+            f"Gallery already initialized: {display_path(gallery_yaml, Path.cwd())}\n"
+            "Edit the file directly to change settings.",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    save_gallery_metadata(gallery_dir, GalleryMetadata(link_mode=link_mode))
+    typer.echo(
+        f"Created {display_path(gallery_yaml, Path.cwd())} (link-mode: {link_mode})"
+    )
 
 
 def _resolve_check_batch_albums(
@@ -399,6 +440,14 @@ def check_cmd(
                 check_naming_flag=check_naming,
             )
 
+            # Include external album ID in the result line when available
+            id_check = result.album_id_check
+            album_label = (
+                f"{album_name} ({format_album_external_id(id_check.album_id)})"
+                if id_check is not None and id_check.album_id is not None
+                else album_name
+            )
+
             album_ok = result.success and not result.has_fatal_warnings(
                 fatal_sidecar=fatal_sidecar, fatal_exif=fatal_exif
             )
@@ -415,7 +464,7 @@ def check_cmd(
             )
             if album_ok:
                 progress.on_end(
-                    album_name,
+                    album_label,
                     success=True,
                     warning_labels=warn_labels,
                 )
@@ -424,7 +473,7 @@ def check_cmd(
                     warned += 1
             else:
                 progress.on_end(
-                    album_name,
+                    album_label,
                     success=False,
                     error_labels=err_labels,
                     warning_labels=warn_labels,
