@@ -19,6 +19,7 @@ $ photree [OPTIONS] COMMAND [ARGS]...
 
 * `check`: Check that all system prerequisites are met.
 * `album`: Album management commands.
+* `albums`: Batch operations on multiple albums.
 * `demo`: Demo commands for development.
 * `export`: Export albums to a shared directory.
 * `gallery`: Batch operations on multiple albums.
@@ -302,6 +303,153 @@ $ photree album stats [OPTIONS]
 * `-a, --album-dir DIRECTORY`: Album directory to analyze.  [default: .]
 * `--help`: Show this message and exit.
 
+## `photree albums`
+
+Batch operations on multiple albums.
+
+**Usage**:
+
+```console
+$ photree albums [OPTIONS] COMMAND [ARGS]...
+```
+
+**Options**:
+
+* `--help`: Show this message and exit.
+
+**Commands**:
+
+* `list`: List all discovered albums with their...
+* `check`: Check all albums under a directory or from...
+* `fix`: Fix all albums under a directory or from...
+* `fix-ios`: Apply fix-ios to all iOS albums under a...
+* `optimize`: Optimize all iOS albums under a directory...
+* `stats`: Show aggregated disk usage and content...
+
+### `photree albums list`
+
+List all discovered albums with their metadata and media sources.
+
+**Usage**:
+
+```console
+$ photree albums list [OPTIONS]
+```
+
+**Options**:
+
+* `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
+* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
+* `--metadata / --no-metadata`: Show parsed album metadata and media sources (default: enabled).  [default: metadata]
+* `--format TEXT`: Output format: text (default) or csv.  [default: text]
+* `--help`: Show this message and exit.
+
+### `photree albums check`
+
+Check all albums under a directory or from an explicit list.
+
+**Usage**:
+
+```console
+$ photree albums check [OPTIONS]
+```
+
+**Options**:
+
+* `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
+* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
+* `--checksum / --no-checksum`: Enable/disable SHA-256 checksum verification (default: enabled).  [default: checksum]
+* `-W, --fatal-warnings`: Treat all warnings as errors (implies --fatal-sidecar).
+* `--fatal-sidecar`: Treat missing-sidecar warnings as errors.
+* `--fatal-exif-date-match / --no-fatal-exif-date-match`: Treat EXIF date mismatch warnings as errors (default: enabled).  [default: fatal-exif-date-match]
+* `--check-naming / --no-check-naming`: Enable/disable album naming convention checks (default: enabled).  [default: check-naming]
+* `--check-date-part-collision / --no-check-date-part-collision`: Enable/disable cross-album date collision detection (default: enabled).  [default: check-date-part-collision]
+* `--check-exif-date-match / --no-check-exif-date-match`: Enable/disable EXIF timestamp vs album date validation (default: enabled).  [default: check-exif-date-match]
+* `--help`: Show this message and exit.
+
+### `photree albums fix`
+
+Fix all albums under a directory or from an explicit list.
+
+**Usage**:
+
+```console
+$ photree albums fix [OPTIONS]
+```
+
+**Options**:
+
+* `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
+* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
+* `--id`: Generate missing album IDs (.photree/album.yaml).
+* `--new-id`: Regenerate album IDs (replaces existing IDs).
+* `--refresh-jpeg`: Refresh {name}-jpg/ from {name}-img/ for all media sources.
+* `-n, --dry-run`: Print what would happen without modifying files.
+* `--help`: Show this message and exit.
+
+### `photree albums fix-ios`
+
+Apply fix-ios to all iOS albums under a directory or from an explicit list.
+
+**Usage**:
+
+```console
+$ photree albums fix-ios [OPTIONS]
+```
+
+**Options**:
+
+* `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
+* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
+* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink, symlink, or copy.  [default: hardlink]
+* `--refresh-combined`: Rebuild main-img/ and main-vid/ from orig/edit, then regenerate main-jpg/.
+* `--refresh-jpeg`: Refresh main-jpg/ from main-img/ (re-convert all HEIC→JPEG).
+* `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
+* `--rm-orphan`: Delete edited and main files that have no corresponding orig file.
+* `--prefer-higher-quality-when-dups`: Delete lower-quality duplicates.
+* `--rm-orphan-sidecar`: Delete AAE sidecar files that have no matching media file.
+* `--rm-miscategorized`: Delete files in the wrong directory.
+* `--rm-miscategorized-safe`: Delete miscategorized files only if they already exist in the correct directory.
+* `--mv-miscategorized`: Move files in the wrong directory to the correct one.
+* `-n, --dry-run`: Print what would happen without modifying files.
+* `--help`: Show this message and exit.
+
+### `photree albums optimize`
+
+Optimize all iOS albums under a directory or from an explicit list.
+
+**Usage**:
+
+```console
+$ photree albums optimize [OPTIONS]
+```
+
+**Options**:
+
+* `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
+* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
+* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink, symlink, or copy.  [default: hardlink]
+* `--check / --no-check`: Run integrity checks before optimizing (default: enabled).  [default: check]
+* `--checksum / --no-checksum`: Enable/disable SHA-256 checksum verification (default: enabled).  [default: checksum]
+* `-n, --dry-run`: Print what would happen without modifying files.
+* `--help`: Show this message and exit.
+
+### `photree albums stats`
+
+Show aggregated disk usage and content statistics for all albums.
+
+**Usage**:
+
+```console
+$ photree albums stats [OPTIONS]
+```
+
+**Options**:
+
+* `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
+* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
+* `--help`: Show this message and exit.
+
 ## `photree demo`
 
 Demo commands for development.
@@ -447,11 +595,11 @@ $ photree gallery [OPTIONS] COMMAND [ARGS]...
 **Commands**:
 
 * `init`: Initialize gallery metadata...
-* `list-albums`: List all discovered albums with their...
-* `check`: Check all albums under a directory or from...
-* `fix`: Fix all albums under a directory or from...
-* `optimize`: Optimize all iOS albums under a directory...
-* `fix-ios`: Apply fix-ios to all iOS albums under a...
+* `list-albums`: List all albums in the gallery.
+* `check`: Check all albums in the gallery.
+* `fix`: Fix all albums in the gallery.
+* `optimize`: Optimize all iOS albums in the gallery.
+* `fix-ios`: Apply fix-ios to all iOS albums in the...
 * `rename-from-csv`: Rename albums by diffing current vs...
 * `stats`: Show aggregated disk usage and content...
 * `export`: Batch export multiple albums to a shared...
@@ -474,7 +622,7 @@ $ photree gallery init [OPTIONS]
 
 ### `photree gallery list-albums`
 
-List all discovered albums with their metadata and media sources.
+List all albums in the gallery.
 
 **Usage**:
 
@@ -484,15 +632,14 @@ $ photree gallery list-albums [OPTIONS]
 
 **Options**:
 
-* `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
-* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
+* `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--metadata / --no-metadata`: Show parsed album metadata and media sources (default: enabled).  [default: metadata]
 * `--format TEXT`: Output format: text (default) or csv.  [default: text]
 * `--help`: Show this message and exit.
 
 ### `photree gallery check`
 
-Check all albums under a directory or from an explicit list.
+Check all albums in the gallery.
 
 **Usage**:
 
@@ -502,8 +649,7 @@ $ photree gallery check [OPTIONS]
 
 **Options**:
 
-* `-d, --dir DIRECTORY`: Base directory to recursively scan for iOS albums.
-* `-a, --album-dir DIRECTORY`: Album directory to check (repeatable).
+* `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--checksum / --no-checksum`: Enable/disable SHA-256 checksum verification (default: enabled).  [default: checksum]
 * `-W, --fatal-warnings`: Treat all warnings as errors (implies --fatal-sidecar).
 * `--fatal-sidecar`: Treat missing-sidecar warnings as errors.
@@ -515,10 +661,7 @@ $ photree gallery check [OPTIONS]
 
 ### `photree gallery fix`
 
-Fix all albums under a directory or from an explicit list.
-
-Works on all media source types (iOS + plain). At least one fix flag
-must be specified.
+Fix all albums in the gallery.
 
 **Usage**:
 
@@ -528,8 +671,7 @@ $ photree gallery fix [OPTIONS]
 
 **Options**:
 
-* `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
-* `-a, --album-dir DIRECTORY`: Album directory to fix (repeatable).
+* `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--id`: Generate missing album IDs (.photree/album.yaml).
 * `--new-id`: Regenerate album IDs (replaces existing IDs).
 * `--refresh-jpeg`: Refresh {name}-jpg/ from {name}-img/ for all media sources.
@@ -538,14 +680,7 @@ $ photree gallery fix [OPTIONS]
 
 ### `photree gallery optimize`
 
-Optimize all iOS albums under a directory or from an explicit list.
-
-Runs structural integrity checks on each album first (unless --no-check):
-directory structure, file matching, checksums, sidecars, duplicates, and
-miscategorized files. Naming and EXIF checks are not performed.
-
-Albums that pass are optimized by replacing main-img/ and main-vid/
-file copies with links.
+Optimize all iOS albums in the gallery.
 
 **Usage**:
 
@@ -555,8 +690,7 @@ $ photree gallery optimize [OPTIONS]
 
 **Options**:
 
-* `-d, --dir DIRECTORY`: Base directory to recursively scan for iOS albums.
-* `-a, --album-dir DIRECTORY`: Album directory to optimize (repeatable).
+* `-d, --gallery-dir DIRECTORY`: Gallery root directory.
 * `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.
 * `--check / --no-check`: Run integrity checks before optimizing (default: enabled).  [default: check]
 * `--checksum / --no-checksum`: Enable/disable SHA-256 checksum verification (default: enabled).  [default: checksum]
@@ -565,9 +699,7 @@ $ photree gallery optimize [OPTIONS]
 
 ### `photree gallery fix-ios`
 
-Apply fix-ios to all iOS albums under a directory or from an explicit list.
-
-Accepts the same fix flags as fix-ios. At least one fix flag must be specified.
+Apply fix-ios to all iOS albums in the gallery.
 
 **Usage**:
 
@@ -577,16 +709,15 @@ $ photree gallery fix-ios [OPTIONS]
 
 **Options**:
 
-* `-d, --dir DIRECTORY`: Base directory to recursively scan for iOS albums.
-* `-a, --album-dir DIRECTORY`: iOS album directory to fix (repeatable).
+* `-d, --gallery-dir DIRECTORY`: Gallery root directory.
 * `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.
 * `--refresh-combined`: Rebuild main-img/ and main-vid/ from orig/edit, then regenerate main-jpg/.
 * `--refresh-jpeg`: Refresh main-jpg/ from main-img/ (re-convert all HEIC→JPEG).
 * `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
 * `--rm-orphan`: Delete edited and main files that have no corresponding orig file.
-* `--prefer-higher-quality-when-dups`: Delete lower-quality duplicates (e.g. JPG when DNG or HEIC exists for the same number).
+* `--prefer-higher-quality-when-dups`: Delete lower-quality duplicates.
 * `--rm-orphan-sidecar`: Delete AAE sidecar files that have no matching media file.
-* `--rm-miscategorized`: Delete files in the wrong directory (edited in orig or vice versa).
+* `--rm-miscategorized`: Delete files in the wrong directory.
 * `--rm-miscategorized-safe`: Delete miscategorized files only if they already exist in the correct directory.
 * `--mv-miscategorized`: Move files in the wrong directory to the correct one.
 * `-n, --dry-run`: Print what would happen without modifying files.
@@ -617,7 +748,7 @@ $ photree gallery rename-from-csv [OPTIONS] CURRENT_CSV DESIRED_CSV
 
 ### `photree gallery stats`
 
-Show aggregated disk usage and content statistics for all albums.
+Show aggregated disk usage and content statistics for all albums in the gallery.
 
 **Usage**:
 
@@ -627,8 +758,7 @@ $ photree gallery stats [OPTIONS]
 
 **Options**:
 
-* `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
-* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
+* `-d, --gallery-dir DIRECTORY`: Gallery root directory.
 * `--help`: Show this message and exit.
 
 ### `photree gallery export`
