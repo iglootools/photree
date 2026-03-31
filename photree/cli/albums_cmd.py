@@ -12,10 +12,23 @@ from typing import Annotated, Optional
 
 import typer
 
+from ..album.exporter import export_batch, output as export_output
 from ..album.importer import image_capture_batch, output as importer_output
 from ..album.jpeg import convert_single_file, noop_convert_single
-from ..fsprotocol import LinkMode, SELECTION_DIR
-from .album_cmd import _check_sips_or_exit, _run_preflight_checks, _validate_fix_flags
+from ..fsprotocol import (
+    AlbumShareLayout,
+    LinkMode,
+    SELECTION_DIR,
+    ShareDirectoryLayout,
+    display_path,
+)
+from .album_cmd import (
+    _check_sips_or_exit,
+    _resolve_export_settings,
+    _run_preflight_checks,
+    _validate_export_settings,
+    _validate_fix_flags,
+)
 from .batch_ops import (
     run_batch_check,
     run_batch_fix,
@@ -620,3 +633,146 @@ def import_cmd(
         raise typer.Exit(code=1)
 
     typer.echo(importer_output.batch_summary(result.imported, result.skipped))
+
+
+# ---------------------------------------------------------------------------
+# Export batch command
+# ---------------------------------------------------------------------------
+
+
+@albums_app.command("export")
+def export_cmd(
+    base_dir: Annotated[
+        Optional[Path],
+        typer.Option(
+            "--dir",
+            "-d",
+            help="Base directory to scan for albums.",
+            exists=True,
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ] = None,
+    album_dirs: Annotated[
+        Optional[list[Path]],
+        typer.Option(
+            "--album-dir",
+            "-a",
+            help="Album directory to export (repeatable).",
+            exists=True,
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ] = None,
+    share_dir: Annotated[
+        Optional[Path],
+        typer.Option(
+            "--share-dir",
+            "-s",
+            help="Base directory to export into (subdirectories with album names are created).",
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ] = None,
+    profile: Annotated[
+        Optional[str],
+        typer.Option(
+            "--profile",
+            "-p",
+            help="Exporter profile name from config.",
+        ),
+    ] = None,
+    config: Annotated[
+        Optional[str],
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to config file.",
+        ),
+    ] = None,
+    share_layout: Annotated[
+        Optional[ShareDirectoryLayout],
+        typer.Option(
+            "--share-layout",
+            help="Share layout: flat (default) or albums.",
+        ),
+    ] = None,
+    album_layout: Annotated[
+        Optional[AlbumShareLayout],
+        typer.Option(
+            "--album-layout",
+            help="Export layout: main-jpg (default), main, or all.",
+        ),
+    ] = None,
+    link_mode: Annotated[
+        Optional[LinkMode],
+        typer.Option(
+            "--link-mode",
+            help="How to create main files in all layout: hardlink (default), symlink, or copy.",
+        ),
+    ] = None,
+) -> None:
+    """Batch export multiple albums to a shared directory.
+
+    Either scan --dir for albums or provide explicit album directories via
+    --album-dir (repeatable). The two options are mutually exclusive.
+    """
+    from .progress import BatchProgressBar
+
+    cwd = Path.cwd()
+
+    if base_dir is not None and album_dirs is not None:
+        typer.echo("--dir and --album-dir are mutually exclusive.", err=True)
+        raise typer.Exit(code=1)
+
+    settings = _resolve_export_settings(
+        profile_name=profile,
+        share_dir=share_dir,
+        share_layout=share_layout,
+        album_layout=album_layout,
+        link_mode=link_mode,
+        config_path=config,
+    )
+    _validate_export_settings(settings)
+
+    resolved_base = (
+        None
+        if album_dirs is not None
+        else (base_dir if base_dir is not None else Path(".").resolve())
+    )
+
+    # Determine album count for progress bar
+    albums = (
+        list(album_dirs)
+        if album_dirs is not None
+        else export_batch.discover_albums(resolved_base)  # type: ignore[arg-type]
+    )
+
+    if not albums:
+        typer.echo("No albums found.")
+        raise typer.Exit(code=0)
+
+    progress = BatchProgressBar(
+        total=len(albums), description="Exporting", done_description="export"
+    )
+
+    result = export_batch.run_batch_export(
+        base_dir=resolved_base,
+        album_dirs=album_dirs,
+        share_dir=settings.share_dir,
+        share_layout=settings.share_layout,
+        album_layout=settings.album_layout,
+        link_mode=settings.link_mode,
+        on_exporting=progress.on_start,
+        on_exported=lambda name: progress.on_end(name, success=True),
+        on_error=lambda name, error: progress.on_end(name, success=False),
+    )
+    progress.stop()
+
+    typer.echo(export_output.batch_export_summary(result.exported, len(result.failed)))
+
+    if result.failed:
+        typer.echo("\nFailed albums:", err=True)
+        for album_dir_path, error in result.failed:
+            typer.echo(f"  {display_path(album_dir_path, cwd)}: {error}", err=True)
+        raise typer.Exit(code=1)

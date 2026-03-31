@@ -47,7 +47,7 @@ class ExporterProfile:
 
 @dataclass(frozen=True)
 class ExporterConfig:
-    """Configuration for the ``photree export`` commands."""
+    """Configuration for album export (``photree album export``)."""
 
     profiles: dict[str, ExporterProfile] = field(default_factory=dict)
 

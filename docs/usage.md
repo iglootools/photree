@@ -194,21 +194,21 @@ photree album fix-ios-all -d ~/Pictures/albums --rm-orphan -n
 
 ## Export
 
-### `photree export album`
+### `photree album export`
 
 Exports albums to shared directories (cloud sync folders, external volumes).
 
 ```bash
 # Export using a named profile
-photree export album -a "2024-06-15 - Summer Vacation" -p mega
+photree album export -a "2024-06-15 - Summer Vacation" -p mega
 
 # Export with explicit flags
-photree export album -a "2024-06-15 - Summer Vacation" \
+photree album export -a "2024-06-15 - Summer Vacation" \
   --share-dir ~/MEGAsync/to-share \
   --album-layout main-jpg
 
 # Batch export all albums
-photree export album-all -d ~/Pictures/albums -p mega
+photree albums export -d ~/Pictures/albums -p mega
 ```
 
 **Album share layouts:**
