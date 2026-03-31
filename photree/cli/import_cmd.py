@@ -1,6 +1,5 @@
 """CLI commands for the ``photree import`` sub-app."""
 
-import itertools
 from pathlib import Path
 from typing import Annotated, Optional
 
@@ -18,12 +17,16 @@ from ..config import ConfigError, load_config
 from ..fsprotocol import (
     LinkMode,
     SELECTION_DIR,
-    discover_albums,
     display_path,
     format_album_external_id,
     load_album_metadata,
     resolve_gallery_dir,
     resolve_link_mode,
+)
+from ..gallery import (
+    AlbumIndex,
+    MissingAlbumIdError,
+    build_album_id_to_path_index,
 )
 from ..album.jpeg import convert_single_file, noop_convert_single
 from ..importer import album_import, image_capture, image_capture_all, output
@@ -454,6 +457,28 @@ def _resolve_gallery_or_exit(gallery_dir: Path | None) -> Path:
         raise typer.Exit(code=1) from exc
 
 
+def _build_index_or_exit(gallery_dir: Path, cwd: Path) -> AlbumIndex:
+    """Build the gallery album index, or exit on missing IDs."""
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+
+    try:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            transient=True,
+        ) as progress:
+            progress.add_task("Building album index...", total=None)
+            return build_album_id_to_path_index(gallery_dir)
+    except MissingAlbumIdError as exc:
+        err_console.print("Albums with missing IDs found:")
+        for p in exc.albums:
+            err_console.print(f"  {display_path(p, cwd)}")
+        err_console.print(
+            "\nRun 'photree gallery fix --id' to generate missing album IDs."
+        )
+        raise typer.Exit(code=1) from exc
+
+
 @import_app.command("album")
 def album_cmd(
     album_dir: Annotated[
@@ -503,6 +528,21 @@ def album_cmd(
     resolved_gallery = _resolve_gallery_or_exit(gallery_dir)
     resolved_lm = resolve_link_mode(link_mode, resolved_gallery)
     cwd = Path.cwd()
+
+    # Build gallery index for pre-import ID uniqueness check
+    index = _build_index_or_exit(resolved_gallery, cwd)
+
+    # Check source album ID uniqueness against gallery
+    source_meta = load_album_metadata(album_dir)
+    if source_meta is not None and source_meta.id in index.id_to_path:
+        existing = index.id_to_path[source_meta.id]
+        err_console.print(
+            f"Cannot import — album ID already exists in gallery:\n"
+            f"  source: {display_path(album_dir, cwd)}\n"
+            f"  existing: {display_path(existing, cwd)}\n"
+            f"  id: {format_album_external_id(source_meta.id)}"
+        )
+        raise typer.Exit(code=1)
 
     # Validate album name before doing anything
     naming_issues = check_album_naming(album_dir.name)
@@ -650,6 +690,48 @@ def albums_cmd(
         typer.echo("No album directories found.")
         raise typer.Exit(code=0)
 
+    # Build gallery index for pre-import ID uniqueness check
+    index = _build_index_or_exit(resolved_gallery, cwd)
+
+    # Pre-validate: source album ID uniqueness
+    source_metas = [
+        (a, meta) for a in albums if (meta := load_album_metadata(a)) is not None
+    ]
+
+    # Check source IDs against gallery
+    gallery_conflicts = [
+        (a, meta, index.id_to_path[meta.id])
+        for a, meta in source_metas
+        if meta.id in index.id_to_path
+    ]
+    if gallery_conflicts:
+        err_console.print("Cannot import — album ID(s) already exist in gallery:")
+        for src, meta, existing in gallery_conflicts:
+            err_console.print(
+                f"  {src.name} ({format_album_external_id(meta.id)})"
+                f" → {display_path(existing, cwd)}"
+            )
+        raise typer.Exit(code=1)
+
+    # Check for duplicate IDs among source albums
+    import itertools
+
+    sorted_sources = sorted(source_metas, key=lambda t: t[1].id)
+    source_grouped = {
+        aid: [p for p, _ in group]
+        for aid, group in itertools.groupby(sorted_sources, key=lambda t: t[1].id)
+    }
+    source_dups = {
+        aid: paths for aid, paths in source_grouped.items() if len(paths) > 1
+    }
+    if source_dups:
+        err_console.print("Cannot import — duplicate album IDs among source albums:")
+        for aid, paths in source_dups.items():
+            err_console.print(f"  {format_album_external_id(aid)}:")
+            for p in paths:
+                err_console.print(f"    {display_path(p, cwd)}")
+        raise typer.Exit(code=1)
+
     # Pre-validate: check all targets before importing any
     target_conflicts = [
         (a, compute_target_dir(resolved_gallery, a.name))
@@ -729,29 +811,6 @@ def albums_cmd(
             if exiftool is not None:
                 exiftool.__exit__(None, None, None)
         check_progress.stop()
-
-        # Duplicate ID detection across imported + existing albums
-        all_gallery_albums = discover_albums(resolved_gallery)
-        id_pairs = [
-            (meta.id, a)
-            for a in all_gallery_albums
-            if (meta := load_album_metadata(a)) is not None
-        ]
-        sorted_ids = sorted(id_pairs, key=lambda t: t[0])
-        id_to_albums = {
-            aid: [p for _, p in group]
-            for aid, group in itertools.groupby(sorted_ids, key=lambda t: t[0])
-        }
-        duplicates = {
-            aid: paths for aid, paths in id_to_albums.items() if len(paths) > 1
-        }
-        if duplicates:
-            typer.echo("")
-            for aid, paths in duplicates.items():
-                ext_id = format_album_external_id(aid)
-                err_console.print(f"[red]✗[/red] duplicate album id: {ext_id}")
-                for p in paths:
-                    err_console.print(f"    {display_path(p, cwd)}")
 
         if check_failed:
             err_console.print("\nTo investigate failures:")
