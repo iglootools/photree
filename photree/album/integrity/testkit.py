@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ...fsprotocol import MAIN_MEDIA_SOURCE
-from ..integrity import (
+from . import (
     CombinedDirCheck,
     FileComparison,
     IosAlbumFullIntegrityResult,

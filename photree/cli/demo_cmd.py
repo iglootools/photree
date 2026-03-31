@@ -11,12 +11,13 @@ from rich.console import Console
 from rich.panel import Panel
 
 from ..album import output as album_output
-from ..album.output.integrity import format_integrity_checks
-from ..album.testkit.integrity import (
+from ..album.integrity.output import format_integrity_checks
+from ..album.preflight import output as preflight_output
+from ..album.integrity.testkit import (
     FULL_INTEGRITY_FAILURES,
     FULL_INTEGRITY_OK,
 )
-from ..album.testkit.preflight import PREFLIGHT_FAILURES, PREFLIGHT_OK, PREFLIGHT_OTHER
+from ..album.preflight.testkit import PREFLIGHT_FAILURES, PREFLIGHT_OK, PREFLIGHT_OTHER
 from ..album.importer import output as importer_output
 from ..album.importer.testkit.preflight import (
     IC_CHECK_OK,
@@ -56,23 +57,23 @@ def output_cmd() -> None:
     # ── album.output ─────────────────────────────────────────────
 
     _panel(
-        "album_output.sips_check(available=True)",
-        album_output.sips_check(True),
+        "preflight_output.sips_check(available=True)",
+        preflight_output.sips_check(True),
     )
 
     _panel(
-        "album_output.sips_check(available=False)",
-        album_output.sips_check(False),
+        "preflight_output.sips_check(available=False)",
+        preflight_output.sips_check(False),
     )
 
     _panel(
-        "album_output.sips_troubleshoot()",
-        album_output.sips_troubleshoot(),
+        "preflight_output.sips_troubleshoot()",
+        preflight_output.sips_troubleshoot(),
     )
 
     _panel(
         "album_output.album_dir_check — album (all present)",
-        album_output.album_dir_check(
+        preflight_output.album_dir_check(
             present=(
                 "orig-img",
                 "orig-vid",
@@ -88,7 +89,7 @@ def output_cmd() -> None:
 
     _panel(
         "album_output.album_dir_check — album (some missing)",
-        album_output.album_dir_check(
+        preflight_output.album_dir_check(
             present=("orig-img", "orig-vid", "main-img"),
             missing=(
                 "edit-img",
@@ -101,7 +102,7 @@ def output_cmd() -> None:
 
     _panel(
         "album_output.album_dir_check — import (to-import present)",
-        album_output.album_dir_check(
+        preflight_output.album_dir_check(
             present=("to-import",),
             missing=(),
         ),
@@ -109,7 +110,7 @@ def output_cmd() -> None:
 
     _panel(
         "album_output.album_dir_check — import (to-import missing)",
-        album_output.album_dir_check(
+        preflight_output.album_dir_check(
             present=(),
             missing=("to-import",),
         ),
@@ -157,22 +158,22 @@ def output_cmd() -> None:
 
     _panel(
         "album_output.format_album_preflight_checks (ios, all ok)",
-        album_output.format_album_preflight_checks(PREFLIGHT_OK),
+        preflight_output.format_album_preflight_checks(PREFLIGHT_OK),
     )
 
     _panel(
         "album_output.format_album_preflight_checks (ios, failures)",
-        album_output.format_album_preflight_checks(PREFLIGHT_FAILURES),
+        preflight_output.format_album_preflight_checks(PREFLIGHT_FAILURES),
     )
 
     _panel(
         "album_output.format_album_preflight_checks (other)",
-        album_output.format_album_preflight_checks(PREFLIGHT_OTHER),
+        preflight_output.format_album_preflight_checks(PREFLIGHT_OTHER),
     )
 
     _panel(
         "album_output.format_album_preflight_troubleshoot (failures)",
-        album_output.format_album_preflight_troubleshoot(
+        preflight_output.format_album_preflight_troubleshoot(
             PREFLIGHT_FAILURES, album_dir="/path/to/album"
         )
         or "(none)",
@@ -180,7 +181,7 @@ def output_cmd() -> None:
 
     _panel(
         "album_output.format_album_preflight_troubleshoot (all ok — returns None)",
-        album_output.format_album_preflight_troubleshoot(
+        preflight_output.format_album_preflight_troubleshoot(
             PREFLIGHT_OK, album_dir="/path/to/album"
         )
         or "(none)",
@@ -306,8 +307,8 @@ def output_cmd() -> None:
 
     # ── album stats ─────────────────────────────────────────────
 
-    from ..album.output.stats import format_album_stats, format_gallery_stats
-    from ..album.testkit.stats import ALBUM_STATS, GALLERY_STATS
+    from ..album.stats.output import format_album_stats, format_gallery_stats
+    from ..album.stats.testkit import ALBUM_STATS, GALLERY_STATS
 
     console.print("\n[bold cyan]── format_album_stats ──[/bold cyan]\n")
     console.print(format_album_stats(ALBUM_STATS))

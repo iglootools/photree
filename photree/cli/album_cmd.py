@@ -32,7 +32,9 @@ from ..album.naming import (
     check_exif_date_match,
     parse_album_name,
 )
-from ..album.output.preflight import format_naming_checks
+from ..album.preflight import output as preflight_output
+from ..album.preflight.output import format_naming_checks
+from ..album.stats import output as stats_output
 from ..album.jpeg import convert_single_file, noop_convert_single
 from ..config import ConfigError, load_config
 from ..fsprotocol import (
@@ -204,7 +206,7 @@ def check_cmd(
     album_dir_display = str(display_path(album_dir, cwd))
 
     console.print(
-        album_output.format_album_preflight_checks(
+        preflight_output.format_album_preflight_checks(
             result,
             fatal_sidecar=fatal_sidecar,
             fatal_exif=fatal_exif,
@@ -224,12 +226,12 @@ def check_cmd(
             if (parsed := album_naming.parse_album_name(a.name)) is not None
         ]
         batch_naming = album_naming.check_batch_date_collisions(parsed_siblings)
-        console.print(album_output.format_batch_naming_issues(batch_naming))
+        console.print(preflight_output.format_batch_naming_issues(batch_naming))
         if not batch_naming.success:
             failed = True
 
     if failed:
-        troubleshoot = album_output.format_album_preflight_troubleshoot(
+        troubleshoot = preflight_output.format_album_preflight_troubleshoot(
             result, album_dir=album_dir_display
         )
         if troubleshoot:
@@ -240,7 +242,7 @@ def check_cmd(
         ):
             typer.echo("")
             err_console.print(
-                album_output.format_fatal_warnings(
+                preflight_output.format_fatal_warnings(
                     result,
                     fatal_sidecar=fatal_sidecar,
                     fatal_exif=fatal_exif,
@@ -443,11 +445,11 @@ def optimize_cmd(
         if progress:
             progress.stop()
 
-        console.print(album_output.format_album_preflight_checks(check_result))
+        console.print(preflight_output.format_album_preflight_checks(check_result))
 
         if not check_result.success:
             cwd = Path.cwd()
-            troubleshoot = album_output.format_album_preflight_troubleshoot(
+            troubleshoot = preflight_output.format_album_preflight_troubleshoot(
                 check_result, album_dir=str(display_path(album_dir, cwd))
             )
             if troubleshoot:
@@ -972,8 +974,8 @@ def fix_exif_cmd(
 
 def _check_sips_or_exit() -> None:
     if not album_preflight.check_sips_available():
-        err_console.print(album_output.sips_check(False))
-        err_console.print(album_output.sips_troubleshoot())
+        err_console.print(preflight_output.sips_check(False))
+        err_console.print(preflight_output.sips_troubleshoot())
         raise typer.Exit(code=1)
 
 
@@ -1125,7 +1127,7 @@ def stats_cmd(
         err_console.print(str(exc))
         raise typer.Exit(code=1) from None
 
-    console.print(album_output.format_album_stats(result))
+    console.print(stats_output.format_album_stats(result))
 
 
 # ---------------------------------------------------------------------------

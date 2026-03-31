@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ..fsprotocol import (
+from ...fsprotocol import (
     MediaSource,
     MAIN_MEDIA_SOURCE,
     discover_albums,  # noqa: F401 — re-exported for backward compat
@@ -18,14 +18,14 @@ from ..fsprotocol import (
 )
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
-from .exif import try_start_exiftool
-from .integrity import (
+from ..exif import try_start_exiftool
+from ..integrity import (
     AlbumJpegIntegrityResult,
     IosAlbumFullIntegrityResult,
     check_album_jpeg_integrity,
     check_ios_album_integrity,
 )
-from .naming import (
+from ..naming import (
     AlbumNamingResult,
     check_album_naming,
     check_exif_date_match,
