@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ...fsprotocol import MediaSourceType
-from ..stats import (
+from . import (
     AggregateStats,
     AlbumStats,
     FormatStats,

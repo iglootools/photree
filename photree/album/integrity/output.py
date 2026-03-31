@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from . import CHECK, CROSS, WARNING
-from ..integrity import (
+from ...uiconventions import CHECK, CROSS, WARNING
+from . import (
     AlbumJpegIntegrityResult,
     CombinedDirCheck,
     IosAlbumFullIntegrityResult,

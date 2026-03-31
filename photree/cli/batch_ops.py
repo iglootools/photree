@@ -22,6 +22,8 @@ from ..album import (
     stats as album_stats,
 )
 from ..album.exif import try_start_exiftool
+from ..album.preflight import output as preflight_output
+from ..album.stats import output as stats_output
 from ..fsprotocol import (
     AlbumMetadata,
     LinkMode,
@@ -182,11 +184,11 @@ def run_batch_check(
     exiftool = try_start_exiftool() if check_exif_date_match else None
     exiftool_available = exiftool is not None
     typer.echo("System Checks:")
-    console.print(album_output.sips_check(sips_available))
-    console.print(album_output.exiftool_check(exiftool_available))
+    console.print(preflight_output.sips_check(sips_available))
+    console.print(preflight_output.exiftool_check(exiftool_available))
     if not sips_available:
         typer.echo("")
-        err_console.print(album_output.sips_troubleshoot())
+        err_console.print(preflight_output.sips_troubleshoot())
         raise typer.Exit(code=1)
 
     if not albums:
@@ -270,7 +272,7 @@ def run_batch_check(
         ]
         batch_naming = album_naming.check_batch_date_collisions(parsed_albums)
         typer.echo("")
-        console.print(album_output.format_batch_naming_issues(batch_naming))
+        console.print(preflight_output.format_batch_naming_issues(batch_naming))
         if not batch_naming.success:
             colliding_names = {
                 name for _, names in batch_naming.date_collisions for name in names
@@ -394,10 +396,10 @@ def run_batch_optimize(
     if check:
         sips_available = album_preflight.check_sips_available()
         typer.echo("System Checks:")
-        console.print(album_output.sips_check(sips_available))
+        console.print(preflight_output.sips_check(sips_available))
         if not sips_available:
             typer.echo("")
-            err_console.print(album_output.sips_troubleshoot())
+            err_console.print(preflight_output.sips_troubleshoot())
             raise typer.Exit(code=1)
 
     if not albums:
@@ -575,4 +577,4 @@ def run_batch_stats(
 
     result = album_stats.gallery_stats_from_album_stats(album_stats_list)
     typer.echo("")
-    console.print(album_output.format_gallery_stats(result))
+    console.print(stats_output.format_gallery_stats(result))

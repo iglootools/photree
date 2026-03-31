@@ -13,7 +13,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..fsprotocol import (
+from ...fsprotocol import (
     IMG_EXTENSIONS,
     SIDECAR_EXTENSIONS,
     VID_EXTENSIONS,
@@ -24,7 +24,7 @@ from ..fsprotocol import (
     file_ext,
     list_files,
 )
-from .naming import parse_album_name
+from ..naming import parse_album_name
 
 
 # ---------------------------------------------------------------------------

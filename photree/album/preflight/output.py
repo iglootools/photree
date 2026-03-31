@@ -6,10 +6,10 @@ from textwrap import dedent
 
 from rich.markup import escape
 
-from . import CHECK, CROSS, WARNING
+from ...uiconventions import CHECK, CROSS, WARNING
 from .troubleshoot import suggest_exif_fixes, suggest_fixes
 from ..naming import AlbumNamingResult, BatchNamingResult
-from ..preflight import AlbumMediaSourceSummary, AlbumPreflightResult
+from . import AlbumMediaSourceSummary, AlbumPreflightResult
 from ...fsprotocol import format_album_external_id
 
 
@@ -143,7 +143,7 @@ def format_album_preflight_checks(
     album_dir: str = ".",
 ) -> str:
     """Format all album preflight check lines."""
-    from .integrity import format_integrity_checks, format_jpeg_integrity_checks
+    from ..integrity.output import format_integrity_checks, format_jpeg_integrity_checks
 
     return "\n".join(
         [

@@ -13,16 +13,16 @@ from typing import Annotated, Optional
 import typer
 
 from ..album import (
-    output as album_output,
     preflight as album_preflight,
 )
+from ..album.preflight import output as preflight_output
 from ..album.exif import try_start_exiftool
 from ..album.naming import (
     AlbumNamingResult,
     check_album_naming,
     parse_album_name,
 )
-from ..album.output.preflight import format_naming_checks
+from ..album.preflight.output import format_naming_checks
 from ..fsprotocol import (
     AlbumShareLayout,
     GALLERY_YAML,
@@ -846,7 +846,7 @@ def import_cmd(
     if not dry_run:
         typer.echo("\nPost-Import Check:")
         check_result = album_preflight.run_album_preflight(result.target_dir)
-        console.print(album_output.format_album_preflight_checks(check_result))
+        console.print(preflight_output.format_album_preflight_checks(check_result))
         if not check_result.success:
             err_console.print(
                 f'\nTo investigate: photree album check --album-dir "{display_path(result.target_dir, cwd)}"'
