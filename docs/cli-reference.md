@@ -379,6 +379,7 @@ $ photree albums [OPTIONS] COMMAND [ARGS]...
 * `fix-ios`: Apply fix-ios to all iOS albums under a...
 * `optimize`: Optimize all iOS albums under a directory...
 * `stats`: Show aggregated disk usage and content...
+* `import-check`
 * `import`
 
 ### `photree albums list`
@@ -503,6 +504,22 @@ $ photree albums stats [OPTIONS]
 
 * `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
 * `-a, --album-dir DIRECTORY`: Album directory (repeatable).
+* `--help`: Show this message and exit.
+
+### `photree albums import-check`
+
+**Usage**:
+
+```console
+$ photree albums import-check [OPTIONS]
+```
+
+**Options**:
+
+* `-d, --dir DIRECTORY`: Parent directory containing album subdirectories.
+* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
+* `-s, --source DIRECTORY`: Image Capture output directory. Overrides config and default.
+* `-c, --config TEXT`: Path to config file.
 * `--help`: Show this message and exit.
 
 ### `photree albums import`
