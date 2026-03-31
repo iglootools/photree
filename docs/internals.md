@@ -151,8 +151,8 @@ subdirectory where imported albums are organized by year:
 ```
 
 Albums are placed in `albums/YYYY/` where YYYY is extracted from the album
-name's date prefix. The `import album` and `import albums` commands automate
-this placement.
+name's date prefix. The `gallery import` and `gallery import-all` commands
+automate this placement.
 
 ### Gallery Resolution
 

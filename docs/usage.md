@@ -65,9 +65,9 @@ CLI flag always overrides the gallery default.
 
 See [internals.md](./internals.md) for the gallery metadata format and resolution rules.
 
-## Import
+## Import from Image Capture
 
-### `photree import image-capture`
+### `photree album import`
 
 Organizes files imported by macOS Image Capture into an album directory structure.
 See [internals.md](./internals.md) for the Image Capture file structure and album layout.
@@ -77,17 +77,17 @@ See [internals.md](./internals.md) for the Image Capture file structure and albu
 1. Create the album directory with a `to-import/` subfolder
 2. Import all pictures using macOS Image Capture (output: `~/Pictures/<Device Name>/`)
 3. Import all pictures using Apple Photos, curate your selection, then export to `to-import/`
-4. Run `photree import image-capture` from the album directory
+4. Run `photree album import` from the album directory
 
 ```bash
 # Import a single album
-photree import image-capture -a "2024-06-15 - Summer Vacation"
+photree album import -a "2024-06-15 - Summer Vacation"
 
 # Import all albums under a directory
-photree import image-capture-all -d ~/Pictures/albums
+photree albums import -d ~/Pictures/albums
 
 # Dry run to preview what would happen
-photree import image-capture -n
+photree album import -n
 ```
 
 The source directory (where Image Capture saved the files) is resolved in this order:
@@ -96,7 +96,9 @@ The source directory (where Image Capture saved the files) is resolved in this o
 2. `importer.image-capture-dir` from the config file
 3. Default: `~/Pictures/iPhone`
 
-### `photree import album`
+## Import Albums into Gallery
+
+### `photree gallery import`
 
 Imports an existing album directory into the gallery's `albums/YYYY/` structure.
 Automatically generates a missing album ID, refreshes stale JPEGs, optimizes
@@ -104,17 +106,17 @@ links, and runs integrity checks.
 
 ```bash
 # Import a single album into the gallery (resolved from cwd)
-photree import album -a "2024-06-15 - Summer Vacation"
+photree gallery import -a "2024-06-15 - Summer Vacation"
 
 # Import into a specific gallery
-photree import album -a "2024-06-15 - Summer Vacation" -g ~/Pictures/gallery
+photree gallery import -a "2024-06-15 - Summer Vacation" -g ~/Pictures/gallery
 
 # Batch import multiple albums
-photree import albums -d ~/Pictures/incoming-albums
-photree import albums -a album1 -a album2 -g ~/Pictures/gallery
+photree gallery import-all -d ~/Pictures/incoming-albums
+photree gallery import-all -a album1 -a album2 -g ~/Pictures/gallery
 
 # Dry run
-photree import album -a "2024-06-15 - Summer Vacation" -n
+photree gallery import -a "2024-06-15 - Summer Vacation" -n
 ```
 
 The gallery directory is resolved in this order:

@@ -9,9 +9,3 @@ share-dir = "~/MEGAsync/to-share"
 share-layout = "flat"
 album-layout = "main-jpg"
 link-mode = "hardlink"
-
-[exporter.profiles.rocketnano2tb-albums]
-share-dir = "/Volumes/rocketnano2tb/photos/albums"
-share-layout = "albums"
-album-layout = "all"
-link-mode = "symlink"

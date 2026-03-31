@@ -12,10 +12,10 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ..album import combined
-from ..album.jpeg import convert_single_file, refresh_jpeg_dir
+from .. import combined
+from ..jpeg import convert_single_file, refresh_jpeg_dir
 
-from ..fsprotocol import (
+from ...fsprotocol import (
     ALBUM_YAML,
     AlbumMetadata,
     DEFAULT_MEDIA_SOURCE,

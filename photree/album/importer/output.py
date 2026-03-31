@@ -5,8 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from textwrap import dedent
 
-from ..album.output import CHECK, CROSS
-from ..fsprotocol import SELECTION_DIR
+from ..output import CHECK, CROSS
+from ...fsprotocol import SELECTION_DIR
 from .image_capture import ValidationError
 from .preflight import (
     ImageCaptureDirCheck,
@@ -107,7 +107,7 @@ def image_capture_dir_check_output(
 
 def format_preflight_checks(result: ImportPreflightResult) -> str:
     """Format all preflight check lines from a result."""
-    from ..album.output import sips_check
+    from ..output import sips_check
 
     return "\n".join(
         [
@@ -149,7 +149,7 @@ def format_preflight_checks(result: ImportPreflightResult) -> str:
 
 def format_preflight_troubleshoot(result: ImportPreflightResult) -> str | None:
     """Format troubleshooting info for failed checks. Returns None if no failures."""
-    from ..album.output import sips_troubleshoot
+    from ..output import sips_troubleshoot
 
     lines = [
         *([sips_troubleshoot()] if result.sips_available is False else []),

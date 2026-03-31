@@ -1,8 +1,8 @@
-"""Tests for photree.importer.preflight module."""
+"""Tests for photree.album.importer.preflight module."""
 
 from pathlib import Path
 
-from photree.importer.preflight import check_image_capture_dir
+from photree.album.importer.preflight import check_image_capture_dir
 
 
 def _populate(path: Path, filenames: list[str]) -> None:

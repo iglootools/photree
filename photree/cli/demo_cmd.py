@@ -17,14 +17,14 @@ from ..album.testkit.integrity import (
     FULL_INTEGRITY_OK,
 )
 from ..album.testkit.preflight import PREFLIGHT_FAILURES, PREFLIGHT_OK, PREFLIGHT_OTHER
-from ..importer import output as importer_output
-from ..importer.testkit.preflight import (
+from ..album.importer import output as importer_output
+from ..album.importer.testkit.preflight import (
     IC_CHECK_OK,
     IC_CHECK_WARNINGS,
     PREFLIGHT_FAILURES as IMPORT_PREFLIGHT_FAILURES,
     PREFLIGHT_OK as IMPORT_PREFLIGHT_OK,
 )
-from ..importer.testkit.validation import VALIDATION_ERRORS
+from ..album.importer.testkit.validation import VALIDATION_ERRORS
 
 console = Console()
 
@@ -343,7 +343,7 @@ def seed_cmd(
     from rich.syntax import Syntax
     from rich.text import Text
 
-    from ..importer.testkit import seed_demo
+    from ..album.importer.testkit import seed_demo
 
     resolved_base = (
         base_dir
@@ -392,7 +392,7 @@ def seed_cmd(
         cd "$ALBUM"
 
         # Import from Image Capture
-        photree import image-capture -s "$IC"
+        photree album import -s "$IC"
 
         # Browse the album after import
         tree .

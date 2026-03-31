@@ -1,8 +1,8 @@
-"""Tests for photree.importer.testkit module."""
+"""Tests for photree.album.importer.testkit module."""
 
 from pathlib import Path
 
-from photree.importer.testkit import seed_demo
+from photree.album.importer.testkit import seed_demo
 
 
 class TestSeedDemo:
