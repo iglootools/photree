@@ -101,8 +101,16 @@ def init_cmd(
         raise typer.Exit(code=1)
 
     save_gallery_metadata(gallery_dir, GalleryMetadata(link_mode=link_mode))
+    cwd = Path.cwd()
+    is_cwd = gallery_dir.resolve() == cwd.resolve()
+    gallery_flag = "" if is_cwd else f' -g "{display_path(gallery_dir, cwd)}"'
     typer.echo(
-        f"Created {display_path(gallery_yaml, Path.cwd())} (link-mode: {link_mode})"
+        f"Created {display_path(gallery_yaml, cwd)} (link-mode: {link_mode})\n"
+        "\nNext steps:\n"
+        f"  photree gallery import -a <album-dir>{gallery_flag}\n"
+        f"  photree gallery check{gallery_flag}\n"
+        f"  photree gallery stats{gallery_flag}\n"
+        f"  photree gallery export --share-dir <share-dir>{gallery_flag}"
     )
 
 
