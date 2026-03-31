@@ -64,6 +64,17 @@ def run_batch_list_albums(
         typer.echo("No albums found.", err=output_format == "csv")
         raise typer.Exit(code=0)
 
+    # All albums must have IDs
+    missing_id = [a for a in albums if load_album_metadata(a) is None]
+    if missing_id:
+        err_console.print("Albums with missing IDs found:")
+        for p in missing_id:
+            err_console.print(f"  {display_path(p, cwd)}")
+        err_console.print(
+            "\nRun 'photree gallery fix --id' to generate missing album IDs."
+        )
+        raise typer.Exit(code=1)
+
     if output_format == "csv":
         writer = csv.writer(sys.stdout)
         writer.writerow(
