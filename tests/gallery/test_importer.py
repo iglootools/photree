@@ -1,4 +1,4 @@
-"""Tests for photree.importer.album_import module."""
+"""Tests for photree.gallery.importer module."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from photree.fsprotocol import (
     save_album_metadata,
     save_gallery_metadata,
 )
-from photree.importer.album_import import (
+from photree.gallery.importer import (
     compute_target_dir,
     import_album,
 )

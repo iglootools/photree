@@ -7,8 +7,8 @@ import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 
-from .album.naming import ParsedAlbumName, parse_album_name, reconstruct_name
-from .fsprotocol import (
+from ..album.naming import ParsedAlbumName, parse_album_name, reconstruct_name
+from ..fsprotocol import (
     ALBUM_ID_PREFIX,
     discover_albums,
     load_album_metadata,

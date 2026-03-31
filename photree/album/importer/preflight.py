@@ -7,8 +7,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ..album.preflight import check_sips_available
-from ..fsprotocol import SELECTION_DIR
+from ..preflight import check_sips_available
+from ...fsprotocol import SELECTION_DIR
 
 _KNOWN_EXTENSIONS = frozenset({".heic", ".jpg", ".jpeg", ".png", ".mov", ".aae"})
 _IMG_PREFIX_THRESHOLD = 0.5  # at least 50% of files must start with IMG_

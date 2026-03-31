@@ -1,9 +1,9 @@
-"""Tests for the image-capture-all batch import."""
+"""Tests for the image-capture batch import."""
 
 from pathlib import Path
 
 from photree.fsprotocol import SELECTION_DIR
-from photree.importer.image_capture_all import (
+from photree.album.importer.image_capture_batch import (
     categorize_albums,
     run_batch_import,
     scan_albums,

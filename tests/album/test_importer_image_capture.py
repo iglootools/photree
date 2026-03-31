@@ -1,4 +1,4 @@
-"""Tests for photree.importer.image_capture module."""
+"""Tests for photree.album.importer.image_capture module."""
 
 import os
 from pathlib import Path
@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from photree.fsprotocol import SELECTION_DIR, LinkMode
-from photree.importer.image_capture import (
+from photree.album.importer.image_capture import (
     STAGE_IMPORT_IC,
     STAGE_REFRESH_MAIN_IMG,
     STAGE_REFRESH_MAIN_JPG,

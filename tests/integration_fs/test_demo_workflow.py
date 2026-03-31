@@ -28,8 +28,8 @@ from photree.fsprotocol import (
     is_album,
     load_album_metadata,
 )
-from photree.importer.image_capture import run_import
-from photree.importer.testkit import seed_demo
+from photree.album.importer.image_capture import run_import
+from photree.album.importer.testkit import seed_demo
 
 
 class TestDemoWorkflow:

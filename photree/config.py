@@ -30,7 +30,7 @@ class ConfigError(Exception):
 
 @dataclass(frozen=True)
 class ImporterConfig:
-    """Configuration for the ``photree import`` commands."""
+    """Configuration for Image Capture import (``photree album import``)."""
 
     image_capture_dir: Path | None = None
 
