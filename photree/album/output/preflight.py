@@ -10,6 +10,7 @@ from . import CHECK, CROSS, WARNING
 from .troubleshoot import suggest_exif_fixes, suggest_fixes
 from ..naming import AlbumNamingResult, BatchNamingResult
 from ..preflight import AlbumMediaSourceSummary, AlbumPreflightResult
+from ...fsprotocol import format_album_external_id
 
 
 def sips_check(available: bool) -> str:
@@ -48,6 +49,13 @@ def media_sources_check(summary: AlbumMediaSourceSummary) -> str:
     if not summary.media_sources:
         return f"{CROSS} media sources: none detected"
     return f"{CHECK} media sources: {summary.description}"
+
+
+def album_id_check_line(has_id: bool, album_id: str | None = None) -> str:
+    if has_id and album_id is not None:
+        return f"{CHECK} album id: {format_album_external_id(album_id)}"
+    else:
+        return f"{CROSS} album id: missing (.photree/album.yaml)"
 
 
 def album_dir_check(
@@ -142,6 +150,16 @@ def format_album_preflight_checks(
             sips_check(result.sips_available),
             exiftool_check(result.exiftool_available),
             media_sources_check(result.media_source_summary),
+            *(
+                [
+                    album_id_check_line(
+                        result.album_id_check.has_id,
+                        result.album_id_check.album_id,
+                    )
+                ]
+                if result.album_id_check is not None
+                else []
+            ),
             *(
                 album_dir_check(
                     result.dir_check.present,

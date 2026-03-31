@@ -19,13 +19,19 @@ from ..album import (
     stats as album_stats,
 )
 from ..fsprotocol import (
+    AlbumMetadata,
     IMG_EXTENSIONS,
     LinkMode,
     VID_EXTENSIONS,
     discover_albums,
     discover_media_sources,
     display_path,
+    format_album_external_id,
+    generate_album_id,
     list_files,
+    load_album_metadata,
+    resolve_link_mode,
+    save_album_metadata,
 )
 from .console import console, err_console
 from .progress import FileProgressBar, SilentProgressBar, StageProgressBar
@@ -189,6 +195,20 @@ def fix_cmd(
             resolve_path=True,
         ),
     ] = Path("."),
+    fix_id: Annotated[
+        bool,
+        typer.Option(
+            "--id",
+            help="Generate missing album ID (.photree/album.yaml).",
+        ),
+    ] = False,
+    new_id: Annotated[
+        bool,
+        typer.Option(
+            "--new-id",
+            help="Regenerate album ID (replaces existing ID).",
+        ),
+    ] = False,
     refresh_jpeg: Annotated[
         bool,
         typer.Option(
@@ -207,16 +227,35 @@ def fix_cmd(
 ) -> None:
     """Fix album issues. Works on all msutor types (iOS + plain).
 
+    --id: Generates a missing album ID in .photree/album.yaml. Skips
+    albums that already have an ID.
+
+    --new-id: Regenerates the album ID, replacing any existing one.
+
     --refresh-jpeg: Deletes all files in {msutor}-jpg/ and re-converts
     every file from {msutor}-img/. HEIC/HEIF/DNG files are converted
     via sips; JPEG/PNG files are copied as-is.
     """
-    if not refresh_jpeg:
+    if not fix_id and not new_id and not refresh_jpeg:
         typer.echo(
             "No fix specified. Run photree album fix --help for available fixes.",
             err=True,
         )
         raise typer.Exit(code=1)
+
+    if fix_id or new_id:
+        metadata = load_album_metadata(album_dir)
+        match (metadata, new_id, dry_run):
+            case (AlbumMetadata() as m, False, _):
+                typer.echo(f"Album already has an ID: {format_album_external_id(m.id)}")
+            case (_, _, True):
+                typer.echo("[dry-run] Would generate album ID.")
+            case _:
+                generated_id = generate_album_id()
+                save_album_metadata(album_dir, AlbumMetadata(id=generated_id))
+                typer.echo(
+                    f"Generated album ID: {format_album_external_id(generated_id)}"
+                )
 
     if refresh_jpeg:
         _check_sips_or_exit()
@@ -276,12 +315,12 @@ def optimize_cmd(
         ),
     ] = Path("."),
     link_mode: Annotated[
-        LinkMode,
+        LinkMode | None,
         typer.Option(
             "--link-mode",
             help="How to create main files: hardlink (default), symlink, or copy.",
         ),
-    ] = LinkMode.HARDLINK,
+    ] = None,
     check: Annotated[
         bool,
         typer.Option(
@@ -350,11 +389,14 @@ def optimize_cmd(
             raise typer.Exit(code=1)
 
     # Optimize
+    resolved_link_mode = resolve_link_mode(link_mode, album_dir)
     result = album_optimize.optimize_album(
-        album_dir, link_mode=link_mode, dry_run=dry_run
+        album_dir, link_mode=resolved_link_mode, dry_run=dry_run
     )
     typer.echo(
-        album_output.optimize_summary(result.heic_count, result.mov_count, link_mode)
+        album_output.optimize_summary(
+            result.heic_count, result.mov_count, resolved_link_mode
+        )
     )
 
 
@@ -372,12 +414,12 @@ def fix_ios_cmd(
         ),
     ] = Path("."),
     link_mode: Annotated[
-        LinkMode,
+        LinkMode | None,
         typer.Option(
             "--link-mode",
             help="How to create main files: hardlink (default), symlink, or copy.",
         ),
-    ] = LinkMode.HARDLINK,
+    ] = None,
     refresh_combined: Annotated[
         bool,
         typer.Option(
@@ -513,7 +555,7 @@ def fix_ios_cmd(
 
     _run_fix_ios(
         album_dir,
-        link_mode=link_mode,
+        link_mode=resolve_link_mode(link_mode, album_dir),
         dry_run=dry_run,
         log_cwd=cwd,
         show_progress=True,

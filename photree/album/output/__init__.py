@@ -12,6 +12,7 @@ def refresh_jpeg_summary(converted: int, copied: int, skipped: int) -> str:
 # Re-export from submodules for convenience
 from .preflight import (  # noqa: E402, F401
     album_dir_check,
+    album_id_check_line,
     album_type_check,
     media_sources_check,
     exiftool_check,

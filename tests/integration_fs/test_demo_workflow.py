@@ -19,12 +19,14 @@ from photree.album.preflight import (
 )
 from photree.exporter.export import AlbumShareLayout, compute_target_dir, export_album
 from photree.fsprotocol import (
+    ALBUM_YAML,
     MAIN_MEDIA_SOURCE,
     PHOTREE_DIR,
     SHARE_SENTINEL,
     LinkMode,
     ShareDirectoryLayout,
     is_album,
+    load_album_metadata,
 )
 from photree.importer.image_capture import run_import
 from photree.importer.testkit import seed_demo
@@ -71,8 +73,10 @@ class TestDemoWorkflow:
         assert len(import_result.plan.unmatched) == 0
         assert len(import_result.unprocessed) == 0
 
-        # Album marker and iOS directory structure created
+        # Album marker, metadata, and iOS directory structure created
         assert (album_dir / PHOTREE_DIR).is_dir()
+        assert (album_dir / PHOTREE_DIR / ALBUM_YAML).is_file()
+        assert load_album_metadata(album_dir) is not None
         assert is_album(album_dir)
         assert (album_dir / MAIN_MEDIA_SOURCE.ios_dir).is_dir()
         assert detect_album_type(album_dir) == AlbumType.IOS

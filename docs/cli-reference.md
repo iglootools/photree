@@ -89,6 +89,11 @@ $ photree album check [OPTIONS]
 
 Fix album issues. Works on all msutor types (iOS + plain).
 
+--id: Generates a missing album ID in .photree/album.yaml. Skips
+albums that already have an ID.
+
+--new-id: Regenerates the album ID, replacing any existing one.
+
 --refresh-jpeg: Deletes all files in {msutor}-jpg/ and re-converts
 every file from {msutor}-img/. HEIC/HEIF/DNG files are converted
 via sips; JPEG/PNG files are copied as-is.
@@ -102,6 +107,8 @@ $ photree album fix [OPTIONS]
 **Options**:
 
 * `-a, --album-dir DIRECTORY`: Album directory to fix.  [default: .]
+* `--id`: Generate missing album ID (.photree/album.yaml).
+* `--new-id`: Regenerate album ID (replaces existing ID).
 * `--refresh-jpeg`: Refresh {msutor}-jpg/ from {msutor}-img/ for all media_sources.
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
@@ -128,7 +135,7 @@ $ photree album optimize [OPTIONS]
 **Options**:
 
 * `-a, --album-dir DIRECTORY`: Album directory to optimize.  [default: .]
-* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.  [default: hardlink]
+* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.
 * `--check / --no-check`: Run integrity checks before optimizing (default: enabled).  [default: check]
 * `--checksum / --no-checksum`: Enable/disable SHA-256 checksum verification (default: enabled).  [default: checksum]
 * `-n, --dry-run`: Print what would happen without modifying files.
@@ -184,7 +191,7 @@ $ photree album fix-ios [OPTIONS]
 **Options**:
 
 * `-a, --album-dir DIRECTORY`: iOS album directory to fix.  [default: .]
-* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.  [default: hardlink]
+* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.
 * `--refresh-combined`: Rebuild main-img/ and main-vid/ from orig/edit, then regenerate main-jpg/.
 * `--refresh-jpeg`: Refresh main-jpg/ from main-img/ (re-convert all HEIC→JPEG).
 * `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
@@ -506,6 +513,8 @@ $ photree gallery fix [OPTIONS]
 
 * `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
 * `-a, --album-dir DIRECTORY`: Album directory to fix (repeatable).
+* `--id`: Generate missing album IDs (.photree/album.yaml).
+* `--new-id`: Regenerate album IDs (replaces existing IDs).
 * `--refresh-jpeg`: Refresh {name}-jpg/ from {name}-img/ for all media sources.
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
@@ -531,7 +540,7 @@ $ photree gallery optimize [OPTIONS]
 
 * `-d, --dir DIRECTORY`: Base directory to recursively scan for iOS albums.
 * `-a, --album-dir DIRECTORY`: Album directory to optimize (repeatable).
-* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.  [default: hardlink]
+* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.
 * `--check / --no-check`: Run integrity checks before optimizing (default: enabled).  [default: check]
 * `--checksum / --no-checksum`: Enable/disable SHA-256 checksum verification (default: enabled).  [default: checksum]
 * `-n, --dry-run`: Print what would happen without modifying files.
@@ -553,7 +562,7 @@ $ photree gallery fix-ios [OPTIONS]
 
 * `-d, --dir DIRECTORY`: Base directory to recursively scan for iOS albums.
 * `-a, --album-dir DIRECTORY`: iOS album directory to fix (repeatable).
-* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.  [default: hardlink]
+* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.
 * `--refresh-combined`: Rebuild main-img/ and main-vid/ from orig/edit, then regenerate main-jpg/.
 * `--refresh-jpeg`: Refresh main-jpg/ from main-img/ (re-convert all HEIC→JPEG).
 * `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.

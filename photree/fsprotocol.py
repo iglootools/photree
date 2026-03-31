@@ -1,16 +1,97 @@
 """Filesystem naming conventions and shared helpers for album directories."""
 
+from __future__ import annotations
+
+import functools
 import os
 import re
 import shutil
+import uuid as _uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from textwrap import dedent
 
+import yaml
+from pydantic import BaseModel, ConfigDict, Field
 from rich.console import Console
+from uuid6 import uuid7
 
 from .uiconventions import CHECK
+
+
+# ---------------------------------------------------------------------------
+# Pydantic base model (kebab-case YAML aliases, frozen)
+# ---------------------------------------------------------------------------
+
+
+def _to_kebab(name: str) -> str:
+    return name.replace("_", "-")
+
+
+class _BaseModel(BaseModel):
+    model_config = ConfigDict(
+        alias_generator=_to_kebab,
+        populate_by_name=True,
+        frozen=True,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Base58 encoding (Bitcoin alphabet) — used for external IDs
+# ---------------------------------------------------------------------------
+
+_BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+
+def _base58_encode(data: bytes) -> str:
+    """Encode *data* as a base58 string (Bitcoin alphabet)."""
+    n = int.from_bytes(data, "big")
+    result: list[str] = []
+    while n > 0:
+        n, remainder = divmod(n, 58)
+        result.append(_BASE58_ALPHABET[remainder])
+    leading_zeros = len(data) - len(data.lstrip(b"\x00"))
+    return _BASE58_ALPHABET[0] * leading_zeros + "".join(reversed(result))
+
+
+def _base58_decode(s: str) -> bytes:
+    """Decode a base58 string back to bytes."""
+    n = functools.reduce(lambda acc, c: acc * 58 + _BASE58_ALPHABET.index(c), s, 0)
+    leading_ones = len(s) - len(s.lstrip(_BASE58_ALPHABET[0]))
+    byte_length = max((n.bit_length() + 7) // 8, 1) if n else 0
+    return b"\x00" * leading_ones + (n.to_bytes(byte_length, "big") if n else b"")
+
+
+# ---------------------------------------------------------------------------
+# External ID helpers
+# ---------------------------------------------------------------------------
+
+ALBUM_ID_PREFIX = "album"
+
+
+def format_external_id(type_prefix: str, internal_id: str) -> str:
+    """Convert an internal UUID string to ``prefix_base58`` external form."""
+    return f"{type_prefix}_{_base58_encode(_uuid.UUID(internal_id).bytes)}"
+
+
+def parse_external_id(external_id: str, expected_prefix: str) -> str:
+    """Convert ``prefix_base58`` external form back to a UUID string."""
+    prefix, sep, encoded = external_id.partition("_")
+    if not sep or prefix != expected_prefix:
+        raise ValueError(f"Expected '{expected_prefix}_...' but got '{external_id}'")
+    return str(_uuid.UUID(bytes=_base58_decode(encoded)))
+
+
+def format_album_external_id(internal_id: str) -> str:
+    """Convenience wrapper for album external IDs."""
+    return format_external_id(ALBUM_ID_PREFIX, internal_id)
+
+
+# ---------------------------------------------------------------------------
+# Path helpers
+# ---------------------------------------------------------------------------
 
 
 def display_path(path: Path, cwd: Path) -> Path:
@@ -56,6 +137,97 @@ class ShareDirectoryLayout(StrEnum):
 
 
 SHARE_SENTINEL = ".photree-share"
+
+
+# ---------------------------------------------------------------------------
+# Metadata models
+# ---------------------------------------------------------------------------
+
+
+class AlbumMetadata(_BaseModel):
+    """Per-album metadata stored in ``.photree/album.yaml``."""
+
+    id: str = Field(description="UUID v7 identifying the album.")
+
+
+class GalleryMetadata(_BaseModel):
+    """Gallery-wide metadata stored in ``.photree/gallery.yaml``."""
+
+    link_mode: LinkMode = Field(
+        default=LinkMode.HARDLINK,
+        description="Default link mode for optimize and other link-mode operations.",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Metadata I/O
+# ---------------------------------------------------------------------------
+
+ALBUM_YAML = "album.yaml"
+GALLERY_YAML = "gallery.yaml"
+
+
+def generate_album_id() -> str:
+    """Generate a new UUID v7 string for an album."""
+    return str(uuid7())
+
+
+def load_album_metadata(album_dir: Path) -> AlbumMetadata | None:
+    """Read ``.photree/album.yaml``, or ``None`` if missing."""
+    path = album_dir / PHOTREE_DIR / ALBUM_YAML
+    if not path.is_file():
+        return None
+    with open(path) as f:
+        raw = yaml.safe_load(f)
+    return AlbumMetadata.model_validate(raw) if isinstance(raw, dict) else None
+
+
+def save_album_metadata(album_dir: Path, metadata: AlbumMetadata) -> None:
+    """Write :class:`AlbumMetadata` to ``.photree/album.yaml``."""
+    photree_dir = album_dir / PHOTREE_DIR
+    photree_dir.mkdir(exist_ok=True)
+    path = photree_dir / ALBUM_YAML
+    path.write_text(
+        yaml.safe_dump(
+            metadata.model_dump(by_alias=True, mode="json"),
+            default_flow_style=False,
+            sort_keys=False,
+        )
+    )
+
+
+def load_gallery_metadata(gallery_yaml_path: Path) -> GalleryMetadata:
+    """Read a ``gallery.yaml`` file and return :class:`GalleryMetadata`."""
+    with open(gallery_yaml_path) as f:
+        raw = yaml.safe_load(f)
+    if not isinstance(raw, dict):
+        raise ValueError(f"Expected YAML mapping in {gallery_yaml_path}")
+    return GalleryMetadata.model_validate(raw)
+
+
+def resolve_gallery_metadata(start_dir: Path) -> GalleryMetadata | None:
+    """Walk up from *start_dir* looking for ``.photree/gallery.yaml``.
+
+    Returns the first :class:`GalleryMetadata` found, or ``None``.
+    """
+    current = start_dir.resolve()
+    while True:
+        candidate = current / PHOTREE_DIR / GALLERY_YAML
+        if candidate.is_file():
+            return load_gallery_metadata(candidate)
+        parent = current.parent
+        if parent == current:
+            return None
+        current = parent
+
+
+def resolve_link_mode(explicit: LinkMode | None, start_dir: Path) -> LinkMode:
+    """Resolve link mode: explicit CLI arg > gallery.yaml > hardcoded default."""
+    if explicit is not None:
+        return explicit
+    gallery = resolve_gallery_metadata(start_dir)
+    return gallery.link_mode if gallery is not None else LinkMode.HARDLINK
+
 
 # Date regex for naming convention validation.
 # Single dates: YYYY, YYYY-MM, YYYY-MM-DD
@@ -210,27 +382,34 @@ PHOTREE_DIR = ".photree"
 def is_album(directory: Path) -> bool:
     """Check if a directory is a photree album.
 
-    A directory is an album if it contains a ``.photree/`` directory
+    A directory is an album if it contains ``.photree/album.yaml``
     **and** at least one media source (iOS or plain).
     """
-    return (directory / PHOTREE_DIR).is_dir() and bool(
+    return (directory / PHOTREE_DIR / ALBUM_YAML).is_file() and bool(
         discover_media_sources(directory)
     )
 
 
-def discover_albums(base_dir: Path) -> list[Path]:
-    """Recursively discover album directories under *base_dir*.
+def is_legacy_album(directory: Path) -> bool:
+    """Check if a directory has ``.photree/`` but no ``album.yaml`` (needs migration)."""
+    return (
+        (directory / PHOTREE_DIR).is_dir()
+        and not (directory / PHOTREE_DIR / ALBUM_YAML).is_file()
+        and bool(discover_media_sources(directory))
+    )
 
-    A directory is considered an album when it contains:
-    1. A ``.photree/`` directory (album marker), **and**
-    2. At least one media source (``ios-{name}/`` or ``{name}-img/``/``{name}-vid/``)
 
-    The *base_dir* itself is never returned as an album.
+def _discover_albums_with(
+    base_dir: Path, predicate: Callable[[Path], bool]
+) -> list[Path]:
+    """Walk *base_dir* collecting directories that satisfy *predicate*.
+
+    The *base_dir* itself is never returned.
     """
     albums: list[Path] = []
 
     def walk(directory: Path) -> None:
-        if is_album(directory):
+        if predicate(directory):
             albums.append(directory)
             return
 
@@ -245,6 +424,27 @@ def discover_albums(base_dir: Path) -> list[Path]:
 
     walk(base_dir)
     return albums
+
+
+def discover_albums(base_dir: Path) -> list[Path]:
+    """Recursively discover album directories under *base_dir*.
+
+    A directory is considered an album when it contains:
+    1. A ``.photree/album.yaml`` file (album metadata), **and**
+    2. At least one media source (``ios-{name}/`` or ``{name}-img/``/``{name}-vid/``)
+
+    The *base_dir* itself is never returned as an album.
+    """
+    return _discover_albums_with(base_dir, is_album)
+
+
+def discover_all_albums(base_dir: Path) -> list[Path]:
+    """Discover albums including legacy ones (for migration commands).
+
+    Returns directories that are either proper albums (with ``album.yaml``)
+    or legacy albums (with ``.photree/`` but no ``album.yaml``).
+    """
+    return _discover_albums_with(base_dir, lambda d: is_album(d) or is_legacy_album(d))
 
 
 def discover_media_sources(album_dir: Path) -> list[MediaSource]:

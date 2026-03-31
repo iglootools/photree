@@ -16,6 +16,8 @@ from ..album import combined
 from ..album.jpeg import convert_single_file, refresh_jpeg_dir
 
 from ..fsprotocol import (
+    ALBUM_YAML,
+    AlbumMetadata,
     DEFAULT_MEDIA_SOURCE,
     IOS_IMG_EXTENSIONS,
     LinkMode,
@@ -23,9 +25,11 @@ from ..fsprotocol import (
     PHOTREE_DIR,
     SIDECAR_EXTENSIONS,
     SELECTION_DIR,
+    generate_album_id,
     ios_media_source,
     list_files,
     pick_media_priority,
+    save_album_metadata,
 )
 
 # Import stages
@@ -479,9 +483,11 @@ def run_import(
     album_main_img = album_dir / ms.img_dir
     album_main_jpg = album_dir / ms.jpg_dir
 
-    # Create album marker so gallery commands can discover this album
+    # Create album marker and metadata so gallery commands can discover this album
     if not dry_run:
         (album_dir / PHOTREE_DIR).mkdir(exist_ok=True)
+        if not (album_dir / PHOTREE_DIR / ALBUM_YAML).is_file():
+            save_album_metadata(album_dir, AlbumMetadata(id=generate_album_id()))
 
     # ── Stage 1: import-ic ──
     # Copy files from Image Capture to orig/edited dirs.
