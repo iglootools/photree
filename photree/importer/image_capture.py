@@ -489,6 +489,45 @@ def run_import(
         if not (album_dir / PHOTREE_DIR / ALBUM_YAML).is_file():
             save_album_metadata(album_dir, AlbumMetadata(id=generate_album_id()))
 
+    # ── Pre-copy collision check ──
+    # Fail fast before copying anything if the target media source already
+    # contains files with the same image number (even with a different extension).
+    incoming_img_numbers = {
+        match.img_number
+        for match in plan.matches
+        if match.media_type == MediaType.IMAGE
+    }
+    incoming_vid_numbers = {
+        match.img_number
+        for match in plan.matches
+        if match.media_type == MediaType.VIDEO
+    }
+    existing_img = {
+        _img_number(f)
+        for f in list_files(album_orig_img)
+        if _is_media(f) or _is_sidecar(f)
+    }
+    existing_vid = {
+        _img_number(f)
+        for f in list_files(album_orig_vid)
+        if _is_media(f) or _is_sidecar(f)
+    }
+    img_collisions = incoming_img_numbers & existing_img
+    vid_collisions = incoming_vid_numbers & existing_vid
+    if img_collisions or vid_collisions:
+        collision_numbers = sorted(img_collisions | vid_collisions)
+        raise ValueError(
+            f"Import would conflict with {len(collision_numbers)} existing"
+            f" image number(s) in media source '{ms.name}':\n"
+            + "".join(f"  IMG #{n}\n" for n in collision_numbers[:10])
+            + (
+                f"  ... and {len(collision_numbers) - 10} more\n"
+                if len(collision_numbers) > 10
+                else ""
+            )
+            + f"Use --media-source to import into a different media source (current: {ms.name})."
+        )
+
     # ── Stage 1: import-ic ──
     # Copy files from Image Capture to orig/edited dirs.
     # Directories are created on demand to avoid empty leftover dirs
