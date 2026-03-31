@@ -5,7 +5,12 @@ from pathlib import Path
 import pytest
 
 from photree.album.media_ops import move_media, rm_media, resolve_variants
-from photree.fsprotocol import MAIN_MEDIA_SOURCE
+from photree.fsprotocol import (
+    AlbumMetadata,
+    MAIN_MEDIA_SOURCE,
+    generate_album_id,
+    save_album_metadata,
+)
 
 MC = MAIN_MEDIA_SOURCE
 PHOTREE_DIR = ".photree"
@@ -26,9 +31,14 @@ def _names(directory: Path) -> set[str]:
     return {f.name for f in directory.iterdir() if f.is_file()}
 
 
+def _mark_album(album: Path) -> None:
+    save_album_metadata(album, AlbumMetadata(id=generate_album_id()))
+
+
 def _setup_ios_album(album: Path) -> None:
     """Create a minimal iOS album with one image (0410) that has orig, edit, main, jpg."""
     _setup_dir(album / PHOTREE_DIR, [])
+    _mark_album(album)
     _setup_dir(
         album / "ios-main/orig-img",
         ["IMG_0410.HEIC", "IMG_0410.AAE"],
@@ -44,6 +54,7 @@ def _setup_ios_album(album: Path) -> None:
 def _setup_ios_album_with_video(album: Path) -> None:
     """Create a minimal iOS album with one video (0115)."""
     _setup_dir(album / PHOTREE_DIR, [])
+    _mark_album(album)
     _setup_dir(album / "ios-main/orig-img", [])
     _setup_dir(album / "ios-main/orig-vid", ["IMG_0115.MOV"])
     _setup_dir(album / "ios-main/edit-vid", ["IMG_E0115.MOV"])
@@ -53,6 +64,7 @@ def _setup_ios_album_with_video(album: Path) -> None:
 def _setup_plain_album(album: Path, media_source_name: str = "nelu") -> None:
     """Create a minimal plain contributor album."""
     _setup_dir(album / PHOTREE_DIR, [])
+    _mark_album(album)
     _setup_dir(album / f"{media_source_name}-img", ["sunset.heic", "beach.png"])
     _setup_dir(album / f"{media_source_name}-jpg", ["sunset.jpg", "beach.png"])
 
@@ -130,6 +142,7 @@ class TestResolveVariants:
         """Directories that don't exist on disk are silently skipped."""
         album = tmp_path / "album"
         _setup_dir(album / PHOTREE_DIR, [])
+        _mark_album(album)
         _setup_dir(album / "ios-main/orig-img", ["IMG_0410.HEIC"])
         _setup_dir(album / "main-img", ["IMG_0410.HEIC"])
         _setup_dir(album / "main-jpg", ["IMG_0410.jpg"])
@@ -157,6 +170,7 @@ class TestResolveVariants:
     def test_multiple_numbers(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_dir(album / PHOTREE_DIR, [])
+        _mark_album(album)
         _setup_dir(
             album / "ios-main/orig-img",
             ["IMG_0410.HEIC", "IMG_0411.HEIC"],
@@ -186,6 +200,7 @@ class TestMoveMedia:
         dst = tmp_path / "dst-album"
         _setup_ios_album(src)
         _setup_dir(dst / PHOTREE_DIR, [])
+        _mark_album(dst)
 
         result = move_media(src, dst, ["main-jpg/IMG_E0410.jpg"])
 
@@ -207,6 +222,7 @@ class TestMoveMedia:
         dst = tmp_path / "dst-album"
         _setup_ios_album_with_video(src)
         _setup_dir(dst / PHOTREE_DIR, [])
+        _mark_album(dst)
 
         result = move_media(src, dst, ["main-vid/IMG_E0115.MOV"])
 
@@ -220,6 +236,7 @@ class TestMoveMedia:
         dst = tmp_path / "dst-album"
         _setup_plain_album(src)
         _setup_dir(dst / PHOTREE_DIR, [])
+        _mark_album(dst)
 
         result = move_media(src, dst, ["nelu-img/sunset.heic"])
 
@@ -235,6 +252,7 @@ class TestMoveMedia:
         dst = tmp_path / "dst-album"
         _setup_ios_album(src)
         _setup_dir(dst / PHOTREE_DIR, [])
+        _mark_album(dst)
 
         result = move_media(src, dst, ["main-jpg/IMG_E0410.jpg"], dry_run=True)
 
@@ -260,6 +278,7 @@ class TestMoveMedia:
         src = tmp_path / "src-album"
         dst = tmp_path / "dst-album"
         _setup_dir(src / PHOTREE_DIR, [])
+        _mark_album(src)
         _setup_dir(
             src / "ios-main/orig-img",
             ["IMG_0410.HEIC", "IMG_0411.HEIC"],
@@ -267,6 +286,7 @@ class TestMoveMedia:
         _setup_dir(src / "main-img", ["IMG_0410.HEIC", "IMG_0411.HEIC"])
         _setup_dir(src / "main-jpg", ["IMG_0410.jpg", "IMG_0411.jpg"])
         _setup_dir(dst / PHOTREE_DIR, [])
+        _mark_album(dst)
 
         move_media(src, dst, ["main-jpg/IMG_0410.jpg"])
 
