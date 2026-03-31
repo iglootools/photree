@@ -6,6 +6,7 @@ from typing import Annotated, Optional
 import typer
 
 from .album_cmd import album_app
+from .albums_cmd import albums_app
 from .check_cmd import check_cmd
 from .demo_cmd import demo_app
 from .export_cmd import export_app
@@ -44,6 +45,7 @@ def _main(
 
 app.command("check")(check_cmd)
 app.add_typer(album_app)
+app.add_typer(albums_app)
 app.add_typer(demo_app)
 app.add_typer(export_app)
 app.add_typer(gallery_app)

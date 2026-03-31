@@ -219,36 +219,15 @@ def load_gallery_metadata(gallery_yaml_path: Path) -> GalleryMetadata:
     return GalleryMetadata.model_validate(raw)
 
 
-def resolve_gallery_metadata(start_dir: Path) -> GalleryMetadata | None:
-    """Walk up from *start_dir* looking for ``.photree/gallery.yaml``.
-
-    Returns the first :class:`GalleryMetadata` found, or ``None``.
-    """
-    current = start_dir.resolve()
-    while True:
-        candidate = current / PHOTREE_DIR / GALLERY_YAML
-        if candidate.is_file():
-            return load_gallery_metadata(candidate)
-        parent = current.parent
-        if parent == current:
-            return None
-        current = parent
-
-
-def resolve_link_mode(explicit: LinkMode | None, start_dir: Path) -> LinkMode:
-    """Resolve link mode: explicit CLI arg > gallery.yaml > hardcoded default."""
-    if explicit is not None:
-        return explicit
-    gallery = resolve_gallery_metadata(start_dir)
-    return gallery.link_mode if gallery is not None else LinkMode.HARDLINK
-
-
-def resolve_gallery_dir(explicit: Path | None) -> Path:
+def resolve_gallery_dir(
+    explicit: Path | None, *, start_dir: Path | None = None
+) -> Path:
     """Resolve the gallery root directory.
 
-    Resolution order: explicit ``--gallery-dir`` > walk up from cwd looking
-    for ``.photree/gallery.yaml``. Raises :class:`ValueError` if no gallery
-    metadata is found.
+    Resolution order: explicit path > walk up from *start_dir* (or cwd)
+    looking for ``.photree/gallery.yaml``.
+
+    Raises :class:`ValueError` if no gallery metadata is found.
     """
     if explicit is not None:
         if not (explicit / PHOTREE_DIR / GALLERY_YAML).is_file():
@@ -258,8 +237,7 @@ def resolve_gallery_dir(explicit: Path | None) -> Path:
             )
         return explicit
 
-    cwd = Path.cwd()
-    current = cwd.resolve()
+    current = (start_dir or Path.cwd()).resolve()
     while True:
         candidate = current / PHOTREE_DIR / GALLERY_YAML
         if candidate.is_file():
@@ -273,6 +251,26 @@ def resolve_gallery_dir(explicit: Path | None) -> Path:
         "No gallery metadata (.photree/gallery.yaml) found in parent directories.\n"
         "Run 'photree gallery init' in the gallery root, or use --gallery-dir."
     )
+
+
+def resolve_gallery_metadata(start_dir: Path) -> GalleryMetadata | None:
+    """Walk up from *start_dir* looking for ``.photree/gallery.yaml``.
+
+    Returns the first :class:`GalleryMetadata` found, or ``None``.
+    """
+    try:
+        gallery_dir = resolve_gallery_dir(None, start_dir=start_dir)
+    except ValueError:
+        return None
+    return load_gallery_metadata(gallery_dir / PHOTREE_DIR / GALLERY_YAML)
+
+
+def resolve_link_mode(explicit: LinkMode | None, start_dir: Path) -> LinkMode:
+    """Resolve link mode: explicit CLI arg > gallery.yaml > hardcoded default."""
+    if explicit is not None:
+        return explicit
+    gallery = resolve_gallery_metadata(start_dir)
+    return gallery.link_mode if gallery is not None else LinkMode.HARDLINK
 
 
 # Date regex for naming convention validation.

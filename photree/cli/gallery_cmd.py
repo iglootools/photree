@@ -1,51 +1,44 @@
 """CLI commands for the ``photree gallery`` sub-app.
 
-Gallery commands operate on multiple albums at once (batch operations).
+Gallery commands operate on all albums within a gallery (resolved via
+``--gallery-dir`` or ``.photree/gallery.yaml`` in parent directories).
 """
 
 from __future__ import annotations
 
-import io
-import itertools
 from collections.abc import Callable
-from contextlib import redirect_stdout
 from pathlib import Path
 from typing import Annotated, Optional
 
 import typer
 
 from ..album import (
-    fixes as album_fixes,
-    naming as album_naming,
-    optimize as album_optimize,
-    output as album_output,
     preflight as album_preflight,
-    stats as album_stats,
 )
-from ..album.exif import try_start_exiftool
 from ..fsprotocol import (
     GALLERY_YAML,
-    AlbumMetadata,
     GalleryMetadata,
     LinkMode,
     PHOTREE_DIR,
     discover_all_albums,
-    discover_media_sources,
     display_path,
-    format_album_external_id,
-    generate_album_id,
-    load_album_metadata,
+    resolve_gallery_dir,
     resolve_link_mode,
-    save_album_metadata,
     save_gallery_metadata,
 )
 from .album_cmd import (
     _check_sips_or_exit,
-    _run_fix_ios,
     _validate_fix_flags,
 )
-from .console import console, err_console
-from .progress import BatchProgressBar
+from .batch_ops import (
+    run_batch_check,
+    run_batch_fix,
+    run_batch_fix_ios,
+    run_batch_list_albums,
+    run_batch_optimize,
+    run_batch_stats,
+)
+from .console import err_console
 
 gallery_app = typer.Typer(
     name="gallery",
@@ -154,33 +147,28 @@ def _resolve_batch_albums_with(
     return (albums, resolved_base)
 
 
-def _display_name(album_dir: Path, base_dir: Path | None, cwd: Path) -> str:
-    """Human-readable album name relative to *base_dir* or *cwd*."""
-    if base_dir is not None:
-        return str(album_dir.relative_to(base_dir))
+# ---------------------------------------------------------------------------
+# Gallery commands — resolve gallery dir, discover albums, delegate to shared logic
+# ---------------------------------------------------------------------------
 
-    return str(display_path(album_dir, cwd))
+
+def _resolve_gallery_or_exit(gallery_dir: Path | None) -> Path:
+    """Resolve gallery directory or exit with a clear error."""
+    try:
+        return resolve_gallery_dir(gallery_dir)
+    except ValueError as exc:
+        err_console.print(str(exc))
+        raise typer.Exit(code=1) from exc
 
 
 @gallery_app.command("list-albums")
 def list_albums_cmd(
-    base_dir: Annotated[
+    gallery_dir: Annotated[
         Optional[Path],
         typer.Option(
-            "--dir",
+            "--gallery-dir",
             "-d",
-            help="Base directory to recursively scan for albums.",
-            exists=True,
-            file_okay=False,
-            resolve_path=True,
-        ),
-    ] = None,
-    album_dirs: Annotated[
-        Optional[list[Path]],
-        typer.Option(
-            "--album-dir",
-            "-a",
-            help="Album directory (repeatable).",
+            help="Gallery root directory (or resolved from cwd via .photree/gallery.yaml).",
             exists=True,
             file_okay=False,
             resolve_path=True,
@@ -201,139 +189,22 @@ def list_albums_cmd(
         ),
     ] = "text",
 ) -> None:
-    """List all discovered albums with their metadata and media sources."""
-    import csv
-    import sys
-
-    from ..album.naming import parse_album_name
-
-    if output_format == "csv":
-        # Resolve without spinner to avoid polluting stdout
-        from ..fsprotocol import discover_albums as _discover
-
-        if base_dir is not None and album_dirs is not None:
-            typer.echo("--dir and --album-dir are mutually exclusive.", err=True)
-            raise typer.Exit(code=1)
-        if album_dirs is not None:
-            albums, display_base = album_dirs, None
-        else:
-            resolved = base_dir if base_dir is not None else Path(".").resolve()
-            albums, display_base = _discover(resolved), resolved
-    else:
-        albums, display_base = _resolve_check_batch_albums(base_dir, album_dirs)
-
-    cwd = Path.cwd()
-
-    if not albums:
-        typer.echo("No albums found.", err=output_format == "csv")
-        raise typer.Exit(code=0)
-
-    if output_format == "csv":
-        writer = csv.writer(sys.stdout)
-        writer.writerow(
-            [
-                "id",
-                "path",
-                "date",
-                "part",
-                "series",
-                "title",
-                "location",
-                "tags",
-                "media_sources",
-            ]
-        )
-        for album_dir in albums:
-            rel_path = _display_name(album_dir, display_base, cwd)
-            album_meta = load_album_metadata(album_dir)
-            external_id = (
-                format_album_external_id(album_meta.id)
-                if album_meta is not None
-                else ""
-            )
-            parsed = parse_album_name(album_dir.name)
-            media_sources = discover_media_sources(album_dir)
-            ms_desc = ", ".join(
-                f"{c.name} ({c.media_source_type})" for c in media_sources
-            )
-            if parsed is not None:
-                tags = "private" if parsed.private else ""
-                writer.writerow(
-                    [
-                        external_id,
-                        rel_path,
-                        parsed.date,
-                        parsed.part or "",
-                        parsed.series or "",
-                        parsed.title,
-                        parsed.location or "",
-                        tags,
-                        ms_desc,
-                    ]
-                )
-            else:
-                writer.writerow(
-                    [external_id, rel_path, "", "", "", album_dir.name, "", "", ms_desc]
-                )
-        return
-
-    typer.echo(f"Found {len(albums)} album(s).\n")
-
-    for album_dir in albums:
-        name = _display_name(album_dir, display_base, cwd)
-        typer.echo(name)
-
-        if metadata:
-            album_meta = load_album_metadata(album_dir)
-            if album_meta is not None:
-                typer.echo(f"  id: {format_album_external_id(album_meta.id)}")
-            else:
-                typer.echo("  id: (missing)")
-
-            parsed = parse_album_name(album_dir.name)
-            media_sources = discover_media_sources(album_dir)
-
-            if parsed is not None:
-                parts = [f"date={parsed.date}"]
-                if parsed.part is not None:
-                    parts.append(f"part={parsed.part}")
-                if parsed.series is not None:
-                    parts.append(f"series={parsed.series}")
-                parts.append(f"title={parsed.title}")
-                if parsed.location is not None:
-                    parts.append(f"location={parsed.location}")
-                if parsed.private:
-                    parts.append("private")
-                typer.echo(f"  {', '.join(parts)}")
-            else:
-                typer.echo("  (name not parseable)")
-
-            if media_sources:
-                ms_desc = ", ".join(
-                    f"{c.name} ({c.media_source_type})" for c in media_sources
-                )
-                typer.echo(f"  media sources: {ms_desc}")
+    """List all albums in the gallery."""
+    resolved = _resolve_gallery_or_exit(gallery_dir)
+    albums, display_base = _resolve_check_batch_albums(resolved, None)
+    run_batch_list_albums(
+        albums, display_base, metadata=metadata, output_format=output_format
+    )
 
 
 @gallery_app.command("check")
 def check_cmd(
-    base_dir: Annotated[
+    gallery_dir: Annotated[
         Optional[Path],
         typer.Option(
-            "--dir",
+            "--gallery-dir",
             "-d",
-            help="Base directory to recursively scan for iOS albums.",
-            exists=True,
-            file_okay=False,
-            resolve_path=True,
-        ),
-    ] = None,
-    album_dirs: Annotated[
-        Optional[list[Path]],
-        typer.Option(
-            "--album-dir",
-            "-a",
-            help="Album directory to check (repeatable).",
+            help="Gallery root directory (or resolved from cwd via .photree/gallery.yaml).",
             exists=True,
             file_okay=False,
             resolve_path=True,
@@ -357,8 +228,7 @@ def check_cmd(
     fatal_sidecar_arg: Annotated[
         bool,
         typer.Option(
-            "--fatal-sidecar",
-            help="Treat missing-sidecar warnings as errors.",
+            "--fatal-sidecar", help="Treat missing-sidecar warnings as errors."
         ),
     ] = False,
     fatal_exif_date_match: Annotated[
@@ -390,178 +260,30 @@ def check_cmd(
         ),
     ] = True,
 ) -> None:
-    """Check all albums under a directory or from an explicit list."""
-
-    cwd = Path.cwd()
-    albums, display_base = _resolve_check_batch_albums(base_dir, album_dirs)
-
-    # System checks (once)
-    sips_available = album_preflight.check_sips_available()
-    exiftool = try_start_exiftool() if check_exif_date_match else None
-    exiftool_available = exiftool is not None
-    typer.echo("System Checks:")
-    console.print(album_output.sips_check(sips_available))
-    console.print(album_output.exiftool_check(exiftool_available))
-    if not sips_available:
-        typer.echo("")
-        err_console.print(album_output.sips_troubleshoot())
-        raise typer.Exit(code=1)
-
-    if not albums:
-        typer.echo("\nNo albums found.")
-        raise typer.Exit(code=0)
-
-    if display_base is not None:
-        typer.echo(f"\nFound {len(albums)} album(s).\n")
-    else:
-        typer.echo("")
-
-    # Check each album
-    fatal_sidecar = fatal_warnings or fatal_sidecar_arg
-    fatal_exif = fatal_warnings or fatal_exif_date_match
-
-    progress = BatchProgressBar(
-        total=len(albums), description="Checking", done_description="check"
+    """Check all albums in the gallery."""
+    resolved = _resolve_gallery_or_exit(gallery_dir)
+    albums, display_base = _resolve_check_batch_albums(resolved, None)
+    run_batch_check(
+        albums,
+        display_base,
+        checksum=checksum,
+        fatal_warnings=fatal_warnings,
+        fatal_sidecar_arg=fatal_sidecar_arg,
+        fatal_exif_date_match=fatal_exif_date_match,
+        check_naming=check_naming,
+        check_date_part_collision=check_date_part_collision,
+        check_exif_date_match=check_exif_date_match,
     )
-    passed = 0
-    warned = 0
-    failed_albums: list[Path] = []
-
-    try:
-        for album_dir in albums:
-            album_name = _display_name(album_dir, display_base, cwd)
-
-            progress.on_start(album_name)
-            result = album_preflight.run_album_check(
-                album_dir,
-                sips_available=sips_available,
-                exiftool=exiftool,
-                checksum=checksum,
-                check_naming_flag=check_naming,
-            )
-
-            # Include external album ID in the result line when available
-            id_check = result.album_id_check
-            album_label = (
-                f"{album_name} ({format_album_external_id(id_check.album_id)})"
-                if id_check is not None and id_check.album_id is not None
-                else album_name
-            )
-
-            album_ok = result.success and not result.has_fatal_warnings(
-                fatal_sidecar=fatal_sidecar, fatal_exif=fatal_exif
-            )
-            # Error labels = real errors + fatal-promoted warnings (red)
-            # Warning labels = non-fatal warnings only (orange)
-            err_labels = (
-                *result.error_labels,
-                *result.fatal_warning_labels(
-                    fatal_sidecar=fatal_sidecar, fatal_exif=fatal_exif
-                ),
-            )
-            warn_labels = result.non_fatal_warning_labels(
-                fatal_sidecar=fatal_sidecar, fatal_exif=fatal_exif
-            )
-            if album_ok:
-                progress.on_end(
-                    album_label,
-                    success=True,
-                    warning_labels=warn_labels,
-                )
-                passed += 1
-                if result.has_warnings:
-                    warned += 1
-            else:
-                progress.on_end(
-                    album_label,
-                    success=False,
-                    error_labels=err_labels,
-                    warning_labels=warn_labels,
-                )
-                failed_albums.append(album_dir)
-    finally:
-        if exiftool is not None:
-            exiftool.__exit__(None, None, None)
-
-    progress.stop()
-
-    # Batch naming checks (date collisions across all albums)
-    if check_naming and check_date_part_collision:
-        parsed_albums = [
-            (album.name, parsed)
-            for album in albums
-            if (parsed := album_naming.parse_album_name(album.name)) is not None
-        ]
-        batch_naming = album_naming.check_batch_date_collisions(parsed_albums)
-        typer.echo("")
-        console.print(album_output.format_batch_naming_issues(batch_naming))
-        if not batch_naming.success:
-            colliding_names = {
-                name for _, names in batch_naming.date_collisions for name in names
-            }
-            failed_albums.extend(a for a in albums if a.name in colliding_names)
-
-    # Duplicate album ID detection
-    album_ids = [
-        (metadata.id, album_dir)
-        for album_dir in albums
-        if (metadata := load_album_metadata(album_dir)) is not None
-    ]
-    sorted_ids = sorted(album_ids, key=lambda t: t[0])
-    id_to_albums = {
-        aid: [p for _, p in group]
-        for aid, group in itertools.groupby(sorted_ids, key=lambda t: t[0])
-    }
-    duplicates = {aid: paths for aid, paths in id_to_albums.items() if len(paths) > 1}
-    typer.echo("")
-    if duplicates:
-        for aid, paths in duplicates.items():
-            ext_id = format_album_external_id(aid)
-            err_console.print(f"[red]✗[/red] duplicate album id: {ext_id}")
-            for p in paths:
-                err_console.print(f"    {display_path(p, cwd)}")
-        failed_albums.extend(p for paths in duplicates.values() for p in paths)
-    else:
-        console.print(f"{album_output.CHECK} no duplicate album ids")
-
-    # Summary
-    console.print(album_output.batch_check_summary(passed, len(failed_albums), warned))
-
-    if failed_albums:
-        extra_flags = "".join(
-            [
-                " --fatal-warnings" if fatal_warnings else "",
-                " --fatal-sidecar" if fatal_sidecar_arg else "",
-                " --no-fatal-exif-date-match" if not fatal_exif_date_match else "",
-            ]
-        )
-        err_console.print("\nTo investigate failures:")
-        for album_dir in sorted(set(failed_albums)):
-            err_console.print(
-                f'  photree album check --album-dir "{display_path(album_dir, cwd)}"{extra_flags}'
-            )
-        raise typer.Exit(code=1)
 
 
 @gallery_app.command("fix")
 def fix_cmd(
-    base_dir: Annotated[
+    gallery_dir: Annotated[
         Optional[Path],
         typer.Option(
-            "--dir",
+            "--gallery-dir",
             "-d",
-            help="Base directory to recursively scan for albums.",
-            exists=True,
-            file_okay=False,
-            resolve_path=True,
-        ),
-    ] = None,
-    album_dirs: Annotated[
-        Optional[list[Path]],
-        typer.Option(
-            "--album-dir",
-            "-a",
-            help="Album directory to fix (repeatable).",
+            help="Gallery root directory (or resolved from cwd via .photree/gallery.yaml).",
             exists=True,
             file_okay=False,
             resolve_path=True,
@@ -569,17 +291,11 @@ def fix_cmd(
     ] = None,
     fix_id: Annotated[
         bool,
-        typer.Option(
-            "--id",
-            help="Generate missing album IDs (.photree/album.yaml).",
-        ),
+        typer.Option("--id", help="Generate missing album IDs (.photree/album.yaml)."),
     ] = False,
     new_id: Annotated[
         bool,
-        typer.Option(
-            "--new-id",
-            help="Regenerate album IDs (replaces existing IDs).",
-        ),
+        typer.Option("--new-id", help="Regenerate album IDs (replaces existing IDs)."),
     ] = False,
     refresh_jpeg: Annotated[
         bool,
@@ -591,18 +307,11 @@ def fix_cmd(
     dry_run: Annotated[
         bool,
         typer.Option(
-            "--dry-run",
-            "-n",
-            help="Print what would happen without modifying files.",
+            "--dry-run", "-n", help="Print what would happen without modifying files."
         ),
     ] = False,
 ) -> None:
-    """Fix all albums under a directory or from an explicit list.
-
-    Works on all media source types (iOS + plain). At least one fix flag
-    must be specified.
-    """
-
+    """Fix all albums in the gallery."""
     if not fix_id and not new_id and not refresh_jpeg:
         typer.echo(
             "No fix specified. Run photree gallery fix --help for available fixes.",
@@ -613,83 +322,32 @@ def fix_cmd(
     if refresh_jpeg:
         _check_sips_or_exit()
 
-    cwd = Path.cwd()
-
-    # Use legacy-aware discovery when fixing IDs so we can find
-    # albums that have .photree/ but no album.yaml yet.
+    resolved = _resolve_gallery_or_exit(gallery_dir)
     if fix_id and not new_id:
         albums, display_base = _resolve_batch_albums_with(
-            base_dir, album_dirs, discover_all_albums
+            resolved, None, discover_all_albums
         )
     else:
-        albums, display_base = _resolve_check_batch_albums(base_dir, album_dirs)
+        albums, display_base = _resolve_check_batch_albums(resolved, None)
 
-    if not albums:
-        typer.echo("\nNo albums found.")
-        raise typer.Exit(code=0)
-
-    if display_base is not None:
-        typer.echo(f"\nFound {len(albums)} album(s).\n")
-
-    progress = BatchProgressBar(
-        total=len(albums), description="Fixing", done_description="fix"
+    run_batch_fix(
+        albums,
+        display_base,
+        fix_id=fix_id,
+        new_id=new_id,
+        refresh_jpeg=refresh_jpeg,
+        dry_run=dry_run,
     )
-    fixed = 0
-    failed_albums: list[Path] = []
-
-    for album_dir in albums:
-        album_name = _display_name(album_dir, display_base, cwd)
-        progress.on_start(album_name)
-
-        try:
-            needs_id = (fix_id and load_album_metadata(album_dir) is None) or new_id
-            if needs_id and not dry_run:
-                save_album_metadata(album_dir, AlbumMetadata(id=generate_album_id()))
-
-            if refresh_jpeg:
-                sources = discover_media_sources(album_dir)
-                for ms in sources:
-                    if (album_dir / ms.img_dir).is_dir():
-                        album_fixes.refresh_jpeg(album_dir, ms, dry_run=dry_run)
-
-            progress.on_end(album_name, success=True)
-            fixed += 1
-        except Exception:
-            progress.on_end(album_name, success=False)
-            failed_albums.append(album_dir)
-
-    progress.stop()
-
-    typer.echo(f"\nDone. {fixed} album(s) fixed, {len(failed_albums)} failed.")
-
-    if failed_albums:
-        err_console.print("\nFailed albums:")
-        for album_dir in failed_albums:
-            err_console.print(
-                f'  photree album fix --album-dir "{display_path(album_dir, cwd)}"'
-            )
-        raise typer.Exit(code=1)
 
 
 @gallery_app.command("optimize")
 def optimize_cmd(
-    base_dir: Annotated[
+    gallery_dir: Annotated[
         Optional[Path],
         typer.Option(
-            "--dir",
+            "--gallery-dir",
             "-d",
-            help="Base directory to recursively scan for iOS albums.",
-            exists=True,
-            file_okay=False,
-            resolve_path=True,
-        ),
-    ] = None,
-    album_dirs: Annotated[
-        Optional[list[Path]],
-        typer.Option(
-            "--album-dir",
-            "-a",
-            help="Album directory to optimize (repeatable).",
+            help="Gallery root directory.",
             exists=True,
             file_okay=False,
             resolve_path=True,
@@ -719,108 +377,31 @@ def optimize_cmd(
     dry_run: Annotated[
         bool,
         typer.Option(
-            "--dry-run",
-            "-n",
-            help="Print what would happen without modifying files.",
+            "--dry-run", "-n", help="Print what would happen without modifying files."
         ),
     ] = False,
 ) -> None:
-    """Optimize all iOS albums under a directory or from an explicit list.
-
-    Runs structural integrity checks on each album first (unless --no-check):
-    directory structure, file matching, checksums, sidecars, duplicates, and
-    miscategorized files. Naming and EXIF checks are not performed.
-
-    Albums that pass are optimized by replacing main-img/ and main-vid/
-    file copies with links.
-    """
-
-    cwd = Path.cwd()
-    albums, display_base = _resolve_batch_albums(base_dir, album_dirs)
-
-    sips_available = True
-    if check:
-        # System checks (once)
-        sips_available = album_preflight.check_sips_available()
-        typer.echo("System Checks:")
-        console.print(album_output.sips_check(sips_available))
-        if not sips_available:
-            typer.echo("")
-            err_console.print(album_output.sips_troubleshoot())
-            raise typer.Exit(code=1)
-
-    if not albums:
-        typer.echo("\nNo iOS albums found.")
-        raise typer.Exit(code=0)
-
-    if display_base is not None:
-        typer.echo(f"\nFound {len(albums)} iOS album(s).\n")
-    else:
-        typer.echo("")
-
-    # Check and optimize each album
-    progress = BatchProgressBar(
-        total=len(albums), description="Optimizing", done_description="optimize"
+    """Optimize all iOS albums in the gallery."""
+    resolved = _resolve_gallery_or_exit(gallery_dir)
+    albums, display_base = _resolve_batch_albums(resolved, None)
+    run_batch_optimize(
+        albums,
+        display_base,
+        link_mode=resolve_link_mode(link_mode, resolved),
+        check=check,
+        checksum=checksum,
+        dry_run=dry_run,
     )
-    optimized = 0
-    failed_albums: list[Path] = []
-
-    for album_dir in albums:
-        album_name = _display_name(album_dir, display_base, cwd)
-
-        progress.on_start(album_name)
-
-        if check:
-            check_result = album_preflight.run_album_check(
-                album_dir,
-                sips_available=sips_available,
-                exiftool=None,
-                checksum=checksum,
-                check_naming_flag=False,
-            )
-            if not check_result.success:
-                progress.on_end(album_name, success=False)
-                failed_albums.append(album_dir)
-                continue
-
-        resolved = resolve_link_mode(link_mode, album_dir)
-        album_optimize.optimize_album(album_dir, link_mode=resolved, dry_run=dry_run)
-        progress.on_end(album_name, success=True)
-        optimized += 1
-
-    progress.stop()
-
-    # Summary
-    console.print(album_output.batch_optimize_summary(optimized, len(failed_albums)))
-
-    if failed_albums:
-        err_console.print("\nTo investigate failures:")
-        for album_dir in failed_albums:
-            err_console.print(
-                f'  photree album check --album-dir "{display_path(album_dir, cwd)}"'
-            )
-        raise typer.Exit(code=1)
 
 
 @gallery_app.command("fix-ios")
 def fix_ios_cmd(
-    base_dir: Annotated[
+    gallery_dir: Annotated[
         Optional[Path],
         typer.Option(
-            "--dir",
+            "--gallery-dir",
             "-d",
-            help="Base directory to recursively scan for iOS albums.",
-            exists=True,
-            file_okay=False,
-            resolve_path=True,
-        ),
-    ] = None,
-    album_dirs: Annotated[
-        Optional[list[Path]],
-        typer.Option(
-            "--album-dir",
-            "-a",
-            help="iOS album directory to fix (repeatable).",
+            help="Gallery root directory.",
             exists=True,
             file_okay=False,
             resolve_path=True,
@@ -864,8 +445,7 @@ def fix_ios_cmd(
     prefer_higher_quality_when_dups: Annotated[
         bool,
         typer.Option(
-            "--prefer-higher-quality-when-dups",
-            help="Delete lower-quality duplicates (e.g. JPG when DNG or HEIC exists for the same number).",
+            "--prefer-higher-quality-when-dups", help="Delete lower-quality duplicates."
         ),
     ] = False,
     rm_orphan_sidecar: Annotated[
@@ -878,8 +458,7 @@ def fix_ios_cmd(
     rm_miscategorized: Annotated[
         bool,
         typer.Option(
-            "--rm-miscategorized",
-            help="Delete files in the wrong directory (edited in orig or vice versa).",
+            "--rm-miscategorized", help="Delete files in the wrong directory."
         ),
     ] = False,
     rm_miscategorized_safe: Annotated[
@@ -899,19 +478,11 @@ def fix_ios_cmd(
     dry_run: Annotated[
         bool,
         typer.Option(
-            "--dry-run",
-            "-n",
-            help="Print what would happen without modifying files.",
+            "--dry-run", "-n", help="Print what would happen without modifying files."
         ),
     ] = False,
 ) -> None:
-    """Apply fix-ios to all iOS albums under a directory or from an explicit list.
-
-    Accepts the same fix flags as fix-ios. At least one fix flag must be specified.
-    """
-
-    cwd = Path.cwd()
-
+    """Apply fix-ios to all iOS albums in the gallery."""
     _validate_fix_flags(
         refresh_combined=refresh_combined,
         refresh_jpeg=refresh_jpeg,
@@ -923,74 +494,23 @@ def fix_ios_cmd(
         rm_miscategorized_safe=rm_miscategorized_safe,
         mv_miscategorized=mv_miscategorized,
     )
-
-    albums, display_base = _resolve_batch_albums(base_dir, album_dirs)
-
-    if not albums:
-        typer.echo("No iOS albums found.")
-        raise typer.Exit(code=0)
-
-    if display_base is not None:
-        typer.echo(f"Found {len(albums)} iOS album(s).\n")
-
-    progress = BatchProgressBar(
-        total=len(albums), description="Fixing", done_description="fix-ios"
+    resolved = _resolve_gallery_or_exit(gallery_dir)
+    albums, display_base = _resolve_batch_albums(resolved, None)
+    run_batch_fix_ios(
+        albums,
+        display_base,
+        link_mode=resolve_link_mode(link_mode, resolved),
+        dry_run=dry_run,
+        refresh_combined=refresh_combined,
+        refresh_jpeg=refresh_jpeg,
+        rm_upstream=rm_upstream,
+        rm_orphan=rm_orphan,
+        rm_orphan_sidecar=rm_orphan_sidecar,
+        prefer_higher_quality_when_dups=prefer_higher_quality_when_dups,
+        rm_miscategorized=rm_miscategorized,
+        rm_miscategorized_safe=rm_miscategorized_safe,
+        mv_miscategorized=mv_miscategorized,
     )
-    fixed = 0
-    failed_albums: list[Path] = []
-    album_reports: list[tuple[str, str]] = []
-
-    for album_dir in albums:
-        album_name = _display_name(album_dir, display_base, cwd)
-        progress.on_start(album_name)
-
-        buf = io.StringIO()
-        try:
-            with redirect_stdout(buf):
-                _run_fix_ios(
-                    album_dir,
-                    link_mode=resolve_link_mode(link_mode, album_dir),
-                    dry_run=dry_run,
-                    log_cwd=cwd,
-                    show_progress=False,
-                    refresh_combined=refresh_combined,
-                    refresh_jpeg=refresh_jpeg,
-                    rm_upstream=rm_upstream,
-                    rm_orphan=rm_orphan,
-                    rm_orphan_sidecar=rm_orphan_sidecar,
-                    prefer_higher_quality_when_dups=prefer_higher_quality_when_dups,
-                    rm_miscategorized=rm_miscategorized,
-                    rm_miscategorized_safe=rm_miscategorized_safe,
-                    mv_miscategorized=mv_miscategorized,
-                )
-            progress.on_end(album_name, success=True)
-            fixed += 1
-            captured = buf.getvalue()
-            if captured.strip():
-                album_reports.append((album_name, captured))
-        except Exception:
-            progress.on_end(album_name, success=False)
-            failed_albums.append(album_dir)
-
-    progress.stop()
-
-    # Print per-album action reports (e.g. dry-run details).
-    # Use color=True to preserve ANSI escapes captured from the fix run.
-    if album_reports:
-        typer.echo("")
-        for album_name, report in album_reports:
-            typer.echo(f"{album_name}:")
-            typer.echo(report, color=True)
-
-    console.print(album_output.batch_fix_ios_summary(fixed, len(failed_albums)))
-
-    if failed_albums:
-        err_console.print("\nFailed albums:")
-        for album_dir in failed_albums:
-            err_console.print(
-                f'  photree album fix-ios --album-dir "{display_path(album_dir, cwd)}"'
-            )
-        raise typer.Exit(code=1)
 
 
 @gallery_app.command("rename-from-csv")
@@ -1158,70 +678,22 @@ def rename_from_csv_cmd(
 
 @gallery_app.command("stats")
 def stats_cmd(
-    base_dir: Annotated[
+    gallery_dir: Annotated[
         Optional[Path],
         typer.Option(
-            "--dir",
+            "--gallery-dir",
             "-d",
-            help="Base directory to recursively scan for albums.",
-            exists=True,
-            file_okay=False,
-            resolve_path=True,
-        ),
-    ] = None,
-    album_dirs: Annotated[
-        Optional[list[Path]],
-        typer.Option(
-            "--album-dir",
-            "-a",
-            help="Album directory (repeatable).",
+            help="Gallery root directory.",
             exists=True,
             file_okay=False,
             resolve_path=True,
         ),
     ] = None,
 ) -> None:
-    """Show aggregated disk usage and content statistics for all albums."""
-    from ..album.naming import parse_album_name
-
-    cwd = Path.cwd()
-    albums, display_base = _resolve_check_batch_albums(base_dir, album_dirs)
-
-    if not albums:
-        typer.echo("No albums found.")
-        raise typer.Exit(code=0)
-
-    # Validate all album names are parseable before computing stats
-    unparseable = [a for a in albums if parse_album_name(a.name) is None]
-    if unparseable:
-        err_console.print(
-            f"{len(unparseable)} album(s) have unparseable names. "
-            f"Run photree gallery check to identify and fix naming issues:"
-        )
-        for album_dir in unparseable:
-            err_console.print(f"  {display_path(album_dir, cwd)}")
-        raise typer.Exit(code=1)
-
-    if display_base is not None:
-        typer.echo(f"Found {len(albums)} album(s).\n")
-
-    progress = BatchProgressBar(
-        total=len(albums), description="Computing stats", done_description="stats"
-    )
-
-    album_stats_list: list[album_stats.AlbumStats] = []
-    for album_dir in albums:
-        album_name = _display_name(album_dir, display_base, cwd)
-        progress.on_start(album_name)
-        stats = album_stats.compute_album_stats(album_dir)
-        album_stats_list.append(stats)
-        progress.on_end(album_name, success=True)
-
-    progress.stop()
-
-    result = album_stats.gallery_stats_from_album_stats(album_stats_list)
-    typer.echo("")
-    console.print(album_output.format_gallery_stats(result))
+    """Show aggregated disk usage and content statistics for all albums in the gallery."""
+    resolved = _resolve_gallery_or_exit(gallery_dir)
+    albums, display_base = _resolve_check_batch_albums(resolved, None)
+    run_batch_stats(albums, display_base)
 
 
 # Re-register the export batch command from export_cmd
