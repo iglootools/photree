@@ -25,6 +25,7 @@ TYPE_SPEED=40
 DEMO_COMMENT_COLOR=$CYAN
 
 DEMO_DIR="/tmp/photree-demo"
+GALLERY="$DEMO_DIR/gallery"
 SHARE="$DEMO_DIR/share"
 
 # Pause between commands so the viewer can read the output
@@ -86,7 +87,7 @@ pe "cd \"$ALBUM\""
 cd "$ALBUM"
 
 p "# Import from Image Capture"
-pe "photree import image-capture -s \"$IC\""
+pe "photree album import -s \"$IC\""
 pause 3
 
 p "# Browse the album after import"
@@ -109,14 +110,32 @@ p "# Verify integrity after optimization"
 pe "photree album check"
 pause 3
 
-# ── Stats ───────────────────────────────────────────────
+# ── Gallery ─────────────────────────────────────────────
 
-p "# Show album disk usage and content statistics"
-pe "photree album stats"
+p "# Initialize a gallery"
+pe "mkdir -p \"$GALLERY\" && photree gallery init -d \"$GALLERY\" --link-mode symlink"
 pause 3
 
+p "# Import the album into the gallery"
+pe "photree gallery import -a \"$ALBUM\" -g \"$GALLERY\""
+pause 3
+
+p "# Go to the gallery directory"
+pe "cd \"$GALLERY\""
+cd "$GALLERY"
+
+p "# Show the gallery directory structure"
+pe "tree ."
+pause 3
+
+p "# Check gallery integrity"
+pe "photree gallery check"
+pause 3
+
+# ── Stats ───────────────────────────────────────────────
+
 p "# Show gallery-wide statistics with per-year breakdown"
-pe "photree gallery stats -d \"$DEMO_DIR\""
+pe "photree gallery stats"
 pause 3
 
 # ── Export ───────────────────────────────────────────────
@@ -125,10 +144,10 @@ p "# Create a share directory with sentinel file"
 pe "mkdir -p \"$SHARE\" && touch \"$SHARE/.photree-share\""
 pause
 
-p "# Export album (main-only layout)"
-pe "photree export album --share-dir \"$SHARE\" --album-layout main"
+p "# Export all gallery albums (main-only layout)"
+pe "photree gallery export --share-dir \"$SHARE\" --album-layout main"
 pause 3
 
-p "# Show the exported album"
+p "# Show the exported albums"
 pe "tree \"$SHARE\""
 pause 3
