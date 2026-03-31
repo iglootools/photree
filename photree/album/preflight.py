@@ -14,6 +14,7 @@ from ..fsprotocol import (
     MAIN_MEDIA_SOURCE,
     discover_albums,  # noqa: F401 — re-exported for backward compat
     discover_media_sources,
+    load_album_metadata,
 )
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
@@ -77,6 +78,14 @@ def detect_album_type(album_dir: Path) -> AlbumType:
         return AlbumType.IOS
     else:
         return AlbumType.OTHER
+
+
+@dataclass(frozen=True)
+class AlbumIdCheck:
+    """Result of checking whether an album has a valid ID."""
+
+    has_id: bool
+    album_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -215,6 +224,7 @@ class AlbumPreflightResult:
     exiftool_available: bool
     media_source_summary: AlbumMediaSourceSummary
     dir_check: AlbumDirCheck
+    album_id_check: AlbumIdCheck | None = None
     ios_integrity: IosAlbumFullIntegrityResult | None = None
     jpeg_check: AlbumJpegIntegrityResult | None = None
     naming: AlbumNamingResult | None = None
@@ -237,6 +247,7 @@ class AlbumPreflightResult:
         return (
             self.sips_available
             and self.dir_check.success
+            and (self.album_id_check is None or self.album_id_check.has_id)
             and (self.ios_integrity is None or self.ios_integrity.success)
             and (self.jpeg_check is None or self.jpeg_check.success)
             and (self.naming is None or self.naming.success)
@@ -270,6 +281,8 @@ class AlbumPreflightResult:
             labels.append("sips not found")
         if not self.dir_check.success:
             labels.append("missing dirs")
+        if self.album_id_check is not None and not self.album_id_check.has_id:
+            labels.append("missing album id")
         if self.ios_integrity is not None and not self.ios_integrity.success:
             labels.append("integrity errors")
         if self.jpeg_check is not None and not self.jpeg_check.success:
@@ -323,6 +336,13 @@ def run_album_check(
     media_sources = discover_media_sources(album_dir)
     summary = AlbumMediaSourceSummary(media_sources=tuple(media_sources))
 
+    # Album ID check
+    metadata = load_album_metadata(album_dir)
+    album_id_check = AlbumIdCheck(
+        has_id=metadata is not None,
+        album_id=metadata.id if metadata is not None else None,
+    )
+
     if summary.has_ios:
         dir_check = check_ios_album_dir(album_dir)
         ios_integrity = check_ios_album_integrity(
@@ -357,6 +377,7 @@ def run_album_check(
         exiftool_available=exiftool is not None,
         media_source_summary=summary,
         dir_check=dir_check,
+        album_id_check=album_id_check,
         ios_integrity=ios_integrity,
         jpeg_check=jpeg_check,
         naming=naming,

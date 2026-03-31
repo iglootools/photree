@@ -23,10 +23,13 @@ from photree.album.stats import (
     gallery_stats_from_album_stats,
 )
 from photree.fsprotocol import (
+    AlbumMetadata,
     MAIN_MEDIA_SOURCE,
     MediaSourceType,
     PHOTREE_DIR,
+    generate_album_id,
     plain_media_source,
+    save_album_metadata,
 )
 
 
@@ -41,8 +44,9 @@ def _write(path: Path, content: str = "data") -> None:
 
 
 def _make_album(album: Path) -> None:
-    """Create the .photree marker for album detection."""
+    """Create the .photree marker and album.yaml for album detection."""
     (album / PHOTREE_DIR).mkdir(parents=True, exist_ok=True)
+    save_album_metadata(album, AlbumMetadata(id=generate_album_id()))
 
 
 def _setup_ios_album(album: Path) -> None:

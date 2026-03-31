@@ -23,9 +23,16 @@ from ..album import (
 )
 from ..album.exif import try_start_exiftool
 from ..fsprotocol import (
+    AlbumMetadata,
     LinkMode,
+    discover_all_albums,
     discover_media_sources,
     display_path,
+    format_album_external_id,
+    generate_album_id,
+    load_album_metadata,
+    resolve_link_mode,
+    save_album_metadata,
 )
 from .album_cmd import (
     _check_sips_or_exit,
@@ -183,6 +190,7 @@ def list_albums_cmd(
         writer = csv.writer(sys.stdout)
         writer.writerow(
             [
+                "id",
                 "path",
                 "date",
                 "part",
@@ -195,6 +203,12 @@ def list_albums_cmd(
         )
         for album_dir in albums:
             rel_path = _display_name(album_dir, display_base, cwd)
+            album_meta = load_album_metadata(album_dir)
+            external_id = (
+                format_album_external_id(album_meta.id)
+                if album_meta is not None
+                else ""
+            )
             parsed = parse_album_name(album_dir.name)
             media_sources = discover_media_sources(album_dir)
             ms_desc = ", ".join(
@@ -204,6 +218,7 @@ def list_albums_cmd(
                 tags = "private" if parsed.private else ""
                 writer.writerow(
                     [
+                        external_id,
                         rel_path,
                         parsed.date,
                         parsed.part or "",
@@ -215,7 +230,9 @@ def list_albums_cmd(
                     ]
                 )
             else:
-                writer.writerow([rel_path, "", "", "", album_dir.name, "", "", ms_desc])
+                writer.writerow(
+                    [external_id, rel_path, "", "", "", album_dir.name, "", "", ms_desc]
+                )
         return
 
     typer.echo(f"Found {len(albums)} album(s).\n")
@@ -225,6 +242,12 @@ def list_albums_cmd(
         typer.echo(name)
 
         if metadata:
+            album_meta = load_album_metadata(album_dir)
+            if album_meta is not None:
+                typer.echo(f"  id: {format_album_external_id(album_meta.id)}")
+            else:
+                typer.echo("  id: (missing)")
+
             parsed = parse_album_name(album_dir.name)
             media_sources = discover_media_sources(album_dir)
 
@@ -428,6 +451,25 @@ def check_cmd(
             }
             failed_albums.extend(a for a in albums if a.name in colliding_names)
 
+    # Duplicate album ID detection
+    id_to_albums: dict[str, list[Path]] = {}
+    for album_dir in albums:
+        metadata = load_album_metadata(album_dir)
+        if metadata is not None:
+            id_to_albums.setdefault(metadata.id, []).append(album_dir)
+    duplicates = {aid: paths for aid, paths in id_to_albums.items() if len(paths) > 1}
+    if duplicates:
+        typer.echo("")
+        for aid, paths in duplicates.items():
+            ext_id = format_album_external_id(aid)
+            err_console.print(f"[red]✗[/red] duplicate album id: {ext_id}")
+            for p in paths:
+                err_console.print(f"    {display_path(p, cwd)}")
+        failed_albums.extend(p for paths in duplicates.values() for p in paths)
+    else:
+        typer.echo("")
+        console.print(f"{album_output.CHECK} no duplicate album ids")
+
     # Summary
     console.print(album_output.batch_check_summary(passed, len(failed_albums), warned))
 
@@ -471,6 +513,13 @@ def fix_cmd(
             resolve_path=True,
         ),
     ] = None,
+    fix_id: Annotated[
+        bool,
+        typer.Option(
+            "--id",
+            help="Generate missing album IDs (.photree/album.yaml).",
+        ),
+    ] = False,
     refresh_jpeg: Annotated[
         bool,
         typer.Option(
@@ -493,9 +542,9 @@ def fix_cmd(
     must be specified.
     """
 
-    if not refresh_jpeg:
+    if not fix_id and not refresh_jpeg:
         typer.echo(
-            "No fix specified. Run photree album fix-all --help for available fixes.",
+            "No fix specified. Run photree gallery fix --help for available fixes.",
             err=True,
         )
         raise typer.Exit(code=1)
@@ -504,7 +553,15 @@ def fix_cmd(
         _check_sips_or_exit()
 
     cwd = Path.cwd()
-    albums, display_base = _resolve_check_batch_albums(base_dir, album_dirs)
+
+    # Use legacy-aware discovery when fixing IDs so we can find
+    # albums that have .photree/ but no album.yaml yet.
+    if fix_id:
+        albums, display_base = _resolve_batch_albums_with(
+            base_dir, album_dirs, discover_all_albums
+        )
+    else:
+        albums, display_base = _resolve_check_batch_albums(base_dir, album_dirs)
 
     if not albums:
         typer.echo("\nNo albums found.")
@@ -524,11 +581,19 @@ def fix_cmd(
         progress.on_start(album_name)
 
         try:
-            sources = discover_media_sources(album_dir)
+            if fix_id:
+                metadata = load_album_metadata(album_dir)
+                if metadata is None:
+                    if not dry_run:
+                        new_id = generate_album_id()
+                        save_album_metadata(album_dir, AlbumMetadata(id=new_id))
+
             if refresh_jpeg:
+                sources = discover_media_sources(album_dir)
                 for ms in sources:
                     if (album_dir / ms.img_dir).is_dir():
                         album_fixes.refresh_jpeg(album_dir, ms, dry_run=dry_run)
+
             progress.on_end(album_name, success=True)
             fixed += 1
         except Exception:
@@ -573,12 +638,12 @@ def optimize_cmd(
         ),
     ] = None,
     link_mode: Annotated[
-        LinkMode,
+        LinkMode | None,
         typer.Option(
             "--link-mode",
             help="How to create main files: hardlink (default), symlink, or copy.",
         ),
-    ] = LinkMode.HARDLINK,
+    ] = None,
     check: Annotated[
         bool,
         typer.Option(
@@ -660,7 +725,8 @@ def optimize_cmd(
                 failed_albums.append(album_dir)
                 continue
 
-        album_optimize.optimize_album(album_dir, link_mode=link_mode, dry_run=dry_run)
+        resolved = resolve_link_mode(link_mode, album_dir)
+        album_optimize.optimize_album(album_dir, link_mode=resolved, dry_run=dry_run)
         progress.on_end(album_name, success=True)
         optimized += 1
 
@@ -703,12 +769,12 @@ def fix_ios_cmd(
         ),
     ] = None,
     link_mode: Annotated[
-        LinkMode,
+        LinkMode | None,
         typer.Option(
             "--link-mode",
             help="How to create main files: hardlink (default), symlink, or copy.",
         ),
-    ] = LinkMode.HARDLINK,
+    ] = None,
     refresh_combined: Annotated[
         bool,
         typer.Option(
@@ -825,7 +891,7 @@ def fix_ios_cmd(
             with redirect_stdout(buf):
                 _run_fix_ios(
                     album_dir,
-                    link_mode=link_mode,
+                    link_mode=resolve_link_mode(link_mode, album_dir),
                     dry_run=dry_run,
                     log_cwd=cwd,
                     show_progress=False,

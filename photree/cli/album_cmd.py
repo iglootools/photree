@@ -19,13 +19,19 @@ from ..album import (
     stats as album_stats,
 )
 from ..fsprotocol import (
+    AlbumMetadata,
     IMG_EXTENSIONS,
     LinkMode,
     VID_EXTENSIONS,
     discover_albums,
     discover_media_sources,
     display_path,
+    format_album_external_id,
+    generate_album_id,
     list_files,
+    load_album_metadata,
+    resolve_link_mode,
+    save_album_metadata,
 )
 from .console import console, err_console
 from .progress import FileProgressBar, SilentProgressBar, StageProgressBar
@@ -189,6 +195,13 @@ def fix_cmd(
             resolve_path=True,
         ),
     ] = Path("."),
+    fix_id: Annotated[
+        bool,
+        typer.Option(
+            "--id",
+            help="Generate missing album ID (.photree/album.yaml).",
+        ),
+    ] = False,
     refresh_jpeg: Annotated[
         bool,
         typer.Option(
@@ -207,16 +220,32 @@ def fix_cmd(
 ) -> None:
     """Fix album issues. Works on all msutor types (iOS + plain).
 
+    --id: Generates a missing album ID in .photree/album.yaml. Skips
+    albums that already have an ID.
+
     --refresh-jpeg: Deletes all files in {msutor}-jpg/ and re-converts
     every file from {msutor}-img/. HEIC/HEIF/DNG files are converted
     via sips; JPEG/PNG files are copied as-is.
     """
-    if not refresh_jpeg:
+    if not fix_id and not refresh_jpeg:
         typer.echo(
             "No fix specified. Run photree album fix --help for available fixes.",
             err=True,
         )
         raise typer.Exit(code=1)
+
+    if fix_id:
+        metadata = load_album_metadata(album_dir)
+        if metadata is not None:
+            typer.echo(
+                f"Album already has an ID: {format_album_external_id(metadata.id)}"
+            )
+        elif dry_run:
+            typer.echo("[dry-run] Would generate album ID.")
+        else:
+            new_id = generate_album_id()
+            save_album_metadata(album_dir, AlbumMetadata(id=new_id))
+            typer.echo(f"Generated album ID: {format_album_external_id(new_id)}")
 
     if refresh_jpeg:
         _check_sips_or_exit()
@@ -276,12 +305,12 @@ def optimize_cmd(
         ),
     ] = Path("."),
     link_mode: Annotated[
-        LinkMode,
+        LinkMode | None,
         typer.Option(
             "--link-mode",
             help="How to create main files: hardlink (default), symlink, or copy.",
         ),
-    ] = LinkMode.HARDLINK,
+    ] = None,
     check: Annotated[
         bool,
         typer.Option(
@@ -350,11 +379,14 @@ def optimize_cmd(
             raise typer.Exit(code=1)
 
     # Optimize
+    resolved_link_mode = resolve_link_mode(link_mode, album_dir)
     result = album_optimize.optimize_album(
-        album_dir, link_mode=link_mode, dry_run=dry_run
+        album_dir, link_mode=resolved_link_mode, dry_run=dry_run
     )
     typer.echo(
-        album_output.optimize_summary(result.heic_count, result.mov_count, link_mode)
+        album_output.optimize_summary(
+            result.heic_count, result.mov_count, resolved_link_mode
+        )
     )
 
 
@@ -372,12 +404,12 @@ def fix_ios_cmd(
         ),
     ] = Path("."),
     link_mode: Annotated[
-        LinkMode,
+        LinkMode | None,
         typer.Option(
             "--link-mode",
             help="How to create main files: hardlink (default), symlink, or copy.",
         ),
-    ] = LinkMode.HARDLINK,
+    ] = None,
     refresh_combined: Annotated[
         bool,
         typer.Option(
@@ -513,7 +545,7 @@ def fix_ios_cmd(
 
     _run_fix_ios(
         album_dir,
-        link_mode=link_mode,
+        link_mode=resolve_link_mode(link_mode, album_dir),
         dry_run=dry_run,
         log_cwd=cwd,
         show_progress=True,

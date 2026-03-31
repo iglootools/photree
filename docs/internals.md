@@ -115,16 +115,33 @@ rules apply when an album set uses part numbering:
 - Private albums may be unnumbered even when public albums are numbered
   (catch-all private content for the day).
 
+## ID Convention
+
+All identifiable objects in photree use a dual-ID system:
+
+- **Internal ID** — a UUID v7 string stored in YAML files (e.g.
+  `0192d4e1-7c3f-7b4a-8c5e-f6a7b8c9d0e1`). Used for storage,
+  deduplication, and programmatic comparison. Time-ordered by creation.
+- **External ID** — a user-friendly format: `{type_prefix}_{base58(uuid_bytes)}`
+  (e.g. `album_3K8vJxNm2cYpR7qWz5FhG`). Used for CLI display and user input.
+
+Base58 encoding uses the Bitcoin alphabet
+(`123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz`). A 16-byte
+UUID encodes to ~22 characters, making the full external ID ~28 characters.
+
+| Object | Type prefix | Example external ID |
+|--------|-------------|---------------------|
+| Album  | `album`     | `album_3K8vJxNm2cYpR7qWz5FhG` |
+
 ## Album On-Disk Layout
 
 ### Album Detection
 
 A directory is recognized as a photree album when it contains:
-1. A `.photree/` directory (album marker), **and**
+1. A `.photree/album.yaml` file (album metadata), **and**
 2. At least one media source (iOS or plain)
 
-The `.photree/` directory stores album metadata such as the original directory
-name backup (`title.bkp`).
+The `.photree/` directory stores album metadata and configuration.
 
 ### Media Sources
 
@@ -152,7 +169,8 @@ The default media source is named `main`.
 
 ```
 <Album Title>/
-  .photree/               album metadata
+  .photree/               album metadata directory
+    album.yaml            album metadata (id)
     title.bkp             original directory name backup
   to-import/              user selection files (workflow input)
 
@@ -193,6 +211,43 @@ directories at the top level are the browsable/shareable versions:
 - **`{name}-vid/`**: Same logic as `{name}-img/` but for videos.
 - **`{name}-jpg/`**: JPEG versions for sharing/web. Generated from `{name}-img/`
   via HEIC/HEIF/DNG→JPEG conversion (sips). JPG/PNG files are copied as-is.
+
+## Metadata Files
+
+### Album Metadata (`.photree/album.yaml`)
+
+Each album has a `.photree/album.yaml` file with the following fields:
+
+```yaml
+id: 0192d4e1-7c3f-7b4a-8c5e-f6a7b8c9d0e1
+```
+
+| Field | Type   | Description |
+|-------|--------|-------------|
+| `id`  | string | UUID v7 identifying the album. Generated at import time. |
+
+The album ID is generated automatically during import. For existing albums
+without an ID, use `photree album fix --id` or `photree gallery fix --id`
+to generate missing IDs.
+
+### Gallery Metadata (`.photree/gallery.yaml`)
+
+Gallery-wide configuration is stored in a `.photree/gallery.yaml` file
+placed in a parent directory above the albums. photree resolves the
+gallery metadata by walking up the directory hierarchy from the album
+(or batch base directory), using the first `.photree/gallery.yaml` found.
+
+```yaml
+link-mode: hardlink
+```
+
+| Field       | Type   | Default    | Description |
+|-------------|--------|------------|-------------|
+| `link-mode` | string | `hardlink` | Default link mode for optimize and other link-mode operations. Values: `hardlink`, `symlink`, `copy`. |
+
+The `--link-mode` CLI argument overrides the gallery-level setting.
+If no gallery.yaml is found and no CLI argument is given, the default
+is `hardlink`.
 
 ## EXIF Metadata
 
