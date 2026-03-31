@@ -21,6 +21,7 @@ graph TD
     config["config"]
     exporter["exporter/"]
     fsprotocol["fsprotocol"]
+    gallery["gallery"]
     importer["importer/"]
     uiconventions["uiconventions"]
 
@@ -30,12 +31,15 @@ graph TD
     cli --> config
     cli --> exporter
     cli --> fsprotocol
+    cli --> gallery
     cli --> importer
     cli --> uiconventions
     config --> fsprotocol
     exporter --> album
     exporter --> fsprotocol
     fsprotocol --> uiconventions
+    gallery --> album
+    gallery --> fsprotocol
     importer --> album
     importer --> fsprotocol
 ```
