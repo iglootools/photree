@@ -41,6 +41,30 @@ album-layout = "all"
 link-mode = "symlink"
 ```
 
+## Gallery
+
+### `photree gallery init`
+
+Initializes gallery-level metadata in the current (or specified) directory.
+Creates a `.photree/gallery.yaml` file that applies to all albums underneath.
+
+```bash
+# Initialize with default settings (hardlink)
+photree gallery init
+
+# Initialize with symlink mode
+photree gallery init --link-mode symlink
+
+# Initialize a specific directory
+photree gallery init -d ~/Pictures/albums
+```
+
+The `link-mode` setting in `gallery.yaml` is used as the default for `optimize`,
+`fix-ios`, and other commands that accept `--link-mode`. An explicit `--link-mode`
+CLI flag always overrides the gallery default.
+
+See [internals.md](./internals.md) for the gallery metadata format and resolution rules.
+
 ## Import
 
 ### `photree import image-capture`

@@ -446,6 +446,7 @@ $ photree gallery [OPTIONS] COMMAND [ARGS]...
 
 **Commands**:
 
+* `init`: Initialize gallery metadata...
 * `list-albums`: List all discovered albums with their...
 * `check`: Check all albums under a directory or from...
 * `fix`: Fix all albums under a directory or from...
@@ -454,6 +455,22 @@ $ photree gallery [OPTIONS] COMMAND [ARGS]...
 * `rename-from-csv`: Rename albums by diffing current vs...
 * `stats`: Show aggregated disk usage and content...
 * `export`: Batch export multiple albums to a shared...
+
+### `photree gallery init`
+
+Initialize gallery metadata (.photree/gallery.yaml).
+
+**Usage**:
+
+```console
+$ photree gallery init [OPTIONS]
+```
+
+**Options**:
+
+* `-d, --dir DIRECTORY`: Gallery root directory.  [default: .]
+* `--link-mode [copy|hardlink|symlink]`: Default link mode for optimize and other link-mode operations.  [default: hardlink]
+* `--help`: Show this message and exit.
 
 ### `photree gallery list-albums`
 
