@@ -23,6 +23,7 @@ from ..fsprotocol import (
     discover_all_albums,
     discover_albums,
     display_path,
+    format_album_external_id,
     load_gallery_metadata,
     resolve_gallery_dir,
     resolve_link_mode,
@@ -39,6 +40,11 @@ from .batch_ops import (
     run_batch_list_albums,
     run_batch_optimize,
     run_batch_stats,
+)
+from ..gallery import (
+    AlbumIndex,
+    MissingAlbumIdError,
+    build_album_id_to_path_index,
 )
 from .console import err_console
 
@@ -185,6 +191,28 @@ def _resolve_gallery_or_exit(gallery_dir: Path | None) -> Path:
         return resolve_gallery_dir(gallery_dir)
     except ValueError as exc:
         err_console.print(str(exc))
+        raise typer.Exit(code=1) from exc
+
+
+def _build_index_or_exit(gallery_dir: Path, cwd: Path) -> AlbumIndex:
+    """Build the gallery album index, or exit on missing IDs."""
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+
+    try:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            transient=True,
+        ) as progress:
+            progress.add_task("Building album index...", total=None)
+            return build_album_id_to_path_index(gallery_dir)
+    except MissingAlbumIdError as exc:
+        err_console.print("Albums with missing IDs found:")
+        for p in exc.albums:
+            err_console.print(f"  {display_path(p, cwd)}")
+        err_console.print(
+            "\nRun 'photree gallery fix --id' to generate missing album IDs."
+        )
         raise typer.Exit(code=1) from exc
 
 
@@ -542,35 +570,26 @@ def fix_ios_cmd(
 
 @gallery_app.command("rename-from-csv")
 def rename_from_csv_cmd(
-    current_csv: Annotated[
+    csv_file: Annotated[
         Path,
         typer.Argument(
-            help="CSV with current album state (from gallery list-albums --format csv).",
+            help="CSV with desired album state (from list-albums --format csv, edited).",
             exists=True,
             dir_okay=False,
             resolve_path=True,
         ),
     ],
-    desired_csv: Annotated[
-        Path,
-        typer.Argument(
-            help="CSV with desired album state (edited copy of current).",
-            exists=True,
-            dir_okay=False,
-            resolve_path=True,
-        ),
-    ],
-    base_dir: Annotated[
-        Path,
+    gallery_dir: Annotated[
+        Optional[Path],
         typer.Option(
-            "--dir",
+            "--gallery-dir",
             "-d",
-            help="Root directory (base for relative paths in CSV).",
+            help="Gallery root directory (or resolved from cwd via .photree/gallery.yaml).",
             exists=True,
             file_okay=False,
             resolve_path=True,
         ),
-    ] = Path("."),
+    ] = None,
     dry_run: Annotated[
         bool,
         typer.Option(
@@ -580,127 +599,86 @@ def rename_from_csv_cmd(
         ),
     ] = False,
 ) -> None:
-    """Rename albums by diffing current vs desired CSV files (from list-albums --format csv).
+    """Rename albums from a CSV file (from list-albums --format csv, edited).
 
-    Only the series, title, and location columns may differ between the two files.
+    Uses the album ID to look up each album in the gallery, then compares the
+    current series, title, and location against the CSV values. Only albums
+    where a mutable field changed are renamed. Immutable fields (date, part,
+    tags) are preserved from the current on-disk album name.
     """
     import csv
-    import unicodedata
 
-    from ..album.naming import ParsedAlbumName, reconstruct_name
+    from ..gallery import plan_renames_from_csv
 
-    def _nfc(s: str) -> str:
-        return unicodedata.normalize("NFC", s)
+    resolved = _resolve_gallery_or_exit(gallery_dir)
+    cwd = Path.cwd()
 
-    def _name_from_row(row: dict[str, str]) -> str:
-        parsed = ParsedAlbumName(
-            date=row["date"],
-            part=row["part"] or None,
-            private="private" in row.get("tags", ""),
-            series=row["series"] or None,
-            title=row["title"],
-            location=row["location"] or None,
+    # Build album index
+    index = _build_index_or_exit(resolved, cwd)
+
+    # Check for duplicate IDs in gallery
+    if index.duplicates:
+        err_console.print("Cannot rename — duplicate album IDs in gallery:")
+        for aid, paths in index.duplicates.items():
+            err_console.print(f"  {format_album_external_id(aid)}:")
+            for p in paths:
+                err_console.print(f"    {display_path(p, cwd)}")
+        err_console.print(
+            "\nResolve duplicates first with 'photree gallery fix --new-id'."
         )
-        return reconstruct_name(parsed)
+        raise typer.Exit(code=1)
 
-    with open(current_csv, encoding="utf-8") as f:
-        current_rows = {r["path"]: r for r in csv.DictReader(f)}
+    # Read CSV
+    with open(csv_file, encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
 
-    with open(desired_csv, encoding="utf-8") as f:
-        desired_rows = {r["path"]: r for r in csv.DictReader(f)}
-
-    if not desired_rows:
-        typer.echo("Desired CSV is empty.")
+    if not rows:
+        typer.echo("CSV is empty. Nothing to rename.")
         raise typer.Exit(code=0)
 
-    # Fields that must not differ between current and desired
-    immutable_fields = ("path", "date", "part", "tags", "media_sources")
-
-    renames: list[tuple[Path, str]] = []
-    errors: list[str] = []
-
-    for path, desired in desired_rows.items():
-        current = current_rows.get(path)
-        if current is None:
-            errors.append(f"Path not found in current CSV: {path}")
-            continue
-
-        # Safety: only title and location may be changed
-        for field in immutable_fields:
-            if _nfc(current.get(field, "")) != _nfc(desired.get(field, "")):
-                errors.append(
-                    f"{path}: field '{field}' was modified "
-                    f"({current.get(field, '')!r} → {desired.get(field, '')!r}). "
-                    f"Only 'series', 'title', and 'location' may be changed."
-                )
-
-        # Only process rows where series, title, or location actually changed
-        series_changed = _nfc(current.get("series", "")) != _nfc(
-            desired.get("series", "")
-        )
-        title_changed = _nfc(current.get("title", "")) != _nfc(desired.get("title", ""))
-        location_changed = _nfc(current.get("location", "")) != _nfc(
-            desired.get("location", "")
-        )
-        if not series_changed and not title_changed and not location_changed:
-            continue
-
-        album_path = base_dir / path
-        if not album_path.is_dir():
-            errors.append(f"Directory not found: {path}")
-            continue
-
-        desired_name = _name_from_row(desired)
-        renames.append((album_path, desired_name))
+    # Plan renames
+    actions, errors = plan_renames_from_csv(rows, index.id_to_path)
 
     if errors:
         for err in errors:
-            typer.echo(f"  {err}", err=True)
+            err_console.print(f"  {err}")
         raise typer.Exit(code=1)
 
-    if not renames:
-        typer.echo(
-            f"Current: {len(current_rows)} rows, "
-            f"desired: {len(desired_rows)} rows. Nothing to rename."
-        )
+    if not actions:
+        typer.echo(f"{len(rows)} row(s) in CSV. Nothing to rename.")
         raise typer.Exit(code=0)
 
     # Check for collisions (resolve() handles case-insensitive macOS)
-    renamed_resolved = {album_path.resolve() for album_path, _ in renames}
-    for album_path, desired_name in renames:
-        target = album_path.parent / desired_name
+    renamed_resolved = {a.album_path.resolve() for a in actions}
+    for action in actions:
+        target = action.album_path.parent / action.new_name
         if (
             target.exists()
-            and target.resolve() != album_path.resolve()
+            and target.resolve() != action.album_path.resolve()
             and target.resolve() not in renamed_resolved
         ):
-            typer.echo(
-                f"Collision: {album_path.relative_to(base_dir)} → {desired_name} "
-                f"conflicts with {target.relative_to(base_dir)}",
-                err=True,
+            err_console.print(
+                f"Collision: {action.current_name} → {action.new_name} "
+                f"conflicts with existing directory"
             )
             raise typer.Exit(code=1)
 
     # Display plan
-    typer.echo(
-        f"Current: {len(current_rows)} rows, desired: {len(desired_rows)} rows, "
-        f"changes: {len(renames)}"
-    )
-    typer.echo()
+    typer.echo(f"{len(rows)} row(s) in CSV, {len(actions)} change(s).\n")
 
-    for album_path, desired_name in renames:
-        typer.echo(f"  {album_path.relative_to(base_dir)}")
-        typer.echo(f"  → {desired_name}")
+    for action in actions:
+        typer.echo(f"  {display_path(action.album_path, cwd)}")
+        typer.echo(f"  → {action.new_name}")
         typer.echo()
 
     if dry_run:
-        typer.echo(f"[dry run] {len(renames)} album(s) would be renamed.")
+        typer.echo(f"[dry run] {len(actions)} album(s) would be renamed.")
     else:
-        for album_path, desired_name in renames:
-            new_path = album_path.parent / desired_name
-            album_path.rename(new_path)
+        for action in actions:
+            new_path = action.album_path.parent / action.new_name
+            action.album_path.rename(new_path)
 
-        typer.echo(f"Renamed {len(renames)} album(s).")
+        typer.echo(f"Renamed {len(actions)} album(s).")
 
 
 @gallery_app.command("stats")

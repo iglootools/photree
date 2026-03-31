@@ -617,7 +617,7 @@ $ photree gallery [OPTIONS] COMMAND [ARGS]...
 * `fix`: Fix all albums in the gallery.
 * `optimize`: Optimize all iOS albums in the gallery.
 * `fix-ios`: Apply fix-ios to all iOS albums in the...
-* `rename-from-csv`: Rename albums by diffing current vs...
+* `rename-from-csv`: Rename albums from a CSV file (from...
 * `stats`: Show aggregated disk usage and content...
 * `export`: Batch export multiple albums to a shared...
 
@@ -757,24 +757,26 @@ $ photree gallery fix-ios [OPTIONS]
 
 ### `photree gallery rename-from-csv`
 
-Rename albums by diffing current vs desired CSV files (from list-albums --format csv).
+Rename albums from a CSV file (from list-albums --format csv, edited).
 
-Only the series, title, and location columns may differ between the two files.
+Uses the album ID to look up each album in the gallery, then compares the
+current series, title, and location against the CSV values. Only albums
+where a mutable field changed are renamed. Immutable fields (date, part,
+tags) are preserved from the current on-disk album name.
 
 **Usage**:
 
 ```console
-$ photree gallery rename-from-csv [OPTIONS] CURRENT_CSV DESIRED_CSV
+$ photree gallery rename-from-csv [OPTIONS] CSV_FILE
 ```
 
 **Arguments**:
 
-* `CURRENT_CSV`: CSV with current album state (from gallery list-albums --format csv).  [required]
-* `DESIRED_CSV`: CSV with desired album state (edited copy of current).  [required]
+* `CSV_FILE`: CSV with desired album state (from list-albums --format csv, edited).  [required]
 
 **Options**:
 
-* `-d, --dir DIRECTORY`: Root directory (base for relative paths in CSV).  [default: .]
+* `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `-n, --dry-run`: Show what would be renamed without making changes.
 * `--help`: Show this message and exit.
 
