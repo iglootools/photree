@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 from pathlib import Path
 
+import pytest
 import yaml
 
 from photree.fsprotocol import (
@@ -24,9 +25,11 @@ from photree.fsprotocol import (
     is_legacy_album,
     load_album_metadata,
     parse_external_id,
+    resolve_gallery_dir,
     resolve_gallery_metadata,
     resolve_link_mode,
     save_album_metadata,
+    save_gallery_metadata,
 )
 
 
@@ -259,6 +262,32 @@ class TestIsLegacyAlbum:
         _setup_media_source(album)
         _mark_album(album)
         assert not is_legacy_album(album)
+
+
+class TestResolveGalleryDir:
+    def test_explicit_dir_with_gallery_yaml(self, tmp_path: Path) -> None:
+        save_gallery_metadata(tmp_path, GalleryMetadata())
+        assert resolve_gallery_dir(tmp_path) == tmp_path
+
+    def test_explicit_dir_without_gallery_yaml_raises(self, tmp_path: Path) -> None:
+        with pytest.raises(ValueError, match="No gallery metadata"):
+            resolve_gallery_dir(tmp_path)
+
+    def test_resolves_from_cwd(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        save_gallery_metadata(tmp_path, GalleryMetadata())
+        child = tmp_path / "subdir"
+        child.mkdir()
+        monkeypatch.chdir(child)
+        assert resolve_gallery_dir(None) == tmp_path
+
+    def test_no_gallery_found_raises(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        with pytest.raises(ValueError, match="No gallery metadata"):
+            resolve_gallery_dir(None)
 
 
 class TestDiscoverAlbums:

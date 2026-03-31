@@ -133,6 +133,38 @@ UUID encodes to ~22 characters, making the full external ID ~28 characters.
 |--------|-------------|---------------------|
 | Album  | `album`     | `album_3K8vJxNm2cYpR7qWz5FhG` |
 
+## Gallery Directory Layout
+
+A gallery is a directory containing `.photree/gallery.yaml` and an `albums/`
+subdirectory where imported albums are organized by year:
+
+```
+<Gallery Root>/
+  .photree/
+    gallery.yaml            gallery-wide settings (link-mode)
+  albums/
+    2023/
+      2023-12-25 - Christmas/
+    2024/
+      2024-07-14 - Hiking the Rockies/
+      2024-07-14 - 01 - Canada Trip - Hiking the Rockies/
+```
+
+Albums are placed in `albums/YYYY/` where YYYY is extracted from the album
+name's date prefix. The `import album` and `import albums` commands automate
+this placement.
+
+### Gallery Resolution
+
+Commands that need a gallery directory resolve it in this order:
+
+1. Explicit `--gallery-dir` CLI option
+2. Walk up from the current working directory looking for
+   `.photree/gallery.yaml` — the directory containing it is the gallery root
+
+If no gallery metadata is found, the command exits with an error suggesting
+`photree gallery init`.
+
 ## Album On-Disk Layout
 
 ### Album Detection
