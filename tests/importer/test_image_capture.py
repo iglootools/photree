@@ -410,6 +410,29 @@ class TestRunImport:
             ("end", STAGE_REFRESH_MAIN_JPG),
         ]
 
+    def test_refuses_to_overwrite_existing_files(self, tmp_path: Path) -> None:
+        album = _setup_album(tmp_path, ["IMG_0410.HEIC"])
+        ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0410.HEIC", "IMG_0410.AAE"])
+
+        # First import succeeds
+        run_import(
+            album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
+        )
+
+        # Re-create selection and IC files for a second import attempt
+        (album / SELECTION_DIR).mkdir(parents=True, exist_ok=True)
+        (album / SELECTION_DIR / "IMG_0410.HEIC").write_text("data")
+        round2 = tmp_path / "round2"
+        round2.mkdir()
+        ic_dir2 = _setup_image_capture_dir(round2, ["IMG_0410.HEIC", "IMG_0410.AAE"])
+
+        with pytest.raises(ValueError, match="would conflict"):
+            run_import(
+                album_dir=album,
+                image_capture_dir=ic_dir2,
+                convert_file=_noop_convert,
+            )
+
 
 class TestRunImportLinkMode:
     def test_default_creates_hardlinks_in_combined(self, tmp_path: Path) -> None:

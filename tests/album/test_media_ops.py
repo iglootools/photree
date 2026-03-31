@@ -296,6 +296,37 @@ class TestMoveMedia:
         assert (src / "main-jpg").is_dir()
         assert "IMG_0411.HEIC" in _names(src / "ios-main/orig-img")
 
+    def test_refuses_to_overwrite_existing_files(self, tmp_path: Path) -> None:
+        src = tmp_path / "src-album"
+        dst = tmp_path / "dst-album"
+        _setup_ios_album(src)
+        _setup_ios_album(dst)
+
+        with pytest.raises(ValueError, match="would conflict"):
+            move_media(src, dst, ["main-jpg/IMG_E0410.jpg"])
+
+        # Source should be unchanged — nothing was moved
+        assert "IMG_0410.HEIC" in _names(src / "ios-main/orig-img")
+
+    def test_refuses_on_same_number_different_extension(self, tmp_path: Path) -> None:
+        """Detects collision even when the exact filename doesn't match."""
+        src = tmp_path / "src-album"
+        dst = tmp_path / "dst-album"
+        _setup_dir(src / PHOTREE_DIR, [])
+        _mark_album(src)
+        _setup_dir(src / "ios-main/orig-img", ["IMG_0410.HEIC"])
+        _setup_dir(src / "main-img", ["IMG_0410.HEIC"])
+        _setup_dir(src / "main-jpg", ["IMG_0410.jpg"])
+
+        _setup_dir(dst / PHOTREE_DIR, [])
+        _mark_album(dst)
+        # Different extension, same number
+        _setup_dir(dst / "ios-main/orig-img", ["IMG_0410.JPG"])
+        _setup_dir(dst / "main-img", ["IMG_0410.JPG"])
+
+        with pytest.raises(ValueError, match="would conflict"):
+            move_media(src, dst, ["main-jpg/IMG_0410.jpg"])
+
 
 # ---------------------------------------------------------------------------
 # rm_media

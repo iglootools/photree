@@ -198,6 +198,43 @@ def move_media(
     """Move media files and all their variants from *source_album* to *dest_album*."""
     variants = resolve_variants(source_album, relative_paths)
 
+    # Fail fast before moving anything if the destination already contains
+    # files with the same image number (iOS) or stem (plain).
+    dest_media_sources = discover_media_sources(dest_album)
+    dest_dir_to_ms = _build_dir_to_media_source(dest_media_sources)
+
+    incoming_keys_by_subdir: dict[str, set[str]] = {}
+    for subdir, files in variants:
+        ms = dest_dir_to_ms.get(subdir)
+        use_stem = ms is not None and not ms.is_ios
+        keys = (
+            {Path(f).stem for f in files}
+            if use_stem
+            else {img_number(f) for f in files}
+        )
+        incoming_keys_by_subdir[subdir] = keys
+
+    conflicts = sorted(
+        {
+            f"{subdir}/{existing}"
+            for subdir, keys in incoming_keys_by_subdir.items()
+            for existing in _find_matching_files(
+                dest_album,
+                subdir,
+                keys,
+                use_stem=subdir in dest_dir_to_ms and not dest_dir_to_ms[subdir].is_ios,
+            )
+        }
+    )
+    if conflicts:
+        raise ValueError(
+            f"Move would conflict with {len(conflicts)} existing file(s) "
+            f"in {dest_album.name}:\n"
+            + "".join(f"  {c}\n" for c in conflicts[:10])
+            + (f"  ... and {len(conflicts) - 10} more\n" if len(conflicts) > 10 else "")
+            + "Use a different media source to avoid conflicts."
+        )
+
     moved: list[tuple[str, tuple[str, ...]]] = []
     for subdir, files in variants:
         move_files(
