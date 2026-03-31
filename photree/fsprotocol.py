@@ -243,6 +243,38 @@ def resolve_link_mode(explicit: LinkMode | None, start_dir: Path) -> LinkMode:
     return gallery.link_mode if gallery is not None else LinkMode.HARDLINK
 
 
+def resolve_gallery_dir(explicit: Path | None) -> Path:
+    """Resolve the gallery root directory.
+
+    Resolution order: explicit ``--gallery-dir`` > walk up from cwd looking
+    for ``.photree/gallery.yaml``. Raises :class:`ValueError` if no gallery
+    metadata is found.
+    """
+    if explicit is not None:
+        if not (explicit / PHOTREE_DIR / GALLERY_YAML).is_file():
+            raise ValueError(
+                f"No gallery metadata found at {explicit / PHOTREE_DIR / GALLERY_YAML}.\n"
+                "Run 'photree gallery init' to initialize the gallery."
+            )
+        return explicit
+
+    cwd = Path.cwd()
+    current = cwd.resolve()
+    while True:
+        candidate = current / PHOTREE_DIR / GALLERY_YAML
+        if candidate.is_file():
+            return current
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
+
+    raise ValueError(
+        "No gallery metadata (.photree/gallery.yaml) found in parent directories.\n"
+        "Run 'photree gallery init' in the gallery root, or use --gallery-dir."
+    )
+
+
 # Date regex for naming convention validation.
 # Single dates: YYYY, YYYY-MM, YYYY-MM-DD
 # Ranges: any precision -- any precision (e.g. YYYY--YYYY-MM, YYYY-MM-DD--YYYY-MM-DD)

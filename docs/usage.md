@@ -96,6 +96,33 @@ The source directory (where Image Capture saved the files) is resolved in this o
 2. `importer.image-capture-dir` from the config file
 3. Default: `~/Pictures/iPhone`
 
+### `photree import album`
+
+Imports an existing album directory into the gallery's `albums/YYYY/` structure.
+Automatically generates a missing album ID, refreshes stale JPEGs, optimizes
+links, and runs integrity checks.
+
+```bash
+# Import a single album into the gallery (resolved from cwd)
+photree import album -a "2024-06-15 - Summer Vacation"
+
+# Import into a specific gallery
+photree import album -a "2024-06-15 - Summer Vacation" -g ~/Pictures/gallery
+
+# Batch import multiple albums
+photree import albums -d ~/Pictures/incoming-albums
+photree import albums -a album1 -a album2 -g ~/Pictures/gallery
+
+# Dry run
+photree import album -a "2024-06-15 - Summer Vacation" -n
+```
+
+The gallery directory is resolved in this order:
+1. `--gallery-dir` / `-g` flag (explicit)
+2. Walk up from cwd looking for `.photree/gallery.yaml`
+
+The command refuses to import if the target path already exists in the gallery.
+
 ## Check
 
 ### `photree album check`

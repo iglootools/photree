@@ -675,6 +675,8 @@ $ photree import [OPTIONS] COMMAND [ARGS]...
 * `check`: Check that system prerequisites for import...
 * `image-capture`
 * `image-capture-all`
+* `album`: Import an existing album directory into...
+* `albums`: Batch import album directories into the...
 
 ### `photree import check`
 
@@ -731,4 +733,50 @@ $ photree import image-capture-all [OPTIONS]
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `-f, --force`: Skip preflight checks on the source directory.
 * `--skip-heic-to-jpeg`: Skip HEIC-to-JPEG conversion (and the sips availability check).
+* `--help`: Show this message and exit.
+
+### `photree import album`
+
+Import an existing album directory into the gallery.
+
+Copies the album to &lt;gallery&gt;/albums/YYYY/&lt;album-name&gt;/, generates a
+missing album ID, refreshes JPEGs if stale, optimizes links, and runs
+integrity checks.
+
+**Usage**:
+
+```console
+$ photree import album [OPTIONS]
+```
+
+**Options**:
+
+* `-a, --album-dir DIRECTORY`: Album directory to import into the gallery.  [required]
+* `-g, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.
+* `-n, --dry-run`: Print what would happen without modifying files.
+* `--help`: Show this message and exit.
+
+### `photree import albums`
+
+Batch import album directories into the gallery.
+
+Either scan --dir for immediate subdirectories, or provide explicit
+album directories via --album-dir (repeatable). Copies each album to
+&lt;gallery&gt;/albums/YYYY/&lt;album-name&gt;/, generates missing IDs, refreshes
+JPEGs, optimizes links, and runs gallery-wide checks.
+
+**Usage**:
+
+```console
+$ photree import albums [OPTIONS]
+```
+
+**Options**:
+
+* `-d, --dir DIRECTORY`: Base directory to scan for album subdirectories.
+* `-a, --album-dir DIRECTORY`: Album directory to import (repeatable).
+* `-g, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.
+* `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
