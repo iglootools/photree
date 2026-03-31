@@ -33,17 +33,22 @@ share-dir = "~/MEGAsync/to-share"
 share-layout = "flat"
 album-layout = "main"
 link-mode = "hardlink"
-
-[exporter.profiles.rocketnano2tb-albums]
-share-dir = "/Volumes/rocketnano2tb/photos/albums"
-share-layout = "albums"
-album-layout = "all"
-link-mode = "symlink"
 ```
 
 ## Gallery
 
-### `photree gallery init`
+Most operations (check, optimize, fix, stats, export) are available in three flavours:
+
+- **`photree gallery <op>`** — operates on all albums within an initialized gallery
+  (resolved from cwd or `--gallery-dir`). This is the recommended way to manage albums.
+- **`photree album <op>`** — operates on a single album directory.
+- **`photree albums <op>`** — batch variant that scans a directory (`--dir`) or accepts
+  explicit album directories (`--album-dir`, repeatable). Does not require a gallery.
+
+This document covers the `gallery` commands and the Image Capture import workflow.
+See the [CLI Reference](./cli-reference.md) for the full `album` and `albums` variants.
+
+### Initialize Gallery
 
 Initializes gallery-level metadata in the current (or specified) directory.
 Creates a `.photree/gallery.yaml` file that applies to all albums underneath.
@@ -65,9 +70,7 @@ CLI flag always overrides the gallery default.
 
 See [internals.md](./internals.md) for the gallery metadata format and resolution rules.
 
-## Import from Image Capture
-
-### `photree album import`
+### Import Images from Image Capture
 
 Organizes files imported by macOS Image Capture into an album directory structure.
 See [internals.md](./internals.md) for the Image Capture file structure and album layout.
@@ -80,10 +83,10 @@ See [internals.md](./internals.md) for the Image Capture file structure and albu
 4. Run `photree album import` from the album directory
 
 ```bash
-# Import a single album
+# Import image capture pictures for a single album
 photree album import -a "2024-06-15 - Summer Vacation"
 
-# Import all albums under a directory
+# Import image capture pictures for all albums under a directory
 photree albums import -d ~/Pictures/albums
 
 # Dry run to preview what would happen
@@ -96,9 +99,7 @@ The source directory (where Image Capture saved the files) is resolved in this o
 2. `importer.image-capture-dir` from the config file
 3. Default: `~/Pictures/iPhone`
 
-## Import Albums into Gallery
-
-### `photree gallery import`
+### Import Albums into Gallery
 
 Imports an existing album directory into the gallery's `albums/YYYY/` structure.
 Automatically generates a missing album ID, refreshes stale JPEGs, optimizes
@@ -125,93 +126,58 @@ The gallery directory is resolved in this order:
 
 The command refuses to import if the target path already exists in the gallery.
 
-## Check
+### Check Albums
 
-### `photree album check`
-
-Validates album directory structure and file integrity.
+Validates all albums in the gallery (structure, integrity, naming conventions, EXIF dates).
 
 ```bash
-# Check a single album
-photree album check -a "2024-06-15 - Summer Vacation"
+# Check all gallery albums (resolved from cwd)
+photree gallery check
 
-# Check all albums under a directory
-photree album check-all -d ~/Pictures/albums
+# Check a specific gallery
+photree gallery check -d ~/Pictures/gallery
 
 # Disable checksum verification for faster checks
-photree album check --no-checksum
+photree gallery check --no-checksum
+
+# Treat warnings as errors
+photree gallery check -W
 ```
 
-Checks include:
-- `main-img/` and `main-vid/` consistency with orig/edit sources
-- `main-jpg/` has a JPEG counterpart for every main-img file
-- Sidecar (AAE) completeness and orphan detection
-- Miscategorized files and duplicate image numbers
-- Actionable troubleshooting suggestions when issues are found
+### Optimize Albums
 
-## Optimize
-
-### `photree album optimize`
-
-Reduces disk usage by replacing file copies in `main-img/` and `main-vid/` with links.
+Reduces disk usage by replacing file copies with links for all iOS albums in the gallery.
 
 ```bash
-# Optimize a single album (hardlinks by default)
-photree album optimize -a "2024-06-15 - Summer Vacation"
+# Optimize all gallery albums (uses gallery link-mode default)
+photree gallery optimize
 
-# Use symlinks instead
-photree album optimize --link-mode symlink
+# Optimize with symlinks
+photree gallery optimize --link-mode symlink
 
-# Optimize all albums
-photree album optimize-all -d ~/Pictures/albums
+# Skip integrity checks before optimizing
+photree gallery optimize --no-check
+
+# Dry run
+photree gallery optimize -n
 ```
 
-Runs integrity checks first and refuses to optimize if errors are found (disable with `--no-check`).
+### Export Albums
 
-## Fix
-
-### `photree album fix-ios`
-
-Targeted fixes for iOS album issues. Each fix is an explicit flag — at least one must be specified.
-All fixes support `--dry-run` (`-n`) to preview changes.
-
-```bash
-# Rebuild main directories from sources
-photree album fix-ios --refresh-combined -n
-
-# Propagate deletions from main-jpg to upstream dirs
-photree album fix-ios --rm-upstream -n
-
-# Remove orphan files
-photree album fix-ios --rm-orphan --rm-orphan-sidecar -n
-
-# Fix miscategorized files (move to correct directory)
-photree album fix-ios --mv-miscategorized -n
-
-# Apply to all albums
-photree album fix-ios-all -d ~/Pictures/albums --rm-orphan -n
-```
-
-## Export
-
-### `photree album export`
-
-Exports albums to shared directories (cloud sync folders, external volumes).
+Exports all gallery albums to a shared directory (cloud sync folders, external volumes).
 
 ```bash
 # Export using a named profile
-photree album export -a "2024-06-15 - Summer Vacation" -p mega
+photree gallery export -p mega
 
 # Export with explicit flags
-photree album export -a "2024-06-15 - Summer Vacation" \
-  --share-dir ~/MEGAsync/to-share \
-  --album-layout main-jpg
+photree gallery export --share-dir ~/MEGAsync/to-share --album-layout main-jpg
 
-# Batch export all albums
-photree albums export -d ~/Pictures/albums -p mega
+# Dry run
+photree gallery export -p mega -n
 ```
 
-**Album share layouts:**
+**Album layouts:**
 - `main-jpg` (default): exports `main-jpg/` and `main-vid/` (most compatible formats)
 - `main`: exports `main-img/`, `main-jpg/`, `main-vid/`
 - `all`: exports archival directories (orig/edit) and main-jpg, recreates main dirs with links
