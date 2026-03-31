@@ -19,7 +19,6 @@ graph TD
     album["album/"]
     cli["cli/"]
     config["config"]
-    exporter["exporter/"]
     fsprotocol["fsprotocol"]
     gallery["gallery/"]
     uiconventions["uiconventions"]
@@ -28,13 +27,10 @@ graph TD
     album --> uiconventions
     cli --> album
     cli --> config
-    cli --> exporter
     cli --> fsprotocol
     cli --> gallery
     cli --> uiconventions
     config --> fsprotocol
-    exporter --> album
-    exporter --> fsprotocol
     fsprotocol --> uiconventions
     gallery --> album
     gallery --> fsprotocol

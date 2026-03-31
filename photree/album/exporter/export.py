@@ -17,9 +17,9 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..album.combined import refresh_main_dir
-from ..album.preflight import AlbumType, detect_album_type
-from ..fsprotocol import (
+from ..combined import refresh_main_dir
+from ..preflight import AlbumType, detect_album_type
+from ...fsprotocol import (
     AlbumShareLayout,
     MediaSource,
     IMG_EXTENSIONS,

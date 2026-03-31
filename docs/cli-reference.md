@@ -21,7 +21,6 @@ $ photree [OPTIONS] COMMAND [ARGS]...
 * `album`: Album management commands.
 * `albums`: Batch operations on multiple albums.
 * `demo`: Demo commands for development.
-* `export`: Export albums to a shared directory.
 * `gallery`: Batch operations on multiple albums.
 
 ## `photree check`
@@ -63,6 +62,7 @@ $ photree album [OPTIONS] COMMAND [ARGS]...
 * `mv-media`: Move media files and all their variants...
 * `rm-media`: Remove media files and all their variants...
 * `stats`: Show disk usage and content statistics for...
+* `export`: Export a single album to a shared directory.
 * `import-check`: Check that system prerequisites for import...
 * `import`
 
@@ -320,6 +320,41 @@ $ photree album stats [OPTIONS]
 * `-a, --album-dir DIRECTORY`: Album directory to analyze.  [default: .]
 * `--help`: Show this message and exit.
 
+### `photree album export`
+
+Export a single album to a shared directory.
+
+Creates a subdirectory named after the album inside --share-dir.
+
+For non-iOS albums, all files are copied regardless of --album-layout.
+
+For iOS albums:
+
+--album-layout=main-jpg (default): Copies main-jpg/ and main-vid/
+(most compatible formats).
+
+--album-layout=main: Copies main-img/, main-jpg/, and main-vid/.
+
+--album-layout=all: Copies archival directories (orig-*, edit-*) and
+main-jpg/ as-is, then recreates main-img/ and main-vid/ using --link-mode.
+
+**Usage**:
+
+```console
+$ photree album export [OPTIONS]
+```
+
+**Options**:
+
+* `-a, --album-dir DIRECTORY`: Album directory to export.  [default: .]
+* `-s, --share-dir DIRECTORY`: Base directory to export into (a subdirectory with the album name is created).
+* `-p, --profile TEXT`: Exporter profile name from config.
+* `-c, --config TEXT`: Path to config file.
+* `--share-layout [flat|albums]`: Share layout: flat (default) or albums.
+* `--album-layout [main-jpg|main|all]`: Export layout: main-jpg (default), main, or all.
+* `--link-mode [copy|hardlink|symlink]`: How to create main files in all layout: hardlink (default), symlink, or copy.
+* `--help`: Show this message and exit.
+
 ### `photree album import-check`
 
 Check that system prerequisites for import commands are met.
@@ -381,6 +416,7 @@ $ photree albums [OPTIONS] COMMAND [ARGS]...
 * `stats`: Show aggregated disk usage and content...
 * `import-check`
 * `import`
+* `export`: Batch export multiple albums to a shared...
 
 ### `photree albums list`
 
@@ -542,6 +578,31 @@ $ photree albums import [OPTIONS]
 * `--skip-heic-to-jpeg`: Skip HEIC-to-JPEG conversion (and the sips availability check).
 * `--help`: Show this message and exit.
 
+### `photree albums export`
+
+Batch export multiple albums to a shared directory.
+
+Either scan --dir for albums or provide explicit album directories via
+--album-dir (repeatable). The two options are mutually exclusive.
+
+**Usage**:
+
+```console
+$ photree albums export [OPTIONS]
+```
+
+**Options**:
+
+* `-d, --dir DIRECTORY`: Base directory to scan for albums.
+* `-a, --album-dir DIRECTORY`: Album directory to export (repeatable).
+* `-s, --share-dir DIRECTORY`: Base directory to export into (subdirectories with album names are created).
+* `-p, --profile TEXT`: Exporter profile name from config.
+* `-c, --config TEXT`: Path to config file.
+* `--share-layout [flat|albums]`: Share layout: flat (default) or albums.
+* `--album-layout [main-jpg|main|all]`: Export layout: main-jpg (default), main, or all.
+* `--link-mode [copy|hardlink|symlink]`: How to create main files in all layout: hardlink (default), symlink, or copy.
+* `--help`: Show this message and exit.
+
 ## `photree demo`
 
 Demo commands for development.
@@ -589,85 +650,6 @@ $ photree demo seed [OPTIONS]
 
 * `-d, --base-dir DIRECTORY`: Directory to create the demo in. Default: creates a temp directory.
 * `--album-name TEXT`: Album name.  [default: 2024-06-15 - Demo Album]
-* `--help`: Show this message and exit.
-
-## `photree export`
-
-Export albums to a shared directory.
-
-**Usage**:
-
-```console
-$ photree export [OPTIONS] COMMAND [ARGS]...
-```
-
-**Options**:
-
-* `--help`: Show this message and exit.
-
-**Commands**:
-
-* `album`: Export a single album to a shared directory.
-* `album-all`: Batch export multiple albums to a shared...
-
-### `photree export album`
-
-Export a single album to a shared directory.
-
-Creates a subdirectory named after the album inside --share-dir.
-
-For non-iOS albums, all files are copied regardless of --album-layout.
-
-For iOS albums:
-
---album-layout=main-jpg (default): Copies main-jpg/ and main-vid/
-(most compatible formats).
-
---album-layout=main: Copies main-img/, main-jpg/, and main-vid/.
-
---album-layout=all: Copies archival directories (orig-*, edit-*) and
-main-jpg/ as-is, then recreates main-img/ and main-vid/ using --link-mode.
-
-**Usage**:
-
-```console
-$ photree export album [OPTIONS]
-```
-
-**Options**:
-
-* `-a, --album-dir DIRECTORY`: Album directory to export.  [default: .]
-* `-s, --share-dir DIRECTORY`: Base directory to export into (a subdirectory with the album name is created).
-* `-p, --profile TEXT`: Exporter profile name from config.
-* `-c, --config TEXT`: Path to config file.
-* `--share-layout [flat|albums]`: Share layout: flat (default) or albums.
-* `--album-layout [main-jpg|main|all]`: Export layout: main-jpg (default), main, or all.
-* `--link-mode [copy|hardlink|symlink]`: How to create main files in all layout: hardlink (default), symlink, or copy.
-* `--help`: Show this message and exit.
-
-### `photree export album-all`
-
-Batch export multiple albums to a shared directory.
-
-Either scan --dir for albums or provide explicit album directories via
---album-dir (repeatable). The two options are mutually exclusive.
-
-**Usage**:
-
-```console
-$ photree export album-all [OPTIONS]
-```
-
-**Options**:
-
-* `-d, --dir DIRECTORY`: Base directory to scan for albums.
-* `-a, --album-dir DIRECTORY`: Album directory to export (repeatable).
-* `-s, --share-dir DIRECTORY`: Base directory to export into (subdirectories with album names are created).
-* `-p, --profile TEXT`: Exporter profile name from config.
-* `-c, --config TEXT`: Path to config file.
-* `--share-layout [flat|albums]`: Share layout: flat (default) or albums.
-* `--album-layout [main-jpg|main|all]`: Export layout: main-jpg (default), main, or all.
-* `--link-mode [copy|hardlink|symlink]`: How to create main files in all layout: hardlink (default), symlink, or copy.
 * `--help`: Show this message and exit.
 
 ## `photree gallery`
