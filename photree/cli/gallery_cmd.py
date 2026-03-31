@@ -21,7 +21,9 @@ from ..fsprotocol import (
     LinkMode,
     PHOTREE_DIR,
     discover_all_albums,
+    discover_albums,
     display_path,
+    load_gallery_metadata,
     resolve_gallery_dir,
     resolve_link_mode,
     save_gallery_metadata,
@@ -82,6 +84,31 @@ def init_cmd(
     typer.echo(
         f"Created {display_path(gallery_yaml, Path.cwd())} (link-mode: {link_mode})"
     )
+
+
+@gallery_app.command("show")
+def show_cmd(
+    gallery_dir: Annotated[
+        Optional[Path],
+        typer.Option(
+            "--gallery-dir",
+            "-d",
+            help="Gallery root directory (or resolved from cwd via .photree/gallery.yaml).",
+            exists=True,
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ] = None,
+) -> None:
+    """Display gallery metadata."""
+    resolved = _resolve_gallery_or_exit(gallery_dir)
+    cwd = Path.cwd()
+    metadata = load_gallery_metadata(resolved / PHOTREE_DIR / GALLERY_YAML)
+    albums = discover_albums(resolved)
+
+    typer.echo(f"Gallery: {display_path(resolved, cwd)}")
+    typer.echo(f"  link-mode: {metadata.link_mode}")
+    typer.echo(f"  albums: {len(albums)}")
 
 
 def _resolve_check_batch_albums(

@@ -55,6 +55,7 @@ $ photree album [OPTIONS] COMMAND [ARGS]...
 
 **Commands**:
 
+* `show`: Display album metadata and parsed name.
 * `check`: Check system prerequisites, album...
 * `fix`: Fix album issues.
 * `optimize`: Optimize main directories by replacing...
@@ -63,6 +64,21 @@ $ photree album [OPTIONS] COMMAND [ARGS]...
 * `mv-media`: Move media files and all their variants...
 * `rm-media`: Remove media files and all their variants...
 * `stats`: Show disk usage and content statistics for...
+
+### `photree album show`
+
+Display album metadata and parsed name.
+
+**Usage**:
+
+```console
+$ photree album show [OPTIONS]
+```
+
+**Options**:
+
+* `-a, --album-dir DIRECTORY`: Album directory.  [default: .]
+* `--help`: Show this message and exit.
 
 ### `photree album check`
 
@@ -595,6 +611,7 @@ $ photree gallery [OPTIONS] COMMAND [ARGS]...
 **Commands**:
 
 * `init`: Initialize gallery metadata...
+* `show`: Display gallery metadata.
 * `list-albums`: List all albums in the gallery.
 * `check`: Check all albums in the gallery.
 * `fix`: Fix all albums in the gallery.
@@ -618,6 +635,21 @@ $ photree gallery init [OPTIONS]
 
 * `-d, --dir DIRECTORY`: Gallery root directory.  [default: .]
 * `--link-mode [copy|hardlink|symlink]`: Default link mode for optimize and other link-mode operations.  [default: hardlink]
+* `--help`: Show this message and exit.
+
+### `photree gallery show`
+
+Display gallery metadata.
+
+**Usage**:
+
+```console
+$ photree gallery show [OPTIONS]
+```
+
+**Options**:
+
+* `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--help`: Show this message and exit.
 
 ### `photree gallery list-albums`
