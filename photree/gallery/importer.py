@@ -154,6 +154,73 @@ def validate_batch_import(
         )
 
 
+def _stage_copy(
+    source_dir: Path,
+    target_dir: Path,
+    *,
+    dry_run: bool,
+) -> None:
+    """Stage 1: copy the album to the gallery."""
+    if target_dir.exists():
+        raise ValueError(
+            f"Target already exists: {target_dir}\n"
+            "Cannot import — an album with the same name is already in the gallery."
+        )
+    if not dry_run:
+        target_dir.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(str(source_dir), str(target_dir))
+
+
+def _stage_generate_id(work_dir: Path, *, dry_run: bool) -> bool:
+    """Stage 2: generate a missing album ID. Returns whether one was generated."""
+    if load_album_metadata(work_dir) is not None:
+        return False
+    if not dry_run:
+        save_album_metadata(work_dir, AlbumMetadata(id=generate_album_id()))
+    return True
+
+
+def _stage_refresh_jpeg(
+    work_dir: Path,
+    *,
+    dry_run: bool,
+    convert_file: Callable[..., Path | None],
+) -> bool:
+    """Stage 3: refresh JPEGs if stale. Returns whether a refresh was needed."""
+    if not _jpeg_is_stale(work_dir):
+        return False
+    if not dry_run:
+        for ms in discover_media_sources(work_dir):
+            if (work_dir / ms.img_dir).is_dir():
+                album_fixes.refresh_jpeg(
+                    work_dir, ms, dry_run=False, convert_file=convert_file
+                )
+    return True
+
+
+def _stage_optimize(work_dir: Path, *, link_mode: LinkMode, dry_run: bool) -> bool:
+    """Stage 4: optimize links. Returns whether the album had iOS sources."""
+    ios_sources = [ms for ms in discover_media_sources(work_dir) if ms.is_ios]
+    if not ios_sources:
+        return False
+    if not dry_run:
+        integrity = check_ios_album_integrity(work_dir, checksum=True)
+        mismatched = [
+            ms.name
+            for ms, result in integrity.by_media_source
+            if not result.combined_heic.files_match_sources
+            or not result.combined_mov.files_match_sources
+        ]
+        if mismatched:
+            raise ValueError(
+                f"Pre-optimize integrity check failed for media source(s): "
+                f"{', '.join(mismatched)}. "
+                "Browsable files do not match their archival sources."
+            )
+        album_optimize.optimize_album(work_dir, link_mode=link_mode)
+    return True
+
+
 def import_album(
     *,
     source_dir: Path,
@@ -177,63 +244,26 @@ def import_album(
     album_name = source_dir.name
     target_dir = compute_target_dir(gallery_dir, album_name)
 
-    if target_dir.exists():
-        raise ValueError(
-            f"Target already exists: {target_dir}\n"
-            "Cannot import — an album with the same name is already in the gallery."
-        )
-
-    # ── Stage 1: copy ──
     _notify(on_stage_start, STAGE_COPY)
-    if not dry_run:
-        target_dir.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(str(source_dir), str(target_dir))
+    _stage_copy(source_dir, target_dir, dry_run=dry_run)
     _notify(on_stage_end, STAGE_COPY)
 
     # From here, all operations happen on the target copy.
     # In dry-run mode, operate on the source (read-only checks).
     work_dir = source_dir if dry_run else target_dir
 
-    # ── Stage 2: generate ID ──
     _notify(on_stage_start, STAGE_ID)
-    id_generated = False
-    if load_album_metadata(work_dir) is None:
-        id_generated = True
-        if not dry_run:
-            save_album_metadata(work_dir, AlbumMetadata(id=generate_album_id()))
+    id_generated = _stage_generate_id(work_dir, dry_run=dry_run)
     _notify(on_stage_end, STAGE_ID)
 
-    # ── Stage 3: refresh JPEG ──
     _notify(on_stage_start, STAGE_JPEG)
-    jpeg_refreshed = False
-    if _jpeg_is_stale(work_dir):
-        jpeg_refreshed = True
-        if not dry_run:
-            for ms in discover_media_sources(work_dir):
-                if (work_dir / ms.img_dir).is_dir():
-                    album_fixes.refresh_jpeg(
-                        work_dir, ms, dry_run=False, convert_file=convert_file
-                    )
+    jpeg_refreshed = _stage_refresh_jpeg(
+        work_dir, dry_run=dry_run, convert_file=convert_file
+    )
     _notify(on_stage_end, STAGE_JPEG)
 
-    # ── Stage 4: optimize ──
     _notify(on_stage_start, STAGE_OPTIMIZE)
-    ios_sources = [ms for ms in discover_media_sources(work_dir) if ms.is_ios]
-    if ios_sources and not dry_run:
-        integrity = check_ios_album_integrity(work_dir, checksum=True)
-        mismatched = [
-            ms.name
-            for ms, result in integrity.by_media_source
-            if not result.combined_heic.files_match_sources
-            or not result.combined_mov.files_match_sources
-        ]
-        if mismatched:
-            raise ValueError(
-                f"Pre-optimize integrity check failed for media source(s): "
-                f"{', '.join(mismatched)}. "
-                "Browsable files do not match their archival sources."
-            )
-        album_optimize.optimize_album(work_dir, link_mode=link_mode)
+    optimized = _stage_optimize(work_dir, link_mode=link_mode, dry_run=dry_run)
     _notify(on_stage_end, STAGE_OPTIMIZE)
 
     return AlbumImportResult(
@@ -241,5 +271,5 @@ def import_album(
         target_dir=target_dir,
         id_generated=id_generated,
         jpeg_refreshed=jpeg_refreshed,
-        optimized=bool(ios_sources),
+        optimized=optimized,
     )
