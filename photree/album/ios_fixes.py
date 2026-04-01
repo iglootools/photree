@@ -1015,9 +1015,7 @@ def run_fix_ios(
         total_mov_rendered = 0
         total_mov_orig = 0
         for ms in media_sources:
-            result_rm = _do_rm_upstream(
-                album_dir, ms, dry_run=dry_run, log_cwd=log_cwd
-            )
+            result_rm = _do_rm_upstream(album_dir, ms, dry_run=dry_run, log_cwd=log_cwd)
             total_heic_jpeg += len(result_rm.heic.removed_jpeg)
             total_heic_combined += len(result_rm.heic.removed_combined)
             total_heic_rendered += len(result_rm.heic.removed_rendered)

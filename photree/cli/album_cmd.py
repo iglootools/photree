@@ -559,7 +559,9 @@ def fix_ios_cmd(
         rm_miscategorized=rm_miscategorized,
         rm_miscategorized_safe=rm_miscategorized_safe,
         mv_miscategorized=mv_miscategorized,
-        on_refresh_combined_stage_start=stage_progress.on_start if stage_progress else None,
+        on_refresh_combined_stage_start=stage_progress.on_start
+        if stage_progress
+        else None,
         on_refresh_combined_stage_end=stage_progress.on_end if stage_progress else None,
         on_refresh_jpeg_file_start=file_progress.on_start if file_progress else None,
         on_refresh_jpeg_file_end=file_progress.on_end if file_progress else None,
@@ -572,8 +574,6 @@ def fix_ios_cmd(
 
     for line in album_output.format_fix_ios_result(result):
         typer.echo(line)
-
-
 
 
 @album_app.command("fix-exif")
@@ -673,7 +673,6 @@ def _check_sips_or_exit() -> None:
         err_console.print(preflight_output.sips_check(False))
         err_console.print(preflight_output.sips_troubleshoot())
         raise typer.Exit(code=1)
-
 
 
 @album_app.command("mv-media")
@@ -816,8 +815,6 @@ def stats_cmd(
     console.print(stats_output.format_album_stats(result))
 
 
-
-
 # ---------------------------------------------------------------------------
 # Export command
 # ---------------------------------------------------------------------------
@@ -894,6 +891,7 @@ def export_cmd(
 # ---------------------------------------------------------------------------
 # Image Capture import commands
 # ---------------------------------------------------------------------------
+
 
 def _run_preflight_checks(
     source: Path | None,
