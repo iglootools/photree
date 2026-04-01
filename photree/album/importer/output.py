@@ -6,7 +6,7 @@ from pathlib import Path
 from textwrap import dedent
 
 from ...uiconventions import CHECK, CROSS
-from ...fsprotocol import SELECTION_DIR
+from ...fs import SELECTION_DIR
 from .image_capture import ValidationError
 from .preflight import (
     ImageCaptureDirCheck,

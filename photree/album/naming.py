@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from ..fsprotocol import (
+from ..fs import (
     ALBUM_DATE_RE,
     MediaSource,
     discover_media_sources,
@@ -459,7 +459,7 @@ def _resolve_upstream_files(
 
     Returns ``(upstream_relative_paths, is_ios)``.
     """
-    from ..fsprotocol import VID_EXTENSIONS, file_ext
+    from ..fs import VID_EXTENSIONS, file_ext
 
     rel = str(file_path.relative_to(album_dir))
     dir_part = str(Path(rel).parent)

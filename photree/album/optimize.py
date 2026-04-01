@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import combined as combined_module
-from ..fsprotocol import (
+from ..fs import (
     IMG_EXTENSIONS,
     LinkMode,
     VID_EXTENSIONS,

@@ -37,7 +37,7 @@ from ..album.preflight.output import format_naming_checks
 from ..album.stats import output as stats_output
 from ..album.jpeg import convert_single_file, noop_convert_single
 from ..config import ConfigError, load_config
-from ..fsprotocol import (
+from ..fs import (
     AlbumMetadata,
     AlbumShareLayout,
     IMG_EXTENSIONS,

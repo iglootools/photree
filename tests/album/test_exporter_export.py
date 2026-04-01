@@ -8,7 +8,7 @@ from photree.album.exporter.export import (
     compute_target_dir,
     export_album,
 )
-from photree.fsprotocol import (
+from photree.fs import (
     MAIN_MEDIA_SOURCE,
     PHOTREE_DIR,
     AlbumShareLayout,

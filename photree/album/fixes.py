@@ -11,7 +11,7 @@ from pathlib import Path
 
 from . import jpeg
 from .jpeg import RefreshResult, convert_single_file
-from ..fsprotocol import MediaSource
+from ..fs import MediaSource
 
 
 def refresh_jpeg(

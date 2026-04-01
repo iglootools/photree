@@ -10,7 +10,7 @@ from photree.album.integrity import (
     check_sidecars,
     check_miscategorized_files,
 )
-from photree.fsprotocol import (
+from photree.fs import (
     MAIN_MEDIA_SOURCE,
     IMG_EXTENSIONS,
 )

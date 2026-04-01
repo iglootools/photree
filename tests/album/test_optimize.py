@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 from photree.album.optimize import OptimizeResult, optimize_album
-from photree.fsprotocol import (
+from photree.fs import (
     MAIN_MEDIA_SOURCE,
     LinkMode,
 )

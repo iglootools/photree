@@ -8,7 +8,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from ...fsprotocol import MediaSourceType
+from ...fs import MediaSourceType
 from . import (
     AggregateStats,
     AlbumStats,

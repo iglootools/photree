@@ -22,7 +22,7 @@ from photree.album.stats import (
     compute_media_source_stats,
     gallery_stats_from_album_stats,
 )
-from photree.fsprotocol import (
+from photree.fs import (
     AlbumMetadata,
     MAIN_MEDIA_SOURCE,
     MediaSourceType,

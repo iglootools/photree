@@ -19,7 +19,7 @@ from pathlib import Path
 
 from rich.console import Console
 
-from ..fsprotocol import LinkMode, dedup_media_dict, display_path, list_files
+from ..fs import LinkMode, dedup_media_dict, display_path, list_files
 from ..uiconventions import CHECK
 
 _console = Console(highlight=False)

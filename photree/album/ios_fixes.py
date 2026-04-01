@@ -20,7 +20,7 @@ from . import combined as combined_module
 from . import jpeg
 from .combined import RefreshMainDirResult
 from .jpeg import RefreshResult, convert_single_file
-from ..fsprotocol import (
+from ..fs import (
     CONVERT_TO_JPEG_EXTENSIONS,
     COPY_AS_IS_TO_JPEG_EXTENSIONS,
     MediaSource,

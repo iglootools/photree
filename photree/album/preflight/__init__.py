@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ...fsprotocol import (
+from ...fs import (
     MediaSource,
     MAIN_MEDIA_SOURCE,
     discover_albums,  # noqa: F401 — re-exported for backward compat

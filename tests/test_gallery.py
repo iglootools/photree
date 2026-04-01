@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from photree.fsprotocol import (
+from photree.fs import (
     AlbumMetadata,
     format_album_external_id,
     generate_album_id,

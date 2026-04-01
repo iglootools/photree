@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ...fsprotocol import MAIN_MEDIA_SOURCE
+from ...fs import MAIN_MEDIA_SOURCE
 from . import (
     CombinedDirCheck,
     FileComparison,

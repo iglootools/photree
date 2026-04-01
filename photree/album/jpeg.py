@@ -19,7 +19,7 @@ from pathlib import Path
 
 from rich.console import Console
 
-from ..fsprotocol import (
+from ..fs import (
     CONVERT_TO_JPEG_EXTENSIONS,
     COPY_AS_IS_TO_JPEG_EXTENSIONS,
     display_path,

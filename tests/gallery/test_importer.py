@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from photree.album.jpeg import noop_convert_single
-from photree.fsprotocol import (
+from photree.fs import (
     AlbumMetadata,
     GalleryMetadata,
     LinkMode,

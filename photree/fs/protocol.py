@@ -1,0 +1,288 @@
+"""Filesystem protocol — types, constants, enums, models, and media sources."""
+
+from __future__ import annotations
+
+import re
+import uuid as _uuid
+from dataclasses import dataclass
+from enum import StrEnum
+from textwrap import dedent
+
+from pydantic import BaseModel, ConfigDict, Field
+from uuid6 import uuid7
+
+from ..base58 import base58_decode, base58_encode
+
+# ---------------------------------------------------------------------------
+# Pydantic base model (kebab-case YAML aliases, frozen)
+# ---------------------------------------------------------------------------
+
+
+def _to_kebab(name: str) -> str:
+    return name.replace("_", "-")
+
+
+class _BaseModel(BaseModel):
+    model_config = ConfigDict(
+        alias_generator=_to_kebab,
+        populate_by_name=True,
+        frozen=True,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Enums
+# ---------------------------------------------------------------------------
+
+
+class AlbumShareLayout(StrEnum):
+    """How an album is exported."""
+
+    MAIN_JPG = "main-jpg"
+    MAIN = "main"
+    ALL = "all"
+
+
+class LinkMode(StrEnum):
+    """How main-dir files reference their source."""
+
+    COPY = "copy"
+    HARDLINK = "hardlink"
+    SYMLINK = "symlink"
+
+
+class ShareDirectoryLayout(StrEnum):
+    """How albums are organized within the share directory."""
+
+    FLAT = "flat"
+    ALBUMS = "albums"
+
+
+SHARE_SENTINEL = ".photree-share"
+
+
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+PHOTREE_DIR = ".photree"
+ALBUM_YAML = "album.yaml"
+GALLERY_YAML = "gallery.yaml"
+
+SELECTION_DIR = "to-import"
+
+IOS_DIR_PREFIX = "ios-"
+DEFAULT_MEDIA_SOURCE = "main"
+
+ALBUM_ID_PREFIX = "album"
+
+
+# ---------------------------------------------------------------------------
+# File extensions
+# ---------------------------------------------------------------------------
+
+# All recognized media formats
+IMG_EXTENSIONS = frozenset({".dng", ".heic", ".heif", ".jpeg", ".jpg", ".png"})
+VID_EXTENSIONS = frozenset({".avi", ".mov", ".mp4", ".wmv"})
+
+# iOS-specific subsets (used by importer, iOS fixes, integrity checks)
+IOS_IMG_EXTENSIONS = frozenset({".dng", ".heic", ".jpeg", ".jpg", ".png"})
+IOS_VID_EXTENSIONS = frozenset({".mov"})
+SIDECAR_EXTENSIONS = frozenset({".aae"})
+
+# JPEG conversion — formats sips can convert to JPEG
+CONVERT_TO_JPEG_EXTENSIONS = frozenset({".dng", ".heic", ".heif"})
+COPY_AS_IS_TO_JPEG_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png"})
+
+
+# ---------------------------------------------------------------------------
+# Metadata models
+# ---------------------------------------------------------------------------
+
+
+class AlbumMetadata(_BaseModel):
+    """Per-album metadata stored in ``.photree/album.yaml``."""
+
+    id: str = Field(description="UUID v7 identifying the album.")
+
+
+class GalleryMetadata(_BaseModel):
+    """Gallery-wide metadata stored in ``.photree/gallery.yaml``."""
+
+    link_mode: LinkMode = Field(
+        default=LinkMode.HARDLINK,
+        description="Default link mode for optimize and other link-mode operations.",
+    )
+
+
+# ---------------------------------------------------------------------------
+# External ID helpers
+# ---------------------------------------------------------------------------
+
+
+def generate_album_id() -> str:
+    """Generate a new UUID v7 string for an album."""
+    return str(uuid7())
+
+
+def format_external_id(type_prefix: str, internal_id: str) -> str:
+    """Convert an internal UUID string to ``prefix_base58`` external form."""
+    return f"{type_prefix}_{base58_encode(_uuid.UUID(internal_id).bytes)}"
+
+
+def parse_external_id(external_id: str, expected_prefix: str) -> str:
+    """Convert ``prefix_base58`` external form back to a UUID string."""
+    prefix, sep, encoded = external_id.partition("_")
+    if not sep or prefix != expected_prefix:
+        raise ValueError(f"Expected '{expected_prefix}_...' but got '{external_id}'")
+    return str(_uuid.UUID(bytes=base58_decode(encoded)))
+
+
+def format_album_external_id(internal_id: str) -> str:
+    """Convenience wrapper for album external IDs."""
+    return format_external_id(ALBUM_ID_PREFIX, internal_id)
+
+
+# ---------------------------------------------------------------------------
+# Album naming / date parsing
+# ---------------------------------------------------------------------------
+
+# Date regex for naming convention validation.
+# Single dates: YYYY, YYYY-MM, YYYY-MM-DD
+# Ranges: any precision -- any precision (e.g. YYYY--YYYY-MM, YYYY-MM-DD--YYYY-MM-DD)
+_DATE_PART = r"\d{4}(?:-\d{2}(?:-\d{2})?)?"
+ALBUM_DATE_RE = re.compile(rf"^({_DATE_PART}(?:--{_DATE_PART})?) - ")
+
+_ALBUM_DATE_RE = re.compile(r"^(\d{4})-\d{2}-\d{2}")
+
+
+def parse_album_year(album_name: str) -> str:
+    """Extract the year from an album name starting with ``YYYY-MM-DD``.
+
+    Raises :class:`ValueError` when the name does not match.
+    """
+    m = _ALBUM_DATE_RE.match(album_name)
+    if m is None:
+        raise ValueError(
+            dedent(f"""\
+            album name "{album_name}" does not start with YYYY-MM-DD.
+
+            The "albums" share layout organizes exports by year, parsed from
+            the album directory name. Expected naming convention:
+            "YYYY-MM-DD - <Title>" (e.g. "2024-06-15 - Summer Vacation").""")
+        )
+    return m.group(1)
+
+
+# ---------------------------------------------------------------------------
+# MediaSource — a named source of photos within an album
+# ---------------------------------------------------------------------------
+
+
+class MediaSourceType(StrEnum):
+    """How a media source's photos are stored."""
+
+    IOS = "ios"  # archival (ios-{name}/) + browsable ({name}-img/, etc.)
+    PLAIN = "plain"  # browsable only ({name}-img/, {name}-vid/)
+
+
+@dataclass(frozen=True)
+class MediaSource:
+    """A named source of photos within an album.
+
+    **iOS** media sources have archival directories (under ``ios-{name}/``)
+    and browsable directories (``{name}-img/``, ``{name}-vid/``,
+    ``{name}-jpg/``).
+
+    **Plain** media sources only have browsable directories.
+    """
+
+    name: str  # "main", "bruno"
+    media_source_type: MediaSourceType
+    ios_dir: str  # "ios-main" (unused path for plain media sources)
+    orig_img_dir: str  # "ios-main/orig-img" (unused path for plain)
+    edit_img_dir: str  # "ios-main/edit-img" (unused path for plain)
+    orig_vid_dir: str  # "ios-main/orig-vid" (unused path for plain)
+    edit_vid_dir: str  # "ios-main/edit-vid" (unused path for plain)
+    img_dir: str  # "main-img", "bruno-img"
+    vid_dir: str  # "main-vid", "bruno-vid"
+    jpg_dir: str  # "main-jpg", "bruno-jpg"
+
+    @property
+    def is_ios(self) -> bool:
+        return self.media_source_type == MediaSourceType.IOS
+
+    @property
+    def image_subdirs(self) -> tuple[str, ...]:
+        """Required image directories for this media source."""
+        if self.is_ios:
+            return (self.orig_img_dir, self.img_dir, self.jpg_dir)
+        else:
+            return (self.img_dir, self.jpg_dir)
+
+    @property
+    def video_subdirs(self) -> tuple[str, ...]:
+        """Required video directories for this media source."""
+        if self.is_ios:
+            return (self.orig_vid_dir, self.vid_dir)
+        else:
+            return (self.vid_dir,)
+
+    @property
+    def required_subdirs(self) -> tuple[str, ...]:
+        """All required subdirectories (images + videos)."""
+        return (*self.image_subdirs, *self.video_subdirs)
+
+    @property
+    def optional_subdirs(self) -> tuple[str, ...]:
+        """Directories only present when edits exist (iOS only)."""
+        if self.is_ios:
+            return (self.edit_img_dir, self.edit_vid_dir)
+        else:
+            return ()
+
+    @property
+    def all_subdirs(self) -> tuple[str, ...]:
+        """All possible subdirectories for this media source."""
+        return (*self.required_subdirs, *self.optional_subdirs)
+
+
+def ios_media_source(name: str) -> MediaSource:
+    """Create an iOS :class:`MediaSource`."""
+    ios = f"{IOS_DIR_PREFIX}{name}"
+    return MediaSource(
+        name=name,
+        media_source_type=MediaSourceType.IOS,
+        ios_dir=ios,
+        orig_img_dir=f"{ios}/orig-img",
+        edit_img_dir=f"{ios}/edit-img",
+        orig_vid_dir=f"{ios}/orig-vid",
+        edit_vid_dir=f"{ios}/edit-vid",
+        img_dir=f"{name}-img",
+        vid_dir=f"{name}-vid",
+        jpg_dir=f"{name}-jpg",
+    )
+
+
+def plain_media_source(name: str) -> MediaSource:
+    """Create a plain (non-iOS) :class:`MediaSource`.
+
+    The ``ios_dir`` and archival paths are populated but don't exist on disk.
+    Code that operates on these dirs handles missing directories gracefully.
+    """
+    ios = f"{IOS_DIR_PREFIX}{name}"
+    return MediaSource(
+        name=name,
+        media_source_type=MediaSourceType.PLAIN,
+        ios_dir=ios,
+        orig_img_dir=f"{ios}/orig-img",
+        edit_img_dir=f"{ios}/edit-img",
+        orig_vid_dir=f"{ios}/orig-vid",
+        edit_vid_dir=f"{ios}/edit-vid",
+        img_dir=f"{name}-img",
+        vid_dir=f"{name}-vid",
+        jpg_dir=f"{name}-jpg",
+    )
+
+
+MAIN_MEDIA_SOURCE = ios_media_source(DEFAULT_MEDIA_SOURCE)

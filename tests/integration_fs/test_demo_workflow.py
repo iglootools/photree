@@ -18,7 +18,7 @@ from photree.album.preflight import (
     run_album_preflight,
 )
 from photree.album.exporter.export import compute_target_dir, export_album
-from photree.fsprotocol import (
+from photree.fs import (
     ALBUM_YAML,
     AlbumShareLayout,
     MAIN_MEDIA_SOURCE,

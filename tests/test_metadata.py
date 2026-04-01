@@ -8,14 +8,13 @@ from pathlib import Path
 import pytest
 import yaml
 
-from photree.fsprotocol import (
+from photree.base58 import base58_decode, base58_encode
+from photree.fs import (
     ALBUM_YAML,
     AlbumMetadata,
     GalleryMetadata,
     LinkMode,
     PHOTREE_DIR,
-    _base58_decode,
-    _base58_encode,
     discover_albums,
     discover_all_albums,
     format_album_external_id,
@@ -53,22 +52,22 @@ def _setup_media_source(album_dir: Path) -> None:
 class TestBase58:
     def test_roundtrip(self) -> None:
         data = uuid.uuid4().bytes
-        assert _base58_decode(_base58_encode(data)) == data
+        assert base58_decode(base58_encode(data)) == data
 
     def test_known_value(self) -> None:
         data = b"\x00\x01"
-        encoded = _base58_encode(data)
+        encoded = base58_encode(data)
         assert encoded.startswith("1")
-        assert _base58_decode(encoded) == data
+        assert base58_decode(encoded) == data
 
     def test_empty_input(self) -> None:
-        assert _base58_encode(b"") == ""
+        assert base58_encode(b"") == ""
 
     def test_leading_zeros(self) -> None:
         data = b"\x00\x00\x01"
-        encoded = _base58_encode(data)
+        encoded = base58_encode(data)
         assert encoded.startswith("11")
-        assert _base58_decode(encoded) == data
+        assert base58_decode(encoded) == data
 
 
 class TestExternalId:
@@ -155,7 +154,7 @@ class TestGalleryMetadata:
             )
         )
 
-        from photree.fsprotocol import load_gallery_metadata
+        from photree.fs import load_gallery_metadata
 
         loaded = load_gallery_metadata(path)
         assert loaded.link_mode == LinkMode.SYMLINK

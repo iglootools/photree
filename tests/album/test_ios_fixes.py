@@ -11,7 +11,7 @@ from photree.album.ios_fixes import (
     rm_orphan_sidecar,
     rm_upstream,
 )
-from photree.fsprotocol import MAIN_MEDIA_SOURCE
+from photree.fs import MAIN_MEDIA_SOURCE
 
 MC = MAIN_MEDIA_SOURCE
 
