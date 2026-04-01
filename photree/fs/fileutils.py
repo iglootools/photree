@@ -31,6 +31,17 @@ def file_ext(filename: str) -> str:
     return Path(filename).suffix.lower()
 
 
+def count_unique_media_numbers(directory: Path, extensions: frozenset[str]) -> int:
+    """Count unique image numbers among media files in *directory*."""
+    return len(
+        {
+            "".join(c for c in f if c.isdigit())
+            for f in list_files(directory)
+            if Path(f).suffix.lower() in extensions
+        }
+    )
+
+
 def _visible_subdirs(directory: Path) -> Iterator[Path]:
     """Yield visible (non-dot) subdirectories of *directory*, sorted by name."""
     return (

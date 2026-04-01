@@ -52,6 +52,7 @@ from ..fs import (
     SELECTION_DIR,
     ShareDirectoryLayout,
     VID_EXTENSIONS,
+    count_unique_media_numbers,
     discover_albums,
     discover_media_sources,
     display_path,
@@ -185,8 +186,8 @@ def check_cmd(
     """Check system prerequisites, album directory structure, and file integrity."""
     # Count unique media numbers across all media_sources' orig dirs
     file_count = sum(
-        _count_unique_media_numbers(album_dir / c.orig_img_dir, IMG_EXTENSIONS)
-        + _count_unique_media_numbers(album_dir / c.orig_vid_dir, VID_EXTENSIONS)
+        count_unique_media_numbers(album_dir / c.orig_img_dir, IMG_EXTENSIONS)
+        + count_unique_media_numbers(album_dir / c.orig_vid_dir, VID_EXTENSIONS)
         for c in discover_media_sources(album_dir)
     )
     progress = (
@@ -433,8 +434,8 @@ def optimize_cmd(
     if check:
         # Run checks first
         file_count = sum(
-            _count_unique_media_numbers(album_dir / c.orig_img_dir, IMG_EXTENSIONS)
-            + _count_unique_media_numbers(album_dir / c.orig_vid_dir, VID_EXTENSIONS)
+            count_unique_media_numbers(album_dir / c.orig_img_dir, IMG_EXTENSIONS)
+            + count_unique_media_numbers(album_dir / c.orig_vid_dir, VID_EXTENSIONS)
             for c in discover_media_sources(album_dir)
         )
         progress = (
@@ -796,16 +797,6 @@ def _check_sips_or_exit() -> None:
         err_console.print(preflight_output.sips_troubleshoot())
         raise typer.Exit(code=1)
 
-
-def _count_unique_media_numbers(directory: Path, extensions: frozenset[str]) -> int:
-    """Count unique image numbers among media files in a directory."""
-    return len(
-        {
-            "".join(c for c in f if c.isdigit())
-            for f in list_files(directory)
-            if Path(f).suffix.lower() in extensions
-        }
-    )
 
 
 @album_app.command("mv-media")
