@@ -5,6 +5,7 @@ from .index import (
     AlbumIndex,
     MissingAlbumIdError,
     build_album_id_to_path_index,
+    build_album_index,
     find_duplicate_album_ids,
     resolve_album_path_by_id,
 )
@@ -14,6 +15,7 @@ __all__ = [
     "MissingAlbumIdError",
     "RenameAction",
     "build_album_id_to_path_index",
+    "build_album_index",
     "find_duplicate_album_ids",
     "plan_renames_from_csv",
     "resolve_album_path_by_id",

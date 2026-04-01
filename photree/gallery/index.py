@@ -40,13 +40,11 @@ class MissingAlbumIdError(Exception):
 # ---------------------------------------------------------------------------
 
 
-def build_album_id_to_path_index(gallery_dir: Path) -> AlbumIndex:
-    """Scan all albums under *gallery_dir* and build an ID→path index.
+def build_album_index(albums: list[Path]) -> AlbumIndex:
+    """Build an ID→path index from a list of album paths.
 
-    Raises :class:`MissingAlbumIdError` if any discovered album lacks an ID.
+    Raises :class:`MissingAlbumIdError` if any album lacks an ID.
     """
-    albums = discover_albums(gallery_dir)
-
     missing = tuple(
         album_dir for album_dir in albums if load_album_metadata(album_dir) is None
     )
@@ -69,6 +67,14 @@ def build_album_id_to_path_index(gallery_dir: Path) -> AlbumIndex:
         id_to_path={aid: paths[0] for aid, paths in grouped.items()},
         duplicates={aid: paths for aid, paths in grouped.items() if len(paths) > 1},
     )
+
+
+def build_album_id_to_path_index(gallery_dir: Path) -> AlbumIndex:
+    """Scan all albums under *gallery_dir* and build an ID→path index.
+
+    Raises :class:`MissingAlbumIdError` if any discovered album lacks an ID.
+    """
+    return build_album_index(discover_albums(gallery_dir))
 
 
 def find_duplicate_album_ids(

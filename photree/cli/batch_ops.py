@@ -649,3 +649,63 @@ def run_batch_stats(
     result = album_stats.gallery_stats_from_album_stats(album_stats_list)
     typer.echo("")
     console.print(stats_output.format_gallery_stats(result))
+
+
+def run_batch_rename_from_csv(
+    index: dict[str, Path],
+    csv_file: Path,
+    *,
+    dry_run: bool = False,
+) -> None:
+    """Shared implementation for gallery rename-from-csv / albums rename-from-csv."""
+    import csv as csv_mod
+
+    from ..gallery import plan_renames_from_csv
+    from ..gallery.batch_rename import (
+        RenameCollisionError,
+        check_rename_collisions,
+        execute_renames,
+    )
+
+    cwd = Path.cwd()
+
+    # Read CSV
+    with open(csv_file, encoding="utf-8") as f:
+        rows = list(csv_mod.DictReader(f))
+
+    if not rows:
+        typer.echo("CSV is empty. Nothing to rename.")
+        raise typer.Exit(code=0)
+
+    # Plan renames
+    actions, errors = plan_renames_from_csv(rows, index)
+
+    if errors:
+        for err in errors:
+            err_console.print(f"  {err}")
+        raise typer.Exit(code=1)
+
+    if not actions:
+        typer.echo(f"{len(rows)} row(s) in CSV. Nothing to rename.")
+        raise typer.Exit(code=0)
+
+    # Check for collisions
+    try:
+        check_rename_collisions(actions)
+    except RenameCollisionError as exc:
+        err_console.print(str(exc))
+        raise typer.Exit(code=1) from exc
+
+    # Display plan
+    typer.echo(f"{len(rows)} row(s) in CSV, {len(actions)} change(s).\n")
+
+    for action in actions:
+        typer.echo(f"  {display_path(action.album_path, cwd)}")
+        typer.echo(f"  → {action.new_name}")
+        typer.echo()
+
+    if dry_run:
+        typer.echo(f"[dry run] {len(actions)} album(s) would be renamed.")
+    else:
+        count = execute_renames(actions)
+        typer.echo(f"Renamed {count} album(s).")
