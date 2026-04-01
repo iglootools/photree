@@ -32,7 +32,7 @@ from ..album.exporter.settings import (
 )
 from ..album.importer import image_capture, output as importer_output
 from ..album.importer.image_capture import plan_import_from_dirs, validate_import_plan
-from ..album.importer.preflight import run_preflight
+from ..album.importer.preflight import resolve_image_capture_dir, run_preflight
 from ..album.naming import (
     AlbumNamingResult,
     check_album_naming,
@@ -43,7 +43,7 @@ from ..album.preflight import output as preflight_output
 from ..album.preflight.output import format_naming_checks
 from ..album.stats import output as stats_output
 from ..album.jpeg import convert_single_file, noop_convert_single
-from ..config import ConfigError, load_config
+from ..config import ConfigError
 from ..fs import (
     AlbumMetadata,
     AlbumShareLayout,
@@ -1068,29 +1068,6 @@ def export_cmd(
 # Image Capture import commands
 # ---------------------------------------------------------------------------
 
-DEFAULT_IMAGE_CAPTURE_DIR = Path.home() / "Pictures" / "iPhone"
-
-
-def _resolve_image_capture_dir(
-    source: Path | None,
-    config_path: str | None,
-) -> Path:
-    """Resolve the Image Capture directory: CLI flag > config > default."""
-    if source is not None:
-        return source
-
-    try:
-        cfg = load_config(config_path)
-    except ConfigError as exc:
-        err_console.print(str(exc))
-        raise typer.Exit(code=2) from exc
-
-    if cfg.importer.image_capture_dir is not None:
-        return cfg.importer.image_capture_dir
-
-    return DEFAULT_IMAGE_CAPTURE_DIR
-
-
 def _run_preflight_checks(
     source: Path | None,
     config_path: str | None,
@@ -1103,7 +1080,12 @@ def _run_preflight_checks(
 
     Prints all check lines first, then troubleshooting for failures at the end.
     """
-    image_capture_dir = _resolve_image_capture_dir(source, config_path)
+    try:
+        image_capture_dir = resolve_image_capture_dir(source, config_path)
+    except ConfigError as exc:
+        err_console.print(str(exc))
+        raise typer.Exit(code=2) from exc
+
     result = run_preflight(
         image_capture_dir,
         album_dir=album_dir,
