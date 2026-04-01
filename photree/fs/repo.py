@@ -162,6 +162,24 @@ def discover_albums(base_dir: Path) -> list[Path]:
     return matching_subdirectories(base_dir, is_album)
 
 
+def _is_ios_source_dir(d: Path) -> bool:
+    return (
+        d.is_dir()
+        and d.name.startswith(IOS_DIR_PREFIX)
+        and ((d / "orig-img").is_dir() or (d / "orig-vid").is_dir())
+    )
+
+
+_BROWSABLE_SUFFIXES = ("-img", "-vid", "-jpg")
+
+
+def _strip_browsable_suffix(name: str) -> str | None:
+    for suffix in _BROWSABLE_SUFFIXES:
+        if name.endswith(suffix):
+            return name.removesuffix(suffix) or None
+    return None
+
+
 def discover_media_sources(album_dir: Path) -> list[MediaSource]:
     """Discover all media sources in an album.
 
@@ -175,39 +193,29 @@ def discover_media_sources(album_dir: Path) -> list[MediaSource]:
     if not album_dir.is_dir():
         return []
 
-    # 1. Find iOS media sources
-    ios_names: set[str] = set()
-    ios_sources: list[MediaSource] = []
-    for d in album_dir.iterdir():
-        if (
-            d.is_dir()
-            and d.name.startswith(IOS_DIR_PREFIX)
-            and ((d / "orig-img").is_dir() or (d / "orig-vid").is_dir())
-        ):
-            name = d.name.removeprefix(IOS_DIR_PREFIX)
-            ios_names.add(name)
-            ios_sources.append(ios_media_source(name))
+    subdirs = [d for d in album_dir.iterdir() if d.is_dir()]
 
-    # 2. Find plain media sources from {name}-img or {name}-vid dirs
-    plain_names: set[str] = set()
-    for d in album_dir.iterdir():
-        if not d.is_dir() or d.name.startswith("."):
-            pass
-        elif (
-            d.name.endswith("-img")
-            or d.name.endswith("-vid")
-            or d.name.endswith("-jpg")
-        ):
-            name = d.name.removesuffix("-img").removesuffix("-vid").removesuffix("-jpg")
-            if name and name not in ios_names and name not in plain_names:
-                plain_names.add(name)
+    # 1. iOS media sources
+    ios_names = {
+        d.name.removeprefix(IOS_DIR_PREFIX)
+        for d in subdirs
+        if _is_ios_source_dir(d)
+    }
 
-    plain_sources = [plain_media_source(name) for name in plain_names]
+    # 2. Plain media sources: browsable dirs not backed by an ios-{name}/ dir
+    plain_names = {
+        name
+        for d in subdirs
+        if not d.name.startswith(".")
+        for name in [_strip_browsable_suffix(d.name)]
+        if name and name not in ios_names
+    }
 
-    return sorted(
-        [*ios_sources, *plain_sources],
-        key=lambda ms: (ms.name != DEFAULT_MEDIA_SOURCE, ms.name),
-    )
+    sources = [
+        *(ios_media_source(n) for n in ios_names),
+        *(plain_media_source(n) for n in plain_names),
+    ]
+    return sorted(sources, key=lambda ms: (ms.name != DEFAULT_MEDIA_SOURCE, ms.name))
 
 
 # ---------------------------------------------------------------------------
