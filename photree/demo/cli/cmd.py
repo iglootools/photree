@@ -10,22 +10,22 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 
-from ..album import output as album_output
-from ..album.integrity.output import format_integrity_checks
-from ..album.preflight import output as preflight_output
-from ..album.integrity.testkit import (
+from ...album import output as album_output
+from ...album.integrity.output import format_integrity_checks
+from ...album.preflight import output as preflight_output
+from ...album.integrity.testkit import (
     FULL_INTEGRITY_FAILURES,
     FULL_INTEGRITY_OK,
 )
-from ..album.preflight.testkit import PREFLIGHT_FAILURES, PREFLIGHT_OK, PREFLIGHT_OTHER
-from ..album.importer import output as importer_output
-from ..album.importer.testkit.preflight import (
+from ...album.preflight.testkit import PREFLIGHT_FAILURES, PREFLIGHT_OK, PREFLIGHT_OTHER
+from ...album.importer import output as importer_output
+from ...album.importer.testkit.preflight import (
     IC_CHECK_OK,
     IC_CHECK_WARNINGS,
     PREFLIGHT_FAILURES as IMPORT_PREFLIGHT_FAILURES,
     PREFLIGHT_OK as IMPORT_PREFLIGHT_OK,
 )
-from ..album.importer.testkit.validation import VALIDATION_ERRORS
+from ...album.importer.testkit.validation import VALIDATION_ERRORS
 
 console = Console()
 
@@ -307,8 +307,8 @@ def output_cmd() -> None:
 
     # ── album stats ─────────────────────────────────────────────
 
-    from ..album.stats.output import format_album_stats, format_gallery_stats
-    from ..album.stats.testkit import ALBUM_STATS, GALLERY_STATS
+    from ...album.stats.output import format_album_stats, format_gallery_stats
+    from ...album.stats.testkit import ALBUM_STATS, GALLERY_STATS
 
     console.print("\n[bold cyan]── format_album_stats ──[/bold cyan]\n")
     console.print(format_album_stats(ALBUM_STATS))
@@ -344,7 +344,7 @@ def seed_cmd(
     from rich.syntax import Syntax
     from rich.text import Text
 
-    from ..album.importer.testkit import seed_demo
+    from ...album.importer.testkit import seed_demo
 
     resolved_base = (
         base_dir

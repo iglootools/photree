@@ -1,7 +1,7 @@
 """Shared helpers for gallery CLI commands.
 
 Gallery-specific resolution, index building, and import stage helpers
-used by ``gallery_cmd``. Extracted to keep command modules focused on
+used by gallery command modules. Extracted to keep command modules focused on
 argument parsing and orchestration.
 """
 
@@ -11,36 +11,36 @@ from pathlib import Path
 
 import typer
 
-from ..album import (
+from ...album import (
     preflight as album_preflight,
 )
-from ..album.preflight import output as preflight_output
-from ..album.exif import try_start_exiftool
-from ..album.naming import (
+from ...album.preflight import output as preflight_output
+from ...album.exif import try_start_exiftool
+from ...album.naming import (
     AlbumNamingResult,
     check_album_naming,
     parse_album_name,
 )
-from ..album.preflight.output import format_naming_checks
-from ..fs import (
+from ...album.preflight.output import format_naming_checks
+from ...fs import (
     LinkMode,
     display_path,
     format_album_external_id,
     load_album_metadata,
     resolve_gallery_dir,
 )
-from ..gallery import (
+from .. import (
     AlbumIndex,
     MissingAlbumIdError,
     build_album_id_to_path_index,
 )
-from ..gallery import importer as gallery_importer
-from ..gallery.importer import (
+from ..importer import (
     AlbumImportResult,
     compute_target_dir,
 )
-from .console import console, err_console
-from .progress import BatchProgressBar, StageProgressBar
+from .. import importer as gallery_importer
+from ...clicommons.console import console, err_console
+from ...clicommons.progress import BatchProgressBar, StageProgressBar
 
 
 # ---------------------------------------------------------------------------

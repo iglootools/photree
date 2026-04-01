@@ -11,7 +11,7 @@ from pathlib import Path
 
 import typer
 
-from ..album import (
+from ...album import (
     fixes as album_fixes,
     naming as album_naming,
     optimize as album_optimize,
@@ -19,10 +19,10 @@ from ..album import (
     preflight as album_preflight,
     stats as album_stats,
 )
-from ..album.exif import try_start_exiftool
-from ..album.preflight import output as preflight_output
-from ..album.stats import output as stats_output
-from ..fs import (
+from ...album.exif import try_start_exiftool
+from ...album.preflight import output as preflight_output
+from ...album.stats import output as stats_output
+from ...fs import (
     AlbumMetadata,
     LinkMode,
     discover_media_sources,
@@ -32,12 +32,12 @@ from ..fs import (
     load_album_metadata,
     save_album_metadata,
 )
-from ..gallery.index import find_duplicate_album_ids
-from ..album.ios_fixes import run_fix_ios
-from ..album.output import format_fix_ios_result
-from ..fs import discover_potential_albums
-from .console import console, err_console
-from .progress import BatchProgressBar
+from ...gallery.index import find_duplicate_album_ids
+from ...album.ios_fixes import run_fix_ios
+from ...album.output import format_fix_ios_result
+from ...fs import discover_potential_albums
+from ...clicommons.console import console, err_console
+from ...clicommons.progress import BatchProgressBar
 
 
 def display_name(album_dir: Path, base_dir: Path | None, cwd: Path) -> str:
@@ -125,7 +125,7 @@ def run_batch_list_albums(
     import csv
     import sys
 
-    from ..album.naming import parse_album_name
+    from ...album.naming import parse_album_name
 
     cwd = Path.cwd()
 
@@ -371,7 +371,7 @@ def run_batch_check(
     if duplicates:
         for aid, paths in duplicates.items():
             ext_id = format_album_external_id(aid)
-            err_console.print(f"[red]✗[/red] duplicate album id: {ext_id}")
+            err_console.print(f"[red]\u2717[/red] duplicate album id: {ext_id}")
             for p in paths:
                 err_console.print(f"    {display_path(p, cwd)}")
         failed_albums.extend(p for paths in duplicates.values() for p in paths)
@@ -613,7 +613,7 @@ def run_batch_stats(
     display_base: Path | None,
 ) -> None:
     """Shared implementation for gallery stats / albums stats."""
-    from ..album.naming import parse_album_name
+    from ...album.naming import parse_album_name
 
     cwd = Path.cwd()
 
@@ -662,8 +662,8 @@ def run_batch_rename_from_csv(
     """Shared implementation for gallery rename-from-csv / albums rename-from-csv."""
     import csv as csv_mod
 
-    from ..gallery import plan_renames_from_csv
-    from ..gallery.batch_rename import (
+    from ...gallery import plan_renames_from_csv
+    from ...gallery.batch_rename import (
         RenameCollisionError,
         check_rename_collisions,
         execute_renames,
@@ -703,7 +703,7 @@ def run_batch_rename_from_csv(
 
     for action in actions:
         typer.echo(f"  {display_path(action.album_path, cwd)}")
-        typer.echo(f"  → {action.new_name}")
+        typer.echo(f"  \u2192 {action.new_name}")
         typer.echo()
 
     if dry_run:

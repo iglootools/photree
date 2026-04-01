@@ -5,11 +5,11 @@ from typing import Annotated, Optional
 
 import typer
 
-from .album_cmd import album_app
-from .albums_cmd import albums_app
-from .check_cmd import check_cmd
-from .demo_cmd import demo_app
-from .gallery_cmd import gallery_app
+from ..album.cli import album_app
+from ..albums.cli import albums_app
+from ..check.cli.cmd import check_cmd
+from ..demo.cli.cmd import demo_app
+from ..gallery.cli import gallery_app
 
 
 def _version_callback(value: bool) -> None:
