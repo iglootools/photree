@@ -16,9 +16,11 @@ from photree.fs import (
     LinkMode,
     PHOTREE_DIR,
     discover_albums,
+    discover_potential_albums,
     format_album_external_id,
     format_external_id,
     generate_album_id,
+    has_media_sources,
     is_album,
     load_album_metadata,
     parse_external_id,
@@ -289,3 +291,38 @@ class TestDiscoverAlbums:
 
         albums = discover_albums(tmp_path)
         assert albums == []
+
+
+class TestHasMediaSources:
+    def test_with_ios_media_source(self, tmp_path: Path) -> None:
+        album = tmp_path / "album"
+        _setup_media_source(album)
+        assert has_media_sources(album) is True
+
+    def test_empty_dir(self, tmp_path: Path) -> None:
+        album = tmp_path / "album"
+        album.mkdir()
+        assert has_media_sources(album) is False
+
+
+class TestDiscoverPotentialAlbums:
+    def test_finds_albums_without_metadata(self, tmp_path: Path) -> None:
+        album = tmp_path / "album"
+        _setup_media_source(album)
+        # No _mark_album — no album.yaml
+
+        result = discover_potential_albums(tmp_path)
+        assert result == [album]
+
+    def test_finds_albums_with_metadata(self, tmp_path: Path) -> None:
+        album = tmp_path / "album"
+        _setup_media_source(album)
+        _mark_album(album)
+
+        result = discover_potential_albums(tmp_path)
+        assert result == [album]
+
+    def test_skips_empty_dirs(self, tmp_path: Path) -> None:
+        (tmp_path / "empty").mkdir()
+        result = discover_potential_albums(tmp_path)
+        assert result == []

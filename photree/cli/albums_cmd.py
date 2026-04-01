@@ -59,6 +59,7 @@ from .batch_ops import (
     run_batch_check,
     run_batch_fix,
     run_batch_fix_ios,
+    run_batch_init,
     run_batch_list_albums,
     run_batch_optimize,
     run_batch_stats,
@@ -66,6 +67,7 @@ from .batch_ops import (
 from .gallery_cmd import (
     _resolve_batch_albums,
     _resolve_check_batch_albums,
+    _resolve_init_batch_albums,
 )
 
 albums_app = typer.Typer(
@@ -101,6 +103,17 @@ _ALBUM_DIR_OPTION = typer.Option(
 # ---------------------------------------------------------------------------
 # Commands
 # ---------------------------------------------------------------------------
+
+
+@albums_app.command("init")
+def init_cmd(
+    base_dir: Annotated[Optional[Path], _DIR_OPTION] = None,
+    album_dirs: Annotated[Optional[list[Path]], _ALBUM_DIR_OPTION] = None,
+    dry_run: DRY_RUN_OPTION = False,
+) -> None:
+    """Initialize album metadata (.photree/album.yaml) for multiple albums."""
+    albums, display_base = _resolve_init_batch_albums(base_dir, album_dirs)
+    run_batch_init(albums, display_base, dry_run=dry_run)
 
 
 @albums_app.command("list")

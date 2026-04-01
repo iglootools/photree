@@ -46,6 +46,71 @@ def display_name(album_dir: Path, base_dir: Path | None, cwd: Path) -> str:
     return str(display_path(album_dir, cwd))
 
 
+def run_batch_init(
+    albums: list[Path],
+    display_base: Path | None,
+    *,
+    dry_run: bool = False,
+) -> None:
+    """Shared implementation for albums init."""
+    cwd = Path.cwd()
+
+    if not albums:
+        typer.echo("\nNo albums found.")
+        raise typer.Exit(code=0)
+
+    if display_base is not None:
+        typer.echo(f"\nFound {len(albums)} album(s).\n")
+
+    progress = BatchProgressBar(
+        total=len(albums), description="Initializing", done_description="init"
+    )
+    initialized = 0
+    failed_albums: list[Path] = []
+
+    for album_dir in albums:
+        album_name = display_name(album_dir, display_base, cwd)
+        progress.on_start(album_name)
+
+        try:
+            metadata = load_album_metadata(album_dir)
+            if metadata is not None:
+                progress.on_end(
+                    album_name,
+                    success=False,
+                    error_labels=(
+                        f"already initialized: {format_album_external_id(metadata.id)}",
+                    ),
+                )
+                failed_albums.append(album_dir)
+                continue
+
+            if dry_run:
+                progress.on_end(album_name, success=True)
+            else:
+                generated_id = generate_album_id()
+                save_album_metadata(album_dir, AlbumMetadata(id=generated_id))
+                progress.on_end(album_name, success=True)
+            initialized += 1
+        except Exception:
+            progress.on_end(album_name, success=False)
+            failed_albums.append(album_dir)
+
+    progress.stop()
+
+    typer.echo(
+        f"\nDone. {initialized} album(s) initialized, {len(failed_albums)} failed."
+    )
+
+    if failed_albums:
+        err_console.print("\nFailed albums:")
+        for album_dir in failed_albums:
+            err_console.print(
+                f'  photree album init --album-dir "{display_path(album_dir, cwd)}"'
+            )
+        raise typer.Exit(code=1)
+
+
 def run_batch_list_albums(
     albums: list[Path],
     display_base: Path | None,

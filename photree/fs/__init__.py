@@ -57,6 +57,8 @@ from .repo import (
     delete_files,
     discover_albums,
     discover_media_sources,
+    discover_potential_albums,
+    has_media_sources,
     is_album,
     load_album_metadata,
     load_gallery_metadata,
@@ -136,6 +138,8 @@ __all__ = [
     # repo — discovery
     "discover_albums",
     "discover_media_sources",
+    "discover_potential_albums",
+    "has_media_sources",
     "is_album",
     # repo — file mutations
     "delete_files",
