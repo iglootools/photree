@@ -8,7 +8,28 @@ from enum import StrEnum
 from pathlib import Path
 
 from ..preflight import check_sips_available
+from ...config import load_config
 from ...fs import SELECTION_DIR
+
+DEFAULT_IMAGE_CAPTURE_DIR = Path.home() / "Pictures" / "iPhone"
+
+
+def resolve_image_capture_dir(
+    source: Path | None,
+    config_path: str | None,
+) -> Path:
+    """Resolve the Image Capture directory: CLI flag > config > default.
+
+    Raises :class:`~photree.config.ConfigError` on config file errors.
+    """
+    if source is not None:
+        return source
+
+    cfg = load_config(config_path)
+    if cfg.importer.image_capture_dir is not None:
+        return cfg.importer.image_capture_dir
+
+    return DEFAULT_IMAGE_CAPTURE_DIR
 
 _KNOWN_EXTENSIONS = frozenset({".heic", ".jpg", ".jpeg", ".png", ".mov", ".aae"})
 _IMG_PREFIX_THRESHOLD = 0.5  # at least 50% of files must start with IMG_
