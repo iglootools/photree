@@ -645,6 +645,11 @@ def rename_from_csv_cmd(
     import csv
 
     from ..gallery import plan_renames_from_csv
+    from ..gallery.batch_rename import (
+        RenameCollisionError,
+        check_rename_collisions,
+        execute_renames,
+    )
 
     resolved = _resolve_gallery_or_exit(gallery_dir)
     cwd = Path.cwd()
@@ -684,20 +689,12 @@ def rename_from_csv_cmd(
         typer.echo(f"{len(rows)} row(s) in CSV. Nothing to rename.")
         raise typer.Exit(code=0)
 
-    # Check for collisions (resolve() handles case-insensitive macOS)
-    renamed_resolved = {a.album_path.resolve() for a in actions}
-    for action in actions:
-        target = action.album_path.parent / action.new_name
-        if (
-            target.exists()
-            and target.resolve() != action.album_path.resolve()
-            and target.resolve() not in renamed_resolved
-        ):
-            err_console.print(
-                f"Collision: {action.current_name} → {action.new_name} "
-                f"conflicts with existing directory"
-            )
-            raise typer.Exit(code=1)
+    # Check for collisions
+    try:
+        check_rename_collisions(actions)
+    except RenameCollisionError as exc:
+        err_console.print(str(exc))
+        raise typer.Exit(code=1) from exc
 
     # Display plan
     typer.echo(f"{len(rows)} row(s) in CSV, {len(actions)} change(s).\n")
@@ -710,11 +707,8 @@ def rename_from_csv_cmd(
     if dry_run:
         typer.echo(f"[dry run] {len(actions)} album(s) would be renamed.")
     else:
-        for action in actions:
-            new_path = action.album_path.parent / action.new_name
-            action.album_path.rename(new_path)
-
-        typer.echo(f"Renamed {len(actions)} album(s).")
+        count = execute_renames(actions)
+        typer.echo(f"Renamed {count} album(s).")
 
 
 @gallery_app.command("stats")

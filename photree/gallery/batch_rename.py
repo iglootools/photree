@@ -102,3 +102,40 @@ def plan_renames_from_csv(
     actions = tuple(r for r in results if isinstance(r, RenameAction))
     errors = tuple(r for r in results if isinstance(r, str))
     return actions, errors
+
+
+class RenameCollisionError(ValueError):
+    """Raised when a rename target conflicts with an existing directory."""
+
+    def __init__(self, current_name: str, new_name: str) -> None:
+        self.current_name = current_name
+        self.new_name = new_name
+        super().__init__(
+            f"Collision: {current_name} → {new_name} "
+            f"conflicts with existing directory"
+        )
+
+
+def check_rename_collisions(actions: tuple[RenameAction, ...]) -> None:
+    """Check for target directory collisions among planned renames.
+
+    Raises :class:`RenameCollisionError` if any target conflicts with
+    an existing directory that is not itself being renamed.
+    """
+    renamed_resolved = {a.album_path.resolve() for a in actions}
+    for action in actions:
+        target = action.album_path.parent / action.new_name
+        if (
+            target.exists()
+            and target.resolve() != action.album_path.resolve()
+            and target.resolve() not in renamed_resolved
+        ):
+            raise RenameCollisionError(action.current_name, action.new_name)
+
+
+def execute_renames(actions: tuple[RenameAction, ...]) -> int:
+    """Execute planned renames. Returns the number of albums renamed."""
+    for action in actions:
+        new_path = action.album_path.parent / action.new_name
+        action.album_path.rename(new_path)
+    return len(actions)
