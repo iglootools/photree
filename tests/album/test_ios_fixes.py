@@ -47,7 +47,7 @@ class TestRmUpstreamHeic:
 
         result = rm_upstream(tmp_path, MC)
 
-        assert result.heic.removed_combined == ("IMG_E0410.HEIC",)
+        assert result.heic.removed_browsable == ("IMG_E0410.HEIC",)
         assert set(result.heic.removed_rendered) == {"IMG_E0410.HEIC", "IMG_O0410.AAE"}
         assert set(result.heic.removed_orig) == {"IMG_0410.HEIC", "IMG_0410.AAE"}
         assert _names(tmp_path / "main-img") == set()
@@ -66,7 +66,7 @@ class TestRmUpstreamHeic:
 
         result = rm_upstream(tmp_path, MC)
 
-        assert result.heic.removed_combined == ("IMG_0002.HEIC",)
+        assert result.heic.removed_browsable == ("IMG_0002.HEIC",)
         assert "IMG_0002.HEIC" not in _names(tmp_path / "ios-main/orig-img")
         # IMG_0001 files are untouched
         assert "IMG_0001.HEIC" in _names(tmp_path / "ios-main/orig-img")
@@ -80,7 +80,7 @@ class TestRmUpstreamHeic:
 
         result = rm_upstream(tmp_path, MC)
 
-        assert result.heic.removed_combined == ()
+        assert result.heic.removed_browsable == ()
         assert result.heic.removed_rendered == ()
         assert result.heic.removed_orig == ()
 
@@ -93,9 +93,9 @@ class TestRmUpstreamHeic:
 
         result = rm_upstream(tmp_path, MC)
 
-        assert result.heic.removed_combined == ("IMG_0001.JPG",)
+        assert result.heic.removed_browsable == ("IMG_0001.JPG",)
 
-    def test_removes_upstream_when_combined_heic_deleted(self, tmp_path: Path) -> None:
+    def test_removes_upstream_when_browsable_heic_deleted(self, tmp_path: Path) -> None:
         """Deleting a file from main-img propagates to jpeg and upstream dirs."""
         _setup_dir(
             tmp_path / "ios-main/orig-img",
@@ -111,7 +111,7 @@ class TestRmUpstreamHeic:
         # main-jpg: IMG_E0001.jpg removed
         assert result.heic.removed_jpeg == ("IMG_E0001.jpg",)
         # main-img: nothing extra to remove (already deleted by user)
-        assert result.heic.removed_combined == ()
+        assert result.heic.removed_browsable == ()
         # upstream: orig and rendered for number 0001 removed
         assert set(result.heic.removed_rendered) == {"IMG_E0001.HEIC", "IMG_O0001.AAE"}
         assert set(result.heic.removed_orig) == {"IMG_0001.HEIC", "IMG_0001.AAE"}
@@ -146,7 +146,7 @@ class TestRmUpstreamHeic:
 
         result = rm_upstream(tmp_path, MC, dry_run=True)
 
-        assert result.heic.removed_combined == ("IMG_0001.HEIC",)
+        assert result.heic.removed_browsable == ("IMG_0001.HEIC",)
         # Files still exist
         assert "IMG_0001.HEIC" in _names(tmp_path / "ios-main/orig-img")
         assert "IMG_0001.HEIC" in _names(tmp_path / "main-img")
@@ -155,12 +155,12 @@ class TestRmUpstreamHeic:
         """No crash when directories don't exist."""
         result = rm_upstream(tmp_path, MC)
 
-        assert result.heic.removed_combined == ()
+        assert result.heic.removed_browsable == ()
         assert result.mov.removed_orig == ()
 
 
 class TestRmUpstreamMov:
-    def test_removes_upstream_when_combined_mov_deleted(self, tmp_path: Path) -> None:
+    def test_removes_upstream_when_browsable_mov_deleted(self, tmp_path: Path) -> None:
         _setup_dir(tmp_path / "ios-main/orig-vid", ["IMG_0115.MOV"])
         _setup_dir(tmp_path / "ios-main/edit-vid", ["IMG_E0115.MOV"])
         _setup_dir(tmp_path / "main-vid", [])
@@ -172,7 +172,7 @@ class TestRmUpstreamMov:
         assert _names(tmp_path / "ios-main/edit-vid") == set()
         assert _names(tmp_path / "ios-main/orig-vid") == set()
 
-    def test_keeps_files_with_combined_mov_present(self, tmp_path: Path) -> None:
+    def test_keeps_files_with_browsable_mov_present(self, tmp_path: Path) -> None:
         _setup_dir(tmp_path / "ios-main/orig-vid", ["IMG_0001.MOV", "IMG_0002.MOV"])
         _setup_dir(tmp_path / "ios-main/edit-vid", ["IMG_E0001.MOV"])
         _setup_dir(tmp_path / "main-vid", ["IMG_E0001.MOV"])
@@ -201,8 +201,8 @@ class TestRmUpstreamMov:
 
 
 class TestRmOrphanHeic:
-    def test_removes_orphan_rendered_and_combined(self, tmp_path: Path) -> None:
-        """Files in rendered/combined with no orig counterpart are removed."""
+    def test_removes_orphan_rendered_and_browsable(self, tmp_path: Path) -> None:
+        """Files in rendered/browsable with no orig counterpart are removed."""
         _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_0001.AAE"])
         _setup_dir(
             tmp_path / "ios-main/edit-img",
@@ -249,7 +249,7 @@ class TestRmOrphanHeic:
 
 
 class TestRmOrphanMov:
-    def test_removes_orphan_rendered_and_combined_mov(self, tmp_path: Path) -> None:
+    def test_removes_orphan_rendered_and_browsable_mov(self, tmp_path: Path) -> None:
         _setup_dir(tmp_path / "ios-main/orig-vid", ["IMG_0001.MOV"])
         _setup_dir(tmp_path / "ios-main/edit-vid", ["IMG_E0001.MOV", "IMG_E9999.MOV"])
         _setup_dir(tmp_path / "main-vid", ["IMG_E0001.MOV", "IMG_E9999.MOV"])

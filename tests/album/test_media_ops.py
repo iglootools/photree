@@ -61,8 +61,8 @@ def _setup_ios_album_with_video(album: Path) -> None:
     _setup_dir(album / "main-vid", ["IMG_E0115.MOV"])
 
 
-def _setup_plain_album(album: Path, media_source_name: str = "nelu") -> None:
-    """Create a minimal plain contributor album."""
+def _setup_std_album(album: Path, media_source_name: str = "nelu") -> None:
+    """Create a minimal std contributor album."""
     _setup_dir(album / PHOTREE_DIR, [])
     _mark_album(album)
     _setup_dir(album / f"{media_source_name}-img", ["sunset.heic", "beach.png"])
@@ -127,7 +127,7 @@ class TestResolveVariants:
 
     def test_plain_image_resolves_by_stem(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
-        _setup_plain_album(album)
+        _setup_std_album(album)
 
         result = resolve_variants(album, ["nelu-img/sunset.heic"])
 
@@ -234,7 +234,7 @@ class TestMoveMedia:
     def test_plain_moves_by_stem(self, tmp_path: Path) -> None:
         src = tmp_path / "src-album"
         dst = tmp_path / "dst-album"
-        _setup_plain_album(src)
+        _setup_std_album(src)
         _setup_dir(dst / PHOTREE_DIR, [])
         _mark_album(dst)
 
@@ -350,7 +350,7 @@ class TestRmMedia:
 
     def test_plain_removes_by_stem(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
-        _setup_plain_album(album)
+        _setup_std_album(album)
 
         result = rm_media(album, ["nelu-img/sunset.heic"])
 

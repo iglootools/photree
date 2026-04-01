@@ -16,7 +16,7 @@ def _write(path: Path, content: str = "data") -> None:
 
 
 def _setup_ios_album(album: Path) -> None:
-    """Create a well-formed iOS album with copies in combined dirs."""
+    """Create a well-formed iOS album with copies in browsable dirs."""
     _write(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.HEIC", "heic-orig")
     _write(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.AAE", "aae-orig")
     _write(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0002.PNG", "png-orig")
@@ -70,7 +70,7 @@ class TestOptimizeAlbum:
             == (album / MAIN_MEDIA_SOURCE.edit_img_dir / "IMG_E0001.HEIC").resolve()
         )
 
-    def test_skips_combined_jpeg(self, tmp_path: Path) -> None:
+    def test_skips_browsable_jpeg(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_ios_album(album)
         jpeg_before = (album / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_E0001.jpg").read_text()

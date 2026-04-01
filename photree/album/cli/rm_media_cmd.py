@@ -44,7 +44,7 @@ def rm_media_cmd(
     """Remove media files and all their variants from an album.
 
     For each specified file, resolves all associated variants by image number
-    (iOS) or filename stem (plain) across the msutor's directory structure
+    (iOS) or filename stem (std) across the media source's directory structure
     and removes them all. Any variant file can be used to identify the media.
     """
     if not files:

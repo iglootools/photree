@@ -533,7 +533,7 @@ def run_batch_fix_ios(
     *,
     link_mode: LinkMode,
     dry_run: bool = False,
-    refresh_combined: bool = False,
+    refresh_browsable: bool = False,
     refresh_jpeg: bool = False,
     rm_upstream: bool = False,
     rm_orphan: bool = False,
@@ -570,7 +570,7 @@ def run_batch_fix_ios(
                 link_mode=link_mode,
                 dry_run=dry_run,
                 log_cwd=cwd,
-                refresh_combined_flag=refresh_combined,
+                refresh_browsable_flag=refresh_browsable,
                 refresh_jpeg_flag=refresh_jpeg,
                 rm_upstream=rm_upstream,
                 rm_orphan=rm_orphan,
@@ -736,13 +736,13 @@ def resolve_batch_albums(
     base_dir: Path | None,
     album_dirs: list[Path] | None,
 ) -> tuple[list[Path], Path | None]:
-    """Resolve album list for iOS-specific commands.
+    """Resolve album list for archive-based commands.
 
-    Uses :func:`discover_ios_albums` which only finds albums with an
-    ``ios/`` subdirectory.
+    Uses :func:`discover_archive_albums` which finds albums with iOS
+    (``ios-*/``) or std (``std-*/``) archive directories.
     """
     return _resolve_batch_albums_with(
-        base_dir, album_dirs, album_preflight.discover_ios_albums
+        base_dir, album_dirs, album_preflight.discover_archive_albums
     )
 
 

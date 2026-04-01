@@ -16,6 +16,11 @@ from .ios import (
     img_number,
     pick_media_priority,
 )
+from .media import (
+    dedup_media_dict as generic_dedup_media_dict,
+    find_files_by_key,
+    group_by_key,
+)
 from .protocol import (
     ALBUM_DATE_RE,
     ALBUM_ID_PREFIX,
@@ -32,6 +37,7 @@ from .protocol import (
     SELECTION_DIR,
     SHARE_SENTINEL,
     SIDECAR_EXTENSIONS,
+    STD_DIR_PREFIX,
     VID_EXTENSIONS,
     AlbumMetadata,
     AlbumShareLayout,
@@ -43,6 +49,8 @@ from .protocol import (
     _ALBUM_DATE_RE,
     _BaseModel,
     _DATE_PART,
+    _KeyFn,
+    _stem_key,
     _to_kebab,
     format_album_external_id,
     format_external_id,
@@ -51,7 +59,7 @@ from .protocol import (
     MAIN_MEDIA_SOURCE,
     parse_album_year,
     parse_external_id,
-    plain_media_source,
+    std_media_source,
 )
 from .repo import (
     delete_files,
@@ -77,7 +85,7 @@ __all__ = [
     "file_ext",
     "list_files",
     "matching_subdirectories",
-    # ios
+    # ios (iOS-specific convenience wrappers)
     "PICTURE_PRIORITY_EXTENSIONS",
     "_group_by_number",
     "dedup_media_dict",
@@ -85,6 +93,10 @@ __all__ = [
     "find_files_by_stem",
     "img_number",
     "pick_media_priority",
+    # media (generic matching)
+    "find_files_by_key",
+    "generic_dedup_media_dict",
+    "group_by_key",
     # protocol — enums
     "AlbumShareLayout",
     "LinkMode",
@@ -105,6 +117,7 @@ __all__ = [
     "PHOTREE_DIR",
     "SELECTION_DIR",
     "SIDECAR_EXTENSIONS",
+    "STD_DIR_PREFIX",
     "VID_EXTENSIONS",
     # protocol — models
     "AlbumMetadata",
@@ -112,10 +125,12 @@ __all__ = [
     "_BaseModel",
     "_to_kebab",
     # protocol — media source
+    "_KeyFn",
+    "_stem_key",
     "MediaSource",
     "MediaSourceType",
     "ios_media_source",
-    "plain_media_source",
+    "std_media_source",
     "MAIN_MEDIA_SOURCE",
     # protocol — external IDs
     "format_album_external_id",

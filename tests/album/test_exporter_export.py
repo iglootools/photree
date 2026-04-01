@@ -26,7 +26,7 @@ def _setup_dir(path: Path, filenames: list[str]) -> Path:
 
 
 def _setup_ios_album(album_dir: Path) -> Path:
-    """Create a typical iOS album with orig, rendered, combined dirs."""
+    """Create a typical iOS album with orig, rendered, browsable dirs."""
     _setup_dir(
         album_dir / MAIN_MEDIA_SOURCE.orig_img_dir, ["IMG_0001.HEIC", "IMG_0002.HEIC"]
     )
@@ -98,7 +98,7 @@ class TestExportOtherAlbum:
         result = export_album(album_dir, target)
 
         assert result.album_name == "my-album"
-        assert result.album_type == "other"
+        assert result.album_type == "std"
         assert result.files_copied == 3
         assert (target / "photo1.jpg").exists()
         assert (target / "photo2.jpg").exists()
@@ -164,7 +164,7 @@ class TestExportIosMainJpg:
 
 
 class TestExportIosMain:
-    def test_strips_combined_prefix(self, tmp_path: Path) -> None:
+    def test_strips_browsable_prefix(self, tmp_path: Path) -> None:
         album_dir = _setup_ios_album(tmp_path / "trip")
         target = tmp_path / "share" / "trip"
 
@@ -184,7 +184,7 @@ class TestExportIosMain:
         assert not (target / MAIN_MEDIA_SOURCE.orig_vid_dir).exists()
         assert not (target / MAIN_MEDIA_SOURCE.edit_vid_dir).exists()
 
-    def test_handles_missing_combined_dirs(self, tmp_path: Path) -> None:
+    def test_handles_missing_browsable_dirs(self, tmp_path: Path) -> None:
         album_dir = tmp_path / "minimal"
         _setup_dir(album_dir / MAIN_MEDIA_SOURCE.orig_img_dir, ["IMG_0001.HEIC"])
         _setup_dir(album_dir / MAIN_MEDIA_SOURCE.img_dir, ["IMG_0001.HEIC"])
@@ -202,7 +202,7 @@ class TestExportIosMain:
 
 
 class TestExportIosAll:
-    def test_copies_orig_rendered_jpeg_and_recreates_combined(
+    def test_copies_orig_rendered_jpeg_and_recreates_browsable(
         self, tmp_path: Path
     ) -> None:
         album_dir = _setup_ios_album(tmp_path / "trip")
@@ -231,16 +231,16 @@ class TestExportIosAll:
         assert (target / MAIN_MEDIA_SOURCE.vid_dir / "IMG_E0010.MOV").exists()
         assert result.files_copied > 0
 
-    def test_combined_uses_hardlinks_by_default(self, tmp_path: Path) -> None:
+    def test_browsable_uses_hardlinks_by_default(self, tmp_path: Path) -> None:
         album_dir = _setup_ios_album(tmp_path / "trip")
         target = tmp_path / "share" / "trip"
 
         export_album(album_dir, target, album_layout=AlbumShareLayout.ALL)
 
         # main-img files should be hardlinks to orig/rendered
-        combined_file = target / MAIN_MEDIA_SOURCE.img_dir / "IMG_0002.HEIC"
+        browsable_file = target / MAIN_MEDIA_SOURCE.img_dir / "IMG_0002.HEIC"
         orig_file = target / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0002.HEIC"
-        assert combined_file.stat().st_ino == orig_file.stat().st_ino
+        assert browsable_file.stat().st_ino == orig_file.stat().st_ino
 
     def test_does_not_export_unmanaged(self, tmp_path: Path) -> None:
         album_dir = _setup_ios_album(tmp_path / "trip")

@@ -126,7 +126,7 @@ $ photree album export [OPTIONS]
 
 ### `photree album fix`
 
-Fix album issues. Works on all msutor types (iOS + plain).
+Fix album issues. Works on all media source types (iOS + std).
 
 --id: Generates a missing album ID in .photree/album.yaml. Skips
 albums that already have an ID.
@@ -192,7 +192,7 @@ Fix iOS album issues. At least one fix flag must be specified.
 
 Available fixes:
 
---refresh-combined: Deletes main-img/, main-vid/, and
+--refresh-browsable: Deletes main-img/, main-vid/, and
 main-jpg/, then rebuilds main-img and main-vid from
 orig/edit sources. If main-img/ is created, also regenerates
 main-jpg/ via HEIC→JPEG conversion.
@@ -237,7 +237,7 @@ $ photree album fix-ios [OPTIONS]
 
 * `-a, --album-dir DIRECTORY`: iOS album directory to fix.  [default: .]
 * `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.
-* `--refresh-combined`: Rebuild main-img/ and main-vid/ from orig/edit, then regenerate main-jpg/.
+* `--refresh-browsable`: Rebuild main-img/ and main-vid/ from orig/edit, then regenerate main-jpg/.
 * `--refresh-jpeg`: Refresh main-jpg/ from main-img/ (re-convert all HEIC→JPEG).
 * `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
 * `--rm-orphan`: Delete edited and main files that have no corresponding orig file.
@@ -306,7 +306,7 @@ $ photree album init [OPTIONS]
 Move media files and all their variants from one album to another.
 
 For each specified file, resolves all associated variants by image number
-(iOS) or filename stem (plain) across the msutor&#x27;s directory structure
+(iOS) or filename stem (std) across the media source&#x27;s directory structure
 and moves them all. Any variant file can be used to identify the media.
 
 **Usage**:
@@ -359,7 +359,7 @@ $ photree album optimize [OPTIONS]
 Remove media files and all their variants from an album.
 
 For each specified file, resolves all associated variants by image number
-(iOS) or filename stem (plain) across the msutor&#x27;s directory structure
+(iOS) or filename stem (std) across the media source&#x27;s directory structure
 and removes them all. Any variant file can be used to identify the media.
 
 **Usage**:
@@ -432,7 +432,7 @@ $ photree albums [OPTIONS] COMMAND [ARGS]...
 * `import`
 * `init`: Initialize album metadata...
 * `list`: List all discovered albums with their...
-* `optimize`: Optimize all iOS albums under a directory...
+* `optimize`: Optimize all albums with archives under a...
 * `rename-from-csv`: Rename albums from a CSV file (from list...
 * `stats`: Show aggregated disk usage and content...
 
@@ -519,7 +519,7 @@ $ photree albums fix-ios [OPTIONS]
 * `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
 * `-a, --album-dir DIRECTORY`: Album directory (repeatable).
 * `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink, symlink, or copy.  [default: hardlink]
-* `--refresh-combined`: Rebuild main-img/ and main-vid/ from orig/edit, then regenerate main-jpg/.
+* `--refresh-browsable`: Rebuild main-img/ and main-vid/ from orig/edit, then regenerate main-jpg/.
 * `--refresh-jpeg`: Refresh main-jpg/ from main-img/ (re-convert all HEIC→JPEG).
 * `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
 * `--rm-orphan`: Delete edited and main files that have no corresponding orig file.
@@ -605,7 +605,7 @@ $ photree albums list [OPTIONS]
 
 ### `photree albums optimize`
 
-Optimize all iOS albums under a directory or from an explicit list.
+Optimize all albums with archives under a directory or from an explicit list.
 
 **Usage**:
 
@@ -823,7 +823,7 @@ $ photree gallery fix-ios [OPTIONS]
 
 * `-d, --gallery-dir DIRECTORY`: Gallery root directory.
 * `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.
-* `--refresh-combined`: Rebuild main-img/ and main-vid/ from orig/edit, then regenerate main-jpg/.
+* `--refresh-browsable`: Rebuild main-img/ and main-vid/ from orig/edit, then regenerate main-jpg/.
 * `--refresh-jpeg`: Refresh main-jpg/ from main-img/ (re-convert all HEIC→JPEG).
 * `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
 * `--rm-orphan`: Delete edited and main files that have no corresponding orig file.

@@ -23,7 +23,7 @@ from ...clicommons.options import (
     LINK_MODE_OPTION,
     MV_MISCATEGORIZED_OPTION,
     PREFER_HIGHER_QUALITY_OPTION,
-    REFRESH_COMBINED_OPTION,
+    REFRESH_BROWSABLE_OPTION,
     REFRESH_JPEG_OPTION,
     RM_MISCATEGORIZED_OPTION,
     RM_MISCATEGORIZED_SAFE_OPTION,
@@ -53,7 +53,7 @@ def fix_ios_cmd(
         ),
     ] = Path("."),
     link_mode: LINK_MODE_OPTION = None,
-    refresh_combined: REFRESH_COMBINED_OPTION = False,
+    refresh_browsable: REFRESH_BROWSABLE_OPTION = False,
     refresh_jpeg: REFRESH_JPEG_OPTION = False,
     rm_upstream: RM_UPSTREAM_OPTION = False,
     rm_orphan: RM_ORPHAN_OPTION = False,
@@ -68,7 +68,7 @@ def fix_ios_cmd(
 
     Available fixes:
 
-    --refresh-combined: Deletes main-img/, main-vid/, and
+    --refresh-browsable: Deletes main-img/, main-vid/, and
     main-jpg/, then rebuilds main-img and main-vid from
     orig/edit sources. If main-img/ is created, also regenerates
     main-jpg/ via HEIC→JPEG conversion.
@@ -115,7 +115,7 @@ def fix_ios_cmd(
 
     try:
         validate_fix_flags(
-            refresh_combined=refresh_combined,
+            refresh_browsable=refresh_browsable,
             refresh_jpeg=refresh_jpeg,
             rm_upstream=rm_upstream,
             rm_orphan=rm_orphan,
@@ -129,7 +129,7 @@ def fix_ios_cmd(
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=1) from exc
 
-    if refresh_combined or refresh_jpeg:
+    if refresh_browsable or refresh_jpeg:
         _check_sips_or_exit()
 
     stage_progress = (
@@ -142,7 +142,7 @@ def fix_ios_cmd(
                 "refresh-jpeg": "Converting HEIC to JPEG",
             },
         )
-        if refresh_combined
+        if refresh_browsable
         else None
     )
 
@@ -169,7 +169,7 @@ def fix_ios_cmd(
         link_mode=resolve_link_mode(link_mode, album_dir),
         dry_run=dry_run,
         log_cwd=cwd,
-        refresh_combined_flag=refresh_combined,
+        refresh_browsable_flag=refresh_browsable,
         refresh_jpeg_flag=refresh_jpeg,
         rm_upstream=rm_upstream,
         rm_orphan=rm_orphan,
@@ -178,10 +178,12 @@ def fix_ios_cmd(
         rm_miscategorized=rm_miscategorized,
         rm_miscategorized_safe=rm_miscategorized_safe,
         mv_miscategorized=mv_miscategorized,
-        on_refresh_combined_stage_start=stage_progress.on_start
+        on_refresh_browsable_stage_start=stage_progress.on_start
         if stage_progress
         else None,
-        on_refresh_combined_stage_end=stage_progress.on_end if stage_progress else None,
+        on_refresh_browsable_stage_end=stage_progress.on_end
+        if stage_progress
+        else None,
         on_refresh_jpeg_file_start=file_progress.on_start if file_progress else None,
         on_refresh_jpeg_file_end=file_progress.on_end if file_progress else None,
     )

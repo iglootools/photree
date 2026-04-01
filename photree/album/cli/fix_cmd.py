@@ -59,7 +59,7 @@ def fix_cmd(
     refresh_jpeg: REFRESH_JPEG_OPTION = False,
     dry_run: DRY_RUN_OPTION = False,
 ) -> None:
-    """Fix album issues. Works on all msutor types (iOS + plain).
+    """Fix album issues. Works on all media source types (iOS + std).
 
     --id: Generates a missing album ID in .photree/album.yaml. Skips
     albums that already have an ID.

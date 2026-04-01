@@ -280,11 +280,13 @@ class TestRunImport:
         # rendered
         assert (album / "ios-main/edit-img" / "IMG_E0410.HEIC").exists()
         assert (album / "ios-main/edit-img" / "IMG_O0410.AAE").exists()
-        # combined should have rendered version (not orig)
+        # browsable should have rendered version (not orig)
         assert (album / "main-img" / "IMG_E0410.HEIC").exists()
         assert not (album / "main-img" / "IMG_0410.HEIC").exists()
 
-    def test_combined_falls_back_to_orig_when_no_rendered(self, tmp_path: Path) -> None:
+    def test_browsable_falls_back_to_orig_when_no_rendered(
+        self, tmp_path: Path
+    ) -> None:
         album = _setup_album(tmp_path, ["IMG_0100.HEIC"])
         ic_dir = _setup_image_capture_dir(
             tmp_path,
@@ -435,7 +437,7 @@ class TestRunImport:
 
 
 class TestRunImportLinkMode:
-    def test_default_creates_hardlinks_in_combined(self, tmp_path: Path) -> None:
+    def test_default_creates_hardlinks_in_browsable(self, tmp_path: Path) -> None:
         album = _setup_album(tmp_path, ["IMG_0410.HEIC"])
         ic_dir = _setup_image_capture_dir(
             tmp_path,
@@ -446,17 +448,17 @@ class TestRunImportLinkMode:
             album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
         )
 
-        # Combined should be hardlinked to rendered
-        combined = album / "main-img" / "IMG_E0410.HEIC"
+        # Browsable should be hardlinked to rendered
+        browsable = album / "main-img" / "IMG_E0410.HEIC"
         rendered = album / "ios-main/edit-img" / "IMG_E0410.HEIC"
-        assert os.stat(combined).st_ino == os.stat(rendered).st_ino
+        assert os.stat(browsable).st_ino == os.stat(rendered).st_ino
 
         # Orig files should be copies (not hardlinks to IC dir)
         orig = album / "ios-main/orig-img" / "IMG_0410.HEIC"
         ic_file = ic_dir / "IMG_0410.HEIC"
         assert os.stat(orig).st_ino != os.stat(ic_file).st_ino
 
-    def test_symlink_mode_creates_symlinks_in_combined(self, tmp_path: Path) -> None:
+    def test_symlink_mode_creates_symlinks_in_browsable(self, tmp_path: Path) -> None:
         album = _setup_album(tmp_path, ["IMG_0100.HEIC"])
         ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0100.HEIC", "IMG_0100.AAE"])
 
@@ -467,11 +469,11 @@ class TestRunImportLinkMode:
             convert_file=_noop_convert,
         )
 
-        combined = album / "main-img" / "IMG_0100.HEIC"
-        assert combined.is_symlink()
-        assert not os.path.isabs(os.readlink(combined))
+        browsable = album / "main-img" / "IMG_0100.HEIC"
+        assert browsable.is_symlink()
+        assert not os.path.isabs(os.readlink(browsable))
         assert (
-            combined.resolve()
+            browsable.resolve()
             == (album / "ios-main/orig-img" / "IMG_0100.HEIC").resolve()
         )
 
@@ -486,7 +488,7 @@ class TestRunImportLinkMode:
             convert_file=_noop_convert,
         )
 
-        combined = album / "main-img" / "IMG_0100.HEIC"
+        browsable = album / "main-img" / "IMG_0100.HEIC"
         orig = album / "ios-main/orig-img" / "IMG_0100.HEIC"
-        assert not combined.is_symlink()
-        assert os.stat(combined).st_ino != os.stat(orig).st_ino
+        assert not browsable.is_symlink()
+        assert os.stat(browsable).st_ino != os.stat(orig).st_ino

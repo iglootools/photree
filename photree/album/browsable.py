@@ -1,7 +1,7 @@
-"""Rebuild main directories from orig/edited sources.
+"""Rebuild browsable directories from orig/edited archive sources.
 
-The main directories contain the "best" version of each media file:
-- If an edited version exists (IMG_E* prefix), use it
+The browsable directories contain the "best" version of each media file:
+- If an edited version exists, use it
 - Otherwise, use the original
 
 This is the same logic used during import (see importer.image_capture),
@@ -19,39 +19,42 @@ from pathlib import Path
 
 from rich.console import Console
 
-from ..fs import LinkMode, dedup_media_dict, display_path, list_files
+from ..fs import LinkMode, display_path, list_files
+from ..fs.media import dedup_media_dict
+from ..fs.protocol import _KeyFn
 from ..uiconventions import CHECK
 
 _console = Console(highlight=False)
 
 
-def compute_main_files(
+def compute_browsable_files(
     orig_dir: Path,
     edit_dir: Path,
     media_extensions: frozenset[str],
+    key_fn: _KeyFn,
 ) -> list[tuple[str, Path]]:
-    """Compute which files should go into main: (filename, source_dir) pairs.
+    """Compute which files should populate a browsable dir: (filename, source_dir) pairs.
 
-    For each media number in orig, picks the edited version if available,
+    For each media key in orig, picks the edited version if available,
     otherwise the original.
     """
     orig_files = list_files(orig_dir)
     edit_files = list_files(edit_dir)
 
-    orig_by_number = dedup_media_dict(orig_files, media_extensions)
-    edit_by_number = dedup_media_dict(edit_files, media_extensions)
+    orig_by_key = dedup_media_dict(orig_files, media_extensions, key_fn)
+    edit_by_key = dedup_media_dict(edit_files, media_extensions, key_fn)
 
     return sorted(
         [
             *(
-                (edit_by_number[num], edit_dir)
-                for num in orig_by_number
-                if num in edit_by_number
+                (edit_by_key[key], edit_dir)
+                for key in orig_by_key
+                if key in edit_by_key
             ),
             *(
                 (orig_name, orig_dir)
-                for num, orig_name in orig_by_number.items()
-                if num not in edit_by_number
+                for key, orig_name in orig_by_key.items()
+                if key not in edit_by_key
             ),
         ],
         key=lambda pair: pair[0],
@@ -66,7 +69,7 @@ _LINK_MODE_VERBS: dict[LinkMode, str] = {
 
 
 def _place_file(src: Path, dst: Path, link_mode: LinkMode) -> None:
-    """Place a file into the main directory using the specified link mode."""
+    """Place a file into the browsable directory using the specified link mode."""
     match link_mode:
         case LinkMode.COPY:
             shutil.copy(src, dst)
@@ -86,47 +89,52 @@ def _place_file(src: Path, dst: Path, link_mode: LinkMode) -> None:
 
 
 @dataclass(frozen=True)
-class RefreshMainDirResult:
-    """Result of refreshing a single main directory."""
+class RefreshBrowsableDirResult:
+    """Result of refreshing a single browsable directory."""
 
     copied: int
 
 
-def refresh_main_dir(
+def refresh_browsable_dir(
     orig_dir: Path,
     edit_dir: Path,
-    main_dir: Path,
+    browsable_dir: Path,
     *,
     media_extensions: frozenset[str],
+    key_fn: _KeyFn,
     link_mode: LinkMode = LinkMode.HARDLINK,
     dry_run: bool = False,
     log_cwd: Path | None = None,
     on_file_start: Callable[[str], None] | None = None,
     on_file_end: Callable[[str, bool], None] | None = None,
-) -> RefreshMainDirResult:
-    """Rebuild a main directory from orig and edited sources.
+) -> RefreshBrowsableDirResult:
+    """Rebuild a browsable directory from orig and edited archive sources.
 
-    Clears the main directory and re-populates it with the best version
+    Clears the browsable directory and re-populates it with the best version
     of each file (edited if available, otherwise original).
     """
     if not orig_dir.is_dir():
-        return RefreshMainDirResult(copied=0)
+        return RefreshBrowsableDirResult(copied=0)
 
-    files_to_copy = compute_main_files(orig_dir, edit_dir, media_extensions)
+    files_to_copy = compute_browsable_files(
+        orig_dir, edit_dir, media_extensions, key_fn
+    )
 
     if not files_to_copy:
-        return RefreshMainDirResult(copied=0)
+        return RefreshBrowsableDirResult(copied=0)
 
     # Clear and recreate destination
     if not dry_run:
-        if main_dir.is_dir():
-            for f in os.listdir(main_dir):
-                (main_dir / f).unlink()
-        main_dir.mkdir(parents=True, exist_ok=True)
+        if browsable_dir.is_dir():
+            for f in os.listdir(browsable_dir):
+                (browsable_dir / f).unlink()
+        browsable_dir.mkdir(parents=True, exist_ok=True)
         if log_cwd is not None:
-            _console.print(f"{CHECK} clear {display_path(main_dir, log_cwd)}")
+            _console.print(f"{CHECK} clear {display_path(browsable_dir, log_cwd)}")
     elif log_cwd is not None:
-        _console.print(f"{CHECK} [dry-run] clear {display_path(main_dir, log_cwd)}")
+        _console.print(
+            f"{CHECK} [dry-run] clear {display_path(browsable_dir, log_cwd)}"
+        )
 
     verb = _LINK_MODE_VERBS[link_mode]
 
@@ -135,11 +143,11 @@ def refresh_main_dir(
             on_file_start(filename)
 
         if not dry_run:
-            _place_file(source_dir / filename, main_dir / filename, link_mode)
+            _place_file(source_dir / filename, browsable_dir / filename, link_mode)
 
         if log_cwd is not None:
             src = source_dir / filename
-            dst = main_dir / filename
+            dst = browsable_dir / filename
             _console.print(
                 f"{CHECK} {'[dry-run] ' if dry_run else ''}{verb} {display_path(src, log_cwd)} → {display_path(dst, log_cwd)}"
             )
@@ -147,4 +155,4 @@ def refresh_main_dir(
         if on_file_end:
             on_file_end(filename, True)
 
-    return RefreshMainDirResult(copied=len(files_to_copy))
+    return RefreshBrowsableDirResult(copied=len(files_to_copy))

@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from .. import combined
+from .. import browsable
 from ..jpeg import convert_single_file, refresh_jpeg_dir
 
 from ...fs import (
@@ -562,11 +562,12 @@ def run_import(
 
     # ── Stage 2: refresh-main-img ──
     _notify(on_stage_start, STAGE_REFRESH_MAIN_IMG)
-    combined.refresh_main_dir(
+    browsable.refresh_browsable_dir(
         album_orig_img,
         album_edit_img,
         album_main_img,
         media_extensions=IOS_IMG_EXTENSIONS,
+        key_fn=ms.key_fn,
         link_mode=link_mode,
         dry_run=dry_run,
     )
@@ -574,11 +575,12 @@ def run_import(
 
     # ── Stage 3: refresh-main-vid ──
     _notify(on_stage_start, STAGE_REFRESH_MAIN_VID)
-    combined.refresh_main_dir(
+    browsable.refresh_browsable_dir(
         album_orig_vid,
         album_edit_vid,
         album_dir / ms.vid_dir,
         media_extensions=IOS_VID_EXTENSIONS,
+        key_fn=ms.key_fn,
         link_mode=link_mode,
         dry_run=dry_run,
     )

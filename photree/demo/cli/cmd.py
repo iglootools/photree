@@ -122,8 +122,8 @@ def output_cmd() -> None:
     )
 
     _panel(
-        "album_output.refresh_combined_summary()",
-        album_output.refresh_combined_summary(
+        "album_output.refresh_browsable_summary()",
+        album_output.refresh_browsable_summary(
             heic_copied=15,
             mov_copied=3,
             jpeg_converted=12,
@@ -136,7 +136,7 @@ def output_cmd() -> None:
         "album_output.rm_upstream_summary()",
         album_output.rm_upstream_summary(
             heic_jpeg=2,
-            heic_combined=3,
+            heic_browsable=3,
             heic_rendered=5,
             heic_orig=6,
             mov_rendered=1,

@@ -90,10 +90,10 @@ LINK_MODE_REQUIRED_OPTION = Annotated[
     ),
 ]
 
-REFRESH_COMBINED_OPTION = Annotated[
+REFRESH_BROWSABLE_OPTION = Annotated[
     bool,
     typer.Option(
-        "--refresh-combined",
+        "--refresh-browsable",
         help="Rebuild main-img/ and main-vid/ from orig/edit, then regenerate main-jpg/.",
     ),
 ]

@@ -17,11 +17,11 @@ def suggest_fixes(
     album_dir_flag: str,
 ) -> list[str]:
     """Suggest fix-ios commands based on integrity check failures."""
-    heic = integrity.combined_heic
-    mov = integrity.combined_mov
+    heic = integrity.browsable_heic
+    mov = integrity.browsable_mov
     jpeg = integrity.jpeg
 
-    has_combined_issues = (
+    has_browsable_issues = (
         heic.missing
         or heic.wrong_source
         or heic.size_mismatches
@@ -31,7 +31,7 @@ def suggest_fixes(
         or mov.size_mismatches
         or mov.checksum_mismatches
     )
-    has_combined_extra = heic.extra or mov.extra
+    has_browsable_extra = heic.extra or mov.extra
     has_jpeg_missing = bool(jpeg.missing)
     has_jpeg_extra = bool(jpeg.extra)
     has_orphan_sidecars = bool(integrity.sidecars.orphan_sidecars)
@@ -42,12 +42,12 @@ def suggest_fixes(
         *(
             [
                 dedent(f"""\
-                    photree album fix-ios {album_dir_flag} --refresh-combined --dry-run
+                    photree album fix-ios {album_dir_flag} --refresh-browsable --dry-run
                       Rebuild main-img/ and main-vid/ from orig/edited sources,
                       then regenerate main-jpg/. Use when main files are missing,
                       corrupted, or out of sync with their sources.""")
             ]
-            if has_combined_issues
+            if has_browsable_issues
             else []
         ),
         *(
@@ -61,7 +61,7 @@ def suggest_fixes(
                       Alternatively, if you intentionally deleted files from main-jpg/,
                       propagate those deletions to main-img/, edit-img/, and orig-img/.""")
             ]
-            if has_jpeg_missing and not has_combined_issues
+            if has_jpeg_missing and not has_browsable_issues
             else []
         ),
         *(
@@ -71,7 +71,7 @@ def suggest_fixes(
                       Remove edited and main files that have no corresponding orig file.
                       Use when extra files appear in main directories that don't belong.""")
             ]
-            if has_combined_extra or has_jpeg_extra
+            if has_browsable_extra or has_jpeg_extra
             else []
         ),
         *(

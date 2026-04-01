@@ -12,7 +12,7 @@ from ...clicommons.options import (
     LINK_MODE_REQUIRED_OPTION,
     MV_MISCATEGORIZED_OPTION,
     PREFER_HIGHER_QUALITY_OPTION,
-    REFRESH_COMBINED_OPTION,
+    REFRESH_BROWSABLE_OPTION,
     REFRESH_JPEG_OPTION,
     RM_MISCATEGORIZED_OPTION,
     RM_MISCATEGORIZED_SAFE_OPTION,
@@ -28,7 +28,7 @@ def fix_ios_cmd(
     base_dir: DirOption = None,
     album_dirs: AlbumDirOption = None,
     link_mode: LINK_MODE_REQUIRED_OPTION = LinkMode.HARDLINK,
-    refresh_combined: REFRESH_COMBINED_OPTION = False,
+    refresh_browsable: REFRESH_BROWSABLE_OPTION = False,
     refresh_jpeg: REFRESH_JPEG_OPTION = False,
     rm_upstream: RM_UPSTREAM_OPTION = False,
     rm_orphan: RM_ORPHAN_OPTION = False,
@@ -42,7 +42,7 @@ def fix_ios_cmd(
     """Apply fix-ios to all iOS albums under a directory or from an explicit list."""
     try:
         validate_fix_flags(
-            refresh_combined=refresh_combined,
+            refresh_browsable=refresh_browsable,
             refresh_jpeg=refresh_jpeg,
             rm_upstream=rm_upstream,
             rm_orphan=rm_orphan,
@@ -62,7 +62,7 @@ def fix_ios_cmd(
         display_base,
         link_mode=link_mode,
         dry_run=dry_run,
-        refresh_combined=refresh_combined,
+        refresh_browsable=refresh_browsable,
         refresh_jpeg=refresh_jpeg,
         rm_upstream=rm_upstream,
         rm_orphan=rm_orphan,

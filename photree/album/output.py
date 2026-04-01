@@ -14,7 +14,7 @@ def refresh_jpeg_summary(converted: int, copied: int, skipped: int) -> str:
     return f"Done. {converted} converted, {copied} copied, {skipped} skipped."
 
 
-def refresh_combined_summary(
+def refresh_browsable_summary(
     heic_copied: int,
     mov_copied: int,
     jpeg_converted: int,
@@ -40,7 +40,7 @@ def refresh_combined_summary(
 
 def rm_upstream_summary(
     heic_jpeg: int,
-    heic_combined: int,
+    heic_browsable: int,
     heic_rendered: int,
     heic_orig: int,
     mov_rendered: int,
@@ -50,10 +50,10 @@ def rm_upstream_summary(
         [
             *(
                 [
-                    f"heic: {heic_jpeg} jpeg, {heic_combined} main, "
+                    f"heic: {heic_jpeg} jpeg, {heic_browsable} main, "
                     f"{heic_rendered} edit, {heic_orig} orig"
                 ]
-                if heic_jpeg or heic_combined or heic_rendered or heic_orig
+                if heic_jpeg or heic_browsable or heic_rendered or heic_orig
                 else []
             ),
             *(
@@ -181,10 +181,10 @@ def format_fix_ios_result(result: FixIosResult) -> list[str]:
     """Format a :class:`FixIosResult` into output lines."""
     lines: list[str] = []
 
-    if result.refresh_combined_result is not None:
-        rc = result.refresh_combined_result
+    if result.refresh_browsable_result is not None:
+        rc = result.refresh_browsable_result
         lines.append(
-            refresh_combined_summary(
+            refresh_browsable_summary(
                 heic_copied=rc.heic_copied,
                 mov_copied=rc.mov_copied,
                 jpeg_converted=rc.jpeg_converted,
@@ -202,7 +202,7 @@ def format_fix_ios_result(result: FixIosResult) -> list[str]:
         lines.append(
             rm_upstream_summary(
                 heic_jpeg=ru.heic_jpeg,
-                heic_combined=ru.heic_combined,
+                heic_browsable=ru.heic_browsable,
                 heic_rendered=ru.heic_rendered,
                 heic_orig=ru.heic_orig,
                 mov_rendered=ru.mov_rendered,

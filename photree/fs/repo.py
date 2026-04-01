@@ -15,13 +15,14 @@ from .protocol import (
     DEFAULT_MEDIA_SOURCE,
     GALLERY_YAML,
     IOS_DIR_PREFIX,
+    STD_DIR_PREFIX,
     AlbumMetadata,
     GalleryMetadata,
     LinkMode,
     MediaSource,
     PHOTREE_DIR,
     ios_media_source,
-    plain_media_source,
+    std_media_source,
 )
 
 
@@ -143,7 +144,7 @@ def is_album(directory: Path) -> bool:
     """Check if a directory is a photree album.
 
     A directory is an album if it contains ``.photree/album.yaml``
-    **and** at least one media source (iOS or plain).
+    **and** at least one media source (iOS or std).
     """
     return (directory / PHOTREE_DIR / ALBUM_YAML).is_file() and bool(
         discover_media_sources(directory)
@@ -190,6 +191,14 @@ def _is_ios_source_dir(d: Path) -> bool:
     )
 
 
+def _is_std_source_dir(d: Path) -> bool:
+    return (
+        d.is_dir()
+        and d.name.startswith(STD_DIR_PREFIX)
+        and ((d / "orig-img").is_dir() or (d / "orig-vid").is_dir())
+    )
+
+
 _BROWSABLE_SUFFIXES = ("-img", "-vid", "-jpg")
 
 
@@ -205,8 +214,9 @@ def discover_media_sources(album_dir: Path) -> list[MediaSource]:
 
     Scans for:
     1. iOS media sources: ``ios-{name}/`` with ``orig-img/`` or ``orig-vid/``
-    2. Plain media sources: ``{name}-img/`` or ``{name}-vid/`` without
-       a corresponding ``ios-{name}/`` directory
+    2. Std media sources: ``std-{name}/`` with ``orig-img/`` or ``orig-vid/``
+    3. Legacy std media sources: ``{name}-img/`` or ``{name}-vid/`` without
+       a corresponding ``ios-{name}/`` or ``std-{name}/`` directory
 
     Returns media sources sorted with ``main`` first, then alphabetically.
     """
@@ -220,18 +230,24 @@ def discover_media_sources(album_dir: Path) -> list[MediaSource]:
         d.name.removeprefix(IOS_DIR_PREFIX) for d in subdirs if _is_ios_source_dir(d)
     }
 
-    # 2. Plain media sources: browsable dirs not backed by an ios-{name}/ dir
-    plain_names = {
+    # 2. Std media sources (migrated — have std-{name}/ archive)
+    std_names = {
+        d.name.removeprefix(STD_DIR_PREFIX) for d in subdirs if _is_std_source_dir(d)
+    }
+
+    # 3. Legacy std media sources: browsable dirs not backed by ios-{name}/ or std-{name}/
+    legacy_std_names = {
         name
         for d in subdirs
         if not d.name.startswith(".")
         for name in [_strip_browsable_suffix(d.name)]
-        if name and name not in ios_names
+        if name and name not in ios_names and name not in std_names
     }
 
     sources = [
         *(ios_media_source(n) for n in ios_names),
-        *(plain_media_source(n) for n in plain_names),
+        *(std_media_source(n) for n in std_names),
+        *(std_media_source(n) for n in legacy_std_names),
     ]
     return sorted(sources, key=lambda ms: (ms.name != DEFAULT_MEDIA_SOURCE, ms.name))
 
