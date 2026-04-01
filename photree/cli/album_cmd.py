@@ -46,11 +46,9 @@ from ..album.jpeg import convert_single_file, noop_convert_single
 from ..config import ConfigError
 from ..fs import (
     AlbumMetadata,
-    AlbumShareLayout,
     IMG_EXTENSIONS,
     LinkMode,
     SELECTION_DIR,
-    ShareDirectoryLayout,
     VID_EXTENSIONS,
     count_unique_media_numbers,
     discover_albums,
@@ -64,6 +62,33 @@ from ..fs import (
     save_album_metadata,
 )
 from .console import console, err_console
+from .options import (
+    ALBUM_LAYOUT_OPTION,
+    CHECK_BEFORE_OPTION,
+    CHECK_DATE_PART_COLLISION_OPTION,
+    CHECK_EXIF_DATE_MATCH_OPTION,
+    CHECK_NAMING_OPTION,
+    CHECKSUM_OPTION,
+    CONFIG_OPTION,
+    DRY_RUN_OPTION,
+    EXPORT_LINK_MODE_OPTION,
+    FATAL_EXIF_DATE_MATCH_OPTION,
+    FATAL_SIDECAR_OPTION,
+    FATAL_WARNINGS_OPTION,
+    LINK_MODE_OPTION,
+    MV_MISCATEGORIZED_OPTION,
+    PREFER_HIGHER_QUALITY_OPTION,
+    PROFILE_OPTION,
+    REFRESH_COMBINED_OPTION,
+    REFRESH_JPEG_OPTION,
+    RM_MISCATEGORIZED_OPTION,
+    RM_MISCATEGORIZED_SAFE_OPTION,
+    RM_ORPHAN_OPTION,
+    RM_ORPHAN_SIDECAR_OPTION,
+    RM_UPSTREAM_OPTION,
+    SHARE_DIR_OPTION,
+    SHARE_LAYOUT_OPTION,
+)
 from .progress import FileProgressBar, SilentProgressBar, StageProgressBar
 
 album_app = typer.Typer(
@@ -132,56 +157,13 @@ def check_cmd(
             resolve_path=True,
         ),
     ] = Path("."),
-    checksum: Annotated[
-        bool,
-        typer.Option(
-            "--checksum/--no-checksum",
-            help="Enable/disable SHA-256 checksum verification (default: enabled).",
-        ),
-    ] = True,
-    fatal_warnings: Annotated[
-        bool,
-        typer.Option(
-            "--fatal-warnings",
-            "-W",
-            help="Treat all warnings as errors (implies --fatal-sidecar).",
-        ),
-    ] = False,
-    fatal_sidecar_arg: Annotated[
-        bool,
-        typer.Option(
-            "--fatal-sidecar",
-            help="Treat missing-sidecar warnings as errors.",
-        ),
-    ] = False,
-    fatal_exif_date_match: Annotated[
-        bool,
-        typer.Option(
-            "--fatal-exif-date-match/--no-fatal-exif-date-match",
-            help="Treat EXIF date mismatch warnings as errors (default: enabled).",
-        ),
-    ] = True,
-    check_naming: Annotated[
-        bool,
-        typer.Option(
-            "--check-naming/--no-check-naming",
-            help="Enable/disable album naming convention checks (default: enabled).",
-        ),
-    ] = True,
-    check_exif_date_match: Annotated[
-        bool,
-        typer.Option(
-            "--check-exif-date-match/--no-check-exif-date-match",
-            help="Enable/disable EXIF timestamp vs album date validation (default: enabled).",
-        ),
-    ] = True,
-    check_date_part_collision: Annotated[
-        bool,
-        typer.Option(
-            "--check-date-part-collision/--no-check-date-part-collision",
-            help="Enable/disable date collision detection with sibling albums (default: enabled).",
-        ),
-    ] = True,
+    checksum: CHECKSUM_OPTION = True,
+    fatal_warnings: FATAL_WARNINGS_OPTION = False,
+    fatal_sidecar_arg: FATAL_SIDECAR_OPTION = False,
+    fatal_exif_date_match: FATAL_EXIF_DATE_MATCH_OPTION = True,
+    check_naming: CHECK_NAMING_OPTION = True,
+    check_exif_date_match: CHECK_EXIF_DATE_MATCH_OPTION = True,
+    check_date_part_collision: CHECK_DATE_PART_COLLISION_OPTION = True,
 ) -> None:
     """Check system prerequisites, album directory structure, and file integrity."""
     # Count unique media numbers across all media_sources' orig dirs
@@ -285,21 +267,8 @@ def fix_cmd(
             help="Regenerate album ID (replaces existing ID).",
         ),
     ] = False,
-    refresh_jpeg: Annotated[
-        bool,
-        typer.Option(
-            "--refresh-jpeg",
-            help="Refresh {msutor}-jpg/ from {msutor}-img/ for all media_sources.",
-        ),
-    ] = False,
-    dry_run: Annotated[
-        bool,
-        typer.Option(
-            "--dry-run",
-            "-n",
-            help="Print what would happen without modifying files.",
-        ),
-    ] = False,
+    refresh_jpeg: REFRESH_JPEG_OPTION = False,
+    dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """Fix album issues. Works on all msutor types (iOS + plain).
 
@@ -390,35 +359,10 @@ def optimize_cmd(
             resolve_path=True,
         ),
     ] = Path("."),
-    link_mode: Annotated[
-        LinkMode | None,
-        typer.Option(
-            "--link-mode",
-            help="How to create main files: hardlink (default), symlink, or copy.",
-        ),
-    ] = None,
-    check: Annotated[
-        bool,
-        typer.Option(
-            "--check/--no-check",
-            help="Run integrity checks before optimizing (default: enabled).",
-        ),
-    ] = True,
-    checksum: Annotated[
-        bool,
-        typer.Option(
-            "--checksum/--no-checksum",
-            help="Enable/disable SHA-256 checksum verification (default: enabled).",
-        ),
-    ] = True,
-    dry_run: Annotated[
-        bool,
-        typer.Option(
-            "--dry-run",
-            "-n",
-            help="Print what would happen without modifying files.",
-        ),
-    ] = False,
+    link_mode: LINK_MODE_OPTION = None,
+    check: CHECK_BEFORE_OPTION = True,
+    checksum: CHECKSUM_OPTION = True,
+    dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """Optimize main directories by replacing file copies with links.
 
@@ -489,84 +433,17 @@ def fix_ios_cmd(
             resolve_path=True,
         ),
     ] = Path("."),
-    link_mode: Annotated[
-        LinkMode | None,
-        typer.Option(
-            "--link-mode",
-            help="How to create main files: hardlink (default), symlink, or copy.",
-        ),
-    ] = None,
-    refresh_combined: Annotated[
-        bool,
-        typer.Option(
-            "--refresh-combined",
-            help="Rebuild main-img/ and main-vid/ from orig/edit, then regenerate main-jpg/.",
-        ),
-    ] = False,
-    refresh_jpeg: Annotated[
-        bool,
-        typer.Option(
-            "--refresh-jpeg",
-            help="Refresh main-jpg/ from main-img/ (re-convert all HEIC→JPEG).",
-        ),
-    ] = False,
-    rm_upstream: Annotated[
-        bool,
-        typer.Option(
-            "--rm-upstream",
-            help="Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.",
-        ),
-    ] = False,
-    rm_orphan: Annotated[
-        bool,
-        typer.Option(
-            "--rm-orphan",
-            help="Delete edited and main files that have no corresponding orig file.",
-        ),
-    ] = False,
-    prefer_higher_quality_when_dups: Annotated[
-        bool,
-        typer.Option(
-            "--prefer-higher-quality-when-dups",
-            help="Delete lower-quality duplicates (e.g. JPG when DNG or HEIC exists for the same number).",
-        ),
-    ] = False,
-    rm_orphan_sidecar: Annotated[
-        bool,
-        typer.Option(
-            "--rm-orphan-sidecar",
-            help="Delete AAE sidecar files that have no matching media file.",
-        ),
-    ] = False,
-    rm_miscategorized: Annotated[
-        bool,
-        typer.Option(
-            "--rm-miscategorized",
-            help="Delete files in the wrong directory (edited in orig or vice versa).",
-        ),
-    ] = False,
-    rm_miscategorized_safe: Annotated[
-        bool,
-        typer.Option(
-            "--rm-miscategorized-safe",
-            help="Delete miscategorized files only if they already exist in the correct directory.",
-        ),
-    ] = False,
-    mv_miscategorized: Annotated[
-        bool,
-        typer.Option(
-            "--mv-miscategorized",
-            help="Move files in the wrong directory to the correct one.",
-        ),
-    ] = False,
-    dry_run: Annotated[
-        bool,
-        typer.Option(
-            "--dry-run",
-            "-n",
-            help="Print what would happen without modifying files.",
-        ),
-    ] = False,
+    link_mode: LINK_MODE_OPTION = None,
+    refresh_combined: REFRESH_COMBINED_OPTION = False,
+    refresh_jpeg: REFRESH_JPEG_OPTION = False,
+    rm_upstream: RM_UPSTREAM_OPTION = False,
+    rm_orphan: RM_ORPHAN_OPTION = False,
+    prefer_higher_quality_when_dups: PREFER_HIGHER_QUALITY_OPTION = False,
+    rm_orphan_sidecar: RM_ORPHAN_SIDECAR_OPTION = False,
+    rm_miscategorized: RM_MISCATEGORIZED_OPTION = False,
+    rm_miscategorized_safe: RM_MISCATEGORIZED_SAFE_OPTION = False,
+    mv_miscategorized: MV_MISCATEGORIZED_OPTION = False,
+    dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """Fix iOS album issues. At least one fix flag must be specified.
 
@@ -959,53 +836,12 @@ def export_cmd(
             resolve_path=True,
         ),
     ] = Path("."),
-    share_dir: Annotated[
-        Optional[Path],
-        typer.Option(
-            "--share-dir",
-            "-s",
-            help="Base directory to export into (a subdirectory with the album name is created).",
-            file_okay=False,
-            resolve_path=True,
-        ),
-    ] = None,
-    profile: Annotated[
-        Optional[str],
-        typer.Option(
-            "--profile",
-            "-p",
-            help="Exporter profile name from config.",
-        ),
-    ] = None,
-    config: Annotated[
-        Optional[str],
-        typer.Option(
-            "--config",
-            "-c",
-            help="Path to config file.",
-        ),
-    ] = None,
-    share_layout: Annotated[
-        Optional[ShareDirectoryLayout],
-        typer.Option(
-            "--share-layout",
-            help="Share layout: flat (default) or albums.",
-        ),
-    ] = None,
-    album_layout: Annotated[
-        Optional[AlbumShareLayout],
-        typer.Option(
-            "--album-layout",
-            help="Export layout: main-jpg (default), main, or all.",
-        ),
-    ] = None,
-    link_mode: Annotated[
-        Optional[LinkMode],
-        typer.Option(
-            "--link-mode",
-            help="How to create main files in all layout: hardlink (default), symlink, or copy.",
-        ),
-    ] = None,
+    share_dir: SHARE_DIR_OPTION = None,
+    profile: PROFILE_OPTION = None,
+    config: CONFIG_OPTION = None,
+    share_layout: SHARE_LAYOUT_OPTION = None,
+    album_layout: ALBUM_LAYOUT_OPTION = None,
+    link_mode: EXPORT_LINK_MODE_OPTION = None,
 ) -> None:
     """Export a single album to a shared directory.
 
@@ -1120,14 +956,7 @@ def import_check_cmd(
             resolve_path=True,
         ),
     ] = None,
-    config: Annotated[
-        Optional[str],
-        typer.Option(
-            "--config",
-            "-c",
-            help="Path to config file.",
-        ),
-    ] = None,
+    config: CONFIG_OPTION = None,
 ) -> None:
     """Check that system prerequisites for import commands are met."""
     _run_preflight_checks(source, config, album_dir=album_dir)
@@ -1156,14 +985,7 @@ def import_cmd(
             resolve_path=True,
         ),
     ] = None,
-    config: Annotated[
-        Optional[str],
-        typer.Option(
-            "--config",
-            "-c",
-            help="Path to config file.",
-        ),
-    ] = None,
+    config: CONFIG_OPTION = None,
     link_mode: Annotated[
         LinkMode,
         typer.Option(
