@@ -12,53 +12,22 @@ from __future__ import annotations
 
 import os
 import tomllib
-from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 
 from platformdirs import site_config_dir, user_config_dir
 
-from .fs import AlbumShareLayout, LinkMode, ShareDirectoryLayout
+from ..fs import AlbumShareLayout, LinkMode, ShareDirectoryLayout
+from .protocol import (
+    ConfigError,
+    ExporterConfig,
+    ExporterProfile,
+    ImporterConfig,
+    PhotreeConfig,
+)
 
 _APP = "photree"
 _FILENAME = "config.toml"
-
-
-class ConfigError(Exception):
-    """Raised when configuration is invalid."""
-
-
-@dataclass(frozen=True)
-class ImporterConfig:
-    """Configuration for Image Capture import (``photree album import``)."""
-
-    image_capture_dir: Path | None = None
-
-
-@dataclass(frozen=True)
-class ExporterProfile:
-    """A named exporter profile."""
-
-    share_dir: Path
-    share_layout: ShareDirectoryLayout = ShareDirectoryLayout.FLAT
-    album_layout: AlbumShareLayout = AlbumShareLayout.MAIN_JPG
-    link_mode: LinkMode = LinkMode.HARDLINK
-
-
-@dataclass(frozen=True)
-class ExporterConfig:
-    """Configuration for album export (``photree album export``)."""
-
-    profiles: dict[str, ExporterProfile] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class PhotreeConfig:
-    """Application configuration."""
-
-    importer: ImporterConfig = ImporterConfig()
-    exporter: ExporterConfig = ExporterConfig()
-
 
 _EMPTY_CONFIG = PhotreeConfig()
 

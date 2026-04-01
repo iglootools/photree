@@ -46,10 +46,12 @@ class TestFindConfigFile:
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "empty-xdg"))
         # Patch platformdirs to also point to empty dirs
         monkeypatch.setattr(
-            "photree.config.user_config_dir", lambda _app: str(tmp_path / "empty-user")
+            "photree.config.loader.user_config_dir",
+            lambda _app: str(tmp_path / "empty-user"),
         )
         monkeypatch.setattr(
-            "photree.config.site_config_dir", lambda _app: str(tmp_path / "empty-site")
+            "photree.config.loader.site_config_dir",
+            lambda _app: str(tmp_path / "empty-site"),
         )
         assert find_config_file() is None
 
@@ -70,10 +72,12 @@ class TestLoadConfig:
     ) -> None:
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "empty"))
         monkeypatch.setattr(
-            "photree.config.user_config_dir", lambda _app: str(tmp_path / "empty-user")
+            "photree.config.loader.user_config_dir",
+            lambda _app: str(tmp_path / "empty-user"),
         )
         monkeypatch.setattr(
-            "photree.config.site_config_dir", lambda _app: str(tmp_path / "empty-site")
+            "photree.config.loader.site_config_dir",
+            lambda _app: str(tmp_path / "empty-site"),
         )
         cfg = load_config()
         assert cfg == PhotreeConfig()
