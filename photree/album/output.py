@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from ..uiconventions import CHECK, CROSS, WARNING  # noqa: F401
+
+if TYPE_CHECKING:
+    from .ios_fixes import FixIosResult
 
 
 def refresh_jpeg_summary(converted: int, copied: int, skipped: int) -> str:
@@ -170,6 +175,65 @@ def media_op_summary(
         return f"Done. No files to {verb.lower()}."
     parts = ", ".join(f"{len(files)} from {name}" for name, files in files_by_dir)
     return f"Done. {verb} {total} file(s): {parts}."
+
+
+def format_fix_ios_result(result: FixIosResult) -> list[str]:
+    """Format a :class:`FixIosResult` into output lines."""
+    lines: list[str] = []
+
+    if result.refresh_combined_result is not None:
+        rc = result.refresh_combined_result
+        lines.append(
+            refresh_combined_summary(
+                heic_copied=rc.heic_copied,
+                mov_copied=rc.mov_copied,
+                jpeg_converted=rc.jpeg_converted,
+                jpeg_copied=rc.jpeg_copied,
+                jpeg_skipped=rc.jpeg_skipped,
+            )
+        )
+
+    if result.refresh_jpeg_result is not None:
+        rj = result.refresh_jpeg_result
+        lines.append(refresh_jpeg_summary(rj.converted, rj.copied, rj.skipped))
+
+    if result.rm_upstream_result is not None:
+        ru = result.rm_upstream_result
+        lines.append(
+            rm_upstream_summary(
+                heic_jpeg=ru.heic_jpeg,
+                heic_combined=ru.heic_combined,
+                heic_rendered=ru.heic_rendered,
+                heic_orig=ru.heic_orig,
+                mov_rendered=ru.mov_rendered,
+                mov_orig=ru.mov_orig,
+            )
+        )
+
+    if result.rm_orphan_removed_by_dir:
+        lines.append(rm_orphan_summary(result.rm_orphan_removed_by_dir))
+
+    if result.rm_orphan_sidecar_removed_by_dir:
+        lines.append(rm_orphan_sidecar_summary(result.rm_orphan_sidecar_removed_by_dir))
+
+    if result.prefer_higher_quality_removed_by_dir:
+        lines.append(
+            prefer_higher_quality_summary(result.prefer_higher_quality_removed_by_dir)
+        )
+
+    if result.miscategorized_result is not None:
+        mc = result.miscategorized_result
+        lines.append(
+            miscategorized_summary(
+                action=mc.action,
+                heic_from_orig=mc.heic_from_orig,
+                heic_from_rendered=mc.heic_from_rendered,
+                mov_from_orig=mc.mov_from_orig,
+                mov_from_rendered=mc.mov_from_rendered,
+            )
+        )
+
+    return lines
 
 
 def media_op_check_suggestions(album_dirs: list[str]) -> str:

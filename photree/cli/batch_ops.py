@@ -6,9 +6,7 @@ albums. Both ``gallery`` and ``albums`` CLI commands delegate to them.
 
 from __future__ import annotations
 
-import io
 import itertools
-from contextlib import redirect_stdout
 from pathlib import Path
 
 import typer
@@ -34,7 +32,8 @@ from ..fs import (
     load_album_metadata,
     save_album_metadata,
 )
-from .album_cmd import _run_fix_ios
+from ..album.ios_fixes import run_fix_ios
+from ..album.output import format_fix_ios_result
 from .console import console, err_console
 from .progress import BatchProgressBar
 
@@ -508,30 +507,27 @@ def run_batch_fix_ios(
         album_name = display_name(album_dir, display_base, cwd)
         progress.on_start(album_name)
 
-        buf = io.StringIO()
         try:
-            with redirect_stdout(buf):
-                _run_fix_ios(
-                    album_dir,
-                    link_mode=link_mode,
-                    dry_run=dry_run,
-                    log_cwd=cwd,
-                    show_progress=False,
-                    refresh_combined=refresh_combined,
-                    refresh_jpeg=refresh_jpeg,
-                    rm_upstream=rm_upstream,
-                    rm_orphan=rm_orphan,
-                    rm_orphan_sidecar=rm_orphan_sidecar,
-                    prefer_higher_quality_when_dups=prefer_higher_quality_when_dups,
-                    rm_miscategorized=rm_miscategorized,
-                    rm_miscategorized_safe=rm_miscategorized_safe,
-                    mv_miscategorized=mv_miscategorized,
-                )
+            result = run_fix_ios(
+                album_dir,
+                link_mode=link_mode,
+                dry_run=dry_run,
+                log_cwd=cwd,
+                refresh_combined_flag=refresh_combined,
+                refresh_jpeg_flag=refresh_jpeg,
+                rm_upstream=rm_upstream,
+                rm_orphan=rm_orphan,
+                rm_orphan_sidecar=rm_orphan_sidecar,
+                prefer_higher_quality_when_dups=prefer_higher_quality_when_dups,
+                rm_miscategorized=rm_miscategorized,
+                rm_miscategorized_safe=rm_miscategorized_safe,
+                mv_miscategorized=mv_miscategorized,
+            )
             progress.on_end(album_name, success=True)
             fixed += 1
-            captured = buf.getvalue()
-            if captured.strip():
-                album_reports.append((album_name, captured))
+            lines = format_fix_ios_result(result)
+            if lines:
+                album_reports.append((album_name, "\n".join(lines)))
         except Exception:
             progress.on_end(album_name, success=False)
             failed_albums.append(album_dir)

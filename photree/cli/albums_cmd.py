@@ -22,12 +22,12 @@ from ..fs import (
     ShareDirectoryLayout,
     display_path,
 )
+from ..album.ios_fixes import FixIosValidationError, validate_fix_flags
 from .album_cmd import (
     _check_sips_or_exit,
     _resolve_export_settings,
     _run_preflight_checks,
     _validate_export_settings,
-    _validate_fix_flags,
 )
 from .batch_ops import (
     run_batch_check,
@@ -316,17 +316,21 @@ def fix_ios_cmd(
     ] = False,
 ) -> None:
     """Apply fix-ios to all iOS albums under a directory or from an explicit list."""
-    _validate_fix_flags(
-        refresh_combined=refresh_combined,
-        refresh_jpeg=refresh_jpeg,
-        rm_upstream=rm_upstream,
-        rm_orphan=rm_orphan,
-        rm_orphan_sidecar=rm_orphan_sidecar,
-        prefer_higher_quality_when_dups=prefer_higher_quality_when_dups,
-        rm_miscategorized=rm_miscategorized,
-        rm_miscategorized_safe=rm_miscategorized_safe,
-        mv_miscategorized=mv_miscategorized,
-    )
+    try:
+        validate_fix_flags(
+            refresh_combined=refresh_combined,
+            refresh_jpeg=refresh_jpeg,
+            rm_upstream=rm_upstream,
+            rm_orphan=rm_orphan,
+            rm_orphan_sidecar=rm_orphan_sidecar,
+            prefer_higher_quality_when_dups=prefer_higher_quality_when_dups,
+            rm_miscategorized=rm_miscategorized,
+            rm_miscategorized_safe=rm_miscategorized_safe,
+            mv_miscategorized=mv_miscategorized,
+        )
+    except FixIosValidationError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
 
     albums, display_base = _resolve_batch_albums(base_dir, album_dirs)
     run_batch_fix_ios(
