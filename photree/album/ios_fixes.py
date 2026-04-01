@@ -800,3 +800,300 @@ def mv_miscategorized(
             log_cwd=log_cwd,
         ),
     )
+
+
+# ---------------------------------------------------------------------------
+# Aggregated fix-ios runner
+# ---------------------------------------------------------------------------
+
+
+class FixIosValidationError(ValueError):
+    """Raised when fix-ios flag combinations are invalid."""
+
+
+def validate_fix_flags(
+    *,
+    refresh_combined: bool,
+    refresh_jpeg: bool,
+    rm_upstream: bool,
+    rm_orphan: bool,
+    rm_orphan_sidecar: bool,
+    prefer_higher_quality_when_dups: bool,
+    rm_miscategorized: bool,
+    rm_miscategorized_safe: bool,
+    mv_miscategorized: bool,
+) -> None:
+    """Validate fix-ios flag combinations.
+
+    Raises :class:`FixIosValidationError` on invalid combinations.
+    """
+    miscat_flags = sum([rm_miscategorized, rm_miscategorized_safe, mv_miscategorized])
+    if miscat_flags > 1:
+        raise FixIosValidationError(
+            "--rm-miscategorized, --rm-miscategorized-safe, and --mv-miscategorized "
+            "are mutually exclusive."
+        )
+
+    any_fix = (
+        refresh_combined
+        or refresh_jpeg
+        or rm_upstream
+        or rm_orphan
+        or rm_orphan_sidecar
+        or prefer_higher_quality_when_dups
+        or miscat_flags > 0
+    )
+    if not any_fix:
+        raise FixIosValidationError(
+            "No fix specified. Run photree album fix-ios --help for available fixes."
+        )
+
+
+@dataclass(frozen=True)
+class FixIosRefreshCombinedResult:
+    """Aggregated result of refresh-combined across media sources."""
+
+    heic_copied: int
+    mov_copied: int
+    jpeg_converted: int
+    jpeg_copied: int
+    jpeg_skipped: int
+
+
+@dataclass(frozen=True)
+class FixIosRefreshJpegResult:
+    """Aggregated result of refresh-jpeg across media sources."""
+
+    converted: int
+    copied: int
+    skipped: int
+
+
+@dataclass(frozen=True)
+class FixIosRmUpstreamResult:
+    """Aggregated result of rm-upstream across media sources."""
+
+    heic_jpeg: int
+    heic_combined: int
+    heic_rendered: int
+    heic_orig: int
+    mov_rendered: int
+    mov_orig: int
+
+
+@dataclass(frozen=True)
+class FixIosMiscategorizedResult:
+    """Aggregated result of miscategorized fix across media sources."""
+
+    action: str
+    heic_from_orig: int
+    heic_from_rendered: int
+    mov_from_orig: int
+    mov_from_rendered: int
+
+
+@dataclass(frozen=True)
+class FixIosResult:
+    """Aggregated result of all fix-ios operations on a single album."""
+
+    refresh_combined_result: FixIosRefreshCombinedResult | None = None
+    refresh_jpeg_result: FixIosRefreshJpegResult | None = None
+    rm_upstream_result: FixIosRmUpstreamResult | None = None
+    rm_orphan_removed_by_dir: tuple[tuple[str, tuple[str, ...]], ...] = ()
+    rm_orphan_sidecar_removed_by_dir: tuple[tuple[str, tuple[str, ...]], ...] = ()
+    prefer_higher_quality_removed_by_dir: tuple[tuple[str, tuple[str, ...]], ...] = ()
+    miscategorized_result: FixIosMiscategorizedResult | None = None
+
+
+# Aliases for use within run_fix_ios where parameter names shadow module functions
+_do_rm_upstream = rm_upstream
+_do_rm_orphan = rm_orphan
+_do_rm_orphan_sidecar = rm_orphan_sidecar
+_do_prefer_higher_quality = prefer_higher_quality_when_dups
+_do_rm_miscategorized = rm_miscategorized
+_do_rm_miscategorized_safe = rm_miscategorized_safe
+_do_mv_miscategorized = mv_miscategorized
+
+
+def run_fix_ios(
+    album_dir: Path,
+    *,
+    link_mode: LinkMode,
+    dry_run: bool,
+    log_cwd: Path | None = None,
+    refresh_combined_flag: bool = False,
+    refresh_jpeg_flag: bool = False,
+    rm_upstream: bool = False,
+    rm_orphan: bool = False,
+    rm_orphan_sidecar: bool = False,
+    prefer_higher_quality_when_dups: bool = False,
+    rm_miscategorized: bool = False,
+    rm_miscategorized_safe: bool = False,
+    mv_miscategorized: bool = False,
+    on_refresh_combined_stage_start: Callable[[str], None] | None = None,
+    on_refresh_combined_stage_end: Callable[[str], None] | None = None,
+    on_refresh_jpeg_file_start: Callable[[str], None] | None = None,
+    on_refresh_jpeg_file_end: Callable[[str, bool], None] | None = None,
+) -> FixIosResult:
+    """Run selected fix-ios operations on a single album.
+
+    Iterates over all iOS media sources, runs the requested operations,
+    and returns aggregated results. The caller handles output formatting
+    and progress bars via the optional callbacks.
+    """
+    from ..fs import discover_media_sources
+
+    media_sources = [c for c in discover_media_sources(album_dir) if c.is_ios]
+
+    if not media_sources:
+        return FixIosResult()
+
+    rc_result = None
+    rj_result = None
+    ru_result = None
+    orphan_by_dir: list[tuple[str, tuple[str, ...]]] = []
+    orphan_sidecar_by_dir: list[tuple[str, tuple[str, ...]]] = []
+    higher_quality_by_dir: list[tuple[str, tuple[str, ...]]] = []
+    miscat_result = None
+
+    if refresh_combined_flag:
+        total_heic = 0
+        total_mov = 0
+        total_jpeg_converted = 0
+        total_jpeg_copied = 0
+        total_jpeg_skipped = 0
+        for ms in media_sources:
+            result = refresh_combined(
+                album_dir,
+                ms,
+                link_mode=link_mode,
+                dry_run=dry_run,
+                on_stage_start=on_refresh_combined_stage_start,
+                on_stage_end=on_refresh_combined_stage_end,
+            )
+            total_heic += result.heic.copied
+            total_mov += result.mov.copied
+            total_jpeg_converted += result.jpeg.converted if result.jpeg else 0
+            total_jpeg_copied += result.jpeg.copied if result.jpeg else 0
+            total_jpeg_skipped += result.jpeg.skipped if result.jpeg else 0
+        rc_result = FixIosRefreshCombinedResult(
+            heic_copied=total_heic,
+            mov_copied=total_mov,
+            jpeg_converted=total_jpeg_converted,
+            jpeg_copied=total_jpeg_copied,
+            jpeg_skipped=total_jpeg_skipped,
+        )
+    elif refresh_jpeg_flag:
+        total_converted = 0
+        total_copied = 0
+        total_skipped = 0
+        for ms in media_sources:
+            if not (album_dir / ms.img_dir).is_dir():
+                continue
+            result_jpeg = refresh_jpeg(
+                album_dir,
+                ms,
+                dry_run=dry_run,
+                log_cwd=log_cwd,
+                on_file_start=on_refresh_jpeg_file_start,
+                on_file_end=on_refresh_jpeg_file_end,
+            )
+            total_converted += result_jpeg.converted
+            total_copied += result_jpeg.copied
+            total_skipped += result_jpeg.skipped
+        rj_result = FixIosRefreshJpegResult(
+            converted=total_converted,
+            copied=total_copied,
+            skipped=total_skipped,
+        )
+
+    if rm_upstream:
+        total_heic_jpeg = 0
+        total_heic_combined = 0
+        total_heic_rendered = 0
+        total_heic_orig = 0
+        total_mov_rendered = 0
+        total_mov_orig = 0
+        for ms in media_sources:
+            result_rm = _do_rm_upstream(
+                album_dir, ms, dry_run=dry_run, log_cwd=log_cwd
+            )
+            total_heic_jpeg += len(result_rm.heic.removed_jpeg)
+            total_heic_combined += len(result_rm.heic.removed_combined)
+            total_heic_rendered += len(result_rm.heic.removed_rendered)
+            total_heic_orig += len(result_rm.heic.removed_orig)
+            total_mov_rendered += len(result_rm.mov.removed_rendered)
+            total_mov_orig += len(result_rm.mov.removed_orig)
+        ru_result = FixIosRmUpstreamResult(
+            heic_jpeg=total_heic_jpeg,
+            heic_combined=total_heic_combined,
+            heic_rendered=total_heic_rendered,
+            heic_orig=total_heic_orig,
+            mov_rendered=total_mov_rendered,
+            mov_orig=total_mov_orig,
+        )
+
+    if rm_orphan:
+        for ms in media_sources:
+            result_orphan = _do_rm_orphan(
+                album_dir, ms, dry_run=dry_run, log_cwd=log_cwd
+            )
+            orphan_by_dir.extend(result_orphan.heic.removed_by_dir)
+            orphan_by_dir.extend(result_orphan.mov.removed_by_dir)
+
+    if rm_orphan_sidecar:
+        for ms in media_sources:
+            result_meta = _do_rm_orphan_sidecar(
+                album_dir, ms, dry_run=dry_run, log_cwd=log_cwd
+            )
+            orphan_sidecar_by_dir.extend(result_meta.removed_by_dir)
+
+    if prefer_higher_quality_when_dups:
+        for ms in media_sources:
+            result_hq = _do_prefer_higher_quality(
+                album_dir, ms, dry_run=dry_run, log_cwd=log_cwd
+            )
+            higher_quality_by_dir.extend(result_hq.removed_by_dir)
+
+    miscat_action = (
+        "rm"
+        if rm_miscategorized
+        else "rm-safe"
+        if rm_miscategorized_safe
+        else "mv"
+        if mv_miscategorized
+        else None
+    )
+    if miscat_action:
+        fix_fn = {
+            "rm": _do_rm_miscategorized,
+            "rm-safe": _do_rm_miscategorized_safe,
+            "mv": _do_mv_miscategorized,
+        }[miscat_action]
+        total_heic_from_orig = 0
+        total_heic_from_rendered = 0
+        total_mov_from_orig = 0
+        total_mov_from_rendered = 0
+        for ms in media_sources:
+            result_miscat = fix_fn(album_dir, ms, dry_run=dry_run, log_cwd=log_cwd)
+            total_heic_from_orig += len(result_miscat.heic.fixed_from_orig)
+            total_heic_from_rendered += len(result_miscat.heic.fixed_from_rendered)
+            total_mov_from_orig += len(result_miscat.mov.fixed_from_orig)
+            total_mov_from_rendered += len(result_miscat.mov.fixed_from_rendered)
+        miscat_result = FixIosMiscategorizedResult(
+            action=miscat_action,
+            heic_from_orig=total_heic_from_orig,
+            heic_from_rendered=total_heic_from_rendered,
+            mov_from_orig=total_mov_from_orig,
+            mov_from_rendered=total_mov_from_rendered,
+        )
+
+    return FixIosResult(
+        refresh_combined_result=rc_result,
+        refresh_jpeg_result=rj_result,
+        rm_upstream_result=ru_result,
+        rm_orphan_removed_by_dir=tuple(orphan_by_dir),
+        rm_orphan_sidecar_removed_by_dir=tuple(orphan_sidecar_by_dir),
+        prefer_higher_quality_removed_by_dir=tuple(higher_quality_by_dir),
+        miscategorized_result=miscat_result,
+    )
