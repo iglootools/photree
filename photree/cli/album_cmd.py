@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
-from textwrap import dedent
 from typing import Annotated, Optional
 
 import typer
@@ -27,6 +25,11 @@ from ..album.ios_fixes import (
 from ..album.exporter import export as album_export
 from ..album.exporter import output as export_output
 from ..album.exporter.export import compute_target_dir as export_compute_target_dir
+from ..album.exporter.settings import (
+    ExportSettingsError,
+    resolve_export_settings,
+    validate_export_settings,
+)
 from ..album.importer import image_capture, output as importer_output
 from ..album.importer.image_capture import plan_import_from_dirs, validate_import_plan
 from ..album.importer.preflight import run_preflight
@@ -47,7 +50,6 @@ from ..fs import (
     IMG_EXTENSIONS,
     LinkMode,
     SELECTION_DIR,
-    SHARE_SENTINEL,
     ShareDirectoryLayout,
     VID_EXTENSIONS,
     discover_albums,
@@ -946,103 +948,6 @@ def stats_cmd(
     console.print(stats_output.format_album_stats(result))
 
 
-# ---------------------------------------------------------------------------
-# Export helpers
-# ---------------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class _ResolvedExportSettings:
-    share_dir: Path
-    share_layout: ShareDirectoryLayout
-    album_layout: AlbumShareLayout
-    link_mode: LinkMode
-
-
-def _resolve_export_settings(
-    *,
-    profile_name: str | None,
-    share_dir: Path | None,
-    share_layout: ShareDirectoryLayout | None,
-    album_layout: AlbumShareLayout | None,
-    link_mode: LinkMode | None,
-    config_path: str | None,
-) -> _ResolvedExportSettings:
-    """Resolve export settings: CLI flags > profile > defaults."""
-    profile = None
-    if profile_name is not None:
-        try:
-            cfg = load_config(config_path)
-        except ConfigError as exc:
-            typer.echo(str(exc), err=True)
-            raise typer.Exit(code=2) from exc
-
-        profile = cfg.exporter.profiles.get(profile_name)
-        if profile is None:
-            available = ", ".join(sorted(cfg.exporter.profiles)) or "(none)"
-            typer.echo(
-                f'Unknown profile "{profile_name}". Available profiles: {available}',
-                err=True,
-            )
-            raise typer.Exit(code=1)
-
-    resolved_share_dir = share_dir or (profile.share_dir if profile else None)
-    if resolved_share_dir is None:
-        typer.echo(
-            "No --share-dir specified and no profile selected.",
-            err=True,
-        )
-        raise typer.Exit(code=1)
-
-    resolved_share_layout = (
-        share_layout
-        or (profile.share_layout if profile else None)
-        or ShareDirectoryLayout.FLAT
-    )
-    resolved_album_layout = (
-        album_layout
-        or (profile.album_layout if profile else None)
-        or AlbumShareLayout.MAIN_JPG
-    )
-    resolved_link_mode = (
-        link_mode or (profile.link_mode if profile else None) or LinkMode.HARDLINK
-    )
-
-    return _ResolvedExportSettings(
-        share_dir=resolved_share_dir,
-        share_layout=resolved_share_layout,
-        album_layout=resolved_album_layout,
-        link_mode=resolved_link_mode,
-    )
-
-
-def _validate_export_settings(settings: _ResolvedExportSettings) -> None:
-    """Validate resolved settings, checking sentinel and layout constraints."""
-    if (
-        settings.share_layout == ShareDirectoryLayout.ALBUMS
-        and settings.album_layout != AlbumShareLayout.ALL
-    ):
-        typer.echo(
-            f'The "albums" share layout requires --album-layout=all, '
-            f"but got --album-layout={settings.album_layout.value}.",
-            err=True,
-        )
-        raise typer.Exit(code=1)
-
-    sentinel = settings.share_dir / SHARE_SENTINEL
-    if not sentinel.exists():
-        indent = " " * 2
-        typer.echo(
-            dedent(f"""\
-                Share directory does not contain a {SHARE_SENTINEL} sentinel file: \
-                {settings.share_dir}
-
-                To initialize a share directory, ensure the volume is mounted
-                and create the sentinel file:
-                {indent}touch {sentinel}"""),
-            err=True,
-        )
-        raise typer.Exit(code=1)
 
 
 # ---------------------------------------------------------------------------
@@ -1127,15 +1032,19 @@ def export_cmd(
     --album-layout=all: Copies archival directories (orig-*, edit-*) and
     main-jpg/ as-is, then recreates main-img/ and main-vid/ using --link-mode.
     """
-    settings = _resolve_export_settings(
-        profile_name=profile,
-        share_dir=share_dir,
-        share_layout=share_layout,
-        album_layout=album_layout,
-        link_mode=link_mode,
-        config_path=config,
-    )
-    _validate_export_settings(settings)
+    try:
+        settings = resolve_export_settings(
+            profile_name=profile,
+            share_dir=share_dir,
+            share_layout=share_layout,
+            album_layout=album_layout,
+            link_mode=link_mode,
+            config_path=config,
+        )
+        validate_export_settings(settings)
+    except (ExportSettingsError, ConfigError) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
 
     target_dir = export_compute_target_dir(
         settings.share_dir, album_dir.name, settings.share_layout

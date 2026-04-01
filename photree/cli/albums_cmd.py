@@ -22,13 +22,14 @@ from ..fs import (
     ShareDirectoryLayout,
     display_path,
 )
-from ..album.ios_fixes import FixIosValidationError, validate_fix_flags
-from .album_cmd import (
-    _check_sips_or_exit,
-    _resolve_export_settings,
-    _run_preflight_checks,
-    _validate_export_settings,
+from ..album.exporter.settings import (
+    ExportSettingsError,
+    resolve_export_settings,
+    validate_export_settings,
 )
+from ..album.ios_fixes import FixIosValidationError, validate_fix_flags
+from ..config import ConfigError
+from .album_cmd import _check_sips_or_exit, _run_preflight_checks
 from .batch_ops import (
     run_batch_check,
     run_batch_fix,
@@ -735,15 +736,19 @@ def export_cmd(
         typer.echo("--dir and --album-dir are mutually exclusive.", err=True)
         raise typer.Exit(code=1)
 
-    settings = _resolve_export_settings(
-        profile_name=profile,
-        share_dir=share_dir,
-        share_layout=share_layout,
-        album_layout=album_layout,
-        link_mode=link_mode,
-        config_path=config,
-    )
-    _validate_export_settings(settings)
+    try:
+        settings = resolve_export_settings(
+            profile_name=profile,
+            share_dir=share_dir,
+            share_layout=share_layout,
+            album_layout=album_layout,
+            link_mode=link_mode,
+            config_path=config,
+        )
+        validate_export_settings(settings)
+    except (ExportSettingsError, ConfigError) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
 
     resolved_base = (
         None

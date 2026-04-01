@@ -1166,7 +1166,12 @@ def export_cmd(
     Either scan --dir for albums or provide explicit album directories via
     --album-dir (repeatable). The two options are mutually exclusive.
     """
-    from .album_cmd import _resolve_export_settings, _validate_export_settings
+    from ..album.exporter.settings import (
+        ExportSettingsError,
+        resolve_export_settings,
+        validate_export_settings,
+    )
+    from ..config import ConfigError
     from .progress import BatchProgressBar
 
     cwd = Path.cwd()
@@ -1175,15 +1180,19 @@ def export_cmd(
         typer.echo("--dir and --album-dir are mutually exclusive.", err=True)
         raise typer.Exit(code=1)
 
-    settings = _resolve_export_settings(
-        profile_name=profile,
-        share_dir=share_dir,
-        share_layout=share_layout,
-        album_layout=album_layout,
-        link_mode=link_mode,
-        config_path=config,
-    )
-    _validate_export_settings(settings)
+    try:
+        settings = resolve_export_settings(
+            profile_name=profile,
+            share_dir=share_dir,
+            share_layout=share_layout,
+            album_layout=album_layout,
+            link_mode=link_mode,
+            config_path=config,
+        )
+        validate_export_settings(settings)
+    except (ExportSettingsError, ConfigError) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
 
     resolved_base = (
         None
