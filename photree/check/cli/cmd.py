@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import typer
 
-from ..album import preflight as album_preflight
-from ..album.preflight import output as preflight_output
-from .console import console, err_console
+from ...album import preflight as album_preflight
+from ...album.preflight import output as preflight_output
+from ...clicommons.console import console, err_console
 
 
 def check_cmd() -> None:
