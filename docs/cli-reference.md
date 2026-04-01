@@ -426,6 +426,7 @@ $ photree albums [OPTIONS] COMMAND [ARGS]...
 
 * `init`: Initialize album metadata...
 * `list`: List all discovered albums with their...
+* `rename-from-csv`: Rename albums from a CSV file (from list...
 * `check`: Check all albums under a directory or from...
 * `fix`: Fix all albums under a directory or from...
 * `fix-ios`: Apply fix-ios to all iOS albums under a...
@@ -469,6 +470,32 @@ $ photree albums list [OPTIONS]
 * `--metadata / --no-metadata`: Show parsed album metadata and media sources (default: enabled).  [default: metadata]
 * `--format TEXT`: Output format: text (default) or csv.  [default: text]
 * `-o, --output FILE`: Write output to a file instead of stdout.
+* `--help`: Show this message and exit.
+
+### `photree albums rename-from-csv`
+
+Rename albums from a CSV file (from list --format csv, edited).
+
+Uses the album ID to look up each album, then compares the
+current series, title, and location against the CSV values. Only albums
+where a mutable field changed are renamed. Immutable fields (date, part,
+tags) are preserved from the current on-disk album name.
+
+**Usage**:
+
+```console
+$ photree albums rename-from-csv [OPTIONS] CSV_FILE
+```
+
+**Arguments**:
+
+* `CSV_FILE`: CSV with desired album state (from list --format csv, edited).  [required]
+
+**Options**:
+
+* `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
+* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
+* `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
 ### `photree albums check`

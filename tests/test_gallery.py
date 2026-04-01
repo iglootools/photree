@@ -15,6 +15,7 @@ from photree.fs import (
 from photree.gallery import (
     MissingAlbumIdError,
     build_album_id_to_path_index,
+    build_album_index,
     plan_renames_from_csv,
     resolve_album_path_by_id,
 )
@@ -113,6 +114,45 @@ class TestBuildAlbumIdToPathIndex:
         _, aid = _setup_album(year_dir, "2024-06-15 - Nested")
         index = build_album_id_to_path_index(tmp_path)
         assert aid in index.id_to_path
+
+
+# ---------------------------------------------------------------------------
+# TestBuildAlbumIndex
+# ---------------------------------------------------------------------------
+
+
+class TestBuildAlbumIndex:
+    def test_empty_list(self) -> None:
+        index = build_album_index([])
+        assert index.id_to_path == {}
+        assert index.duplicates == {}
+
+    def test_builds_index_from_list(self, tmp_path: Path) -> None:
+        dir1, aid1 = _setup_album(tmp_path, "2024-06-15 - Trip")
+        dir2, aid2 = _setup_album(tmp_path, "2024-07-20 - Vacation")
+        index = build_album_index([dir1, dir2])
+        assert index.id_to_path == {aid1: dir1, aid2: dir2}
+        assert index.duplicates == {}
+
+    def test_missing_metadata_raises(self, tmp_path: Path) -> None:
+        good_dir, _ = _setup_album(tmp_path, "2024-06-15 - Good")
+        broken = tmp_path / "2024-07-01 - Broken"
+        _setup_media_source(broken)
+        photree_dir = broken / ".photree"
+        photree_dir.mkdir(parents=True, exist_ok=True)
+        (photree_dir / "album.yaml").write_text("")
+
+        with pytest.raises(MissingAlbumIdError) as exc_info:
+            build_album_index([good_dir, broken])
+        assert broken in exc_info.value.albums
+
+    def test_duplicate_ids_detected(self, tmp_path: Path) -> None:
+        shared_id = generate_album_id()
+        dir1, _ = _setup_album(tmp_path, "2024-06-15 - A", album_id=shared_id)
+        dir2, _ = _setup_album(tmp_path, "2024-06-16 - B", album_id=shared_id)
+        index = build_album_index([dir1, dir2])
+        assert shared_id in index.duplicates
+        assert set(index.duplicates[shared_id]) == {dir1, dir2}
 
 
 # ---------------------------------------------------------------------------

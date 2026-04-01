@@ -84,6 +84,7 @@ from .batch_ops import (
     run_batch_fix_ios,
     run_batch_list_albums,
     run_batch_optimize,
+    run_batch_rename_from_csv,
     run_batch_stats,
 )
 from .console import console, err_console
@@ -541,15 +542,6 @@ def rename_from_csv_cmd(
     where a mutable field changed are renamed. Immutable fields (date, part,
     tags) are preserved from the current on-disk album name.
     """
-    import csv
-
-    from ..gallery import plan_renames_from_csv
-    from ..gallery.batch_rename import (
-        RenameCollisionError,
-        check_rename_collisions,
-        execute_renames,
-    )
-
     resolved = _resolve_gallery_or_exit(gallery_dir)
     cwd = Path.cwd()
 
@@ -568,46 +560,7 @@ def rename_from_csv_cmd(
         )
         raise typer.Exit(code=1)
 
-    # Read CSV
-    with open(csv_file, encoding="utf-8") as f:
-        rows = list(csv.DictReader(f))
-
-    if not rows:
-        typer.echo("CSV is empty. Nothing to rename.")
-        raise typer.Exit(code=0)
-
-    # Plan renames
-    actions, errors = plan_renames_from_csv(rows, index.id_to_path)
-
-    if errors:
-        for err in errors:
-            err_console.print(f"  {err}")
-        raise typer.Exit(code=1)
-
-    if not actions:
-        typer.echo(f"{len(rows)} row(s) in CSV. Nothing to rename.")
-        raise typer.Exit(code=0)
-
-    # Check for collisions
-    try:
-        check_rename_collisions(actions)
-    except RenameCollisionError as exc:
-        err_console.print(str(exc))
-        raise typer.Exit(code=1) from exc
-
-    # Display plan
-    typer.echo(f"{len(rows)} row(s) in CSV, {len(actions)} change(s).\n")
-
-    for action in actions:
-        typer.echo(f"  {display_path(action.album_path, cwd)}")
-        typer.echo(f"  → {action.new_name}")
-        typer.echo()
-
-    if dry_run:
-        typer.echo(f"[dry run] {len(actions)} album(s) would be renamed.")
-    else:
-        count = execute_renames(actions)
-        typer.echo(f"Renamed {count} album(s).")
+    run_batch_rename_from_csv(index.id_to_path, csv_file, dry_run=dry_run)
 
 
 @gallery_app.command("stats")
