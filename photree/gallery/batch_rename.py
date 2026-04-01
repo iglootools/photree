@@ -111,8 +111,7 @@ class RenameCollisionError(ValueError):
         self.current_name = current_name
         self.new_name = new_name
         super().__init__(
-            f"Collision: {current_name} → {new_name} "
-            f"conflicts with existing directory"
+            f"Collision: {current_name} → {new_name} conflicts with existing directory"
         )
 
 

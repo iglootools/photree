@@ -55,9 +55,7 @@ def resolve_export_settings(
 
     resolved_share_dir = share_dir or (profile.share_dir if profile else None)
     if resolved_share_dir is None:
-        raise ExportSettingsError(
-            "No --share-dir specified and no profile selected."
-        )
+        raise ExportSettingsError("No --share-dir specified and no profile selected.")
 
     resolved_share_layout = (
         share_layout
