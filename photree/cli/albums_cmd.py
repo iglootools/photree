@@ -56,6 +56,9 @@ from .options import (
     SHARE_LAYOUT_OPTION,
 )
 from .batch_ops import (
+    resolve_batch_albums,
+    resolve_check_batch_albums,
+    resolve_init_batch_albums,
     run_batch_check,
     run_batch_fix,
     run_batch_fix_ios,
@@ -64,11 +67,6 @@ from .batch_ops import (
     run_batch_optimize,
     run_batch_rename_from_csv,
     run_batch_stats,
-)
-from .gallery_cmd import (
-    _resolve_batch_albums,
-    _resolve_check_batch_albums,
-    _resolve_init_batch_albums,
 )
 
 albums_app = typer.Typer(
@@ -113,7 +111,7 @@ def init_cmd(
     dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """Initialize album metadata (.photree/album.yaml) for multiple albums."""
-    albums, display_base = _resolve_init_batch_albums(base_dir, album_dirs)
+    albums, display_base = resolve_init_batch_albums(base_dir, album_dirs)
     run_batch_init(albums, display_base, dry_run=dry_run)
 
 
@@ -147,7 +145,7 @@ def list_cmd(
     ] = None,
 ) -> None:
     """List all discovered albums with their metadata and media sources."""
-    albums, display_base = _resolve_check_batch_albums(base_dir, album_dirs)
+    albums, display_base = resolve_check_batch_albums(base_dir, album_dirs)
     run_batch_list_albums(
         albums,
         display_base,
@@ -184,7 +182,7 @@ def rename_from_csv_cmd(
     from .console import err_console
 
     cwd = Path.cwd()
-    albums, _ = _resolve_check_batch_albums(base_dir, album_dirs)
+    albums, _ = resolve_check_batch_albums(base_dir, album_dirs)
 
     # Build album index
     try:
@@ -226,7 +224,7 @@ def check_cmd(
     check_exif_date_match: CHECK_EXIF_DATE_MATCH_OPTION = True,
 ) -> None:
     """Check all albums under a directory or from an explicit list."""
-    albums, display_base = _resolve_check_batch_albums(base_dir, album_dirs)
+    albums, display_base = resolve_check_batch_albums(base_dir, album_dirs)
     run_batch_check(
         albums,
         display_base,
@@ -266,7 +264,7 @@ def fix_cmd(
     if refresh_jpeg:
         _check_sips_or_exit()
 
-    albums, display_base = _resolve_check_batch_albums(base_dir, album_dirs)
+    albums, display_base = resolve_check_batch_albums(base_dir, album_dirs)
 
     run_batch_fix(
         albums,
@@ -311,7 +309,7 @@ def fix_ios_cmd(
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=1) from exc
 
-    albums, display_base = _resolve_batch_albums(base_dir, album_dirs)
+    albums, display_base = resolve_batch_albums(base_dir, album_dirs)
     run_batch_fix_ios(
         albums,
         display_base,
@@ -339,7 +337,7 @@ def optimize_cmd(
     dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """Optimize all iOS albums under a directory or from an explicit list."""
-    albums, display_base = _resolve_batch_albums(base_dir, album_dirs)
+    albums, display_base = resolve_batch_albums(base_dir, album_dirs)
     run_batch_optimize(
         albums,
         display_base,
@@ -356,7 +354,7 @@ def stats_cmd(
     album_dirs: Annotated[Optional[list[Path]], _ALBUM_DIR_OPTION] = None,
 ) -> None:
     """Show aggregated disk usage and content statistics for all albums."""
-    albums, display_base = _resolve_check_batch_albums(base_dir, album_dirs)
+    albums, display_base = resolve_check_batch_albums(base_dir, album_dirs)
     run_batch_stats(albums, display_base)
 
 
