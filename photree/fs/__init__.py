@@ -1,6 +1,12 @@
 """Filesystem protocol, repository, and helpers for photree albums."""
 
-from .fileutils import display_path, file_ext, list_files, matching_subdirectories
+from .fileutils import (
+    count_unique_media_numbers,
+    display_path,
+    file_ext,
+    list_files,
+    matching_subdirectories,
+)
 from .ios import (
     PICTURE_PRIORITY_EXTENSIONS,
     _group_by_number,
@@ -64,6 +70,7 @@ from .repo import (
 
 __all__ = [
     # fileutils
+    "count_unique_media_numbers",
     "display_path",
     "file_ext",
     "list_files",
