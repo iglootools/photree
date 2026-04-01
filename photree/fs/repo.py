@@ -197,9 +197,7 @@ def discover_media_sources(album_dir: Path) -> list[MediaSource]:
 
     # 1. iOS media sources
     ios_names = {
-        d.name.removeprefix(IOS_DIR_PREFIX)
-        for d in subdirs
-        if _is_ios_source_dir(d)
+        d.name.removeprefix(IOS_DIR_PREFIX) for d in subdirs if _is_ios_source_dir(d)
     }
 
     # 2. Plain media sources: browsable dirs not backed by an ios-{name}/ dir
