@@ -7,22 +7,21 @@ output formatting, exit codes) are handled by the caller.
 
 from __future__ import annotations
 
-import shutil
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from rich.console import Console
-
-from ..uiconventions import CHECK
-
-from . import combined as combined_module
-from . import jpeg
-from .combined import RefreshMainDirResult
+from .fixes import (
+    RefreshBrowsableResult,
+    RmOrphanResult,
+    RmUpstreamResult,
+    refresh_browsable as _fixes_refresh_browsable,
+    refresh_jpeg as _fixes_refresh_jpeg,
+    rm_orphan as _fixes_rm_orphan,
+    rm_upstream as _fixes_rm_upstream,
+)
 from .jpeg import RefreshResult, convert_single_file
 from ..fs import (
-    CONVERT_TO_JPEG_EXTENSIONS,
-    COPY_AS_IS_TO_JPEG_EXTENSIONS,
     MediaSource,
     IOS_IMG_EXTENSIONS,
     LinkMode,
@@ -30,39 +29,20 @@ from ..fs import (
     PICTURE_PRIORITY_EXTENSIONS,
     SIDECAR_EXTENSIONS,
     delete_files,
-    display_path,
-    find_files_by_number,
     list_files,
     move_files,
 )
 
-_console = Console(highlight=False)
+
+def _ext(filename: str) -> str:
+    return Path(filename).suffix.lower()
 
 
-def _delete_dir(directory: Path, *, dry_run: bool, log_cwd: Path | None) -> None:
-    """Delete a directory and all its contents."""
-    if not directory.is_dir():
-        return
-
-    if not dry_run:
-        shutil.rmtree(directory)
-
-    if log_cwd is not None:
-        _console.print(
-            f"{CHECK} {'[dry-run] ' if dry_run else ''}delete {display_path(directory, log_cwd)}"
-        )
+def _img_number(filename: str) -> str:
+    return "".join(c for c in filename if c.isdigit())
 
 
-@dataclass(frozen=True)
-class RefreshCombinedResult:
-    """Result of refreshing all main directories."""
-
-    heic: RefreshMainDirResult
-    mov: RefreshMainDirResult
-    jpeg: RefreshResult | None
-
-
-def refresh_combined(
+def refresh_browsable(
     album_dir: Path,
     ms: MediaSource,
     *,
@@ -72,71 +52,22 @@ def refresh_combined(
     convert_file: Callable[..., Path | None] = convert_single_file,
     on_stage_start: Callable[[str], None] | None = None,
     on_stage_end: Callable[[str], None] | None = None,
-) -> RefreshCombinedResult:
+) -> RefreshBrowsableResult:
     """Delete main dirs, rebuild main-img/vid, then jpeg if applicable.
 
-    Stage callbacks fire for: ``delete``, ``refresh-heic``, ``refresh-mov``,
-    ``refresh-jpeg``.
+    iOS-only wrapper around :func:`fixes.refresh_browsable`.
     """
     assert ms.is_ios, "ios_fixes operations require an iOS media source"
-    main_img = album_dir / ms.img_dir
-    main_vid = album_dir / ms.vid_dir
-    main_jpg = album_dir / ms.jpg_dir
-
-    # Delete all main directories
-    if on_stage_start:
-        on_stage_start("delete")
-    for d in (main_img, main_vid, main_jpg):
-        _delete_dir(d, dry_run=dry_run, log_cwd=log_cwd)
-    if on_stage_end:
-        on_stage_end("delete")
-
-    # Rebuild main-img
-    if on_stage_start:
-        on_stage_start("refresh-heic")
-    heic_result = combined_module.refresh_main_dir(
-        album_dir / ms.orig_img_dir,
-        album_dir / ms.edit_img_dir,
-        main_img,
-        media_extensions=IOS_IMG_EXTENSIONS,
+    return _fixes_refresh_browsable(
+        album_dir,
+        ms,
         link_mode=link_mode,
         dry_run=dry_run,
+        log_cwd=log_cwd,
+        convert_file=convert_file,
+        on_stage_start=on_stage_start,
+        on_stage_end=on_stage_end,
     )
-    if on_stage_end:
-        on_stage_end("refresh-heic")
-
-    # Rebuild main-vid
-    if on_stage_start:
-        on_stage_start("refresh-mov")
-    mov_result = combined_module.refresh_main_dir(
-        album_dir / ms.orig_vid_dir,
-        album_dir / ms.edit_vid_dir,
-        main_vid,
-        media_extensions=IOS_VID_EXTENSIONS,
-        link_mode=link_mode,
-        dry_run=dry_run,
-    )
-    if on_stage_end:
-        on_stage_end("refresh-mov")
-
-    # Rebuild main-jpg if main-img was created
-    has_main_img = main_img.is_dir() if not dry_run else heic_result.copied > 0
-    if on_stage_start:
-        on_stage_start("refresh-jpeg")
-    jpeg_result = (
-        jpeg.refresh_jpeg_dir(
-            main_img,
-            main_jpg,
-            dry_run=dry_run,
-            convert_file=convert_file,
-        )
-        if has_main_img
-        else None
-    )
-    if on_stage_end:
-        on_stage_end("refresh-jpeg")
-
-    return RefreshCombinedResult(heic=heic_result, mov=mov_result, jpeg=jpeg_result)
 
 
 def refresh_jpeg(
@@ -151,12 +82,10 @@ def refresh_jpeg(
 ) -> RefreshResult:
     """Refresh main-jpg/ from main-img/ (iOS media source only).
 
-    Delegates to :func:`fixes.refresh_jpeg` with an iOS assertion.
+    iOS-only wrapper around :func:`fixes.refresh_jpeg`.
     """
     assert ms.is_ios, "ios_fixes operations require an iOS media source"
-    from .fixes import refresh_jpeg as generic_refresh_jpeg
-
-    return generic_refresh_jpeg(
+    return _fixes_refresh_jpeg(
         album_dir,
         ms,
         dry_run=dry_run,
@@ -164,185 +93,6 @@ def refresh_jpeg(
         convert_file=convert_file,
         on_file_start=on_file_start,
         on_file_end=on_file_end,
-    )
-
-
-# ---------------------------------------------------------------------------
-# rm-upstream
-# ---------------------------------------------------------------------------
-
-
-def _ext(filename: str) -> str:
-    return Path(filename).suffix.lower()
-
-
-def _img_number(filename: str) -> str:
-    return "".join(c for c in filename if c.isdigit())
-
-
-def _expected_jpeg_name(heic_filename: str) -> str | None:
-    """Return the expected JPEG filename for a main-img file."""
-    ext = _ext(heic_filename)
-    if ext in CONVERT_TO_JPEG_EXTENSIONS:
-        return Path(heic_filename).with_suffix(".jpg").name
-    elif ext in COPY_AS_IS_TO_JPEG_EXTENSIONS:
-        return heic_filename
-    else:
-        return None
-
-
-@dataclass(frozen=True)
-class RmUpstreamHeicResult:
-    """Result of propagating image deletions."""
-
-    removed_jpeg: tuple[str, ...]
-    removed_combined: tuple[str, ...]
-    removed_rendered: tuple[str, ...]
-    removed_orig: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class RmUpstreamMovResult:
-    """Result of propagating video deletions."""
-
-    removed_rendered: tuple[str, ...]
-    removed_orig: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class RmUpstreamResult:
-    """Result of propagating deletions from browsing dirs to upstream dirs."""
-
-    heic: RmUpstreamHeicResult
-    mov: RmUpstreamMovResult
-
-
-def _rm_upstream_heic(
-    album_dir: Path,
-    ms: MediaSource,
-    *,
-    dry_run: bool,
-    log_cwd: Path | None,
-) -> RmUpstreamHeicResult:
-    """Propagate image deletions through the full chain.
-
-    Detects deletions from two entry points:
-    - main-jpg: files missing relative to main-img
-    - main-img: files missing relative to what orig/edited would produce
-
-    Both are merged and propagated to all upstream dirs.
-    """
-    assert ms.is_ios, "ios_fixes operations require an iOS media source"
-    main_img_dir = album_dir / ms.img_dir
-    main_jpg_dir = album_dir / ms.jpg_dir
-    orig_img_dir = album_dir / ms.orig_img_dir
-    edit_img_dir = album_dir / ms.edit_img_dir
-
-    main_img_files = set(list_files(main_img_dir))
-    main_jpg_files = set(list_files(main_jpg_dir))
-
-    # Source 1: files deleted from main-jpg (relative to main-img)
-    numbers_from_jpeg = {
-        _img_number(f)
-        for f in main_img_files
-        if (jpeg_name := _expected_jpeg_name(f)) is not None
-        and jpeg_name not in main_jpg_files
-    }
-
-    # Source 2: files deleted from main-img (relative to orig/edited)
-    expected_main = {
-        filename
-        for filename, _source_dir in combined_module.compute_main_files(
-            orig_img_dir, edit_img_dir, IOS_IMG_EXTENSIONS
-        )
-    }
-    numbers_from_heic = {
-        _img_number(f) for f in expected_main if f not in main_img_files
-    }
-
-    numbers_to_remove = numbers_from_jpeg | numbers_from_heic
-
-    if not numbers_to_remove:
-        return RmUpstreamHeicResult(
-            removed_jpeg=(), removed_combined=(), removed_rendered=(), removed_orig=()
-        )
-
-    # Delete from main-jpg
-    jpeg_to_remove = find_files_by_number(numbers_to_remove, main_jpg_dir)
-    delete_files(main_jpg_dir, jpeg_to_remove, dry_run=dry_run, log_cwd=log_cwd)
-
-    # Delete from main-img
-    heic_to_remove = find_files_by_number(numbers_to_remove, main_img_dir)
-    delete_files(main_img_dir, heic_to_remove, dry_run=dry_run, log_cwd=log_cwd)
-
-    # Delete from edit-img and orig-img
-    edit_to_remove = find_files_by_number(numbers_to_remove, edit_img_dir)
-    delete_files(edit_img_dir, edit_to_remove, dry_run=dry_run, log_cwd=log_cwd)
-
-    orig_to_remove = find_files_by_number(numbers_to_remove, orig_img_dir)
-    delete_files(orig_img_dir, orig_to_remove, dry_run=dry_run, log_cwd=log_cwd)
-
-    return RmUpstreamHeicResult(
-        removed_jpeg=tuple(jpeg_to_remove),
-        removed_combined=tuple(heic_to_remove),
-        removed_rendered=tuple(edit_to_remove),
-        removed_orig=tuple(orig_to_remove),
-    )
-
-
-def _rm_upstream_mov(
-    album_dir: Path,
-    ms: MediaSource,
-    *,
-    dry_run: bool,
-    log_cwd: Path | None,
-) -> RmUpstreamMovResult:
-    """Propagate deletions from main-vid to edit-vid, orig-vid.
-
-    Files missing from main-vid (relative to orig-vid/edit-vid) are treated
-    as intentional deletions. The corresponding files are removed from upstream dirs.
-    """
-    assert ms.is_ios, "ios_fixes operations require an iOS media source"
-    main_vid_dir = album_dir / ms.vid_dir
-    orig_vid_dir = album_dir / ms.orig_vid_dir
-
-    main_vid_files = set(list_files(main_vid_dir))
-    orig_vid_files = list_files(orig_vid_dir)
-
-    # Find image numbers present in orig-vid but missing from main-vid
-    main_numbers = {_img_number(f) for f in main_vid_files}
-    orig_numbers = {
-        _img_number(f): f for f in orig_vid_files if _ext(f) in IOS_VID_EXTENSIONS
-    }
-    numbers_to_remove = {num for num in orig_numbers if num not in main_numbers}
-
-    if not numbers_to_remove:
-        return RmUpstreamMovResult(removed_rendered=(), removed_orig=())
-
-    # Delete matching files from edit-vid and orig-vid (by image number)
-    edit_to_remove = find_files_by_number(
-        numbers_to_remove, album_dir / ms.edit_vid_dir
-    )
-    delete_files(
-        album_dir / ms.edit_vid_dir,
-        edit_to_remove,
-        dry_run=dry_run,
-        log_cwd=log_cwd,
-    )
-
-    orig_to_remove = find_files_by_number(
-        numbers_to_remove, album_dir / ms.orig_vid_dir
-    )
-    delete_files(
-        album_dir / ms.orig_vid_dir,
-        orig_to_remove,
-        dry_run=dry_run,
-        log_cwd=log_cwd,
-    )
-
-    return RmUpstreamMovResult(
-        removed_rendered=tuple(edit_to_remove),
-        removed_orig=tuple(orig_to_remove),
     )
 
 
@@ -355,94 +105,10 @@ def rm_upstream(
 ) -> RmUpstreamResult:
     """Propagate deletions from browsing dirs to upstream dirs.
 
-    Images: deletions detected from main-jpg or main-img are
-    propagated to main-jpg, main-img, edit-img, and orig-img.
-
-    Videos: files missing from main-vid (relative to orig-vid) are
-    removed from edit-vid and orig-vid.
+    iOS-only wrapper around :func:`fixes.rm_upstream`.
     """
     assert ms.is_ios, "ios_fixes operations require an iOS media source"
-    return RmUpstreamResult(
-        heic=_rm_upstream_heic(album_dir, ms, dry_run=dry_run, log_cwd=log_cwd),
-        mov=_rm_upstream_mov(album_dir, ms, dry_run=dry_run, log_cwd=log_cwd),
-    )
-
-
-# ---------------------------------------------------------------------------
-# rm-orphan
-# ---------------------------------------------------------------------------
-
-
-def _orig_numbers(directory: Path, media_extensions: frozenset[str]) -> set[str]:
-    """Return the set of image numbers present in an orig directory."""
-    return {
-        _img_number(f) for f in list_files(directory) if _ext(f) in media_extensions
-    }
-
-
-@dataclass(frozen=True)
-class RmOrphanDirResult:
-    """Result of removing orphans for one media type."""
-
-    removed_by_dir: tuple[tuple[str, tuple[str, ...]], ...]
-
-    @property
-    def total(self) -> int:
-        return sum(len(files) for _, files in self.removed_by_dir)
-
-
-@dataclass(frozen=True)
-class RmOrphanResult:
-    """Result of removing orphaned files."""
-
-    heic: RmOrphanDirResult
-    mov: RmOrphanDirResult
-
-
-def _rm_orphans_in_dir(
-    orig_numbers: set[str],
-    directory: Path,
-    *,
-    dry_run: bool,
-    log_cwd: Path | None,
-) -> tuple[str, tuple[str, ...]] | None:
-    """Remove orphan files from a single directory. Returns (dir_name, removed) or None."""
-    if not directory.is_dir():
-        return None
-    orphans = _find_orphan_files(orig_numbers, directory)
-    if not orphans:
-        return None
-    delete_files(directory, orphans, dry_run=dry_run, log_cwd=log_cwd)
-    return (directory.name, tuple(orphans))
-
-
-def _rm_orphans_in_dirs(
-    orig_numbers: set[str],
-    directories: tuple[Path, ...],
-    *,
-    dry_run: bool,
-    log_cwd: Path | None,
-) -> RmOrphanDirResult:
-    """Remove files from directories whose image number has no orig counterpart."""
-    return RmOrphanDirResult(
-        removed_by_dir=tuple(
-            result
-            for d in directories
-            if (
-                result := _rm_orphans_in_dir(
-                    orig_numbers, d, dry_run=dry_run, log_cwd=log_cwd
-                )
-            )
-            is not None
-        )
-    )
-
-
-def _find_orphan_files(orig_numbers: set[str], directory: Path) -> list[str]:
-    """Find files whose image number is not in the orig set."""
-    return sorted(
-        f for f in list_files(directory) if _img_number(f) not in orig_numbers
-    )
+    return _fixes_rm_upstream(album_dir, ms, dry_run=dry_run, log_cwd=log_cwd)
 
 
 def rm_orphan(
@@ -454,37 +120,10 @@ def rm_orphan(
 ) -> RmOrphanResult:
     """Remove edited and main files that have no corresponding orig file.
 
-    Images: files in edit-img, main-img, and main-jpg whose
-    image number is not present in orig-img are deleted.
-
-    Videos: files in edit-vid and main-vid whose image number is not
-    present in orig-vid are deleted.
+    iOS-only wrapper around :func:`fixes.rm_orphan`.
     """
     assert ms.is_ios, "ios_fixes operations require an iOS media source"
-    heic_numbers = _orig_numbers(album_dir / ms.orig_img_dir, IOS_IMG_EXTENSIONS)
-    mov_numbers = _orig_numbers(album_dir / ms.orig_vid_dir, IOS_VID_EXTENSIONS)
-
-    return RmOrphanResult(
-        heic=_rm_orphans_in_dirs(
-            heic_numbers,
-            (
-                album_dir / ms.edit_img_dir,
-                album_dir / ms.img_dir,
-                album_dir / ms.jpg_dir,
-            ),
-            dry_run=dry_run,
-            log_cwd=log_cwd,
-        ),
-        mov=_rm_orphans_in_dirs(
-            mov_numbers,
-            (
-                album_dir / ms.edit_vid_dir,
-                album_dir / ms.vid_dir,
-            ),
-            dry_run=dry_run,
-            log_cwd=log_cwd,
-        ),
-    )
+    return _fixes_rm_orphan(album_dir, ms, dry_run=dry_run, log_cwd=log_cwd)
 
 
 # ---------------------------------------------------------------------------
@@ -813,7 +452,7 @@ class FixIosValidationError(ValueError):
 
 def validate_fix_flags(
     *,
-    refresh_combined: bool,
+    refresh_browsable: bool,
     refresh_jpeg: bool,
     rm_upstream: bool,
     rm_orphan: bool,
@@ -835,7 +474,7 @@ def validate_fix_flags(
         )
 
     any_fix = (
-        refresh_combined
+        refresh_browsable
         or refresh_jpeg
         or rm_upstream
         or rm_orphan
@@ -850,8 +489,8 @@ def validate_fix_flags(
 
 
 @dataclass(frozen=True)
-class FixIosRefreshCombinedResult:
-    """Aggregated result of refresh-combined across media sources."""
+class FixIosRefreshBrowsableResult:
+    """Aggregated result of refresh-browsable across media sources."""
 
     heic_copied: int
     mov_copied: int
@@ -874,7 +513,7 @@ class FixIosRmUpstreamResult:
     """Aggregated result of rm-upstream across media sources."""
 
     heic_jpeg: int
-    heic_combined: int
+    heic_browsable: int
     heic_rendered: int
     heic_orig: int
     mov_rendered: int
@@ -896,7 +535,7 @@ class FixIosMiscategorizedResult:
 class FixIosResult:
     """Aggregated result of all fix-ios operations on a single album."""
 
-    refresh_combined_result: FixIosRefreshCombinedResult | None = None
+    refresh_browsable_result: FixIosRefreshBrowsableResult | None = None
     refresh_jpeg_result: FixIosRefreshJpegResult | None = None
     rm_upstream_result: FixIosRmUpstreamResult | None = None
     rm_orphan_removed_by_dir: tuple[tuple[str, tuple[str, ...]], ...] = ()
@@ -921,7 +560,7 @@ def run_fix_ios(
     link_mode: LinkMode,
     dry_run: bool,
     log_cwd: Path | None = None,
-    refresh_combined_flag: bool = False,
+    refresh_browsable_flag: bool = False,
     refresh_jpeg_flag: bool = False,
     rm_upstream: bool = False,
     rm_orphan: bool = False,
@@ -930,8 +569,8 @@ def run_fix_ios(
     rm_miscategorized: bool = False,
     rm_miscategorized_safe: bool = False,
     mv_miscategorized: bool = False,
-    on_refresh_combined_stage_start: Callable[[str], None] | None = None,
-    on_refresh_combined_stage_end: Callable[[str], None] | None = None,
+    on_refresh_browsable_stage_start: Callable[[str], None] | None = None,
+    on_refresh_browsable_stage_end: Callable[[str], None] | None = None,
     on_refresh_jpeg_file_start: Callable[[str], None] | None = None,
     on_refresh_jpeg_file_end: Callable[[str, bool], None] | None = None,
 ) -> FixIosResult:
@@ -956,27 +595,27 @@ def run_fix_ios(
     higher_quality_by_dir: list[tuple[str, tuple[str, ...]]] = []
     miscat_result = None
 
-    if refresh_combined_flag:
+    if refresh_browsable_flag:
         total_heic = 0
         total_mov = 0
         total_jpeg_converted = 0
         total_jpeg_copied = 0
         total_jpeg_skipped = 0
         for ms in media_sources:
-            result = refresh_combined(
+            result = refresh_browsable(
                 album_dir,
                 ms,
                 link_mode=link_mode,
                 dry_run=dry_run,
-                on_stage_start=on_refresh_combined_stage_start,
-                on_stage_end=on_refresh_combined_stage_end,
+                on_stage_start=on_refresh_browsable_stage_start,
+                on_stage_end=on_refresh_browsable_stage_end,
             )
             total_heic += result.heic.copied
             total_mov += result.mov.copied
             total_jpeg_converted += result.jpeg.converted if result.jpeg else 0
             total_jpeg_copied += result.jpeg.copied if result.jpeg else 0
             total_jpeg_skipped += result.jpeg.skipped if result.jpeg else 0
-        rc_result = FixIosRefreshCombinedResult(
+        rc_result = FixIosRefreshBrowsableResult(
             heic_copied=total_heic,
             mov_copied=total_mov,
             jpeg_converted=total_jpeg_converted,
@@ -1009,7 +648,7 @@ def run_fix_ios(
 
     if rm_upstream:
         total_heic_jpeg = 0
-        total_heic_combined = 0
+        total_heic_browsable = 0
         total_heic_rendered = 0
         total_heic_orig = 0
         total_mov_rendered = 0
@@ -1017,14 +656,14 @@ def run_fix_ios(
         for ms in media_sources:
             result_rm = _do_rm_upstream(album_dir, ms, dry_run=dry_run, log_cwd=log_cwd)
             total_heic_jpeg += len(result_rm.heic.removed_jpeg)
-            total_heic_combined += len(result_rm.heic.removed_combined)
+            total_heic_browsable += len(result_rm.heic.removed_browsable)
             total_heic_rendered += len(result_rm.heic.removed_rendered)
             total_heic_orig += len(result_rm.heic.removed_orig)
             total_mov_rendered += len(result_rm.mov.removed_rendered)
             total_mov_orig += len(result_rm.mov.removed_orig)
         ru_result = FixIosRmUpstreamResult(
             heic_jpeg=total_heic_jpeg,
-            heic_combined=total_heic_combined,
+            heic_browsable=total_heic_browsable,
             heic_rendered=total_heic_rendered,
             heic_orig=total_heic_orig,
             mov_rendered=total_mov_rendered,
@@ -1087,7 +726,7 @@ def run_fix_ios(
         )
 
     return FixIosResult(
-        refresh_combined_result=rc_result,
+        refresh_browsable_result=rc_result,
         refresh_jpeg_result=rj_result,
         rm_upstream_result=ru_result,
         rm_orphan_removed_by_dir=tuple(orphan_by_dir),

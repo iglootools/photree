@@ -48,7 +48,7 @@ def _format_count(n: int) -> str:
 def _media_source_type_summary(
     by_type: tuple[tuple[MediaSourceType, int], ...],
 ) -> str:
-    """Format media source type counts, e.g. ``'2 iOS, 1 plain'``."""
+    """Format media source type counts, e.g. ``'2 iOS, 1 std'``."""
     return ", ".join(f"{count} {mst}" for mst, count in by_type)
 
 
@@ -108,7 +108,7 @@ _LEGEND = Text.from_markup(
     "[bold]Legend[/bold]\n"
     "  [bold]On-Disk[/bold]    Actual disk usage (inode-deduplicated; hardlinks and symlinks counted once)\n"
     "  [bold]Size[/bold]       Apparent size (naive sum of all file sizes)\n"
-    "  [bold]Archive[/bold]    Original and edited files in ios-{{name}}/ archival directories\n"
+    "  [bold]Archive[/bold]    Original and edited files in archival directories (ios-{{name}}/ or std-{{name}}/)\n"
     "  [bold]Browsable[/bold]  Best-version files in {{name}}-img/ and {{name}}-vid/ (typically links to archive)\n"
     "  [bold]Derived[/bold]    JPEG conversions in {{name}}-jpg/\n"
     "  [bold]Size[/bold] = [bold]Archive[/bold] + [bold]Browsable[/bold] + [bold]Derived[/bold]\n"
@@ -215,7 +215,12 @@ def _media_type_table(agg: AggregateStats) -> Table:
 
 
 def _source_type_table(agg: AggregateStats) -> Table:
-    """Breakdown by media source type (iOS / plain)."""
+    """Breakdown by media source type (iOS / std).
+
+    Note: archive/original/derived are combined across all types in the
+    aggregate, so per-type size breakdowns are approximate when both iOS
+    and std sources coexist.
+    """
     table = Table(title="By Media Source Type", box=_TABLE_BOX)
     table.add_column("Type")
     table.add_column("Files", justify="right")
@@ -224,42 +229,31 @@ def _source_type_table(agg: AggregateStats) -> Table:
     ios_count = sum(
         c for mst, c in agg.by_media_source_type if mst == MediaSourceType.IOS
     )
-    plain_count = sum(
-        c for mst, c in agg.by_media_source_type if mst == MediaSourceType.PLAIN
+    std_count = sum(
+        c for mst, c in agg.by_media_source_type if mst == MediaSourceType.STD
     )
 
     if ios_count > 0:
-        ios_total = (
-            agg.archive.apparent_bytes
-            + agg.original.apparent_bytes
-            + agg.derived.apparent_bytes
-        )
-        ios_on_disk = (
-            agg.archive.on_disk_bytes
-            + agg.original.on_disk_bytes
-            + agg.derived.on_disk_bytes
-        )
         table.add_row(
             f"iOS ({ios_count})",
-            _format_count(
-                agg.archive.file_count
-                + agg.original.file_count
-                + agg.derived.file_count
-            ),
+            _format_count(agg.total.file_count),
             *_size_cells(
-                ios_total,
-                ios_on_disk,
+                agg.total.apparent_bytes,
+                agg.total.on_disk_bytes,
                 agg.archive.apparent_bytes,
                 agg.derived.apparent_bytes,
             ),
         )
-    if plain_count > 0:
-        plain_total = agg.original.apparent_bytes + agg.derived.apparent_bytes
-        plain_on_disk = agg.original.on_disk_bytes + agg.derived.on_disk_bytes
+    if std_count > 0:
         table.add_row(
-            f"Plain ({plain_count})",
-            _format_count(agg.original.file_count + agg.derived.file_count),
-            *_size_cells(plain_total, plain_on_disk, 0, agg.derived.apparent_bytes),
+            f"Std ({std_count})",
+            _format_count(agg.total.file_count),
+            *_size_cells(
+                agg.total.apparent_bytes,
+                agg.total.on_disk_bytes,
+                agg.archive.apparent_bytes,
+                agg.derived.apparent_bytes,
+            ),
         )
 
     return table
@@ -276,11 +270,6 @@ def _per_media_source_table(
     _size_columns(table)
 
     for ms in media_sources:
-        archive = (
-            ms.archive.apparent_bytes
-            if ms.media_source_type == MediaSourceType.IOS
-            else 0
-        )
         table.add_row(
             ms.name,
             str(ms.media_source_type),
@@ -288,7 +277,7 @@ def _per_media_source_table(
             *_size_cells(
                 ms.total.apparent_bytes,
                 ms.total.on_disk_bytes,
-                archive,
+                ms.archive.apparent_bytes,
                 ms.derived.apparent_bytes,
             ),
         )

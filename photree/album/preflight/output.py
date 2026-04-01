@@ -167,7 +167,7 @@ def format_album_preflight_checks(
                     result.dir_check.optional_present,
                     result.dir_check.optional_absent,
                 ).splitlines()
-                if result.media_source_summary.has_ios
+                if result.media_source_summary.media_sources
                 else []
             ),
             *(

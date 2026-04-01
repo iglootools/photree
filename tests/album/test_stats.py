@@ -10,10 +10,8 @@ from photree.album.stats import (
     FormatStats,
     SizeStats,
     _categorize_size_stats,
-    _count_unique_pictures_ios,
-    _count_unique_pictures_plain,
-    _count_unique_videos_ios,
-    _count_unique_videos_plain,
+    _count_unique_pictures,
+    _count_unique_videos,
     _extract_year,
     _merge_format_stats,
     _merge_size_stats,
@@ -28,7 +26,7 @@ from photree.fs import (
     MediaSourceType,
     PHOTREE_DIR,
     generate_album_id,
-    plain_media_source,
+    std_media_source,
     save_album_metadata,
 )
 
@@ -176,34 +174,49 @@ class TestCategorizeSizeStats:
 
 
 class TestUniqueMediaCounting:
-    def test_unique_pictures_ios(self, tmp_path: Path) -> None:
+    def test_unique_pictures_ios_with_archive(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         ms = MAIN_MEDIA_SOURCE
         _write(album / ms.orig_img_dir / "IMG_0001.HEIC")
         _write(album / ms.orig_img_dir / "IMG_0002.HEIC")
         _write(album / ms.orig_img_dir / "IMG_0002.AAE")  # sidecar, not a picture
-        assert _count_unique_pictures_ios(album, ms) == 2
+        assert _count_unique_pictures(album, ms, has_archive=True) == 2
 
-    def test_unique_pictures_plain(self, tmp_path: Path) -> None:
+    def test_unique_pictures_std_without_archive(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
-        ms = plain_media_source("nelu")
+        ms = std_media_source("nelu")
         _write(album / ms.img_dir / "photo1.heic")
         _write(album / ms.img_dir / "photo2.jpg")
         _write(album / ms.img_dir / "photo2.aae")  # not IMG_EXTENSIONS
-        assert _count_unique_pictures_plain(album, ms) == 2
+        assert _count_unique_pictures(album, ms, has_archive=False) == 2
 
-    def test_unique_videos_ios(self, tmp_path: Path) -> None:
+    def test_unique_pictures_std_with_archive(self, tmp_path: Path) -> None:
+        album = tmp_path / "album"
+        ms = std_media_source("nelu")
+        _write(album / ms.orig_img_dir / "photo1.heic")
+        _write(album / ms.orig_img_dir / "photo2.jpg")
+        _write(album / ms.orig_img_dir / "photo2.aae")  # not IMG_EXTENSIONS
+        assert _count_unique_pictures(album, ms, has_archive=True) == 2
+
+    def test_unique_videos_ios_with_archive(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         ms = MAIN_MEDIA_SOURCE
         _write(album / ms.orig_vid_dir / "IMG_0001.MOV")
         _write(album / ms.orig_vid_dir / "IMG_0002.MOV")
-        assert _count_unique_videos_ios(album, ms) == 2
+        assert _count_unique_videos(album, ms, has_archive=True) == 2
 
-    def test_unique_videos_plain(self, tmp_path: Path) -> None:
+    def test_unique_videos_std_without_archive(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
-        ms = plain_media_source("nelu")
+        ms = std_media_source("nelu")
         _write(album / ms.vid_dir / "clip1.mov")
-        assert _count_unique_videos_plain(album, ms) == 1
+        assert _count_unique_videos(album, ms, has_archive=False) == 1
+
+    def test_unique_videos_std_with_archive(self, tmp_path: Path) -> None:
+        album = tmp_path / "album"
+        ms = std_media_source("nelu")
+        _write(album / ms.orig_vid_dir / "clip1.mov")
+        _write(album / ms.orig_vid_dir / "clip2.mov")
+        assert _count_unique_videos(album, ms, has_archive=True) == 2
 
 
 # ---------------------------------------------------------------------------
@@ -301,10 +314,10 @@ class TestComputeMediaSourceStats:
         # Derived images should be the jpg dir contents
         assert result.images.derived.file_count == 2  # IMG_E0001.jpg + IMG_0002.PNG
 
-    def test_plain_source(self, tmp_path: Path) -> None:
+    def test_std_source_without_archive(self, tmp_path: Path) -> None:
         album = tmp_path / "2024-07-14 - Test"
         _make_album(album)
-        ms = plain_media_source("nelu")
+        ms = std_media_source("nelu")
         _write(album / ms.img_dir / "photo1.heic", "x" * 100)
         _write(album / ms.img_dir / "photo2.jpg", "y" * 80)
         _write(album / ms.vid_dir / "clip1.mov", "z" * 500)
@@ -314,12 +327,54 @@ class TestComputeMediaSourceStats:
         seen: set[tuple[int, int]] = set()
         result = compute_media_source_stats(album, ms, seen)
 
-        assert result.media_source_type == MediaSourceType.PLAIN
+        assert result.media_source_type == MediaSourceType.STD
         assert result.unique_pictures == 2
         assert result.unique_videos == 1
-        assert result.archive == SizeStats(0, 0, 0)  # no archive for plain
+        assert result.archive == SizeStats(0, 0, 0)  # no archive dir on disk
         assert result.original.file_count == 3  # img(2) + vid(1)
         assert result.derived.file_count == 2  # jpg(2)
+
+    def test_std_source_with_archive(self, tmp_path: Path) -> None:
+        album = tmp_path / "2024-07-14 - Test"
+        _make_album(album)
+        ms = std_media_source("nelu")
+
+        # Archive directories (std-nelu/)
+        _write(album / ms.orig_img_dir / "photo1.heic", "a" * 100)
+        _write(album / ms.orig_img_dir / "photo2.jpg", "b" * 80)
+        (album / ms.edit_img_dir).mkdir(parents=True, exist_ok=True)
+        _write(album / ms.orig_vid_dir / "clip1.mov", "c" * 500)
+        (album / ms.edit_vid_dir).mkdir(parents=True, exist_ok=True)
+
+        # Browsable directories (hardlinks to archive)
+        (album / ms.img_dir).mkdir(parents=True, exist_ok=True)
+        os.link(
+            album / ms.orig_img_dir / "photo1.heic",
+            album / ms.img_dir / "photo1.heic",
+        )
+        os.link(
+            album / ms.orig_img_dir / "photo2.jpg",
+            album / ms.img_dir / "photo2.jpg",
+        )
+        (album / ms.vid_dir).mkdir(parents=True, exist_ok=True)
+        os.link(
+            album / ms.orig_vid_dir / "clip1.mov",
+            album / ms.vid_dir / "clip1.mov",
+        )
+        _write(album / ms.jpg_dir / "photo1.jpg", "d" * 60)
+        _write(album / ms.jpg_dir / "photo2.jpg", "e" * 50)
+
+        seen: set[tuple[int, int]] = set()
+        result = compute_media_source_stats(album, ms, seen)
+
+        assert result.media_source_type == MediaSourceType.STD
+        assert result.unique_pictures == 2  # from orig-img
+        assert result.unique_videos == 1  # from orig-vid
+        assert result.archive.file_count == 3  # orig-img(2) + orig-vid(1)
+        assert result.original.file_count == 3  # img(2) + vid(1)
+        assert result.derived.file_count == 2  # jpg(2)
+        # On-disk should be less than apparent due to hardlinks
+        assert result.total.on_disk_bytes < result.total.apparent_bytes
 
     def test_missing_optional_dirs(self, tmp_path: Path) -> None:
         """iOS source with no edit dirs should not fail."""
@@ -355,11 +410,11 @@ class TestComputeAlbumStats:
         assert result.aggregate.unique_pictures == 2
         assert result.aggregate.unique_videos == 1
 
-    def test_mixed_ios_and_plain(self, tmp_path: Path) -> None:
+    def test_mixed_ios_and_std(self, tmp_path: Path) -> None:
         album = tmp_path / "2024-07-14 - Party"
         _setup_ios_album(album)
-        # Add a plain media source
-        ms = plain_media_source("nelu")
+        # Add a std media source
+        ms = std_media_source("nelu")
         _write(album / ms.img_dir / "photo1.heic", "x" * 100)
         _write(album / ms.jpg_dir / "photo1.jpg", "y" * 60)
 
@@ -369,9 +424,9 @@ class TestComputeAlbumStats:
 
         type_dict = dict(result.aggregate.by_media_source_type)
         assert type_dict[MediaSourceType.IOS] == 1
-        assert type_dict[MediaSourceType.PLAIN] == 1
+        assert type_dict[MediaSourceType.STD] == 1
 
-        # 2 iOS pictures + 1 plain picture
+        # 2 iOS pictures + 1 std picture
         assert result.aggregate.unique_pictures == 3
 
     def test_unparseable_name_raises(self, tmp_path: Path) -> None:
@@ -445,7 +500,7 @@ class TestGalleryStats:
         # Album 1: main (ios)
         a1 = self._make_simple_album(tmp_path, "2024-07-14 - A")
 
-        # Album 2: main (ios) + nelu (plain)
+        # Album 2: main (ios) + nelu (std)
         album2 = tmp_path / "2024-07-15 - B"
         _make_album(album2)
         ms_main = MAIN_MEDIA_SOURCE
@@ -459,7 +514,7 @@ class TestGalleryStats:
         (album2 / ms_main.vid_dir).mkdir(parents=True, exist_ok=True)
         (album2 / ms_main.orig_vid_dir).mkdir(parents=True, exist_ok=True)
         (album2 / ms_main.jpg_dir).mkdir(parents=True, exist_ok=True)
-        ms_nelu = plain_media_source("nelu")
+        ms_nelu = std_media_source("nelu")
         _write(album2 / ms_nelu.img_dir / "photo1.heic", "n" * 30)
         (album2 / ms_nelu.jpg_dir).mkdir(parents=True, exist_ok=True)
         a2 = compute_album_stats(album2)

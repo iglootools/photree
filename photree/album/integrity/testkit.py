@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from ...fs import MAIN_MEDIA_SOURCE
 from . import (
-    CombinedDirCheck,
+    BrowsableDirCheck,
     FileComparison,
     IosAlbumFullIntegrityResult,
     IosAlbumIntegrityResult,
@@ -14,7 +14,7 @@ from . import (
 )
 
 INTEGRITY_OK = IosAlbumIntegrityResult(
-    combined_heic=CombinedDirCheck(
+    browsable_heic=BrowsableDirCheck(
         correct=(
             FileComparison("IMG_E0001.HEIC", "IMG_E0001.HEIC", True, True),
             FileComparison("IMG_0002.PNG", "IMG_0002.PNG", True, True),
@@ -25,7 +25,7 @@ INTEGRITY_OK = IosAlbumIntegrityResult(
         size_mismatches=(),
         checksum_mismatches=(),
     ),
-    combined_mov=CombinedDirCheck(
+    browsable_mov=BrowsableDirCheck(
         correct=(FileComparison("IMG_0003.MOV", "IMG_0003.MOV", True, True),),
         missing=(),
         extra=(),
@@ -38,7 +38,7 @@ INTEGRITY_OK = IosAlbumIntegrityResult(
 )
 
 INTEGRITY_FAILURES = IosAlbumIntegrityResult(
-    combined_heic=CombinedDirCheck(
+    browsable_heic=BrowsableDirCheck(
         correct=(),
         missing=(MissingFile("IMG_E0001.HEIC", "edit-img"),),
         extra=("STRAY_FILE.HEIC",),
@@ -50,7 +50,7 @@ INTEGRITY_FAILURES = IosAlbumIntegrityResult(
         ),
         checksum_mismatches=(),
     ),
-    combined_mov=CombinedDirCheck(
+    browsable_mov=BrowsableDirCheck(
         correct=(),
         missing=(),
         extra=(),

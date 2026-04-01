@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ...fs import MAIN_MEDIA_SOURCE, plain_media_source
+from ...fs import MAIN_MEDIA_SOURCE, std_media_source
 from . import (
     AlbumMediaSourceSummary,
     AlbumDirCheck,
@@ -50,7 +50,7 @@ PREFLIGHT_OTHER = AlbumPreflightResult(
     sips_available=True,
     exiftool_available=True,
     media_source_summary=AlbumMediaSourceSummary(
-        media_sources=(plain_media_source("main"),)
+        media_sources=(std_media_source("main"),)
     ),
     dir_check=AlbumDirCheck(present=(), missing=()),
 )

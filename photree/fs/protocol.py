@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import re
 import uuid as _uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
+from pathlib import Path
 from textwrap import dedent
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -72,6 +74,7 @@ GALLERY_YAML = "gallery.yaml"
 SELECTION_DIR = "to-import"
 
 IOS_DIR_PREFIX = "ios-"
+STD_DIR_PREFIX = "std-"
 DEFAULT_MEDIA_SOURCE = "main"
 
 ALBUM_ID_PREFIX = "album"
@@ -178,32 +181,43 @@ def parse_album_year(album_name: str) -> str:
 # MediaSource — a named source of photos within an album
 # ---------------------------------------------------------------------------
 
+_KeyFn = Callable[[str], str]
+"""Key-extraction function: maps a filename to a matching key."""
+
+
+def _stem_key(filename: str) -> str:
+    """Extract filename stem (name without extension) as a matching key."""
+    return Path(filename).stem
+
 
 class MediaSourceType(StrEnum):
     """How a media source's photos are stored."""
 
     IOS = "ios"  # archival (ios-{name}/) + browsable ({name}-img/, etc.)
-    PLAIN = "plain"  # browsable only ({name}-img/, {name}-vid/)
+    STD = "std"  # archival (std-{name}/) + browsable ({name}-img/, etc.)
 
 
 @dataclass(frozen=True)
 class MediaSource:
     """A named source of photos within an album.
 
-    **iOS** media sources have archival directories (under ``ios-{name}/``)
-    and browsable directories (``{name}-img/``, ``{name}-vid/``,
-    ``{name}-jpg/``).
+    Both **iOS** and **std** (standard) media sources have archival
+    directories (under ``ios-{name}/`` or ``std-{name}/``) with identical
+    internal structure (``orig-img/``, ``edit-img/``, ``orig-vid/``,
+    ``edit-vid/``), plus browsable directories (``{name}-img/``,
+    ``{name}-vid/``, ``{name}-jpg/``).
 
-    **Plain** media sources only have browsable directories.
+    Legacy std sources (pre-migration) may lack the ``std-{name}/``
+    archive on disk; code handles missing directories gracefully.
     """
 
     name: str  # "main", "bruno"
     media_source_type: MediaSourceType
-    ios_dir: str  # "ios-main" (unused path for plain media sources)
-    orig_img_dir: str  # "ios-main/orig-img" (unused path for plain)
-    edit_img_dir: str  # "ios-main/edit-img" (unused path for plain)
-    orig_vid_dir: str  # "ios-main/orig-vid" (unused path for plain)
-    edit_vid_dir: str  # "ios-main/edit-vid" (unused path for plain)
+    archive_dir: str  # "ios-main" or "std-main"
+    orig_img_dir: str  # "{archive}/orig-img"
+    edit_img_dir: str  # "{archive}/edit-img"
+    orig_vid_dir: str  # "{archive}/orig-vid"
+    edit_vid_dir: str  # "{archive}/edit-vid"
     img_dir: str  # "main-img", "bruno-img"
     vid_dir: str  # "main-vid", "bruno-vid"
     jpg_dir: str  # "main-jpg", "bruno-jpg"
@@ -213,20 +227,31 @@ class MediaSource:
         return self.media_source_type == MediaSourceType.IOS
 
     @property
+    def is_std(self) -> bool:
+        return self.media_source_type == MediaSourceType.STD
+
+    @property
+    def key_fn(self) -> _KeyFn:
+        """Key-extraction function for matching files across directories.
+
+        iOS sources match by image number (digits extracted from filename).
+        Std sources match by filename stem.
+        """
+        if self.is_ios:
+            from .ios import img_number
+
+            return img_number
+        return _stem_key
+
+    @property
     def image_subdirs(self) -> tuple[str, ...]:
         """Required image directories for this media source."""
-        if self.is_ios:
-            return (self.orig_img_dir, self.img_dir, self.jpg_dir)
-        else:
-            return (self.img_dir, self.jpg_dir)
+        return (self.orig_img_dir, self.img_dir, self.jpg_dir)
 
     @property
     def video_subdirs(self) -> tuple[str, ...]:
         """Required video directories for this media source."""
-        if self.is_ios:
-            return (self.orig_vid_dir, self.vid_dir)
-        else:
-            return (self.vid_dir,)
+        return (self.orig_vid_dir, self.vid_dir)
 
     @property
     def required_subdirs(self) -> tuple[str, ...]:
@@ -235,11 +260,8 @@ class MediaSource:
 
     @property
     def optional_subdirs(self) -> tuple[str, ...]:
-        """Directories only present when edits exist (iOS only)."""
-        if self.is_ios:
-            return (self.edit_img_dir, self.edit_vid_dir)
-        else:
-            return ()
+        """Directories only present when edits exist."""
+        return (self.edit_img_dir, self.edit_vid_dir)
 
     @property
     def all_subdirs(self) -> tuple[str, ...]:
@@ -249,36 +271,38 @@ class MediaSource:
 
 def ios_media_source(name: str) -> MediaSource:
     """Create an iOS :class:`MediaSource`."""
-    ios = f"{IOS_DIR_PREFIX}{name}"
+    archive = f"{IOS_DIR_PREFIX}{name}"
     return MediaSource(
         name=name,
         media_source_type=MediaSourceType.IOS,
-        ios_dir=ios,
-        orig_img_dir=f"{ios}/orig-img",
-        edit_img_dir=f"{ios}/edit-img",
-        orig_vid_dir=f"{ios}/orig-vid",
-        edit_vid_dir=f"{ios}/edit-vid",
+        archive_dir=archive,
+        orig_img_dir=f"{archive}/orig-img",
+        edit_img_dir=f"{archive}/edit-img",
+        orig_vid_dir=f"{archive}/orig-vid",
+        edit_vid_dir=f"{archive}/edit-vid",
         img_dir=f"{name}-img",
         vid_dir=f"{name}-vid",
         jpg_dir=f"{name}-jpg",
     )
 
 
-def plain_media_source(name: str) -> MediaSource:
-    """Create a plain (non-iOS) :class:`MediaSource`.
+def std_media_source(name: str) -> MediaSource:
+    """Create a standard (non-iOS) :class:`MediaSource`.
 
-    The ``ios_dir`` and archival paths are populated but don't exist on disk.
-    Code that operates on these dirs handles missing directories gracefully.
+    The archive directory structure is identical to iOS
+    (``orig-img/``, ``edit-img/``, ``orig-vid/``, ``edit-vid/``).
+    For legacy (pre-migration) albums, the ``std-{name}/`` archive
+    directory may not exist on disk; code handles this gracefully.
     """
-    ios = f"{IOS_DIR_PREFIX}{name}"
+    archive = f"{STD_DIR_PREFIX}{name}"
     return MediaSource(
         name=name,
-        media_source_type=MediaSourceType.PLAIN,
-        ios_dir=ios,
-        orig_img_dir=f"{ios}/orig-img",
-        edit_img_dir=f"{ios}/edit-img",
-        orig_vid_dir=f"{ios}/orig-vid",
-        edit_vid_dir=f"{ios}/edit-vid",
+        media_source_type=MediaSourceType.STD,
+        archive_dir=archive,
+        orig_img_dir=f"{archive}/orig-img",
+        edit_img_dir=f"{archive}/edit-img",
+        orig_vid_dir=f"{archive}/orig-vid",
+        edit_vid_dir=f"{archive}/edit-vid",
         img_dir=f"{name}-img",
         vid_dir=f"{name}-vid",
         jpg_dir=f"{name}-jpg",

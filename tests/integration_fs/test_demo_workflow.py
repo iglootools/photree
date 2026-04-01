@@ -79,7 +79,7 @@ class TestDemoWorkflow:
         assert (album_dir / PHOTREE_DIR / ALBUM_YAML).is_file()
         assert load_album_metadata(album_dir) is not None
         assert is_album(album_dir)
-        assert (album_dir / MAIN_MEDIA_SOURCE.ios_dir).is_dir()
+        assert (album_dir / MAIN_MEDIA_SOURCE.archive_dir).is_dir()
         assert detect_album_type(album_dir) == AlbumType.IOS
 
         # Originals imported
@@ -180,7 +180,7 @@ class TestDemoWorkflow:
         assert (exported / "main-vid").is_dir()
 
         # iOS internal dirs should NOT be exported
-        assert not (exported / MAIN_MEDIA_SOURCE.ios_dir).exists()
+        assert not (exported / MAIN_MEDIA_SOURCE.archive_dir).exists()
 
         # Exported vid/ matches main-vid content
         exported_vid = sorted(os.listdir(exported / "main-vid"))

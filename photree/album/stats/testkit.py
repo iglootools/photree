@@ -85,7 +85,7 @@ _IOS_MAIN = MediaSourceStats(
 
 _PLAIN_NELU = MediaSourceStats(
     name="nelu",
-    media_source_type=MediaSourceType.PLAIN,
+    media_source_type=MediaSourceType.STD,
     total=SizeStats(file_count=186, apparent_bytes=_gb(6.2), on_disk_bytes=_gb(6.2)),
     archive=SizeStats(file_count=0, apparent_bytes=0, on_disk_bytes=0),
     original=SizeStats(file_count=124, apparent_bytes=_gb(5.1), on_disk_bytes=_gb(5.1)),
@@ -162,7 +162,7 @@ _AGGREGATE_ALBUM = AggregateStats(
     media_source_count=2,
     by_media_source_type=(
         (MediaSourceType.IOS, 1),
-        (MediaSourceType.PLAIN, 1),
+        (MediaSourceType.STD, 1),
     ),
 )
 
@@ -317,7 +317,7 @@ _GALLERY_AGGREGATE = AggregateStats(
     media_source_count=4,
     by_media_source_type=(
         (MediaSourceType.IOS, 3),
-        (MediaSourceType.PLAIN, 1),
+        (MediaSourceType.STD, 1),
     ),
 )
 
@@ -397,7 +397,7 @@ GALLERY_STATS = GalleryStats(
                 media_source_count=3,
                 by_media_source_type=(
                     (MediaSourceType.IOS, 2),
-                    (MediaSourceType.PLAIN, 1),
+                    (MediaSourceType.STD, 1),
                 ),
             ),
         ),

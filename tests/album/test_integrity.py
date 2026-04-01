@@ -48,7 +48,7 @@ def _setup_ios_album(album: Path) -> None:
     _write(album / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_0002.PNG", "png-copied")
 
 
-class TestCheckCombinedDir:
+class TestCheckBrowsableDir:
     def test_correct_album_passes(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_ios_album(album)
@@ -97,7 +97,7 @@ class TestCheckCombinedDir:
     def test_wrong_source_detected(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_ios_album(album)
-        # Replace rendered with original in combined (wrong)
+        # Replace rendered with original in browsable (wrong)
         (album / MAIN_MEDIA_SOURCE.img_dir / "IMG_E0001.HEIC").unlink()
         _write(album / MAIN_MEDIA_SOURCE.img_dir / "IMG_0001.HEIC", "heic-orig")
 
@@ -113,7 +113,7 @@ class TestCheckCombinedDir:
     def test_size_mismatch_detected(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_ios_album(album)
-        # Corrupt the combined file
+        # Corrupt the browsable file
         (album / MAIN_MEDIA_SOURCE.img_dir / "IMG_E0001.HEIC").write_text(
             "corrupted-different-size!!"
         )
@@ -299,7 +299,7 @@ class TestCheckMiscategorizedFiles:
 
 
 def _setup_hardlinked_album(album: Path) -> None:
-    """Create an iOS album where combined files are hardlinks to orig/rendered."""
+    """Create an iOS album where browsable files are hardlinks to orig/rendered."""
     _write(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.HEIC", "heic-orig")
     _write(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.AAE", "aae-orig")
     _write(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0002.PNG", "png-orig")
@@ -329,7 +329,7 @@ def _setup_hardlinked_album(album: Path) -> None:
 
 
 def _setup_symlinked_album(album: Path) -> None:
-    """Create an iOS album where combined files are relative symlinks."""
+    """Create an iOS album where browsable files are relative symlinks."""
     _write(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.HEIC", "heic-orig")
     _write(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.AAE", "aae-orig")
     _write(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0002.PNG", "png-orig")
@@ -367,8 +367,8 @@ def _setup_symlinked_album(album: Path) -> None:
     _write(album / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_0002.PNG", "png-copied")
 
 
-class TestCheckCombinedDirLinkAware:
-    def test_hardlinked_combined_skips_checksum(self, tmp_path: Path) -> None:
+class TestCheckBrowsableDirLinkAware:
+    def test_hardlinked_browsable_skips_checksum(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_hardlinked_album(album)
 
@@ -383,7 +383,7 @@ class TestCheckCombinedDirLinkAware:
         assert len(result.correct) == 2
         assert all(c.link_verified for c in result.correct)
 
-    def test_symlinked_combined_skips_checksum(self, tmp_path: Path) -> None:
+    def test_symlinked_browsable_skips_checksum(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_symlinked_album(album)
 
@@ -410,7 +410,7 @@ class TestCheckCombinedDirLinkAware:
             album / MAIN_MEDIA_SOURCE.img_dir,
             media_extensions=IMG_EXTENSIONS,
         )
-        # The combined file points to rendered, but rendered no longer has it,
+        # The browsable file points to rendered, but rendered no longer has it,
         # so the expected source is now orig. The broken symlink won't match.
         assert not result.success
 

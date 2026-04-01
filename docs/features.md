@@ -18,7 +18,7 @@ Import photos and videos from an iOS device via macOS Image Capture into an orga
 Albums support multiple **media sources** — named sources of photos from different people or devices.
 
 - **iOS media sources** (`ios-{name}/`): imported via Image Capture, with archival and browsable directories
-- **Plain media sources** (`{name}-img/`, `{name}-vid/`): photos from non-iOS sources (other cameras, shared files)
+- **Standard media sources** (`std-{name}/`, `{name}-img/`, `{name}-vid/`): photos from non-iOS sources (other cameras, shared files)
 - The default media source is `main`; additional media sources are detected automatically
 - Each media source gets its own set of browsable directories (`{name}-img/`, `{name}-vid/`, `{name}-jpg/`)
 - JPEG conversion applies to all media sources; iOS-specific checks and fixes apply only to iOS media sources
@@ -64,7 +64,7 @@ Reduce disk usage by replacing file copies with links.
 
 Repair and maintain iOS album consistency with targeted fix commands.
 
-- **`--refresh-combined`**: Rebuild all main directories from orig/edit sources
+- **`--refresh-browsable`**: Rebuild all main directories from orig/edit sources
 - **`--refresh-jpeg`**: Re-convert `main-jpg/` from `main-img/`
 - **`--rm-upstream`**: Propagate deletions from browsable dirs to upstream dirs (useful after curating photos in `main-jpg/`)
 - **`--rm-orphan`**: Remove edited and main files with no corresponding original
@@ -96,7 +96,7 @@ Analyze disk usage, file counts, and content breakdowns.
 - **Content breakdown**: By media type (images, videos, sidecars), by file format (extension), and by media source
 - **Media source analysis**: Per-source file counts, archive/browsable/derived sizes, unique picture and video counts
 - **Year breakdown** (gallery): Albums, pictures, videos, and sizes grouped by year
-- **Unique media counting**: iOS pictures deduplicated by image number (originals), plain pictures by filename stem
+- **Unique media counting**: iOS pictures deduplicated by image number (originals), std pictures by filename stem
 - **Legend**: Printed at the end of output explaining each metric
 - **Limitation**: Albums spanning multiple years (date ranges) are attributed to the start year only
 

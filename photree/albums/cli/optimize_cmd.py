@@ -22,7 +22,7 @@ def optimize_cmd(
     checksum: CHECKSUM_OPTION = True,
     dry_run: DRY_RUN_OPTION = False,
 ) -> None:
-    """Optimize all iOS albums under a directory or from an explicit list."""
+    """Optimize all albums with archives under a directory or from an explicit list."""
     albums, display_base = resolve_batch_albums(base_dir, album_dirs)
     run_batch_optimize(
         albums,

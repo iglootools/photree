@@ -171,29 +171,47 @@ If no gallery metadata is found, the command exits with an error suggesting
 
 A directory is recognized as a photree album when it contains:
 1. A `.photree/album.yaml` file (album metadata), **and**
-2. At least one media source (iOS or plain)
+2. At least one media source (iOS or std)
 
 The `.photree/` directory stores album metadata and configuration.
 
 ### Media Sources
 
 An album can have multiple **media sources** — named sources of photos. Each
-media source is either **iOS** (imported via Image Capture) or **plain** (photos
-from other sources like other people's cameras).
+media source is either **iOS** (imported via Image Capture) or **std** (standard
+-- photos from other sources like other people's cameras).
+
+Both iOS and std media sources share the same two-tier structure:
+
+- **Archive directories** (`ios-{name}/` or `std-{name}/`) store the original
+  and edited variants in a fixed internal layout (`orig-img/`, `edit-img/`,
+  `orig-vid/`, `edit-vid/`).
+- **Browsable directories** (`{name}-img/`, `{name}-vid/`, `{name}-jpg/`)
+  are the derived, shareable versions built from the archive.
 
 **iOS media source** (`ios-{name}/`):
 - Detected by: `ios-{name}/` directory containing `orig-img/` or `orig-vid/`
-- Has archival directories (originals, edits, sidecars)
-- Has browsable directories (best version, JPEG conversion)
+- Archive holds originals, edits, and AAE sidecars
+- Files are matched across directories by **image number** (digits extracted
+  from the `IMG_NNNN` filename)
 - Integrity checks, optimization, and iOS-specific fixes apply
 
-**Plain media source** (`{name}-img/` or `{name}-vid/`):
-- Detected by: `{name}-img/` or `{name}-vid/` directory without a corresponding `ios-{name}/`
-- Has browsable directories only (no archival originals)
+**Std media source** (`std-{name}/`):
+- Detected by: `std-{name}/` directory containing `orig-img/` or `orig-vid/`
+- Archive structure is identical to iOS (`orig-img/`, `edit-img/`, `orig-vid/`,
+  `edit-vid/`)
 - No filename naming requirements (no `IMG_` prefix convention)
-- Files are matched across directories by stem (base name without extension)
+- Files are matched across directories by **filename stem** (base name without
+  extension)
 - JPEG conversion applies, but iOS-specific checks and fixes do not
-- Browsable directories are the source of truth — never rebuilt
+
+**Legacy std media source** (backward compatibility):
+- Detected by: `{name}-img/` or `{name}-vid/` directory without a corresponding
+  `ios-{name}/` or `std-{name}/` directory
+- Has browsable directories only (no archive)
+- Browsable directories are the source of truth -- never rebuilt
+- Treated as a std media source in all other respects (stem-based matching,
+  JPEG conversion, no iOS-specific logic)
 
 The default media source is named `main`.
 
@@ -207,29 +225,39 @@ The default media source is named `main`.
   to-import/              user selection files (workflow input)
 
   # iOS media source "main"
-  ios-main/               archival files
+  ios-main/               archive (iOS)
     orig-img/             originals + AAE sidecars
-    edit-img/             edited versions (IMG_E*) + sidecars (IMG_O*)
+    edit-img/             edited variants (IMG_E*) + sidecars (IMG_O*)
     orig-vid/             original videos
     edit-vid/             edited videos
-  main-img/               best version: edit if available, else orig
-  main-jpg/               JPEG for sharing/web/compatibility
-  main-vid/               best version video
+  main-img/               browsable: best variant (edit if available, else orig)
+  main-jpg/               browsable: JPEG for sharing/web/compatibility
+  main-vid/               browsable: best variant video
 
-  # iOS media source "bruno" (additional media source)
-  ios-bruno/              archival files from bruno
+  # iOS media source "bruno" (additional iOS source)
+  ios-bruno/              archive (iOS) from bruno
     orig-img/
     edit-img/
     orig-vid/
     edit-vid/
-  bruno-img/              best version from bruno
-  bruno-jpg/              JPEG from bruno
-  bruno-vid/              best version video from bruno
+  bruno-img/              browsable: best variant from bruno
+  bruno-jpg/              browsable: JPEG from bruno
+  bruno-vid/              browsable: best variant video from bruno
 
-  # Plain media source "nelu" (non-iOS, browsable only)
-  nelu-img/               images from nelu
-  nelu-vid/               videos from nelu
-  nelu-jpg/               JPEG versions of nelu's images
+  # Std media source "nelu" (non-iOS, with archive)
+  std-nelu/               archive (std) from nelu
+    orig-img/             originals
+    edit-img/             edited variants
+    orig-vid/             original videos
+    edit-vid/             edited videos
+  nelu-img/               browsable: best variant from nelu
+  nelu-jpg/               browsable: JPEG from nelu
+  nelu-vid/               browsable: best variant video from nelu
+
+  # Legacy std media source "dana" (no archive, browsable only)
+  dana-img/               browsable: images from dana (source of truth)
+  dana-vid/               browsable: videos from dana (source of truth)
+  dana-jpg/               browsable: JPEG versions of dana's images
 ```
 
 ### Browsable Directories
@@ -237,9 +265,9 @@ The default media source is named `main`.
 For each media source, the `{name}-img/`, `{name}-vid/`, and `{name}-jpg/`
 directories at the top level are the browsable/shareable versions:
 
-- **`{name}-img/`**: For iOS media sources, built from the best available source
-  (edited if present, otherwise original). For plain media sources, this is the
-  source of truth.
+- **`{name}-img/`**: For iOS and std media sources with archives, built from
+  the best available variant (edited if present, otherwise original). For
+  legacy std media sources (no archive), this is the source of truth.
 - **`{name}-vid/`**: Same logic as `{name}-img/` but for videos.
 - **`{name}-jpg/`**: JPEG versions for sharing/web. Generated from `{name}-img/`
   via HEIC/HEIF/DNG→JPEG conversion (sips). JPG/PNG files are copied as-is.

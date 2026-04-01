@@ -19,9 +19,9 @@ from ...fs import (
     VID_EXTENSIONS,
     MediaSource,
     MediaSourceType,
-    dedup_media_dict,
     discover_media_sources,
     file_ext,
+    generic_dedup_media_dict,
     list_files,
 )
 from ..naming import parse_album_name
@@ -69,11 +69,11 @@ class MediaSourceStats:
     name: str
     media_source_type: MediaSourceType
     total: SizeStats
-    archive: SizeStats  # ios-{name}/ subtree (zero for plain)
+    archive: SizeStats  # archive subtree (ios-{name}/ or std-{name}/); zero when absent
     original: SizeStats  # {name}-img/ + {name}-vid/
     derived: SizeStats  # {name}-jpg/
-    unique_pictures: int  # iOS: unique numbers in orig-img, plain: unique stems in img
-    unique_videos: int  # iOS: unique numbers in orig-vid, plain: unique stems in vid
+    unique_pictures: int  # unique keys in orig-img (archive) or img (browsable)
+    unique_videos: int  # unique keys in orig-vid (archive) or vid (browsable)
     images: RoleBreakdown
     videos: RoleBreakdown
     sidecars: RoleBreakdown
@@ -329,35 +329,33 @@ def _tag_format_role(
 # ---------------------------------------------------------------------------
 
 
-def _count_unique_pictures_ios(album_dir: Path, ms: MediaSource) -> int:
+def _count_unique_pictures(
+    album_dir: Path, ms: MediaSource, *, has_archive: bool
+) -> int:
+    """Count unique pictures using the source's key function.
+
+    When the archive directory exists on disk, counts from ``orig-img/``;
+    otherwise falls back to the browsable ``{name}-img/`` directory.
+    """
+    directory = ms.orig_img_dir if has_archive else ms.img_dir
     return len(
-        dedup_media_dict(list_files(album_dir / ms.orig_img_dir), IMG_EXTENSIONS)
+        generic_dedup_media_dict(
+            list_files(album_dir / directory), IMG_EXTENSIONS, ms.key_fn
+        )
     )
 
 
-def _count_unique_pictures_plain(album_dir: Path, ms: MediaSource) -> int:
+def _count_unique_videos(album_dir: Path, ms: MediaSource, *, has_archive: bool) -> int:
+    """Count unique videos using the source's key function.
+
+    When the archive directory exists on disk, counts from ``orig-vid/``;
+    otherwise falls back to the browsable ``{name}-vid/`` directory.
+    """
+    directory = ms.orig_vid_dir if has_archive else ms.vid_dir
     return len(
-        {
-            Path(f).stem
-            for f in list_files(album_dir / ms.img_dir)
-            if file_ext(f) in IMG_EXTENSIONS
-        }
-    )
-
-
-def _count_unique_videos_ios(album_dir: Path, ms: MediaSource) -> int:
-    return len(
-        dedup_media_dict(list_files(album_dir / ms.orig_vid_dir), VID_EXTENSIONS)
-    )
-
-
-def _count_unique_videos_plain(album_dir: Path, ms: MediaSource) -> int:
-    return len(
-        {
-            Path(f).stem
-            for f in list_files(album_dir / ms.vid_dir)
-            if file_ext(f) in VID_EXTENSIONS
-        }
+        generic_dedup_media_dict(
+            list_files(album_dir / directory), VID_EXTENSIONS, ms.key_fn
+        )
     )
 
 
@@ -492,8 +490,9 @@ def compute_media_source_stats(
     original_stats = _ZERO_SIZE_STATS
     derived_stats = _ZERO_SIZE_STATS
 
-    # Archive directories (iOS only)
-    if ms.is_ios:
+    # Archive directories (iOS and std sources with archive on disk)
+    has_archive = (album_dir / ms.archive_dir).is_dir()
+    if has_archive:
         archive_dirs = [
             ms.orig_img_dir,
             ms.edit_img_dir,
@@ -539,13 +538,8 @@ def compute_media_source_stats(
     )
 
     # Unique media counts
-    match ms.media_source_type:
-        case MediaSourceType.IOS:
-            unique_pictures = _count_unique_pictures_ios(album_dir, ms)
-            unique_videos = _count_unique_videos_ios(album_dir, ms)
-        case MediaSourceType.PLAIN:
-            unique_pictures = _count_unique_pictures_plain(album_dir, ms)
-            unique_videos = _count_unique_videos_plain(album_dir, ms)
+    unique_pictures = _count_unique_pictures(album_dir, ms, has_archive=has_archive)
+    unique_videos = _count_unique_videos(album_dir, ms, has_archive=has_archive)
 
     total = _merge_size_stats([archive_stats, original_stats, derived_stats])
 

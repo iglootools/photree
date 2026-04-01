@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import shutil
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -49,16 +48,20 @@ class AlbumMediaSourceSummary:
         return any(ms.is_ios for ms in self.media_sources)
 
     @property
-    def has_plain(self) -> bool:
-        return any(not ms.is_ios for ms in self.media_sources)
+    def has_std(self) -> bool:
+        return any(ms.is_std for ms in self.media_sources)
 
     @property
     def ios_media_sources(self) -> tuple[MediaSource, ...]:
         return tuple(ms for ms in self.media_sources if ms.is_ios)
 
     @property
+    def std_media_sources(self) -> tuple[MediaSource, ...]:
+        return tuple(ms for ms in self.media_sources if ms.is_std)
+
+    @property
     def description(self) -> str:
-        """Human-readable summary, e.g. ``main (ios), bruno (plain)``."""
+        """Human-readable summary, e.g. ``main (ios), bruno (std)``."""
         return ", ".join(
             f"{ms.name} ({ms.media_source_type})" for ms in self.media_sources
         )
@@ -68,7 +71,10 @@ class AlbumMediaSourceSummary:
 # Will be removed once all callers migrate.
 class AlbumType(StrEnum):
     IOS = "ios"
-    OTHER = "other"
+    STD = "std"
+
+    # Backward compat alias
+    OTHER = "std"
 
 
 def detect_album_type(album_dir: Path) -> AlbumType:
@@ -77,7 +83,7 @@ def detect_album_type(album_dir: Path) -> AlbumType:
     if any(ms.is_ios for ms in media_sources):
         return AlbumType.IOS
     else:
-        return AlbumType.OTHER
+        return AlbumType.STD
 
 
 @dataclass(frozen=True)
@@ -112,19 +118,23 @@ def _has_any(album_dir: Path, group: tuple[str, ...]) -> bool:
     return any((album_dir / d).is_dir() for d in group)
 
 
-def check_ios_album_dir(album_dir: Path) -> AlbumDirCheck:
-    """Check which expected iOS album subdirectories are present in *album_dir*.
+def check_album_dir_structure(album_dir: Path) -> AlbumDirCheck:
+    """Check which expected album subdirectories are present in *album_dir*.
 
-    Iterates over all media sources (``ios-*`` directories) and checks each
-    media source's directory groups independently. Results are aggregated.
+    Iterates over all media sources (iOS and std) and checks each media
+    source's directory groups independently.  Results are aggregated.
 
     Per media source, at least one directory group must be fully present:
-    - Image group: ``ios-{name}/orig-img``, ``{name}-img``, ``{name}-jpg``
-    - Video group: ``ios-{name}/orig-vid``, ``{name}-vid``
+    - Image group: ``{archive}/orig-img``, ``{name}-img``, ``{name}-jpg``
+    - Video group: ``{archive}/orig-vid``, ``{name}-vid``
 
     Within present groups, all directories are required.
     Directories from absent groups are reported as optional.
     Optional directories (``edit-img``, ``edit-vid``) are always informational.
+
+    For legacy std sources whose ``std-{name}/`` archive directory does not
+    yet exist on disk, archive sub-directories will naturally be reported as
+    missing or optional depending on which browsable directories are present.
     """
     media_sources = discover_media_sources(album_dir)
     if not media_sources:
@@ -193,15 +203,6 @@ def check_ios_album_dir(album_dir: Path) -> AlbumDirCheck:
     )
 
 
-def check_other_album_dir(album_dir: Path) -> AlbumDirCheck:
-    """Check a free-form album directory.
-
-    Currently accepts any directory. This will be extended with additional
-    checks as the feature evolves.
-    """
-    return AlbumDirCheck(present=(), missing=())
-
-
 def check_album_dir(
     album_dir: Path,
     expected: tuple[str, ...] = MAIN_MEDIA_SOURCE.all_subdirs,
@@ -235,7 +236,7 @@ class AlbumPreflightResult:
         if self.media_source_summary.has_ios:
             return AlbumType.IOS
         else:
-            return AlbumType.OTHER
+            return AlbumType.STD
 
     # Backward compat alias
     @property
@@ -343,18 +344,18 @@ def run_album_check(
         album_id=metadata.id if metadata is not None else None,
     )
 
+    dir_check = check_album_dir_structure(album_dir)
+
     if summary.has_ios:
-        dir_check = check_ios_album_dir(album_dir)
         ios_integrity = check_ios_album_integrity(
             album_dir,
             checksum=checksum,
             on_file_checked=on_file_checked,
         )
     else:
-        dir_check = check_other_album_dir(album_dir)
         ios_integrity = None
 
-    # JPEG check runs for ALL media sources (iOS + plain)
+    # JPEG check runs for ALL media sources (iOS + std)
     jpeg_check = check_album_jpeg_integrity(album_dir) if media_sources else None
 
     naming = None
@@ -408,10 +409,18 @@ def run_album_preflight(
             exiftool.__exit__(None, None, None)
 
 
-def discover_ios_albums(base_dir: Path) -> list[Path]:
-    """Recursively discover iOS album directories under *base_dir*."""
-    return sorted(
-        Path(dirpath)
-        for dirpath, _dirnames, _filenames in os.walk(base_dir)
-        if detect_album_type(Path(dirpath)) == AlbumType.IOS
-    )
+def discover_archive_albums(base_dir: Path) -> list[Path]:
+    """Recursively discover albums with archive directories under *base_dir*.
+
+    Finds albums that have iOS (``ios-*/``) or std (``std-*/``) archive
+    directories, which are the album types that support archive-based
+    operations (optimize, fix-ios, etc.).
+
+    Since all current media source types (iOS and std) have archive
+    directories, this is equivalent to :func:`discover_albums`.
+    """
+    return discover_albums(base_dir)
+
+
+# Backward compat alias
+discover_ios_albums = discover_archive_albums

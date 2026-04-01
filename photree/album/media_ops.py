@@ -1,7 +1,7 @@
 """Move and remove media files across album media source directories.
 
 Given relative file paths (as reported by ``album check``), resolves all
-associated variants by image number (iOS) or filename stem (plain) and
+associated variants by image number (iOS) or filename stem (std) and
 moves or deletes them.
 """
 
@@ -61,20 +61,16 @@ def _build_dir_to_media_source(
 
 
 def _dirs_for_images(ms: MediaSource) -> tuple[str, ...]:
-    if ms.is_ios:
-        return (
-            ms.orig_img_dir,
-            ms.edit_img_dir,
-            ms.img_dir,
-            ms.jpg_dir,
-        )
-    return (ms.img_dir, ms.jpg_dir)
+    return (
+        ms.orig_img_dir,
+        ms.edit_img_dir,
+        ms.img_dir,
+        ms.jpg_dir,
+    )
 
 
 def _dirs_for_videos(ms: MediaSource) -> tuple[str, ...]:
-    if ms.is_ios:
-        return (ms.orig_vid_dir, ms.edit_vid_dir, ms.vid_dir)
-    return (ms.vid_dir,)
+    return (ms.orig_vid_dir, ms.edit_vid_dir, ms.vid_dir)
 
 
 def _is_video(filename: str) -> bool:
@@ -90,7 +86,7 @@ def _find_matching_files(
 ) -> list[str]:
     """Find files in *album_dir/subdir* matching *keys*.
 
-    When *use_stem* is True, matches by filename stem (plain media sources).
+    When *use_stem* is True, matches by filename stem (std media sources).
     Otherwise matches by image number (iOS media sources).
     """
     directory = album_dir / subdir
@@ -199,7 +195,7 @@ def move_media(
     variants = resolve_variants(source_album, relative_paths)
 
     # Fail fast before moving anything if the destination already contains
-    # files with the same image number (iOS) or stem (plain).
+    # files with the same image number (iOS) or stem (std).
     dest_media_sources = discover_media_sources(dest_album)
     dest_dir_to_ms = _build_dir_to_media_source(dest_media_sources)
 

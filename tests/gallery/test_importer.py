@@ -45,8 +45,8 @@ def _setup_ios_album(album: Path) -> None:
     (album / "main-vid").mkdir(parents=True, exist_ok=True)
 
 
-def _setup_plain_album(album: Path) -> None:
-    """Create a minimal plain album."""
+def _setup_std_album(album: Path) -> None:
+    """Create a minimal std album."""
     _write(album / "nelu-img/sunset.heic", "heic-data")
     _write(album / "nelu-jpg/sunset.jpg", "jpg-data")
 
@@ -148,10 +148,10 @@ class TestImportAlbum:
 
         assert not result.target_dir.exists()
 
-    def test_plain_album_import(self, tmp_path: Path) -> None:
+    def test_std_album_import(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
         album = tmp_path / "2024-07-14 - Hiking"
-        _setup_plain_album(album)
+        _setup_std_album(album)
 
         result = import_album(
             source_dir=album,
@@ -161,7 +161,7 @@ class TestImportAlbum:
 
         target = result.target_dir
         assert (target / "nelu-img/sunset.heic").is_file()
-        assert not result.optimized  # plain albums don't get optimized
+        assert not result.optimized  # std albums don't get optimized
 
     def test_refreshes_stale_jpegs(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)

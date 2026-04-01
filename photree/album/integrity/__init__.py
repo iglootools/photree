@@ -1,8 +1,11 @@
-"""iOS album integrity checks.
+"""Album integrity checks.
 
-Validates that main directories are consistent with the import rules:
-- main-img/main-vid contain the right files derived from orig/edited
-- main-jpg mirrors main-img with JPEG counterparts for every file
+iOS-specific checks validate that browsable directories are consistent
+with the archival import rules:
+- {name}-img/{name}-vid contain the right files derived from orig/edited
+- {name}-jpg mirrors {name}-img with JPEG counterparts for every file
+
+JPEG checks apply to all media source types (iOS and std).
 """
 
 from __future__ import annotations
@@ -80,8 +83,8 @@ class MissingFile:
 
 
 @dataclass(frozen=True)
-class CombinedDirCheck:
-    """Result of checking a main directory against orig/edited."""
+class BrowsableDirCheck:
+    """Result of checking a browsable directory against archive orig/edited."""
 
     correct: tuple[FileComparison, ...]
     missing: tuple[MissingFile, ...]
@@ -167,8 +170,8 @@ def check_miscategorized_files(
 class IosAlbumIntegrityResult:
     """Full integrity check result for an iOS album."""
 
-    combined_heic: CombinedDirCheck
-    combined_mov: CombinedDirCheck
+    browsable_heic: BrowsableDirCheck
+    browsable_mov: BrowsableDirCheck
     jpeg: JpegCheck
     sidecars: SidecarCheck
     duplicate_numbers: tuple[str, ...] = ()
@@ -181,8 +184,8 @@ class IosAlbumIntegrityResult:
         # absence is informational, not an error.
         # Use has_warnings to detect these; --fatal-warnings promotes them.
         return (
-            self.combined_heic.success
-            and self.combined_mov.success
+            self.browsable_heic.success
+            and self.browsable_mov.success
             and self.jpeg.success
             and not self.sidecars.orphan_sidecars
             and not self.duplicate_numbers
@@ -212,7 +215,7 @@ class IosAlbumFullIntegrityResult:
 
 @dataclass(frozen=True)
 class AlbumJpegIntegrityResult:
-    """JPEG integrity check result across all contributors (iOS + plain)."""
+    """JPEG integrity check result across all contributors (iOS + std)."""
 
     by_media_source: tuple[tuple[MediaSource, JpegCheck], ...]
 
@@ -379,7 +382,7 @@ def check_browsable_dir(
     media_extensions: frozenset[str],
     checksum: bool = True,
     on_file_checked: Callable[[str, bool], None] | None = None,
-) -> CombinedDirCheck:
+) -> BrowsableDirCheck:
     """Check that a browsable directory is consistent with orig/edited.
 
     For each media file number in orig_dir, the browsable_dir should contain
@@ -446,7 +449,7 @@ def check_browsable_dir(
     # Extra files in main that shouldn't be there
     extra = sorted(browsable_files - set(expected.keys()))
 
-    return CombinedDirCheck(
+    return BrowsableDirCheck(
         correct=tuple(correct),
         missing=tuple(missing),
         extra=tuple(extra),
@@ -569,7 +572,7 @@ def check_ios_media_source_integrity(
 ) -> IosAlbumIntegrityResult:
     """Run all integrity checks for a single media source within an iOS album."""
     assert ms.is_ios, "integrity checks require an iOS media source"
-    combined_heic = check_browsable_dir(
+    browsable_heic = check_browsable_dir(
         album_dir / ms.orig_img_dir,
         album_dir / ms.edit_img_dir,
         album_dir / ms.img_dir,
@@ -578,7 +581,7 @@ def check_ios_media_source_integrity(
         on_file_checked=on_file_checked,
     )
 
-    combined_mov = check_browsable_dir(
+    browsable_mov = check_browsable_dir(
         album_dir / ms.orig_vid_dir,
         album_dir / ms.edit_vid_dir,
         album_dir / ms.vid_dir,
@@ -631,8 +634,8 @@ def check_ios_media_source_integrity(
     )
 
     return IosAlbumIntegrityResult(
-        combined_heic=combined_heic,
-        combined_mov=combined_mov,
+        browsable_heic=browsable_heic,
+        browsable_mov=browsable_mov,
         jpeg=jpeg,
         sidecars=sidecars,
         duplicate_numbers=duplicate_numbers,
@@ -667,7 +670,7 @@ def check_ios_album_integrity(
 def check_album_jpeg_integrity(
     album_dir: Path,
 ) -> AlbumJpegIntegrityResult:
-    """Check ``{name}-jpg/`` for every media source (iOS + plain).
+    """Check ``{name}-jpg/`` for every media source (iOS + std).
 
     Only checks media sources that have a ``{name}-img/`` directory.
     """

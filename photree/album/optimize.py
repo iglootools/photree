@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import combined as combined_module
+from . import browsable as browsable_module
 from ..fs import (
     IMG_EXTENSIONS,
     LinkMode,
@@ -39,29 +39,36 @@ def optimize_album(
 
     Does NOT touch {name}-jpg (HEIC→JPEG conversions cannot be linked).
     """
-    # Only optimize iOS media sources — plain media sources' browsable dirs
-    # are the source of truth and must never be rebuilt.
-    ios_sources = [ms for ms in discover_media_sources(album_dir) if ms.is_ios]
+    # Optimize media sources that have an archive directory on disk.
+    # Legacy std sources (no std-{name}/ archive) are skipped — their
+    # browsable dirs are the source of truth and must never be rebuilt.
+    sources = [
+        ms
+        for ms in discover_media_sources(album_dir)
+        if ms.is_ios or (album_dir / ms.archive_dir).is_dir()
+    ]
 
     total_heic = 0
     total_mov = 0
 
-    for ms in ios_sources:
-        heic_result = combined_module.refresh_main_dir(
+    for ms in sources:
+        heic_result = browsable_module.refresh_browsable_dir(
             album_dir / ms.orig_img_dir,
             album_dir / ms.edit_img_dir,
             album_dir / ms.img_dir,
             media_extensions=IMG_EXTENSIONS,
+            key_fn=ms.key_fn,
             link_mode=link_mode,
             dry_run=dry_run,
             log_cwd=log_cwd,
         )
 
-        mov_result = combined_module.refresh_main_dir(
+        mov_result = browsable_module.refresh_browsable_dir(
             album_dir / ms.orig_vid_dir,
             album_dir / ms.edit_vid_dir,
             album_dir / ms.vid_dir,
             media_extensions=VID_EXTENSIONS,
+            key_fn=ms.key_fn,
             link_mode=link_mode,
             dry_run=dry_run,
             log_cwd=log_cwd,
