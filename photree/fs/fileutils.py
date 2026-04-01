@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 
@@ -28,3 +29,31 @@ def list_files(directory: Path) -> list[str]:
 def file_ext(filename: str) -> str:
     """Return the lowercased file extension (e.g. ``".heic"``)."""
     return Path(filename).suffix.lower()
+
+
+def _visible_subdirs(directory: Path) -> Iterator[Path]:
+    """Yield visible (non-dot) subdirectories of *directory*, sorted by name."""
+    return (
+        child
+        for child in sorted(directory.iterdir())
+        if child.is_dir() and not child.name.startswith(".")
+    )
+
+
+def matching_subdirectories(
+    base_dir: Path, predicate: Callable[[Path], bool]
+) -> list[Path]:
+    """Recursively collect subdirectories of *base_dir* that satisfy *predicate*.
+
+    When a directory matches, it is collected and its subtree is not descended
+    into. *base_dir* itself is never returned.
+    """
+
+    def walk(directory: Path) -> Iterator[Path]:
+        if predicate(directory):
+            yield directory
+        else:
+            for child in _visible_subdirs(directory):
+                yield from walk(child)
+
+    return list(walk(base_dir))

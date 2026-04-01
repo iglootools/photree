@@ -16,12 +16,10 @@ from photree.fs import (
     LinkMode,
     PHOTREE_DIR,
     discover_albums,
-    discover_all_albums,
     format_album_external_id,
     format_external_id,
     generate_album_id,
     is_album,
-    is_legacy_album,
     load_album_metadata,
     parse_external_id,
     resolve_gallery_dir,
@@ -249,20 +247,6 @@ class TestIsAlbum:
         assert not is_album(album)
 
 
-class TestIsLegacyAlbum:
-    def test_legacy_album_detected(self, tmp_path: Path) -> None:
-        album = tmp_path / "album"
-        _setup_media_source(album)
-        (album / PHOTREE_DIR).mkdir(parents=True, exist_ok=True)
-        assert is_legacy_album(album)
-
-    def test_proper_album_not_legacy(self, tmp_path: Path) -> None:
-        album = tmp_path / "album"
-        _setup_media_source(album)
-        _mark_album(album)
-        assert not is_legacy_album(album)
-
-
 class TestResolveGalleryDir:
     def test_explicit_dir_with_gallery_yaml(self, tmp_path: Path) -> None:
         save_gallery_metadata(tmp_path, GalleryMetadata())
@@ -305,17 +289,3 @@ class TestDiscoverAlbums:
 
         albums = discover_albums(tmp_path)
         assert albums == []
-
-
-class TestDiscoverAllAlbums:
-    def test_finds_both_proper_and_legacy(self, tmp_path: Path) -> None:
-        proper = tmp_path / "proper"
-        _setup_media_source(proper)
-        _mark_album(proper)
-
-        legacy = tmp_path / "legacy"
-        _setup_media_source(legacy)
-        (legacy / PHOTREE_DIR).mkdir(parents=True, exist_ok=True)
-
-        all_albums = discover_all_albums(tmp_path)
-        assert sorted(all_albums) == sorted([proper, legacy])
