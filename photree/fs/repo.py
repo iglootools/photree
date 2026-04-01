@@ -102,19 +102,17 @@ def resolve_gallery_dir(
         return explicit
 
     current = (start_dir or Path.cwd()).resolve()
-    while True:
-        candidate = current / PHOTREE_DIR / GALLERY_YAML
-        if candidate.is_file():
-            return current
-        parent = current.parent
-        if parent == current:
-            break
-        current = parent
-
-    raise ValueError(
-        "No gallery metadata (.photree/gallery.yaml) found in parent directories.\n"
-        "Run 'photree gallery init' in the gallery root, or use --gallery-dir."
-    )
+    try:
+        return next(
+            d
+            for d in (current, *current.parents)
+            if (d / PHOTREE_DIR / GALLERY_YAML).is_file()
+        )
+    except StopIteration:
+        raise ValueError(
+            "No gallery metadata (.photree/gallery.yaml) found in parent directories.\n"
+            "Run 'photree gallery init' in the gallery root, or use --gallery-dir."
+        ) from None
 
 
 def resolve_gallery_metadata(start_dir: Path) -> GalleryMetadata | None:
