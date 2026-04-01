@@ -53,6 +53,7 @@ def run_batch_list_albums(
     *,
     metadata: bool = True,
     output_format: str = "text",
+    output_file: Path | None = None,
 ) -> None:
     """Shared implementation for list-albums / albums list."""
     import csv
@@ -78,52 +79,71 @@ def run_batch_list_albums(
         raise typer.Exit(code=1)
 
     if output_format == "csv":
-        writer = csv.writer(sys.stdout)
-        writer.writerow(
-            [
-                "id",
-                "path",
-                "date",
-                "part",
-                "series",
-                "title",
-                "location",
-                "tags",
-                "media_sources",
-            ]
+        out = (
+            open(output_file, "w", encoding="utf-8", newline="")
+            if output_file
+            else sys.stdout
         )
-        for album_dir in albums:
-            rel_path = display_name(album_dir, display_base, cwd)
-            album_meta = load_album_metadata(album_dir)
-            external_id = (
-                format_album_external_id(album_meta.id)
-                if album_meta is not None
-                else ""
+        try:
+            writer = csv.writer(out)
+            writer.writerow(
+                [
+                    "id",
+                    "path",
+                    "date",
+                    "part",
+                    "series",
+                    "title",
+                    "location",
+                    "tags",
+                    "media_sources",
+                ]
             )
-            parsed = parse_album_name(album_dir.name)
-            media_sources = discover_media_sources(album_dir)
-            ms_desc = ", ".join(
-                f"{c.name} ({c.media_source_type})" for c in media_sources
-            )
-            if parsed is not None:
-                tags = "private" if parsed.private else ""
-                writer.writerow(
-                    [
-                        external_id,
-                        rel_path,
-                        parsed.date,
-                        parsed.part or "",
-                        parsed.series or "",
-                        parsed.title,
-                        parsed.location or "",
-                        tags,
-                        ms_desc,
-                    ]
+            for album_dir in albums:
+                rel_path = display_name(album_dir, display_base, cwd)
+                album_meta = load_album_metadata(album_dir)
+                external_id = (
+                    format_album_external_id(album_meta.id)
+                    if album_meta is not None
+                    else ""
                 )
-            else:
-                writer.writerow(
-                    [external_id, rel_path, "", "", "", album_dir.name, "", "", ms_desc]
+                parsed = parse_album_name(album_dir.name)
+                media_sources = discover_media_sources(album_dir)
+                ms_desc = ", ".join(
+                    f"{c.name} ({c.media_source_type})" for c in media_sources
                 )
+                if parsed is not None:
+                    tags = "private" if parsed.private else ""
+                    writer.writerow(
+                        [
+                            external_id,
+                            rel_path,
+                            parsed.date,
+                            parsed.part or "",
+                            parsed.series or "",
+                            parsed.title,
+                            parsed.location or "",
+                            tags,
+                            ms_desc,
+                        ]
+                    )
+                else:
+                    writer.writerow(
+                        [
+                            external_id,
+                            rel_path,
+                            "",
+                            "",
+                            "",
+                            album_dir.name,
+                            "",
+                            "",
+                            ms_desc,
+                        ]
+                    )
+        finally:
+            if output_file:
+                out.close()
         return
 
     typer.echo(f"Found {len(albums)} album(s).\n")

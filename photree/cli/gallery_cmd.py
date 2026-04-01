@@ -264,12 +264,26 @@ def list_albums_cmd(
             help="Output format: text (default) or csv.",
         ),
     ] = "text",
+    output_file: Annotated[
+        Optional[Path],
+        typer.Option(
+            "--output",
+            "-o",
+            help="Write output to a file instead of stdout.",
+            dir_okay=False,
+            resolve_path=True,
+        ),
+    ] = None,
 ) -> None:
     """List all albums in the gallery."""
     resolved = _resolve_gallery_or_exit(gallery_dir)
     albums, display_base = _resolve_check_batch_albums(resolved, None)
     run_batch_list_albums(
-        albums, display_base, metadata=metadata, output_format=output_format
+        albums,
+        display_base,
+        metadata=metadata,
+        output_format=output_format,
+        output_file=output_file,
     )
 
 
