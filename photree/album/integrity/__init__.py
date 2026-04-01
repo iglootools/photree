@@ -334,8 +334,8 @@ def _classify_expected_file(
     expected_name: str,
     source_name: str,
     source_dir: Path,
-    main_dir: Path,
-    main_files: set[str],
+    browsable_dir: Path,
+    browsable_files: set[str],
     *,
     checksum: bool,
     on_file_checked: Callable[[str, bool], None] | None,
@@ -346,13 +346,13 @@ def _classify_expected_file(
     list[FileComparison],  # checksum_mismatches
 ]:
     """Classify a single expected file against the main directory."""
-    if expected_name not in main_files:
+    if expected_name not in browsable_files:
         if on_file_checked:
             on_file_checked(expected_name, False)
         return [], [MissingFile(expected_name, source_dir.name)], [], []
 
     comparison = _compare_file(
-        main_dir / expected_name,
+        browsable_dir / expected_name,
         source_dir / source_name,
         checksum=checksum,
     )
@@ -371,23 +371,24 @@ def _classify_expected_file(
         return [comparison], [], [], []
 
 
-def check_main_dir(
+def check_browsable_dir(
     orig_dir: Path,
     edit_dir: Path,
-    main_dir: Path,
+    browsable_dir: Path,
     *,
     media_extensions: frozenset[str],
     checksum: bool = True,
     on_file_checked: Callable[[str, bool], None] | None = None,
 ) -> CombinedDirCheck:
-    """Check that a main directory is consistent with orig/edited.
+    """Check that a browsable directory is consistent with orig/edited.
 
-    For each media file number in orig_dir, the main_dir should contain either
-    the edited media file (if one exists in edit_dir) or the original media file.
+    For each media file number in orig_dir, the browsable_dir should contain
+    either the edited media file (if one exists in edit_dir) or the original
+    media file.
     """
     orig_files = _list_files(orig_dir)
     edit_files = _list_files(edit_dir)
-    main_files = set(_list_files(main_dir))
+    browsable_files = set(_list_files(browsable_dir))
 
     # Use HEIC-priority dedup to handle duplicate numbers (e.g. IMG_E7658.JPG + IMG_E7658.HEIC)
     orig_media_by_number = dedup_media_dict(orig_files, media_extensions)
@@ -420,8 +421,8 @@ def check_main_dir(
             expected_name,
             source_name,
             source_dir,
-            main_dir,
-            main_files,
+            browsable_dir,
+            browsable_files,
             checksum=checksum,
             on_file_checked=on_file_checked,
         )
@@ -438,12 +439,12 @@ def check_main_dir(
         f"{orig_media_by_number[num]} (should be {edit_name}, edited version exists)"
         for num, edit_name in edit_media_by_number.items()
         if (orig_name := orig_media_by_number.get(num))
-        and orig_name in main_files
+        and orig_name in browsable_files
         and orig_name != edit_name
     ]
 
     # Extra files in main that shouldn't be there
-    extra = sorted(main_files - set(expected.keys()))
+    extra = sorted(browsable_files - set(expected.keys()))
 
     return CombinedDirCheck(
         correct=tuple(correct),
@@ -568,7 +569,7 @@ def check_ios_media_source_integrity(
 ) -> IosAlbumIntegrityResult:
     """Run all integrity checks for a single media source within an iOS album."""
     assert ms.is_ios, "integrity checks require an iOS media source"
-    combined_heic = check_main_dir(
+    combined_heic = check_browsable_dir(
         album_dir / ms.orig_img_dir,
         album_dir / ms.edit_img_dir,
         album_dir / ms.img_dir,
@@ -577,7 +578,7 @@ def check_ios_media_source_integrity(
         on_file_checked=on_file_checked,
     )
 
-    combined_mov = check_main_dir(
+    combined_mov = check_browsable_dir(
         album_dir / ms.orig_vid_dir,
         album_dir / ms.edit_vid_dir,
         album_dir / ms.vid_dir,

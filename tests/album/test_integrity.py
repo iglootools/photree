@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 from photree.album.integrity import (
-    check_main_dir,
+    check_browsable_dir,
     check_ios_album_integrity,
     check_jpeg_dir,
     check_sidecars,
@@ -53,7 +53,7 @@ class TestCheckCombinedDir:
         album = tmp_path / "album"
         _setup_ios_album(album)
 
-        result = check_main_dir(
+        result = check_browsable_dir(
             album / MAIN_MEDIA_SOURCE.orig_img_dir,
             album / MAIN_MEDIA_SOURCE.edit_img_dir,
             album / MAIN_MEDIA_SOURCE.img_dir,
@@ -70,7 +70,7 @@ class TestCheckCombinedDir:
         _setup_ios_album(album)
         (album / MAIN_MEDIA_SOURCE.img_dir / "IMG_E0001.HEIC").unlink()
 
-        result = check_main_dir(
+        result = check_browsable_dir(
             album / MAIN_MEDIA_SOURCE.orig_img_dir,
             album / MAIN_MEDIA_SOURCE.edit_img_dir,
             album / MAIN_MEDIA_SOURCE.img_dir,
@@ -85,7 +85,7 @@ class TestCheckCombinedDir:
         _setup_ios_album(album)
         _write(album / MAIN_MEDIA_SOURCE.img_dir / "EXTRA.HEIC", "extra")
 
-        result = check_main_dir(
+        result = check_browsable_dir(
             album / MAIN_MEDIA_SOURCE.orig_img_dir,
             album / MAIN_MEDIA_SOURCE.edit_img_dir,
             album / MAIN_MEDIA_SOURCE.img_dir,
@@ -101,7 +101,7 @@ class TestCheckCombinedDir:
         (album / MAIN_MEDIA_SOURCE.img_dir / "IMG_E0001.HEIC").unlink()
         _write(album / MAIN_MEDIA_SOURCE.img_dir / "IMG_0001.HEIC", "heic-orig")
 
-        result = check_main_dir(
+        result = check_browsable_dir(
             album / MAIN_MEDIA_SOURCE.orig_img_dir,
             album / MAIN_MEDIA_SOURCE.edit_img_dir,
             album / MAIN_MEDIA_SOURCE.img_dir,
@@ -118,7 +118,7 @@ class TestCheckCombinedDir:
             "corrupted-different-size!!"
         )
 
-        result = check_main_dir(
+        result = check_browsable_dir(
             album / MAIN_MEDIA_SOURCE.orig_img_dir,
             album / MAIN_MEDIA_SOURCE.edit_img_dir,
             album / MAIN_MEDIA_SOURCE.img_dir,
@@ -133,7 +133,7 @@ class TestCheckCombinedDir:
         # Same size but different content
         (album / MAIN_MEDIA_SOURCE.img_dir / "IMG_E0001.HEIC").write_text("heic-DIFFER")
 
-        result = check_main_dir(
+        result = check_browsable_dir(
             album / MAIN_MEDIA_SOURCE.orig_img_dir,
             album / MAIN_MEDIA_SOURCE.edit_img_dir,
             album / MAIN_MEDIA_SOURCE.img_dir,
@@ -372,7 +372,7 @@ class TestCheckCombinedDirLinkAware:
         album = tmp_path / "album"
         _setup_hardlinked_album(album)
 
-        result = check_main_dir(
+        result = check_browsable_dir(
             album / MAIN_MEDIA_SOURCE.orig_img_dir,
             album / MAIN_MEDIA_SOURCE.edit_img_dir,
             album / MAIN_MEDIA_SOURCE.img_dir,
@@ -387,7 +387,7 @@ class TestCheckCombinedDirLinkAware:
         album = tmp_path / "album"
         _setup_symlinked_album(album)
 
-        result = check_main_dir(
+        result = check_browsable_dir(
             album / MAIN_MEDIA_SOURCE.orig_img_dir,
             album / MAIN_MEDIA_SOURCE.edit_img_dir,
             album / MAIN_MEDIA_SOURCE.img_dir,
@@ -404,7 +404,7 @@ class TestCheckCombinedDirLinkAware:
         # Remove the source file to break the symlink
         (album / MAIN_MEDIA_SOURCE.edit_img_dir / "IMG_E0001.HEIC").unlink()
 
-        result = check_main_dir(
+        result = check_browsable_dir(
             album / MAIN_MEDIA_SOURCE.orig_img_dir,
             album / MAIN_MEDIA_SOURCE.edit_img_dir,
             album / MAIN_MEDIA_SOURCE.img_dir,
