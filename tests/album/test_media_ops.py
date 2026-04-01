@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from photree.album.media_ops import move_media, rm_media, resolve_variants
-from photree.fsprotocol import (
+from photree.fs import (
     AlbumMetadata,
     MAIN_MEDIA_SOURCE,
     generate_album_id,

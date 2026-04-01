@@ -13,7 +13,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
-from ...fsprotocol import (
+from ...fs import (
     IMG_EXTENSIONS,
     SIDECAR_EXTENSIONS,
     VID_EXTENSIONS,

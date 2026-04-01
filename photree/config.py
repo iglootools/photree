@@ -18,7 +18,7 @@ from pathlib import Path
 
 from platformdirs import site_config_dir, user_config_dir
 
-from .fsprotocol import AlbumShareLayout, LinkMode, ShareDirectoryLayout
+from .fs import AlbumShareLayout, LinkMode, ShareDirectoryLayout
 
 _APP = "photree"
 _FILENAME = "config.toml"

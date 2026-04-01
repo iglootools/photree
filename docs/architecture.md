@@ -17,22 +17,24 @@ Dependencies between top-level modules (auto-generated via `mise run depgraph`):
 ```mermaid
 graph TD
     album["album/"]
+    base58["base58"]
     cli["cli/"]
     config["config"]
-    fsprotocol["fsprotocol"]
+    fs["fs/"]
     gallery["gallery/"]
     uiconventions["uiconventions"]
 
-    album --> fsprotocol
+    album --> fs
     album --> uiconventions
     cli --> album
     cli --> config
-    cli --> fsprotocol
+    cli --> fs
     cli --> gallery
     cli --> uiconventions
-    config --> fsprotocol
-    fsprotocol --> uiconventions
+    config --> fs
+    fs --> base58
+    fs --> uiconventions
     gallery --> album
-    gallery --> fsprotocol
+    gallery --> fs
 ```
 <!-- END MODULE OVERVIEW -->

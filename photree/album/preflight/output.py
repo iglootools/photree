@@ -10,7 +10,7 @@ from ...uiconventions import CHECK, CROSS, WARNING
 from .troubleshoot import suggest_exif_fixes, suggest_fixes
 from ..naming import AlbumNamingResult, BatchNamingResult
 from . import AlbumMediaSourceSummary, AlbumPreflightResult
-from ...fsprotocol import format_album_external_id
+from ...fs import format_album_external_id
 
 
 def sips_check(available: bool) -> str:

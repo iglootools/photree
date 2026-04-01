@@ -19,7 +19,7 @@ from pathlib import Path
 
 from ..combined import refresh_main_dir
 from ..preflight import AlbumType, detect_album_type
-from ...fsprotocol import (
+from ...fs import (
     AlbumShareLayout,
     MediaSource,
     IMG_EXTENSIONS,

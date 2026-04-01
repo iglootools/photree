@@ -15,7 +15,7 @@ from pathlib import Path
 from .. import combined
 from ..jpeg import convert_single_file, refresh_jpeg_dir
 
-from ...fsprotocol import (
+from ...fs import (
     ALBUM_YAML,
     AlbumMetadata,
     DEFAULT_MEDIA_SOURCE,

@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from ..preflight import AlbumType, detect_album_type, discover_ios_albums
-from ...fsprotocol import AlbumShareLayout, LinkMode, ShareDirectoryLayout
+from ...fs import AlbumShareLayout, LinkMode, ShareDirectoryLayout
 from .export import compute_target_dir, export_album
 
 

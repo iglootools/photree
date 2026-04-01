@@ -6,7 +6,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ...fsprotocol import SELECTION_DIR, LinkMode
+from ...fs import SELECTION_DIR, LinkMode
 from ..jpeg import convert_single_file
 from . import image_capture
 from .image_capture import (

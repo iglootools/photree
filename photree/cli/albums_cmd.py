@@ -15,7 +15,7 @@ import typer
 from ..album.exporter import export_batch, output as export_output
 from ..album.importer import image_capture_batch, output as importer_output
 from ..album.jpeg import convert_single_file, noop_convert_single
-from ..fsprotocol import (
+from ..fs import (
     AlbumShareLayout,
     LinkMode,
     SELECTION_DIR,
@@ -201,7 +201,7 @@ def fix_cmd(
     ] = False,
 ) -> None:
     """Fix all albums under a directory or from an explicit list."""
-    from ..fsprotocol import discover_all_albums
+    from ..fs import discover_all_albums
 
     if not fix_id and not new_id and not refresh_jpeg:
         typer.echo(

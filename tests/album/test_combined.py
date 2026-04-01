@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 from photree.album.combined import RefreshMainDirResult, refresh_main_dir
-from photree.fsprotocol import IMG_EXTENSIONS, VID_EXTENSIONS, LinkMode
+from photree.fs import IMG_EXTENSIONS, VID_EXTENSIONS, LinkMode
 
 
 def _setup_dir(path: Path, filenames: list[str]) -> Path:

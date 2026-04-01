@@ -23,7 +23,7 @@ from ..album.naming import (
     parse_album_name,
 )
 from ..album.preflight.output import format_naming_checks
-from ..fsprotocol import (
+from ..fs import (
     AlbumShareLayout,
     GALLERY_YAML,
     GalleryMetadata,

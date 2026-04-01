@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from photree.fsprotocol import SELECTION_DIR, LinkMode
+from photree.fs import SELECTION_DIR, LinkMode
 from photree.album.importer.image_capture import (
     STAGE_IMPORT_IC,
     STAGE_REFRESH_MAIN_IMG,

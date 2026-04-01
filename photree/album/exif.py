@@ -14,7 +14,7 @@ from pathlib import Path
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 from rich.console import Console
 
-from ..fsprotocol import (
+from ..fs import (
     IMG_EXTENSIONS,
     VID_EXTENSIONS,
     discover_media_sources,
@@ -219,7 +219,7 @@ def set_exif_date(
         new_date = f"{exif_date} {time_part}"
 
         if log_cwd is not None:
-            from ..fsprotocol import display_path
+            from ..fs import display_path
 
             _console.print(
                 f"{CHECK} fix-exif {display_path(Path(path), log_cwd)}: {original} -> {new_date}"
@@ -258,7 +258,7 @@ def set_exif_date_time(
     exif_ts = timestamp.replace("T", " ").replace("-", ":", 2)
 
     if log_cwd is not None:
-        from ..fsprotocol import display_path
+        from ..fs import display_path
 
         for f in files:
             _console.print(f"{CHECK} fix-exif {display_path(f, log_cwd)}: -> {exif_ts}")
@@ -297,7 +297,7 @@ def shift_exif_date(
     shift = f"0:0:{days} 0:0:0"  # Y:M:D H:M:S
 
     if log_cwd is not None:
-        from ..fsprotocol import display_path
+        from ..fs import display_path
 
         for f in files:
             _console.print(
@@ -339,7 +339,7 @@ def shift_exif_time(
     shift = f"0:0:0 {hours}:0:0"  # Y:M:D H:M:S
 
     if log_cwd is not None:
-        from ..fsprotocol import display_path
+        from ..fs import display_path
 
         for f in files:
             _console.print(

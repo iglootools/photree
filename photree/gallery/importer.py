@@ -16,7 +16,7 @@ from ..album import fixes as album_fixes
 from ..album import optimize as album_optimize
 from ..album.integrity import check_album_jpeg_integrity
 from ..album.jpeg import convert_single_file
-from ..fsprotocol import (
+from ..fs import (
     AlbumMetadata,
     LinkMode,
     discover_media_sources,

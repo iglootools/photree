@@ -24,7 +24,7 @@ from ..album import (
 from ..album.exif import try_start_exiftool
 from ..album.preflight import output as preflight_output
 from ..album.stats import output as stats_output
-from ..fsprotocol import (
+from ..fs import (
     AlbumMetadata,
     LinkMode,
     discover_media_sources,
