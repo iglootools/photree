@@ -6,8 +6,12 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ..preflight import AlbumType, detect_album_type, discover_ios_albums
-from ...fs import AlbumShareLayout, LinkMode, ShareDirectoryLayout
+from ...fs import (
+    AlbumShareLayout,
+    LinkMode,
+    ShareDirectoryLayout,
+    discover_albums as discover_photree_albums,
+)
 from .export import compute_target_dir, export_album
 
 
@@ -25,23 +29,23 @@ class BatchExportResult:
 def discover_albums(base_dir: Path) -> list[Path]:
     """Discover all album directories under *base_dir*.
 
-    Returns iOS albums (recursively) plus immediate subdirectories that are
-    non-iOS albums (i.e. directories that are not parents of iOS albums).
+    Returns photree albums (recursively, via ``fs.discover_albums``) plus
+    immediate subdirectories that are not already covered — i.e. plain
+    directories without ``.photree/album.yaml`` that can be exported as-is.
     """
-    ios_albums = set(discover_ios_albums(base_dir))
-    # iOS album parents should not be treated as non-iOS albums
-    ios_parents = {a.parent for a in ios_albums}
+    photree_albums = set(discover_photree_albums(base_dir))
+    # Parents of photree albums should not be treated as plain directories
+    photree_parents = {a.parent for a in photree_albums}
 
-    other_albums = sorted(
+    other_dirs = sorted(
         p
         for p in base_dir.iterdir()
         if p.is_dir()
-        and p not in ios_albums
-        and p not in ios_parents
-        and detect_album_type(p) == AlbumType.OTHER
+        and p not in photree_albums
+        and p not in photree_parents
     )
 
-    return sorted([*ios_albums, *other_albums])
+    return sorted([*photree_albums, *other_dirs])
 
 
 def run_batch_export(
