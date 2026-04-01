@@ -141,8 +141,7 @@ def _check_target_conflicts(albums: list[Path], gallery_dir: Path) -> None:
     ]
     if conflicts:
         raise BatchImportValidationError(
-            f"Target(s) already exist: "
-            f"{', '.join(c.source.name for c in conflicts)}"
+            f"Target(s) already exist: {', '.join(c.source.name for c in conflicts)}"
         )
 
 

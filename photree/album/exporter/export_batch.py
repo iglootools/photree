@@ -40,9 +40,7 @@ def discover_albums(base_dir: Path) -> list[Path]:
     other_dirs = sorted(
         p
         for p in base_dir.iterdir()
-        if p.is_dir()
-        and p not in photree_albums
-        and p not in photree_parents
+        if p.is_dir() and p not in photree_albums and p not in photree_parents
     )
 
     return sorted([*photree_albums, *other_dirs])

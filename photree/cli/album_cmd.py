@@ -45,9 +45,11 @@ from ..album.stats import output as stats_output
 from ..album.jpeg import convert_single_file, noop_convert_single
 from ..config import ConfigError
 from ..fs import (
+    ALBUM_YAML,
     AlbumMetadata,
     IMG_EXTENSIONS,
     LinkMode,
+    PHOTREE_DIR,
     SELECTION_DIR,
     VID_EXTENSIONS,
     count_unique_media_numbers,
@@ -96,6 +98,40 @@ album_app = typer.Typer(
     help="Album management commands.",
     no_args_is_help=True,
 )
+
+
+@album_app.command("init")
+def init_cmd(
+    album_dir: Annotated[
+        Path,
+        typer.Option(
+            "--album-dir",
+            "-a",
+            help="Album directory.",
+            exists=True,
+            file_okay=False,
+            resolve_path=True,
+        ),
+    ] = Path("."),
+) -> None:
+    """Initialize album metadata (.photree/album.yaml) with a new album ID."""
+    cwd = Path.cwd()
+    metadata = load_album_metadata(album_dir)
+    if metadata is not None:
+        typer.echo(
+            f"Album already initialized: {format_album_external_id(metadata.id)}\n"
+            f"  {display_path(album_dir / PHOTREE_DIR / ALBUM_YAML, cwd)}",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    generated_id = generate_album_id()
+    save_album_metadata(album_dir, AlbumMetadata(id=generated_id))
+    album_yaml = album_dir / PHOTREE_DIR / ALBUM_YAML
+    typer.echo(
+        f"Created {display_path(album_yaml, cwd)}\n"
+        f"Album ID: {format_album_external_id(generated_id)}"
+    )
 
 
 @album_app.command("show")

@@ -53,6 +53,7 @@ $ photree album [OPTIONS] COMMAND [ARGS]...
 
 **Commands**:
 
+* `init`: Initialize album metadata...
 * `show`: Display album metadata and parsed name.
 * `check`: Check system prerequisites, album...
 * `fix`: Fix album issues.
@@ -65,6 +66,21 @@ $ photree album [OPTIONS] COMMAND [ARGS]...
 * `export`: Export a single album to a shared directory.
 * `import-check`: Check that system prerequisites for import...
 * `import`
+
+### `photree album init`
+
+Initialize album metadata (.photree/album.yaml) with a new album ID.
+
+**Usage**:
+
+```console
+$ photree album init [OPTIONS]
+```
+
+**Options**:
+
+* `-a, --album-dir DIRECTORY`: Album directory.  [default: .]
+* `--help`: Show this message and exit.
 
 ### `photree album show`
 
@@ -408,6 +424,7 @@ $ photree albums [OPTIONS] COMMAND [ARGS]...
 
 **Commands**:
 
+* `init`: Initialize album metadata...
 * `list`: List all discovered albums with their...
 * `check`: Check all albums under a directory or from...
 * `fix`: Fix all albums under a directory or from...
@@ -417,6 +434,23 @@ $ photree albums [OPTIONS] COMMAND [ARGS]...
 * `import-check`
 * `import`
 * `export`: Batch export multiple albums to a shared...
+
+### `photree albums init`
+
+Initialize album metadata (.photree/album.yaml) for multiple albums.
+
+**Usage**:
+
+```console
+$ photree albums init [OPTIONS]
+```
+
+**Options**:
+
+* `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
+* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
+* `-n, --dry-run`: Print what would happen without modifying files.
+* `--help`: Show this message and exit.
 
 ### `photree albums list`
 

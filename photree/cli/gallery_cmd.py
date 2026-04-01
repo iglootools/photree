@@ -29,6 +29,7 @@ from ..fs import (
     LinkMode,
     PHOTREE_DIR,
     discover_albums,
+    discover_potential_albums,
     display_path,
     format_album_external_id,
     load_album_metadata,
@@ -191,6 +192,18 @@ def _resolve_batch_albums(
     return _resolve_batch_albums_with(
         base_dir, album_dirs, album_preflight.discover_ios_albums
     )
+
+
+def _resolve_init_batch_albums(
+    base_dir: Path | None,
+    album_dirs: list[Path] | None,
+) -> tuple[list[Path], Path | None]:
+    """Resolve album list for init commands.
+
+    Uses :func:`discover_potential_albums` which finds directories with
+    media sources regardless of whether ``.photree/album.yaml`` exists.
+    """
+    return _resolve_batch_albums_with(base_dir, album_dirs, discover_potential_albums)
 
 
 def _resolve_batch_albums_with(
