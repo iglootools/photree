@@ -94,6 +94,58 @@ class TargetConflict:
     target: Path
 
 
+def _check_gallery_id_conflicts(
+    source_metas: list[tuple[Path, AlbumMetadata]],
+    index: AlbumIndex,
+) -> None:
+    """Raise if any source album ID already exists in the gallery."""
+    conflicts = [
+        GalleryConflict(source=a, album_id=meta.id, existing=index.id_to_path[meta.id])
+        for a, meta in source_metas
+        if meta.id in index.id_to_path
+    ]
+    if conflicts:
+        raise BatchImportValidationError(
+            f"Album ID(s) already exist in gallery: "
+            f"{', '.join(c.source.name for c in conflicts)}"
+        )
+
+
+def _check_source_duplicate_ids(
+    source_metas: list[tuple[Path, AlbumMetadata]],
+) -> None:
+    """Raise if multiple source albums share the same ID."""
+    sorted_sources = sorted(source_metas, key=lambda t: t[1].id)
+    grouped = {
+        aid: [p for p, _ in group]
+        for aid, group in itertools.groupby(sorted_sources, key=lambda t: t[1].id)
+    }
+    dups = [
+        SourceDuplicate(album_id=aid, paths=paths)
+        for aid, paths in grouped.items()
+        if len(paths) > 1
+    ]
+    if dups:
+        raise BatchImportValidationError(
+            f"Duplicate album IDs among source albums: "
+            f"{', '.join(d.album_id for d in dups)}"
+        )
+
+
+def _check_target_conflicts(albums: list[Path], gallery_dir: Path) -> None:
+    """Raise if any target directory already exists."""
+    conflicts = [
+        TargetConflict(source=a, target=compute_target_dir(gallery_dir, a.name))
+        for a in albums
+        if compute_target_dir(gallery_dir, a.name).exists()
+    ]
+    if conflicts:
+        raise BatchImportValidationError(
+            f"Target(s) already exist: "
+            f"{', '.join(c.source.name for c in conflicts)}"
+        )
+
+
 def validate_batch_import(
     albums: list[Path],
     index: AlbumIndex,
@@ -106,52 +158,14 @@ def validate_batch_import(
     2. No duplicate IDs among source albums
     3. Target directories don't already exist
 
-    Raises :class:`BatchImportValidationError` with structured data on failure.
+    Raises :class:`BatchImportValidationError` on failure.
     """
     source_metas = [
         (a, meta) for a in albums if (meta := load_album_metadata(a)) is not None
     ]
-
-    # Check source IDs against gallery
-    gallery_conflicts = [
-        GalleryConflict(source=a, album_id=meta.id, existing=index.id_to_path[meta.id])
-        for a, meta in source_metas
-        if meta.id in index.id_to_path
-    ]
-    if gallery_conflicts:
-        raise BatchImportValidationError(
-            f"Album ID(s) already exist in gallery: "
-            f"{', '.join(c.source.name for c in gallery_conflicts)}"
-        )
-
-    # Check for duplicate IDs among source albums
-    sorted_sources = sorted(source_metas, key=lambda t: t[1].id)
-    source_grouped = {
-        aid: [p for p, _ in group]
-        for aid, group in itertools.groupby(sorted_sources, key=lambda t: t[1].id)
-    }
-    source_dups = [
-        SourceDuplicate(album_id=aid, paths=paths)
-        for aid, paths in source_grouped.items()
-        if len(paths) > 1
-    ]
-    if source_dups:
-        raise BatchImportValidationError(
-            f"Duplicate album IDs among source albums: "
-            f"{', '.join(d.album_id for d in source_dups)}"
-        )
-
-    # Check all targets before importing any
-    target_conflicts = [
-        TargetConflict(source=a, target=compute_target_dir(gallery_dir, a.name))
-        for a in albums
-        if compute_target_dir(gallery_dir, a.name).exists()
-    ]
-    if target_conflicts:
-        raise BatchImportValidationError(
-            f"Target(s) already exist: "
-            f"{', '.join(c.source.name for c in target_conflicts)}"
-        )
+    _check_gallery_id_conflicts(source_metas, index)
+    _check_source_duplicate_ids(source_metas)
+    _check_target_conflicts(albums, gallery_dir)
 
 
 def _stage_copy(
