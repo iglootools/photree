@@ -178,6 +178,22 @@ class TestImportAlbum:
 
         assert result.jpeg_refreshed
 
+    def test_rejects_optimize_when_browsable_files_mismatch(
+        self, tmp_path: Path
+    ) -> None:
+        gallery = _setup_gallery(tmp_path)
+        album = tmp_path / "2024-07-14 - Hiking"
+        _setup_ios_album(album)
+        # Corrupt the browsable copy so it no longer matches the archival source
+        _write(album / "main-img/IMG_0001.HEIC", "corrupted-data")
+
+        with pytest.raises(ValueError, match="Pre-optimize integrity check failed"):
+            import_album(
+                source_dir=album,
+                gallery_dir=gallery,
+                convert_file=noop_convert_single,
+            )
+
     def test_stage_callbacks_invoked(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
         album = tmp_path / "2024-07-14 - Hiking"

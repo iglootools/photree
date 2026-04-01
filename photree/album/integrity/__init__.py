@@ -100,6 +100,17 @@ class CombinedDirCheck:
             and not self.checksum_mismatches
         )
 
+    @property
+    def files_match_sources(self) -> bool:
+        """True when every present file matches its archival source.
+
+        Unlike :attr:`success`, missing and extra files are tolerated —
+        only content mismatches (size or checksum) are considered a
+        failure. This catches the case where a browsable file has been
+        corrupted or replaced with different content.
+        """
+        return not self.size_mismatches and not self.checksum_mismatches
+
 
 @dataclass(frozen=True)
 class JpegCheck:

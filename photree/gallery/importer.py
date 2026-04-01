@@ -14,7 +14,7 @@ from pathlib import Path
 
 from ..album import fixes as album_fixes
 from ..album import optimize as album_optimize
-from ..album.integrity import check_album_jpeg_integrity
+from ..album.integrity import check_album_jpeg_integrity, check_ios_album_integrity
 from ..album.jpeg import convert_single_file
 from ..fs import (
     AlbumMetadata,
@@ -128,6 +128,19 @@ def import_album(
     _notify(on_stage_start, STAGE_OPTIMIZE)
     ios_sources = [ms for ms in discover_media_sources(work_dir) if ms.is_ios]
     if ios_sources and not dry_run:
+        integrity = check_ios_album_integrity(work_dir, checksum=True)
+        mismatched = [
+            ms.name
+            for ms, result in integrity.by_media_source
+            if not result.combined_heic.files_match_sources
+            or not result.combined_mov.files_match_sources
+        ]
+        if mismatched:
+            raise ValueError(
+                f"Pre-optimize integrity check failed for media source(s): "
+                f"{', '.join(mismatched)}. "
+                "Browsable files do not match their archival sources."
+            )
         album_optimize.optimize_album(work_dir, link_mode=link_mode)
     _notify(on_stage_end, STAGE_OPTIMIZE)
 
