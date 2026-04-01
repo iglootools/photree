@@ -6,6 +6,7 @@ albums. Both ``gallery`` and ``albums`` CLI commands delegate to them.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 import typer
@@ -34,6 +35,7 @@ from ..fs import (
 from ..gallery.index import find_duplicate_album_ids
 from ..album.ios_fixes import run_fix_ios
 from ..album.output import format_fix_ios_result
+from ..fs import discover_potential_albums
 from .console import console, err_console
 from .progress import BatchProgressBar
 
@@ -709,3 +711,83 @@ def run_batch_rename_from_csv(
     else:
         count = execute_renames(actions)
         typer.echo(f"Renamed {count} album(s).")
+
+
+# ---------------------------------------------------------------------------
+# Album resolution helpers
+# ---------------------------------------------------------------------------
+
+
+def resolve_check_batch_albums(
+    base_dir: Path | None,
+    album_dirs: list[Path] | None,
+) -> tuple[list[Path], Path | None]:
+    """Resolve album list for check commands (all album types).
+
+    Uses :func:`discover_albums` which detects iOS albums, ``.album``
+    sentinels, and leaf directories.
+    """
+    return _resolve_batch_albums_with(
+        base_dir, album_dirs, album_preflight.discover_albums
+    )
+
+
+def resolve_batch_albums(
+    base_dir: Path | None,
+    album_dirs: list[Path] | None,
+) -> tuple[list[Path], Path | None]:
+    """Resolve album list for iOS-specific commands.
+
+    Uses :func:`discover_ios_albums` which only finds albums with an
+    ``ios/`` subdirectory.
+    """
+    return _resolve_batch_albums_with(
+        base_dir, album_dirs, album_preflight.discover_ios_albums
+    )
+
+
+def resolve_init_batch_albums(
+    base_dir: Path | None,
+    album_dirs: list[Path] | None,
+) -> tuple[list[Path], Path | None]:
+    """Resolve album list for init commands.
+
+    Uses :func:`discover_potential_albums` which finds directories with
+    media sources regardless of whether ``.photree/album.yaml`` exists.
+    """
+    return _resolve_batch_albums_with(base_dir, album_dirs, discover_potential_albums)
+
+
+def _resolve_batch_albums_with(
+    base_dir: Path | None,
+    album_dirs: list[Path] | None,
+    discover_fn: Callable[[Path], list[Path]],
+) -> tuple[list[Path], Path | None]:
+    """Resolve album list from mutually exclusive --dir / --album-dir options.
+
+    Returns ``(albums, display_base)`` where *display_base* is the base
+    directory when --dir was used (for relative display names), or ``None``
+    when --album-dir was used (display names are CWD-relative).
+    """
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+
+    if base_dir is not None and album_dirs is not None:
+        typer.echo(
+            "--dir and --album-dir are mutually exclusive.",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    if album_dirs is not None:
+        return (album_dirs, None)
+
+    # --dir mode (explicit or default)
+    resolved_base = base_dir if base_dir is not None else Path(".").resolve()
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        transient=True,
+    ) as progress:
+        progress.add_task("Resolving album list...", total=None)
+        albums = discover_fn(resolved_base)
+    return (albums, resolved_base)

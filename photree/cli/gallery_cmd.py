@@ -6,46 +6,24 @@ Gallery commands operate on all albums within a gallery (resolved via
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated, Optional
 
 import typer
 
-from ..album import (
-    preflight as album_preflight,
-)
-from ..album.preflight import output as preflight_output
-from ..album.exif import try_start_exiftool
-from ..album.naming import (
-    AlbumNamingResult,
-    check_album_naming,
-    parse_album_name,
-)
-from ..album.preflight.output import format_naming_checks
 from ..fs import (
     GALLERY_YAML,
     GalleryMetadata,
     LinkMode,
     PHOTREE_DIR,
     discover_albums,
-    discover_potential_albums,
     display_path,
     format_album_external_id,
-    load_album_metadata,
     load_gallery_metadata,
-    resolve_gallery_dir,
     resolve_link_mode,
     save_gallery_metadata,
 )
-from ..gallery import (
-    AlbumIndex,
-    MissingAlbumIdError,
-    build_album_id_to_path_index,
-)
-from ..gallery import importer as gallery_importer
 from ..gallery.importer import (
-    AlbumImportResult,
     BatchImportValidationError,
     compute_target_dir,
     validate_batch_import,
@@ -80,6 +58,8 @@ from .options import (
     SHARE_LAYOUT_OPTION,
 )
 from .batch_ops import (
+    resolve_batch_albums,
+    resolve_check_batch_albums,
     run_batch_check,
     run_batch_fix,
     run_batch_fix_ios,
@@ -88,8 +68,17 @@ from .batch_ops import (
     run_batch_rename_from_csv,
     run_batch_stats,
 )
-from .console import console, err_console
-from .progress import BatchProgressBar, StageProgressBar
+from .console import err_console
+from .gallery_ops import (
+    build_index_or_exit,
+    print_single_import_result,
+    resolve_gallery_or_exit,
+    resolve_import_all_albums,
+    run_batch_import,
+    run_batch_post_import_check,
+    run_single_import,
+    validate_single_import,
+)
 
 gallery_app = typer.Typer(
     name="gallery",
@@ -158,7 +147,7 @@ def show_cmd(
     ] = None,
 ) -> None:
     """Display gallery metadata."""
-    resolved = _resolve_gallery_or_exit(gallery_dir)
+    resolved = resolve_gallery_or_exit(gallery_dir)
     cwd = Path.cwd()
     metadata = load_gallery_metadata(resolved / PHOTREE_DIR / GALLERY_YAML)
     albums = discover_albums(resolved)
@@ -166,117 +155,6 @@ def show_cmd(
     typer.echo(f"Gallery: {display_path(resolved, cwd)}")
     typer.echo(f"  link-mode: {metadata.link_mode}")
     typer.echo(f"  albums: {len(albums)}")
-
-
-def _resolve_check_batch_albums(
-    base_dir: Path | None,
-    album_dirs: list[Path] | None,
-) -> tuple[list[Path], Path | None]:
-    """Resolve album list for check commands (all album types).
-
-    Uses :func:`discover_albums` which detects iOS albums, ``.album``
-    sentinels, and leaf directories.
-    """
-    return _resolve_batch_albums_with(
-        base_dir, album_dirs, album_preflight.discover_albums
-    )
-
-
-def _resolve_batch_albums(
-    base_dir: Path | None,
-    album_dirs: list[Path] | None,
-) -> tuple[list[Path], Path | None]:
-    """Resolve album list for iOS-specific commands.
-
-    Uses :func:`discover_ios_albums` which only finds albums with an
-    ``ios/`` subdirectory.
-    """
-    return _resolve_batch_albums_with(
-        base_dir, album_dirs, album_preflight.discover_ios_albums
-    )
-
-
-def _resolve_init_batch_albums(
-    base_dir: Path | None,
-    album_dirs: list[Path] | None,
-) -> tuple[list[Path], Path | None]:
-    """Resolve album list for init commands.
-
-    Uses :func:`discover_potential_albums` which finds directories with
-    media sources regardless of whether ``.photree/album.yaml`` exists.
-    """
-    return _resolve_batch_albums_with(base_dir, album_dirs, discover_potential_albums)
-
-
-def _resolve_batch_albums_with(
-    base_dir: Path | None,
-    album_dirs: list[Path] | None,
-    discover_fn: Callable[[Path], list[Path]],
-) -> tuple[list[Path], Path | None]:
-    """Resolve album list from mutually exclusive --dir / --album-dir options.
-
-    Returns ``(albums, display_base)`` where *display_base* is the base
-    directory when --dir was used (for relative display names), or ``None``
-    when --album-dir was used (display names are CWD-relative).
-    """
-    from rich.progress import Progress, SpinnerColumn, TextColumn
-
-    if base_dir is not None and album_dirs is not None:
-        typer.echo(
-            "--dir and --album-dir are mutually exclusive.",
-            err=True,
-        )
-        raise typer.Exit(code=1)
-
-    if album_dirs is not None:
-        return (album_dirs, None)
-
-    # --dir mode (explicit or default)
-    resolved_base = base_dir if base_dir is not None else Path(".").resolve()
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        transient=True,
-    ) as progress:
-        progress.add_task("Resolving album list...", total=None)
-        albums = discover_fn(resolved_base)
-    return (albums, resolved_base)
-
-
-# ---------------------------------------------------------------------------
-# Gallery commands — resolve gallery dir, discover albums, delegate to shared logic
-# ---------------------------------------------------------------------------
-
-
-def _resolve_gallery_or_exit(gallery_dir: Path | None) -> Path:
-    """Resolve gallery directory or exit with a clear error."""
-    try:
-        return resolve_gallery_dir(gallery_dir)
-    except ValueError as exc:
-        err_console.print(str(exc))
-        raise typer.Exit(code=1) from exc
-
-
-def _build_index_or_exit(gallery_dir: Path, cwd: Path) -> AlbumIndex:
-    """Build the gallery album index, or exit on missing IDs."""
-    from rich.progress import Progress, SpinnerColumn, TextColumn
-
-    try:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            transient=True,
-        ) as progress:
-            progress.add_task("Building album index...", total=None)
-            return build_album_id_to_path_index(gallery_dir)
-    except MissingAlbumIdError as exc:
-        err_console.print("Albums with missing IDs found:")
-        for p in exc.albums:
-            err_console.print(f"  {display_path(p, cwd)}")
-        err_console.print(
-            "\nRun 'photree gallery fix --id' to generate missing album IDs."
-        )
-        raise typer.Exit(code=1) from exc
 
 
 @gallery_app.command("list-albums")
@@ -318,8 +196,8 @@ def list_albums_cmd(
     ] = None,
 ) -> None:
     """List all albums in the gallery."""
-    resolved = _resolve_gallery_or_exit(gallery_dir)
-    albums, display_base = _resolve_check_batch_albums(resolved, None)
+    resolved = resolve_gallery_or_exit(gallery_dir)
+    albums, display_base = resolve_check_batch_albums(resolved, None)
     run_batch_list_albums(
         albums,
         display_base,
@@ -351,8 +229,8 @@ def check_cmd(
     check_exif_date_match: CHECK_EXIF_DATE_MATCH_OPTION = True,
 ) -> None:
     """Check all albums in the gallery."""
-    resolved = _resolve_gallery_or_exit(gallery_dir)
-    albums, display_base = _resolve_check_batch_albums(resolved, None)
+    resolved = resolve_gallery_or_exit(gallery_dir)
+    albums, display_base = resolve_check_batch_albums(resolved, None)
     run_batch_check(
         albums,
         display_base,
@@ -401,8 +279,8 @@ def fix_cmd(
     if refresh_jpeg:
         _check_sips_or_exit()
 
-    resolved = _resolve_gallery_or_exit(gallery_dir)
-    albums, display_base = _resolve_check_batch_albums(resolved, None)
+    resolved = resolve_gallery_or_exit(gallery_dir)
+    albums, display_base = resolve_check_batch_albums(resolved, None)
 
     run_batch_fix(
         albums,
@@ -433,8 +311,8 @@ def optimize_cmd(
     dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """Optimize all iOS albums in the gallery."""
-    resolved = _resolve_gallery_or_exit(gallery_dir)
-    albums, display_base = _resolve_batch_albums(resolved, None)
+    resolved = resolve_gallery_or_exit(gallery_dir)
+    albums, display_base = resolve_batch_albums(resolved, None)
     run_batch_optimize(
         albums,
         display_base,
@@ -486,8 +364,8 @@ def fix_ios_cmd(
     except FixIosValidationError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=1) from exc
-    resolved = _resolve_gallery_or_exit(gallery_dir)
-    albums, display_base = _resolve_batch_albums(resolved, None)
+    resolved = resolve_gallery_or_exit(gallery_dir)
+    albums, display_base = resolve_batch_albums(resolved, None)
     run_batch_fix_ios(
         albums,
         display_base,
@@ -543,11 +421,11 @@ def rename_from_csv_cmd(
     where a mutable field changed are renamed. Immutable fields (date, part,
     tags) are preserved from the current on-disk album name.
     """
-    resolved = _resolve_gallery_or_exit(gallery_dir)
+    resolved = resolve_gallery_or_exit(gallery_dir)
     cwd = Path.cwd()
 
     # Build album index
-    index = _build_index_or_exit(resolved, cwd)
+    index = build_index_or_exit(resolved, cwd)
 
     # Check for duplicate IDs in gallery
     if index.duplicates:
@@ -579,213 +457,9 @@ def stats_cmd(
     ] = None,
 ) -> None:
     """Show aggregated disk usage and content statistics for all albums in the gallery."""
-    resolved = _resolve_gallery_or_exit(gallery_dir)
-    albums, display_base = _resolve_check_batch_albums(resolved, None)
+    resolved = resolve_gallery_or_exit(gallery_dir)
+    albums, display_base = resolve_check_batch_albums(resolved, None)
     run_batch_stats(albums, display_base)
-
-
-# ---------------------------------------------------------------------------
-# Gallery import — helpers
-# ---------------------------------------------------------------------------
-
-
-def _validate_single_import(
-    album_dir: Path,
-    index: AlbumIndex,
-    gallery_dir: Path,
-    cwd: Path,
-) -> None:
-    """Validate a single album before import.
-
-    Checks source album ID uniqueness, naming conventions, and that the
-    target directory does not already exist.
-    """
-    # Check source album ID uniqueness against gallery
-    source_meta = load_album_metadata(album_dir)
-    if source_meta is not None and source_meta.id in index.id_to_path:
-        existing = index.id_to_path[source_meta.id]
-        err_console.print(
-            f"Cannot import — album ID already exists in gallery:\n"
-            f"  source: {display_path(album_dir, cwd)}\n"
-            f"  existing: {display_path(existing, cwd)}\n"
-            f"  id: {format_album_external_id(source_meta.id)}"
-        )
-        raise typer.Exit(code=1)
-
-    # Validate album name
-    naming_issues = check_album_naming(album_dir.name)
-    if naming_issues:
-        parsed = parse_album_name(album_dir.name)
-        naming_result = AlbumNamingResult(
-            parsed=parsed, issues=naming_issues, exif_check=None
-        )
-        typer.echo("Naming Convention Check:")
-        console.print(format_naming_checks(naming_result))
-        err_console.print(
-            "\nAlbum name does not follow naming conventions. "
-            "Rename the album directory before importing."
-        )
-        raise typer.Exit(code=1)
-
-    # Check target doesn't exist
-    target = compute_target_dir(gallery_dir, album_dir.name)
-    if target.exists():
-        err_console.print(
-            f"Target already exists: {display_path(target, cwd)}\n"
-            "Cannot import — an album with the same name is already in the gallery."
-        )
-        raise typer.Exit(code=1)
-
-
-def _run_single_import(
-    album_dir: Path,
-    gallery_dir: Path,
-    link_mode: LinkMode,
-    dry_run: bool,
-) -> AlbumImportResult:
-    """Execute a single album import with stage progress bar."""
-    typer.echo("Import:")
-    progress = StageProgressBar(
-        total=4,
-        labels={
-            "copy": "Copying album",
-            "id": "Checking album ID",
-            "jpeg": "Refreshing JPEGs",
-            "optimize": "Optimizing links",
-        },
-    )
-    try:
-        result = gallery_importer.import_album(
-            source_dir=album_dir,
-            gallery_dir=gallery_dir,
-            link_mode=link_mode,
-            dry_run=dry_run,
-            on_stage_start=progress.on_start,
-            on_stage_end=progress.on_end,
-        )
-    except ValueError as exc:
-        progress.stop()
-        err_console.print(str(exc))
-        raise typer.Exit(code=1) from exc
-    finally:
-        progress.stop()
-    return result
-
-
-def _print_single_import_result(
-    result: AlbumImportResult,
-    cwd: Path,
-    dry_run: bool,
-) -> None:
-    """Display import result and run post-import preflight check."""
-    if not dry_run:
-        meta = load_album_metadata(result.target_dir)
-        if meta is not None:
-            typer.echo(f"Album ID: {format_album_external_id(meta.id)}")
-    typer.echo(f"Target: {display_path(result.target_dir, cwd)}")
-
-    if not dry_run:
-        typer.echo("\nPost-Import Check:")
-        check_result = album_preflight.run_album_preflight(result.target_dir)
-        console.print(preflight_output.format_album_preflight_checks(check_result))
-        if not check_result.success:
-            err_console.print(
-                f'\nTo investigate: photree album check --album-dir "{display_path(result.target_dir, cwd)}"'
-            )
-            raise typer.Exit(code=1)
-
-
-def _resolve_import_all_albums(
-    base_dir: Path | None,
-    album_dirs: list[Path] | None,
-) -> list[Path]:
-    """Resolve album list for batch import from --dir or --album-dir."""
-    if album_dirs is not None:
-        return album_dirs
-
-    scan_dir = base_dir if base_dir is not None else Path(".").resolve()
-    albums = sorted(p for p in scan_dir.iterdir() if p.is_dir())
-    if not albums:
-        typer.echo("No album directories found.")
-        raise typer.Exit(code=0)
-    return albums
-
-
-def _run_batch_import(
-    albums: list[Path],
-    gallery_dir: Path,
-    link_mode: LinkMode,
-    dry_run: bool,
-) -> tuple[int, list[Path]]:
-    """Execute batch import with progress bar.
-
-    Returns ``(imported_count, failed_albums)``.
-    """
-    progress = BatchProgressBar(
-        total=len(albums), description="Importing", done_description="import"
-    )
-    imported = 0
-    failed: list[Path] = []
-
-    for album_path in albums:
-        album_name = album_path.name
-        progress.on_start(album_name)
-        try:
-            gallery_importer.import_album(
-                source_dir=album_path,
-                gallery_dir=gallery_dir,
-                link_mode=link_mode,
-                dry_run=dry_run,
-            )
-            progress.on_end(album_name, success=True)
-            imported += 1
-        except (ValueError, OSError) as exc:
-            progress.on_end(album_name, success=False, error_labels=(str(exc)[:60],))
-            failed.append(album_path)
-
-    progress.stop()
-    return imported, failed
-
-
-def _run_batch_post_import_check(
-    imported_targets: list[Path],
-    cwd: Path,
-) -> list[Path]:
-    """Run post-import checks on all imported albums.
-
-    Returns the list of albums that failed checking.
-    """
-    sips_available = album_preflight.check_sips_available()
-    exiftool = try_start_exiftool()
-    check_progress = BatchProgressBar(
-        total=len(imported_targets),
-        description="Checking",
-        done_description="check",
-    )
-    check_failed: list[Path] = []
-    try:
-        for target_dir in imported_targets:
-            target_name = display_path(target_dir, cwd)
-            check_progress.on_start(str(target_name))
-            check_result = album_preflight.run_album_check(
-                target_dir,
-                sips_available=sips_available,
-                exiftool=exiftool,
-            )
-            if check_result.success:
-                check_progress.on_end(str(target_name), success=True)
-            else:
-                check_progress.on_end(
-                    str(target_name),
-                    success=False,
-                    error_labels=check_result.error_labels,
-                )
-                check_failed.append(target_dir)
-    finally:
-        if exiftool is not None:
-            exiftool.__exit__(None, None, None)
-    check_progress.stop()
-    return check_failed
 
 
 # ---------------------------------------------------------------------------
@@ -839,14 +513,14 @@ def import_cmd(
     missing album ID, refreshes JPEGs if stale, optimizes links, and runs
     integrity checks.
     """
-    resolved_gallery = _resolve_gallery_or_exit(gallery_dir)
+    resolved_gallery = resolve_gallery_or_exit(gallery_dir)
     resolved_lm = resolve_link_mode(link_mode, resolved_gallery)
     cwd = Path.cwd()
-    index = _build_index_or_exit(resolved_gallery, cwd)
+    index = build_index_or_exit(resolved_gallery, cwd)
 
-    _validate_single_import(album_dir, index, resolved_gallery, cwd)
-    result = _run_single_import(album_dir, resolved_gallery, resolved_lm, dry_run)
-    _print_single_import_result(result, cwd, dry_run)
+    validate_single_import(album_dir, index, resolved_gallery, cwd)
+    result = run_single_import(album_dir, resolved_gallery, resolved_lm, dry_run)
+    print_single_import_result(result, cwd, dry_run)
 
 
 @gallery_app.command("import-all")
@@ -911,12 +585,12 @@ def import_all_cmd(
         typer.echo("--dir and --album-dir are mutually exclusive.", err=True)
         raise typer.Exit(code=1)
 
-    resolved_gallery = _resolve_gallery_or_exit(gallery_dir)
+    resolved_gallery = resolve_gallery_or_exit(gallery_dir)
     resolved_lm = resolve_link_mode(link_mode, resolved_gallery)
     cwd = Path.cwd()
 
-    albums = _resolve_import_all_albums(base_dir, album_dirs)
-    index = _build_index_or_exit(resolved_gallery, cwd)
+    albums = resolve_import_all_albums(base_dir, album_dirs)
+    index = build_index_or_exit(resolved_gallery, cwd)
 
     try:
         validate_batch_import(albums, index, resolved_gallery)
@@ -926,7 +600,7 @@ def import_all_cmd(
 
     typer.echo(f"Found {len(albums)} album(s).\n")
     typer.echo("Import:")
-    imported, failed_albums = _run_batch_import(
+    imported, failed_albums = run_batch_import(
         albums, resolved_gallery, resolved_lm, dry_run
     )
 
@@ -937,7 +611,7 @@ def import_all_cmd(
             for a in albums
             if a not in failed_albums
         ]
-        check_failed = _run_batch_post_import_check(imported_targets, cwd)
+        check_failed = run_batch_post_import_check(imported_targets, cwd)
         if check_failed:
             err_console.print("\nTo investigate failures:")
             for target_dir in check_failed:
