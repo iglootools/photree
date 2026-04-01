@@ -19,7 +19,7 @@ graph TD
     album["album/"]
     base58["base58"]
     cli["cli/"]
-    config["config"]
+    config["config/"]
     fs["fs/"]
     gallery["gallery/"]
     uiconventions["uiconventions"]
