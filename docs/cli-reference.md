@@ -434,6 +434,7 @@ $ photree albums list [OPTIONS]
 * `-a, --album-dir DIRECTORY`: Album directory (repeatable).
 * `--metadata / --no-metadata`: Show parsed album metadata and media sources (default: enabled).  [default: metadata]
 * `--format TEXT`: Output format: text (default) or csv.  [default: text]
+* `-o, --output FILE`: Write output to a file instead of stdout.
 * `--help`: Show this message and exit.
 
 ### `photree albums check`
@@ -727,6 +728,7 @@ $ photree gallery list-albums [OPTIONS]
 * `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--metadata / --no-metadata`: Show parsed album metadata and media sources (default: enabled).  [default: metadata]
 * `--format TEXT`: Output format: text (default) or csv.  [default: text]
+* `-o, --output FILE`: Write output to a file instead of stdout.
 * `--help`: Show this message and exit.
 
 ### `photree gallery check`

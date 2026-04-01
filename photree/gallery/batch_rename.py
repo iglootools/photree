@@ -36,9 +36,7 @@ def _has_mutable_changes(
     )
 
 
-def _plan_row(
-    row: dict[str, str], index: dict[str, Path]
-) -> RenameAction | str | None:
+def _plan_row(row: dict[str, str], index: dict[str, Path]) -> RenameAction | str | None:
     """Process a single CSV row.
 
     Returns a :class:`RenameAction` when a rename is needed, an error
