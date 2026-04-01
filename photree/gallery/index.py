@@ -71,6 +71,27 @@ def build_album_id_to_path_index(gallery_dir: Path) -> AlbumIndex:
     )
 
 
+def find_duplicate_album_ids(
+    albums: list[Path],
+) -> dict[str, list[Path]]:
+    """Find albums that share the same ID.
+
+    Returns a dict mapping each duplicated album ID to the list of paths
+    that share it. Albums without metadata are silently skipped.
+    """
+    pairs = [
+        (meta.id, album_dir)
+        for album_dir in albums
+        if (meta := load_album_metadata(album_dir)) is not None
+    ]
+    sorted_pairs = sorted(pairs, key=lambda t: t[0])
+    grouped = {
+        aid: [p for _, p in group]
+        for aid, group in itertools.groupby(sorted_pairs, key=lambda t: t[0])
+    }
+    return {aid: paths for aid, paths in grouped.items() if len(paths) > 1}
+
+
 def resolve_album_path_by_id(index: dict[str, Path], album_id: str) -> Path:
     """Look up an album path by internal UUID.
 

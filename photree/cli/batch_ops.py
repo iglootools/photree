@@ -6,7 +6,6 @@ albums. Both ``gallery`` and ``albums`` CLI commands delegate to them.
 
 from __future__ import annotations
 
-import itertools
 from pathlib import Path
 
 import typer
@@ -32,6 +31,7 @@ from ..fs import (
     load_album_metadata,
     save_album_metadata,
 )
+from ..gallery.index import find_duplicate_album_ids
 from ..album.ios_fixes import run_fix_ios
 from ..album.output import format_fix_ios_result
 from .console import console, err_console
@@ -299,17 +299,7 @@ def run_batch_check(
             failed_albums.extend(a for a in albums if a.name in colliding_names)
 
     # Duplicate album ID detection
-    album_ids = [
-        (metadata.id, album_dir)
-        for album_dir in albums
-        if (metadata := load_album_metadata(album_dir)) is not None
-    ]
-    sorted_ids = sorted(album_ids, key=lambda t: t[0])
-    id_to_albums = {
-        aid: [p for _, p in group]
-        for aid, group in itertools.groupby(sorted_ids, key=lambda t: t[0])
-    }
-    duplicates = {aid: paths for aid, paths in id_to_albums.items() if len(paths) > 1}
+    duplicates = find_duplicate_album_ids(albums)
     typer.echo("")
     if duplicates:
         for aid, paths in duplicates.items():
