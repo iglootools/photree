@@ -45,7 +45,11 @@ from ..gallery import (
     build_album_id_to_path_index,
 )
 from ..gallery import importer as gallery_importer
-from ..gallery.importer import compute_target_dir
+from ..gallery.importer import (
+    BatchImportValidationError,
+    compute_target_dir,
+    validate_batch_import,
+)
 from ..album.ios_fixes import FixIosValidationError, validate_fix_flags
 from .album_cmd import _check_sips_or_exit
 from .batch_ops import (
@@ -952,56 +956,12 @@ def import_all_cmd(
     # Build gallery index for pre-import ID uniqueness check
     index = _build_index_or_exit(resolved_gallery, cwd)
 
-    # Pre-validate: source album ID uniqueness
-    source_metas = [
-        (a, meta) for a in albums if (meta := load_album_metadata(a)) is not None
-    ]
-
-    # Check source IDs against gallery
-    gallery_conflicts = [
-        (a, meta, index.id_to_path[meta.id])
-        for a, meta in source_metas
-        if meta.id in index.id_to_path
-    ]
-    if gallery_conflicts:
-        err_console.print("Cannot import — album ID(s) already exist in gallery:")
-        for src, meta, existing in gallery_conflicts:
-            err_console.print(
-                f"  {src.name} ({format_album_external_id(meta.id)})"
-                f" → {display_path(existing, cwd)}"
-            )
-        raise typer.Exit(code=1)
-
-    # Check for duplicate IDs among source albums
-    import itertools
-
-    sorted_sources = sorted(source_metas, key=lambda t: t[1].id)
-    source_grouped = {
-        aid: [p for p, _ in group]
-        for aid, group in itertools.groupby(sorted_sources, key=lambda t: t[1].id)
-    }
-    source_dups = {
-        aid: paths for aid, paths in source_grouped.items() if len(paths) > 1
-    }
-    if source_dups:
-        err_console.print("Cannot import — duplicate album IDs among source albums:")
-        for aid, paths in source_dups.items():
-            err_console.print(f"  {format_album_external_id(aid)}:")
-            for p in paths:
-                err_console.print(f"    {display_path(p, cwd)}")
-        raise typer.Exit(code=1)
-
-    # Pre-validate: check all targets before importing any
-    target_conflicts = [
-        (a, compute_target_dir(resolved_gallery, a.name))
-        for a in albums
-        if compute_target_dir(resolved_gallery, a.name).exists()
-    ]
-    if target_conflicts:
-        err_console.print("Cannot import — target(s) already exist:")
-        for src, tgt in target_conflicts:
-            err_console.print(f"  {src.name} → {display_path(tgt, cwd)}")
-        raise typer.Exit(code=1)
+    # Pre-validate all albums
+    try:
+        validate_batch_import(albums, index, resolved_gallery)
+    except BatchImportValidationError as exc:
+        err_console.print(f"Cannot import — {exc}")
+        raise typer.Exit(code=1) from exc
 
     typer.echo(f"Found {len(albums)} album(s).\n")
     typer.echo("Import:")
