@@ -31,6 +31,7 @@ def resolve_image_capture_dir(
 
     return DEFAULT_IMAGE_CAPTURE_DIR
 
+
 _KNOWN_EXTENSIONS = frozenset({".heic", ".jpg", ".jpeg", ".png", ".mov", ".aae"})
 _IMG_PREFIX_THRESHOLD = 0.5  # at least 50% of files must start with IMG_
 

@@ -100,7 +100,7 @@ $ photree album check [OPTIONS]
 * `--fatal-exif-date-match / --no-fatal-exif-date-match`: Treat EXIF date mismatch warnings as errors (default: enabled).  [default: fatal-exif-date-match]
 * `--check-naming / --no-check-naming`: Enable/disable album naming convention checks (default: enabled).  [default: check-naming]
 * `--check-exif-date-match / --no-check-exif-date-match`: Enable/disable EXIF timestamp vs album date validation (default: enabled).  [default: check-exif-date-match]
-* `--check-date-part-collision / --no-check-date-part-collision`: Enable/disable date collision detection with sibling albums (default: enabled).  [default: check-date-part-collision]
+* `--check-date-part-collision / --no-check-date-part-collision`: Enable/disable cross-album date collision detection (default: enabled).  [default: check-date-part-collision]
 * `--help`: Show this message and exit.
 
 ### `photree album fix`
@@ -127,7 +127,7 @@ $ photree album fix [OPTIONS]
 * `-a, --album-dir DIRECTORY`: Album directory to fix.  [default: .]
 * `--id`: Generate missing album ID (.photree/album.yaml).
 * `--new-id`: Regenerate album ID (replaces existing ID).
-* `--refresh-jpeg`: Refresh {msutor}-jpg/ from {msutor}-img/ for all media_sources.
+* `--refresh-jpeg`: Refresh main-jpg/ from main-img/ (re-convert all HEIC→JPEG).
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
@@ -214,9 +214,9 @@ $ photree album fix-ios [OPTIONS]
 * `--refresh-jpeg`: Refresh main-jpg/ from main-img/ (re-convert all HEIC→JPEG).
 * `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
 * `--rm-orphan`: Delete edited and main files that have no corresponding orig file.
-* `--prefer-higher-quality-when-dups`: Delete lower-quality duplicates (e.g. JPG when DNG or HEIC exists for the same number).
+* `--prefer-higher-quality-when-dups`: Delete lower-quality duplicates.
 * `--rm-orphan-sidecar`: Delete AAE sidecar files that have no matching media file.
-* `--rm-miscategorized`: Delete files in the wrong directory (edited in orig or vice versa).
+* `--rm-miscategorized`: Delete files in the wrong directory.
 * `--rm-miscategorized-safe`: Delete miscategorized files only if they already exist in the correct directory.
 * `--mv-miscategorized`: Move files in the wrong directory to the correct one.
 * `-n, --dry-run`: Print what would happen without modifying files.
@@ -347,7 +347,7 @@ $ photree album export [OPTIONS]
 **Options**:
 
 * `-a, --album-dir DIRECTORY`: Album directory to export.  [default: .]
-* `-s, --share-dir DIRECTORY`: Base directory to export into (a subdirectory with the album name is created).
+* `-s, --share-dir DIRECTORY`: Base directory to export into (subdirectories with album names are created).
 * `-p, --profile TEXT`: Exporter profile name from config.
 * `-c, --config TEXT`: Path to config file.
 * `--share-layout [flat|albums]`: Share layout: flat (default) or albums.
@@ -476,7 +476,7 @@ $ photree albums fix [OPTIONS]
 * `-a, --album-dir DIRECTORY`: Album directory (repeatable).
 * `--id`: Generate missing album IDs (.photree/album.yaml).
 * `--new-id`: Regenerate album IDs (replaces existing IDs).
-* `--refresh-jpeg`: Refresh {name}-jpg/ from {name}-img/ for all media sources.
+* `--refresh-jpeg`: Refresh main-jpg/ from main-img/ (re-convert all HEIC→JPEG).
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
@@ -768,7 +768,7 @@ $ photree gallery fix [OPTIONS]
 * `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--id`: Generate missing album IDs (.photree/album.yaml).
 * `--new-id`: Regenerate album IDs (replaces existing IDs).
-* `--refresh-jpeg`: Refresh {name}-jpg/ from {name}-img/ for all media sources.
+* `--refresh-jpeg`: Refresh main-jpg/ from main-img/ (re-convert all HEIC→JPEG).
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 

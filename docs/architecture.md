@@ -24,6 +24,7 @@ graph TD
     gallery["gallery/"]
     uiconventions["uiconventions"]
 
+    album --> config
     album --> fs
     album --> uiconventions
     cli --> album
