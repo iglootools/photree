@@ -30,7 +30,6 @@ from ..fs import (
     LinkMode,
     PHOTREE_DIR,
     ShareDirectoryLayout,
-    discover_all_albums,
     discover_albums,
     display_path,
     format_album_external_id,
@@ -400,12 +399,7 @@ def fix_cmd(
         _check_sips_or_exit()
 
     resolved = _resolve_gallery_or_exit(gallery_dir)
-    if fix_id and not new_id:
-        albums, display_base = _resolve_batch_albums_with(
-            resolved, None, discover_all_albums
-        )
-    else:
-        albums, display_base = _resolve_check_batch_albums(resolved, None)
+    albums, display_base = _resolve_check_batch_albums(resolved, None)
 
     run_batch_fix(
         albums,

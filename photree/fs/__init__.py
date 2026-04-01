@@ -1,6 +1,6 @@
 """Filesystem protocol, repository, and helpers for photree albums."""
 
-from .fileutils import display_path, file_ext, list_files
+from .fileutils import display_path, file_ext, list_files, matching_subdirectories
 from .ios import (
     PICTURE_PRIORITY_EXTENSIONS,
     _group_by_number,
@@ -48,13 +48,10 @@ from .protocol import (
     plain_media_source,
 )
 from .repo import (
-    _discover_albums_with,
     delete_files,
     discover_albums,
-    discover_all_albums,
     discover_media_sources,
     is_album,
-    is_legacy_album,
     load_album_metadata,
     load_gallery_metadata,
     move_files,
@@ -70,6 +67,7 @@ __all__ = [
     "display_path",
     "file_ext",
     "list_files",
+    "matching_subdirectories",
     # ios
     "PICTURE_PRIORITY_EXTENSIONS",
     "_group_by_number",
@@ -129,12 +127,9 @@ __all__ = [
     "resolve_gallery_metadata",
     "resolve_link_mode",
     # repo — discovery
-    "_discover_albums_with",
     "discover_albums",
-    "discover_all_albums",
     "discover_media_sources",
     "is_album",
-    "is_legacy_album",
     # repo — file mutations
     "delete_files",
     "move_files",

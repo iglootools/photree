@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import shutil
-from collections.abc import Callable
 from pathlib import Path
 
 import yaml
 from rich.console import Console
 
 from ..uiconventions import CHECK
-from .fileutils import display_path
+from .fileutils import display_path, matching_subdirectories
 from .protocol import (
     ALBUM_YAML,
     DEFAULT_MEDIA_SOURCE,
@@ -151,42 +150,6 @@ def is_album(directory: Path) -> bool:
     )
 
 
-def is_legacy_album(directory: Path) -> bool:
-    """Check if a directory has ``.photree/`` but no ``album.yaml`` (needs migration)."""
-    return (
-        (directory / PHOTREE_DIR).is_dir()
-        and not (directory / PHOTREE_DIR / ALBUM_YAML).is_file()
-        and bool(discover_media_sources(directory))
-    )
-
-
-def _discover_albums_with(
-    base_dir: Path, predicate: Callable[[Path], bool]
-) -> list[Path]:
-    """Walk *base_dir* collecting directories that satisfy *predicate*.
-
-    The *base_dir* itself is never returned.
-    """
-    albums: list[Path] = []
-
-    def walk(directory: Path) -> None:
-        if predicate(directory):
-            albums.append(directory)
-            return
-
-        subdirs = sorted(
-            child
-            for child in directory.iterdir()
-            if child.is_dir() and not child.name.startswith(".")
-        )
-
-        for subdir in subdirs:
-            walk(subdir)
-
-    walk(base_dir)
-    return albums
-
-
 def discover_albums(base_dir: Path) -> list[Path]:
     """Recursively discover album directories under *base_dir*.
 
@@ -196,16 +159,7 @@ def discover_albums(base_dir: Path) -> list[Path]:
 
     The *base_dir* itself is never returned as an album.
     """
-    return _discover_albums_with(base_dir, is_album)
-
-
-def discover_all_albums(base_dir: Path) -> list[Path]:
-    """Discover albums including legacy ones (for migration commands).
-
-    Returns directories that are either proper albums (with ``album.yaml``)
-    or legacy albums (with ``.photree/`` but no ``album.yaml``).
-    """
-    return _discover_albums_with(base_dir, lambda d: is_album(d) or is_legacy_album(d))
+    return matching_subdirectories(base_dir, is_album)
 
 
 def discover_media_sources(album_dir: Path) -> list[MediaSource]:

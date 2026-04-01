@@ -39,7 +39,6 @@ from .batch_ops import (
 )
 from .gallery_cmd import (
     _resolve_batch_albums,
-    _resolve_batch_albums_with,
     _resolve_check_batch_albums,
 )
 
@@ -201,8 +200,6 @@ def fix_cmd(
     ] = False,
 ) -> None:
     """Fix all albums under a directory or from an explicit list."""
-    from ..fs import discover_all_albums
-
     if not fix_id and not new_id and not refresh_jpeg:
         typer.echo(
             "No fix specified. Run photree albums fix --help for available fixes.",
@@ -213,12 +210,7 @@ def fix_cmd(
     if refresh_jpeg:
         _check_sips_or_exit()
 
-    if fix_id and not new_id:
-        albums, display_base = _resolve_batch_albums_with(
-            base_dir, album_dirs, discover_all_albums
-        )
-    else:
-        albums, display_base = _resolve_check_batch_albums(base_dir, album_dirs)
+    albums, display_base = _resolve_check_batch_albums(base_dir, album_dirs)
 
     run_batch_fix(
         albums,
