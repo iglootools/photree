@@ -132,7 +132,7 @@ def resolve_link_mode(explicit: LinkMode | None, start_dir: Path) -> LinkMode:
     if explicit is not None:
         return explicit
     gallery = resolve_gallery_metadata(start_dir)
-    return gallery.link_mode if gallery is not None else LinkMode.HARDLINK
+    return gallery.link_mode if gallery else LinkMode.HARDLINK
 
 
 # ---------------------------------------------------------------------------
