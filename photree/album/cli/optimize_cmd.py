@@ -10,7 +10,6 @@ import typer
 from . import album_app
 from .. import (
     optimize as album_optimize,
-    output as album_output,
     preflight as album_preflight,
 )
 from ..preflight import output as preflight_output
@@ -100,7 +99,7 @@ def optimize_cmd(
         album_dir, link_mode=resolved_link_mode, dry_run=dry_run
     )
     typer.echo(
-        album_output.optimize_summary(
+        album_optimize.optimize_summary(
             result.heic_count, result.mov_count, resolved_link_mode
         )
     )

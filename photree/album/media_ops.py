@@ -242,3 +242,25 @@ def rm_media(
 
     _remove_empty_dirs(album_dir, [subdir for subdir, _ in removed], dry_run=dry_run)
     return MediaOpResult(files_by_dir=tuple(removed))
+
+
+# ---------------------------------------------------------------------------
+# Output formatting
+# ---------------------------------------------------------------------------
+
+
+def media_op_summary(
+    verb: str,
+    files_by_dir: tuple[tuple[str, tuple[str, ...]], ...],
+) -> str:
+    total = sum(len(files) for _, files in files_by_dir)
+    if total == 0:
+        return f"Done. No files to {verb.lower()}."
+    parts = ", ".join(f"{len(files)} from {name}" for name, files in files_by_dir)
+    return f"Done. {verb} {total} file(s): {parts}."
+
+
+def media_op_check_suggestions(album_dirs: list[str]) -> str:
+    lines = ["", "Suggested next steps:"]
+    lines.extend(f'  photree album check --album-dir "{d}"' for d in album_dirs)
+    return "\n".join(lines)

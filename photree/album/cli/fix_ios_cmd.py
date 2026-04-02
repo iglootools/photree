@@ -8,10 +8,8 @@ from typing import Annotated
 import typer
 
 from . import album_app
-from .. import (
-    output as album_output,
-    preflight as album_preflight,
-)
+from .. import preflight as album_preflight
+from ..fix.ios.output import format_fix_ios_result
 from ..fix.ios import (
     FixIosValidationError,
     run_fix_ios,
@@ -102,5 +100,5 @@ def fix_ios_cmd(
         mv_miscategorized=mv_miscategorized,
     )
 
-    for line in album_output.format_fix_ios_result(result):
+    for line in format_fix_ios_result(result):
         typer.echo(line)

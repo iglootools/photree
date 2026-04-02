@@ -15,12 +15,17 @@ from ...album import (
     fix as album_fixes,
     naming as album_naming,
     optimize as album_optimize,
-    output as album_output,
     preflight as album_preflight,
     stats as album_stats,
 )
 from ...common.exif import try_start_exiftool
+from ...common.formatting import CHECK
+from ...album.fix.output import format_fix_result, batch_fix_summary
+from ...album.fix.ios import run_fix_ios
+from ...album.fix.ios.output import format_fix_ios_result, batch_fix_ios_summary
+from ...album.optimize import batch_optimize_summary
 from ...album.preflight import output as preflight_output
+from ...album.preflight.output import batch_check_summary
 from ...album.stats import output as stats_output
 from ...fs import (
     AlbumMetadata,
@@ -33,8 +38,6 @@ from ...fs import (
     save_album_metadata,
 )
 from ...gallery.index import find_duplicate_album_ids
-from ...album.fix.ios import run_fix_ios
-from ...album.output import format_fix_ios_result
 from ...fs import discover_potential_albums
 from ...clicommons.console import console, err_console
 from ...clicommons.progress import BatchProgressBar
@@ -376,10 +379,10 @@ def run_batch_check(
                 err_console.print(f"    {display_path(p, cwd)}")
         failed_albums.extend(p for paths in duplicates.values() for p in paths)
     else:
-        console.print(f"{album_output.CHECK} no duplicate album ids")
+        console.print(f"{CHECK} no duplicate album ids")
 
     # Summary
-    console.print(album_output.batch_check_summary(passed, len(failed_albums), warned))
+    console.print(batch_check_summary(passed, len(failed_albums), warned))
 
     if failed_albums:
         extra_flags = "".join(
@@ -449,7 +452,7 @@ def run_batch_fix(
                     rm_upstream_flag=rm_upstream,
                     rm_orphan_flag=rm_orphan,
                 )
-                lines = album_output.format_fix_result(result)
+                lines = format_fix_result(result)
                 if lines:
                     album_reports.append((album_name, "\n".join(lines)))
 
@@ -467,7 +470,7 @@ def run_batch_fix(
             typer.echo(f"{album_name}:")
             typer.echo(report, color=True)
 
-    console.print(album_output.batch_fix_summary(fixed, len(failed_albums)))
+    console.print(batch_fix_summary(fixed, len(failed_albums)))
 
     if failed_albums:
         err_console.print("\nFailed albums:")
@@ -538,7 +541,7 @@ def run_batch_optimize(
 
     progress.stop()
 
-    console.print(album_output.batch_optimize_summary(optimized, len(failed_albums)))
+    console.print(batch_optimize_summary(optimized, len(failed_albums)))
 
     if failed_albums:
         err_console.print("\nTo investigate failures:")
@@ -609,7 +612,7 @@ def run_batch_fix_ios(
             typer.echo(f"{album_name}:")
             typer.echo(report, color=True)
 
-    console.print(album_output.batch_fix_ios_summary(fixed, len(failed_albums)))
+    console.print(batch_fix_ios_summary(fixed, len(failed_albums)))
 
     if failed_albums:
         err_console.print("\nFailed albums:")
