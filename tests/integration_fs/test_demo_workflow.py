@@ -15,7 +15,7 @@ from photree.album.check.ios import check_ios_album_integrity
 from photree.album.jpeg import convert_single_file, copy_convert_single
 from photree.album.optimize import optimize_album
 from photree.album.exporter.single import compute_target_dir, export_album
-from photree.album.exporter.protocol import (
+from photree.fsprotocol import (
     AlbumShareLayout,
     SHARE_SENTINEL,
     ShareDirectoryLayout,

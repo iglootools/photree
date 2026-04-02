@@ -17,7 +17,7 @@ from pathlib import Path
 
 from platformdirs import site_config_dir, user_config_dir
 
-from ..album.exporter.protocol import AlbumShareLayout, ShareDirectoryLayout
+from ..fsprotocol import AlbumShareLayout, ShareDirectoryLayout
 from ..fsprotocol import LinkMode
 from .protocol import (
     ConfigError,

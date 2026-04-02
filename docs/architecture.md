@@ -43,10 +43,8 @@ graph TD
     cli --> check
     cli --> demo
     cli --> gallery
-    clihelpers --> album
     clihelpers --> common
     clihelpers --> fsprotocol
-    config --> album
     config --> fsprotocol
     demo --> album
     gallery --> album

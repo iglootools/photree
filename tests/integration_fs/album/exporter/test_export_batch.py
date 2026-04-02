@@ -6,7 +6,7 @@ from photree.album.exporter.batch import (
     discover_albums,
     run_batch_export,
 )
-from photree.album.exporter.protocol import AlbumShareLayout, ShareDirectoryLayout
+from photree.fsprotocol import AlbumShareLayout, ShareDirectoryLayout
 from photree.album.store.protocol import MAIN_MEDIA_SOURCE
 from photree.fsprotocol import LinkMode
 
