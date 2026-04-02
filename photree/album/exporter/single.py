@@ -18,17 +18,15 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
+from ...fsprotocol import PHOTREE_DIR, LinkMode
 from ..browsable import refresh_browsable_dir
+from ..exporter.protocol import AlbumShareLayout, ShareDirectoryLayout
 from ..preflight import AlbumType, detect_album_type
-from ...fs import (
-    AlbumShareLayout,
-    MediaSource,
+from ..store.fs import discover_media_sources
+from ..store.protocol import (
     IMG_EXTENSIONS,
-    LinkMode,
-    PHOTREE_DIR,
     VID_EXTENSIONS,
-    ShareDirectoryLayout,
-    discover_media_sources,
+    MediaSource,
     parse_album_year,
 )
 

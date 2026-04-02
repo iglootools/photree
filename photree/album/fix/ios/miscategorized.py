@@ -5,12 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from ....fs import (
-    MediaSource,
-    delete_files,
-    list_files,
-    move_files,
-)
+from ....common.fs import delete_files, list_files, move_files
+from ...store.protocol import MediaSource
 
 
 def _file_prefix(filename: str) -> str:

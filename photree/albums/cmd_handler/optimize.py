@@ -10,7 +10,7 @@ from ...album import (
     optimize as album_optimize,
     preflight as album_preflight,
 )
-from ...fs import LinkMode
+from ...fsprotocol import LinkMode
 
 
 @dataclass(frozen=True)

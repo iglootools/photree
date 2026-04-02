@@ -5,14 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from ...common.fs import delete_files, list_files
 from .. import browsable as browsable_module
-from ...fs import (
-    IMG_EXTENSIONS,
-    MediaSource,
-    delete_files,
-    list_files,
-)
-from ...fs.media import find_files_by_key
+from ..store.media_sources import find_files_by_key
+from ..store.protocol import IMG_EXTENSIONS, MediaSource
 from .helpers import _require_archive
 
 
@@ -44,10 +40,10 @@ class RmUpstreamResult:
 
 def _expected_jpeg_name(heic_filename: str) -> str | None:
     """Return the expected JPEG filename for a browsable img file."""
-    from ...fs import (
+    from ...common.fs import file_ext
+    from ..store.protocol import (
         CONVERT_TO_JPEG_EXTENSIONS,
         COPY_AS_IS_TO_JPEG_EXTENSIONS,
-        file_ext,
     )
 
     ext = file_ext(heic_filename)

@@ -7,10 +7,10 @@ from typing import Annotated
 
 import typer
 
-from . import album_app
-from .. import media
 from ...clihelpers.console import err_console
-from ...fs import display_path
+from ...common.fs import display_path
+from .. import media
+from . import album_app
 
 
 @album_app.command("mv-media")

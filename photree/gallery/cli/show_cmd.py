@@ -8,13 +8,11 @@ from typing import Annotated, Optional
 import typer
 
 from . import gallery_app
-from ...fs import (
-    GALLERY_YAML,
-    PHOTREE_DIR,
-    discover_albums,
-    display_path,
-    load_gallery_metadata,
-)
+from ...album.store.fs import discover_albums
+from ...common.fs import display_path
+from ...fsprotocol import PHOTREE_DIR
+from ...gallery.store.fs import load_gallery_metadata
+from ...gallery.store.protocol import GALLERY_YAML
 from .ops import resolve_gallery_or_exit
 
 

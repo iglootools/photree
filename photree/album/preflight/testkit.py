@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from ...fs import MAIN_MEDIA_SOURCE, std_media_source
+from ..integrity.testkit import FULL_INTEGRITY_FAILURES, FULL_INTEGRITY_OK
+from ..store.protocol import MAIN_MEDIA_SOURCE, std_media_source
 from . import (
-    AlbumMediaSourceSummary,
     AlbumDirCheck,
+    AlbumMediaSourceSummary,
     AlbumPreflightResult,
 )
-from ..integrity.testkit import FULL_INTEGRITY_FAILURES, FULL_INTEGRITY_OK
 
 PREFLIGHT_OK = AlbumPreflightResult(
     sips_available=True,

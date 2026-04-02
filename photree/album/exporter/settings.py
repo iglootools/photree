@@ -7,12 +7,8 @@ from pathlib import Path
 from textwrap import dedent
 
 from ...config import load_config
-from ...fs import (
-    AlbumShareLayout,
-    LinkMode,
-    SHARE_SENTINEL,
-    ShareDirectoryLayout,
-)
+from ...fsprotocol import LinkMode
+from ..exporter.protocol import SHARE_SENTINEL, AlbumShareLayout, ShareDirectoryLayout
 
 
 class ExportSettingsError(ValueError):

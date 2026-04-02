@@ -9,7 +9,9 @@ import typer
 
 from . import gallery_app
 from ...clihelpers.console import err_console
-from ...fs import LinkMode, display_path, resolve_link_mode
+from ...common.fs import display_path
+from ...fsprotocol import LinkMode
+from ...gallery.store.fs import resolve_link_mode
 from ..importer import (
     BatchImportValidationError,
     compute_target_dir,

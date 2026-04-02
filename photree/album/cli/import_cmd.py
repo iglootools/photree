@@ -7,10 +7,12 @@ from typing import Annotated
 
 import typer
 
-from . import album_app
-from .helpers import _run_preflight_checks
-from ..preflight import check_exiftool_available
-from ..importer import image_capture, output as importer_output
+from ...clihelpers.console import console, err_console
+from ...clihelpers.options import CONFIG_OPTION
+from ...clihelpers.progress import StageProgressBar
+from ...fsprotocol import LinkMode
+from ..importer import image_capture
+from ..importer import output as importer_output
 from ..importer.image_capture import plan_import_from_dirs, validate_import_plan
 from ..jpeg import convert_single_file, noop_convert_single
 from ..naming import (
@@ -19,14 +21,11 @@ from ..naming import (
     check_exif_date_match,
     parse_album_name,
 )
+from ..preflight import check_exiftool_available
 from ..preflight.output import format_naming_checks
-from ...clihelpers.console import console, err_console
-from ...clihelpers.options import CONFIG_OPTION
-from ...clihelpers.progress import StageProgressBar
-from ...fs import (
-    LinkMode,
-    SELECTION_DIR,
-)
+from ..store.protocol import SELECTION_DIR
+from . import album_app
+from .helpers import _run_preflight_checks
 
 
 @album_app.command("import")

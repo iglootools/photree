@@ -10,11 +10,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from .rm_orphan_sidecar import RmOrphanSidecarResult, rm_orphan_sidecar
-from .prefer_higher_quality import (
-    PreferHigherQualityResult,
-    prefer_higher_quality_when_dups,
-)
 from .miscategorized import (
     MiscategorizedDirResult,
     MiscategorizedResult,
@@ -22,6 +17,11 @@ from .miscategorized import (
     rm_miscategorized,
     rm_miscategorized_safe,
 )
+from .prefer_higher_quality import (
+    PreferHigherQualityResult,
+    prefer_higher_quality_when_dups,
+)
+from .rm_orphan_sidecar import RmOrphanSidecarResult, rm_orphan_sidecar
 
 __all__ = [
     "FixIosMiscategorizedResult",
@@ -120,7 +120,7 @@ def run_fix_ios(
     and returns aggregated results. The caller handles output formatting
     and progress bars via the optional callbacks.
     """
-    from ....fs import discover_media_sources
+    from ...store.fs import discover_media_sources
 
     media_sources = [c for c in discover_media_sources(album_dir) if c.is_ios]
 

@@ -7,10 +7,10 @@ from textwrap import dedent
 from rich.markup import escape
 
 from ...common.formatting import CHECK, CROSS, WARNING
-from .troubleshoot import suggest_exif_fixes, suggest_fixes
 from ..naming import AlbumNamingResult, BatchNamingResult
+from ..store.protocol import format_album_external_id
 from . import AlbumMediaSourceSummary, AlbumPreflightResult
-from ...fs import format_album_external_id
+from .troubleshoot import suggest_exif_fixes, suggest_fixes
 
 
 def sips_check(available: bool) -> str:

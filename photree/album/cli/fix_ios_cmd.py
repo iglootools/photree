@@ -7,14 +7,6 @@ from typing import Annotated
 
 import typer
 
-from . import album_app
-from .. import preflight as album_preflight
-from ..fix.ios.output import format_fix_ios_result
-from ..fix.ios import (
-    FixIosValidationError,
-    run_fix_ios,
-    validate_fix_flags,
-)
 from ...clihelpers.options import (
     DRY_RUN_OPTION,
     MV_MISCATEGORIZED_OPTION,
@@ -23,6 +15,14 @@ from ...clihelpers.options import (
     RM_MISCATEGORIZED_SAFE_OPTION,
     RM_ORPHAN_SIDECAR_OPTION,
 )
+from .. import preflight as album_preflight
+from ..fix.ios import (
+    FixIosValidationError,
+    run_fix_ios,
+    validate_fix_flags,
+)
+from ..fix.ios.output import format_fix_ios_result
+from . import album_app
 
 
 @album_app.command("fix-ios")

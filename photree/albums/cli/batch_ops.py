@@ -24,14 +24,14 @@ from ...album.preflight.output import batch_check_summary
 from ...album.stats import output as stats_output
 from ...common.exif import try_start_exiftool
 from ...common.formatting import CHECK
-from ...fs import (
-    LinkMode,
+from ...album.store.fs import (
     discover_media_sources,
-    display_path,
-    format_album_external_id,
+    discover_potential_albums,
     load_album_metadata,
 )
-from ...fs import discover_potential_albums
+from ...album.store.protocol import format_album_external_id
+from ...common.fs import display_path
+from ...fsprotocol import LinkMode
 from ...clihelpers.console import console, err_console
 from ...clihelpers.progress import BatchProgressBar
 from ..cmd_handler.init import batch_init

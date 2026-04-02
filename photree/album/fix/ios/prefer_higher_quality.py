@@ -5,12 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from ....fs import (
-    MediaSource,
+from ....common.fs import delete_files, list_files
+from ...store.protocol import (
     IOS_IMG_EXTENSIONS,
     PICTURE_PRIORITY_EXTENSIONS,
-    delete_files,
-    list_files,
+    MediaSource,
 )
 
 

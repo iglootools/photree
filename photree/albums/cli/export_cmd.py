@@ -15,7 +15,7 @@ from ...album.exporter.settings import (
     validate_export_settings,
 )
 from ...config import ConfigError
-from ...fs import display_path
+from ...common.fs import display_path
 from ...clihelpers.options import (
     ALBUM_LAYOUT_OPTION,
     CONFIG_OPTION,

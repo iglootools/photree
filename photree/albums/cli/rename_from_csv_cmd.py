@@ -8,7 +8,8 @@ from typing import Annotated
 import typer
 
 from . import AlbumDirOption, DirOption, albums_app
-from ...fs import display_path, format_album_external_id
+from ...album.store.protocol import format_album_external_id
+from ...common.fs import display_path
 from ...clihelpers.options import DRY_RUN_OPTION
 from .batch_ops import resolve_check_batch_albums, run_batch_rename_from_csv
 

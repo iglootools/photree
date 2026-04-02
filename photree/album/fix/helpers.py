@@ -5,7 +5,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-from ...fs import MediaSource
+from ..store.protocol import MediaSource
 
 
 def _delete_dir(directory: Path, *, dry_run: bool) -> bool:

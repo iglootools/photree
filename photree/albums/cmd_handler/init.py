@@ -6,12 +6,11 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ...fs import (
+from ...album.store.fs import load_album_metadata, save_album_metadata
+from ...album.store.protocol import (
     AlbumMetadata,
     format_album_external_id,
     generate_album_id,
-    load_album_metadata,
-    save_album_metadata,
 )
 
 

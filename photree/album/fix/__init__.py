@@ -10,10 +10,9 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from ...fs import LinkMode
-
-from .refresh_jpeg import refresh_jpeg
+from ...fsprotocol import LinkMode
 from .refresh_browsable import RefreshBrowsableResult, refresh_browsable
+from .refresh_jpeg import refresh_jpeg
 from .rm_orphan import RmOrphanDirResult, RmOrphanResult, rm_orphan
 from .rm_upstream import (
     RmUpstreamHeicResult,
@@ -141,7 +140,7 @@ def run_fix(
     operations, and returns aggregated results. Works for both iOS and
     std media sources.
     """
-    from ...fs import discover_media_sources
+    from ..store.fs import discover_media_sources
 
     # Include media sources that have an archive dir on disk
     media_sources = [

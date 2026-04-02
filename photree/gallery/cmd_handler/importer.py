@@ -6,7 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ...fs import LinkMode
+from ...fsprotocol import LinkMode
 from .. import importer as gallery_importer
 from ..importer import AlbumImportResult
 

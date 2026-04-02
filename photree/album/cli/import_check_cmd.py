@@ -7,10 +7,10 @@ from typing import Annotated, Optional
 
 import typer
 
+from ...clihelpers.options import CONFIG_OPTION
+from ..store.protocol import SELECTION_DIR
 from . import album_app
 from .helpers import _run_preflight_checks
-from ...clihelpers.options import CONFIG_OPTION
-from ...fs import SELECTION_DIR
 
 
 @album_app.command("import-check")

@@ -14,11 +14,17 @@ from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ..common.exif import (
     ExifDateChange,
+)
+from ..common.exif import (
     read_exif_timestamps as _generic_read_timestamps,
+)
+from ..common.exif import (
     read_exif_timestamps_by_file as _generic_read_by_file,
+)
+from ..common.exif import (
     set_exif_date as _generic_set_date,
 )
-from ..fs import discover_browsable_media_files
+from .store.fs import discover_browsable_media_files
 
 # Tag priority for timestamp extraction (first match wins):
 #

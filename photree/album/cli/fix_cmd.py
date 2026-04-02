@@ -7,11 +7,6 @@ from typing import Annotated
 
 import typer
 
-from . import album_app
-from .helpers import _check_sips_or_exit
-from .. import fix as album_fixes
-from ..fix.output import format_fix_result
-from ..fix import FixValidationError
 from ...clihelpers.options import (
     DRY_RUN_OPTION,
     LINK_MODE_OPTION,
@@ -21,16 +16,19 @@ from ...clihelpers.options import (
     RM_UPSTREAM_OPTION,
 )
 from ...clihelpers.progress import FileProgressBar, StageProgressBar
-from ...fs import (
+from ...common.fs import list_files
+from ...gallery.store.fs import resolve_link_mode
+from .. import fix as album_fixes
+from ..fix import FixValidationError
+from ..fix.output import format_fix_result
+from ..store.fs import discover_media_sources, load_album_metadata, save_album_metadata
+from ..store.protocol import (
     AlbumMetadata,
-    discover_media_sources,
     format_album_external_id,
     generate_album_id,
-    list_files,
-    load_album_metadata,
-    resolve_link_mode,
-    save_album_metadata,
 )
+from . import album_app
+from .helpers import _check_sips_or_exit
 
 
 @album_app.command("fix")

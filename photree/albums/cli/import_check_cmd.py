@@ -8,7 +8,7 @@ from typing import Annotated, Optional
 import typer
 
 from . import albums_app
-from ...fs import SELECTION_DIR
+from ...album.store.protocol import SELECTION_DIR
 from ...album.cli.helpers import _run_preflight_checks
 from ...clihelpers.progress import BatchProgressBar
 

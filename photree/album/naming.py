@@ -20,18 +20,12 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from ..fs import (
-    ALBUM_DATE_RE,
-    MediaSource,
-    discover_browsable_media_files,
-    discover_media_sources,
-    find_files_by_number,
-    find_files_by_stem,
-    img_number,
-)
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from .exif import read_exif_timestamps_by_file
+from .store.fs import discover_browsable_media_files, discover_media_sources
+from .store.media_sources import find_files_by_number, find_files_by_stem, img_number
+from .store.protocol import ALBUM_DATE_RE, MediaSource
 
 # ---------------------------------------------------------------------------
 # Regexes
@@ -460,7 +454,8 @@ def _resolve_upstream_files(
 
     Returns ``(upstream_relative_paths, is_ios)``.
     """
-    from ..fs import VID_EXTENSIONS, file_ext
+    from ..common.fs import file_ext
+    from .store.protocol import VID_EXTENSIONS
 
     rel = str(file_path.relative_to(album_dir))
     dir_part = str(Path(rel).parent)

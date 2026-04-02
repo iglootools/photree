@@ -17,11 +17,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..fs import (
-    CONVERT_TO_JPEG_EXTENSIONS,
-    COPY_AS_IS_TO_JPEG_EXTENSIONS,
-    list_files,
-)
+from ..common.fs import list_files
+from .store.protocol import CONVERT_TO_JPEG_EXTENSIONS, COPY_AS_IS_TO_JPEG_EXTENSIONS
 
 
 def _ext(filename: str) -> str:

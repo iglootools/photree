@@ -7,17 +7,16 @@ from typing import Annotated
 
 import typer
 
-from . import album_app
-from ...fs import (
+from ...common.fs import display_path
+from ...fsprotocol import PHOTREE_DIR
+from ..store.fs import load_album_metadata, save_album_metadata
+from ..store.protocol import (
     ALBUM_YAML,
     AlbumMetadata,
-    PHOTREE_DIR,
-    display_path,
     format_album_external_id,
     generate_album_id,
-    load_album_metadata,
-    save_album_metadata,
 )
+from . import album_app
 
 
 @album_app.command("init")

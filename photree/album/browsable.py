@@ -17,9 +17,10 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..fs import LinkMode, list_files
-from ..fs.media import dedup_media_dict
-from ..fs.protocol import _KeyFn
+from ..common.fs import list_files
+from ..fsprotocol import LinkMode
+from .store.media_sources import dedup_media_dict
+from .store.protocol import _KeyFn
 
 
 def compute_browsable_files(

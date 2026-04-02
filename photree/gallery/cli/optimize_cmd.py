@@ -15,7 +15,7 @@ from ...clihelpers.options import (
     LINK_MODE_OPTION,
 )
 from ...albums.cli.batch_ops import resolve_batch_albums, run_batch_optimize
-from ...fs import resolve_link_mode
+from ...gallery.store.fs import resolve_link_mode
 from .ops import resolve_gallery_or_exit
 
 

@@ -13,19 +13,17 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
-from ...fs import (
+from ...common.fs import file_ext, list_files
+from ..naming import parse_album_name
+from ..store.fs import discover_media_sources
+from ..store.media_sources import dedup_media_dict as generic_dedup_media_dict
+from ..store.protocol import (
     IMG_EXTENSIONS,
     SIDECAR_EXTENSIONS,
     VID_EXTENSIONS,
     MediaSource,
     MediaSourceType,
-    discover_media_sources,
-    file_ext,
-    generic_dedup_media_dict,
-    list_files,
 )
-from ..naming import parse_album_name
-
 
 # ---------------------------------------------------------------------------
 # Data model

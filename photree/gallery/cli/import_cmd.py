@@ -8,7 +8,8 @@ from typing import Annotated, Optional
 import typer
 
 from . import gallery_app
-from ...fs import LinkMode, resolve_link_mode
+from ...fsprotocol import LinkMode
+from ...gallery.store.fs import resolve_link_mode
 from .ops import (
     build_index_or_exit,
     print_single_import_result,
