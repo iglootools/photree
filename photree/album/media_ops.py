@@ -1,8 +1,8 @@
 """Move and remove media files across album media source directories.
 
 Given relative file paths (as reported by ``album check``), resolves all
-associated variants by image number (iOS) or filename stem (std) and
-moves or deletes them.
+associated variants by key (image number for iOS, filename stem for std)
+and moves or deletes them.
 """
 
 from __future__ import annotations
@@ -16,11 +16,9 @@ from ..fs import (
     delete_files,
     discover_media_sources,
     file_ext,
-    find_files_by_number,
-    find_files_by_stem,
-    img_number,
     move_files,
 )
+from ..fs.media import find_files_by_key
 
 
 # ---------------------------------------------------------------------------
@@ -60,19 +58,6 @@ def _build_dir_to_media_source(
 # ---------------------------------------------------------------------------
 
 
-def _dirs_for_images(ms: MediaSource) -> tuple[str, ...]:
-    return (
-        ms.orig_img_dir,
-        ms.edit_img_dir,
-        ms.img_dir,
-        ms.jpg_dir,
-    )
-
-
-def _dirs_for_videos(ms: MediaSource) -> tuple[str, ...]:
-    return (ms.orig_vid_dir, ms.edit_vid_dir, ms.vid_dir)
-
-
 def _is_video(filename: str) -> bool:
     return file_ext(filename) in VID_EXTENSIONS
 
@@ -81,20 +66,13 @@ def _find_matching_files(
     album_dir: Path,
     subdir: str,
     keys: set[str],
-    *,
-    use_stem: bool,
+    ms: MediaSource,
 ) -> list[str]:
-    """Find files in *album_dir/subdir* matching *keys*.
-
-    When *use_stem* is True, matches by filename stem (std media sources).
-    Otherwise matches by image number (iOS media sources).
-    """
+    """Find files in *album_dir/subdir* matching *keys* using *ms.key_fn*."""
     directory = album_dir / subdir
     if not directory.is_dir():
         return []
-    if use_stem:
-        return find_files_by_stem(keys, directory)
-    return find_files_by_number(keys, directory)
+    return find_files_by_key(keys, directory, ms.key_fn)
 
 
 def resolve_variants(
@@ -134,8 +112,7 @@ def resolve_variants(
             )
 
         video = _is_video(filename)
-        use_stem = not ms.is_ios
-        key = Path(filename).stem if use_stem else img_number(filename)
+        key = ms.key_fn(filename)
 
         group_key = (ms.name, video)
         groups.setdefault(group_key, set()).add(key)
@@ -145,11 +122,10 @@ def resolve_variants(
     result: list[tuple[str, list[str]]] = []
     for (ms_name, video), keys in groups.items():
         ms = ms_by_name[ms_name]
-        dirs = _dirs_for_videos(ms) if video else _dirs_for_images(ms)
-        use_stem = not ms.is_ios
+        dirs = ms.video_variant_dirs if video else ms.image_variant_dirs
 
         for subdir in dirs:
-            files = _find_matching_files(album_dir, subdir, keys, use_stem=use_stem)
+            files = _find_matching_files(album_dir, subdir, keys, ms)
             if files:
                 result.append((subdir, files))
 
@@ -173,7 +149,7 @@ def _remove_empty_dirs(
         if directory.is_dir() and not any(directory.iterdir()):
             if not dry_run:
                 directory.rmdir()
-                # Also remove parent if it's an iOS nested dir (e.g. ios-main/orig-img)
+                # Also remove parent if it's a nested archive dir (e.g. ios-main/orig-img)
                 parent = directory.parent
                 if (
                     parent != album_dir
@@ -181,6 +157,26 @@ def _remove_empty_dirs(
                     and not any(parent.iterdir())
                 ):
                     parent.rmdir()
+
+
+def _check_move_conflicts(
+    variants: list[tuple[str, list[str]]],
+    dest_album: Path,
+    dest_dir_to_ms: dict[str, MediaSource],
+) -> list[str]:
+    """Check for conflicts in the destination album before moving.
+
+    Returns a sorted list of conflicting file paths, empty if no conflicts.
+    """
+    conflicts: set[str] = set()
+    for subdir, files in variants:
+        ms = dest_dir_to_ms.get(subdir)
+        if ms is None:
+            continue
+        keys = {ms.key_fn(f) for f in files}
+        for existing in _find_matching_files(dest_album, subdir, keys, ms):
+            conflicts.add(f"{subdir}/{existing}")
+    return sorted(conflicts)
 
 
 def move_media(
@@ -195,33 +191,11 @@ def move_media(
     variants = resolve_variants(source_album, relative_paths)
 
     # Fail fast before moving anything if the destination already contains
-    # files with the same image number (iOS) or stem (std).
+    # files with the same key.
     dest_media_sources = discover_media_sources(dest_album)
     dest_dir_to_ms = _build_dir_to_media_source(dest_media_sources)
+    conflicts = _check_move_conflicts(variants, dest_album, dest_dir_to_ms)
 
-    incoming_keys_by_subdir: dict[str, set[str]] = {}
-    for subdir, files in variants:
-        ms = dest_dir_to_ms.get(subdir)
-        use_stem = ms is not None and not ms.is_ios
-        keys = (
-            {Path(f).stem for f in files}
-            if use_stem
-            else {img_number(f) for f in files}
-        )
-        incoming_keys_by_subdir[subdir] = keys
-
-    conflicts = sorted(
-        {
-            f"{subdir}/{existing}"
-            for subdir, keys in incoming_keys_by_subdir.items()
-            for existing in _find_matching_files(
-                dest_album,
-                subdir,
-                keys,
-                use_stem=subdir in dest_dir_to_ms and not dest_dir_to_ms[subdir].is_ios,
-            )
-        }
-    )
     if conflicts:
         raise ValueError(
             f"Move would conflict with {len(conflicts)} existing file(s) "

@@ -244,6 +244,16 @@ class MediaSource:
         return _stem_key
 
     @property
+    def image_variant_dirs(self) -> tuple[str, ...]:
+        """All directories where image variants may live (archive + browsable)."""
+        return (self.orig_img_dir, self.edit_img_dir, self.img_dir, self.jpg_dir)
+
+    @property
+    def video_variant_dirs(self) -> tuple[str, ...]:
+        """All directories where video variants may live (archive + browsable)."""
+        return (self.orig_vid_dir, self.edit_vid_dir, self.vid_dir)
+
+    @property
     def image_subdirs(self) -> tuple[str, ...]:
         """Required image directories for this media source."""
         return (self.orig_img_dir, self.img_dir, self.jpg_dir)
