@@ -1,4 +1,4 @@
-"""iOS-specific album integrity checks.
+"""iOS-specific media source integrity checks.
 
 Covers duplicate image numbers, miscategorized files, and the full
 iOS media-source integrity check that combines browsable, JPEG, and
@@ -13,7 +13,6 @@ from pathlib import Path
 
 from ....common.fs import file_ext, list_files
 from ...store.media_sources import ios_file_prefix, ios_img_number, ios_is_media
-from ...store.media_sources_discovery import discover_media_sources
 from ...store.protocol import (
     IOS_IMG_EXTENSIONS,
     IOS_VID_EXTENSIONS,
@@ -30,8 +29,8 @@ from .sidecar import SidecarCheck, check_sidecars
 
 
 @dataclass(frozen=True)
-class IosAlbumIntegrityResult:
-    """Full integrity check result for an iOS album."""
+class IosMediaSourceIntegrityResult:
+    """Integrity check result for a single iOS media source."""
 
     browsable_img: BrowsableDirCheck
     browsable_vid: BrowsableDirCheck
@@ -59,21 +58,6 @@ class IosAlbumIntegrityResult:
     def has_warnings(self) -> bool:
         """True if there are informational warnings (e.g. missing sidecars)."""
         return bool(self.sidecars.missing_sidecars)
-
-
-@dataclass(frozen=True)
-class IosAlbumFullIntegrityResult:
-    """Full integrity check result across all contributors."""
-
-    by_media_source: tuple[tuple[MediaSource, IosAlbumIntegrityResult], ...]
-
-    @property
-    def success(self) -> bool:
-        return all(result.success for _, result in self.by_media_source)
-
-    @property
-    def has_warnings(self) -> bool:
-        return any(result.has_warnings for _, result in self.by_media_source)
 
 
 # ---------------------------------------------------------------------------
@@ -149,8 +133,8 @@ def check_ios_media_source_integrity(
     *,
     checksum: bool = True,
     on_file_checked: Callable[[str, bool], None] | None = None,
-) -> IosAlbumIntegrityResult:
-    """Run all integrity checks for a single media source within an iOS album."""
+) -> IosMediaSourceIntegrityResult:
+    """Run all integrity checks for a single iOS media source."""
     assert ms.is_ios, "integrity checks require an iOS media source"
     browsable_img = check_browsable_dir(
         album_dir / ms.orig_img_dir,
@@ -213,35 +197,11 @@ def check_ios_media_source_integrity(
         ),
     )
 
-    return IosAlbumIntegrityResult(
+    return IosMediaSourceIntegrityResult(
         browsable_img=browsable_img,
         browsable_vid=browsable_vid,
         browsable_jpg=jpeg,
         sidecars=sidecars,
         duplicate_numbers=duplicate_numbers,
         miscategorized=miscategorized,
-    )
-
-
-def check_ios_album_integrity(
-    album_dir: Path,
-    *,
-    checksum: bool = True,
-    on_file_checked: Callable[[str, bool], None] | None = None,
-) -> IosAlbumFullIntegrityResult:
-    """Run integrity checks for all iOS media sources in an album."""
-    ios_sources = [ms for ms in discover_media_sources(album_dir) if ms.is_ios]
-    return IosAlbumFullIntegrityResult(
-        by_media_source=tuple(
-            (
-                ms,
-                check_ios_media_source_integrity(
-                    album_dir,
-                    ms,
-                    checksum=checksum,
-                    on_file_checked=on_file_checked,
-                ),
-            )
-            for ms in ios_sources
-        )
     )

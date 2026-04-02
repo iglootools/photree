@@ -26,12 +26,17 @@ from ..store.media_sources_discovery import discover_media_sources
 from ..store.metadata import load_album_metadata
 from ..store.protocol import MediaSource
 from .dir_structure import AlbumDirCheck, check_album_dir_structure
-from .ios import IosAlbumFullIntegrityResult, check_ios_album_integrity
+from .ios import IosMediaSourceIntegrityResult, check_ios_media_source_integrity
 from .jpeg import AlbumJpegIntegrityResult, check_album_jpeg_integrity
-from .std import StdAlbumFullIntegrityResult, check_std_album_integrity
+from .std import StdMediaSourceIntegrityResult, check_std_media_source_integrity
 from .system import (
     check_exiftool_available as check_exiftool_available,
     check_sips_available,
+)
+
+# Union of per-media-source integrity results
+MediaSourceIntegrityResult = (
+    IosMediaSourceIntegrityResult | StdMediaSourceIntegrityResult
 )
 
 
@@ -74,6 +79,48 @@ class AlbumIdCheck:
 
 
 @dataclass(frozen=True)
+class AlbumIntegrityResult:
+    """Unified integrity check result across all media sources in an album.
+
+    Each media source gets a type-appropriate check (iOS or std).
+    The album can have both iOS and std media sources simultaneously.
+    """
+
+    by_media_source: tuple[tuple[MediaSource, MediaSourceIntegrityResult], ...] = ()
+
+    @property
+    def success(self) -> bool:
+        return all(result.success for _, result in self.by_media_source)
+
+    @property
+    def has_warnings(self) -> bool:
+        return any(
+            isinstance(result, IosMediaSourceIntegrityResult) and result.has_warnings
+            for _, result in self.by_media_source
+        )
+
+    @property
+    def ios_results(
+        self,
+    ) -> tuple[tuple[MediaSource, IosMediaSourceIntegrityResult], ...]:
+        return tuple(
+            (ms, result)
+            for ms, result in self.by_media_source
+            if isinstance(result, IosMediaSourceIntegrityResult)
+        )
+
+    @property
+    def std_results(
+        self,
+    ) -> tuple[tuple[MediaSource, StdMediaSourceIntegrityResult], ...]:
+        return tuple(
+            (ms, result)
+            for ms, result in self.by_media_source
+            if isinstance(result, StdMediaSourceIntegrityResult)
+        )
+
+
+@dataclass(frozen=True)
 class AlbumPreflightResult:
     """Structured result of all album preflight checks."""
 
@@ -82,8 +129,7 @@ class AlbumPreflightResult:
     media_source_summary: AlbumMediaSourceSummary
     dir_check: AlbumDirCheck
     album_id_check: AlbumIdCheck | None = None
-    ios_integrity: IosAlbumFullIntegrityResult | None = None
-    std_integrity: StdAlbumFullIntegrityResult | None = None
+    integrity: AlbumIntegrityResult | None = None
     jpeg_check: AlbumJpegIntegrityResult | None = None
     naming: AlbumNamingResult | None = None
 
@@ -93,8 +139,7 @@ class AlbumPreflightResult:
             self.sips_available
             and self.dir_check.success
             and (self.album_id_check is None or self.album_id_check.has_id)
-            and (self.ios_integrity is None or self.ios_integrity.success)
-            and (self.std_integrity is None or self.std_integrity.success)
+            and (self.integrity is None or self.integrity.success)
             and (self.jpeg_check is None or self.jpeg_check.success)
             and (self.naming is None or self.naming.success)
         )
@@ -105,7 +150,7 @@ class AlbumPreflightResult:
 
     @property
     def has_sidecar_warnings(self) -> bool:
-        return self.ios_integrity is not None and self.ios_integrity.has_warnings
+        return self.integrity is not None and self.integrity.has_warnings
 
     @property
     def has_exif_warnings(self) -> bool:
@@ -133,13 +178,8 @@ class AlbumPreflightResult:
                     else []
                 ),
                 *(
-                    ["ios integrity errors"]
-                    if self.ios_integrity is not None and not self.ios_integrity.success
-                    else []
-                ),
-                *(
-                    ["std integrity errors"]
-                    if self.std_integrity is not None and not self.std_integrity.success
+                    ["integrity errors"]
+                    if self.integrity is not None and not self.integrity.success
                     else []
                 ),
                 *(
@@ -199,6 +239,59 @@ class AlbumPreflightResult:
         )
 
 
+# ---------------------------------------------------------------------------
+# Integrity check orchestrator
+# ---------------------------------------------------------------------------
+
+
+def check_album_integrity(
+    album_dir: Path,
+    *,
+    checksum: bool = True,
+    on_file_checked: Callable[[str, bool], None] | None = None,
+) -> AlbumIntegrityResult:
+    """Run integrity checks for all media sources in an album.
+
+    Dispatches to iOS or std checks based on each media source's type.
+    Legacy std sources without archives are skipped.
+    """
+    media_sources = discover_media_sources(album_dir)
+    results: list[tuple[MediaSource, MediaSourceIntegrityResult]] = []
+
+    for ms in media_sources:
+        if ms.is_ios:
+            results.append(
+                (
+                    ms,
+                    check_ios_media_source_integrity(
+                        album_dir,
+                        ms,
+                        checksum=checksum,
+                        on_file_checked=on_file_checked,
+                    ),
+                )
+            )
+        elif ms.is_std and (album_dir / ms.archive_dir).is_dir():
+            results.append(
+                (
+                    ms,
+                    check_std_media_source_integrity(
+                        album_dir,
+                        ms,
+                        checksum=checksum,
+                        on_file_checked=on_file_checked,
+                    ),
+                )
+            )
+
+    return AlbumIntegrityResult(by_media_source=tuple(results))
+
+
+# ---------------------------------------------------------------------------
+# Album check orchestrator
+# ---------------------------------------------------------------------------
+
+
 def run_album_check(
     album_dir: Path,
     *,
@@ -225,19 +318,11 @@ def run_album_check(
 
     dir_check = check_album_dir_structure(album_dir)
 
-    ios_integrity = (
-        check_ios_album_integrity(
+    integrity = (
+        check_album_integrity(
             album_dir, checksum=checksum, on_file_checked=on_file_checked
         )
-        if summary.has_ios
-        else None
-    )
-
-    std_integrity = (
-        check_std_album_integrity(
-            album_dir, checksum=checksum, on_file_checked=on_file_checked
-        )
-        if summary.has_std
+        if media_sources
         else None
     )
 
@@ -265,8 +350,7 @@ def run_album_check(
         media_source_summary=summary,
         dir_check=dir_check,
         album_id_check=album_id_check,
-        ios_integrity=ios_integrity,
-        std_integrity=std_integrity,
+        integrity=integrity,
         jpeg_check=jpeg_check,
         naming=naming,
     )
@@ -297,15 +381,7 @@ def run_album_preflight(
 
 
 def discover_archive_albums(base_dir: Path) -> list[Path]:
-    """Recursively discover albums with archive directories under *base_dir*.
-
-    Finds albums that have iOS (``ios-*/``) or std (``std-*/``) archive
-    directories, which are the album types that support archive-based
-    operations (optimize, fix-ios, etc.).
-
-    Since all current media source types (iOS and std) have archive
-    directories, this is equivalent to :func:`discover_albums`.
-    """
+    """Recursively discover albums with archive directories under *base_dir*."""
     return discover_albums(base_dir)
 
 

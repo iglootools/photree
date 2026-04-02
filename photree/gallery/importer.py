@@ -16,7 +16,7 @@ import itertools
 
 from ..album import fix as album_fixes
 from ..album import optimize as album_optimize
-from ..album.check import check_album_jpeg_integrity, check_ios_album_integrity
+from ..album.check import check_album_integrity, check_album_jpeg_integrity
 from ..album.jpeg import convert_single_file
 from ..album.store.media_sources_discovery import discover_media_sources
 from ..album.store.metadata import load_album_metadata, save_album_metadata
@@ -216,7 +216,7 @@ def _stage_optimize(work_dir: Path, *, link_mode: LinkMode, dry_run: bool) -> bo
     if not ios_sources:
         return False
     if not dry_run:
-        integrity = check_ios_album_integrity(work_dir, checksum=True)
+        integrity = check_album_integrity(work_dir, checksum=True)
         mismatched = [
             ms.name
             for ms, result in integrity.by_media_source

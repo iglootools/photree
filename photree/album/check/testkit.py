@@ -5,18 +5,16 @@ from __future__ import annotations
 from . import (
     AlbumDirCheck,
     AlbumIdCheck,
+    AlbumIntegrityResult,
     AlbumMediaSourceSummary,
     AlbumPreflightResult,
 )
 from ..store.protocol import MAIN_MEDIA_SOURCE, std_media_source
 from .browsable import BrowsableDirCheck, FileComparison, MissingFile
-from .ios import (
-    IosAlbumFullIntegrityResult,
-    IosAlbumIntegrityResult,
-)
+from .ios import IosMediaSourceIntegrityResult
 from .ios.sidecar import SidecarCheck
 from .jpeg import AlbumJpegIntegrityResult, JpegCheck
-from .std import StdAlbumFullIntegrityResult, StdAlbumIntegrityResult
+from .std import StdMediaSourceIntegrityResult
 
 _STD_MEDIA_SOURCE = std_media_source("nelu")
 
@@ -76,17 +74,17 @@ _JPEG_FAILURES = JpegCheck(
 )
 
 # ---------------------------------------------------------------------------
-# iOS integrity fixtures
+# iOS media source integrity fixtures
 # ---------------------------------------------------------------------------
 
-INTEGRITY_OK = IosAlbumIntegrityResult(
+IOS_INTEGRITY_OK = IosMediaSourceIntegrityResult(
     browsable_img=_BROWSABLE_OK,
     browsable_vid=_BROWSABLE_VID_OK,
     browsable_jpg=_JPEG_OK,
     sidecars=SidecarCheck(missing_sidecars=(), orphan_sidecars=()),
 )
 
-INTEGRITY_FAILURES = IosAlbumIntegrityResult(
+IOS_INTEGRITY_FAILURES = IosMediaSourceIntegrityResult(
     browsable_img=_BROWSABLE_FAILURES,
     browsable_vid=_BROWSABLE_EMPTY,
     browsable_jpg=_JPEG_FAILURES,
@@ -103,16 +101,8 @@ INTEGRITY_FAILURES = IosAlbumIntegrityResult(
     ),
 )
 
-FULL_INTEGRITY_OK = IosAlbumFullIntegrityResult(
-    by_media_source=((MAIN_MEDIA_SOURCE, INTEGRITY_OK),)
-)
-
-FULL_INTEGRITY_FAILURES = IosAlbumFullIntegrityResult(
-    by_media_source=((MAIN_MEDIA_SOURCE, INTEGRITY_FAILURES),)
-)
-
 # ---------------------------------------------------------------------------
-# Std integrity fixtures
+# Std media source integrity fixtures
 # ---------------------------------------------------------------------------
 
 _STD_BROWSABLE_OK = BrowsableDirCheck(
@@ -136,13 +126,13 @@ _STD_VID_OK = BrowsableDirCheck(
     checksum_mismatches=(),
 )
 
-STD_INTEGRITY_OK = StdAlbumIntegrityResult(
+STD_INTEGRITY_OK = StdMediaSourceIntegrityResult(
     browsable_img=_STD_BROWSABLE_OK,
     browsable_vid=_STD_VID_OK,
     browsable_jpg=JpegCheck(present=("photo1.jpg", "photo2.jpg"), missing=(), extra=()),
 )
 
-STD_INTEGRITY_FAILURES = StdAlbumIntegrityResult(
+STD_INTEGRITY_FAILURES = StdMediaSourceIntegrityResult(
     browsable_img=BrowsableDirCheck(
         correct=(),
         missing=(MissingFile("photo1.heic", "orig-img"),),
@@ -158,12 +148,23 @@ STD_INTEGRITY_FAILURES = StdAlbumIntegrityResult(
     ),
 )
 
-FULL_STD_INTEGRITY_OK = StdAlbumFullIntegrityResult(
-    by_media_source=((_STD_MEDIA_SOURCE, STD_INTEGRITY_OK),)
+# ---------------------------------------------------------------------------
+# Unified album integrity fixtures
+# ---------------------------------------------------------------------------
+
+INTEGRITY_OK = AlbumIntegrityResult(
+    by_media_source=((MAIN_MEDIA_SOURCE, IOS_INTEGRITY_OK),)
 )
 
-FULL_STD_INTEGRITY_FAILURES = StdAlbumFullIntegrityResult(
-    by_media_source=((_STD_MEDIA_SOURCE, STD_INTEGRITY_FAILURES),)
+INTEGRITY_FAILURES = AlbumIntegrityResult(
+    by_media_source=((MAIN_MEDIA_SOURCE, IOS_INTEGRITY_FAILURES),)
+)
+
+INTEGRITY_MIXED_OK = AlbumIntegrityResult(
+    by_media_source=(
+        (MAIN_MEDIA_SOURCE, IOS_INTEGRITY_OK),
+        (_STD_MEDIA_SOURCE, STD_INTEGRITY_OK),
+    )
 )
 
 # ---------------------------------------------------------------------------
@@ -206,7 +207,7 @@ PREFLIGHT_OK = AlbumPreflightResult(
     album_id_check=AlbumIdCheck(
         has_id=True, album_id="01234567-89ab-7def-8123-456789abcdef"
     ),
-    ios_integrity=FULL_INTEGRITY_OK,
+    integrity=INTEGRITY_OK,
     jpeg_check=JPEG_INTEGRITY_OK,
 )
 
@@ -223,7 +224,7 @@ PREFLIGHT_FAILURES = AlbumPreflightResult(
         ),
     ),
     album_id_check=AlbumIdCheck(has_id=False),
-    ios_integrity=FULL_INTEGRITY_FAILURES,
+    integrity=INTEGRITY_FAILURES,
     jpeg_check=JPEG_INTEGRITY_FAILURES,
 )
 
@@ -240,6 +241,8 @@ PREFLIGHT_STD = AlbumPreflightResult(
     album_id_check=AlbumIdCheck(
         has_id=True, album_id="01234567-89ab-7def-8123-456789abcdef"
     ),
-    std_integrity=FULL_STD_INTEGRITY_OK,
+    integrity=AlbumIntegrityResult(
+        by_media_source=((std_media_source("main"), STD_INTEGRITY_OK),)
+    ),
     jpeg_check=JPEG_INTEGRITY_OK,
 )
