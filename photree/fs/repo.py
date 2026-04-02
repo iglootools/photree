@@ -1,7 +1,12 @@
 """Repository layer — backward-compatible re-export facade.
 
-Album persistence has moved to :mod:`album.store.fs`.
-Gallery persistence remains here temporarily (Phase E will move it).
+Canonical locations:
+- Album persistence: :mod:`album.store.fs`
+- Gallery persistence: :mod:`gallery.store.fs`
+
+Note: Gallery functions are defined here temporarily to avoid circular
+imports (fs -> gallery -> album.naming -> fs). They will move to
+gallery.store.fs once callers migrate off fs in Phase F.
 """
 
 from __future__ import annotations
@@ -31,7 +36,8 @@ from ..album.store.fs import (  # noqa: F401
 
 
 # ---------------------------------------------------------------------------
-# Gallery metadata I/O (will move to gallery.store.fs in Phase E)
+# Gallery functions — defined here temporarily to avoid circular imports.
+# Will move to gallery.store.fs once callers migrate off fs.
 # ---------------------------------------------------------------------------
 
 
@@ -58,21 +64,10 @@ def load_gallery_metadata(gallery_yaml_path: Path) -> GalleryMetadata:
     return GalleryMetadata.model_validate(raw)
 
 
-# ---------------------------------------------------------------------------
-# Gallery resolution (will move to gallery.store.fs in Phase E)
-# ---------------------------------------------------------------------------
-
-
 def resolve_gallery_dir(
     explicit: Path | None, *, start_dir: Path | None = None
 ) -> Path:
-    """Resolve the gallery root directory.
-
-    Resolution order: explicit path > walk up from *start_dir* (or cwd)
-    looking for ``.photree/gallery.yaml``.
-
-    Raises :class:`ValueError` if no gallery metadata is found.
-    """
+    """Resolve the gallery root directory."""
     if explicit is not None:
         if not (explicit / PHOTREE_DIR / GALLERY_YAML).is_file():
             raise ValueError(
@@ -96,10 +91,7 @@ def resolve_gallery_dir(
 
 
 def resolve_gallery_metadata(start_dir: Path) -> GalleryMetadata | None:
-    """Walk up from *start_dir* looking for ``.photree/gallery.yaml``.
-
-    Returns the first :class:`GalleryMetadata` found, or ``None``.
-    """
+    """Walk up from *start_dir* looking for ``.photree/gallery.yaml``."""
     try:
         gallery_dir = resolve_gallery_dir(None, start_dir=start_dir)
     except ValueError:
