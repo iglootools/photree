@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ...uiconventions import CHECK, CROSS, WARNING
+from ...common.formatting import CHECK, CROSS, WARNING
 from . import (
     AlbumJpegIntegrityResult,
     BrowsableDirCheck,

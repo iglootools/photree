@@ -22,7 +22,7 @@ from rich.console import Console
 from ..fs import LinkMode, display_path, list_files
 from ..fs.media import dedup_media_dict
 from ..fs.protocol import _KeyFn
-from ..uiconventions import CHECK
+from ..common.formatting import CHECK
 
 _console = Console(highlight=False)
 

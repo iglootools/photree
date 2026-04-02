@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ..uiconventions import CHECK, CROSS, WARNING  # noqa: F401
+from ..common.formatting import CHECK, CROSS, WARNING  # noqa: F401
 
 if TYPE_CHECKING:
     from .ios_fixes import FixIosResult

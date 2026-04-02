@@ -15,7 +15,7 @@ from rich.progress import (
     TextColumn,
 )
 
-from ..uiconventions import CHECK, CROSS, WARNING, rich_warning_text
+from ..common.formatting import CHECK, CROSS, WARNING, rich_warning_text
 
 
 def _result_icon(success: bool) -> str:

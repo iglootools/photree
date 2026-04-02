@@ -8,7 +8,7 @@ from pathlib import Path
 import yaml
 from rich.console import Console
 
-from ..uiconventions import CHECK
+from ..common.formatting import CHECK
 from .fileutils import display_path, matching_subdirectories
 from .protocol import (
     ALBUM_YAML,
