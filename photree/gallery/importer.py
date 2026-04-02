@@ -20,11 +20,8 @@ from ..album.check import check_album_integrity, check_album_jpeg_integrity
 from ..album.jpeg import convert_single_file
 from ..album.store.media_sources_discovery import discover_media_sources
 from ..album.store.metadata import load_album_metadata, save_album_metadata
-from ..album.store.protocol import (
-    AlbumMetadata,
-    generate_album_id,
-    parse_album_year,
-)
+from ..album.id import generate_album_id
+from ..album.store.protocol import AlbumMetadata, parse_album_year
 from ..fsprotocol import LinkMode
 from . import AlbumIndex
 

@@ -9,7 +9,7 @@ import typer
 
 from . import gallery_app
 from ...clihelpers.console import err_console
-from ...album.store.protocol import format_album_external_id
+from ...album.id import format_album_external_id
 from ...common.fs import display_path
 from ...albums.cli.batch_ops import run_batch_rename_from_csv
 from .ops import build_index_or_exit, resolve_gallery_or_exit

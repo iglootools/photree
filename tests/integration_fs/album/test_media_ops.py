@@ -6,11 +6,8 @@ import pytest
 
 from photree.album.media import move_media, rm_media, resolve_variants
 from photree.album.store.metadata import save_album_metadata
-from photree.album.store.protocol import (
-    AlbumMetadata,
-    MAIN_MEDIA_SOURCE,
-    generate_album_id,
-)
+from photree.album.id import generate_album_id
+from photree.album.store.protocol import AlbumMetadata, MAIN_MEDIA_SOURCE
 
 MC = MAIN_MEDIA_SOURCE
 PHOTREE_DIR = ".photree"

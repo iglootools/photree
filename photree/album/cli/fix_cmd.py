@@ -23,11 +23,8 @@ from ..fix import FixValidationError
 from ..fix.output import format_fix_result
 from ..store.media_sources_discovery import discover_media_sources
 from ..store.metadata import load_album_metadata, save_album_metadata
-from ..store.protocol import (
-    AlbumMetadata,
-    format_album_external_id,
-    generate_album_id,
-)
+from ..id import format_album_external_id, generate_album_id
+from ..store.protocol import AlbumMetadata
 from . import album_app
 from .helpers import _check_sips_or_exit
 

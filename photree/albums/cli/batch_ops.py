@@ -27,7 +27,7 @@ from ...common.formatting import CHECK
 from ...album.store.album_discovery import discover_potential_albums
 from ...album.store.media_sources_discovery import discover_media_sources
 from ...album.store.metadata import load_album_metadata
-from ...album.store.protocol import format_album_external_id
+from ...album.id import format_album_external_id
 from ...common.fs import display_path
 from ...fsprotocol import LinkMode
 from ...clihelpers.console import console, err_console
