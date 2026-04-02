@@ -4,9 +4,9 @@ import os
 from pathlib import Path
 
 from photree.album.browsable import RefreshBrowsableDirResult, refresh_browsable_dir
-from photree.fs import IMG_EXTENSIONS, VID_EXTENSIONS, LinkMode
-from photree.fs.ios import img_number
-from photree.fs.protocol import _stem_key
+from photree.album.store.media_sources import img_number
+from photree.album.store.protocol import IMG_EXTENSIONS, VID_EXTENSIONS, _stem_key
+from photree.fsprotocol import LinkMode
 
 
 def _setup_dir(path: Path, filenames: list[str]) -> Path:

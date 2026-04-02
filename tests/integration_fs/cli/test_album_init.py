@@ -7,14 +7,13 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from photree.cli import app
-from photree.fs import (
+from photree.album.store.fs import load_album_metadata, save_album_metadata
+from photree.album.store.protocol import (
     ALBUM_YAML,
     AlbumMetadata,
-    PHOTREE_DIR,
     generate_album_id,
-    load_album_metadata,
-    save_album_metadata,
 )
+from photree.fsprotocol import PHOTREE_DIR
 
 runner = CliRunner()
 

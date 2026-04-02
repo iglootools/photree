@@ -5,11 +5,11 @@ from pathlib import Path
 import pytest
 
 from photree.album.media import move_media, rm_media, resolve_variants
-from photree.fs import (
+from photree.album.store.fs import save_album_metadata
+from photree.album.store.protocol import (
     AlbumMetadata,
     MAIN_MEDIA_SOURCE,
     generate_album_id,
-    save_album_metadata,
 )
 
 MC = MAIN_MEDIA_SOURCE

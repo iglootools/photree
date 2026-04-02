@@ -2,15 +2,14 @@
 
 from pathlib import Path
 
-from photree.fs import IMG_EXTENSIONS, VID_EXTENSIONS
-from photree.fs.ios import img_number
-from photree.fs.media import (
+from photree.album.store.media_sources import (
     dedup_media_dict,
     find_files_by_key,
     group_by_key,
+    img_number,
     pick_media_priority,
 )
-from photree.fs.protocol import _stem_key
+from photree.album.store.protocol import IMG_EXTENSIONS, VID_EXTENSIONS, _stem_key
 
 
 def _setup_dir(path: Path, filenames: list[str]) -> Path:

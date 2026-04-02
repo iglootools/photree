@@ -1,11 +1,18 @@
-"""Gallery protocol — metadata model and constants.
-
-Note: During the facade migration phase, GalleryMetadata and
-GALLERY_YAML are defined in fs/protocol.py and re-exported here.
-Once callers migrate to gallery.store.protocol directly (Phase F),
-the definitions will move here and the fs facade dependency is removed.
-"""
+"""Gallery protocol — metadata model and constants."""
 
 from __future__ import annotations
 
-from ...fs.protocol import GALLERY_YAML, GalleryMetadata  # noqa: F401
+from pydantic import Field
+
+from ...fsprotocol import LinkMode, _BaseModel
+
+GALLERY_YAML = "gallery.yaml"
+
+
+class GalleryMetadata(_BaseModel):
+    """Gallery-wide metadata stored in ``.photree/gallery.yaml``."""
+
+    link_mode: LinkMode = Field(
+        default=LinkMode.HARDLINK,
+        description="Default link mode for optimize and other link-mode operations.",
+    )

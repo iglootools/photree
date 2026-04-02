@@ -9,7 +9,7 @@ from photree.album.fix import (
     rm_orphan,
     rm_upstream,
 )
-from photree.fs import std_media_source
+from photree.album.store.protocol import std_media_source
 
 STD = std_media_source("nelu")
 

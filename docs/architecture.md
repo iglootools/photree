@@ -24,7 +24,6 @@ graph TD
     common["common/"]
     config["config/"]
     demo["demo/"]
-    fs["fs/"]
     fsprotocol["fsprotocol"]
     gallery["gallery/"]
 
@@ -52,15 +51,11 @@ graph TD
     config --> album
     config --> fsprotocol
     demo --> album
-    fs --> album
-    fs --> common
-    fs --> fsprotocol
     gallery --> album
     gallery --> albums
     gallery --> clihelpers
     gallery --> common
     gallery --> config
-    gallery --> fs
     gallery --> fsprotocol
 ```
 <!-- END MODULE OVERVIEW -->

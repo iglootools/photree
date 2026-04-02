@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from photree.fs import MediaSourceType, std_media_source
+from photree.album.store.protocol import MediaSourceType, std_media_source
 from photree.album.store.fs import (
     _is_std_source_dir,
     discover_media_sources,
