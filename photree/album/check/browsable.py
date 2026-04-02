@@ -13,7 +13,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ...common.fs import list_files
-from ..store.media_sources import ios_dedup_media_dict as dedup_media_dict
+from ..store.media_sources import dedup_media_dict
+from ..store.protocol import _KeyFn
 
 
 # ---------------------------------------------------------------------------
@@ -196,6 +197,7 @@ def check_browsable_dir(
     browsable_dir: Path,
     *,
     media_extensions: frozenset[str],
+    key_fn: _KeyFn,
     checksum: bool = True,
     on_file_checked: Callable[[str, bool], None] | None = None,
 ) -> BrowsableDirCheck:
@@ -203,14 +205,15 @@ def check_browsable_dir(
 
     For each media key in orig_dir, the browsable_dir should contain
     either the edited variant (if one exists in edit_dir) or the original.
+    Files are matched using *key_fn* (image number for iOS, stem for std).
     """
     orig_files = list_files(orig_dir)
     edit_files = list_files(edit_dir)
     browsable_files = set(list_files(browsable_dir))
 
     # Use priority dedup to handle duplicate keys (e.g. IMG_E7658.JPG + IMG_E7658.HEIC)
-    orig_media_by_number = dedup_media_dict(orig_files, media_extensions)
-    edit_media_by_number = dedup_media_dict(edit_files, media_extensions)
+    orig_media_by_number = dedup_media_dict(orig_files, media_extensions, key_fn)
+    edit_media_by_number = dedup_media_dict(edit_files, media_extensions, key_fn)
 
     # Determine what should be in main: edited if available, else original
     expected: dict[str, tuple[str, Path]] = {
