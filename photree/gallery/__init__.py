@@ -1,14 +1,14 @@
 """Gallery-level operations: album ID indexing, path lookups, and import."""
 
-from .renamer import RenameAction, plan_renames_from_csv
-from .index import (
+from ..albums.renamer import RenameAction, plan_renames_from_csv
+from ..albums.index import (
     AlbumIndex,
     MissingAlbumIdError,
-    build_album_id_to_path_index,
     build_album_index,
     find_duplicate_album_ids,
     resolve_album_path_by_id,
 )
+from .index import build_album_id_to_path_index
 
 __all__ = [
     "AlbumIndex",

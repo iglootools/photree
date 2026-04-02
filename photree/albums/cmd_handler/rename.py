@@ -6,8 +6,8 @@ import csv as csv_mod
 from dataclasses import dataclass
 from pathlib import Path
 
-from ...gallery import plan_renames_from_csv
-from ...gallery.renamer import (
+from ..renamer import plan_renames_from_csv
+from ..renamer import (
     RenameAction,
     check_rename_collisions,
     execute_renames,
