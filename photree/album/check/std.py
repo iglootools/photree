@@ -10,10 +10,30 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from ...common.fs import file_ext, list_files
 from ..store.media_sources_discovery import discover_media_sources
 from ..store.protocol import IMG_EXTENSIONS, VID_EXTENSIONS, MediaSource
 from .browsable import BrowsableDirCheck, check_browsable_dir
 from .jpeg import JpegCheck, check_jpeg_dir
+
+
+def check_duplicate_stems(
+    directory: Path, media_extensions: frozenset[str]
+) -> tuple[str, ...]:
+    """Check for files with the same stem but different extensions.
+
+    E.g. ``photo1.heic`` + ``photo1.jpg`` in the same directory.
+    """
+    stems: dict[str, list[str]] = {}
+    for f in list_files(directory):
+        if file_ext(f) in media_extensions:
+            stems.setdefault(Path(f).stem, []).append(f)
+
+    return tuple(
+        f"{directory.name}/: stem {stem} has multiple media files: {', '.join(candidates)}"
+        for stem, candidates in sorted(stems.items())
+        if len(candidates) > 1
+    )
 
 
 @dataclass(frozen=True)
@@ -23,6 +43,7 @@ class StdAlbumIntegrityResult:
     browsable_img: BrowsableDirCheck
     browsable_vid: BrowsableDirCheck
     browsable_jpg: JpegCheck
+    duplicate_stems: tuple[str, ...] = ()
 
     @property
     def success(self) -> bool:
@@ -30,6 +51,7 @@ class StdAlbumIntegrityResult:
             self.browsable_img.success
             and self.browsable_vid.success
             and self.browsable_jpg.success
+            and not self.duplicate_stems
         )
 
 
@@ -81,10 +103,19 @@ def check_std_media_source_integrity(
         album_dir / ms.jpg_dir,
     )
 
+    all_media = IMG_EXTENSIONS | VID_EXTENSIONS
+    duplicate_stems = tuple(
+        w
+        for subdir_name in ms.all_subdirs
+        if (album_dir / subdir_name).is_dir()
+        for w in check_duplicate_stems(album_dir / subdir_name, all_media)
+    )
+
     return StdAlbumIntegrityResult(
         browsable_img=browsable_img,
         browsable_vid=browsable_vid,
         browsable_jpg=browsable_jpg,
+        duplicate_stems=duplicate_stems,
     )
 
 
