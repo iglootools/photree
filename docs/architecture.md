@@ -25,6 +25,7 @@ graph TD
     config["config/"]
     demo["demo/"]
     fs["fs/"]
+    fsprotocol["fsprotocol"]
     gallery["gallery/"]
 
     album --> clihelpers
@@ -48,7 +49,9 @@ graph TD
     clihelpers --> fs
     config --> fs
     demo --> album
+    fs --> album
     fs --> common
+    fs --> fsprotocol
     gallery --> album
     gallery --> albums
     gallery --> clihelpers
