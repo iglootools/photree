@@ -43,7 +43,7 @@ $ photree album [OPTIONS] COMMAND [ARGS]...
 * `export`: Export a single album to a shared directory.
 * `fix`: Fix album issues.
 * `fix-exif`: Fix EXIF dates on media files.
-* `fix-ios`: Fix iOS album issues.
+* `fix-ios`: Fix iOS-specific album issues.
 * `import-check`: Check that system prerequisites for import...
 * `import`
 * `init`: Initialize album metadata...
@@ -119,9 +119,20 @@ albums that already have an ID.
 
 --new-id: Regenerates the album ID, replacing any existing one.
 
---refresh-jpeg: Deletes all files in {msutor}-jpg/ and re-converts
-every file from {msutor}-img/. HEIC/HEIF/DNG files are converted
+--refresh-browsable: Deletes {name}-img/, {name}-vid/, and
+{name}-jpg/, then rebuilds {name}-img and {name}-vid from
+orig/edit sources. If {name}-img/ is created, also regenerates
+{name}-jpg/ via HEIC-&gt;JPEG conversion.
+
+--refresh-jpeg: Deletes all files in {name}-jpg/ and re-converts
+every file from {name}-img/. HEIC/HEIF/DNG files are converted
 via sips; JPEG/PNG files are copied as-is.
+
+--rm-upstream: Propagates deletions from browsing directories to
+upstream directories.
+
+--rm-orphan: Deletes edited and main files whose key has no
+corresponding original file in orig-img/ or orig-vid/.
 
 **Usage**:
 
@@ -134,7 +145,11 @@ $ photree album fix [OPTIONS]
 * `-a, --album-dir DIRECTORY`: Album directory to fix.  [default: .]
 * `--id`: Generate missing album ID (.photree/album.yaml).
 * `--new-id`: Regenerate album ID (replaces existing ID).
+* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.
+* `--refresh-browsable`: Rebuild main-img/ and main-vid/ from orig/edit, then regenerate main-jpg/.
 * `--refresh-jpeg`: Refresh main-jpg/ from main-img/ (re-convert all HEIC→JPEG).
+* `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
+* `--rm-orphan`: Delete edited and main files that have no corresponding orig file.
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
@@ -174,26 +189,9 @@ $ photree album fix-exif [OPTIONS] [FILES]...
 
 ### `photree album fix-ios`
 
-Fix iOS album issues. At least one fix flag must be specified.
+Fix iOS-specific album issues. At least one fix flag must be specified.
 
 Available fixes:
-
---refresh-browsable: Deletes main-img/, main-vid/, and
-main-jpg/, then rebuilds main-img and main-vid from
-orig/edit sources. If main-img/ is created, also regenerates
-main-jpg/ via HEIC→JPEG conversion.
-
---refresh-jpeg: Deletes all files in main-jpg/ and re-converts
-every file from main-img/. HEIC files are converted via sips;
-JPEG/PNG files are copied as-is.
-
---rm-upstream: Propagates deletions from browsing directories to
-upstream directories. Files deleted from main-jpg/ are removed
-from main-img/, edit-img/, and orig-img/. Files deleted
-from main-vid/ are removed from edit-vid/ and orig-vid/.
-
---rm-orphan: Deletes edited and main files whose image number
-has no corresponding original file in orig-img/ or orig-vid/.
 
 --rm-orphan-sidecar: Deletes AAE sidecar files in orig-img/,
 edit-img/, orig-vid/, and edit-vid/ that have no matching
@@ -222,11 +220,6 @@ $ photree album fix-ios [OPTIONS]
 **Options**:
 
 * `-a, --album-dir DIRECTORY`: iOS album directory to fix.  [default: .]
-* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.
-* `--refresh-browsable`: Rebuild main-img/ and main-vid/ from orig/edit, then regenerate main-jpg/.
-* `--refresh-jpeg`: Refresh main-jpg/ from main-img/ (re-convert all HEIC→JPEG).
-* `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
-* `--rm-orphan`: Delete edited and main files that have no corresponding orig file.
 * `--prefer-higher-quality-when-dups`: Delete lower-quality duplicates.
 * `--rm-orphan-sidecar`: Delete AAE sidecar files that have no matching media file.
 * `--rm-miscategorized`: Delete files in the wrong directory.
@@ -486,7 +479,11 @@ $ photree albums fix [OPTIONS]
 * `-a, --album-dir DIRECTORY`: Album directory (repeatable).
 * `--id`: Generate missing album IDs (.photree/album.yaml).
 * `--new-id`: Regenerate album IDs (replaces existing IDs).
+* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink, symlink, or copy.  [default: hardlink]
+* `--refresh-browsable`: Rebuild main-img/ and main-vid/ from orig/edit, then regenerate main-jpg/.
 * `--refresh-jpeg`: Refresh main-jpg/ from main-img/ (re-convert all HEIC→JPEG).
+* `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
+* `--rm-orphan`: Delete edited and main files that have no corresponding orig file.
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
@@ -504,11 +501,6 @@ $ photree albums fix-ios [OPTIONS]
 
 * `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
 * `-a, --album-dir DIRECTORY`: Album directory (repeatable).
-* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink, symlink, or copy.  [default: hardlink]
-* `--refresh-browsable`: Rebuild main-img/ and main-vid/ from orig/edit, then regenerate main-jpg/.
-* `--refresh-jpeg`: Refresh main-jpg/ from main-img/ (re-convert all HEIC→JPEG).
-* `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
-* `--rm-orphan`: Delete edited and main files that have no corresponding orig file.
 * `--prefer-higher-quality-when-dups`: Delete lower-quality duplicates.
 * `--rm-orphan-sidecar`: Delete AAE sidecar files that have no matching media file.
 * `--rm-miscategorized`: Delete files in the wrong directory.
@@ -823,7 +815,11 @@ $ photree gallery fix [OPTIONS]
 * `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--id`: Generate missing album IDs (.photree/album.yaml).
 * `--new-id`: Regenerate album IDs (replaces existing IDs).
+* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.
+* `--refresh-browsable`: Rebuild main-img/ and main-vid/ from orig/edit, then regenerate main-jpg/.
 * `--refresh-jpeg`: Refresh main-jpg/ from main-img/ (re-convert all HEIC→JPEG).
+* `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
+* `--rm-orphan`: Delete edited and main files that have no corresponding orig file.
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
@@ -840,11 +836,6 @@ $ photree gallery fix-ios [OPTIONS]
 **Options**:
 
 * `-d, --gallery-dir DIRECTORY`: Gallery root directory.
-* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.
-* `--refresh-browsable`: Rebuild main-img/ and main-vid/ from orig/edit, then regenerate main-jpg/.
-* `--refresh-jpeg`: Refresh main-jpg/ from main-img/ (re-convert all HEIC→JPEG).
-* `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
-* `--rm-orphan`: Delete edited and main files that have no corresponding orig file.
 * `--prefer-higher-quality-when-dups`: Delete lower-quality duplicates.
 * `--rm-orphan-sidecar`: Delete AAE sidecar files that have no matching media file.
 * `--rm-miscategorized`: Delete files in the wrong directory.

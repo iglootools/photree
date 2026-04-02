@@ -10,10 +10,16 @@ import typer
 from . import gallery_app
 from ...clicommons.options import (
     DRY_RUN_OPTION,
+    LINK_MODE_OPTION,
+    REFRESH_BROWSABLE_OPTION,
     REFRESH_JPEG_OPTION,
+    RM_ORPHAN_OPTION,
+    RM_UPSTREAM_OPTION,
 )
 from ...album.cli.helpers import _check_sips_or_exit
+from ...album.fixes import FixValidationError
 from ...albums.cli.batch_ops import resolve_check_batch_albums, run_batch_fix
+from ...fs import resolve_link_mode
 from .ops import resolve_gallery_or_exit
 
 
@@ -38,18 +44,30 @@ def fix_cmd(
         bool,
         typer.Option("--new-id", help="Regenerate album IDs (replaces existing IDs)."),
     ] = False,
+    link_mode: LINK_MODE_OPTION = None,
+    refresh_browsable: REFRESH_BROWSABLE_OPTION = False,
     refresh_jpeg: REFRESH_JPEG_OPTION = False,
+    rm_upstream: RM_UPSTREAM_OPTION = False,
+    rm_orphan: RM_ORPHAN_OPTION = False,
     dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """Fix all albums in the gallery."""
-    if not fix_id and not new_id and not refresh_jpeg:
-        typer.echo(
-            "No fix specified. Run photree gallery fix --help for available fixes.",
-            err=True,
-        )
-        raise typer.Exit(code=1)
+    from ...album.fixes import validate_fix_flags
 
-    if refresh_jpeg:
+    try:
+        validate_fix_flags(
+            fix_id=fix_id,
+            new_id=new_id,
+            refresh_browsable=refresh_browsable,
+            refresh_jpeg=refresh_jpeg,
+            rm_upstream=rm_upstream,
+            rm_orphan=rm_orphan,
+        )
+    except FixValidationError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+    if refresh_browsable or refresh_jpeg:
         _check_sips_or_exit()
 
     resolved = resolve_gallery_or_exit(gallery_dir)
@@ -60,6 +78,10 @@ def fix_cmd(
         display_base,
         fix_id=fix_id,
         new_id=new_id,
+        link_mode=resolve_link_mode(link_mode, resolved),
+        refresh_browsable=refresh_browsable,
         refresh_jpeg=refresh_jpeg,
+        rm_upstream=rm_upstream,
+        rm_orphan=rm_orphan,
         dry_run=dry_run,
     )

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from ..common.formatting import CHECK, CROSS, WARNING  # noqa: F401
 
 if TYPE_CHECKING:
+    from .fixes import FixResult
     from .ios_fixes import FixIosResult
 
 
@@ -162,6 +163,10 @@ def batch_optimize_summary(optimized: int, failed: int) -> str:
     return f"\nDone. {optimized} album(s) optimized, {failed} failed."
 
 
+def batch_fix_summary(fixed: int, failed: int) -> str:
+    return f"\nDone. {fixed} album(s) fixed, {failed} failed."
+
+
 def batch_fix_ios_summary(fixed: int, failed: int) -> str:
     return f"\nDone. {fixed} album(s) fixed, {failed} failed."
 
@@ -177,8 +182,8 @@ def media_op_summary(
     return f"Done. {verb} {total} file(s): {parts}."
 
 
-def format_fix_ios_result(result: FixIosResult) -> list[str]:
-    """Format a :class:`FixIosResult` into output lines."""
+def format_fix_result(result: FixResult) -> list[str]:
+    """Format a :class:`FixResult` into output lines."""
     lines: list[str] = []
 
     if result.refresh_browsable_result is not None:
@@ -212,6 +217,13 @@ def format_fix_ios_result(result: FixIosResult) -> list[str]:
 
     if result.rm_orphan_removed_by_dir:
         lines.append(rm_orphan_summary(result.rm_orphan_removed_by_dir))
+
+    return lines
+
+
+def format_fix_ios_result(result: FixIosResult) -> list[str]:
+    """Format a :class:`FixIosResult` into output lines."""
+    lines: list[str] = []
 
     if result.rm_orphan_sidecar_removed_by_dir:
         lines.append(rm_orphan_sidecar_summary(result.rm_orphan_sidecar_removed_by_dir))
