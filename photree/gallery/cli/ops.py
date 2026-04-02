@@ -15,7 +15,7 @@ from ...album import (
     preflight as album_preflight,
 )
 from ...album.preflight import output as preflight_output
-from ...album.exif import try_start_exiftool
+from ...common.exif import try_start_exiftool
 from ...album.naming import (
     AlbumNamingResult,
     check_album_naming,

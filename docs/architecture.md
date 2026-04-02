@@ -33,6 +33,7 @@ graph TD
     album --> fs
     albums --> album
     albums --> clicommons
+    albums --> common
     albums --> config
     albums --> fs
     albums --> gallery
@@ -45,12 +46,14 @@ graph TD
     cli --> gallery
     clicommons --> common
     clicommons --> fs
+    common --> fs
     config --> fs
     demo --> album
     fs --> common
     gallery --> album
     gallery --> albums
     gallery --> clicommons
+    gallery --> common
     gallery --> config
     gallery --> fs
 ```

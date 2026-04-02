@@ -14,8 +14,10 @@ from .protocol import (
     ALBUM_YAML,
     DEFAULT_MEDIA_SOURCE,
     GALLERY_YAML,
+    IMG_EXTENSIONS,
     IOS_DIR_PREFIX,
     STD_DIR_PREFIX,
+    VID_EXTENSIONS,
     AlbumMetadata,
     GalleryMetadata,
     LinkMode,
@@ -250,6 +252,35 @@ def discover_media_sources(album_dir: Path) -> list[MediaSource]:
         *(std_media_source(n) for n in legacy_std_names),
     ]
     return sorted(sources, key=lambda ms: (ms.name != DEFAULT_MEDIA_SOURCE, ms.name))
+
+
+_MEDIA_EXTENSIONS = IMG_EXTENSIONS | VID_EXTENSIONS
+
+
+def discover_browsable_media_files(album_dir: Path) -> list[Path]:
+    """Collect all media files from an album's browsable directories.
+
+    Searches all media sources' ``{name}-jpg/`` and ``{name}-vid/``
+    directories. Falls back to recursive search from the album root
+    when no media sources are found.
+    """
+    media_sources = discover_media_sources(album_dir)
+    if media_sources:
+        search_dirs = [
+            album_dir / d
+            for ms in media_sources
+            for d in (ms.jpg_dir, ms.vid_dir)
+            if (album_dir / d).is_dir()
+        ]
+    else:
+        search_dirs = [album_dir]
+
+    return [
+        f
+        for search_dir in search_dirs
+        for f in search_dir.rglob("*")
+        if f.is_file() and f.suffix.lower() in _MEDIA_EXTENSIONS
+    ]
 
 
 # ---------------------------------------------------------------------------

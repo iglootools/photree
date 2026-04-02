@@ -9,6 +9,7 @@ import typer
 
 from . import album_app
 from .. import exif as album_exif
+from ...common import exif as common_exif
 from ...clicommons.console import err_console
 
 
@@ -94,11 +95,11 @@ def fix_exif_cmd(
     if set_date is not None:
         updated = album_exif.set_exif_date(file_paths, set_date, log_cwd=cwd)
     elif set_date_time is not None:
-        updated = album_exif.set_exif_date_time(file_paths, set_date_time, log_cwd=cwd)
+        updated = common_exif.set_exif_date_time(file_paths, set_date_time, log_cwd=cwd)
     elif shift_date is not None:
-        updated = album_exif.shift_exif_date(file_paths, shift_date, log_cwd=cwd)
+        updated = common_exif.shift_exif_date(file_paths, shift_date, log_cwd=cwd)
     else:
         assert shift_time is not None
-        updated = album_exif.shift_exif_time(file_paths, shift_time, log_cwd=cwd)
+        updated = common_exif.shift_exif_time(file_paths, shift_time, log_cwd=cwd)
 
     typer.echo(f"Done. {updated} file(s) updated.")

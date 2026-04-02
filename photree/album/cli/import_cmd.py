@@ -9,7 +9,7 @@ import typer
 
 from . import album_app
 from .helpers import _run_preflight_checks
-from .. import exif as album_exif
+from ..preflight import check_exiftool_available
 from ..importer import image_capture, output as importer_output
 from ..importer.image_capture import plan_import_from_dirs, validate_import_plan
 from ..jpeg import convert_single_file, noop_convert_single
@@ -178,7 +178,7 @@ def import_cmd(
         raise typer.Exit(code=1)
 
     # Post-import EXIF timestamp check (warning only, doesn't fail the import)
-    if not dry_run and album_exif.check_exiftool_available():
+    if not dry_run and check_exiftool_available():
         parsed = parse_album_name(album_dir.name)
         if parsed is not None:
             exif_check = check_exif_date_match(album_dir, parsed.date)

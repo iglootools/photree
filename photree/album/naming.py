@@ -23,6 +23,7 @@ from pathlib import Path
 from ..fs import (
     ALBUM_DATE_RE,
     MediaSource,
+    discover_browsable_media_files,
     discover_media_sources,
     find_files_by_number,
     find_files_by_stem,
@@ -30,7 +31,7 @@ from ..fs import (
 )
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
-from .exif import discover_media_files, read_exif_timestamps_by_file
+from .exif import read_exif_timestamps_by_file
 
 # ---------------------------------------------------------------------------
 # Regexes
@@ -517,7 +518,7 @@ def check_exif_date_match(
     Returns ``None`` if no media files found or no timestamps could be read.
     When *exiftool* is provided, the persistent process is reused.
     """
-    files = discover_media_files(album_dir)
+    files = discover_browsable_media_files(album_dir)
     if not files:
         return None
 

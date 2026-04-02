@@ -17,7 +17,7 @@ from ...fs import (
 )
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
-from ..exif import try_start_exiftool
+from ...common.exif import try_start_exiftool
 from ..integrity import (
     AlbumJpegIntegrityResult,
     IosAlbumFullIntegrityResult,
@@ -35,6 +35,11 @@ from ..naming import (
 def check_sips_available() -> bool:
     """Check whether the macOS ``sips`` tool is on PATH."""
     return shutil.which("sips") is not None
+
+
+def check_exiftool_available() -> bool:
+    """Check whether ``exiftool`` is on PATH."""
+    return shutil.which("exiftool") is not None
 
 
 @dataclass(frozen=True)

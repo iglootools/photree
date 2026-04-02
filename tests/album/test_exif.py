@@ -1,4 +1,4 @@
-"""Tests for photree.album.exif module."""
+"""Tests for album-specific EXIF helpers and generic common.exif functions."""
 
 from __future__ import annotations
 
@@ -8,15 +8,21 @@ from unittest.mock import patch
 
 import pytest
 
-from photree.album.exif import (
-    _extract_timestamp,
+from photree.album.exif import _TIMESTAMP_TAGS
+from photree.common.exif import (
+    extract_timestamp,
     read_exif_timestamps,
     try_start_exiftool,
 )
 
 
+def _extract_timestamp(metadata: dict[str, object]) -> datetime | None:
+    """Test helper: extract_timestamp bound to the project's tag priority."""
+    return extract_timestamp(metadata, _TIMESTAMP_TAGS)
+
+
 # ---------------------------------------------------------------------------
-# _extract_timestamp
+# extract_timestamp (with project's _TIMESTAMP_TAGS)
 # ---------------------------------------------------------------------------
 
 
@@ -100,13 +106,13 @@ class TestExtractTimestamp:
 
 
 # ---------------------------------------------------------------------------
-# try_start_exiftool
+# try_start_exiftool (from common.exif)
 # ---------------------------------------------------------------------------
 
 
 class TestTryStartExiftool:
     def test_returns_none_when_not_installed(self) -> None:
-        with patch("photree.album.exif.shutil.which", return_value=None):
+        with patch("photree.common.exif.shutil.which", return_value=None):
             assert try_start_exiftool() is None
 
     @pytest.mark.skipif(not shutil.which("exiftool"), reason="exiftool not installed")
@@ -117,10 +123,10 @@ class TestTryStartExiftool:
 
 
 # ---------------------------------------------------------------------------
-# read_exif_timestamps
+# read_exif_timestamps (from common.exif)
 # ---------------------------------------------------------------------------
 
 
 class TestReadExifTimestamps:
     def test_empty_files(self) -> None:
-        assert read_exif_timestamps([]) == []
+        assert read_exif_timestamps([], _TIMESTAMP_TAGS) == []
