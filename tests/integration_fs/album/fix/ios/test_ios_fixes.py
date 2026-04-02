@@ -1,12 +1,12 @@
-"""Tests for photree.album.ios_fixes module."""
+"""Tests for photree.album.fix.ios module."""
 
 from pathlib import Path
 
-from photree.album.fixes import (
+from photree.album.fix import (
     rm_orphan,
     rm_upstream,
 )
-from photree.album.ios_fixes import (
+from photree.album.fix.ios import (
     mv_miscategorized,
     prefer_higher_quality_when_dups,
     rm_miscategorized,

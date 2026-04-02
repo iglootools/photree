@@ -10,10 +10,10 @@ import typer
 from . import album_app
 from .helpers import _check_sips_or_exit
 from .. import (
-    fixes as album_fixes,
+    fix as album_fixes,
     output as album_output,
 )
-from ..fixes import FixValidationError
+from ..fix import FixValidationError
 from ...clicommons.options import (
     DRY_RUN_OPTION,
     LINK_MODE_OPTION,

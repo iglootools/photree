@@ -12,7 +12,7 @@ from .. import (
     output as album_output,
     preflight as album_preflight,
 )
-from ..ios_fixes import (
+from ..fix.ios import (
     FixIosValidationError,
     run_fix_ios,
     validate_fix_flags,

@@ -12,7 +12,7 @@ from pathlib import Path
 import typer
 
 from ...album import (
-    fixes as album_fixes,
+    fix as album_fixes,
     naming as album_naming,
     optimize as album_optimize,
     output as album_output,
@@ -33,7 +33,7 @@ from ...fs import (
     save_album_metadata,
 )
 from ...gallery.index import find_duplicate_album_ids
-from ...album.ios_fixes import run_fix_ios
+from ...album.fix.ios import run_fix_ios
 from ...album.output import format_fix_ios_result
 from ...fs import discover_potential_albums
 from ...clicommons.console import console, err_console

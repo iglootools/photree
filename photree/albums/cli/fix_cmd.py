@@ -8,7 +8,7 @@ import typer
 
 from . import AlbumDirOption, DirOption, albums_app
 from ...album.cli.helpers import _check_sips_or_exit
-from ...album.fixes import FixValidationError
+from ...album.fix import FixValidationError
 from ...clicommons.options import (
     DRY_RUN_OPTION,
     LINK_MODE_REQUIRED_OPTION,
@@ -42,7 +42,7 @@ def fix_cmd(
 ) -> None:
     """Fix all albums under a directory or from an explicit list."""
     try:
-        from ...album.fixes import validate_fix_flags
+        from ...album.fix import validate_fix_flags
 
         validate_fix_flags(
             fix_id=fix_id,

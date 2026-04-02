@@ -16,7 +16,7 @@ from ...clicommons.options import (
     RM_MISCATEGORIZED_SAFE_OPTION,
     RM_ORPHAN_SIDECAR_OPTION,
 )
-from ...album.ios_fixes import FixIosValidationError, validate_fix_flags
+from ...album.fix.ios import FixIosValidationError, validate_fix_flags
 from ...albums.cli.batch_ops import resolve_batch_albums, run_batch_fix_ios
 from .ops import resolve_gallery_or_exit
 
