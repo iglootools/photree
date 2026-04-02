@@ -2,10 +2,12 @@
 
 from .fileutils import (
     count_unique_media_numbers,
+    delete_files,
     display_path,
     file_ext,
     list_files,
     matching_subdirectories,
+    move_files,
 )
 from .ios import (
     PICTURE_PRIORITY_EXTENSIONS,
@@ -61,7 +63,6 @@ from .protocol import (
     std_media_source,
 )
 from .repo import (
-    delete_files,
     discover_albums,
     discover_browsable_media_files,
     discover_media_sources,
@@ -70,7 +71,6 @@ from .repo import (
     is_album,
     load_album_metadata,
     load_gallery_metadata,
-    move_files,
     resolve_gallery_dir,
     resolve_gallery_metadata,
     resolve_link_mode,
