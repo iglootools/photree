@@ -11,15 +11,15 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from ...common.fs import list_files
-from ..store.media_sources_discovery import discover_media_sources
-from ..store.protocol import (
+from ....common.fs import list_files
+from ...store.media_sources_discovery import discover_media_sources
+from ...store.protocol import (
     IOS_IMG_EXTENSIONS,
     IOS_VID_EXTENSIONS,
     MediaSource,
 )
-from .browsable import BrowsableDirCheck, check_browsable_dir
-from .jpeg import JpegCheck, check_jpeg_dir
+from ..browsable import BrowsableDirCheck, check_browsable_dir
+from ..jpeg import JpegCheck, check_jpeg_dir
 from .sidecar import SidecarCheck, check_sidecars
 
 
