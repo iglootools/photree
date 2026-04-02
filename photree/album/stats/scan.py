@@ -19,68 +19,6 @@ from .models import FormatStats, SizeStats
 _ZERO_SIZE_STATS = SizeStats(file_count=0, apparent_bytes=0, on_disk_bytes=0)
 
 
-def _scan_directory(
-    directory: Path,
-    seen_inodes: set[tuple[int, int]],
-) -> tuple[SizeStats, tuple[FormatStats, ...]]:
-    """Scan a single directory, returning size stats and per-format breakdown.
-
-    Files whose ``(st_dev, st_ino)`` is already in *seen_inodes* contribute
-    to ``apparent_bytes`` but not ``on_disk_bytes``.  New inodes are added
-    to the set.
-
-    Returns ``FormatStats`` with ``archive_bytes=0`` and ``derived_bytes=0``
-    — the caller tags the role.
-    """
-    files = list_files(directory)
-    if not files:
-        return _ZERO_SIZE_STATS, ()
-
-    total_apparent = 0
-    total_on_disk = 0
-    total_count = 0
-    format_apparent: Counter[str] = Counter()
-    format_on_disk: Counter[str] = Counter()
-    format_count: Counter[str] = Counter()
-
-    for filename in files:
-        path = directory / filename
-        st = os.stat(path)
-        size = st.st_size
-        ext = file_ext(filename)
-        inode_key = (st.st_dev, st.st_ino)
-
-        total_apparent += size
-        total_count += 1
-        format_apparent[ext] += size
-        format_count[ext] += 1
-
-        if inode_key not in seen_inodes:
-            seen_inodes.add(inode_key)
-            total_on_disk += size
-            format_on_disk[ext] += size
-
-    by_format = tuple(
-        FormatStats(
-            extension=ext,
-            file_count=format_count[ext],
-            apparent_bytes=amt,
-            on_disk_bytes=format_on_disk[ext],
-            archive_bytes=0,
-            derived_bytes=0,
-        )
-        for ext, amt in sorted(format_apparent.items(), key=lambda kv: -kv[1])
-    )
-    return (
-        SizeStats(
-            file_count=total_count,
-            apparent_bytes=total_apparent,
-            on_disk_bytes=total_on_disk,
-        ),
-        by_format,
-    )
-
-
 def categorize_size_stats(
     directory: Path,
     seen_inodes: set[tuple[int, int]],

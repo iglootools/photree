@@ -14,7 +14,6 @@ from photree.album.stats import (
 from photree.album.stats.aggregate import merge_format_stats, merge_size_stats
 from photree.album.stats.models import AlbumStats, FormatStats, SizeStats
 from photree.album.stats.scan import (
-    _scan_directory,
     categorize_size_stats,
     count_unique_pictures,
     count_unique_videos,
@@ -79,72 +78,6 @@ def _setup_ios_album(album: Path) -> None:
 
     _write(album / ms.jpg_dir / "IMG_E0001.jpg", "g" * 60)
     _write(album / ms.jpg_dir / "IMG_0002.PNG", "c" * 80)
-
-
-# ---------------------------------------------------------------------------
-# _scan_directory
-# ---------------------------------------------------------------------------
-
-
-class TestScanDirectory:
-    def test_empty_directory(self, tmp_path: Path) -> None:
-        d = tmp_path / "empty"
-        d.mkdir()
-        seen: set[tuple[int, int]] = set()
-        size, by_fmt = _scan_directory(d, seen)
-        assert size == SizeStats(0, 0, 0)
-        assert by_fmt == ()
-        assert seen == set()
-
-    def test_missing_directory(self, tmp_path: Path) -> None:
-        seen: set[tuple[int, int]] = set()
-        size, by_fmt = _scan_directory(tmp_path / "nonexistent", seen)
-        assert size == SizeStats(0, 0, 0)
-
-    def test_files_counted(self, tmp_path: Path) -> None:
-        _write(tmp_path / "a.heic", "x" * 50)
-        _write(tmp_path / "b.mov", "y" * 100)
-        seen: set[tuple[int, int]] = set()
-        size, by_fmt = _scan_directory(tmp_path, seen)
-        assert size.file_count == 2
-        assert size.apparent_bytes == 150
-        assert size.on_disk_bytes == 150
-        assert len(seen) == 2
-
-    def test_hardlink_dedup(self, tmp_path: Path) -> None:
-        _write(tmp_path / "orig" / "a.heic", "x" * 50)
-        (tmp_path / "link").mkdir()
-        os.link(tmp_path / "orig" / "a.heic", tmp_path / "link" / "a.heic")
-
-        seen: set[tuple[int, int]] = set()
-        s1, _ = _scan_directory(tmp_path / "orig", seen)
-        assert s1.on_disk_bytes == 50
-
-        s2, _ = _scan_directory(tmp_path / "link", seen)
-        assert s2.apparent_bytes == 50
-        assert s2.on_disk_bytes == 0  # already seen
-
-    def test_symlink_dedup(self, tmp_path: Path) -> None:
-        _write(tmp_path / "orig" / "a.heic", "x" * 50)
-        (tmp_path / "link").mkdir()
-        rel = os.path.relpath(tmp_path / "orig" / "a.heic", tmp_path / "link")
-        os.symlink(rel, tmp_path / "link" / "a.heic")
-
-        seen: set[tuple[int, int]] = set()
-        s1, _ = _scan_directory(tmp_path / "orig", seen)
-        s2, _ = _scan_directory(tmp_path / "link", seen)
-        assert s2.on_disk_bytes == 0
-
-    def test_format_breakdown(self, tmp_path: Path) -> None:
-        _write(tmp_path / "a.heic", "x" * 50)
-        _write(tmp_path / "b.heic", "y" * 30)
-        _write(tmp_path / "c.mov", "z" * 100)
-        seen: set[tuple[int, int]] = set()
-        _, by_fmt = _scan_directory(tmp_path, seen)
-        fmt_dict = {fs.extension: fs for fs in by_fmt}
-        assert fmt_dict[".mov"].apparent_bytes == 100
-        assert fmt_dict[".heic"].apparent_bytes == 80
-        assert fmt_dict[".heic"].file_count == 2
 
 
 # ---------------------------------------------------------------------------
