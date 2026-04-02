@@ -97,7 +97,7 @@ class TestRmUpstreamHeic:
 
         assert result.heic.removed_browsable == ("IMG_0001.JPG",)
 
-    def test_removes_upstream_when_browsable_heic_deleted(self, tmp_path: Path) -> None:
+    def test_removes_upstream_when_browsable_img_deleted(self, tmp_path: Path) -> None:
         """Deleting a file from main-img propagates to jpeg and upstream dirs."""
         _setup_dir(
             tmp_path / "ios-main/orig-img",
@@ -162,7 +162,7 @@ class TestRmUpstreamHeic:
 
 
 class TestRmUpstreamMov:
-    def test_removes_upstream_when_browsable_mov_deleted(self, tmp_path: Path) -> None:
+    def test_removes_upstream_when_browsable_vid_deleted(self, tmp_path: Path) -> None:
         _setup_dir(tmp_path / "ios-main/orig-vid", ["IMG_0115.MOV"])
         _setup_dir(tmp_path / "ios-main/edit-vid", ["IMG_E0115.MOV"])
         _setup_dir(tmp_path / "main-vid", [])
@@ -174,7 +174,7 @@ class TestRmUpstreamMov:
         assert _names(tmp_path / "ios-main/edit-vid") == set()
         assert _names(tmp_path / "ios-main/orig-vid") == set()
 
-    def test_keeps_files_with_browsable_mov_present(self, tmp_path: Path) -> None:
+    def test_keeps_files_with_browsable_vid_present(self, tmp_path: Path) -> None:
         _setup_dir(tmp_path / "ios-main/orig-vid", ["IMG_0001.MOV", "IMG_0002.MOV"])
         _setup_dir(tmp_path / "ios-main/edit-vid", ["IMG_E0001.MOV"])
         _setup_dir(tmp_path / "main-vid", ["IMG_E0001.MOV"])
@@ -251,7 +251,7 @@ class TestRmOrphanHeic:
 
 
 class TestRmOrphanMov:
-    def test_removes_orphan_rendered_and_browsable_mov(self, tmp_path: Path) -> None:
+    def test_removes_orphan_rendered_and_browsable_vid(self, tmp_path: Path) -> None:
         _setup_dir(tmp_path / "ios-main/orig-vid", ["IMG_0001.MOV"])
         _setup_dir(tmp_path / "ios-main/edit-vid", ["IMG_E0001.MOV", "IMG_E9999.MOV"])
         _setup_dir(tmp_path / "main-vid", ["IMG_E0001.MOV", "IMG_E9999.MOV"])

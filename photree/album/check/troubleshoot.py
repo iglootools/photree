@@ -17,8 +17,8 @@ def suggest_fixes(
     album_dir_flag: str,
 ) -> list[str]:
     """Suggest fix commands based on integrity check failures."""
-    heic = integrity.browsable_heic
-    mov = integrity.browsable_mov
+    heic = integrity.browsable_img
+    mov = integrity.browsable_vid
     jpeg = integrity.jpeg
 
     has_browsable_issues = (

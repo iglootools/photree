@@ -220,8 +220,8 @@ def _stage_optimize(work_dir: Path, *, link_mode: LinkMode, dry_run: bool) -> bo
         mismatched = [
             ms.name
             for ms, result in integrity.by_media_source
-            if not result.browsable_heic.files_match_sources
-            or not result.browsable_mov.files_match_sources
+            if not result.browsable_img.files_match_sources
+            or not result.browsable_vid.files_match_sources
         ]
         if mismatched:
             raise ValueError(

@@ -21,7 +21,7 @@ from .sidecar import SidecarCheck
 # ---------------------------------------------------------------------------
 
 INTEGRITY_OK = IosAlbumIntegrityResult(
-    browsable_heic=BrowsableDirCheck(
+    browsable_img=BrowsableDirCheck(
         correct=(
             FileComparison("IMG_E0001.HEIC", "IMG_E0001.HEIC", True, True),
             FileComparison("IMG_0002.PNG", "IMG_0002.PNG", True, True),
@@ -32,7 +32,7 @@ INTEGRITY_OK = IosAlbumIntegrityResult(
         size_mismatches=(),
         checksum_mismatches=(),
     ),
-    browsable_mov=BrowsableDirCheck(
+    browsable_vid=BrowsableDirCheck(
         correct=(FileComparison("IMG_0003.MOV", "IMG_0003.MOV", True, True),),
         missing=(),
         extra=(),
@@ -45,7 +45,7 @@ INTEGRITY_OK = IosAlbumIntegrityResult(
 )
 
 INTEGRITY_FAILURES = IosAlbumIntegrityResult(
-    browsable_heic=BrowsableDirCheck(
+    browsable_img=BrowsableDirCheck(
         correct=(),
         missing=(MissingFile("IMG_E0001.HEIC", "edit-img"),),
         extra=("STRAY_FILE.HEIC",),
@@ -57,7 +57,7 @@ INTEGRITY_FAILURES = IosAlbumIntegrityResult(
         ),
         checksum_mismatches=(),
     ),
-    browsable_mov=BrowsableDirCheck(
+    browsable_vid=BrowsableDirCheck(
         correct=(),
         missing=(),
         extra=(),
