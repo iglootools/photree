@@ -28,6 +28,7 @@ from ..store.protocol import MediaSource
 from .dir_structure import AlbumDirCheck, check_album_dir_structure
 from .ios import IosAlbumFullIntegrityResult, check_ios_album_integrity
 from .jpeg import AlbumJpegIntegrityResult, check_album_jpeg_integrity
+from .std import StdAlbumFullIntegrityResult, check_std_album_integrity
 from .system import (
     check_exiftool_available as check_exiftool_available,
     check_sips_available,
@@ -82,6 +83,7 @@ class AlbumPreflightResult:
     dir_check: AlbumDirCheck
     album_id_check: AlbumIdCheck | None = None
     ios_integrity: IosAlbumFullIntegrityResult | None = None
+    std_integrity: StdAlbumFullIntegrityResult | None = None
     jpeg_check: AlbumJpegIntegrityResult | None = None
     naming: AlbumNamingResult | None = None
 
@@ -92,6 +94,7 @@ class AlbumPreflightResult:
             and self.dir_check.success
             and (self.album_id_check is None or self.album_id_check.has_id)
             and (self.ios_integrity is None or self.ios_integrity.success)
+            and (self.std_integrity is None or self.std_integrity.success)
             and (self.jpeg_check is None or self.jpeg_check.success)
             and (self.naming is None or self.naming.success)
         )
@@ -130,8 +133,13 @@ class AlbumPreflightResult:
                     else []
                 ),
                 *(
-                    ["integrity errors"]
+                    ["ios integrity errors"]
                     if self.ios_integrity is not None and not self.ios_integrity.success
+                    else []
+                ),
+                *(
+                    ["std integrity errors"]
+                    if self.std_integrity is not None and not self.std_integrity.success
                     else []
                 ),
                 *(
@@ -217,14 +225,21 @@ def run_album_check(
 
     dir_check = check_album_dir_structure(album_dir)
 
-    if summary.has_ios:
-        ios_integrity = check_ios_album_integrity(
-            album_dir,
-            checksum=checksum,
-            on_file_checked=on_file_checked,
+    ios_integrity = (
+        check_ios_album_integrity(
+            album_dir, checksum=checksum, on_file_checked=on_file_checked
         )
-    else:
-        ios_integrity = None
+        if summary.has_ios
+        else None
+    )
+
+    std_integrity = (
+        check_std_album_integrity(
+            album_dir, checksum=checksum, on_file_checked=on_file_checked
+        )
+        if summary.has_std
+        else None
+    )
 
     # JPEG check runs for ALL media sources (iOS + std)
     jpeg_check = check_album_jpeg_integrity(album_dir) if media_sources else None
@@ -251,6 +266,7 @@ def run_album_check(
         dir_check=dir_check,
         album_id_check=album_id_check,
         ios_integrity=ios_integrity,
+        std_integrity=std_integrity,
         jpeg_check=jpeg_check,
         naming=naming,
     )
