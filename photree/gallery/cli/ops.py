@@ -20,7 +20,7 @@ from ...album.store.metadata import load_album_metadata
 from ...album.store.protocol import format_album_external_id
 from ...common.fs import display_path
 from ...fsprotocol import LinkMode
-from ...gallery.store.fs import resolve_gallery_dir
+from ...gallery.store.resolution import resolve_gallery_dir
 from .. import (
     AlbumIndex,
     MissingAlbumIdError,

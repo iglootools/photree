@@ -10,7 +10,7 @@ from photree.album.jpeg import noop_convert_single
 from photree.album.store.metadata import load_album_metadata, save_album_metadata
 from photree.album.store.protocol import AlbumMetadata, generate_album_id
 from photree.fsprotocol import LinkMode
-from photree.gallery.store.fs import save_gallery_metadata
+from photree.gallery.store.metadata import save_gallery_metadata
 from photree.gallery.store.protocol import GalleryMetadata
 from photree.gallery.importer import (
     compute_target_dir,

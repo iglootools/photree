@@ -16,7 +16,7 @@ from ...clihelpers.options import (
 )
 from ...clihelpers.progress import SilentProgressBar
 from ...common.fs import count_unique_media_numbers, display_path
-from ...gallery.store.fs import resolve_link_mode
+from ...gallery.store.resolution import resolve_link_mode
 from .. import (
     optimize as album_optimize,
 )
