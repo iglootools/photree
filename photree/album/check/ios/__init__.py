@@ -141,6 +141,7 @@ def check_ios_media_source_integrity(
         album_dir / ms.edit_img_dir,
         album_dir / ms.img_dir,
         media_extensions=IOS_IMG_EXTENSIONS,
+        key_fn=ms.key_fn,
         checksum=checksum,
         on_file_checked=on_file_checked,
     )
@@ -150,6 +151,7 @@ def check_ios_media_source_integrity(
         album_dir / ms.edit_vid_dir,
         album_dir / ms.vid_dir,
         media_extensions=IOS_VID_EXTENSIONS,
+        key_fn=ms.key_fn,
         checksum=checksum,
         on_file_checked=on_file_checked,
     )

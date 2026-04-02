@@ -8,6 +8,7 @@ from photree.album.check import check_album_integrity
 from photree.album.check.ios import check_miscategorized_files
 from photree.album.check.jpeg import check_jpeg_dir
 from photree.album.check.ios.sidecar import check_sidecars
+from photree.album.store.media_sources import ios_img_number
 from photree.album.store.protocol import IMG_EXTENSIONS, MAIN_MEDIA_SOURCE
 
 
@@ -53,6 +54,7 @@ class TestCheckBrowsableDir:
             album / MAIN_MEDIA_SOURCE.edit_img_dir,
             album / MAIN_MEDIA_SOURCE.img_dir,
             media_extensions=IMG_EXTENSIONS,
+            key_fn=ios_img_number,
             checksum=True,
         )
         assert result.success
@@ -70,6 +72,7 @@ class TestCheckBrowsableDir:
             album / MAIN_MEDIA_SOURCE.edit_img_dir,
             album / MAIN_MEDIA_SOURCE.img_dir,
             media_extensions=IMG_EXTENSIONS,
+            key_fn=ios_img_number,
         )
         assert not result.success
         assert any(m.filename == "IMG_E0001.HEIC" for m in result.missing)
@@ -85,6 +88,7 @@ class TestCheckBrowsableDir:
             album / MAIN_MEDIA_SOURCE.edit_img_dir,
             album / MAIN_MEDIA_SOURCE.img_dir,
             media_extensions=IMG_EXTENSIONS,
+            key_fn=ios_img_number,
         )
         assert not result.success
         assert "EXTRA.HEIC" in result.extra
@@ -101,6 +105,7 @@ class TestCheckBrowsableDir:
             album / MAIN_MEDIA_SOURCE.edit_img_dir,
             album / MAIN_MEDIA_SOURCE.img_dir,
             media_extensions=IMG_EXTENSIONS,
+            key_fn=ios_img_number,
         )
         assert not result.success
         assert any("IMG_0001.HEIC" in w for w in result.wrong_source)
@@ -118,6 +123,7 @@ class TestCheckBrowsableDir:
             album / MAIN_MEDIA_SOURCE.edit_img_dir,
             album / MAIN_MEDIA_SOURCE.img_dir,
             media_extensions=IMG_EXTENSIONS,
+            key_fn=ios_img_number,
         )
         assert not result.success
         assert len(result.size_mismatches) == 1
@@ -133,6 +139,7 @@ class TestCheckBrowsableDir:
             album / MAIN_MEDIA_SOURCE.edit_img_dir,
             album / MAIN_MEDIA_SOURCE.img_dir,
             media_extensions=IMG_EXTENSIONS,
+            key_fn=ios_img_number,
             checksum=True,
         )
         assert not result.success
@@ -372,6 +379,7 @@ class TestCheckBrowsableDirLinkAware:
             album / MAIN_MEDIA_SOURCE.edit_img_dir,
             album / MAIN_MEDIA_SOURCE.img_dir,
             media_extensions=IMG_EXTENSIONS,
+            key_fn=ios_img_number,
             checksum=True,
         )
         assert result.success
@@ -387,6 +395,7 @@ class TestCheckBrowsableDirLinkAware:
             album / MAIN_MEDIA_SOURCE.edit_img_dir,
             album / MAIN_MEDIA_SOURCE.img_dir,
             media_extensions=IMG_EXTENSIONS,
+            key_fn=ios_img_number,
             checksum=True,
         )
         assert result.success
@@ -404,6 +413,7 @@ class TestCheckBrowsableDirLinkAware:
             album / MAIN_MEDIA_SOURCE.edit_img_dir,
             album / MAIN_MEDIA_SOURCE.img_dir,
             media_extensions=IMG_EXTENSIONS,
+            key_fn=ios_img_number,
         )
         # The browsable file points to rendered, but rendered no longer has it,
         # so the expected source is now orig. The broken symlink won't match.
