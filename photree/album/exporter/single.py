@@ -21,7 +21,6 @@ from pathlib import Path
 from ...fsprotocol import PHOTREE_DIR, LinkMode
 from ..browsable import refresh_browsable_dir
 from ..exporter.protocol import AlbumShareLayout, ShareDirectoryLayout
-from ..check import AlbumType, detect_album_type
 from ..store.media_sources_discovery import discover_media_sources
 from ..store.protocol import (
     IMG_EXTENSIONS,
@@ -67,7 +66,7 @@ class ExportResult:
     """Result of exporting a single album."""
 
     album_name: str
-    album_type: AlbumType
+    album_type: str
     files_copied: int
 
 
@@ -218,7 +217,8 @@ def export_album(
     Albums with archives (iOS or std) are exported according to *album_layout*.
     """
     album_name = album_dir.name
-    album_type = detect_album_type(album_dir)
+    media_sources = discover_media_sources(album_dir)
+    album_type = "ios" if any(ms.is_ios for ms in media_sources) else "std"
 
     if not _has_archives(album_dir):
         files_copied = _export_plain(album_dir, target_dir)
