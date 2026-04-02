@@ -19,7 +19,7 @@ from ...album import (
     preflight as album_preflight,
     stats as album_stats,
 )
-from ...album.exif import try_start_exiftool
+from ...common.exif import try_start_exiftool
 from ...album.preflight import output as preflight_output
 from ...album.stats import output as stats_output
 from ...fs import (

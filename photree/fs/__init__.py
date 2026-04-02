@@ -64,6 +64,7 @@ from .protocol import (
 from .repo import (
     delete_files,
     discover_albums,
+    discover_browsable_media_files,
     discover_media_sources,
     discover_potential_albums,
     has_media_sources,
@@ -152,6 +153,7 @@ __all__ = [
     "resolve_link_mode",
     # repo — discovery
     "discover_albums",
+    "discover_browsable_media_files",
     "discover_media_sources",
     "discover_potential_albums",
     "has_media_sources",
