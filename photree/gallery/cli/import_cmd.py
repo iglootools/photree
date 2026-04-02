@@ -14,7 +14,7 @@ from .ops import (
     print_single_import_result,
     resolve_gallery_or_exit,
     run_single_import,
-    validate_single_import,
+    validate_single_import_or_exit,
 )
 
 
@@ -69,6 +69,6 @@ def import_cmd(
     cwd = Path.cwd()
     index = build_index_or_exit(resolved_gallery, cwd)
 
-    validate_single_import(album_dir, index, resolved_gallery, cwd)
+    validate_single_import_or_exit(album_dir, index, resolved_gallery, cwd)
     result = run_single_import(album_dir, resolved_gallery, resolved_lm, dry_run)
     print_single_import_result(result, cwd, dry_run)

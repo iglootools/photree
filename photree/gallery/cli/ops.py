@@ -15,12 +15,6 @@ from ...album import (
     preflight as album_preflight,
 )
 from ...album.preflight import output as preflight_output
-from ...common.exif import try_start_exiftool
-from ...album.naming import (
-    AlbumNamingResult,
-    check_album_naming,
-    parse_album_name,
-)
 from ...album.preflight.output import format_naming_checks
 from ...fs import (
     LinkMode,
@@ -34,11 +28,18 @@ from .. import (
     MissingAlbumIdError,
     build_album_id_to_path_index,
 )
-from ..importer import (
-    AlbumImportResult,
-    compute_target_dir,
+from ..importer import AlbumImportResult
+from ..cmd_handler.validate_import import (
+    DuplicateAlbumIdError,
+    NamingValidationError,
+    TargetExistsError,
+    validate_single_import,
 )
-from .. import importer as gallery_importer
+from ..cmd_handler.single_import import run_single_import as _run_single_import
+from ..cmd_handler.batch_import import run_batch_import as _run_batch_import
+from ..cmd_handler.batch_post_import_check import (
+    run_batch_post_import_check as _run_batch_post_import_check,
+)
 from ...clihelpers.console import console, err_console
 from ...clihelpers.progress import BatchProgressBar, StageProgressBar
 
@@ -84,52 +85,37 @@ def build_index_or_exit(gallery_dir: Path, cwd: Path) -> AlbumIndex:
 # ---------------------------------------------------------------------------
 
 
-def validate_single_import(
+def validate_single_import_or_exit(
     album_dir: Path,
     index: AlbumIndex,
     gallery_dir: Path,
     cwd: Path,
 ) -> None:
-    """Validate a single album before import.
-
-    Checks source album ID uniqueness, naming conventions, and that the
-    target directory does not already exist.
-    """
-    # Check source album ID uniqueness against gallery
-    source_meta = load_album_metadata(album_dir)
-    if source_meta is not None and source_meta.id in index.id_to_path:
-        existing = index.id_to_path[source_meta.id]
+    """Validate a single album before import, or exit with an error."""
+    try:
+        validate_single_import(album_dir, index, gallery_dir)
+    except DuplicateAlbumIdError as exc:
         err_console.print(
             f"Cannot import — album ID already exists in gallery:\n"
-            f"  source: {display_path(album_dir, cwd)}\n"
-            f"  existing: {display_path(existing, cwd)}\n"
-            f"  id: {format_album_external_id(source_meta.id)}"
+            f"  source: {display_path(exc.source, cwd)}\n"
+            f"  existing: {display_path(exc.existing, cwd)}\n"
+            f"  id: {format_album_external_id(exc.album_id)}"
         )
-        raise typer.Exit(code=1)
-
-    # Validate album name
-    naming_issues = check_album_naming(album_dir.name)
-    if naming_issues:
-        parsed = parse_album_name(album_dir.name)
-        naming_result = AlbumNamingResult(
-            parsed=parsed, issues=naming_issues, exif_check=None
-        )
+        raise typer.Exit(code=1) from exc
+    except NamingValidationError as exc:
         typer.echo("Naming Convention Check:")
-        console.print(format_naming_checks(naming_result))
+        console.print(format_naming_checks(exc.naming_result))
         err_console.print(
             "\nAlbum name does not follow naming conventions. "
             "Rename the album directory before importing."
         )
-        raise typer.Exit(code=1)
-
-    # Check target doesn't exist
-    target = compute_target_dir(gallery_dir, album_dir.name)
-    if target.exists():
+        raise typer.Exit(code=1) from exc
+    except TargetExistsError as exc:
         err_console.print(
-            f"Target already exists: {display_path(target, cwd)}\n"
+            f"Target already exists: {display_path(exc.target, cwd)}\n"
             "Cannot import — an album with the same name is already in the gallery."
         )
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
 
 def run_single_import(
@@ -150,11 +136,11 @@ def run_single_import(
         },
     )
     try:
-        result = gallery_importer.import_album(
-            source_dir=album_dir,
-            gallery_dir=gallery_dir,
-            link_mode=link_mode,
-            dry_run=dry_run,
+        result = _run_single_import(
+            album_dir,
+            gallery_dir,
+            link_mode,
+            dry_run,
             on_stage_start=progress.on_start,
             on_stage_end=progress.on_end,
         )
@@ -224,27 +210,20 @@ def run_batch_import(
     progress = BatchProgressBar(
         total=len(albums), description="Importing", done_description="import"
     )
-    imported = 0
-    failed: list[Path] = []
 
-    for album_path in albums:
-        album_name = album_path.name
-        progress.on_start(album_name)
-        try:
-            gallery_importer.import_album(
-                source_dir=album_path,
-                gallery_dir=gallery_dir,
-                link_mode=link_mode,
-                dry_run=dry_run,
-            )
-            progress.on_end(album_name, success=True)
-            imported += 1
-        except (ValueError, OSError) as exc:
-            progress.on_end(album_name, success=False, error_labels=(str(exc)[:60],))
-            failed.append(album_path)
+    result = _run_batch_import(
+        albums,
+        gallery_dir,
+        link_mode,
+        dry_run,
+        on_start=progress.on_start,
+        on_end=lambda name, success, errors: progress.on_end(
+            name, success=success, error_labels=errors
+        ),
+    )
 
     progress.stop()
-    return imported, failed
+    return result.imported, result.failed_albums
 
 
 def run_batch_post_import_check(
@@ -255,34 +234,20 @@ def run_batch_post_import_check(
 
     Returns the list of albums that failed checking.
     """
-    sips_available = album_preflight.check_sips_available()
-    exiftool = try_start_exiftool()
     check_progress = BatchProgressBar(
         total=len(imported_targets),
         description="Checking",
         done_description="check",
     )
-    check_failed: list[Path] = []
-    try:
-        for target_dir in imported_targets:
-            target_name = display_path(target_dir, cwd)
-            check_progress.on_start(str(target_name))
-            check_result = album_preflight.run_album_check(
-                target_dir,
-                sips_available=sips_available,
-                exiftool=exiftool,
-            )
-            if check_result.success:
-                check_progress.on_end(str(target_name), success=True)
-            else:
-                check_progress.on_end(
-                    str(target_name),
-                    success=False,
-                    error_labels=check_result.error_labels,
-                )
-                check_failed.append(target_dir)
-    finally:
-        if exiftool is not None:
-            exiftool.__exit__(None, None, None)
+
+    check_failed = _run_batch_post_import_check(
+        imported_targets,
+        display_fn=lambda p: str(display_path(p, cwd)),
+        on_start=check_progress.on_start,
+        on_end=lambda name, success, errors: check_progress.on_end(
+            name, success=success, error_labels=errors
+        ),
+    )
+
     check_progress.stop()
     return check_failed
