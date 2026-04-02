@@ -9,7 +9,7 @@ from pathlib import Path
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ...album import (
-    check as album_preflight,
+    check as album_check,
     naming as album_naming,
 )
 from ...album.naming import BatchNamingResult
@@ -60,7 +60,7 @@ def batch_check(
         if on_start:
             on_start(album_name)
 
-        result = album_preflight.run_album_check(
+        result = album_check.run_album_check(
             album_dir,
             sips_available=sips_available,
             exiftool=exiftool,

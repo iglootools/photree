@@ -14,7 +14,7 @@ from pathlib import Path
 import typer
 
 from ...album import (
-    check as album_preflight,
+    check as album_check,
 )
 from ...album.check import output as preflight_output
 from ...album.check.output import batch_check_summary
@@ -251,7 +251,7 @@ def run_batch_check(
     cwd = Path.cwd()
 
     # System checks (once)
-    sips_available = album_preflight.check_sips_available()
+    sips_available = album_check.check_sips_available()
     exiftool = try_start_exiftool() if check_exif_date_match else None
     exiftool_available = exiftool is not None
     typer.echo("System Checks:")
@@ -415,7 +415,7 @@ def run_batch_optimize(
 
     sips_available = True
     if check:
-        sips_available = album_preflight.check_sips_available()
+        sips_available = album_check.check_sips_available()
         typer.echo("System Checks:")
         console.print(preflight_output.sips_check(sips_available))
         if not sips_available:
@@ -618,9 +618,7 @@ def resolve_check_batch_albums(
     Uses :func:`discover_albums` which detects iOS albums, ``.album``
     sentinels, and leaf directories.
     """
-    return _resolve_batch_albums_with(
-        base_dir, album_dirs, album_preflight.discover_albums
-    )
+    return _resolve_batch_albums_with(base_dir, album_dirs, album_check.discover_albums)
 
 
 def resolve_batch_albums(
@@ -633,7 +631,7 @@ def resolve_batch_albums(
     (``ios-*/``) or std (``std-*/``) archive directories.
     """
     return _resolve_batch_albums_with(
-        base_dir, album_dirs, album_preflight.discover_archive_albums
+        base_dir, album_dirs, album_check.discover_archive_albums
     )
 
 

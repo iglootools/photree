@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-from ...album import check as album_preflight
+from ...album import check as album_check
 from ...common.exif import try_start_exiftool
 
 
@@ -20,7 +20,7 @@ def run_batch_post_import_check(
 
     Returns the list of albums that failed checking.
     """
-    sips_available = album_preflight.check_sips_available()
+    sips_available = album_check.check_sips_available()
     exiftool = try_start_exiftool()
     check_failed: list[Path] = []
     try:
@@ -28,7 +28,7 @@ def run_batch_post_import_check(
             target_name = display_fn(target_dir)
             if on_start:
                 on_start(target_name)
-            check_result = album_preflight.run_album_check(
+            check_result = album_check.run_album_check(
                 target_dir,
                 sips_available=sips_available,
                 exiftool=exiftool,

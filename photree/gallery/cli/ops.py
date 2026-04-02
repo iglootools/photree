@@ -12,7 +12,7 @@ from pathlib import Path
 import typer
 
 from ...album import (
-    check as album_preflight,
+    check as album_check,
 )
 from ...album.check import output as preflight_output
 from ...album.check.output import format_naming_checks
@@ -165,7 +165,7 @@ def print_single_import_result(
 
     if not dry_run:
         typer.echo("\nPost-Import Check:")
-        check_result = album_preflight.run_album_preflight(result.target_dir)
+        check_result = album_check.run_album_preflight(result.target_dir)
         console.print(preflight_output.format_album_preflight_checks(check_result))
         if not check_result.success:
             err_console.print(
