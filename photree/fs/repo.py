@@ -1,8 +1,7 @@
-"""Repository layer — metadata I/O, gallery resolution, album discovery, and file mutations."""
+"""Repository layer — metadata I/O, gallery resolution, and album discovery."""
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 
 import yaml
@@ -279,38 +278,3 @@ def discover_browsable_media_files(album_dir: Path) -> list[Path]:
         for f in search_dir.rglob("*")
         if f.is_file() and f.suffix.lower() in _MEDIA_EXTENSIONS
     ]
-
-
-# ---------------------------------------------------------------------------
-# File mutations
-# ---------------------------------------------------------------------------
-
-
-def move_files(
-    src_dir: Path,
-    dst_dir: Path,
-    filenames: list[str],
-    *,
-    dry_run: bool,
-) -> None:
-    """Move *filenames* from *src_dir* to *dst_dir*, creating *dst_dir* if needed."""
-    if not filenames:
-        return
-    if not dry_run:
-        dst_dir.mkdir(parents=True, exist_ok=True)
-    for f in filenames:
-        if not dry_run:
-            shutil.move(str(src_dir / f), str(dst_dir / f))
-
-
-def delete_files(
-    directory: Path,
-    filenames: list[str],
-    *,
-    dry_run: bool,
-) -> int:
-    """Delete *filenames* from *directory*. Returns the number of files deleted."""
-    for f in filenames:
-        if not dry_run:
-            (directory / f).unlink()
-    return len(filenames)
