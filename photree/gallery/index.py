@@ -6,10 +6,8 @@ import itertools
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..album.store.fs import (
-    discover_albums,
-    load_album_metadata,
-)
+from ..album.store.album_discovery import discover_albums
+from ..album.store.metadata import load_album_metadata
 
 
 # ---------------------------------------------------------------------------

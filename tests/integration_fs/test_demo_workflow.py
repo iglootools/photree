@@ -23,7 +23,8 @@ from photree.album.exporter.protocol import (
     SHARE_SENTINEL,
     ShareDirectoryLayout,
 )
-from photree.album.store.fs import is_album, load_album_metadata
+from photree.album.store.album_discovery import is_album
+from photree.album.store.metadata import load_album_metadata
 from photree.album.store.protocol import ALBUM_YAML, MAIN_MEDIA_SOURCE
 from photree.fsprotocol import LinkMode, PHOTREE_DIR
 from photree.album.importer.image_capture import run_import

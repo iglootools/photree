@@ -16,7 +16,7 @@ from ...common.fs import list_files
 from ...fsprotocol import PHOTREE_DIR, LinkMode
 from .. import browsable
 from ..jpeg import convert_single_file, refresh_jpeg_dir
-from ..store.fs import save_album_metadata
+from ..store.metadata import save_album_metadata
 from ..store.media_sources import pick_media_priority
 from ..store.protocol import (
     ALBUM_YAML,

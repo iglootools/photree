@@ -16,7 +16,7 @@ from ...album import (
 )
 from ...album.preflight import output as preflight_output
 from ...album.preflight.output import format_naming_checks
-from ...album.store.fs import load_album_metadata
+from ...album.store.metadata import load_album_metadata
 from ...album.store.protocol import format_album_external_id
 from ...common.fs import display_path
 from ...fsprotocol import LinkMode

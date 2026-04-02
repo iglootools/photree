@@ -24,7 +24,7 @@ from ..common.exif import (
 from ..common.exif import (
     set_exif_date as _generic_set_date,
 )
-from .store.fs import discover_browsable_media_files
+from .store.media_sources_discovery import discover_browsable_media_files
 
 # Tag priority for timestamp extraction (first match wins):
 #

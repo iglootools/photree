@@ -24,11 +24,9 @@ from ...album.preflight.output import batch_check_summary
 from ...album.stats import output as stats_output
 from ...common.exif import try_start_exiftool
 from ...common.formatting import CHECK
-from ...album.store.fs import (
-    discover_media_sources,
-    discover_potential_albums,
-    load_album_metadata,
-)
+from ...album.store.album_discovery import discover_potential_albums
+from ...album.store.media_sources_discovery import discover_media_sources
+from ...album.store.metadata import load_album_metadata
 from ...album.store.protocol import format_album_external_id
 from ...common.fs import display_path
 from ...fsprotocol import LinkMode

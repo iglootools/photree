@@ -12,7 +12,7 @@ from pathlib import Path
 
 from ..fsprotocol import LinkMode
 from . import browsable as browsable_module
-from .store.fs import discover_media_sources
+from .store.media_sources_discovery import discover_media_sources
 from .store.protocol import IMG_EXTENSIONS, VID_EXTENSIONS
 
 

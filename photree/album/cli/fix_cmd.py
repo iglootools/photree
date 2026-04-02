@@ -21,7 +21,8 @@ from ...gallery.store.fs import resolve_link_mode
 from .. import fix as album_fixes
 from ..fix import FixValidationError
 from ..fix.output import format_fix_result
-from ..store.fs import discover_media_sources, load_album_metadata, save_album_metadata
+from ..store.media_sources_discovery import discover_media_sources
+from ..store.metadata import load_album_metadata, save_album_metadata
 from ..store.protocol import (
     AlbumMetadata,
     format_album_external_id,

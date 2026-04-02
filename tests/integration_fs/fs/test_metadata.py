@@ -9,14 +9,13 @@ import pytest
 import yaml
 
 from photree.common.base58 import base58_decode, base58_encode
-from photree.album.store.fs import (
+from photree.album.store.album_discovery import (
     discover_albums,
     discover_potential_albums,
     has_media_sources,
     is_album,
-    load_album_metadata,
-    save_album_metadata,
 )
+from photree.album.store.metadata import load_album_metadata, save_album_metadata
 from photree.album.store.protocol import (
     ALBUM_YAML,
     AlbumMetadata,

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from photree.album.store.fs import save_album_metadata
+from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import (
     AlbumMetadata,
     format_album_external_id,

@@ -23,7 +23,10 @@ from pathlib import Path
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from .exif import read_exif_timestamps_by_file
-from .store.fs import discover_browsable_media_files, discover_media_sources
+from .store.media_sources_discovery import (
+    discover_browsable_media_files,
+    discover_media_sources,
+)
 from .store.media_sources import (
     ios_find_files_by_number,
     ios_img_number,
