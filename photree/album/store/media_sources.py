@@ -15,7 +15,11 @@ from collections.abc import Callable
 from pathlib import Path
 
 from ...common.fs import file_ext, list_files
-from .protocol import PICTURE_PRIORITY_EXTENSIONS
+from .protocol import (
+    IOS_IMG_EXTENSIONS,
+    IOS_VID_EXTENSIONS,
+    PICTURE_PRIORITY_EXTENSIONS,
+)
 
 # ---------------------------------------------------------------------------
 # Generic (key-function-parameterized) utilities
@@ -81,6 +85,27 @@ def find_files_by_key(
 def ios_img_number(filename: str) -> str:
     """Extract the numeric portion of a filename (e.g. ``"0410"`` from ``"IMG_0410.HEIC"``)."""
     return "".join(c for c in filename if c.isdigit())
+
+
+def ios_is_media(filename: str) -> bool:
+    """Check if a filename has an iOS media extension (image or video)."""
+    ext = file_ext(filename)
+    return ext in IOS_IMG_EXTENSIONS or ext in IOS_VID_EXTENSIONS
+
+
+def ios_file_prefix(filename: str) -> str:
+    """Extract the prefix category of an iOS filename.
+
+    ``IMG_E`` → ``'E'`` (edited), ``IMG_O`` → ``'O'`` (edited metadata),
+    ``IMG_`` → ``''`` (original).
+    """
+    lower = filename.lower()
+    if lower.startswith("img_e"):
+        return "E"
+    elif lower.startswith("img_o"):
+        return "O"
+    else:
+        return ""
 
 
 def ios_dedup_media_dict(

@@ -6,18 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ....common.fs import delete_files, list_files, move_files
+from ...store.media_sources import ios_file_prefix
 from ...store.protocol import MediaSource
-
-
-def _file_prefix(filename: str) -> str:
-    """Extract the prefix category: 'E' (edited), 'O' (edited sidecar), '' (original)."""
-    lower = filename.lower()
-    if lower.startswith("img_e"):
-        return "E"
-    elif lower.startswith("img_o"):
-        return "O"
-    else:
-        return ""
 
 
 def _find_miscategorized(
@@ -33,8 +23,8 @@ def _find_miscategorized(
     orig_files = list_files(orig_dir)
     edit_files = list_files(edit_dir)
 
-    edited_in_orig = sorted(f for f in orig_files if _file_prefix(f) in ("E", "O"))
-    orig_in_edit = sorted(f for f in edit_files if _file_prefix(f) == "")
+    edited_in_orig = sorted(f for f in orig_files if ios_file_prefix(f) in ("E", "O"))
+    orig_in_edit = sorted(f for f in edit_files if ios_file_prefix(f) == "")
 
     return edited_in_orig, orig_in_edit
 

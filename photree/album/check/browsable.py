@@ -16,14 +16,6 @@ from ...common.fs import list_files
 from ..store.media_sources import ios_dedup_media_dict as dedup_media_dict
 
 
-def _ext(filename: str) -> str:
-    return Path(filename).suffix.lower()
-
-
-def _list_files(directory: Path) -> list[str]:
-    return list_files(directory)
-
-
 # ---------------------------------------------------------------------------
 # Data classes
 # ---------------------------------------------------------------------------
@@ -212,9 +204,9 @@ def check_browsable_dir(
     For each media key in orig_dir, the browsable_dir should contain
     either the edited variant (if one exists in edit_dir) or the original.
     """
-    orig_files = _list_files(orig_dir)
-    edit_files = _list_files(edit_dir)
-    browsable_files = set(_list_files(browsable_dir))
+    orig_files = list_files(orig_dir)
+    edit_files = list_files(edit_dir)
+    browsable_files = set(list_files(browsable_dir))
 
     # Use priority dedup to handle duplicate keys (e.g. IMG_E7658.JPG + IMG_E7658.HEIC)
     orig_media_by_number = dedup_media_dict(orig_files, media_extensions)

@@ -10,10 +10,10 @@ from ...fsprotocol import LinkMode
 from ..jpeg import convert_single_file
 from ..store.protocol import SELECTION_DIR
 from . import image_capture
+from ...common.fs import list_files
 from .image_capture import (
     ImportPlan,
     ValidationError,
-    _list_files,
     plan_import,
     validate_import_plan,
 )
@@ -86,7 +86,7 @@ def categorize_albums(album_dirs: Sequence[Path]) -> AlbumScan:
 
 def _validate_album(album_dir: Path, image_capture_files: list[str]) -> AlbumValidation:
     """Validate a single album against the IC file list."""
-    selection_files = _list_files(album_dir / SELECTION_DIR)
+    selection_files = list_files(album_dir / SELECTION_DIR)
     plan = plan_import(selection_files, image_capture_files)
     errors = validate_import_plan(plan)
     return AlbumValidation(album_dir=album_dir, plan=plan, errors=tuple(errors))
@@ -149,7 +149,7 @@ def run_batch_import(
             on_skipped(album_dir.name, f"{SELECTION_DIR}/ is empty")
 
     # Validate all albums before importing any
-    ic_files = _list_files(image_capture_dir) if scan.to_import else []
+    ic_files = list_files(image_capture_dir) if scan.to_import else []
     validations = validate_albums(scan.to_import, ic_files)
     failed_validations = [v for v in validations if not v.success]
     if failed_validations:

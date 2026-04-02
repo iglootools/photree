@@ -17,12 +17,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..common.fs import list_files
+from ..common.fs import file_ext, list_files
 from .store.protocol import CONVERT_TO_JPEG_EXTENSIONS, COPY_AS_IS_TO_JPEG_EXTENSIONS
-
-
-def _ext(filename: str) -> str:
-    return Path(filename).suffix.lower()
 
 
 def convert_single_file(src: Path, dst_dir: Path, *, dry_run: bool) -> Path | None:
@@ -32,7 +28,7 @@ def convert_single_file(src: Path, dst_dir: Path, *, dry_run: bool) -> Path | No
     - JPEG/JPG/PNG → copied as-is
     - Other → skipped (returns None)
     """
-    ext = _ext(src.name)
+    ext = file_ext(src.name)
 
     if ext in CONVERT_TO_JPEG_EXTENSIONS:
         dst = dst_dir / Path(src.name).with_suffix(".jpg").name
@@ -63,7 +59,7 @@ def copy_convert_single(src: Path, dst_dir: Path, *, dry_run: bool) -> Path | No
     Use in integration tests on platforms where sips is unavailable. HEIC/DNG files are copied
     rather than converted, so the output is not true JPEG.
     """
-    ext = _ext(src.name)
+    ext = file_ext(src.name)
 
     if ext in CONVERT_TO_JPEG_EXTENSIONS:
         dst = dst_dir / Path(src.name).with_suffix(".jpg").name
@@ -134,7 +130,7 @@ def refresh_jpeg_dir(
             skipped += 1
             if on_file_end:
                 on_file_end(filename, False)
-        elif _ext(filename) in CONVERT_TO_JPEG_EXTENSIONS:
+        elif file_ext(filename) in CONVERT_TO_JPEG_EXTENSIONS:
             converted += 1
             if on_file_end:
                 on_file_end(filename, True)
