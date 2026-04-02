@@ -25,13 +25,13 @@ from photree.album.store.protocol import (
     parse_external_id,
 )
 from photree.fsprotocol import LinkMode, PHOTREE_DIR
-from photree.gallery.store.metadata import load_gallery_metadata, save_gallery_metadata
-from photree.gallery.store.resolution import (
+from photree.fsprotocol import load_gallery_metadata, save_gallery_metadata
+from photree.fsprotocol import (
     resolve_gallery_dir,
     resolve_gallery_metadata,
     resolve_link_mode,
 )
-from photree.gallery.store.protocol import GalleryMetadata
+from photree.fsprotocol import GalleryMetadata
 
 
 def _write(path: Path, content: str = "data") -> None:

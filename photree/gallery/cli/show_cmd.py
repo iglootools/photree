@@ -11,8 +11,8 @@ from . import gallery_app
 from ...album.store.album_discovery import discover_albums
 from ...common.fs import display_path
 from ...fsprotocol import PHOTREE_DIR
-from ...gallery.store.metadata import load_gallery_metadata
-from ...gallery.store.protocol import GALLERY_YAML
+from ...fsprotocol import load_gallery_metadata
+from ...fsprotocol import GALLERY_YAML
 from .ops import resolve_gallery_or_exit
 
 

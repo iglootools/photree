@@ -10,8 +10,8 @@ import typer
 from . import gallery_app
 from ...common.fs import display_path
 from ...fsprotocol import LinkMode, PHOTREE_DIR
-from ...gallery.store.metadata import save_gallery_metadata
-from ...gallery.store.protocol import GALLERY_YAML, GalleryMetadata
+from ...fsprotocol import save_gallery_metadata
+from ...fsprotocol import GALLERY_YAML, GalleryMetadata
 
 
 @gallery_app.command("init")
