@@ -8,7 +8,7 @@ from pathlib import Path
 from ....common.fs import delete_files, file_ext, list_files
 from ...store.media_sources import ios_img_number, ios_is_media
 from ...store.protocol import (
-    SIDECAR_EXTENSIONS,
+    IOS_SIDECAR_EXTENSIONS,
     MediaSource,
 )
 
@@ -20,7 +20,8 @@ def _find_orphan_sidecars(directory: Path) -> list[str]:
     return sorted(
         f
         for f in files
-        if file_ext(f) in SIDECAR_EXTENSIONS and ios_img_number(f) not in media_numbers
+        if file_ext(f) in IOS_SIDECAR_EXTENSIONS
+        and ios_img_number(f) not in media_numbers
     )
 
 
