@@ -185,7 +185,7 @@ class MediaSource:
         Std sources match by filename stem.
         """
         if self.is_ios:
-            from ..store.media_sources import img_number
+            from ..store.media_sources import ios_img_number as img_number
 
             return img_number
         return _stem_key

@@ -6,7 +6,7 @@ from photree.album.store.media_sources import (
     dedup_media_dict,
     find_files_by_key,
     group_by_key,
-    img_number,
+    ios_img_number,
     pick_media_priority,
 )
 from photree.album.store.protocol import IMG_EXTENSIONS, VID_EXTENSIONS, _stem_key
@@ -28,7 +28,7 @@ def _setup_dir(path: Path, filenames: list[str]) -> Path:
 class TestGroupByKey:
     def test_groups_by_img_number(self) -> None:
         files = ["IMG_0001.HEIC", "IMG_0001.AAE", "IMG_0002.HEIC"]
-        result = group_by_key(files, IMG_EXTENSIONS, img_number)
+        result = group_by_key(files, IMG_EXTENSIONS, ios_img_number)
         assert result == {
             "0001": ["IMG_0001.HEIC"],
             "0002": ["IMG_0002.HEIC"],
@@ -65,12 +65,12 @@ class TestGroupByKey:
 class TestDedupMediaDict:
     def test_dedup_by_img_number_prefers_heic(self) -> None:
         files = ["IMG_0001.HEIC", "IMG_0001.JPG"]
-        result = dedup_media_dict(files, IMG_EXTENSIONS, img_number)
+        result = dedup_media_dict(files, IMG_EXTENSIONS, ios_img_number)
         assert result == {"0001": "IMG_0001.HEIC"}
 
     def test_dedup_by_img_number_prefers_dng_over_heic(self) -> None:
         files = ["IMG_0001.DNG", "IMG_0001.HEIC"]
-        result = dedup_media_dict(files, IMG_EXTENSIONS, img_number)
+        result = dedup_media_dict(files, IMG_EXTENSIONS, ios_img_number)
         assert result == {"0001": "IMG_0001.DNG"}
 
     def test_dedup_by_stem_prefers_heic(self) -> None:
@@ -105,7 +105,7 @@ class TestFindFilesByKey:
             tmp_path,
             ["IMG_0001.HEIC", "IMG_0001.AAE", "IMG_0002.HEIC"],
         )
-        result = find_files_by_key({"0001"}, tmp_path, img_number)
+        result = find_files_by_key({"0001"}, tmp_path, ios_img_number)
         assert result == ["IMG_0001.AAE", "IMG_0001.HEIC"]
 
     def test_finds_by_stem(self, tmp_path: Path) -> None:

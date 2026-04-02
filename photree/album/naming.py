@@ -24,7 +24,11 @@ from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from .exif import read_exif_timestamps_by_file
 from .store.fs import discover_browsable_media_files, discover_media_sources
-from .store.media_sources import find_files_by_number, find_files_by_stem, img_number
+from .store.media_sources import (
+    ios_find_files_by_number,
+    ios_img_number,
+    std_find_files_by_stem,
+)
 from .store.protocol import ALBUM_DATE_RE, MediaSource
 
 # ---------------------------------------------------------------------------
@@ -472,7 +476,7 @@ def _resolve_upstream_files(
     is_video = file_ext(filename) in VID_EXTENSIONS
 
     if ms.is_ios:
-        number = img_number(filename)
+        number = ios_img_number(filename)
         if is_video:
             dirs = (ms.orig_vid_dir, ms.edit_vid_dir)
         else:
@@ -481,7 +485,7 @@ def _resolve_upstream_files(
             f"{d}/{uf}"
             for d in dirs
             if (album_dir / d).is_dir()
-            for uf in find_files_by_number({number}, album_dir / d)
+            for uf in ios_find_files_by_number({number}, album_dir / d)
         ]
     else:
         stem = Path(filename).stem
@@ -495,7 +499,7 @@ def _resolve_upstream_files(
             f"{d}/{uf}"
             for d in dirs
             if (album_dir / d).is_dir()
-            for uf in find_files_by_stem({stem}, album_dir / d)
+            for uf in std_find_files_by_stem({stem}, album_dir / d)
         ]
 
     return (tuple(upstream), ms.is_ios)
