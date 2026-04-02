@@ -17,25 +17,11 @@ $ photree [OPTIONS] COMMAND [ARGS]...
 
 **Commands**:
 
-* `check`: Check that all system prerequisites are met.
 * `album`: Album management commands.
 * `albums`: Batch operations on multiple albums.
+* `check`: System prerequisite checks.
 * `demo`: Demo commands for development.
 * `gallery`: Batch operations on multiple albums.
-
-## `photree check`
-
-Check that all system prerequisites are met.
-
-**Usage**:
-
-```console
-$ photree check [OPTIONS]
-```
-
-**Options**:
-
-* `--help`: Show this message and exit.
 
 ## `photree album`
 
@@ -663,6 +649,38 @@ $ photree albums stats [OPTIONS]
 
 * `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
 * `-a, --album-dir DIRECTORY`: Album directory (repeatable).
+* `--help`: Show this message and exit.
+
+## `photree check`
+
+System prerequisite checks.
+
+**Usage**:
+
+```console
+$ photree check [OPTIONS] COMMAND [ARGS]...
+```
+
+**Options**:
+
+* `--help`: Show this message and exit.
+
+**Commands**:
+
+* `system`: Check that all system prerequisites are met.
+
+### `photree check system`
+
+Check that all system prerequisites are met.
+
+**Usage**:
+
+```console
+$ photree check system [OPTIONS]
+```
+
+**Options**:
+
 * `--help`: Show this message and exit.
 
 ## `photree demo`
