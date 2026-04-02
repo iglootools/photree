@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-from .fileutils import file_ext, list_files
+from ..common.fs import file_ext, list_files
 
 
 # Preferred formats when multiple variants exist for the same key.

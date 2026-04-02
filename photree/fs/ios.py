@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .fileutils import list_files
+from ..common.fs import list_files
 from .media import (
     PICTURE_PRIORITY_EXTENSIONS,
     dedup_media_dict as _generic_dedup,

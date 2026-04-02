@@ -1,6 +1,6 @@
 """Filesystem protocol, repository, and helpers for photree albums."""
 
-from .fileutils import (
+from ..common.fs import (
     count_unique_media_numbers,
     delete_files,
     display_path,

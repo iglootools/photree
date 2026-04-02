@@ -6,7 +6,7 @@ from pathlib import Path
 
 import yaml
 
-from .fileutils import matching_subdirectories
+from ..common.fs import matching_subdirectories
 from .protocol import (
     ALBUM_YAML,
     DEFAULT_MEDIA_SOURCE,
