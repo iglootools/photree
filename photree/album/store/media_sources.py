@@ -4,8 +4,9 @@ Provides key-function-parameterized grouping, deduplication, and file
 finding that work for both iOS (image-number matching) and std
 (filename-stem matching) media sources.
 
-Also includes iOS-specific convenience wrappers (``img_number``,
-``find_files_by_number``, ``find_files_by_stem``).
+Also includes iOS-specific (``ios_img_number``,
+``ios_find_files_by_number``) and std-specific (``std_find_files_by_stem``)
+convenience wrappers.
 """
 
 from __future__ import annotations
@@ -77,7 +78,7 @@ def find_files_by_key(
 # ---------------------------------------------------------------------------
 
 
-def img_number(filename: str) -> str:
+def ios_img_number(filename: str) -> str:
     """Extract the numeric portion of a filename (e.g. ``"0410"`` from ``"IMG_0410.HEIC"``)."""
     return "".join(c for c in filename if c.isdigit())
 
@@ -87,21 +88,21 @@ def ios_dedup_media_dict(
 ) -> dict[str, str]:
     """Build a number->filename dict, preferring DNG > HEIC when duplicates exist.
 
-    iOS-specific convenience wrapper that uses :func:`img_number` as the
+    iOS-specific convenience wrapper that uses :func:`ios_img_number` as the
     key function.
     """
-    return dedup_media_dict(files, media_extensions, img_number)
+    return dedup_media_dict(files, media_extensions, ios_img_number)
 
 
-def find_files_by_number(
+def ios_find_files_by_number(
     numbers: set[str],
     directory: Path,
 ) -> list[str]:
     """Find all files in *directory* whose image number is in *numbers*."""
-    return find_files_by_key(numbers, directory, img_number)
+    return find_files_by_key(numbers, directory, ios_img_number)
 
 
-def find_files_by_stem(
+def std_find_files_by_stem(
     stems: set[str],
     directory: Path,
 ) -> list[str]:

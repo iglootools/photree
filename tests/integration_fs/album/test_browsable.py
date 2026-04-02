@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 from photree.album.browsable import RefreshBrowsableDirResult, refresh_browsable_dir
-from photree.album.store.media_sources import img_number
+from photree.album.store.media_sources import ios_img_number
 from photree.album.store.protocol import IMG_EXTENSIONS, VID_EXTENSIONS, _stem_key
 from photree.fsprotocol import LinkMode
 
@@ -32,7 +32,7 @@ class TestRefreshBrowsableDir:
             rendered,
             browsable,
             media_extensions=IMG_EXTENSIONS,
-            key_fn=img_number,
+            key_fn=ios_img_number,
         )
 
         assert result.copied == 1
@@ -54,7 +54,7 @@ class TestRefreshBrowsableDir:
             rendered,
             browsable,
             media_extensions=IMG_EXTENSIONS,
-            key_fn=img_number,
+            key_fn=ios_img_number,
         )
 
         assert result.copied == 1
@@ -76,7 +76,7 @@ class TestRefreshBrowsableDir:
             rendered,
             browsable,
             media_extensions=IMG_EXTENSIONS,
-            key_fn=img_number,
+            key_fn=ios_img_number,
         )
 
         assert result.copied == 2
@@ -94,7 +94,7 @@ class TestRefreshBrowsableDir:
             rendered,
             browsable,
             media_extensions=IMG_EXTENSIONS,
-            key_fn=img_number,
+            key_fn=ios_img_number,
         )
 
         assert (browsable / "IMG_0001.HEIC").exists()
@@ -110,7 +110,7 @@ class TestRefreshBrowsableDir:
             rendered,
             browsable,
             media_extensions=VID_EXTENSIONS,
-            key_fn=img_number,
+            key_fn=ios_img_number,
         )
 
         assert result.copied == 1
@@ -126,7 +126,7 @@ class TestRefreshBrowsableDir:
             rendered,
             browsable,
             media_extensions=IMG_EXTENSIONS,
-            key_fn=img_number,
+            key_fn=ios_img_number,
         )
 
         assert result == RefreshBrowsableDirResult(copied=0)
@@ -142,7 +142,7 @@ class TestRefreshBrowsableDir:
             rendered,
             browsable,
             media_extensions=IMG_EXTENSIONS,
-            key_fn=img_number,
+            key_fn=ios_img_number,
             dry_run=True,
         )
 
@@ -159,7 +159,7 @@ class TestRefreshBrowsableDir:
             rendered,
             browsable,
             media_extensions=IMG_EXTENSIONS,
-            key_fn=img_number,
+            key_fn=ios_img_number,
         )
 
         assert (browsable / "IMG_E0001.HEIC").read_text() == "data-IMG_E0001.HEIC"
@@ -177,7 +177,7 @@ class TestRefreshBrowsableDir:
             rendered,
             browsable,
             media_extensions=IMG_EXTENSIONS,
-            key_fn=img_number,
+            key_fn=ios_img_number,
         )
 
         assert result.copied == 1
@@ -197,7 +197,7 @@ class TestRefreshBrowsableDir:
             rendered,
             browsable,
             media_extensions=IMG_EXTENSIONS,
-            key_fn=img_number,
+            key_fn=ios_img_number,
         )
 
         assert result.copied == 1
@@ -216,7 +216,7 @@ class TestRefreshBrowsableDir:
             rendered,
             browsable,
             media_extensions=IMG_EXTENSIONS,
-            key_fn=img_number,
+            key_fn=ios_img_number,
         )
 
         assert result.copied == 1
@@ -234,7 +234,7 @@ class TestRefreshBrowsableDirLinkMode:
             rendered,
             browsable,
             media_extensions=IMG_EXTENSIONS,
-            key_fn=img_number,
+            key_fn=ios_img_number,
             link_mode=LinkMode.HARDLINK,
         )
 
@@ -253,7 +253,7 @@ class TestRefreshBrowsableDirLinkMode:
             rendered,
             browsable,
             media_extensions=IMG_EXTENSIONS,
-            key_fn=img_number,
+            key_fn=ios_img_number,
             link_mode=LinkMode.SYMLINK,
         )
 
@@ -275,7 +275,7 @@ class TestRefreshBrowsableDirLinkMode:
             rendered,
             browsable,
             media_extensions=IMG_EXTENSIONS,
-            key_fn=img_number,
+            key_fn=ios_img_number,
             link_mode=LinkMode.COPY,
         )
 
@@ -295,7 +295,7 @@ class TestRefreshBrowsableDirLinkMode:
             rendered,
             browsable,
             media_extensions=IMG_EXTENSIONS,
-            key_fn=img_number,
+            key_fn=ios_img_number,
             link_mode=LinkMode.HARDLINK,
         )
 
@@ -312,7 +312,7 @@ class TestRefreshBrowsableDirLinkMode:
             rendered,
             browsable,
             media_extensions=IMG_EXTENSIONS,
-            key_fn=img_number,
+            key_fn=ios_img_number,
             link_mode=LinkMode.HARDLINK,
             dry_run=True,
         )
@@ -331,7 +331,7 @@ class TestRefreshBrowsableDirLinkMode:
             rendered,
             browsable,
             media_extensions=IMG_EXTENSIONS,
-            key_fn=img_number,
+            key_fn=ios_img_number,
             link_mode=LinkMode.HARDLINK,
         )
 
