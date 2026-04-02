@@ -14,7 +14,7 @@ from pathlib import Path
 
 import itertools
 
-from ..album import fixes as album_fixes
+from ..album import fix as album_fixes
 from ..album import optimize as album_optimize
 from ..album.integrity import check_album_jpeg_integrity, check_ios_album_integrity
 from ..album.jpeg import convert_single_file

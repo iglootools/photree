@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING
 from ..common.formatting import CHECK, CROSS, WARNING  # noqa: F401
 
 if TYPE_CHECKING:
-    from .fixes import FixResult
-    from .ios_fixes import FixIosResult
+    from .fix import FixResult
+    from .fix.ios import FixIosResult
 
 
 def refresh_jpeg_summary(converted: int, copied: int, skipped: int) -> str:

@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 
 from . import AlbumDirOption, DirOption, albums_app
-from ...album.ios_fixes import FixIosValidationError, validate_fix_flags
+from ...album.fix.ios import FixIosValidationError, validate_fix_flags
 from ...clicommons.options import (
     DRY_RUN_OPTION,
     MV_MISCATEGORIZED_OPTION,

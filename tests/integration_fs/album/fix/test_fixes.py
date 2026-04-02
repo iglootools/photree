@@ -1,10 +1,10 @@
-"""Tests for photree.album.fixes module (generic fix operations for all source types)."""
+"""Tests for photree.album.fix module (generic fix operations for all source types)."""
 
 from pathlib import Path
 
 import pytest
 
-from photree.album.fixes import (
+from photree.album.fix import (
     refresh_browsable,
     rm_orphan,
     rm_upstream,
