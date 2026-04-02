@@ -568,7 +568,7 @@ def run_batch_rename_from_csv(
     dry_run: bool = False,
 ) -> None:
     """Shared implementation for gallery rename-from-csv / albums rename-from-csv."""
-    from ...gallery.renamer import RenameCollisionError
+    from ..renamer import RenameCollisionError
 
     cwd = Path.cwd()
 

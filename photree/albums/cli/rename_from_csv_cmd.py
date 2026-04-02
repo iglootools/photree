@@ -36,7 +36,7 @@ def rename_from_csv_cmd(
     where a mutable field changed are renamed. Immutable fields (date, part,
     tags) are preserved from the current on-disk album name.
     """
-    from ...gallery import MissingAlbumIdError, build_album_index
+    from ..index import MissingAlbumIdError, build_album_index
     from ...clihelpers.console import err_console
 
     cwd = Path.cwd()

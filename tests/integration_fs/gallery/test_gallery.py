@@ -12,13 +12,13 @@ from photree.album.store.protocol import (
     format_album_external_id,
     generate_album_id,
 )
-from photree.gallery import (
+from photree.albums.index import (
     MissingAlbumIdError,
-    build_album_id_to_path_index,
     build_album_index,
-    plan_renames_from_csv,
     resolve_album_path_by_id,
 )
+from photree.albums.renamer import plan_renames_from_csv
+from photree.gallery.index import build_album_id_to_path_index
 
 
 def _write(path: Path, content: str = "data") -> None:

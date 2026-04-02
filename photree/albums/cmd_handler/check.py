@@ -14,7 +14,7 @@ from ...album import (
 )
 from ...album.naming import BatchNamingResult
 from ...album.store.protocol import format_album_external_id
-from ...gallery.index import find_duplicate_album_ids
+from ..index import find_duplicate_album_ids
 
 
 @dataclass(frozen=True)
