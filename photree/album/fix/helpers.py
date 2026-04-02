@@ -5,29 +5,21 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-from rich.console import Console
-
-from ...common.formatting import CHECK
-from ...fs import (
-    MediaSource,
-    display_path,
-)
-
-_console = Console(highlight=False)
+from ...fs import MediaSource
 
 
-def _delete_dir(directory: Path, *, dry_run: bool, log_cwd: Path | None) -> None:
-    """Delete a directory and all its contents."""
+def _delete_dir(directory: Path, *, dry_run: bool) -> bool:
+    """Delete a directory and all its contents.
+
+    Returns whether the directory existed.
+    """
     if not directory.is_dir():
-        return
+        return False
 
     if not dry_run:
         shutil.rmtree(directory)
 
-    if log_cwd is not None:
-        _console.print(
-            f"{CHECK} {'[dry-run] ' if dry_run else ''}delete {display_path(directory, log_cwd)}"
-        )
+    return True
 
 
 def _require_archive(album_dir: Path, ms: MediaSource) -> None:

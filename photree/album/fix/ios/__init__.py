@@ -108,7 +108,6 @@ def run_fix_ios(
     album_dir: Path,
     *,
     dry_run: bool,
-    log_cwd: Path | None = None,
     rm_orphan_sidecar: bool = False,
     prefer_higher_quality_when_dups: bool = False,
     rm_miscategorized: bool = False,
@@ -134,16 +133,12 @@ def run_fix_ios(
 
     if rm_orphan_sidecar:
         for ms in media_sources:
-            result_meta = _do_rm_orphan_sidecar(
-                album_dir, ms, dry_run=dry_run, log_cwd=log_cwd
-            )
+            result_meta = _do_rm_orphan_sidecar(album_dir, ms, dry_run=dry_run)
             orphan_sidecar_by_dir.extend(result_meta.removed_by_dir)
 
     if prefer_higher_quality_when_dups:
         for ms in media_sources:
-            result_hq = _do_prefer_higher_quality(
-                album_dir, ms, dry_run=dry_run, log_cwd=log_cwd
-            )
+            result_hq = _do_prefer_higher_quality(album_dir, ms, dry_run=dry_run)
             higher_quality_by_dir.extend(result_hq.removed_by_dir)
 
     miscat_action = (
@@ -166,7 +161,7 @@ def run_fix_ios(
         total_mov_from_orig = 0
         total_mov_from_rendered = 0
         for ms in media_sources:
-            result_miscat = fix_fn(album_dir, ms, dry_run=dry_run, log_cwd=log_cwd)
+            result_miscat = fix_fn(album_dir, ms, dry_run=dry_run)
             total_heic_from_orig += len(result_miscat.heic.fixed_from_orig)
             total_heic_from_rendered += len(result_miscat.heic.fixed_from_rendered)
             total_mov_from_orig += len(result_miscat.mov.fixed_from_orig)

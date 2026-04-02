@@ -11,12 +11,9 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
+from dataclasses import dataclass
+
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
-from rich.console import Console
-
-from .formatting import CHECK
-
-_console = Console(highlight=False)
 
 _EXIF_DATE_FORMAT = "%Y:%m:%d %H:%M:%S"
 _EXIF_DATE_TZ_FORMAT = "%Y:%m:%d %H:%M:%S%z"
@@ -132,18 +129,25 @@ def read_exif_timestamps_by_file(
 # ---------------------------------------------------------------------------
 
 
+@dataclass(frozen=True)
+class ExifDateChange:
+    """Record of a single file's EXIF date change."""
+
+    path: Path
+    original: str
+    new_value: str
+
+
 def set_exif_date(
     files: list[Path],
     date: str,
     tags: list[str],
-    *,
-    log_cwd: Path | None = None,
-) -> int:
+) -> tuple[int, tuple[ExifDateChange, ...]]:
     """Set the date portion of EXIF timestamps, preserving the original time.
 
     *date* must be ``YYYY-MM-DD`` format.  Reads each file's existing
     timestamp, replaces the date part, and writes it back.
-    Returns the number of files updated.
+    Returns ``(updated_count, changes)``.
     """
     import json
     import subprocess
@@ -161,9 +165,10 @@ def set_exif_date(
         text=True,
     )
     if result.returncode != 0:
-        return 0
+        return 0, ()
 
     updated = 0
+    changes: list[ExifDateChange] = []
     for entry in json.loads(result.stdout):
         path = entry.get("SourceFile", "")
         original = next(
@@ -180,13 +185,6 @@ def set_exif_date(
         time_part = original.split(" ", 1)[1] if " " in original else "00:00:00"
         new_date = f"{exif_date} {time_part}"
 
-        if log_cwd is not None:
-            from ..fs import display_path
-
-            _console.print(
-                f"{CHECK} fix-exif {display_path(Path(path), log_cwd)}: {original} -> {new_date}"
-            )
-
         subprocess.run(
             [
                 "exiftool",
@@ -197,16 +195,17 @@ def set_exif_date(
             ],
             capture_output=True,
         )
+        changes.append(
+            ExifDateChange(path=Path(path), original=original, new_value=new_date)
+        )
         updated += 1
 
-    return updated
+    return updated, tuple(changes)
 
 
 def set_exif_date_time(
     files: list[Path],
     timestamp: str,
-    *,
-    log_cwd: Path | None = None,
 ) -> int:
     """Set the full EXIF timestamp on all files.
 
@@ -218,12 +217,6 @@ def set_exif_date_time(
 
     # Convert ISO separators to exiftool format: "2024-07-20T13:55:20" -> "2024:07:20 13:55:20"
     exif_ts = timestamp.replace("T", " ").replace("-", ":", 2)
-
-    if log_cwd is not None:
-        from ..fs import display_path
-
-        for f in files:
-            _console.print(f"{CHECK} fix-exif {display_path(f, log_cwd)}: -> {exif_ts}")
 
     result = subprocess.run(
         [
@@ -240,8 +233,6 @@ def set_exif_date_time(
 def shift_exif_date(
     files: list[Path],
     days: int,
-    *,
-    log_cwd: Path | None = None,
 ) -> int:
     """Shift EXIF timestamps by a number of days.
 
@@ -258,15 +249,6 @@ def shift_exif_date(
 
     shift = f"0:0:{days} 0:0:0"  # Y:M:D H:M:S
 
-    if log_cwd is not None:
-        from ..fs import display_path
-
-        for f in files:
-            _console.print(
-                f"{CHECK} fix-exif shift {'+' if op == '+=' else '-'}{days}d"
-                f" {display_path(f, log_cwd)}"
-            )
-
     result = subprocess.run(
         [
             "exiftool",
@@ -282,8 +264,6 @@ def shift_exif_date(
 def shift_exif_time(
     files: list[Path],
     hours: int,
-    *,
-    log_cwd: Path | None = None,
 ) -> int:
     """Shift EXIF timestamps by a number of hours.
 
@@ -299,15 +279,6 @@ def shift_exif_time(
         hours = -hours
 
     shift = f"0:0:0 {hours}:0:0"  # Y:M:D H:M:S
-
-    if log_cwd is not None:
-        from ..fs import display_path
-
-        for f in files:
-            _console.print(
-                f"{CHECK} fix-exif shift {'+' if op == '+=' else '-'}{hours}h"
-                f" {display_path(f, log_cwd)}"
-            )
 
     result = subprocess.run(
         [

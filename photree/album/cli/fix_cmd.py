@@ -89,8 +89,6 @@ def fix_cmd(
     --rm-orphan: Deletes edited and main files whose key has no
     corresponding original file in orig-img/ or orig-vid/.
     """
-    cwd = Path.cwd()
-
     try:
         album_fixes.validate_fix_flags(
             fix_id=fix_id,
@@ -161,7 +159,6 @@ def fix_cmd(
         album_dir,
         link_mode=resolve_link_mode(link_mode, album_dir),
         dry_run=dry_run,
-        log_cwd=cwd,
         refresh_browsable_flag=refresh_browsable,
         refresh_jpeg_flag=refresh_jpeg,
         rm_upstream_flag=rm_upstream,

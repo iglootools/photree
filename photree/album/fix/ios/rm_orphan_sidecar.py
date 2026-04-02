@@ -55,7 +55,6 @@ def rm_orphan_sidecar(
     ms: MediaSource,
     *,
     dry_run: bool = False,
-    log_cwd: Path | None = None,
 ) -> RmOrphanSidecarResult:
     """Remove AAE sidecar files that have no matching media file.
 
@@ -76,7 +75,7 @@ def rm_orphan_sidecar(
         orphans = _find_orphan_sidecars(d)
         if not orphans:
             continue
-        delete_files(d, orphans, dry_run=dry_run, log_cwd=log_cwd)
+        delete_files(d, orphans, dry_run=dry_run)
         results.append((d.name, tuple(orphans)))
 
     return RmOrphanSidecarResult(removed_by_dir=tuple(results))

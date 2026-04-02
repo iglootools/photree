@@ -6,10 +6,8 @@ import shutil
 from pathlib import Path
 
 import yaml
-from rich.console import Console
 
-from ..common.formatting import CHECK
-from .fileutils import display_path, matching_subdirectories
+from .fileutils import matching_subdirectories
 from .protocol import (
     ALBUM_YAML,
     DEFAULT_MEDIA_SOURCE,
@@ -287,8 +285,6 @@ def discover_browsable_media_files(album_dir: Path) -> list[Path]:
 # File mutations
 # ---------------------------------------------------------------------------
 
-_console = Console(highlight=False)
-
 
 def move_files(
     src_dir: Path,
@@ -296,7 +292,6 @@ def move_files(
     filenames: list[str],
     *,
     dry_run: bool,
-    log_cwd: Path | None,
 ) -> None:
     """Move *filenames* from *src_dir* to *dst_dir*, creating *dst_dir* if needed."""
     if not filenames:
@@ -304,15 +299,8 @@ def move_files(
     if not dry_run:
         dst_dir.mkdir(parents=True, exist_ok=True)
     for f in filenames:
-        src = src_dir / f
-        dst = dst_dir / f
         if not dry_run:
-            shutil.move(str(src), str(dst))
-        if log_cwd is not None:
-            _console.print(
-                f"{CHECK} {'[dry-run] ' if dry_run else ''}move"
-                f" {display_path(src, log_cwd)} → {display_path(dst, log_cwd)}"
-            )
+            shutil.move(str(src_dir / f), str(dst_dir / f))
 
 
 def delete_files(
@@ -320,16 +308,9 @@ def delete_files(
     filenames: list[str],
     *,
     dry_run: bool,
-    log_cwd: Path | None,
 ) -> int:
     """Delete *filenames* from *directory*. Returns the number of files deleted."""
     for f in filenames:
-        path = directory / f
         if not dry_run:
-            path.unlink()
-        if log_cwd is not None:
-            _console.print(
-                f"{CHECK} {'[dry-run] ' if dry_run else ''}delete"
-                f" {display_path(path, log_cwd)}"
-            )
+            (directory / f).unlink()
     return len(filenames)

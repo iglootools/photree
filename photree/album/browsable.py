@@ -17,14 +17,9 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from rich.console import Console
-
-from ..fs import LinkMode, display_path, list_files
+from ..fs import LinkMode, list_files
 from ..fs.media import dedup_media_dict
 from ..fs.protocol import _KeyFn
-from ..common.formatting import CHECK
-
-_console = Console(highlight=False)
 
 
 def compute_browsable_files(
@@ -104,7 +99,6 @@ def refresh_browsable_dir(
     key_fn: _KeyFn,
     link_mode: LinkMode = LinkMode.HARDLINK,
     dry_run: bool = False,
-    log_cwd: Path | None = None,
     on_file_start: Callable[[str], None] | None = None,
     on_file_end: Callable[[str, bool], None] | None = None,
 ) -> RefreshBrowsableDirResult:
@@ -129,14 +123,6 @@ def refresh_browsable_dir(
             for f in os.listdir(browsable_dir):
                 (browsable_dir / f).unlink()
         browsable_dir.mkdir(parents=True, exist_ok=True)
-        if log_cwd is not None:
-            _console.print(f"{CHECK} clear {display_path(browsable_dir, log_cwd)}")
-    elif log_cwd is not None:
-        _console.print(
-            f"{CHECK} [dry-run] clear {display_path(browsable_dir, log_cwd)}"
-        )
-
-    verb = _LINK_MODE_VERBS[link_mode]
 
     for filename, source_dir in files_to_copy:
         if on_file_start:
@@ -144,13 +130,6 @@ def refresh_browsable_dir(
 
         if not dry_run:
             _place_file(source_dir / filename, browsable_dir / filename, link_mode)
-
-        if log_cwd is not None:
-            src = source_dir / filename
-            dst = browsable_dir / filename
-            _console.print(
-                f"{CHECK} {'[dry-run] ' if dry_run else ''}{verb} {display_path(src, log_cwd)} → {display_path(dst, log_cwd)}"
-            )
 
         if on_file_end:
             on_file_end(filename, True)

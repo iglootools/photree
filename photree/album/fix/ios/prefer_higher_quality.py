@@ -57,7 +57,6 @@ def prefer_higher_quality_when_dups(
     ms: MediaSource,
     *,
     dry_run: bool = False,
-    log_cwd: Path | None = None,
 ) -> PreferHigherQualityResult:
     """Delete lower-quality duplicates when multiple formats exist for the same number.
 
@@ -79,7 +78,7 @@ def prefer_higher_quality_when_dups(
         dups = _find_non_heic_dups_in_dir(d, IOS_IMG_EXTENSIONS)
         if not dups:
             return None
-        delete_files(d, dups, dry_run=dry_run, log_cwd=log_cwd)
+        delete_files(d, dups, dry_run=dry_run)
         return (d.name, tuple(dups))
 
     return PreferHigherQualityResult(

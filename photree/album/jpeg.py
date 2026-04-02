@@ -17,17 +17,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from rich.console import Console
-
 from ..fs import (
     CONVERT_TO_JPEG_EXTENSIONS,
     COPY_AS_IS_TO_JPEG_EXTENSIONS,
-    display_path,
     list_files,
 )
-from ..common.formatting import CHECK
-
-_console = Console(highlight=False)
 
 
 def _ext(filename: str) -> str:
@@ -102,14 +96,11 @@ def refresh_jpeg_dir(
     dst_dir: Path,
     *,
     dry_run: bool = False,
-    log_cwd: Path | None = None,
     on_file_start: Callable[[str], None] | None = None,
     on_file_end: Callable[[str, bool], None] | None = None,
     convert_file: Callable[..., Path | None] = convert_single_file,
 ) -> RefreshResult:
     """Delete contents of *dst_dir* and re-convert all files from *src_dir*.
-
-    When *log_cwd* is set, prints what is happening (or would happen on dry run).
 
     Calls ``on_file_start(filename)`` before and ``on_file_end(filename, success)``
     after each file.
@@ -126,10 +117,6 @@ def refresh_jpeg_dir(
         dst_dir.mkdir(parents=True, exist_ok=True)
         for f in os.listdir(dst_dir):
             (dst_dir / f).unlink()
-        if log_cwd is not None:
-            _console.print(f"{CHECK} clear {display_path(dst_dir, log_cwd)}")
-    elif log_cwd is not None:
-        _console.print(f"{CHECK} [dry-run] clear {display_path(dst_dir, log_cwd)}")
 
     converted = 0
     copied = 0
@@ -148,26 +135,14 @@ def refresh_jpeg_dir(
 
         if result is None:
             skipped += 1
-            if log_cwd is not None:
-                _console.print(
-                    f"{CHECK} {'[dry-run] ' if dry_run else ''}skip {display_path(src, log_cwd)} (not convertible)"
-                )
             if on_file_end:
                 on_file_end(filename, False)
         elif _ext(filename) in CONVERT_TO_JPEG_EXTENSIONS:
             converted += 1
-            if log_cwd is not None:
-                _console.print(
-                    f"{CHECK} {'[dry-run] ' if dry_run else ''}convert {display_path(src, log_cwd)} → {display_path(result, log_cwd)}"
-                )
             if on_file_end:
                 on_file_end(filename, True)
         else:
             copied += 1
-            if log_cwd is not None:
-                _console.print(
-                    f"{CHECK} {'[dry-run] ' if dry_run else ''}copy {display_path(src, log_cwd)} → {display_path(result, log_cwd)}"
-                )
             if on_file_end:
                 on_file_end(filename, True)
 
