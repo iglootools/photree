@@ -8,7 +8,7 @@ from typing import Annotated
 import typer
 
 from . import album_app
-from .. import media_ops, output as album_output
+from .. import media_ops
 from ...clicommons.console import err_console
 from ...fs import display_path
 
@@ -67,9 +67,9 @@ def mv_media_cmd(
         err_console.print(str(exc))
         raise typer.Exit(code=1) from None
 
-    typer.echo(album_output.media_op_summary("Moved", result.files_by_dir))
+    typer.echo(media_ops.media_op_summary("Moved", result.files_by_dir))
     typer.echo(
-        album_output.media_op_check_suggestions(
+        media_ops.media_op_check_suggestions(
             [
                 str(display_path(source_album, cwd)),
                 str(display_path(dest_album, cwd)),

@@ -10,7 +10,11 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 
-from ...album import output as album_output
+from ...album.fix.output import (
+    refresh_browsable_summary,
+    refresh_jpeg_summary,
+    rm_upstream_summary,
+)
 from ...album.integrity.output import format_integrity_checks
 from ...album.preflight import output as preflight_output
 from ...album.integrity.testkit import (
@@ -54,7 +58,7 @@ def _panel(title: str, content: str) -> None:
 def output_cmd() -> None:
     """Display all output/troubleshoot functions with fake data."""
 
-    # ── album.output ─────────────────────────────────────────────
+    # ── album.fix.output ─────────────────────────────────────────
 
     _panel(
         "preflight_output.sips_check(available=True)",
@@ -118,12 +122,12 @@ def output_cmd() -> None:
 
     _panel(
         "album_output.refresh_jpeg_summary()",
-        album_output.refresh_jpeg_summary(converted=12, copied=3, skipped=1),
+        refresh_jpeg_summary(converted=12, copied=3, skipped=1),
     )
 
     _panel(
         "album_output.refresh_browsable_summary()",
-        album_output.refresh_browsable_summary(
+        refresh_browsable_summary(
             heic_copied=15,
             mov_copied=3,
             jpeg_converted=12,
@@ -134,7 +138,7 @@ def output_cmd() -> None:
 
     _panel(
         "album_output.rm_upstream_summary()",
-        album_output.rm_upstream_summary(
+        rm_upstream_summary(
             heic_jpeg=2,
             heic_browsable=3,
             heic_rendered=5,

@@ -249,3 +249,11 @@ def format_album_preflight_troubleshoot(
         ),
     ]
     return "\n".join(lines) if lines else None
+
+
+def batch_check_summary(passed: int, failed: int, warned: int = 0) -> str:
+    parts = [f"{passed} album(s) passed"]
+    if warned:
+        parts.append(f"{warned} with warnings")
+    parts.append(f"{failed} failed")
+    return f"\nDone. {', '.join(parts)}."

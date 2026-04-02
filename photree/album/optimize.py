@@ -82,3 +82,25 @@ def optimize_album(
         mov_count=total_mov,
         link_mode=link_mode,
     )
+
+
+# ---------------------------------------------------------------------------
+# Output formatting
+# ---------------------------------------------------------------------------
+
+
+def optimize_summary(heic_count: int, mov_count: int, link_mode: str) -> str:
+    parts = ", ".join(
+        [
+            *([f"{heic_count} heic"] if heic_count else []),
+            *([f"{mov_count} mov"] if mov_count else []),
+        ]
+    )
+    if parts:
+        return f"Done. {parts} file(s) linked ({link_mode})."
+    else:
+        return "Done. Nothing to optimize."
+
+
+def batch_optimize_summary(optimized: int, failed: int) -> str:
+    return f"\nDone. {optimized} album(s) optimized, {failed} failed."

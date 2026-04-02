@@ -9,10 +9,8 @@ import typer
 
 from . import album_app
 from .helpers import _check_sips_or_exit
-from .. import (
-    fix as album_fixes,
-    output as album_output,
-)
+from .. import fix as album_fixes
+from ..fix.output import format_fix_result
 from ..fix import FixValidationError
 from ...clicommons.options import (
     DRY_RUN_OPTION,
@@ -183,5 +181,5 @@ def fix_cmd(
     if file_progress:
         file_progress.stop()
 
-    for line in album_output.format_fix_result(result):
+    for line in format_fix_result(result):
         typer.echo(line)
