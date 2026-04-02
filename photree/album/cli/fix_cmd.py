@@ -17,7 +17,7 @@ from ...clihelpers.options import (
 )
 from ...clihelpers.progress import FileProgressBar, StageProgressBar
 from ...common.fs import list_files
-from ...gallery.store.resolution import resolve_link_mode
+from ...fsprotocol import resolve_link_mode
 from .. import fix as album_fixes
 from ..fix import FixValidationError
 from ..fix.output import format_fix_result
