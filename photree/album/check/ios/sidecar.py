@@ -9,29 +9,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from ....common.fs import list_files
+from ....common.fs import file_ext, list_files
+from ...store.media_sources import ios_img_number, ios_is_media
 from ...store.protocol import (
-    IOS_IMG_EXTENSIONS,
-    IOS_VID_EXTENSIONS,
     SIDECAR_EXTENSIONS,
 )
-
-
-def _ext(filename: str) -> str:
-    return Path(filename).suffix.lower()
-
-
-def _is_media(filename: str) -> bool:
-    ext = _ext(filename)
-    return ext in IOS_IMG_EXTENSIONS or ext in IOS_VID_EXTENSIONS
-
-
-def _img_number(filename: str) -> str:
-    return "".join(c for c in filename if c.isdigit())
-
-
-def _list_files(directory: Path) -> list[str]:
-    return list_files(directory)
 
 
 # ---------------------------------------------------------------------------
@@ -57,14 +39,14 @@ def check_sidecars(
     edit_dir: Path,
 ) -> SidecarCheck:
     """Check for missing and orphan AAE sidecars in orig and edit directories."""
-    orig_files = set(_list_files(orig_dir))
-    edit_files = set(_list_files(edit_dir))
+    orig_files = set(list_files(orig_dir))
+    edit_files = set(list_files(edit_dir))
 
-    orig_media_numbers = {_img_number(f) for f in orig_files if _is_media(f)}
+    orig_media_numbers = {ios_img_number(f) for f in orig_files if ios_is_media(f)}
     edit_media_numbers = {
-        _img_number(f)
+        ios_img_number(f)
         for f in edit_files
-        if _is_media(f) and f.upper().startswith("IMG_E")
+        if ios_is_media(f) and f.upper().startswith("IMG_E")
     }
 
     missing_sidecars = tuple(
@@ -73,15 +55,16 @@ def check_sidecars(
             *[
                 f"{f} has no AAE sidecar in {orig_dir.name}/"
                 for f in sorted(orig_files)
-                if _ext(f) == ".heic" and f"IMG_{_img_number(f)}.AAE" not in orig_files
+                if file_ext(f) == ".heic"
+                and f"IMG_{ios_img_number(f)}.AAE" not in orig_files
             ],
             # Each edited media file should have an O-prefixed AAE sidecar
             *[
                 f"{f} has no O-prefixed AAE sidecar in {edit_dir.name}/"
                 for f in sorted(edit_files)
-                if _is_media(f)
+                if ios_is_media(f)
                 and f.upper().startswith("IMG_E")
-                and f"IMG_O{_img_number(f)}.AAE" not in edit_files
+                and f"IMG_O{ios_img_number(f)}.AAE" not in edit_files
             ],
         ]
     )
@@ -92,16 +75,16 @@ def check_sidecars(
             *[
                 f"{f} has no matching media file in {orig_dir.name}/"
                 for f in sorted(orig_files)
-                if _ext(f) in SIDECAR_EXTENSIONS
-                and _img_number(f) not in orig_media_numbers
+                if file_ext(f) in SIDECAR_EXTENSIONS
+                and ios_img_number(f) not in orig_media_numbers
             ],
             # Orphan O-prefixed AAE sidecars in edit (no matching edited media)
             *[
                 f"{f} has no matching edited media file in {edit_dir.name}/"
                 for f in sorted(edit_files)
-                if _ext(f) in SIDECAR_EXTENSIONS
+                if file_ext(f) in SIDECAR_EXTENSIONS
                 and f.upper().startswith("IMG_O")
-                and _img_number(f) not in edit_media_numbers
+                and ios_img_number(f) not in edit_media_numbers
             ],
         ]
     )

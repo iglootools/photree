@@ -5,20 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from ....common.fs import delete_files, list_files
+from ....common.fs import delete_files, file_ext, list_files
+from ...store.media_sources import ios_img_number
 from ...store.protocol import (
     IOS_IMG_EXTENSIONS,
     PICTURE_PRIORITY_EXTENSIONS,
     MediaSource,
 )
-
-
-def _ext(filename: str) -> str:
-    return Path(filename).suffix.lower()
-
-
-def _img_number(filename: str) -> str:
-    return "".join(c for c in filename if c.isdigit())
 
 
 def _find_non_heic_dups_in_dir(
@@ -28,15 +21,15 @@ def _find_non_heic_dups_in_dir(
     files = list_files(directory)
     media_by_number: dict[str, list[str]] = {}
     for f in files:
-        if _ext(f) in media_extensions:
-            media_by_number.setdefault(_img_number(f), []).append(f)
+        if file_ext(f) in media_extensions:
+            media_by_number.setdefault(ios_img_number(f), []).append(f)
 
     return sorted(
         non_heic
         for candidates in media_by_number.values()
-        if any(_ext(f) in PICTURE_PRIORITY_EXTENSIONS for f in candidates)
+        if any(file_ext(f) in PICTURE_PRIORITY_EXTENSIONS for f in candidates)
         for non_heic in candidates
-        if _ext(non_heic) not in PICTURE_PRIORITY_EXTENSIONS
+        if file_ext(non_heic) not in PICTURE_PRIORITY_EXTENSIONS
     )
 
 

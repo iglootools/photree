@@ -5,37 +5,23 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from ....common.fs import delete_files, list_files
+from ....common.fs import delete_files, file_ext, list_files
+from ...store.media_sources import ios_img_number, ios_is_media
 from ...store.protocol import (
-    IOS_IMG_EXTENSIONS,
-    IOS_VID_EXTENSIONS,
     SIDECAR_EXTENSIONS,
     MediaSource,
 )
 
 
-def _ext(filename: str) -> str:
-    return Path(filename).suffix.lower()
-
-
-def _img_number(filename: str) -> str:
-    return "".join(c for c in filename if c.isdigit())
-
-
 def _find_orphan_sidecars(directory: Path) -> list[str]:
     """Find AAE files whose image number has no matching media file."""
     files = list_files(directory)
-    media_numbers = {_img_number(f) for f in files if _is_media(f)}
+    media_numbers = {ios_img_number(f) for f in files if ios_is_media(f)}
     return sorted(
         f
         for f in files
-        if _ext(f) in SIDECAR_EXTENSIONS and _img_number(f) not in media_numbers
+        if file_ext(f) in SIDECAR_EXTENSIONS and ios_img_number(f) not in media_numbers
     )
-
-
-def _is_media(filename: str) -> bool:
-    ext = _ext(filename)
-    return ext in IOS_IMG_EXTENSIONS or ext in IOS_VID_EXTENSIONS
 
 
 @dataclass(frozen=True)

@@ -11,7 +11,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from ....common.fs import list_files
+from ....common.fs import file_ext, list_files
+from ...store.media_sources import ios_file_prefix, ios_img_number, ios_is_media
 from ...store.media_sources_discovery import discover_media_sources
 from ...store.protocol import (
     IOS_IMG_EXTENSIONS,
@@ -21,23 +22,6 @@ from ...store.protocol import (
 from ..browsable import BrowsableDirCheck, check_browsable_dir
 from ..jpeg import JpegCheck, check_jpeg_dir
 from .sidecar import SidecarCheck, check_sidecars
-
-
-def _ext(filename: str) -> str:
-    return Path(filename).suffix.lower()
-
-
-def _is_media(filename: str) -> bool:
-    ext = _ext(filename)
-    return ext in IOS_IMG_EXTENSIONS or ext in IOS_VID_EXTENSIONS
-
-
-def _img_number(filename: str) -> str:
-    return "".join(c for c in filename if c.isdigit())
-
-
-def _list_files(directory: Path) -> list[str]:
-    return list_files(directory)
 
 
 # ---------------------------------------------------------------------------
@@ -93,25 +77,6 @@ class IosAlbumFullIntegrityResult:
 
 
 # ---------------------------------------------------------------------------
-# Private helpers
-# ---------------------------------------------------------------------------
-
-
-def _file_prefix(filename: str) -> str:
-    """Extract the prefix category of an iOS filename.
-
-    IMG_E → 'E' (edited), IMG_O → 'O' (edited metadata), IMG_ → '' (original).
-    """
-    lower = filename.lower()
-    if lower.startswith("img_e"):
-        return "E"
-    elif lower.startswith("img_o"):
-        return "O"
-    else:
-        return ""
-
-
-# ---------------------------------------------------------------------------
 # Check functions
 # ---------------------------------------------------------------------------
 
@@ -124,12 +89,12 @@ def check_duplicate_numbers(
     IMG_7552.HEIC + IMG_E7552.HEIC sharing number 7552 is normal (original + edited).
     IMG_E7658.HEIC + IMG_E7658.JPG sharing number 7658 within the same 'E' prefix is a duplicate.
     """
-    files = _list_files(directory)
+    files = list_files(directory)
     # Group by (prefix, number) — only flag duplicates within the same prefix
     by_prefix_number: dict[tuple[str, str], list[str]] = {}
     for f in files:
-        if _ext(f) in media_extensions:
-            key = (_file_prefix(f), _img_number(f))
+        if file_ext(f) in media_extensions:
+            key = (ios_file_prefix(f), ios_img_number(f))
             by_prefix_number.setdefault(key, []).append(f)
 
     return tuple(
@@ -149,30 +114,30 @@ def check_miscategorized_files(
     Orig dirs should contain only original files (IMG_XXXX prefix).
     Edit dirs should contain only edited files (IMG_E/IMG_O prefix).
     """
-    orig_files = _list_files(orig_dir)
-    edit_files = _list_files(edit_dir)
+    orig_files = list_files(orig_dir)
+    edit_files = list_files(edit_dir)
 
     return tuple(
         [
             *[
                 f"{f} in {orig_dir.name}/ looks like an edited file (IMG_E prefix)"
                 for f in sorted(orig_files)
-                if _is_media(f) and _file_prefix(f) == "E"
+                if ios_is_media(f) and ios_file_prefix(f) == "E"
             ],
             *[
                 f"{f} in {orig_dir.name}/ looks like an edited sidecar (IMG_O prefix)"
                 for f in sorted(orig_files)
-                if _file_prefix(f) == "O"
+                if ios_file_prefix(f) == "O"
             ],
             *[
                 f"{f} in {edit_dir.name}/ looks like an original file (no E/O prefix)"
                 for f in sorted(edit_files)
-                if _is_media(f) and _file_prefix(f) == ""
+                if ios_is_media(f) and ios_file_prefix(f) == ""
             ],
             *[
                 f"{f} in {edit_dir.name}/ looks like an original sidecar (no E/O prefix)"
                 for f in sorted(edit_files)
-                if not _is_media(f) and _file_prefix(f) == ""
+                if not ios_is_media(f) and ios_file_prefix(f) == ""
             ],
         ]
     )

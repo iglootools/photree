@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ...common.fs import list_files
+from ...common.fs import file_ext, list_files
 from ...fsprotocol import PHOTREE_DIR, LinkMode
 from .. import browsable
 from ..jpeg import convert_single_file, refresh_jpeg_dir
@@ -42,20 +42,16 @@ class MediaType(StrEnum):
     VIDEO = "video"
 
 
-def _ext(filename: str) -> str:
-    return Path(filename).suffix.lower()
-
-
 def _is_img(filename: str) -> bool:
-    return _ext(filename) in IOS_IMG_EXTENSIONS
+    return file_ext(filename) in IOS_IMG_EXTENSIONS
 
 
 def _is_mov(filename: str) -> bool:
-    return _ext(filename) in IOS_VID_EXTENSIONS
+    return file_ext(filename) in IOS_VID_EXTENSIONS
 
 
 def _is_sidecar(filename: str) -> bool:
-    return _ext(filename) in SIDECAR_EXTENSIONS
+    return file_ext(filename) in SIDECAR_EXTENSIONS
 
 
 def _is_media(filename: str) -> bool:
@@ -127,7 +123,7 @@ def plan_import_from_dirs(
     image_capture_dir: Path,
 ) -> ImportPlan:
     """Build an import plan by reading files from the given directories."""
-    return plan_import(_list_files(selection_dir), _list_files(image_capture_dir))
+    return plan_import(list_files(selection_dir), list_files(image_capture_dir))
 
 
 def _build_ic_index(image_capture_files: list[str]) -> dict[str, list[str]]:
@@ -344,7 +340,7 @@ def _validate_match(match: SelectionMatch) -> list[ValidationError]:
     ]
 
     # HEIC should have AAE
-    orig_heic = [f for f in orig_media if _ext(f) == ".heic"]
+    orig_heic = [f for f in orig_media if file_ext(f) == ".heic"]
     orig_aae = [f for f in match.orig_files if _is_sidecar(f)]
     heic_aae_errors = (
         [
@@ -382,11 +378,6 @@ def validate_import_plan(plan: ImportPlan) -> list[ValidationError]:
 # ---------------------------------------------------------------------------
 # File operations
 # ---------------------------------------------------------------------------
-
-
-def _list_files(directory: Path) -> list[str]:
-    """Return regular file names inside *directory*, ignoring dotfiles (e.g. .DS_Store)."""
-    return list_files(directory)
 
 
 def _copy_file(src_dir: Path, dst_dir: Path, filename: str, *, dry_run: bool) -> None:
@@ -457,8 +448,8 @@ def run_import(
     album_selection = album_dir / SELECTION_DIR
 
     # Read input files
-    selection_files = _list_files(album_selection)
-    image_capture_files = _list_files(image_capture_dir)
+    selection_files = list_files(album_selection)
+    image_capture_files = list_files(image_capture_dir)
 
     if not selection_files:
         raise FileNotFoundError(

@@ -10,21 +10,13 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from ...common.fs import list_files
+from ...common.fs import file_ext, list_files
 from ..store.media_sources_discovery import discover_media_sources
 from ..store.protocol import (
     CONVERT_TO_JPEG_EXTENSIONS,
     COPY_AS_IS_TO_JPEG_EXTENSIONS,
     MediaSource,
 )
-
-
-def _ext(filename: str) -> str:
-    return Path(filename).suffix.lower()
-
-
-def _list_files(directory: Path) -> list[str]:
-    return list_files(directory)
 
 
 # ---------------------------------------------------------------------------
@@ -63,7 +55,7 @@ class AlbumJpegIntegrityResult:
 
 def _expected_jpeg_name(heic_filename: str) -> str | None:
     """Return the expected JPEG filename for a main-img file, or None if not convertible."""
-    ext = _ext(heic_filename)
+    ext = file_ext(heic_filename)
     match True:
         case _ if ext in CONVERT_TO_JPEG_EXTENSIONS:
             return Path(heic_filename).with_suffix(".jpg").name
@@ -85,8 +77,8 @@ def check_jpeg_dir(
     on_file_checked: Callable[[str, bool], None] | None = None,
 ) -> JpegCheck:
     """Check that main-jpg has a counterpart for every file in main-img."""
-    heic_files = _list_files(main_img_dir)
-    jpeg_files = set(_list_files(main_jpg_dir))
+    heic_files = list_files(main_img_dir)
+    jpeg_files = set(list_files(main_jpg_dir))
 
     expected_jpegs = {
         jpeg_name: f
