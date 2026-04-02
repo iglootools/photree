@@ -16,7 +16,7 @@ from ...album.exporter.settings import (
 )
 from ...config import ConfigError
 from ...fs import display_path
-from ...clicommons.options import (
+from ...clihelpers.options import (
     ALBUM_LAYOUT_OPTION,
     CONFIG_OPTION,
     EXPORT_LINK_MODE_OPTION,
@@ -52,7 +52,7 @@ def export_cmd(
     Either scan --dir for albums or provide explicit album directories via
     --album-dir (repeatable). The two options are mutually exclusive.
     """
-    from ...clicommons.progress import BatchProgressBar
+    from ...clihelpers.progress import BatchProgressBar
 
     cwd = Path.cwd()
 

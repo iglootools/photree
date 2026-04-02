@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from . import AlbumDirOption, DirOption, albums_app
-from ...clicommons.options import DRY_RUN_OPTION
+from ...clihelpers.options import DRY_RUN_OPTION
 from .batch_ops import resolve_init_batch_albums, run_batch_init
 
 

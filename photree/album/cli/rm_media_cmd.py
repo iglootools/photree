@@ -9,7 +9,7 @@ import typer
 
 from . import album_app
 from .. import media_ops
-from ...clicommons.console import err_console
+from ...clihelpers.console import err_console
 from ...fs import display_path
 
 

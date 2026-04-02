@@ -12,7 +12,7 @@ from .helpers import _check_sips_or_exit
 from .. import fix as album_fixes
 from ..fix.output import format_fix_result
 from ..fix import FixValidationError
-from ...clicommons.options import (
+from ...clihelpers.options import (
     DRY_RUN_OPTION,
     LINK_MODE_OPTION,
     REFRESH_BROWSABLE_OPTION,
@@ -20,7 +20,7 @@ from ...clicommons.options import (
     RM_ORPHAN_OPTION,
     RM_UPSTREAM_OPTION,
 )
-from ...clicommons.progress import FileProgressBar, StageProgressBar
+from ...clihelpers.progress import FileProgressBar, StageProgressBar
 from ...fs import (
     AlbumMetadata,
     discover_media_sources,

@@ -13,8 +13,8 @@ from .. import (
     preflight as album_preflight,
 )
 from ..preflight import output as preflight_output
-from ...clicommons.console import console, err_console
-from ...clicommons.options import (
+from ...clihelpers.console import console, err_console
+from ...clihelpers.options import (
     CHECK_DATE_PART_COLLISION_OPTION,
     CHECK_EXIF_DATE_MATCH_OPTION,
     CHECK_NAMING_OPTION,
@@ -23,7 +23,7 @@ from ...clicommons.options import (
     FATAL_SIDECAR_OPTION,
     FATAL_WARNINGS_OPTION,
 )
-from ...clicommons.progress import SilentProgressBar
+from ...clihelpers.progress import SilentProgressBar
 from ...fs import (
     IMG_EXTENSIONS,
     VID_EXTENSIONS,

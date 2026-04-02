@@ -10,7 +10,7 @@ import typer
 from . import album_app
 from .. import stats as album_stats
 from ..stats import output as stats_output
-from ...clicommons.console import console, err_console
+from ...clihelpers.console import console, err_console
 
 
 @album_app.command("stats")

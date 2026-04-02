@@ -20,39 +20,39 @@ graph TD
     albums["albums/"]
     check["check/"]
     cli["cli/"]
-    clicommons["clicommons/"]
+    clihelpers["clihelpers/"]
     common["common/"]
     config["config/"]
     demo["demo/"]
     fs["fs/"]
     gallery["gallery/"]
 
-    album --> clicommons
+    album --> clihelpers
     album --> common
     album --> config
     album --> fs
     albums --> album
-    albums --> clicommons
+    albums --> clihelpers
     albums --> common
     albums --> config
     albums --> fs
     albums --> gallery
     check --> album
-    check --> clicommons
+    check --> clihelpers
     cli --> album
     cli --> albums
     cli --> check
     cli --> demo
     cli --> gallery
-    clicommons --> common
-    clicommons --> fs
+    clihelpers --> common
+    clihelpers --> fs
     common --> fs
     config --> fs
     demo --> album
     fs --> common
     gallery --> album
     gallery --> albums
-    gallery --> clicommons
+    gallery --> clihelpers
     gallery --> common
     gallery --> config
     gallery --> fs

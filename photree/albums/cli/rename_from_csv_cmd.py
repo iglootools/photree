@@ -9,7 +9,7 @@ import typer
 
 from . import AlbumDirOption, DirOption, albums_app
 from ...fs import display_path, format_album_external_id
-from ...clicommons.options import DRY_RUN_OPTION
+from ...clihelpers.options import DRY_RUN_OPTION
 from .batch_ops import resolve_check_batch_albums, run_batch_rename_from_csv
 
 
@@ -36,7 +36,7 @@ def rename_from_csv_cmd(
     tags) are preserved from the current on-disk album name.
     """
     from ...gallery import MissingAlbumIdError, build_album_index
-    from ...clicommons.console import err_console
+    from ...clihelpers.console import err_console
 
     cwd = Path.cwd()
     albums, _ = resolve_check_batch_albums(base_dir, album_dirs)

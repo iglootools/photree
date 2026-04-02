@@ -13,14 +13,14 @@ from .. import (
     preflight as album_preflight,
 )
 from ..preflight import output as preflight_output
-from ...clicommons.console import console, err_console
-from ...clicommons.options import (
+from ...clihelpers.console import console, err_console
+from ...clihelpers.options import (
     CHECK_BEFORE_OPTION,
     CHECKSUM_OPTION,
     DRY_RUN_OPTION,
     LINK_MODE_OPTION,
 )
-from ...clicommons.progress import SilentProgressBar
+from ...clihelpers.progress import SilentProgressBar
 from ...fs import (
     IMG_EXTENSIONS,
     VID_EXTENSIONS,
