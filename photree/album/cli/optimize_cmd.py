@@ -18,7 +18,7 @@ from ...clihelpers.progress import SilentProgressBar
 from ...common.fs import count_unique_media_numbers, display_path
 from ...fsprotocol import resolve_link_mode
 from .. import (
-    check as album_preflight,
+    check as album_check,
     optimize as album_optimize,
 )
 from ..check import output as preflight_output
@@ -69,7 +69,7 @@ def optimize_cmd(
             else None
         )
 
-        check_result = album_preflight.run_album_preflight(
+        check_result = album_check.run_album_preflight(
             album_dir,
             checksum=checksum,
             on_file_checked=progress.advance if progress else None,

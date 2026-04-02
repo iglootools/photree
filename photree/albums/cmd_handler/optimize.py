@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from ...album import (
-    check as album_preflight,
+    check as album_check,
     optimize as album_optimize,
 )
 from ...fsprotocol import LinkMode
@@ -47,7 +47,7 @@ def batch_optimize(
             on_start(album_name)
 
         if check:
-            check_result = album_preflight.run_album_check(
+            check_result = album_check.run_album_check(
                 album_dir,
                 sips_available=sips_available,
                 exiftool=None,

@@ -20,7 +20,7 @@ from ...clihelpers.options import (
 from ...clihelpers.progress import SilentProgressBar
 from ...common.fs import count_unique_media_numbers, display_path
 from .. import (
-    check as album_preflight,
+    check as album_check,
     naming as album_naming,
 )
 from ..check import output as preflight_output
@@ -64,7 +64,7 @@ def check_cmd(
         else None
     )
 
-    result = album_preflight.run_album_preflight(
+    result = album_check.run_album_preflight(
         album_dir,
         checksum=checksum,
         check_naming_flag=check_naming,

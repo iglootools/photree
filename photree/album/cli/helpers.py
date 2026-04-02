@@ -8,14 +8,14 @@ import typer
 
 from ...clihelpers.console import console, err_console
 from ...config import ConfigError
-from .. import check as album_preflight
+from .. import check as album_check
 from ..check import output as preflight_output
 from ..importer import output as importer_output
 from ..importer.preflight import resolve_image_capture_dir, run_preflight
 
 
 def _check_sips_or_exit() -> None:
-    if not album_preflight.check_sips_available():
+    if not album_check.check_sips_available():
         err_console.print(preflight_output.sips_check(False))
         err_console.print(preflight_output.sips_troubleshoot())
         raise typer.Exit(code=1)
