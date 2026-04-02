@@ -16,7 +16,7 @@ from .ios import (
     IosAlbumIntegrityResult,
 )
 from .jpeg import AlbumJpegIntegrityResult, JpegCheck
-from .sidecar import SidecarCheck
+from .ios.sidecar import SidecarCheck
 from .troubleshoot import suggest_exif_fixes, suggest_fixes
 
 

@@ -9,7 +9,7 @@ from photree.album.check.ios import (
     check_miscategorized_files,
 )
 from photree.album.check.jpeg import check_jpeg_dir
-from photree.album.check.sidecar import check_sidecars
+from photree.album.check.ios.sidecar import check_sidecars
 from photree.album.store.protocol import IMG_EXTENSIONS, MAIN_MEDIA_SOURCE
 
 

@@ -14,7 +14,7 @@ from .ios import (
     IosAlbumIntegrityResult,
 )
 from .jpeg import JpegCheck
-from .sidecar import SidecarCheck
+from .ios.sidecar import SidecarCheck
 
 # ---------------------------------------------------------------------------
 # Integrity testkit (was album/integrity/testkit.py)

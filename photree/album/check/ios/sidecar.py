@@ -9,8 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from ...common.fs import list_files
-from ..store.protocol import (
+from ....common.fs import list_files
+from ...store.protocol import (
     IOS_IMG_EXTENSIONS,
     IOS_VID_EXTENSIONS,
     SIDECAR_EXTENSIONS,
