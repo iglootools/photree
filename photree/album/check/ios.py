@@ -51,7 +51,7 @@ class IosAlbumIntegrityResult:
 
     browsable_img: BrowsableDirCheck
     browsable_vid: BrowsableDirCheck
-    jpeg: JpegCheck
+    browsable_jpg: JpegCheck
     sidecars: SidecarCheck
     duplicate_numbers: tuple[str, ...] = ()
     miscategorized: tuple[str, ...] = ()
@@ -65,7 +65,7 @@ class IosAlbumIntegrityResult:
         return (
             self.browsable_img.success
             and self.browsable_vid.success
-            and self.jpeg.success
+            and self.browsable_jpg.success
             and not self.sidecars.orphan_sidecars
             and not self.duplicate_numbers
             and not self.miscategorized
@@ -251,7 +251,7 @@ def check_ios_media_source_integrity(
     return IosAlbumIntegrityResult(
         browsable_img=browsable_img,
         browsable_vid=browsable_vid,
-        jpeg=jpeg,
+        browsable_jpg=jpeg,
         sidecars=sidecars,
         duplicate_numbers=duplicate_numbers,
         miscategorized=miscategorized,
