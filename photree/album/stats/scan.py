@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from collections import Counter
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from ...common.fs import file_ext, list_files
@@ -16,7 +17,107 @@ from ..store.protocol import (
 )
 from .models import FormatStats, SizeStats
 
-_ZERO_SIZE_STATS = SizeStats(file_count=0, apparent_bytes=0, on_disk_bytes=0)
+_ZERO = SizeStats(file_count=0, apparent_bytes=0, on_disk_bytes=0)
+
+
+# ---------------------------------------------------------------------------
+# File info extraction
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class _FileInfo:
+    """Stat result for a single file."""
+
+    ext: str
+    size: int
+    is_new_inode: bool
+
+
+def _stat_file(
+    path: Path,
+    filename: str,
+    seen_inodes: set[tuple[int, int]],
+) -> _FileInfo:
+    """Stat a file and check inode novelty."""
+    st = os.stat(path)
+    inode_key = (st.st_dev, st.st_ino)
+    is_new = inode_key not in seen_inodes
+    if is_new:
+        seen_inodes.add(inode_key)
+    return _FileInfo(ext=file_ext(filename), size=st.st_size, is_new_inode=is_new)
+
+
+# ---------------------------------------------------------------------------
+# Size accumulator
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class _SizeAccumulator:
+    """Mutable accumulator for building a SizeStats."""
+
+    file_count: int = 0
+    apparent_bytes: int = 0
+    on_disk_bytes: int = 0
+
+    def add(self, info: _FileInfo) -> None:
+        self.file_count += 1
+        self.apparent_bytes += info.size
+        if info.is_new_inode:
+            self.on_disk_bytes += info.size
+
+    def to_size_stats(self) -> SizeStats:
+        return SizeStats(
+            file_count=self.file_count,
+            apparent_bytes=self.apparent_bytes,
+            on_disk_bytes=self.on_disk_bytes,
+        )
+
+
+@dataclass
+class _FormatAccumulator:
+    """Mutable accumulator for per-extension stats."""
+
+    apparent: Counter[str] = field(default_factory=Counter)
+    on_disk: Counter[str] = field(default_factory=Counter)
+    count: Counter[str] = field(default_factory=Counter)
+
+    def add(self, info: _FileInfo) -> None:
+        self.apparent[info.ext] += info.size
+        self.count[info.ext] += 1
+        if info.is_new_inode:
+            self.on_disk[info.ext] += info.size
+
+    def to_format_stats(self) -> tuple[FormatStats, ...]:
+        return tuple(
+            FormatStats(
+                extension=ext,
+                file_count=self.count[ext],
+                apparent_bytes=amt,
+                on_disk_bytes=self.on_disk[ext],
+                archive_bytes=0,
+                derived_bytes=0,
+            )
+            for ext, amt in sorted(self.apparent.items(), key=lambda kv: -kv[1])
+        )
+
+
+# ---------------------------------------------------------------------------
+# Directory scanning
+# ---------------------------------------------------------------------------
+
+
+def _classify_ext(ext: str) -> str:
+    """Classify a file extension into a media category."""
+    if ext in IMG_EXTENSIONS:
+        return "img"
+    elif ext in VID_EXTENSIONS:
+        return "vid"
+    elif ext in SIDECAR_EXTENSIONS:
+        return "sidecar"
+    else:
+        return "other"
 
 
 def categorize_size_stats(
@@ -30,73 +131,33 @@ def categorize_size_stats(
     """
     files = list_files(directory)
     if not files:
-        return _ZERO_SIZE_STATS, _ZERO_SIZE_STATS, _ZERO_SIZE_STATS, ()
+        return _ZERO, _ZERO, _ZERO, ()
 
-    img_apparent = img_on_disk = img_count = 0
-    vid_apparent = vid_on_disk = vid_count = 0
-    sc_apparent = sc_on_disk = sc_count = 0
-    format_apparent: Counter[str] = Counter()
-    format_on_disk: Counter[str] = Counter()
-    format_count: Counter[str] = Counter()
+    by_category: dict[str, _SizeAccumulator] = {
+        "img": _SizeAccumulator(),
+        "vid": _SizeAccumulator(),
+        "sidecar": _SizeAccumulator(),
+    }
+    formats = _FormatAccumulator()
 
     for filename in files:
-        path = directory / filename
-        st = os.stat(path)
-        size = st.st_size
-        ext = file_ext(filename)
-        inode_key = (st.st_dev, st.st_ino)
-        is_new = inode_key not in seen_inodes
-        if is_new:
-            seen_inodes.add(inode_key)
+        info = _stat_file(directory / filename, filename, seen_inodes)
+        formats.add(info)
+        category = _classify_ext(info.ext)
+        if category in by_category:
+            by_category[category].add(info)
 
-        format_apparent[ext] += size
-        format_count[ext] += 1
-
-        if ext in IMG_EXTENSIONS:
-            img_apparent += size
-            img_count += 1
-            if is_new:
-                img_on_disk += size
-                format_on_disk[ext] += size
-        elif ext in VID_EXTENSIONS:
-            vid_apparent += size
-            vid_count += 1
-            if is_new:
-                vid_on_disk += size
-                format_on_disk[ext] += size
-        elif ext in SIDECAR_EXTENSIONS:
-            sc_apparent += size
-            sc_count += 1
-            if is_new:
-                sc_on_disk += size
-                format_on_disk[ext] += size
-        else:
-            if is_new:
-                format_on_disk[ext] += size
-
-    by_format = tuple(
-        FormatStats(
-            extension=ext,
-            file_count=format_count[ext],
-            apparent_bytes=amt,
-            on_disk_bytes=format_on_disk[ext],
-            archive_bytes=0,
-            derived_bytes=0,
-        )
-        for ext, amt in sorted(format_apparent.items(), key=lambda kv: -kv[1])
-    )
     return (
-        SizeStats(
-            file_count=img_count, apparent_bytes=img_apparent, on_disk_bytes=img_on_disk
-        ),
-        SizeStats(
-            file_count=vid_count, apparent_bytes=vid_apparent, on_disk_bytes=vid_on_disk
-        ),
-        SizeStats(
-            file_count=sc_count, apparent_bytes=sc_apparent, on_disk_bytes=sc_on_disk
-        ),
-        by_format,
+        by_category["img"].to_size_stats(),
+        by_category["vid"].to_size_stats(),
+        by_category["sidecar"].to_size_stats(),
+        formats.to_format_stats(),
     )
+
+
+# ---------------------------------------------------------------------------
+# Format role tagging
+# ---------------------------------------------------------------------------
 
 
 def tag_format_role(
@@ -132,6 +193,11 @@ def tag_format_role(
             )
         case _:
             return fmts
+
+
+# ---------------------------------------------------------------------------
+# Unique media counting
+# ---------------------------------------------------------------------------
 
 
 def count_unique_pictures(
