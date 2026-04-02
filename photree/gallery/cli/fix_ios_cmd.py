@@ -10,20 +10,14 @@ import typer
 from . import gallery_app
 from ...clicommons.options import (
     DRY_RUN_OPTION,
-    LINK_MODE_OPTION,
     MV_MISCATEGORIZED_OPTION,
     PREFER_HIGHER_QUALITY_OPTION,
-    REFRESH_BROWSABLE_OPTION,
-    REFRESH_JPEG_OPTION,
     RM_MISCATEGORIZED_OPTION,
     RM_MISCATEGORIZED_SAFE_OPTION,
-    RM_ORPHAN_OPTION,
     RM_ORPHAN_SIDECAR_OPTION,
-    RM_UPSTREAM_OPTION,
 )
 from ...album.ios_fixes import FixIosValidationError, validate_fix_flags
 from ...albums.cli.batch_ops import resolve_batch_albums, run_batch_fix_ios
-from ...fs import resolve_link_mode
 from .ops import resolve_gallery_or_exit
 
 
@@ -40,11 +34,6 @@ def fix_ios_cmd(
             resolve_path=True,
         ),
     ] = None,
-    link_mode: LINK_MODE_OPTION = None,
-    refresh_browsable: REFRESH_BROWSABLE_OPTION = False,
-    refresh_jpeg: REFRESH_JPEG_OPTION = False,
-    rm_upstream: RM_UPSTREAM_OPTION = False,
-    rm_orphan: RM_ORPHAN_OPTION = False,
     prefer_higher_quality_when_dups: PREFER_HIGHER_QUALITY_OPTION = False,
     rm_orphan_sidecar: RM_ORPHAN_SIDECAR_OPTION = False,
     rm_miscategorized: RM_MISCATEGORIZED_OPTION = False,
@@ -55,10 +44,6 @@ def fix_ios_cmd(
     """Apply fix-ios to all iOS albums in the gallery."""
     try:
         validate_fix_flags(
-            refresh_browsable=refresh_browsable,
-            refresh_jpeg=refresh_jpeg,
-            rm_upstream=rm_upstream,
-            rm_orphan=rm_orphan,
             rm_orphan_sidecar=rm_orphan_sidecar,
             prefer_higher_quality_when_dups=prefer_higher_quality_when_dups,
             rm_miscategorized=rm_miscategorized,
@@ -73,12 +58,7 @@ def fix_ios_cmd(
     run_batch_fix_ios(
         albums,
         display_base,
-        link_mode=resolve_link_mode(link_mode, resolved),
         dry_run=dry_run,
-        refresh_browsable=refresh_browsable,
-        refresh_jpeg=refresh_jpeg,
-        rm_upstream=rm_upstream,
-        rm_orphan=rm_orphan,
         rm_orphan_sidecar=rm_orphan_sidecar,
         prefer_higher_quality_when_dups=prefer_higher_quality_when_dups,
         rm_miscategorized=rm_miscategorized,

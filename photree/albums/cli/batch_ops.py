@@ -403,7 +403,11 @@ def run_batch_fix(
     *,
     fix_id: bool = False,
     new_id: bool = False,
+    link_mode: LinkMode = LinkMode.HARDLINK,
+    refresh_browsable: bool = False,
     refresh_jpeg: bool = False,
+    rm_upstream: bool = False,
+    rm_orphan: bool = False,
     dry_run: bool = False,
 ) -> None:
     """Shared implementation for gallery fix / albums fix."""
@@ -416,11 +420,14 @@ def run_batch_fix(
     if display_base is not None:
         typer.echo(f"\nFound {len(albums)} album(s).\n")
 
+    any_archive_op = refresh_browsable or refresh_jpeg or rm_upstream or rm_orphan
+
     progress = BatchProgressBar(
         total=len(albums), description="Fixing", done_description="fix"
     )
     fixed = 0
     failed_albums: list[Path] = []
+    album_reports: list[tuple[str, str]] = []
 
     for album_dir in albums:
         album_name = display_name(album_dir, display_base, cwd)
@@ -431,11 +438,20 @@ def run_batch_fix(
             if needs_id and not dry_run:
                 save_album_metadata(album_dir, AlbumMetadata(id=generate_album_id()))
 
-            if refresh_jpeg:
-                sources = discover_media_sources(album_dir)
-                for ms in sources:
-                    if (album_dir / ms.img_dir).is_dir():
-                        album_fixes.refresh_jpeg(album_dir, ms, dry_run=dry_run)
+            if any_archive_op:
+                result = album_fixes.run_fix(
+                    album_dir,
+                    link_mode=link_mode,
+                    dry_run=dry_run,
+                    log_cwd=cwd,
+                    refresh_browsable_flag=refresh_browsable,
+                    refresh_jpeg_flag=refresh_jpeg,
+                    rm_upstream_flag=rm_upstream,
+                    rm_orphan_flag=rm_orphan,
+                )
+                lines = album_output.format_fix_result(result)
+                if lines:
+                    album_reports.append((album_name, "\n".join(lines)))
 
             progress.on_end(album_name, success=True)
             fixed += 1
@@ -445,7 +461,13 @@ def run_batch_fix(
 
     progress.stop()
 
-    typer.echo(f"\nDone. {fixed} album(s) fixed, {len(failed_albums)} failed.")
+    if album_reports:
+        typer.echo("")
+        for album_name, report in album_reports:
+            typer.echo(f"{album_name}:")
+            typer.echo(report, color=True)
+
+    console.print(album_output.batch_fix_summary(fixed, len(failed_albums)))
 
     if failed_albums:
         err_console.print("\nFailed albums:")
@@ -531,12 +553,7 @@ def run_batch_fix_ios(
     albums: list[Path],
     display_base: Path | None,
     *,
-    link_mode: LinkMode,
     dry_run: bool = False,
-    refresh_browsable: bool = False,
-    refresh_jpeg: bool = False,
-    rm_upstream: bool = False,
-    rm_orphan: bool = False,
     rm_orphan_sidecar: bool = False,
     prefer_higher_quality_when_dups: bool = False,
     rm_miscategorized: bool = False,
@@ -567,13 +584,8 @@ def run_batch_fix_ios(
         try:
             result = run_fix_ios(
                 album_dir,
-                link_mode=link_mode,
                 dry_run=dry_run,
                 log_cwd=cwd,
-                refresh_browsable_flag=refresh_browsable,
-                refresh_jpeg_flag=refresh_jpeg,
-                rm_upstream=rm_upstream,
-                rm_orphan=rm_orphan,
                 rm_orphan_sidecar=rm_orphan_sidecar,
                 prefer_higher_quality_when_dups=prefer_higher_quality_when_dups,
                 rm_miscategorized=rm_miscategorized,

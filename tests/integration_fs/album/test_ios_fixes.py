@@ -2,14 +2,16 @@
 
 from pathlib import Path
 
+from photree.album.fixes import (
+    rm_orphan,
+    rm_upstream,
+)
 from photree.album.ios_fixes import (
     mv_miscategorized,
     prefer_higher_quality_when_dups,
     rm_miscategorized,
     rm_miscategorized_safe,
-    rm_orphan,
     rm_orphan_sidecar,
-    rm_upstream,
 )
 from photree.fs import MAIN_MEDIA_SOURCE
 

@@ -13,11 +13,16 @@ from .. import (
     fixes as album_fixes,
     output as album_output,
 )
+from ..fixes import FixValidationError
 from ...clicommons.options import (
     DRY_RUN_OPTION,
+    LINK_MODE_OPTION,
+    REFRESH_BROWSABLE_OPTION,
     REFRESH_JPEG_OPTION,
+    RM_ORPHAN_OPTION,
+    RM_UPSTREAM_OPTION,
 )
-from ...clicommons.progress import FileProgressBar
+from ...clicommons.progress import FileProgressBar, StageProgressBar
 from ...fs import (
     AlbumMetadata,
     discover_media_sources,
@@ -25,6 +30,7 @@ from ...fs import (
     generate_album_id,
     list_files,
     load_album_metadata,
+    resolve_link_mode,
     save_album_metadata,
 )
 
@@ -56,7 +62,11 @@ def fix_cmd(
             help="Regenerate album ID (replaces existing ID).",
         ),
     ] = False,
+    link_mode: LINK_MODE_OPTION = None,
+    refresh_browsable: REFRESH_BROWSABLE_OPTION = False,
     refresh_jpeg: REFRESH_JPEG_OPTION = False,
+    rm_upstream: RM_UPSTREAM_OPTION = False,
+    rm_orphan: RM_ORPHAN_OPTION = False,
     dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """Fix album issues. Works on all media source types (iOS + std).
@@ -66,16 +76,35 @@ def fix_cmd(
 
     --new-id: Regenerates the album ID, replacing any existing one.
 
-    --refresh-jpeg: Deletes all files in {msutor}-jpg/ and re-converts
-    every file from {msutor}-img/. HEIC/HEIF/DNG files are converted
+    --refresh-browsable: Deletes {name}-img/, {name}-vid/, and
+    {name}-jpg/, then rebuilds {name}-img and {name}-vid from
+    orig/edit sources. If {name}-img/ is created, also regenerates
+    {name}-jpg/ via HEIC->JPEG conversion.
+
+    --refresh-jpeg: Deletes all files in {name}-jpg/ and re-converts
+    every file from {name}-img/. HEIC/HEIF/DNG files are converted
     via sips; JPEG/PNG files are copied as-is.
+
+    --rm-upstream: Propagates deletions from browsing directories to
+    upstream directories.
+
+    --rm-orphan: Deletes edited and main files whose key has no
+    corresponding original file in orig-img/ or orig-vid/.
     """
-    if not fix_id and not new_id and not refresh_jpeg:
-        typer.echo(
-            "No fix specified. Run photree album fix --help for available fixes.",
-            err=True,
+    cwd = Path.cwd()
+
+    try:
+        album_fixes.validate_fix_flags(
+            fix_id=fix_id,
+            new_id=new_id,
+            refresh_browsable=refresh_browsable,
+            refresh_jpeg=refresh_jpeg,
+            rm_upstream=rm_upstream,
+            rm_orphan=rm_orphan,
         )
-        raise typer.Exit(code=1)
+    except FixValidationError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
 
     if fix_id or new_id:
         metadata = load_album_metadata(album_dir)
@@ -91,45 +120,68 @@ def fix_cmd(
                     f"Generated album ID: {format_album_external_id(generated_id)}"
                 )
 
-    if refresh_jpeg:
-        _check_sips_or_exit()
-        media_sources = discover_media_sources(album_dir)
-        if not media_sources:
-            typer.echo("No media_sources found in this album.", err=True)
-            raise typer.Exit(code=1)
+    any_archive_op = refresh_browsable or refresh_jpeg or rm_upstream or rm_orphan
+    if not any_archive_op:
+        return
 
+    if refresh_browsable or refresh_jpeg:
+        _check_sips_or_exit()
+
+    stage_progress = (
+        StageProgressBar(
+            total=4,
+            labels={
+                "delete": "Deleting main directories",
+                "refresh-heic": "Rebuilding main-img",
+                "refresh-mov": "Rebuilding main-vid",
+                "refresh-jpeg": "Converting HEIC to JPEG",
+            },
+        )
+        if refresh_browsable
+        else None
+    )
+
+    file_count = 0
+    if refresh_jpeg:
+        media_sources = discover_media_sources(album_dir)
         file_count = sum(
             len(list_files(album_dir / c.img_dir))
             for c in media_sources
             if (album_dir / c.img_dir).is_dir()
         )
-        progress = FileProgressBar(
+    file_progress = (
+        FileProgressBar(
             total=file_count,
             description="Converting JPEG",
             done_description="convert-jpeg",
         )
-        total_converted = 0
-        total_copied = 0
-        total_skipped = 0
-        for ms in media_sources:
-            if not (album_dir / ms.img_dir).is_dir():
-                continue
-            prefix = f"{ms.img_dir}/"
-            result = album_fixes.refresh_jpeg(
-                album_dir,
-                ms,
-                dry_run=dry_run,
-                on_file_start=lambda name, p=prefix: progress.on_start(f"{p}{name}"),
-                on_file_end=lambda name, ok, p=prefix: progress.on_end(
-                    f"{p}{name}", ok
-                ),
-            )
-            total_converted += result.converted
-            total_copied += result.copied
-            total_skipped += result.skipped
-        progress.stop()
-        typer.echo(
-            album_output.refresh_jpeg_summary(
-                total_converted, total_copied, total_skipped
-            )
-        )
+        if refresh_jpeg
+        else None
+    )
+
+    result = album_fixes.run_fix(
+        album_dir,
+        link_mode=resolve_link_mode(link_mode, album_dir),
+        dry_run=dry_run,
+        log_cwd=cwd,
+        refresh_browsable_flag=refresh_browsable,
+        refresh_jpeg_flag=refresh_jpeg,
+        rm_upstream_flag=rm_upstream,
+        rm_orphan_flag=rm_orphan,
+        on_refresh_browsable_stage_start=stage_progress.on_start
+        if stage_progress
+        else None,
+        on_refresh_browsable_stage_end=stage_progress.on_end
+        if stage_progress
+        else None,
+        on_refresh_jpeg_file_start=file_progress.on_start if file_progress else None,
+        on_refresh_jpeg_file_end=file_progress.on_end if file_progress else None,
+    )
+
+    if stage_progress:
+        stage_progress.stop()
+    if file_progress:
+        file_progress.stop()
+
+    for line in album_output.format_fix_result(result):
+        typer.echo(line)

@@ -16,7 +16,7 @@ def suggest_fixes(
     integrity: IosAlbumIntegrityResult,
     album_dir_flag: str,
 ) -> list[str]:
-    """Suggest fix-ios commands based on integrity check failures."""
+    """Suggest fix commands based on integrity check failures."""
     heic = integrity.browsable_heic
     mov = integrity.browsable_mov
     jpeg = integrity.jpeg
@@ -42,7 +42,7 @@ def suggest_fixes(
         *(
             [
                 dedent(f"""\
-                    photree album fix-ios {album_dir_flag} --refresh-browsable --dry-run
+                    photree album fix {album_dir_flag} --refresh-browsable --dry-run
                       Rebuild main-img/ and main-vid/ from orig/edited sources,
                       then regenerate main-jpg/. Use when main files are missing,
                       corrupted, or out of sync with their sources.""")
@@ -53,11 +53,11 @@ def suggest_fixes(
         *(
             [
                 dedent(f"""\
-                    photree album fix-ios {album_dir_flag} --refresh-jpeg --dry-run
+                    photree album fix {album_dir_flag} --refresh-jpeg --dry-run
                       Regenerate main-jpg/ from main-img/. Use when JPEG files
                       are missing but main-img/ is correct.
 
-                    photree album fix-ios {album_dir_flag} --rm-upstream --dry-run
+                    photree album fix {album_dir_flag} --rm-upstream --dry-run
                       Alternatively, if you intentionally deleted files from main-jpg/,
                       propagate those deletions to main-img/, edit-img/, and orig-img/.""")
             ]
@@ -67,7 +67,7 @@ def suggest_fixes(
         *(
             [
                 dedent(f"""\
-                    photree album fix-ios {album_dir_flag} --rm-orphan --dry-run
+                    photree album fix {album_dir_flag} --rm-orphan --dry-run
                       Remove edited and main files that have no corresponding orig file.
                       Use when extra files appear in main directories that don't belong.""")
             ]
@@ -119,8 +119,6 @@ def suggest_exif_fixes(
         date = m.timestamp.split("T")[0] if "T" in m.timestamp else "unknown"
         by_date[date].append(m)
 
-    has_ios = any(m.is_ios for m in mismatches)
-
     def _expand_date(d: str) -> str:
         """Expand a partial or range date to YYYY-MM-DD for exiftool."""
         # For ranges, use the start date
@@ -164,18 +162,9 @@ def suggest_exif_fixes(
         )
 
         rebuild_lines = [
-            *(
-                [
-                    "# rebuild: recreate main dirs from archival + regenerate JPEGs",
-                    f"photree album optimize --album-dir {_sh(album_dir)}",
-                    f"photree album fix-ios --album-dir {_sh(album_dir)} --refresh-jpeg",
-                ]
-                if has_ios
-                else [
-                    "# rebuild: regenerate JPEGs from source",
-                    f"photree album fix --album-dir {_sh(album_dir)} --refresh-jpeg",
-                ]
-            ),
+            "# rebuild: recreate main dirs from archival + regenerate JPEGs",
+            f"photree album optimize --album-dir {_sh(album_dir)}",
+            f"photree album fix --album-dir {_sh(album_dir)} --refresh-jpeg",
         ]
 
         move_rm_lines = [
