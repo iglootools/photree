@@ -19,7 +19,7 @@ def suggest_fixes(
     """Suggest fix commands based on integrity check failures."""
     heic = integrity.browsable_img
     mov = integrity.browsable_vid
-    jpeg = integrity.jpeg
+    jpeg = integrity.browsable_jpg
 
     has_browsable_issues = (
         heic.missing

@@ -40,7 +40,9 @@ INTEGRITY_OK = IosAlbumIntegrityResult(
         size_mismatches=(),
         checksum_mismatches=(),
     ),
-    jpeg=JpegCheck(present=("IMG_E0001.jpg", "IMG_0002.PNG"), missing=(), extra=()),
+    browsable_jpg=JpegCheck(
+        present=("IMG_E0001.jpg", "IMG_0002.PNG"), missing=(), extra=()
+    ),
     sidecars=SidecarCheck(missing_sidecars=(), orphan_sidecars=()),
 )
 
@@ -65,7 +67,7 @@ INTEGRITY_FAILURES = IosAlbumIntegrityResult(
         size_mismatches=(),
         checksum_mismatches=(),
     ),
-    jpeg=JpegCheck(
+    browsable_jpg=JpegCheck(
         present=(),
         missing=("IMG_E0001.jpg",),
         extra=("ORPHAN.jpg",),

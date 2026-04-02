@@ -258,7 +258,7 @@ def _format_media_source_integrity(
         [
             format_browsable_dir_check(f"{p}main-img", result.browsable_img),
             format_browsable_dir_check(f"{p}main-vid", result.browsable_vid),
-            format_jpeg_check(result.jpeg, f"{p}main-jpg"),
+            format_jpeg_check(result.browsable_jpg, f"{p}main-jpg"),
             sidecar_line,
             duplicate_line,
             miscategorized_line,
