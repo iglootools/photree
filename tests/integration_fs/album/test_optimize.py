@@ -4,10 +4,8 @@ import os
 from pathlib import Path
 
 from photree.album.optimize import OptimizeResult, optimize_album
-from photree.fs import (
-    MAIN_MEDIA_SOURCE,
-    LinkMode,
-)
+from photree.album.store.protocol import MAIN_MEDIA_SOURCE
+from photree.fsprotocol import LinkMode
 
 
 def _write(path: Path, content: str = "data") -> None:

@@ -6,12 +6,9 @@ from photree.album.exporter.batch import (
     discover_albums,
     run_batch_export,
 )
-from photree.fs import (
-    MAIN_MEDIA_SOURCE,
-    AlbumShareLayout,
-    LinkMode,
-    ShareDirectoryLayout,
-)
+from photree.album.exporter.protocol import AlbumShareLayout, ShareDirectoryLayout
+from photree.album.store.protocol import MAIN_MEDIA_SOURCE
+from photree.fsprotocol import LinkMode
 
 
 def _setup_dir(path: Path, filenames: list[str]) -> Path:

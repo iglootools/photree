@@ -9,11 +9,11 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from photree.cli import app
-from photree.fs import (
+from photree.album.store.fs import save_album_metadata
+from photree.album.store.protocol import (
     AlbumMetadata,
     format_album_external_id,
     generate_album_id,
-    save_album_metadata,
 )
 
 runner = CliRunner()

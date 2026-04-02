@@ -20,15 +20,15 @@ from photree.album.stats import (
     compute_media_source_stats,
     gallery_stats_from_album_stats,
 )
-from photree.fs import (
+from photree.album.store.fs import save_album_metadata
+from photree.album.store.protocol import (
     AlbumMetadata,
     MAIN_MEDIA_SOURCE,
     MediaSourceType,
-    PHOTREE_DIR,
     generate_album_id,
     std_media_source,
-    save_album_metadata,
 )
+from photree.fsprotocol import PHOTREE_DIR
 
 
 # ---------------------------------------------------------------------------

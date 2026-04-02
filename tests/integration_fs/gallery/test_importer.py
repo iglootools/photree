@@ -7,15 +7,11 @@ from pathlib import Path
 import pytest
 
 from photree.album.jpeg import noop_convert_single
-from photree.fs import (
-    AlbumMetadata,
-    GalleryMetadata,
-    LinkMode,
-    generate_album_id,
-    load_album_metadata,
-    save_album_metadata,
-    save_gallery_metadata,
-)
+from photree.album.store.fs import load_album_metadata, save_album_metadata
+from photree.album.store.protocol import AlbumMetadata, generate_album_id
+from photree.fsprotocol import LinkMode
+from photree.gallery.store.fs import save_gallery_metadata
+from photree.gallery.store.protocol import GalleryMetadata
 from photree.gallery.importer import (
     compute_target_dir,
     import_album,

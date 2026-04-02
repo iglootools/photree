@@ -8,14 +8,9 @@ from photree.album.exporter.single import (
     compute_target_dir,
     export_album,
 )
-from photree.fs import (
-    MAIN_MEDIA_SOURCE,
-    PHOTREE_DIR,
-    AlbumShareLayout,
-    LinkMode,
-    ShareDirectoryLayout,
-    parse_album_year,
-)
+from photree.album.exporter.protocol import AlbumShareLayout, ShareDirectoryLayout
+from photree.album.store.protocol import MAIN_MEDIA_SOURCE, parse_album_year
+from photree.fsprotocol import LinkMode, PHOTREE_DIR
 
 
 def _setup_dir(path: Path, filenames: list[str]) -> Path:

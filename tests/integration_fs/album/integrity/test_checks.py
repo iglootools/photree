@@ -10,10 +10,7 @@ from photree.album.integrity import (
     check_sidecars,
     check_miscategorized_files,
 )
-from photree.fs import (
-    MAIN_MEDIA_SOURCE,
-    IMG_EXTENSIONS,
-)
+from photree.album.store.protocol import IMG_EXTENSIONS, MAIN_MEDIA_SOURCE
 
 
 def _write(path: Path, content: str = "data") -> None:

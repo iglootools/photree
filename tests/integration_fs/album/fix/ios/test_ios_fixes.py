@@ -13,7 +13,7 @@ from photree.album.fix.ios import (
     rm_miscategorized_safe,
     rm_orphan_sidecar,
 )
-from photree.fs import MAIN_MEDIA_SOURCE
+from photree.album.store.protocol import MAIN_MEDIA_SOURCE
 
 MC = MAIN_MEDIA_SOURCE
 

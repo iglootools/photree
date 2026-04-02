@@ -18,17 +18,14 @@ from photree.album.preflight import (
     run_album_preflight,
 )
 from photree.album.exporter.single import compute_target_dir, export_album
-from photree.fs import (
-    ALBUM_YAML,
+from photree.album.exporter.protocol import (
     AlbumShareLayout,
-    MAIN_MEDIA_SOURCE,
-    PHOTREE_DIR,
     SHARE_SENTINEL,
-    LinkMode,
     ShareDirectoryLayout,
-    is_album,
-    load_album_metadata,
 )
+from photree.album.store.fs import is_album, load_album_metadata
+from photree.album.store.protocol import ALBUM_YAML, MAIN_MEDIA_SOURCE
+from photree.fsprotocol import LinkMode, PHOTREE_DIR
 from photree.album.importer.image_capture import run_import
 from photree.album.importer.testkit import seed_demo
 

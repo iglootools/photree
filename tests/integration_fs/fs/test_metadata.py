@@ -9,27 +9,31 @@ import pytest
 import yaml
 
 from photree.common.base58 import base58_decode, base58_encode
-from photree.fs import (
-    ALBUM_YAML,
-    AlbumMetadata,
-    GalleryMetadata,
-    LinkMode,
-    PHOTREE_DIR,
+from photree.album.store.fs import (
     discover_albums,
     discover_potential_albums,
-    format_album_external_id,
-    format_external_id,
-    generate_album_id,
     has_media_sources,
     is_album,
     load_album_metadata,
+    save_album_metadata,
+)
+from photree.album.store.protocol import (
+    ALBUM_YAML,
+    AlbumMetadata,
+    format_album_external_id,
+    format_external_id,
+    generate_album_id,
     parse_external_id,
+)
+from photree.fsprotocol import LinkMode, PHOTREE_DIR
+from photree.gallery.store.fs import (
+    load_gallery_metadata,
     resolve_gallery_dir,
     resolve_gallery_metadata,
     resolve_link_mode,
-    save_album_metadata,
     save_gallery_metadata,
 )
+from photree.gallery.store.protocol import GalleryMetadata
 
 
 def _write(path: Path, content: str = "data") -> None:
@@ -153,8 +157,6 @@ class TestGalleryMetadata:
                 sort_keys=False,
             )
         )
-
-        from photree.fs import load_gallery_metadata
 
         loaded = load_gallery_metadata(path)
         assert loaded.link_mode == LinkMode.SYMLINK
