@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ...common.fs import list_files
-from ..store.fs import discover_media_sources
+from ..store.media_sources_discovery import discover_media_sources
 from ..store.media_sources import ios_dedup_media_dict as dedup_media_dict
 from ..store.protocol import (
     CONVERT_TO_JPEG_EXTENSIONS,

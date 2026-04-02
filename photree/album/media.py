@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..common.fs import delete_files, file_ext, move_files
-from .store.fs import discover_media_sources
+from .store.media_sources_discovery import discover_media_sources
 from .store.media_sources import find_files_by_key
 from .store.protocol import VID_EXTENSIONS, MediaSource
 

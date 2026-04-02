@@ -24,7 +24,7 @@ from .. import (
     preflight as album_preflight,
 )
 from ..preflight import output as preflight_output
-from ..store.fs import discover_media_sources
+from ..store.media_sources_discovery import discover_media_sources
 from ..store.protocol import IMG_EXTENSIONS, VID_EXTENSIONS
 from . import album_app
 

@@ -120,7 +120,7 @@ def run_fix_ios(
     and returns aggregated results. The caller handles output formatting
     and progress bars via the optional callbacks.
     """
-    from ...store.fs import discover_media_sources
+    from ...store.media_sources_discovery import discover_media_sources
 
     media_sources = [c for c in discover_media_sources(album_dir) if c.is_ios]
 

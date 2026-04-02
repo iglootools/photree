@@ -23,11 +23,11 @@ from ..naming import (
     check_exif_date_match,
     parse_album_name,
 )
-from ..store.fs import (
+from ..store.album_discovery import (
     discover_albums,  # noqa: F401 — re-exported for backward compat
-    discover_media_sources,
-    load_album_metadata,
 )
+from ..store.media_sources_discovery import discover_media_sources
+from ..store.metadata import load_album_metadata
 from ..store.protocol import MAIN_MEDIA_SOURCE, MediaSource
 
 

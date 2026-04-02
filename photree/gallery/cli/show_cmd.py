@@ -8,7 +8,7 @@ from typing import Annotated, Optional
 import typer
 
 from . import gallery_app
-from ...album.store.fs import discover_albums
+from ...album.store.album_discovery import discover_albums
 from ...common.fs import display_path
 from ...fsprotocol import PHOTREE_DIR
 from ...gallery.store.fs import load_gallery_metadata

@@ -140,7 +140,7 @@ def run_fix(
     operations, and returns aggregated results. Works for both iOS and
     std media sources.
     """
-    from ..store.fs import discover_media_sources
+    from ..store.media_sources_discovery import discover_media_sources
 
     # Include media sources that have an archive dir on disk
     media_sources = [
