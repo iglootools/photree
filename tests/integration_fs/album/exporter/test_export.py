@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from photree.album.exporter.export import (
+from photree.album.exporter.single import (
     compute_target_dir,
     export_album,
 )

@@ -3,7 +3,7 @@
 from pathlib import Path
 
 from photree.fs import SELECTION_DIR
-from photree.album.importer.image_capture_batch import (
+from photree.album.importer.batch import (
     categorize_albums,
     run_batch_import,
     scan_albums,

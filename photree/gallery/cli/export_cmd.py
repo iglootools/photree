@@ -8,7 +8,7 @@ from typing import Annotated, Optional
 import typer
 
 from . import gallery_app
-from ...album.exporter import export_batch as _export_batch
+from ...album.exporter import batch as _batch
 from ...album.exporter import output as _export_output
 from ...clihelpers.options import (
     ALBUM_LAYOUT_OPTION,
@@ -94,7 +94,7 @@ def export_cmd(
     albums = (
         list(album_dirs)
         if album_dirs is not None
-        else _export_batch.discover_albums(resolved_base)  # type: ignore[arg-type]
+        else _batch.discover_albums(resolved_base)  # type: ignore[arg-type]
     )
 
     if not albums:
@@ -105,7 +105,7 @@ def export_cmd(
         total=len(albums), description="Exporting", done_description="export"
     )
 
-    result = _export_batch.run_batch_export(
+    result = _batch.run_batch_export(
         base_dir=resolved_base,
         album_dirs=album_dirs,
         share_dir=settings.share_dir,

@@ -8,7 +8,7 @@ from typing import Annotated
 import typer
 
 from . import album_app
-from .. import media_ops
+from .. import media
 from ...clihelpers.console import err_console
 from ...fs import display_path
 
@@ -53,12 +53,10 @@ def rm_media_cmd(
 
     cwd = Path.cwd()
     try:
-        result = media_ops.rm_media(album_dir, files, dry_run=dry_run)
+        result = media.rm_media(album_dir, files, dry_run=dry_run)
     except ValueError as exc:
         err_console.print(str(exc))
         raise typer.Exit(code=1) from None
 
-    typer.echo(media_ops.media_op_summary("Removed", result.files_by_dir))
-    typer.echo(
-        media_ops.media_op_check_suggestions([str(display_path(album_dir, cwd))])
-    )
+    typer.echo(media.media_op_summary("Removed", result.files_by_dir))
+    typer.echo(media.media_op_check_suggestions([str(display_path(album_dir, cwd))]))

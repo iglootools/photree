@@ -35,9 +35,9 @@ from ..cmd_handler.validate_import import (
     TargetExistsError,
     validate_single_import,
 )
-from ..cmd_handler.single_import import run_single_import as _run_single_import
-from ..cmd_handler.batch_import import run_batch_import as _run_batch_import
-from ..cmd_handler.batch_post_import_check import (
+from ..cmd_handler.importer import run_single_import as _run_single_import
+from ..cmd_handler.importer import run_batch_import as _run_batch_import
+from ..cmd_handler.post_import_check import (
     run_batch_post_import_check as _run_batch_post_import_check,
 )
 from ...clihelpers.console import console, err_console
