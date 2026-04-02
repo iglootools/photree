@@ -20,12 +20,10 @@ from ...clihelpers.options import (
 from ...clihelpers.progress import SilentProgressBar
 from ...common.fs import count_unique_media_numbers, display_path
 from .. import (
+    check as album_preflight,
     naming as album_naming,
 )
-from .. import (
-    preflight as album_preflight,
-)
-from ..preflight import output as preflight_output
+from ..check import output as preflight_output
 from ..store.album_discovery import discover_albums
 from ..store.media_sources_discovery import discover_media_sources
 from ..store.protocol import IMG_EXTENSIONS, VID_EXTENSIONS

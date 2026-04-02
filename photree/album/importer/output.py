@@ -107,7 +107,7 @@ def image_capture_dir_check_output(
 
 def format_preflight_checks(result: ImportPreflightResult) -> str:
     """Format all preflight check lines from a result."""
-    from ..preflight.output import sips_check
+    from ..check.output import sips_check
 
     return "\n".join(
         [
@@ -149,7 +149,7 @@ def format_preflight_checks(result: ImportPreflightResult) -> str:
 
 def format_preflight_troubleshoot(result: ImportPreflightResult) -> str | None:
     """Format troubleshooting info for failed checks. Returns None if no failures."""
-    from ..preflight.output import sips_troubleshoot
+    from ..check.output import sips_troubleshoot
 
     lines = [
         *([sips_troubleshoot()] if result.sips_available is False else []),

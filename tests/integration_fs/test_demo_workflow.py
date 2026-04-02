@@ -9,14 +9,14 @@ import os
 import shutil
 from pathlib import Path
 
-from photree.album.integrity import check_ios_album_integrity
-from photree.album.jpeg import convert_single_file, copy_convert_single
-from photree.album.optimize import optimize_album
-from photree.album.preflight import (
+from photree.album.check import (
     AlbumType,
     detect_album_type,
     run_album_preflight,
 )
+from photree.album.check.ios import check_ios_album_integrity
+from photree.album.jpeg import convert_single_file, copy_convert_single
+from photree.album.optimize import optimize_album
 from photree.album.exporter.single import compute_target_dir, export_album
 from photree.album.exporter.protocol import (
     AlbumShareLayout,

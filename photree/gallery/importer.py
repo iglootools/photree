@@ -16,7 +16,7 @@ import itertools
 
 from ..album import fix as album_fixes
 from ..album import optimize as album_optimize
-from ..album.integrity import check_album_jpeg_integrity, check_ios_album_integrity
+from ..album.check import check_album_jpeg_integrity, check_ios_album_integrity
 from ..album.jpeg import convert_single_file
 from ..album.store.media_sources_discovery import discover_media_sources
 from ..album.store.metadata import load_album_metadata, save_album_metadata

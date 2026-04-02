@@ -1,15 +1,15 @@
-"""Tests for photree.album.integrity module."""
+"""Tests for photree.album.check module."""
 
 import os
 from pathlib import Path
 
-from photree.album.integrity import (
-    check_browsable_dir,
+from photree.album.check.browsable import check_browsable_dir
+from photree.album.check.ios import (
     check_ios_album_integrity,
-    check_jpeg_dir,
-    check_sidecars,
     check_miscategorized_files,
 )
+from photree.album.check.jpeg import check_jpeg_dir
+from photree.album.check.sidecar import check_sidecars
 from photree.album.store.protocol import IMG_EXTENSIONS, MAIN_MEDIA_SOURCE
 
 

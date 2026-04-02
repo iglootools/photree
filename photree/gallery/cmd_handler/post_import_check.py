@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-from ...album import preflight as album_preflight
+from ...album import check as album_preflight
 from ...common.exif import try_start_exiftool
 
 

@@ -12,10 +12,10 @@ from pathlib import Path
 import typer
 
 from ...album import (
-    preflight as album_preflight,
+    check as album_preflight,
 )
-from ...album.preflight import output as preflight_output
-from ...album.preflight.output import format_naming_checks
+from ...album.check import output as preflight_output
+from ...album.check.output import format_naming_checks
 from ...album.store.metadata import load_album_metadata
 from ...album.store.protocol import format_album_external_id
 from ...common.fs import display_path

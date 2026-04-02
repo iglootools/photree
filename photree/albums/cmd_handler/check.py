@@ -9,8 +9,8 @@ from pathlib import Path
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ...album import (
+    check as album_preflight,
     naming as album_naming,
-    preflight as album_preflight,
 )
 from ...album.naming import BatchNamingResult
 from ...album.store.protocol import format_album_external_id

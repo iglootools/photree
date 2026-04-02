@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import typer
 
-from ...album import preflight as album_preflight
-from ...album.preflight import output as preflight_output
+from ...album import check as album_preflight
+from ...album.check import output as preflight_output
 from ...clihelpers.console import console, err_console
 from . import check_app
 
