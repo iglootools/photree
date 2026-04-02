@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ...gallery import plan_renames_from_csv
-from ...gallery.batch_rename import (
+from ...gallery.renamer import (
     RenameAction,
     check_rename_collisions,
     execute_renames,

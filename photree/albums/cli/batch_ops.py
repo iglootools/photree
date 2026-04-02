@@ -34,13 +34,13 @@ from ...fs import (
 from ...fs import discover_potential_albums
 from ...clihelpers.console import console, err_console
 from ...clihelpers.progress import BatchProgressBar
-from ..cmd_handler.batch_init import batch_init
-from ..cmd_handler.batch_check import batch_check
-from ..cmd_handler.batch_fix import batch_fix
-from ..cmd_handler.batch_optimize import batch_optimize
-from ..cmd_handler.batch_fix_ios import batch_fix_ios
-from ..cmd_handler.batch_stats import batch_stats
-from ..cmd_handler.batch_rename import batch_rename_from_csv
+from ..cmd_handler.init import batch_init
+from ..cmd_handler.check import batch_check
+from ..cmd_handler.fix import batch_fix
+from ..cmd_handler.optimize import batch_optimize
+from ..cmd_handler.fix_ios import batch_fix_ios
+from ..cmd_handler.stats import batch_stats
+from ..cmd_handler.rename import batch_rename_from_csv
 
 
 def display_name(album_dir: Path, base_dir: Path | None, cwd: Path) -> str:
@@ -570,7 +570,7 @@ def run_batch_rename_from_csv(
     dry_run: bool = False,
 ) -> None:
     """Shared implementation for gallery rename-from-csv / albums rename-from-csv."""
-    from ...gallery.batch_rename import RenameCollisionError
+    from ...gallery.renamer import RenameCollisionError
 
     cwd = Path.cwd()
 

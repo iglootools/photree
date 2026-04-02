@@ -12,7 +12,7 @@ from ...fs import (
     ShareDirectoryLayout,
     discover_albums as discover_photree_albums,
 )
-from .export import compute_target_dir, export_album
+from .single import compute_target_dir, export_album
 
 
 @dataclass

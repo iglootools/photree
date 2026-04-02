@@ -8,7 +8,7 @@ from typing import Annotated, Optional
 import typer
 
 from . import albums_app
-from ...album.importer import image_capture_batch, output as importer_output
+from ...album.importer import batch, output as importer_output
 from ...album.jpeg import convert_single_file, noop_convert_single
 from ...fs import LinkMode, SELECTION_DIR
 from ...album.cli.helpers import _run_preflight_checks
@@ -133,7 +133,7 @@ def import_cmd(
         else (albums_dir if albums_dir is not None else Path(".").resolve())
     )
 
-    result = image_capture_batch.run_batch_import(
+    result = batch.run_batch_import(
         albums_dir=resolved_albums_dir,
         album_dirs=album_dirs,
         image_capture_dir=ic_dir,

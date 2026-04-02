@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from photree.album.exporter.export_batch import (
+from photree.album.exporter.batch import (
     discover_albums,
     run_batch_export,
 )

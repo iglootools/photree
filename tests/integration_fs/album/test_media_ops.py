@@ -1,10 +1,10 @@
-"""Tests for photree.album.media_ops module."""
+"""Tests for photree.album.media module."""
 
 from pathlib import Path
 
 import pytest
 
-from photree.album.media_ops import move_media, rm_media, resolve_variants
+from photree.album.media import move_media, rm_media, resolve_variants
 from photree.fs import (
     AlbumMetadata,
     MAIN_MEDIA_SOURCE,

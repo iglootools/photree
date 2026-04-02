@@ -1,6 +1,6 @@
 """Gallery-level operations: album ID indexing, path lookups, and import."""
 
-from .batch_rename import RenameAction, plan_renames_from_csv
+from .renamer import RenameAction, plan_renames_from_csv
 from .index import (
     AlbumIndex,
     MissingAlbumIdError,
