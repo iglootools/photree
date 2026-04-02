@@ -11,7 +11,7 @@ from photree.config import (
     find_config_file,
     load_config,
 )
-from photree.album.exporter.protocol import AlbumShareLayout, ShareDirectoryLayout
+from photree.fsprotocol import AlbumShareLayout, ShareDirectoryLayout
 from photree.fsprotocol import LinkMode
 
 

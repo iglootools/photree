@@ -7,7 +7,7 @@ from typing import Annotated, Optional
 
 import typer
 
-from ..album.exporter.protocol import AlbumShareLayout, ShareDirectoryLayout
+from ..fsprotocol import AlbumShareLayout, ShareDirectoryLayout
 from ..fsprotocol import LinkMode
 
 # ---------------------------------------------------------------------------

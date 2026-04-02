@@ -1,23 +1,7 @@
-"""Exporter protocol — enums for share/export layouts."""
+"""Exporter protocol — re-exports from fsprotocol."""
 
-from __future__ import annotations
-
-from enum import StrEnum
-
-
-class AlbumShareLayout(StrEnum):
-    """How an album is exported."""
-
-    MAIN_JPG = "main-jpg"
-    MAIN = "main"
-    ALL = "all"
-
-
-class ShareDirectoryLayout(StrEnum):
-    """How albums are organized within the share directory."""
-
-    FLAT = "flat"
-    ALBUMS = "albums"
-
-
-SHARE_SENTINEL = ".photree-share"
+from ...fsprotocol import (  # noqa: F401
+    SHARE_SENTINEL,
+    AlbumShareLayout,
+    ShareDirectoryLayout,
+)
