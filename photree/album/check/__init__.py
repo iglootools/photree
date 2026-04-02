@@ -110,29 +110,42 @@ class AlbumPreflightResult:
 
     @property
     def warning_labels(self) -> tuple[str, ...]:
-        labels: list[str] = []
-        if self.has_sidecar_warnings:
-            labels.append("missing sidecars")
-        if self.has_exif_warnings:
-            labels.append("exif date mismatch")
-        return tuple(labels)
+        return tuple(
+            [
+                *(["missing sidecars"] if self.has_sidecar_warnings else []),
+                *(["exif date mismatch"] if self.has_exif_warnings else []),
+            ]
+        )
 
     @property
     def error_labels(self) -> tuple[str, ...]:
-        labels: list[str] = []
-        if not self.sips_available:
-            labels.append("sips not found")
-        if not self.dir_check.success:
-            labels.append("missing dirs")
-        if self.album_id_check is not None and not self.album_id_check.has_id:
-            labels.append("missing album id")
-        if self.ios_integrity is not None and not self.ios_integrity.success:
-            labels.append("integrity errors")
-        if self.jpeg_check is not None and not self.jpeg_check.success:
-            labels.append("jpeg errors")
-        if self.naming is not None and not self.naming.success:
-            labels.append("naming errors")
-        return tuple(labels)
+        return tuple(
+            [
+                *(["sips not found"] if not self.sips_available else []),
+                *(["missing dirs"] if not self.dir_check.success else []),
+                *(
+                    ["missing album id"]
+                    if self.album_id_check is not None
+                    and not self.album_id_check.has_id
+                    else []
+                ),
+                *(
+                    ["integrity errors"]
+                    if self.ios_integrity is not None and not self.ios_integrity.success
+                    else []
+                ),
+                *(
+                    ["jpeg errors"]
+                    if self.jpeg_check is not None and not self.jpeg_check.success
+                    else []
+                ),
+                *(
+                    ["naming errors"]
+                    if self.naming is not None and not self.naming.success
+                    else []
+                ),
+            ]
+        )
 
     def has_fatal_warnings(self, *, fatal_sidecar: bool, fatal_exif: bool) -> bool:
         return (fatal_sidecar and self.has_sidecar_warnings) or (
@@ -143,23 +156,39 @@ class AlbumPreflightResult:
         self, *, fatal_sidecar: bool, fatal_exif: bool
     ) -> tuple[str, ...]:
         """Warning labels that are promoted to errors by fatal flags."""
-        labels: list[str] = []
-        if fatal_sidecar and self.has_sidecar_warnings:
-            labels.append("missing sidecars")
-        if fatal_exif and self.has_exif_warnings:
-            labels.append("exif date mismatch")
-        return tuple(labels)
+        return tuple(
+            [
+                *(
+                    ["missing sidecars"]
+                    if fatal_sidecar and self.has_sidecar_warnings
+                    else []
+                ),
+                *(
+                    ["exif date mismatch"]
+                    if fatal_exif and self.has_exif_warnings
+                    else []
+                ),
+            ]
+        )
 
     def non_fatal_warning_labels(
         self, *, fatal_sidecar: bool, fatal_exif: bool
     ) -> tuple[str, ...]:
         """Warning labels that remain warnings (not promoted by fatal flags)."""
-        labels: list[str] = []
-        if not fatal_sidecar and self.has_sidecar_warnings:
-            labels.append("missing sidecars")
-        if not fatal_exif and self.has_exif_warnings:
-            labels.append("exif date mismatch")
-        return tuple(labels)
+        return tuple(
+            [
+                *(
+                    ["missing sidecars"]
+                    if not fatal_sidecar and self.has_sidecar_warnings
+                    else []
+                ),
+                *(
+                    ["exif date mismatch"]
+                    if not fatal_exif and self.has_exif_warnings
+                    else []
+                ),
+            ]
+        )
 
 
 def run_album_check(
