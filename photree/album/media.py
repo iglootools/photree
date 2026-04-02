@@ -10,16 +10,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..fs import (
-    VID_EXTENSIONS,
-    MediaSource,
-    delete_files,
-    discover_media_sources,
-    file_ext,
-    move_files,
-)
-from ..fs.media import find_files_by_key
-
+from ..common.fs import delete_files, file_ext, move_files
+from .store.fs import discover_media_sources
+from .store.media_sources import find_files_by_key
+from .store.protocol import VID_EXTENSIONS, MediaSource
 
 # ---------------------------------------------------------------------------
 # Data structures

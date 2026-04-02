@@ -8,7 +8,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from ...fs import MediaSourceType
+from ..store.protocol import MediaSourceType
 from . import (
     AggregateStats,
     AlbumStats,
@@ -16,7 +16,6 @@ from . import (
     MediaSourceStats,
     YearStats,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

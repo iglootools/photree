@@ -16,7 +16,6 @@ from pathlib import Path
 from ...common.fs import file_ext, list_files
 from .protocol import PICTURE_PRIORITY_EXTENSIONS
 
-
 # ---------------------------------------------------------------------------
 # Generic (key-function-parameterized) utilities
 # ---------------------------------------------------------------------------

@@ -6,13 +6,13 @@ from pathlib import Path
 from textwrap import dedent
 
 from ...common.formatting import CHECK, CROSS
-from ...fs import SELECTION_DIR
+from ..store.protocol import SELECTION_DIR
 from .image_capture import ValidationError
 from .preflight import (
+    _IMG_PREFIX_THRESHOLD,
     ImageCaptureDirCheck,
     ImportPreflightResult,
     SelectionDirStatus,
-    _IMG_PREFIX_THRESHOLD,
 )
 
 

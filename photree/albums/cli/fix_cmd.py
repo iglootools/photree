@@ -17,7 +17,7 @@ from ...clihelpers.options import (
     RM_ORPHAN_OPTION,
     RM_UPSTREAM_OPTION,
 )
-from ...fs import LinkMode
+from ...fsprotocol import LinkMode
 from .batch_ops import resolve_check_batch_albums, run_batch_fix
 
 

@@ -16,13 +16,11 @@ from ...album import (
 )
 from ...album.preflight import output as preflight_output
 from ...album.preflight.output import format_naming_checks
-from ...fs import (
-    LinkMode,
-    display_path,
-    format_album_external_id,
-    load_album_metadata,
-    resolve_gallery_dir,
-)
+from ...album.store.fs import load_album_metadata
+from ...album.store.protocol import format_album_external_id
+from ...common.fs import display_path
+from ...fsprotocol import LinkMode
+from ...gallery.store.fs import resolve_gallery_dir
 from .. import (
     AlbumIndex,
     MissingAlbumIdError,

@@ -7,12 +7,6 @@ from typing import Annotated
 
 import typer
 
-from . import album_app
-from .. import (
-    naming as album_naming,
-    preflight as album_preflight,
-)
-from ..preflight import output as preflight_output
 from ...clihelpers.console import console, err_console
 from ...clihelpers.options import (
     CHECK_DATE_PART_COLLISION_OPTION,
@@ -24,14 +18,17 @@ from ...clihelpers.options import (
     FATAL_WARNINGS_OPTION,
 )
 from ...clihelpers.progress import SilentProgressBar
-from ...fs import (
-    IMG_EXTENSIONS,
-    VID_EXTENSIONS,
-    count_unique_media_numbers,
-    discover_albums,
-    discover_media_sources,
-    display_path,
+from ...common.fs import count_unique_media_numbers, display_path
+from .. import (
+    naming as album_naming,
 )
+from .. import (
+    preflight as album_preflight,
+)
+from ..preflight import output as preflight_output
+from ..store.fs import discover_albums, discover_media_sources
+from ..store.protocol import IMG_EXTENSIONS, VID_EXTENSIONS
+from . import album_app
 
 
 @album_app.command("check")

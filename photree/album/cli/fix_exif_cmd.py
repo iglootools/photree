@@ -7,10 +7,10 @@ from typing import Annotated
 
 import typer
 
-from . import album_app
-from .. import exif as album_exif
-from ...common import exif as common_exif
 from ...clihelpers.console import err_console
+from ...common import exif as common_exif
+from .. import exif as album_exif
+from . import album_app
 
 
 @album_app.command("fix-exif")
@@ -94,7 +94,7 @@ def fix_exif_cmd(
 
     from ...clihelpers.console import console, log_action
     from ...common.formatting import CHECK
-    from ...fs import display_path
+    from ...common.fs import display_path
 
     if set_date is not None:
         updated, changes = album_exif.set_exif_date(file_paths, set_date)

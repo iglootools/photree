@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from . import AlbumDirOption, DirOption, albums_app
-from ...fs import LinkMode
+from ...fsprotocol import LinkMode
 from ...clihelpers.options import (
     CHECK_BEFORE_OPTION,
     CHECKSUM_OPTION,

@@ -18,7 +18,7 @@ from ...clihelpers.options import (
     SHARE_DIR_OPTION,
     SHARE_LAYOUT_OPTION,
 )
-from ...fs import display_path
+from ...common.fs import display_path
 
 
 @gallery_app.command("export")

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..album.naming import ParsedAlbumName, parse_album_name, reconstruct_name
-from ..fs import ALBUM_ID_PREFIX, parse_external_id
+from ..album.store.protocol import ALBUM_ID_PREFIX, parse_external_id
 
 
 @dataclass(frozen=True)

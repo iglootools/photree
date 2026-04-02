@@ -5,14 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from ...fs import (
-    IMG_EXTENSIONS,
-    MediaSource,
-    VID_EXTENSIONS,
-    delete_files,
-    list_files,
-)
-from ...fs.protocol import _KeyFn
+from ...common.fs import delete_files, list_files
+from ..store.protocol import IMG_EXTENSIONS, VID_EXTENSIONS, MediaSource, _KeyFn
 from .helpers import _require_archive
 
 
@@ -22,7 +16,7 @@ def _extract_keys(
     key_fn: _KeyFn,
 ) -> set[str]:
     """Return the set of keys present in an orig directory."""
-    from ...fs import file_ext
+    from ...common.fs import file_ext
 
     return {key_fn(f) for f in list_files(directory) if file_ext(f) in media_extensions}
 

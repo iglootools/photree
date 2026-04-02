@@ -10,7 +10,8 @@ import typer
 from . import albums_app
 from ...album.importer import batch, output as importer_output
 from ...album.jpeg import convert_single_file, noop_convert_single
-from ...fs import LinkMode, SELECTION_DIR
+from ...album.store.protocol import SELECTION_DIR
+from ...fsprotocol import LinkMode
 from ...album.cli.helpers import _run_preflight_checks
 
 

@@ -8,13 +8,9 @@ from pathlib import Path
 
 from ...album import fix as album_fixes
 from ...album.fix.output import format_fix_result
-from ...fs import (
-    AlbumMetadata,
-    LinkMode,
-    generate_album_id,
-    load_album_metadata,
-    save_album_metadata,
-)
+from ...album.store.fs import load_album_metadata, save_album_metadata
+from ...album.store.protocol import AlbumMetadata, generate_album_id
+from ...fsprotocol import LinkMode
 
 
 @dataclass(frozen=True)

@@ -31,13 +31,13 @@ graph TD
     album --> clihelpers
     album --> common
     album --> config
-    album --> fs
     album --> fsprotocol
+    album --> gallery
     albums --> album
     albums --> clihelpers
     albums --> common
     albums --> config
-    albums --> fs
+    albums --> fsprotocol
     albums --> gallery
     check --> album
     check --> clihelpers
@@ -46,9 +46,11 @@ graph TD
     cli --> check
     cli --> demo
     cli --> gallery
+    clihelpers --> album
     clihelpers --> common
-    clihelpers --> fs
-    config --> fs
+    clihelpers --> fsprotocol
+    config --> album
+    config --> fsprotocol
     demo --> album
     fs --> album
     fs --> common
@@ -59,5 +61,6 @@ graph TD
     gallery --> common
     gallery --> config
     gallery --> fs
+    gallery --> fsprotocol
 ```
 <!-- END MODULE OVERVIEW -->

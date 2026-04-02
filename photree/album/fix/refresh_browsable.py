@@ -6,16 +6,12 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from ...fsprotocol import LinkMode
 from .. import browsable as browsable_module
 from .. import jpeg
 from ..browsable import RefreshBrowsableDirResult
 from ..jpeg import RefreshResult, convert_single_file
-from ...fs import (
-    IMG_EXTENSIONS,
-    MediaSource,
-    LinkMode,
-    VID_EXTENSIONS,
-)
+from ..store.protocol import IMG_EXTENSIONS, VID_EXTENSIONS, MediaSource
 from .helpers import _delete_dir, _require_archive
 
 

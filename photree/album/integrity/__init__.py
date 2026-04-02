@@ -16,16 +16,16 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from ...fs import (
+from ...common.fs import list_files
+from ..store.fs import discover_media_sources
+from ..store.media_sources import ios_dedup_media_dict as dedup_media_dict
+from ..store.protocol import (
     CONVERT_TO_JPEG_EXTENSIONS,
     COPY_AS_IS_TO_JPEG_EXTENSIONS,
-    MediaSource,
     IOS_IMG_EXTENSIONS,
     IOS_VID_EXTENSIONS,
     SIDECAR_EXTENSIONS,
-    dedup_media_dict,
-    discover_media_sources,
-    list_files,
+    MediaSource,
 )
 
 

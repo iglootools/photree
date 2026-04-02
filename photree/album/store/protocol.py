@@ -16,7 +16,6 @@ from uuid6 import uuid7
 from ...common.base58 import base58_decode, base58_encode
 from ...fsprotocol import _BaseModel
 
-
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------

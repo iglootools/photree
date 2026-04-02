@@ -8,13 +8,6 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ...fs import (
-    MediaSource,
-    MAIN_MEDIA_SOURCE,
-    discover_albums,  # noqa: F401 — re-exported for backward compat
-    discover_media_sources,
-    load_album_metadata,
-)
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ...common.exif import try_start_exiftool
@@ -30,6 +23,12 @@ from ..naming import (
     check_exif_date_match,
     parse_album_name,
 )
+from ..store.fs import (
+    discover_albums,  # noqa: F401 — re-exported for backward compat
+    discover_media_sources,
+    load_album_metadata,
+)
+from ..store.protocol import MAIN_MEDIA_SOURCE, MediaSource
 
 
 def check_sips_available() -> bool:

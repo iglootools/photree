@@ -6,12 +6,9 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ...fs import (
-    AlbumShareLayout,
-    LinkMode,
-    ShareDirectoryLayout,
-    discover_albums as discover_photree_albums,
-)
+from ...fsprotocol import LinkMode
+from ..exporter.protocol import AlbumShareLayout, ShareDirectoryLayout
+from ..store.fs import discover_albums as discover_photree_albums
 from .single import compute_target_dir, export_album
 
 

@@ -7,14 +7,11 @@ from typing import Annotated
 
 import typer
 
-from . import album_app
+from ...common.fs import display_path
 from ..naming import parse_album_name
-from ...fs import (
-    discover_media_sources,
-    display_path,
-    format_album_external_id,
-    load_album_metadata,
-)
+from ..store.fs import discover_media_sources, load_album_metadata
+from ..store.protocol import format_album_external_id
+from . import album_app
 
 
 @album_app.command("show")

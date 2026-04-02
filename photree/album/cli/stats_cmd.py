@@ -7,10 +7,10 @@ from typing import Annotated
 
 import typer
 
-from . import album_app
+from ...clihelpers.console import console, err_console
 from .. import stats as album_stats
 from ..stats import output as stats_output
-from ...clihelpers.console import console, err_console
+from . import album_app
 
 
 @album_app.command("stats")

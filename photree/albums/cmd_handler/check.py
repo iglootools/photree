@@ -13,7 +13,7 @@ from ...album import (
     preflight as album_preflight,
 )
 from ...album.naming import BatchNamingResult
-from ...fs import format_album_external_id
+from ...album.store.protocol import format_album_external_id
 from ...gallery.index import find_duplicate_album_ids
 
 
