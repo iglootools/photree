@@ -16,14 +16,13 @@ from photree.album.store.album_discovery import (
     is_album,
 )
 from photree.album.store.metadata import load_album_metadata, save_album_metadata
-from photree.album.store.protocol import (
-    ALBUM_YAML,
-    AlbumMetadata,
+from photree.album.id import (
     format_album_external_id,
     format_external_id,
     generate_album_id,
     parse_external_id,
 )
+from photree.album.store.protocol import ALBUM_YAML, AlbumMetadata
 from photree.fsprotocol import LinkMode, PHOTREE_DIR
 from photree.fsprotocol import load_gallery_metadata, save_gallery_metadata
 from photree.fsprotocol import (

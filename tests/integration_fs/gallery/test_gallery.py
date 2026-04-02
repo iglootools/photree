@@ -7,11 +7,8 @@ from pathlib import Path
 import pytest
 
 from photree.album.store.metadata import save_album_metadata
-from photree.album.store.protocol import (
-    AlbumMetadata,
-    format_album_external_id,
-    generate_album_id,
-)
+from photree.album.id import format_album_external_id, generate_album_id
+from photree.album.store.protocol import AlbumMetadata
 from photree.albums.index import (
     MissingAlbumIdError,
     build_album_index,

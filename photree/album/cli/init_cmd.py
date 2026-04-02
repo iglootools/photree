@@ -10,12 +10,8 @@ import typer
 from ...common.fs import display_path
 from ...fsprotocol import PHOTREE_DIR
 from ..store.metadata import load_album_metadata, save_album_metadata
-from ..store.protocol import (
-    ALBUM_YAML,
-    AlbumMetadata,
-    format_album_external_id,
-    generate_album_id,
-)
+from ..id import format_album_external_id, generate_album_id
+from ..store.protocol import ALBUM_YAML, AlbumMetadata
 from . import album_app
 
 

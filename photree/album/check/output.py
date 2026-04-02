@@ -8,7 +8,7 @@ from rich.markup import escape
 
 from ...common.formatting import CHECK, CROSS, WARNING
 from ..naming import AlbumNamingResult, BatchNamingResult
-from ..store.protocol import format_album_external_id
+from ..id import format_album_external_id
 from . import AlbumIntegrityResult, AlbumMediaSourceSummary, AlbumPreflightResult
 from .browsable import BrowsableDirCheck
 from .ios import IosMediaSourceIntegrityResult

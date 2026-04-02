@@ -10,11 +10,8 @@ from typer.testing import CliRunner
 
 from photree.cli import app
 from photree.album.store.metadata import save_album_metadata
-from photree.album.store.protocol import (
-    AlbumMetadata,
-    format_album_external_id,
-    generate_album_id,
-)
+from photree.album.id import format_album_external_id, generate_album_id
+from photree.album.store.protocol import AlbumMetadata
 
 runner = CliRunner()
 

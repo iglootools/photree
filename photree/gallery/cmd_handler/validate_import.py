@@ -10,7 +10,7 @@ from ...album.naming import (
     parse_album_name,
 )
 from ...album.store.metadata import load_album_metadata
-from ...album.store.protocol import format_album_external_id
+from ...album.id import format_album_external_id
 from .. import AlbumIndex
 from ..importer import compute_target_dir
 

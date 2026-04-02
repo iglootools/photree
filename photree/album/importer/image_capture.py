@@ -18,6 +18,7 @@ from .. import browsable
 from ..jpeg import convert_single_file, refresh_jpeg_dir
 from ..store.metadata import save_album_metadata
 from ..store.media_sources import pick_media_priority
+from ..id import generate_album_id
 from ..store.protocol import (
     ALBUM_YAML,
     DEFAULT_MEDIA_SOURCE,
@@ -26,7 +27,6 @@ from ..store.protocol import (
     SELECTION_DIR,
     IOS_SIDECAR_EXTENSIONS,
     AlbumMetadata,
-    generate_album_id,
     ios_media_source,
 )
 

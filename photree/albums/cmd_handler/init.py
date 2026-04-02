@@ -7,11 +7,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from ...album.store.metadata import load_album_metadata, save_album_metadata
-from ...album.store.protocol import (
-    AlbumMetadata,
-    format_album_external_id,
-    generate_album_id,
-)
+from ...album.id import format_album_external_id, generate_album_id
+from ...album.store.protocol import AlbumMetadata
 
 
 @dataclass(frozen=True)
