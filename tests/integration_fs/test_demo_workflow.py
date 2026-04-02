@@ -11,7 +11,7 @@ from pathlib import Path
 
 from photree.album.check import run_album_preflight
 from photree.album.store.media_sources_discovery import discover_media_sources
-from photree.album.check.ios import check_ios_album_integrity
+from photree.album.check import check_album_integrity
 from photree.album.jpeg import convert_single_file, copy_convert_single
 from photree.album.optimize import optimize_album
 from photree.album.exporter.single import compute_target_dir, export_album
@@ -125,8 +125,8 @@ class TestDemoWorkflow:
 
         assert preflight.media_source_summary.has_ios
         assert preflight.dir_check.success
-        assert preflight.ios_integrity is not None
-        assert preflight.ios_integrity.success
+        assert preflight.integrity is not None
+        assert preflight.integrity.success
 
         # ── Optimize (symlinks) ──────────────────────────────
         optimize_album(album_dir, link_mode=LinkMode.SYMLINK)
@@ -147,7 +147,7 @@ class TestDemoWorkflow:
             assert not p.is_symlink(), f"{name} in main-jpg should not be a symlink"
 
         # Integrity still passes after optimization
-        integrity_after = check_ios_album_integrity(album_dir, checksum=True)
+        integrity_after = check_album_integrity(album_dir, checksum=True)
         assert integrity_after.success
 
         # ── Export (main-jpg) ─────────────────────────────────

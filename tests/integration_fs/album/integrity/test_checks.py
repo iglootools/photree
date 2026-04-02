@@ -4,10 +4,8 @@ import os
 from pathlib import Path
 
 from photree.album.check.browsable import check_browsable_dir
-from photree.album.check.ios import (
-    check_ios_album_integrity,
-    check_miscategorized_files,
-)
+from photree.album.check import check_album_integrity
+from photree.album.check.ios import check_miscategorized_files
 from photree.album.check.jpeg import check_jpeg_dir
 from photree.album.check.ios.sidecar import check_sidecars
 from photree.album.store.protocol import IMG_EXTENSIONS, MAIN_MEDIA_SOURCE
@@ -417,7 +415,7 @@ class TestCheckIosAlbumIntegrity:
         album = tmp_path / "album"
         _setup_ios_album(album)
 
-        result = check_ios_album_integrity(album, checksum=True)
+        result = check_album_integrity(album, checksum=True)
         assert result.success
 
     def test_calls_on_file_checked(self, tmp_path: Path) -> None:
@@ -425,7 +423,7 @@ class TestCheckIosAlbumIntegrity:
         _setup_ios_album(album)
 
         checked: list[tuple[str, bool]] = []
-        check_ios_album_integrity(
+        check_album_integrity(
             album,
             checksum=False,
             on_file_checked=lambda f, ok: checked.append((f, ok)),

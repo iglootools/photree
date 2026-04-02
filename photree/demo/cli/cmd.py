@@ -18,8 +18,8 @@ from ...album.fix.output import (
 from ...album.check import output as preflight_output
 from ...album.check.output import format_integrity_checks
 from ...album.check.testkit import (
-    FULL_INTEGRITY_FAILURES,
-    FULL_INTEGRITY_OK,
+    INTEGRITY_FAILURES,
+    INTEGRITY_OK,
     PREFLIGHT_FAILURES,
     PREFLIGHT_OK,
     PREFLIGHT_STD,
@@ -154,12 +154,12 @@ def output_cmd() -> None:
 
     _panel(
         "integrity_output.format_integrity_checks (all ok)",
-        format_integrity_checks(FULL_INTEGRITY_OK),
+        format_integrity_checks(INTEGRITY_OK),
     )
 
     _panel(
         "integrity_output.format_integrity_checks (failures)",
-        format_integrity_checks(FULL_INTEGRITY_FAILURES),
+        format_integrity_checks(INTEGRITY_FAILURES),
     )
 
     _panel(

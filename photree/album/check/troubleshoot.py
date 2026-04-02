@@ -9,11 +9,11 @@ from textwrap import dedent, indent
 from rich.markup import escape
 
 from ..naming import ExifMismatch
-from .ios import IosAlbumIntegrityResult
+from .ios import IosMediaSourceIntegrityResult
 
 
 def suggest_fixes(
-    integrity: IosAlbumIntegrityResult,
+    integrity: IosMediaSourceIntegrityResult,
     album_dir_flag: str,
 ) -> list[str]:
     """Suggest fix commands based on integrity check failures."""

@@ -9,12 +9,9 @@ from rich.markup import escape
 from ...common.formatting import CHECK, CROSS, WARNING
 from ..naming import AlbumNamingResult, BatchNamingResult
 from ..store.protocol import format_album_external_id
-from . import AlbumMediaSourceSummary, AlbumPreflightResult
+from . import AlbumIntegrityResult, AlbumMediaSourceSummary, AlbumPreflightResult
 from .browsable import BrowsableDirCheck
-from .ios import (
-    IosAlbumFullIntegrityResult,
-    IosAlbumIntegrityResult,
-)
+from .ios import IosMediaSourceIntegrityResult
 from .jpeg import AlbumJpegIntegrityResult, JpegCheck
 from .ios.sidecar import SidecarCheck
 from .troubleshoot import suggest_exif_fixes, suggest_fixes
@@ -235,13 +232,13 @@ def format_miscategorized(warnings: tuple[str, ...]) -> str | None:
         )
 
 
-def _format_media_source_integrity(
-    result: IosAlbumIntegrityResult,
+def _format_ios_media_source_integrity(
+    result: IosMediaSourceIntegrityResult,
     prefix: str = "",
     *,
     fatal_sidecar: bool = False,
 ) -> str:
-    """Format integrity checks for a single media source."""
+    """Format integrity checks for a single iOS media source."""
     p = f"{prefix} " if prefix else ""
     sidecar_line = format_sidecar_check(result.sidecars, fatal_sidecar=fatal_sidecar)
     duplicate_line = (
@@ -267,7 +264,7 @@ def _format_media_source_integrity(
 
 
 def format_integrity_checks(
-    result: IosAlbumFullIntegrityResult,
+    result: AlbumIntegrityResult,
     *,
     fatal_sidecar: bool = False,
 ) -> str:
@@ -277,14 +274,32 @@ def format_integrity_checks(
     Multiple media sources: each section prefixed with ``[name]``.
     """
     multi = len(result.by_media_source) > 1
-    return "\n".join(
-        _format_media_source_integrity(
-            ms_result,
-            prefix=f"[{ms.name}]" if multi else "",
-            fatal_sidecar=fatal_sidecar,
-        )
-        for ms, ms_result in result.by_media_source
-    )
+    lines: list[str] = []
+    for ms, ms_result in result.by_media_source:
+        prefix = f"[{ms.name}]" if multi else ""
+        p = f"{prefix} " if prefix else ""
+        if isinstance(ms_result, IosMediaSourceIntegrityResult):
+            lines.append(
+                _format_ios_media_source_integrity(
+                    ms_result, prefix=prefix, fatal_sidecar=fatal_sidecar
+                )
+            )
+        else:
+            # Std media source — browsable + jpeg checks, no sidecars
+            lines.append(
+                "\n".join(
+                    [
+                        format_browsable_dir_check(
+                            f"{p}{ms.img_dir}", ms_result.browsable_img
+                        ),
+                        format_browsable_dir_check(
+                            f"{p}{ms.vid_dir}", ms_result.browsable_vid
+                        ),
+                        format_jpeg_check(ms_result.browsable_jpg, f"{p}{ms.jpg_dir}"),
+                    ]
+                )
+            )
+    return "\n".join(lines)
 
 
 def format_jpeg_integrity_checks(result: AlbumJpegIntegrityResult) -> str:
@@ -339,9 +354,9 @@ def format_album_preflight_checks(
             ),
             *(
                 format_integrity_checks(
-                    result.ios_integrity, fatal_sidecar=fatal_sidecar
+                    result.integrity, fatal_sidecar=fatal_sidecar
                 ).splitlines()
-                if result.ios_integrity is not None
+                if result.integrity is not None
                 else []
             ),
             *(
@@ -369,8 +384,8 @@ def format_fatal_warnings(
     """Format the warnings that caused failure due to fatal-warning flags."""
     lines = ["Failed due to fatal warning flags:"]
 
-    if fatal_sidecar and result.ios_integrity is not None:
-        for _, contrib_result in result.ios_integrity.by_media_source:
+    if fatal_sidecar and result.integrity is not None:
+        for _, contrib_result in result.integrity.ios_results:
             lines.extend(
                 f"  {CROSS} sidecars: {w}"
                 for w in contrib_result.sidecars.missing_sidecars
@@ -397,9 +412,7 @@ def format_album_preflight_troubleshoot(
     all_suggestions = [
         suggestion
         for _, contrib_result in (
-            result.ios_integrity.by_media_source
-            if result.ios_integrity is not None
-            else ()
+            result.integrity.ios_results if result.integrity is not None else ()
         )
         for suggestion in suggest_fixes(contrib_result, album_dir_flag)
     ]
