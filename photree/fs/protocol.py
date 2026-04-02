@@ -2,6 +2,11 @@
 
 Canonical locations are now in domain store modules. This module
 re-exports everything for backward compatibility during migration.
+
+Note: GalleryMetadata and GALLERY_YAML are defined here temporarily
+to avoid circular imports (fs -> gallery -> album.naming -> fs).
+They will move to gallery.store.protocol once callers are migrated
+in Phase F.
 """
 
 from __future__ import annotations
@@ -57,7 +62,8 @@ from ..album.store.protocol import (  # noqa: F401
     std_media_source,
 )
 
-# Gallery protocol — will move to gallery.store.protocol in Phase E
+# Gallery protocol — defined here temporarily to avoid circular imports.
+# Will move to gallery.store.protocol once callers migrate off fs.
 GALLERY_YAML = "gallery.yaml"
 
 
