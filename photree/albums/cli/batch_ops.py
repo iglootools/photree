@@ -446,7 +446,6 @@ def run_batch_fix(
                     album_dir,
                     link_mode=link_mode,
                     dry_run=dry_run,
-                    log_cwd=cwd,
                     refresh_browsable_flag=refresh_browsable,
                     refresh_jpeg_flag=refresh_jpeg,
                     rm_upstream_flag=rm_upstream,
@@ -588,7 +587,6 @@ def run_batch_fix_ios(
             result = run_fix_ios(
                 album_dir,
                 dry_run=dry_run,
-                log_cwd=cwd,
                 rm_orphan_sidecar=rm_orphan_sidecar,
                 prefer_higher_quality_when_dups=prefer_higher_quality_when_dups,
                 rm_miscategorized=rm_miscategorized,

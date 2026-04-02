@@ -33,7 +33,6 @@ def optimize_album(
     *,
     link_mode: LinkMode = LinkMode.HARDLINK,
     dry_run: bool = False,
-    log_cwd: Path | None = None,
 ) -> OptimizeResult:
     """Recreate browsable image and video directories as links for all media sources.
 
@@ -60,7 +59,6 @@ def optimize_album(
             key_fn=ms.key_fn,
             link_mode=link_mode,
             dry_run=dry_run,
-            log_cwd=log_cwd,
         )
 
         mov_result = browsable_module.refresh_browsable_dir(
@@ -71,7 +69,6 @@ def optimize_album(
             key_fn=ms.key_fn,
             link_mode=link_mode,
             dry_run=dry_run,
-            log_cwd=log_cwd,
         )
 
         total_heic += heic_result.copied

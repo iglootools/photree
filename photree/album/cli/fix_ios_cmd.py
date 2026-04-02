@@ -67,8 +67,6 @@ def fix_ios_cmd(
     --mv-miscategorized: Moves files to the correct directory instead of
     deleting them (e.g. edited files from orig-img/ to edit-img/).
     """
-    cwd = Path.cwd()
-
     album_type = album_preflight.detect_album_type(album_dir)
     if album_type != album_preflight.AlbumType.IOS:
         typer.echo(
@@ -92,7 +90,6 @@ def fix_ios_cmd(
     result = run_fix_ios(
         album_dir,
         dry_run=dry_run,
-        log_cwd=cwd,
         rm_orphan_sidecar=rm_orphan_sidecar,
         prefer_higher_quality_when_dups=prefer_higher_quality_when_dups,
         rm_miscategorized=rm_miscategorized,

@@ -34,7 +34,6 @@ def refresh_browsable(
     *,
     link_mode: LinkMode = LinkMode.HARDLINK,
     dry_run: bool = False,
-    log_cwd: Path | None = None,
     convert_file: Callable[..., Path | None] = convert_single_file,
     on_stage_start: Callable[[str], None] | None = None,
     on_stage_end: Callable[[str], None] | None = None,
@@ -57,7 +56,7 @@ def refresh_browsable(
     if on_stage_start:
         on_stage_start("delete")
     for d in (browsable_img, browsable_vid, browsable_jpg):
-        _delete_dir(d, dry_run=dry_run, log_cwd=log_cwd)
+        _delete_dir(d, dry_run=dry_run)
     if on_stage_end:
         on_stage_end("delete")
 

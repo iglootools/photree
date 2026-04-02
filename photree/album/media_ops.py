@@ -185,7 +185,6 @@ def move_media(
     relative_paths: list[str],
     *,
     dry_run: bool = False,
-    log_cwd: Path | None = None,
 ) -> MediaOpResult:
     """Move media files and all their variants from *source_album* to *dest_album*."""
     variants = resolve_variants(source_album, relative_paths)
@@ -212,7 +211,6 @@ def move_media(
             dest_album / subdir,
             files,
             dry_run=dry_run,
-            log_cwd=log_cwd,
         )
         moved.append((subdir, tuple(files)))
 
@@ -225,7 +223,6 @@ def rm_media(
     relative_paths: list[str],
     *,
     dry_run: bool = False,
-    log_cwd: Path | None = None,
 ) -> MediaOpResult:
     """Remove media files and all their variants from *album_dir*."""
     variants = resolve_variants(album_dir, relative_paths)
@@ -236,7 +233,6 @@ def rm_media(
             album_dir / subdir,
             files,
             dry_run=dry_run,
-            log_cwd=log_cwd,
         )
         removed.append((subdir, tuple(files)))
 

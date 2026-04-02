@@ -60,9 +60,7 @@ def mv_media_cmd(
     """
     cwd = Path.cwd()
     try:
-        result = media_ops.move_media(
-            source_album, dest_album, files, dry_run=dry_run, log_cwd=cwd
-        )
+        result = media_ops.move_media(source_album, dest_album, files, dry_run=dry_run)
     except ValueError as exc:
         err_console.print(str(exc))
         raise typer.Exit(code=1) from None

@@ -46,7 +46,6 @@ graph TD
     cli --> gallery
     clihelpers --> common
     clihelpers --> fs
-    common --> fs
     config --> fs
     demo --> album
     fs --> common

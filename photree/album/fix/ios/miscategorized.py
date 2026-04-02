@@ -80,7 +80,6 @@ def _fix_miscategorized_pair(
     *,
     action: str,
     dry_run: bool,
-    log_cwd: Path | None,
 ) -> MiscategorizedDirResult:
     """Fix miscategorized files for one orig/edit pair.
 
@@ -94,11 +93,11 @@ def _fix_miscategorized_pair(
         orig_in_edit = _filter_safe(orig_in_edit, orig_dir)
 
     if action in ("rm", "rm-safe"):
-        delete_files(orig_dir, edited_in_orig, dry_run=dry_run, log_cwd=log_cwd)
-        delete_files(edit_dir, orig_in_edit, dry_run=dry_run, log_cwd=log_cwd)
+        delete_files(orig_dir, edited_in_orig, dry_run=dry_run)
+        delete_files(edit_dir, orig_in_edit, dry_run=dry_run)
     elif action == "mv":
-        move_files(orig_dir, edit_dir, edited_in_orig, dry_run=dry_run, log_cwd=log_cwd)
-        move_files(edit_dir, orig_dir, orig_in_edit, dry_run=dry_run, log_cwd=log_cwd)
+        move_files(orig_dir, edit_dir, edited_in_orig, dry_run=dry_run)
+        move_files(edit_dir, orig_dir, orig_in_edit, dry_run=dry_run)
 
     return MiscategorizedDirResult(
         fixed_from_orig=tuple(edited_in_orig),
@@ -111,7 +110,6 @@ def rm_miscategorized(
     ms: MediaSource,
     *,
     dry_run: bool = False,
-    log_cwd: Path | None = None,
 ) -> MiscategorizedResult:
     """Delete files that are in the wrong directory (edited in orig or vice versa)."""
     assert ms.is_ios, "ios_fixes operations require an iOS media source"
@@ -121,14 +119,12 @@ def rm_miscategorized(
             album_dir / ms.edit_img_dir,
             action="rm",
             dry_run=dry_run,
-            log_cwd=log_cwd,
         ),
         mov=_fix_miscategorized_pair(
             album_dir / ms.orig_vid_dir,
             album_dir / ms.edit_vid_dir,
             action="rm",
             dry_run=dry_run,
-            log_cwd=log_cwd,
         ),
     )
 
@@ -138,7 +134,6 @@ def rm_miscategorized_safe(
     ms: MediaSource,
     *,
     dry_run: bool = False,
-    log_cwd: Path | None = None,
 ) -> MiscategorizedResult:
     """Delete miscategorized files only if they already exist in the correct directory."""
     assert ms.is_ios, "ios_fixes operations require an iOS media source"
@@ -148,14 +143,12 @@ def rm_miscategorized_safe(
             album_dir / ms.edit_img_dir,
             action="rm-safe",
             dry_run=dry_run,
-            log_cwd=log_cwd,
         ),
         mov=_fix_miscategorized_pair(
             album_dir / ms.orig_vid_dir,
             album_dir / ms.edit_vid_dir,
             action="rm-safe",
             dry_run=dry_run,
-            log_cwd=log_cwd,
         ),
     )
 
@@ -165,7 +158,6 @@ def mv_miscategorized(
     ms: MediaSource,
     *,
     dry_run: bool = False,
-    log_cwd: Path | None = None,
 ) -> MiscategorizedResult:
     """Move files that are in the wrong directory to the correct one."""
     assert ms.is_ios, "ios_fixes operations require an iOS media source"
@@ -175,13 +167,11 @@ def mv_miscategorized(
             album_dir / ms.edit_img_dir,
             action="mv",
             dry_run=dry_run,
-            log_cwd=log_cwd,
         ),
         mov=_fix_miscategorized_pair(
             album_dir / ms.orig_vid_dir,
             album_dir / ms.edit_vid_dir,
             action="mv",
             dry_run=dry_run,
-            log_cwd=log_cwd,
         ),
     )

@@ -64,7 +64,6 @@ def _rm_upstream_heic(
     ms: MediaSource,
     *,
     dry_run: bool,
-    log_cwd: Path | None,
 ) -> RmUpstreamHeicResult:
     """Propagate image deletions through the full chain.
 
@@ -120,12 +119,10 @@ def _rm_upstream_heic(
     rendered_to_remove = find_files_by_key(keys_to_remove, edit_img_dir, key_fn)
     orig_to_remove = find_files_by_key(keys_to_remove, orig_img_dir, key_fn)
 
-    delete_files(browsable_jpg_dir, jpeg_to_remove, dry_run=dry_run, log_cwd=log_cwd)
-    delete_files(
-        browsable_img_dir, browsable_to_remove, dry_run=dry_run, log_cwd=log_cwd
-    )
-    delete_files(edit_img_dir, rendered_to_remove, dry_run=dry_run, log_cwd=log_cwd)
-    delete_files(orig_img_dir, orig_to_remove, dry_run=dry_run, log_cwd=log_cwd)
+    delete_files(browsable_jpg_dir, jpeg_to_remove, dry_run=dry_run)
+    delete_files(browsable_img_dir, browsable_to_remove, dry_run=dry_run)
+    delete_files(edit_img_dir, rendered_to_remove, dry_run=dry_run)
+    delete_files(orig_img_dir, orig_to_remove, dry_run=dry_run)
 
     return RmUpstreamHeicResult(
         removed_jpeg=tuple(jpeg_to_remove),
@@ -140,7 +137,6 @@ def _rm_upstream_mov(
     ms: MediaSource,
     *,
     dry_run: bool,
-    log_cwd: Path | None,
 ) -> RmUpstreamMovResult:
     """Propagate video deletions from browsable to archive.
 
@@ -167,8 +163,8 @@ def _rm_upstream_mov(
     edit_to_remove = find_files_by_key(keys_to_remove, edit_vid_dir, key_fn)
     orig_to_remove = find_files_by_key(keys_to_remove, orig_vid_dir, key_fn)
 
-    delete_files(edit_vid_dir, edit_to_remove, dry_run=dry_run, log_cwd=log_cwd)
-    delete_files(orig_vid_dir, orig_to_remove, dry_run=dry_run, log_cwd=log_cwd)
+    delete_files(edit_vid_dir, edit_to_remove, dry_run=dry_run)
+    delete_files(orig_vid_dir, orig_to_remove, dry_run=dry_run)
 
     return RmUpstreamMovResult(
         removed_rendered=tuple(edit_to_remove),
@@ -181,7 +177,6 @@ def rm_upstream(
     ms: MediaSource,
     *,
     dry_run: bool = False,
-    log_cwd: Path | None = None,
 ) -> RmUpstreamResult:
     """Propagate deletions from browsable dirs to archive dirs.
 
@@ -195,6 +190,6 @@ def rm_upstream(
     """
     _require_archive(album_dir, ms)
     return RmUpstreamResult(
-        heic=_rm_upstream_heic(album_dir, ms, dry_run=dry_run, log_cwd=log_cwd),
-        mov=_rm_upstream_mov(album_dir, ms, dry_run=dry_run, log_cwd=log_cwd),
+        heic=_rm_upstream_heic(album_dir, ms, dry_run=dry_run),
+        mov=_rm_upstream_mov(album_dir, ms, dry_run=dry_run),
     )

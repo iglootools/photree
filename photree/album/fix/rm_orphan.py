@@ -61,7 +61,6 @@ def _rm_orphans_in_dir(
     key_fn: _KeyFn,
     *,
     dry_run: bool,
-    log_cwd: Path | None,
 ) -> tuple[str, tuple[str, ...]] | None:
     """Remove orphan files from a single directory. Returns (dir_name, removed) or None."""
     if not directory.is_dir():
@@ -69,7 +68,7 @@ def _rm_orphans_in_dir(
     orphans = _find_orphan_files(orig_keys, directory, key_fn)
     if not orphans:
         return None
-    delete_files(directory, orphans, dry_run=dry_run, log_cwd=log_cwd)
+    delete_files(directory, orphans, dry_run=dry_run)
     return (directory.name, tuple(orphans))
 
 
@@ -79,18 +78,13 @@ def _rm_orphans_in_dirs(
     key_fn: _KeyFn,
     *,
     dry_run: bool,
-    log_cwd: Path | None,
 ) -> RmOrphanDirResult:
     """Remove files from directories whose key has no orig counterpart."""
     return RmOrphanDirResult(
         removed_by_dir=tuple(
             result
             for d in directories
-            if (
-                result := _rm_orphans_in_dir(
-                    orig_keys, d, key_fn, dry_run=dry_run, log_cwd=log_cwd
-                )
-            )
+            if (result := _rm_orphans_in_dir(orig_keys, d, key_fn, dry_run=dry_run))
             is not None
         )
     )
@@ -101,7 +95,6 @@ def rm_orphan(
     ms: MediaSource,
     *,
     dry_run: bool = False,
-    log_cwd: Path | None = None,
 ) -> RmOrphanResult:
     """Remove edited and browsable files that have no corresponding orig file.
 
@@ -129,7 +122,6 @@ def rm_orphan(
             ),
             key_fn,
             dry_run=dry_run,
-            log_cwd=log_cwd,
         ),
         mov=_rm_orphans_in_dirs(
             mov_keys,
@@ -139,6 +131,5 @@ def rm_orphan(
             ),
             key_fn,
             dry_run=dry_run,
-            log_cwd=log_cwd,
         ),
     )

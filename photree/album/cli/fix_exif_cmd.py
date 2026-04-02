@@ -92,14 +92,33 @@ def fix_exif_cmd(
     cwd = Path.cwd()
     file_paths = [Path(f) for f in files]
 
+    from ...clihelpers.console import console, log_action
+    from ...common.formatting import CHECK
+    from ...fs import display_path
+
     if set_date is not None:
-        updated = album_exif.set_exif_date(file_paths, set_date, log_cwd=cwd)
+        updated, changes = album_exif.set_exif_date(file_paths, set_date)
+        for change in changes:
+            console.print(
+                f"{CHECK} fix-exif {display_path(change.path, cwd)}: {change.original} -> {change.new_value}"
+            )
     elif set_date_time is not None:
-        updated = common_exif.set_exif_date_time(file_paths, set_date_time, log_cwd=cwd)
+        log = log_action()
+        for f in file_paths:
+            log(f"fix-exif {display_path(f, cwd)}: -> {set_date_time}")
+        updated = common_exif.set_exif_date_time(file_paths, set_date_time)
     elif shift_date is not None:
-        updated = common_exif.shift_exif_date(file_paths, shift_date, log_cwd=cwd)
+        log = log_action()
+        sign = "+" if shift_date >= 0 else ""
+        for f in file_paths:
+            log(f"fix-exif shift {sign}{shift_date}d {display_path(f, cwd)}")
+        updated = common_exif.shift_exif_date(file_paths, shift_date)
     else:
         assert shift_time is not None
-        updated = common_exif.shift_exif_time(file_paths, shift_time, log_cwd=cwd)
+        log = log_action()
+        sign = "+" if shift_time >= 0 else ""
+        for f in file_paths:
+            log(f"fix-exif shift {sign}{shift_time}h {display_path(f, cwd)}")
+        updated = common_exif.shift_exif_time(file_paths, shift_time)
 
     typer.echo(f"Done. {updated} file(s) updated.")

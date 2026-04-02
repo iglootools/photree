@@ -13,6 +13,7 @@ from pathlib import Path
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ..common.exif import (
+    ExifDateChange,
     read_exif_timestamps as _generic_read_timestamps,
     read_exif_timestamps_by_file as _generic_read_by_file,
     set_exif_date as _generic_set_date,
@@ -63,11 +64,9 @@ def read_exif_timestamps_by_file(
 def set_exif_date(
     files: list[Path],
     date: str,
-    *,
-    log_cwd: Path | None = None,
-) -> int:
+) -> tuple[int, tuple[ExifDateChange, ...]]:
     """Set the date portion of EXIF timestamps using the project's tag priority."""
-    return _generic_set_date(files, date, _TIMESTAMP_TAGS, log_cwd=log_cwd)
+    return _generic_set_date(files, date, _TIMESTAMP_TAGS)
 
 
 def read_album_min_timestamp(

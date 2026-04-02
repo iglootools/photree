@@ -126,7 +126,6 @@ def run_fix(
     *,
     link_mode: LinkMode,
     dry_run: bool,
-    log_cwd: Path | None = None,
     refresh_browsable_flag: bool = False,
     refresh_jpeg_flag: bool = False,
     rm_upstream_flag: bool = False,
@@ -197,7 +196,6 @@ def run_fix(
                 album_dir,
                 ms,
                 dry_run=dry_run,
-                log_cwd=log_cwd,
                 on_file_start=on_refresh_jpeg_file_start,
                 on_file_end=on_refresh_jpeg_file_end,
             )
@@ -218,7 +216,7 @@ def run_fix(
         total_mov_rendered = 0
         total_mov_orig = 0
         for ms in media_sources:
-            result_rm = rm_upstream(album_dir, ms, dry_run=dry_run, log_cwd=log_cwd)
+            result_rm = rm_upstream(album_dir, ms, dry_run=dry_run)
             total_heic_jpeg += len(result_rm.heic.removed_jpeg)
             total_heic_browsable += len(result_rm.heic.removed_browsable)
             total_heic_rendered += len(result_rm.heic.removed_rendered)
@@ -236,7 +234,7 @@ def run_fix(
 
     if rm_orphan_flag:
         for ms in media_sources:
-            result_orphan = rm_orphan(album_dir, ms, dry_run=dry_run, log_cwd=log_cwd)
+            result_orphan = rm_orphan(album_dir, ms, dry_run=dry_run)
             orphan_by_dir.extend(result_orphan.heic.removed_by_dir)
             orphan_by_dir.extend(result_orphan.mov.removed_by_dir)
 
