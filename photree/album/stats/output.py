@@ -9,7 +9,7 @@ from rich.table import Table
 from rich.text import Text
 
 from ..store.protocol import MediaSourceType
-from . import (
+from .models import (
     AggregateStats,
     AlbumStats,
     GalleryStats,

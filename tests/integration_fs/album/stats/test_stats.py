@@ -6,19 +6,18 @@ from pathlib import Path
 import pytest
 
 from photree.album.stats import (
-    AlbumStats,
-    FormatStats,
-    SizeStats,
-    _categorize_size_stats,
-    _count_unique_pictures,
-    _count_unique_videos,
     _extract_year,
-    _merge_format_stats,
-    _merge_size_stats,
-    _scan_directory,
     compute_album_stats,
     compute_media_source_stats,
     gallery_stats_from_album_stats,
+)
+from photree.album.stats.aggregate import merge_format_stats, merge_size_stats
+from photree.album.stats.models import AlbumStats, FormatStats, SizeStats
+from photree.album.stats.scan import (
+    _scan_directory,
+    categorize_size_stats,
+    count_unique_pictures,
+    count_unique_videos,
 )
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import (
@@ -149,7 +148,7 @@ class TestScanDirectory:
 
 
 # ---------------------------------------------------------------------------
-# _categorize_size_stats
+# categorize_size_stats
 # ---------------------------------------------------------------------------
 
 
@@ -159,7 +158,7 @@ class TestCategorizeSizeStats:
         _write(tmp_path / "b.mov", "y" * 100)
         _write(tmp_path / "c.aae", "z" * 10)
         seen: set[tuple[int, int]] = set()
-        imgs, vids, scs, _ = _categorize_size_stats(tmp_path, seen)
+        imgs, vids, scs, _ = categorize_size_stats(tmp_path, seen)
         assert imgs.file_count == 1
         assert imgs.apparent_bytes == 50
         assert vids.file_count == 1
@@ -180,7 +179,7 @@ class TestUniqueMediaCounting:
         _write(album / ms.orig_img_dir / "IMG_0001.HEIC")
         _write(album / ms.orig_img_dir / "IMG_0002.HEIC")
         _write(album / ms.orig_img_dir / "IMG_0002.AAE")  # sidecar, not a picture
-        assert _count_unique_pictures(album, ms, has_archive=True) == 2
+        assert count_unique_pictures(album, ms, has_archive=True) == 2
 
     def test_unique_pictures_std_without_archive(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
@@ -188,7 +187,7 @@ class TestUniqueMediaCounting:
         _write(album / ms.img_dir / "photo1.heic")
         _write(album / ms.img_dir / "photo2.jpg")
         _write(album / ms.img_dir / "photo2.aae")  # not IMG_EXTENSIONS
-        assert _count_unique_pictures(album, ms, has_archive=False) == 2
+        assert count_unique_pictures(album, ms, has_archive=False) == 2
 
     def test_unique_pictures_std_with_archive(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
@@ -196,27 +195,27 @@ class TestUniqueMediaCounting:
         _write(album / ms.orig_img_dir / "photo1.heic")
         _write(album / ms.orig_img_dir / "photo2.jpg")
         _write(album / ms.orig_img_dir / "photo2.aae")  # not IMG_EXTENSIONS
-        assert _count_unique_pictures(album, ms, has_archive=True) == 2
+        assert count_unique_pictures(album, ms, has_archive=True) == 2
 
     def test_unique_videos_ios_with_archive(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         ms = MAIN_MEDIA_SOURCE
         _write(album / ms.orig_vid_dir / "IMG_0001.MOV")
         _write(album / ms.orig_vid_dir / "IMG_0002.MOV")
-        assert _count_unique_videos(album, ms, has_archive=True) == 2
+        assert count_unique_videos(album, ms, has_archive=True) == 2
 
     def test_unique_videos_std_without_archive(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         ms = std_media_source("nelu")
         _write(album / ms.vid_dir / "clip1.mov")
-        assert _count_unique_videos(album, ms, has_archive=False) == 1
+        assert count_unique_videos(album, ms, has_archive=False) == 1
 
     def test_unique_videos_std_with_archive(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         ms = std_media_source("nelu")
         _write(album / ms.orig_vid_dir / "clip1.mov")
         _write(album / ms.orig_vid_dir / "clip2.mov")
-        assert _count_unique_videos(album, ms, has_archive=True) == 2
+        assert count_unique_videos(album, ms, has_archive=True) == 2
 
 
 # ---------------------------------------------------------------------------
@@ -250,11 +249,11 @@ class TestMergeSizeStats:
     def test_sums_fields(self) -> None:
         a = SizeStats(file_count=2, apparent_bytes=100, on_disk_bytes=80)
         b = SizeStats(file_count=3, apparent_bytes=200, on_disk_bytes=150)
-        result = _merge_size_stats([a, b])
+        result = merge_size_stats([a, b])
         assert result == SizeStats(file_count=5, apparent_bytes=300, on_disk_bytes=230)
 
     def test_empty(self) -> None:
-        result = _merge_size_stats([])
+        result = merge_size_stats([])
         assert result == SizeStats(0, 0, 0)
 
 
@@ -265,7 +264,7 @@ class TestMergeFormatStats:
             FormatStats(".heic", 3, 150, 0, 0, 0),
             FormatStats(".mov", 1, 200, 0, 0, 0),
         )
-        result = _merge_format_stats([g1, g2])
+        result = merge_format_stats([g1, g2])
         fmt_dict = {fs.extension: fs for fs in result}
         assert fmt_dict[".heic"].file_count == 5
         assert fmt_dict[".heic"].apparent_bytes == 250
@@ -276,7 +275,7 @@ class TestMergeFormatStats:
             FormatStats(".aae", 10, 50, 0, 0, 0),
             FormatStats(".heic", 2, 500, 0, 0, 0),
         )
-        result = _merge_format_stats([g])
+        result = merge_format_stats([g])
         assert result[0].extension == ".heic"
         assert result[1].extension == ".aae"
 
