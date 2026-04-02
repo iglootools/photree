@@ -12,7 +12,7 @@ from pathlib import Path
 from ....common.fs import file_ext, list_files
 from ...store.media_sources import ios_img_number, ios_is_media
 from ...store.protocol import (
-    SIDECAR_EXTENSIONS,
+    IOS_SIDECAR_EXTENSIONS,
 )
 
 
@@ -75,14 +75,14 @@ def check_sidecars(
             *[
                 f"{f} has no matching media file in {orig_dir.name}/"
                 for f in sorted(orig_files)
-                if file_ext(f) in SIDECAR_EXTENSIONS
+                if file_ext(f) in IOS_SIDECAR_EXTENSIONS
                 and ios_img_number(f) not in orig_media_numbers
             ],
             # Orphan O-prefixed AAE sidecars in edit (no matching edited media)
             *[
                 f"{f} has no matching edited media file in {edit_dir.name}/"
                 for f in sorted(edit_files)
-                if file_ext(f) in SIDECAR_EXTENSIONS
+                if file_ext(f) in IOS_SIDECAR_EXTENSIONS
                 and f.upper().startswith("IMG_O")
                 and ios_img_number(f) not in edit_media_numbers
             ],

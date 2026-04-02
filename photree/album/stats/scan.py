@@ -11,7 +11,7 @@ from ...common.fs import file_ext, list_files
 from ..store.media_sources import dedup_media_dict as generic_dedup_media_dict
 from ..store.protocol import (
     IMG_EXTENSIONS,
-    SIDECAR_EXTENSIONS,
+    IOS_SIDECAR_EXTENSIONS,
     VID_EXTENSIONS,
     MediaSource,
 )
@@ -114,7 +114,7 @@ def _classify_ext(ext: str) -> str:
         return "img"
     elif ext in VID_EXTENSIONS:
         return "vid"
-    elif ext in SIDECAR_EXTENSIONS:
+    elif ext in IOS_SIDECAR_EXTENSIONS:
         return "sidecar"
     else:
         return "other"

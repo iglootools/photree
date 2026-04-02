@@ -24,7 +24,7 @@ from ..store.protocol import (
     IOS_IMG_EXTENSIONS,
     IOS_VID_EXTENSIONS,
     SELECTION_DIR,
-    SIDECAR_EXTENSIONS,
+    IOS_SIDECAR_EXTENSIONS,
     AlbumMetadata,
     generate_album_id,
     ios_media_source,
@@ -51,7 +51,7 @@ def _is_mov(filename: str) -> bool:
 
 
 def _is_sidecar(filename: str) -> bool:
-    return file_ext(filename) in SIDECAR_EXTENSIONS
+    return file_ext(filename) in IOS_SIDECAR_EXTENSIONS
 
 
 def _is_media(filename: str) -> bool:
