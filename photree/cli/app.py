@@ -7,7 +7,7 @@ import typer
 
 from ..album.cli import album_app
 from ..albums.cli import albums_app
-from ..check.cli.cmd import check_cmd
+from ..check.cli import check_app
 from ..demo.cli.cmd import demo_app
 from ..gallery.cli import gallery_app
 
@@ -41,8 +41,8 @@ def _main(
     pass
 
 
-app.command("check")(check_cmd)
 app.add_typer(album_app)
 app.add_typer(albums_app)
+app.add_typer(check_app)
 app.add_typer(demo_app)
 app.add_typer(gallery_app)
