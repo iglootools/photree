@@ -49,8 +49,8 @@ def _list_files(directory: Path) -> list[str]:
 class IosAlbumIntegrityResult:
     """Full integrity check result for an iOS album."""
 
-    browsable_heic: BrowsableDirCheck
-    browsable_mov: BrowsableDirCheck
+    browsable_img: BrowsableDirCheck
+    browsable_vid: BrowsableDirCheck
     jpeg: JpegCheck
     sidecars: SidecarCheck
     duplicate_numbers: tuple[str, ...] = ()
@@ -63,8 +63,8 @@ class IosAlbumIntegrityResult:
         # absence is informational, not an error.
         # Use has_warnings to detect these; --fatal-warnings promotes them.
         return (
-            self.browsable_heic.success
-            and self.browsable_mov.success
+            self.browsable_img.success
+            and self.browsable_vid.success
             and self.jpeg.success
             and not self.sidecars.orphan_sidecars
             and not self.duplicate_numbers
@@ -187,7 +187,7 @@ def check_ios_media_source_integrity(
 ) -> IosAlbumIntegrityResult:
     """Run all integrity checks for a single media source within an iOS album."""
     assert ms.is_ios, "integrity checks require an iOS media source"
-    browsable_heic = check_browsable_dir(
+    browsable_img = check_browsable_dir(
         album_dir / ms.orig_img_dir,
         album_dir / ms.edit_img_dir,
         album_dir / ms.img_dir,
@@ -196,7 +196,7 @@ def check_ios_media_source_integrity(
         on_file_checked=on_file_checked,
     )
 
-    browsable_mov = check_browsable_dir(
+    browsable_vid = check_browsable_dir(
         album_dir / ms.orig_vid_dir,
         album_dir / ms.edit_vid_dir,
         album_dir / ms.vid_dir,
@@ -249,8 +249,8 @@ def check_ios_media_source_integrity(
     )
 
     return IosAlbumIntegrityResult(
-        browsable_heic=browsable_heic,
-        browsable_mov=browsable_mov,
+        browsable_img=browsable_img,
+        browsable_vid=browsable_vid,
         jpeg=jpeg,
         sidecars=sidecars,
         duplicate_numbers=duplicate_numbers,
