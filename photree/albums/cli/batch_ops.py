@@ -1,7 +1,9 @@
-"""Shared batch operations for gallery and albums commands.
+"""Shared batch CLI wrappers for gallery and albums commands.
 
-These functions implement the core logic for batch operations on multiple
-albums. Both ``gallery`` and ``albums`` CLI commands delegate to them.
+Each ``run_batch_*`` function creates progress bars, calls the
+corresponding command handler, displays results, and handles
+``typer.Exit``. Both ``gallery`` and ``albums`` CLI commands delegate
+to these wrappers.
 """
 
 from __future__ import annotations
@@ -12,35 +14,33 @@ from pathlib import Path
 import typer
 
 from ...album import (
-    fix as album_fixes,
-    naming as album_naming,
-    optimize as album_optimize,
     preflight as album_preflight,
-    stats as album_stats,
 )
-from ...common.exif import try_start_exiftool
-from ...common.formatting import CHECK
-from ...album.fix.output import format_fix_result, batch_fix_summary
-from ...album.fix.ios import run_fix_ios
-from ...album.fix.ios.output import format_fix_ios_result, batch_fix_ios_summary
+from ...album.fix.output import batch_fix_summary
+from ...album.fix.ios.output import batch_fix_ios_summary
 from ...album.optimize import batch_optimize_summary
 from ...album.preflight import output as preflight_output
 from ...album.preflight.output import batch_check_summary
 from ...album.stats import output as stats_output
+from ...common.exif import try_start_exiftool
+from ...common.formatting import CHECK
 from ...fs import (
-    AlbumMetadata,
     LinkMode,
     discover_media_sources,
     display_path,
     format_album_external_id,
-    generate_album_id,
     load_album_metadata,
-    save_album_metadata,
 )
-from ...gallery.index import find_duplicate_album_ids
 from ...fs import discover_potential_albums
 from ...clihelpers.console import console, err_console
 from ...clihelpers.progress import BatchProgressBar
+from ..cmd_handler.batch_init import batch_init
+from ..cmd_handler.batch_check import batch_check
+from ..cmd_handler.batch_fix import batch_fix
+from ..cmd_handler.batch_optimize import batch_optimize
+from ..cmd_handler.batch_fix_ios import batch_fix_ios
+from ..cmd_handler.batch_stats import batch_stats
+from ..cmd_handler.batch_rename import batch_rename_from_csv
 
 
 def display_name(album_dir: Path, base_dir: Path | None, cwd: Path) -> str:
@@ -49,6 +49,10 @@ def display_name(album_dir: Path, base_dir: Path | None, cwd: Path) -> str:
         return str(album_dir.relative_to(base_dir))
 
     return str(display_path(album_dir, cwd))
+
+
+def _make_display_fn(display_base: Path | None, cwd: Path) -> Callable[[Path], str]:
+    return lambda album_dir: display_name(album_dir, display_base, cwd)
 
 
 def run_batch_init(
@@ -70,46 +74,26 @@ def run_batch_init(
     progress = BatchProgressBar(
         total=len(albums), description="Initializing", done_description="init"
     )
-    initialized = 0
-    failed_albums: list[Path] = []
 
-    for album_dir in albums:
-        album_name = display_name(album_dir, display_base, cwd)
-        progress.on_start(album_name)
-
-        try:
-            metadata = load_album_metadata(album_dir)
-            if metadata is not None:
-                progress.on_end(
-                    album_name,
-                    success=False,
-                    error_labels=(
-                        f"already initialized: {format_album_external_id(metadata.id)}",
-                    ),
-                )
-                failed_albums.append(album_dir)
-                continue
-
-            if dry_run:
-                progress.on_end(album_name, success=True)
-            else:
-                generated_id = generate_album_id()
-                save_album_metadata(album_dir, AlbumMetadata(id=generated_id))
-                progress.on_end(album_name, success=True)
-            initialized += 1
-        except Exception:
-            progress.on_end(album_name, success=False)
-            failed_albums.append(album_dir)
+    result = batch_init(
+        albums,
+        dry_run=dry_run,
+        display_fn=_make_display_fn(display_base, cwd),
+        on_start=progress.on_start,
+        on_end=lambda name, success, errors: progress.on_end(
+            name, success=success, error_labels=errors
+        ),
+    )
 
     progress.stop()
 
     typer.echo(
-        f"\nDone. {initialized} album(s) initialized, {len(failed_albums)} failed."
+        f"\nDone. {result.initialized} album(s) initialized, {len(result.failed_albums)} failed."
     )
 
-    if failed_albums:
+    if result.failed_albums:
         err_console.print("\nFailed albums:")
-        for album_dir in failed_albums:
+        for album_dir in result.failed_albums:
             err_console.print(
                 f'  photree album init --album-dir "{display_path(album_dir, cwd)}"'
             )
@@ -289,102 +273,60 @@ def run_batch_check(
     else:
         typer.echo("")
 
-    # Check each album
     fatal_sidecar = fatal_warnings or fatal_sidecar_arg
     fatal_exif = fatal_warnings or fatal_exif_date_match
 
     progress = BatchProgressBar(
         total=len(albums), description="Checking", done_description="check"
     )
-    passed = 0
-    warned = 0
-    failed_albums: list[Path] = []
 
     try:
-        for album_dir in albums:
-            album_name = display_name(album_dir, display_base, cwd)
-
-            progress.on_start(album_name)
-            result = album_preflight.run_album_check(
-                album_dir,
-                sips_available=sips_available,
-                exiftool=exiftool,
-                checksum=checksum,
-                check_naming_flag=check_naming,
-            )
-
-            # Include external album ID in the result line when available
-            id_check = result.album_id_check
-            album_label = (
-                f"{album_name} ({format_album_external_id(id_check.album_id)})"
-                if id_check is not None and id_check.album_id is not None
-                else album_name
-            )
-
-            album_ok = result.success and not result.has_fatal_warnings(
-                fatal_sidecar=fatal_sidecar, fatal_exif=fatal_exif
-            )
-            err_labels = (
-                *result.error_labels,
-                *result.fatal_warning_labels(
-                    fatal_sidecar=fatal_sidecar, fatal_exif=fatal_exif
-                ),
-            )
-            warn_labels = result.non_fatal_warning_labels(
-                fatal_sidecar=fatal_sidecar, fatal_exif=fatal_exif
-            )
-            if album_ok:
-                progress.on_end(album_label, success=True, warning_labels=warn_labels)
-                passed += 1
-                if result.has_warnings:
-                    warned += 1
-            else:
-                progress.on_end(
-                    album_label,
-                    success=False,
-                    error_labels=err_labels,
-                    warning_labels=warn_labels,
-                )
-                failed_albums.append(album_dir)
+        result = batch_check(
+            albums,
+            sips_available=sips_available,
+            exiftool=exiftool,
+            checksum=checksum,
+            fatal_sidecar=fatal_sidecar,
+            fatal_exif=fatal_exif,
+            check_naming=check_naming,
+            check_date_part_collision=check_date_part_collision,
+            display_fn=_make_display_fn(display_base, cwd),
+            on_start=progress.on_start,
+            on_end=lambda name, success, errors, warnings: progress.on_end(
+                name,
+                success=success,
+                error_labels=errors,
+                warning_labels=warnings,
+            ),
+        )
     finally:
         if exiftool is not None:
             exiftool.__exit__(None, None, None)
 
     progress.stop()
 
-    # Batch naming checks (date collisions across all albums)
-    if check_naming and check_date_part_collision:
-        parsed_albums = [
-            (album.name, parsed)
-            for album in albums
-            if (parsed := album_naming.parse_album_name(album.name)) is not None
-        ]
-        batch_naming = album_naming.check_batch_date_collisions(parsed_albums)
+    # Display naming issues
+    if result.naming_result is not None:
         typer.echo("")
-        console.print(preflight_output.format_batch_naming_issues(batch_naming))
-        if not batch_naming.success:
-            colliding_names = {
-                name for _, names in batch_naming.date_collisions for name in names
-            }
-            failed_albums.extend(a for a in albums if a.name in colliding_names)
+        console.print(preflight_output.format_batch_naming_issues(result.naming_result))
 
-    # Duplicate album ID detection
-    duplicates = find_duplicate_album_ids(albums)
+    # Display duplicate IDs
     typer.echo("")
-    if duplicates:
-        for aid, paths in duplicates.items():
+    if result.duplicate_ids:
+        for aid, paths in result.duplicate_ids.items():
             ext_id = format_album_external_id(aid)
             err_console.print(f"[red]\u2717[/red] duplicate album id: {ext_id}")
             for p in paths:
                 err_console.print(f"    {display_path(p, cwd)}")
-        failed_albums.extend(p for paths in duplicates.values() for p in paths)
     else:
         console.print(f"{CHECK} no duplicate album ids")
 
     # Summary
-    console.print(batch_check_summary(passed, len(failed_albums), warned))
+    console.print(
+        batch_check_summary(result.passed, len(result.failed_albums), result.warned)
+    )
 
-    if failed_albums:
+    if result.failed_albums:
         extra_flags = "".join(
             [
                 " --fatal-warnings" if fatal_warnings else "",
@@ -393,7 +335,7 @@ def run_batch_check(
             ]
         )
         err_console.print("\nTo investigate failures:")
-        for album_dir in sorted(set(failed_albums)):
+        for album_dir in sorted(set(result.failed_albums)):
             err_console.print(
                 f'  photree album check --album-dir "{display_path(album_dir, cwd)}"{extra_flags}'
             )
@@ -423,57 +365,38 @@ def run_batch_fix(
     if display_base is not None:
         typer.echo(f"\nFound {len(albums)} album(s).\n")
 
-    any_archive_op = refresh_browsable or refresh_jpeg or rm_upstream or rm_orphan
-
     progress = BatchProgressBar(
         total=len(albums), description="Fixing", done_description="fix"
     )
-    fixed = 0
-    failed_albums: list[Path] = []
-    album_reports: list[tuple[str, str]] = []
 
-    for album_dir in albums:
-        album_name = display_name(album_dir, display_base, cwd)
-        progress.on_start(album_name)
-
-        try:
-            needs_id = (fix_id and load_album_metadata(album_dir) is None) or new_id
-            if needs_id and not dry_run:
-                save_album_metadata(album_dir, AlbumMetadata(id=generate_album_id()))
-
-            if any_archive_op:
-                result = album_fixes.run_fix(
-                    album_dir,
-                    link_mode=link_mode,
-                    dry_run=dry_run,
-                    refresh_browsable_flag=refresh_browsable,
-                    refresh_jpeg_flag=refresh_jpeg,
-                    rm_upstream_flag=rm_upstream,
-                    rm_orphan_flag=rm_orphan,
-                )
-                lines = format_fix_result(result)
-                if lines:
-                    album_reports.append((album_name, "\n".join(lines)))
-
-            progress.on_end(album_name, success=True)
-            fixed += 1
-        except Exception:
-            progress.on_end(album_name, success=False)
-            failed_albums.append(album_dir)
+    result = batch_fix(
+        albums,
+        fix_id=fix_id,
+        new_id=new_id,
+        link_mode=link_mode,
+        refresh_browsable=refresh_browsable,
+        refresh_jpeg=refresh_jpeg,
+        rm_upstream=rm_upstream,
+        rm_orphan=rm_orphan,
+        dry_run=dry_run,
+        display_fn=_make_display_fn(display_base, cwd),
+        on_start=progress.on_start,
+        on_end=lambda name, success: progress.on_end(name, success=success),
+    )
 
     progress.stop()
 
-    if album_reports:
+    if result.album_reports:
         typer.echo("")
-        for album_name, report in album_reports:
+        for album_name, report in result.album_reports:
             typer.echo(f"{album_name}:")
             typer.echo(report, color=True)
 
-    console.print(batch_fix_summary(fixed, len(failed_albums)))
+    console.print(batch_fix_summary(result.fixed, len(result.failed_albums)))
 
-    if failed_albums:
+    if result.failed_albums:
         err_console.print("\nFailed albums:")
-        for album_dir in failed_albums:
+        for album_dir in result.failed_albums:
             err_console.print(
                 f'  photree album fix --album-dir "{display_path(album_dir, cwd)}"'
             )
@@ -514,37 +437,26 @@ def run_batch_optimize(
     progress = BatchProgressBar(
         total=len(albums), description="Optimizing", done_description="optimize"
     )
-    optimized = 0
-    failed_albums: list[Path] = []
 
-    for album_dir in albums:
-        album_name = display_name(album_dir, display_base, cwd)
-        progress.on_start(album_name)
-
-        if check:
-            check_result = album_preflight.run_album_check(
-                album_dir,
-                sips_available=sips_available,
-                exiftool=None,
-                checksum=checksum,
-                check_naming_flag=False,
-            )
-            if not check_result.success:
-                progress.on_end(album_name, success=False)
-                failed_albums.append(album_dir)
-                continue
-
-        album_optimize.optimize_album(album_dir, link_mode=link_mode, dry_run=dry_run)
-        progress.on_end(album_name, success=True)
-        optimized += 1
+    result = batch_optimize(
+        albums,
+        link_mode=link_mode,
+        check=check,
+        checksum=checksum,
+        sips_available=sips_available,
+        dry_run=dry_run,
+        display_fn=_make_display_fn(display_base, cwd),
+        on_start=progress.on_start,
+        on_end=lambda name, success: progress.on_end(name, success=success),
+    )
 
     progress.stop()
 
-    console.print(batch_optimize_summary(optimized, len(failed_albums)))
+    console.print(batch_optimize_summary(result.optimized, len(result.failed_albums)))
 
-    if failed_albums:
+    if result.failed_albums:
         err_console.print("\nTo investigate failures:")
-        for album_dir in failed_albums:
+        for album_dir in result.failed_albums:
             err_console.print(
                 f'  photree album check --album-dir "{display_path(album_dir, cwd)}"'
             )
@@ -575,46 +487,33 @@ def run_batch_fix_ios(
     progress = BatchProgressBar(
         total=len(albums), description="Fixing", done_description="fix-ios"
     )
-    fixed = 0
-    failed_albums: list[Path] = []
-    album_reports: list[tuple[str, str]] = []
 
-    for album_dir in albums:
-        album_name = display_name(album_dir, display_base, cwd)
-        progress.on_start(album_name)
-
-        try:
-            result = run_fix_ios(
-                album_dir,
-                dry_run=dry_run,
-                rm_orphan_sidecar=rm_orphan_sidecar,
-                prefer_higher_quality_when_dups=prefer_higher_quality_when_dups,
-                rm_miscategorized=rm_miscategorized,
-                rm_miscategorized_safe=rm_miscategorized_safe,
-                mv_miscategorized=mv_miscategorized,
-            )
-            progress.on_end(album_name, success=True)
-            fixed += 1
-            lines = format_fix_ios_result(result)
-            if lines:
-                album_reports.append((album_name, "\n".join(lines)))
-        except Exception:
-            progress.on_end(album_name, success=False)
-            failed_albums.append(album_dir)
+    result = batch_fix_ios(
+        albums,
+        dry_run=dry_run,
+        rm_orphan_sidecar=rm_orphan_sidecar,
+        prefer_higher_quality_when_dups=prefer_higher_quality_when_dups,
+        rm_miscategorized=rm_miscategorized,
+        rm_miscategorized_safe=rm_miscategorized_safe,
+        mv_miscategorized=mv_miscategorized,
+        display_fn=_make_display_fn(display_base, cwd),
+        on_start=progress.on_start,
+        on_end=lambda name, success: progress.on_end(name, success=success),
+    )
 
     progress.stop()
 
-    if album_reports:
+    if result.album_reports:
         typer.echo("")
-        for album_name, report in album_reports:
+        for album_name, report in result.album_reports:
             typer.echo(f"{album_name}:")
             typer.echo(report, color=True)
 
-    console.print(batch_fix_ios_summary(fixed, len(failed_albums)))
+    console.print(batch_fix_ios_summary(result.fixed, len(result.failed_albums)))
 
-    if failed_albums:
+    if result.failed_albums:
         err_console.print("\nFailed albums:")
-        for album_dir in failed_albums:
+        for album_dir in result.failed_albums:
             err_console.print(
                 f'  photree album fix-ios --album-dir "{display_path(album_dir, cwd)}"'
             )
@@ -651,17 +550,15 @@ def run_batch_stats(
         total=len(albums), description="Computing stats", done_description="stats"
     )
 
-    album_stats_list: list[album_stats.AlbumStats] = []
-    for album_dir in albums:
-        album_name = display_name(album_dir, display_base, cwd)
-        progress.on_start(album_name)
-        stats = album_stats.compute_album_stats(album_dir)
-        album_stats_list.append(stats)
-        progress.on_end(album_name, success=True)
+    result = batch_stats(
+        albums,
+        display_fn=_make_display_fn(display_base, cwd),
+        on_start=progress.on_start,
+        on_end=lambda name, success: progress.on_end(name, success=success),
+    )
 
     progress.stop()
 
-    result = album_stats.gallery_stats_from_album_stats(album_stats_list)
     typer.echo("")
     console.print(stats_output.format_gallery_stats(result))
 
@@ -673,57 +570,40 @@ def run_batch_rename_from_csv(
     dry_run: bool = False,
 ) -> None:
     """Shared implementation for gallery rename-from-csv / albums rename-from-csv."""
-    import csv as csv_mod
-
-    from ...gallery import plan_renames_from_csv
-    from ...gallery.batch_rename import (
-        RenameCollisionError,
-        check_rename_collisions,
-        execute_renames,
-    )
+    from ...gallery.batch_rename import RenameCollisionError
 
     cwd = Path.cwd()
 
-    # Read CSV
-    with open(csv_file, encoding="utf-8") as f:
-        rows = list(csv_mod.DictReader(f))
-
-    if not rows:
-        typer.echo("CSV is empty. Nothing to rename.")
-        raise typer.Exit(code=0)
-
-    # Plan renames
-    actions, errors = plan_renames_from_csv(rows, index)
-
-    if errors:
-        for err in errors:
-            err_console.print(f"  {err}")
-        raise typer.Exit(code=1)
-
-    if not actions:
-        typer.echo(f"{len(rows)} row(s) in CSV. Nothing to rename.")
-        raise typer.Exit(code=0)
-
-    # Check for collisions
     try:
-        check_rename_collisions(actions)
+        result = batch_rename_from_csv(index, csv_file, dry_run=dry_run)
     except RenameCollisionError as exc:
         err_console.print(str(exc))
         raise typer.Exit(code=1) from exc
 
-    # Display plan
-    typer.echo(f"{len(rows)} row(s) in CSV, {len(actions)} change(s).\n")
+    if result.errors:
+        for err in result.errors:
+            err_console.print(f"  {err}")
+        raise typer.Exit(code=1)
 
-    for action in actions:
+    if not result.actions:
+        if result.row_count == 0:
+            typer.echo("CSV is empty. Nothing to rename.")
+        else:
+            typer.echo(f"{result.row_count} row(s) in CSV. Nothing to rename.")
+        raise typer.Exit(code=0)
+
+    # Display plan
+    typer.echo(f"{result.row_count} row(s) in CSV, {len(result.actions)} change(s).\n")
+
+    for action in result.actions:
         typer.echo(f"  {display_path(action.album_path, cwd)}")
         typer.echo(f"  \u2192 {action.new_name}")
         typer.echo()
 
     if dry_run:
-        typer.echo(f"[dry run] {len(actions)} album(s) would be renamed.")
+        typer.echo(f"[dry run] {len(result.actions)} album(s) would be renamed.")
     else:
-        count = execute_renames(actions)
-        typer.echo(f"Renamed {count} album(s).")
+        typer.echo(f"Renamed {result.renamed} album(s).")
 
 
 # ---------------------------------------------------------------------------
