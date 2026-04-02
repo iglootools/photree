@@ -90,6 +90,6 @@ def export_cmd(
 
     typer.echo(
         export_output.export_summary(
-            result.album_name, result.files_copied, result.album_type.value
+            result.album_name, result.files_copied, result.album_type
         )
     )

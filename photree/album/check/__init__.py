@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from enum import StrEnum
 from pathlib import Path
 
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
@@ -65,25 +64,6 @@ class AlbumMediaSourceSummary:
         )
 
 
-# Backward compat — kept for exporter and tests that still import it.
-# Will be removed once all callers migrate.
-class AlbumType(StrEnum):
-    IOS = "ios"
-    STD = "std"
-
-    # Backward compat alias
-    OTHER = "std"
-
-
-def detect_album_type(album_dir: Path) -> AlbumType:
-    """Detect album type. Deprecated — use discover_media_sources() instead."""
-    media_sources = discover_media_sources(album_dir)
-    if any(ms.is_ios for ms in media_sources):
-        return AlbumType.IOS
-    else:
-        return AlbumType.STD
-
-
 @dataclass(frozen=True)
 class AlbumIdCheck:
     """Result of checking whether an album has a valid ID."""
@@ -104,19 +84,6 @@ class AlbumPreflightResult:
     ios_integrity: IosAlbumFullIntegrityResult | None = None
     jpeg_check: AlbumJpegIntegrityResult | None = None
     naming: AlbumNamingResult | None = None
-
-    # Backward compat — derived from media_source_summary
-    @property
-    def album_type(self) -> AlbumType:
-        if self.media_source_summary.has_ios:
-            return AlbumType.IOS
-        else:
-            return AlbumType.STD
-
-    # Backward compat alias
-    @property
-    def integrity(self) -> IosAlbumFullIntegrityResult | None:
-        return self.ios_integrity
 
     @property
     def success(self) -> bool:

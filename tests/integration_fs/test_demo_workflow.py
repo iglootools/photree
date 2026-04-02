@@ -9,11 +9,8 @@ import os
 import shutil
 from pathlib import Path
 
-from photree.album.check import (
-    AlbumType,
-    detect_album_type,
-    run_album_preflight,
-)
+from photree.album.check import run_album_preflight
+from photree.album.store.media_sources_discovery import discover_media_sources
 from photree.album.check.ios import check_ios_album_integrity
 from photree.album.jpeg import convert_single_file, copy_convert_single
 from photree.album.optimize import optimize_album
@@ -78,7 +75,7 @@ class TestDemoWorkflow:
         assert load_album_metadata(album_dir) is not None
         assert is_album(album_dir)
         assert (album_dir / MAIN_MEDIA_SOURCE.archive_dir).is_dir()
-        assert detect_album_type(album_dir) == AlbumType.IOS
+        assert any(ms.is_ios for ms in discover_media_sources(album_dir))
 
         # Originals imported
         assert (album_dir / MAIN_MEDIA_SOURCE.orig_img_dir).is_dir()
@@ -126,10 +123,10 @@ class TestDemoWorkflow:
         # ── Check ────────────────────────────────────────────
         preflight = run_album_preflight(album_dir, checksum=True)
 
-        assert preflight.album_type == AlbumType.IOS
+        assert preflight.media_source_summary.has_ios
         assert preflight.dir_check.success
-        assert preflight.integrity is not None
-        assert preflight.integrity.success
+        assert preflight.ios_integrity is not None
+        assert preflight.ios_integrity.success
 
         # ── Optimize (symlinks) ──────────────────────────────
         optimize_album(album_dir, link_mode=LinkMode.SYMLINK)
@@ -168,7 +165,7 @@ class TestDemoWorkflow:
             link_mode=LinkMode.COPY,
         )
 
-        assert export_result.album_type == AlbumType.IOS
+        assert export_result.album_type == "ios"
         assert export_result.files_copied > 0
 
         # Exported structure: main-jpg/ and main-vid/ (main-jpg layout)

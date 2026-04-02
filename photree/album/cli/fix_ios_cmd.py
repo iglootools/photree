@@ -15,7 +15,7 @@ from ...clihelpers.options import (
     RM_MISCATEGORIZED_SAFE_OPTION,
     RM_ORPHAN_SIDECAR_OPTION,
 )
-from .. import check as album_preflight
+from ..store.media_sources_discovery import discover_media_sources
 from ..fix.ios import (
     FixIosValidationError,
     run_fix_ios,
@@ -67,10 +67,10 @@ def fix_ios_cmd(
     --mv-miscategorized: Moves files to the correct directory instead of
     deleting them (e.g. edited files from orig-img/ to edit-img/).
     """
-    album_type = album_preflight.detect_album_type(album_dir)
-    if album_type != album_preflight.AlbumType.IOS:
+    media_sources = discover_media_sources(album_dir)
+    if not any(ms.is_ios for ms in media_sources):
         typer.echo(
-            f"Album type is '{album_type.value}', but fix-ios only supports iOS albums.",
+            "No iOS media sources found. fix-ios only supports iOS albums.",
             err=True,
         )
         raise typer.Exit(code=1)
