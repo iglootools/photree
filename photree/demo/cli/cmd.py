@@ -22,7 +22,7 @@ from ...album.check.testkit import (
     FULL_INTEGRITY_OK,
     PREFLIGHT_FAILURES,
     PREFLIGHT_OK,
-    PREFLIGHT_OTHER,
+    PREFLIGHT_STD,
 )
 from ...album.importer import output as importer_output
 from ...album.importer.testkit.preflight import (
@@ -174,7 +174,7 @@ def output_cmd() -> None:
 
     _panel(
         "album_output.format_album_preflight_checks (other)",
-        preflight_output.format_album_preflight_checks(PREFLIGHT_OTHER),
+        preflight_output.format_album_preflight_checks(PREFLIGHT_STD),
     )
 
     _panel(
