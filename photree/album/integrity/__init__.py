@@ -1,11 +1,15 @@
 """Album integrity checks.
 
-iOS-specific checks validate that browsable directories are consistent
-with the archival import rules:
-- {name}-img/{name}-vid contain the right files derived from orig/edited
-- {name}-jpg mirrors {name}-img with JPEG counterparts for every file
+Generic checks (all media source types):
+- Browsable dir consistency: {name}-img/{name}-vid contain the right
+  files derived from orig/edited sources
+- JPEG completeness: {name}-jpg mirrors {name}-img with a JPEG
+  counterpart for every file
 
-JPEG checks apply to all media source types (iOS and std).
+iOS-specific checks:
+- AAE sidecar validation (missing/orphan sidecars)
+- Duplicate image numbers within the same prefix category
+- Miscategorized files (edited in orig dirs or vice versa)
 """
 
 from __future__ import annotations
@@ -385,15 +389,14 @@ def check_browsable_dir(
 ) -> BrowsableDirCheck:
     """Check that a browsable directory is consistent with orig/edited.
 
-    For each media file number in orig_dir, the browsable_dir should contain
-    either the edited media file (if one exists in edit_dir) or the original
-    media file.
+    For each media key in orig_dir, the browsable_dir should contain
+    either the edited variant (if one exists in edit_dir) or the original.
     """
     orig_files = _list_files(orig_dir)
     edit_files = _list_files(edit_dir)
     browsable_files = set(_list_files(browsable_dir))
 
-    # Use HEIC-priority dedup to handle duplicate numbers (e.g. IMG_E7658.JPG + IMG_E7658.HEIC)
+    # Use priority dedup to handle duplicate keys (e.g. IMG_E7658.JPG + IMG_E7658.HEIC)
     orig_media_by_number = dedup_media_dict(orig_files, media_extensions)
     edit_media_by_number = dedup_media_dict(edit_files, media_extensions)
 
