@@ -1,4 +1,9 @@
-"""Filesystem protocol — types, constants, enums, models, and media sources."""
+"""Filesystem protocol — types, constants, enums, models, and media sources.
+
+This module re-exports symbols from their canonical locations in domain
+store modules. It serves as a backward-compatible facade during the
+migration to ``<domain>.store.*`` packages.
+"""
 
 from __future__ import annotations
 
@@ -10,64 +15,31 @@ from enum import StrEnum
 from pathlib import Path
 from textwrap import dedent
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 from uuid6 import uuid7
 
 from ..common.base58 import base58_decode, base58_encode
 
-# ---------------------------------------------------------------------------
-# Pydantic base model (kebab-case YAML aliases, frozen)
-# ---------------------------------------------------------------------------
+# Re-export shared foundation
+from ..fsprotocol import (  # noqa: F401
+    PHOTREE_DIR,
+    LinkMode,
+    _BaseModel,
+    _to_kebab,
+)
 
-
-def _to_kebab(name: str) -> str:
-    return name.replace("_", "-")
-
-
-class _BaseModel(BaseModel):
-    model_config = ConfigDict(
-        alias_generator=_to_kebab,
-        populate_by_name=True,
-        frozen=True,
-    )
-
-
-# ---------------------------------------------------------------------------
-# Enums
-# ---------------------------------------------------------------------------
-
-
-class AlbumShareLayout(StrEnum):
-    """How an album is exported."""
-
-    MAIN_JPG = "main-jpg"
-    MAIN = "main"
-    ALL = "all"
-
-
-class LinkMode(StrEnum):
-    """How main-dir files reference their source."""
-
-    COPY = "copy"
-    HARDLINK = "hardlink"
-    SYMLINK = "symlink"
-
-
-class ShareDirectoryLayout(StrEnum):
-    """How albums are organized within the share directory."""
-
-    FLAT = "flat"
-    ALBUMS = "albums"
-
-
-SHARE_SENTINEL = ".photree-share"
+# Re-export exporter enums
+from ..album.exporter.protocol import (  # noqa: F401
+    SHARE_SENTINEL,
+    AlbumShareLayout,
+    ShareDirectoryLayout,
+)
 
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
-PHOTREE_DIR = ".photree"
 ALBUM_YAML = "album.yaml"
 GALLERY_YAML = "gallery.yaml"
 
