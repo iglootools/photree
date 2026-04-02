@@ -9,7 +9,7 @@ import typer
 
 from . import album_app
 from .helpers import _run_preflight_checks
-from ...clicommons.options import CONFIG_OPTION
+from ...clihelpers.options import CONFIG_OPTION
 from ...fs import SELECTION_DIR
 
 

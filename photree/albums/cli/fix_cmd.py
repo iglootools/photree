@@ -9,7 +9,7 @@ import typer
 from . import AlbumDirOption, DirOption, albums_app
 from ...album.cli.helpers import _check_sips_or_exit
 from ...album.fix import FixValidationError
-from ...clicommons.options import (
+from ...clihelpers.options import (
     DRY_RUN_OPTION,
     LINK_MODE_REQUIRED_OPTION,
     REFRESH_BROWSABLE_OPTION,

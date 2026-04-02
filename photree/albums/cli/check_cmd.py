@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from . import AlbumDirOption, DirOption, albums_app
-from ...clicommons.options import (
+from ...clihelpers.options import (
     CHECK_DATE_PART_COLLISION_OPTION,
     CHECK_EXIF_DATE_MATCH_OPTION,
     CHECK_NAMING_OPTION,

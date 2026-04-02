@@ -39,8 +39,8 @@ from ..importer import (
     compute_target_dir,
 )
 from .. import importer as gallery_importer
-from ...clicommons.console import console, err_console
-from ...clicommons.progress import BatchProgressBar, StageProgressBar
+from ...clihelpers.console import console, err_console
+from ...clihelpers.progress import BatchProgressBar, StageProgressBar
 
 
 # ---------------------------------------------------------------------------

@@ -10,7 +10,7 @@ import typer
 from . import albums_app
 from ...fs import SELECTION_DIR
 from ...album.cli.helpers import _run_preflight_checks
-from ...clicommons.progress import BatchProgressBar
+from ...clihelpers.progress import BatchProgressBar
 
 
 @albums_app.command("import-check")

@@ -6,7 +6,7 @@ import typer
 
 from ...album import preflight as album_preflight
 from ...album.preflight import output as preflight_output
-from ...clicommons.console import console, err_console
+from ...clihelpers.console import console, err_console
 from . import check_app
 
 

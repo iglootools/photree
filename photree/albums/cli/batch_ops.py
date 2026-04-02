@@ -39,8 +39,8 @@ from ...fs import (
 )
 from ...gallery.index import find_duplicate_album_ids
 from ...fs import discover_potential_albums
-from ...clicommons.console import console, err_console
-from ...clicommons.progress import BatchProgressBar
+from ...clihelpers.console import console, err_console
+from ...clihelpers.progress import BatchProgressBar
 
 
 def display_name(album_dir: Path, base_dir: Path | None, cwd: Path) -> str:

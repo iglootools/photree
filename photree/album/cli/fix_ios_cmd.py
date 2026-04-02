@@ -15,7 +15,7 @@ from ..fix.ios import (
     run_fix_ios,
     validate_fix_flags,
 )
-from ...clicommons.options import (
+from ...clihelpers.options import (
     DRY_RUN_OPTION,
     MV_MISCATEGORIZED_OPTION,
     PREFER_HIGHER_QUALITY_OPTION,

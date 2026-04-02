@@ -10,7 +10,7 @@ import typer
 from . import album_app
 from .. import exif as album_exif
 from ...common import exif as common_exif
-from ...clicommons.console import err_console
+from ...clihelpers.console import err_console
 
 
 @album_app.command("fix-exif")

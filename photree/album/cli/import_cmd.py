@@ -20,9 +20,9 @@ from ..naming import (
     parse_album_name,
 )
 from ..preflight.output import format_naming_checks
-from ...clicommons.console import console, err_console
-from ...clicommons.options import CONFIG_OPTION
-from ...clicommons.progress import StageProgressBar
+from ...clihelpers.console import console, err_console
+from ...clihelpers.options import CONFIG_OPTION
+from ...clihelpers.progress import StageProgressBar
 from ...fs import (
     LinkMode,
     SELECTION_DIR,

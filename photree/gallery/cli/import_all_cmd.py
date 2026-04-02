@@ -8,7 +8,7 @@ from typing import Annotated, Optional
 import typer
 
 from . import gallery_app
-from ...clicommons.console import err_console
+from ...clihelpers.console import err_console
 from ...fs import LinkMode, display_path, resolve_link_mode
 from ..importer import (
     BatchImportValidationError,

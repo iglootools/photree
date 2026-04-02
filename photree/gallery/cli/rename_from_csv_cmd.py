@@ -8,7 +8,7 @@ from typing import Annotated, Optional
 import typer
 
 from . import gallery_app
-from ...clicommons.console import err_console
+from ...clihelpers.console import err_console
 from ...fs import display_path, format_album_external_id
 from ...albums.cli.batch_ops import run_batch_rename_from_csv
 from .ops import build_index_or_exit, resolve_gallery_or_exit

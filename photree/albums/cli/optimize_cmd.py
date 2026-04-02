@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from . import AlbumDirOption, DirOption, albums_app
 from ...fs import LinkMode
-from ...clicommons.options import (
+from ...clihelpers.options import (
     CHECK_BEFORE_OPTION,
     CHECKSUM_OPTION,
     DRY_RUN_OPTION,

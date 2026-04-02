@@ -98,8 +98,8 @@ def import_cmd(
         typer.echo("--dir and --album-dir are mutually exclusive.", err=True)
         raise typer.Exit(code=1)
 
-    from ...clicommons.console import err_console
-    from ...clicommons.progress import BatchProgressBar
+    from ...clihelpers.console import err_console
+    from ...clihelpers.progress import BatchProgressBar
 
     ic_dir = _run_preflight_checks(
         source, config, force=force, skip_heic_to_jpeg=skip_heic_to_jpeg

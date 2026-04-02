@@ -8,7 +8,7 @@ from typing import Annotated, Optional
 import typer
 
 from . import gallery_app
-from ...clicommons.options import (
+from ...clihelpers.options import (
     DRY_RUN_OPTION,
     MV_MISCATEGORIZED_OPTION,
     PREFER_HIGHER_QUALITY_OPTION,

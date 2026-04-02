@@ -10,7 +10,7 @@ import typer
 from . import gallery_app
 from ...album.exporter import export_batch as _export_batch
 from ...album.exporter import output as _export_output
-from ...clicommons.options import (
+from ...clihelpers.options import (
     ALBUM_LAYOUT_OPTION,
     CONFIG_OPTION,
     EXPORT_LINK_MODE_OPTION,
@@ -63,7 +63,7 @@ def export_cmd(
         validate_export_settings,
     )
     from ...config import ConfigError
-    from ...clicommons.progress import BatchProgressBar
+    from ...clihelpers.progress import BatchProgressBar
 
     cwd = Path.cwd()
 
