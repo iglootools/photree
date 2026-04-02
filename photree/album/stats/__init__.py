@@ -7,13 +7,19 @@ the output formatting layer.
 
 from __future__ import annotations
 
-from collections import Counter
 from collections.abc import Callable
+from itertools import groupby
 from pathlib import Path
 
 from ..naming import parse_album_name
 from ..store.media_sources_discovery import discover_media_sources
-from .aggregate import aggregate_media_sources, merge_aggregates
+from ..store.protocol import MediaSource
+from .aggregate import (
+    aggregate_media_sources,
+    merge_aggregates,
+    merge_format_stats,
+    merge_size_stats,
+)
 from .models import (
     AlbumStats,
     AggregateStats,
@@ -46,7 +52,8 @@ __all__ = [
     "gallery_stats_from_album_stats",
 ]
 
-_ZERO_SIZE_STATS = SizeStats(file_count=0, apparent_bytes=0, on_disk_bytes=0)
+_ZERO = SizeStats(file_count=0, apparent_bytes=0, on_disk_bytes=0)
+_ZERO_ROLE = RoleBreakdown(total=_ZERO, archive=_ZERO, derived=_ZERO)
 
 
 # ---------------------------------------------------------------------------
@@ -54,107 +61,105 @@ _ZERO_SIZE_STATS = SizeStats(file_count=0, apparent_bytes=0, on_disk_bytes=0)
 # ---------------------------------------------------------------------------
 
 
+def _scan_role_dirs(
+    album_dir: Path,
+    subdirs: list[str],
+    seen_inodes: set[tuple[int, int]],
+    role: str,
+) -> tuple[
+    SizeStats,
+    RoleBreakdown,
+    RoleBreakdown,
+    RoleBreakdown,
+    list[tuple[FormatStats, ...]],
+]:
+    """Scan directories for a single role (archive, browsable, derived).
+
+    Returns ``(total, images_role, videos_role, sidecars_role, format_groups)``.
+    """
+    parts: list[SizeStats] = []
+    img_parts: list[SizeStats] = []
+    vid_parts: list[SizeStats] = []
+    sc_parts: list[SizeStats] = []
+    fmt_groups: list[tuple[FormatStats, ...]] = []
+
+    for subdir in subdirs:
+        imgs, vids, scs, fmts = categorize_size_stats(album_dir / subdir, seen_inodes)
+        parts.append(merge_size_stats([imgs, vids, scs]))
+        img_parts.append(imgs)
+        vid_parts.append(vids)
+        sc_parts.append(scs)
+        fmt_groups.append(tag_format_role(fmts, role=role))
+
+    total = merge_size_stats(parts)
+    img_total = merge_size_stats(img_parts)
+    vid_total = merge_size_stats(vid_parts)
+    sc_total = merge_size_stats(sc_parts)
+
+    def _role_breakdown(s: SizeStats) -> RoleBreakdown:
+        match role:
+            case "archive":
+                return RoleBreakdown(total=s, archive=s, derived=_ZERO)
+            case "derived":
+                return RoleBreakdown(total=s, archive=_ZERO, derived=s)
+            case _:
+                return RoleBreakdown(total=s, archive=_ZERO, derived=_ZERO)
+
+    return (
+        total,
+        _role_breakdown(img_total),
+        _role_breakdown(vid_total),
+        _role_breakdown(sc_total),
+        fmt_groups,
+    )
+
+
 def compute_media_source_stats(
     album_dir: Path,
-    ms: "MediaSourceStats | object",
+    ms: MediaSource,
     seen_inodes: set[tuple[int, int]],
 ) -> MediaSourceStats:
     """Compute stats for a single media source within an album."""
-    from ..store.protocol import MediaSource
-
-    assert isinstance(ms, MediaSource)
-
-    # Per-role accumulators for images/videos/sidecars
-    archive_images = _ZERO_SIZE_STATS
-    archive_videos = _ZERO_SIZE_STATS
-    archive_sidecars = _ZERO_SIZE_STATS
-    original_images = _ZERO_SIZE_STATS
-    original_videos = _ZERO_SIZE_STATS
-    original_sidecars = _ZERO_SIZE_STATS
-    derived_images = _ZERO_SIZE_STATS
-    derived_videos = _ZERO_SIZE_STATS
-    derived_sidecars = _ZERO_SIZE_STATS
-
-    all_formats: list[tuple[FormatStats, ...]] = []
-
-    archive_stats = _ZERO_SIZE_STATS
-    original_stats = _ZERO_SIZE_STATS
-    derived_stats = _ZERO_SIZE_STATS
-
-    from .aggregate import merge_size_stats, merge_format_stats
-
-    # Archive directories (iOS and std sources with archive on disk)
     has_archive = (album_dir / ms.archive_dir).is_dir()
+
+    # Archive directories
     if has_archive:
-        archive_dirs = [
-            ms.orig_img_dir,
-            ms.edit_img_dir,
-            ms.orig_vid_dir,
-            ms.edit_vid_dir,
-        ]
-        archive_parts: list[SizeStats] = []
-        for subdir in archive_dirs:
-            imgs, vids, scs, fmts = categorize_size_stats(
-                album_dir / subdir, seen_inodes
-            )
-            archive_parts.append(merge_size_stats([imgs, vids, scs]))
-            archive_images = merge_size_stats([archive_images, imgs])
-            archive_videos = merge_size_stats([archive_videos, vids])
-            archive_sidecars = merge_size_stats([archive_sidecars, scs])
-            all_formats.append(tag_format_role(fmts, role="archive"))
-        archive_stats = merge_size_stats(archive_parts)
+        archive_total, arch_img, arch_vid, arch_sc, arch_fmts = _scan_role_dirs(
+            album_dir,
+            [ms.orig_img_dir, ms.edit_img_dir, ms.orig_vid_dir, ms.edit_vid_dir],
+            seen_inodes,
+            "archive",
+        )
+    else:
+        archive_total = _ZERO
+        arch_img = arch_vid = arch_sc = _ZERO_ROLE
+        arch_fmts = []
 
-    # Original / browsable directories ({name}-img/, {name}-vid/)
-    original_parts: list[SizeStats] = []
-    for subdir in (ms.img_dir, ms.vid_dir):
-        imgs, vids, scs, fmts = categorize_size_stats(album_dir / subdir, seen_inodes)
-        original_parts.append(merge_size_stats([imgs, vids, scs]))
-        original_images = merge_size_stats([original_images, imgs])
-        original_videos = merge_size_stats([original_videos, vids])
-        original_sidecars = merge_size_stats([original_sidecars, scs])
-        all_formats.append(fmts)  # browsable: neither archive nor derived
-    original_stats = merge_size_stats(original_parts)
-
-    # Derived directory ({name}-jpg/)
-    imgs, vids, scs, fmts = categorize_size_stats(album_dir / ms.jpg_dir, seen_inodes)
-    derived_stats = merge_size_stats([imgs, vids, scs])
-    derived_images = merge_size_stats([derived_images, imgs])
-    derived_videos = merge_size_stats([derived_videos, vids])
-    derived_sidecars = merge_size_stats([derived_sidecars, scs])
-    all_formats.append(tag_format_role(fmts, role="derived"))
-
-    # Build RoleBreakdowns
-    all_images = merge_size_stats([archive_images, original_images, derived_images])
-    all_videos = merge_size_stats([archive_videos, original_videos, derived_videos])
-    all_sidecars = merge_size_stats(
-        [archive_sidecars, original_sidecars, derived_sidecars]
+    # Browsable directories ({name}-img/, {name}-vid/)
+    browsable_total, browse_img, browse_vid, browse_sc, browse_fmts = _scan_role_dirs(
+        album_dir, [ms.img_dir, ms.vid_dir], seen_inodes, "browsable"
     )
 
-    # Unique media counts
-    unique_pics = count_unique_pictures(album_dir, ms, has_archive=has_archive)
-    unique_vids = count_unique_videos(album_dir, ms, has_archive=has_archive)
+    # Derived directory ({name}-jpg/)
+    derived_total, der_img, der_vid, der_sc, der_fmts = _scan_role_dirs(
+        album_dir, [ms.jpg_dir], seen_inodes, "derived"
+    )
 
-    total = merge_size_stats([archive_stats, original_stats, derived_stats])
+    from .aggregate import merge_role_breakdowns
 
     return MediaSourceStats(
         name=ms.name,
         media_source_type=ms.media_source_type,
-        total=total,
-        archive=archive_stats,
-        original=original_stats,
-        derived=derived_stats,
-        unique_pictures=unique_pics,
-        unique_videos=unique_vids,
-        images=RoleBreakdown(
-            total=all_images, archive=archive_images, derived=derived_images
-        ),
-        videos=RoleBreakdown(
-            total=all_videos, archive=archive_videos, derived=derived_videos
-        ),
-        sidecars=RoleBreakdown(
-            total=all_sidecars, archive=archive_sidecars, derived=derived_sidecars
-        ),
-        by_format=merge_format_stats(all_formats),
+        total=merge_size_stats([archive_total, browsable_total, derived_total]),
+        archive=archive_total,
+        original=browsable_total,
+        derived=derived_total,
+        unique_pictures=count_unique_pictures(album_dir, ms, has_archive=has_archive),
+        unique_videos=count_unique_videos(album_dir, ms, has_archive=has_archive),
+        images=merge_role_breakdowns([arch_img, browse_img, der_img]),
+        videos=merge_role_breakdowns([arch_vid, browse_vid, der_vid]),
+        sidecars=merge_role_breakdowns([arch_sc, browse_sc, der_sc]),
+        by_format=merge_format_stats([*arch_fmts, *browse_fmts, *der_fmts]),
     )
 
 
@@ -164,10 +169,7 @@ def compute_media_source_stats(
 
 
 def _extract_year(album_name: str) -> str | None:
-    """Extract the start year from an album directory name.
-
-    Returns ``None`` when the name cannot be parsed.
-    """
+    """Extract the start year from an album directory name."""
     parsed = parse_album_name(album_name)
     return parsed.date[:4] if parsed is not None else None
 
@@ -208,37 +210,26 @@ def compute_album_stats(album_dir: Path) -> AlbumStats:
 def gallery_stats_from_album_stats(
     album_stats_list: list[AlbumStats],
 ) -> GalleryStats:
-    """Build ``GalleryStats`` from pre-computed per-album stats.
+    """Build ``GalleryStats`` from pre-computed per-album stats."""
+    all_ms_names = sorted(
+        {ms.name for a in album_stats_list for ms in a.by_media_source}
+    )
 
-    Useful when the caller drives the per-album loop (e.g. for progress
-    reporting) and has already collected ``AlbumStats`` instances.
-    """
-    all_ms_names: set[str] = set()
-    for a in album_stats_list:
-        for ms in a.by_media_source:
-            all_ms_names.add(ms.name)
-
-    # Year breakdown
-    year_groups: dict[str, list[AggregateStats]] = {}
-    year_album_counts: Counter[str] = Counter()
-    for a in album_stats_list:
-        year_groups.setdefault(a.album_year, []).append(a.aggregate)
-        year_album_counts[a.album_year] += 1
-
+    sorted_albums = sorted(album_stats_list, key=lambda a: a.album_year)
     by_year = tuple(
         YearStats(
             year=year,
-            album_count=year_album_counts[year],
-            aggregate=merge_aggregates(aggs),
+            album_count=len(group := list(albums)),
+            aggregate=merge_aggregates(a.aggregate for a in group),
         )
-        for year, aggs in sorted(year_groups.items())
+        for year, albums in groupby(sorted_albums, key=lambda a: a.album_year)
     )
 
     return GalleryStats(
         album_count=len(album_stats_list),
         by_album=tuple(album_stats_list),
         aggregate=merge_aggregates(a.aggregate for a in album_stats_list),
-        unique_media_source_names=tuple(sorted(all_ms_names)),
+        unique_media_source_names=tuple(all_ms_names),
         by_year=by_year,
     )
 
@@ -252,12 +243,17 @@ def compute_gallery_stats(
 
     Raises :class:`ValueError` when any album name cannot be parsed.
     """
-    album_stats_list: list[AlbumStats] = []
-
-    for album_dir in albums:
-        stats = compute_album_stats(album_dir)
-        album_stats_list.append(stats)
-        if on_album_done is not None:
-            on_album_done(album_dir.name)
-
+    album_stats_list = [
+        _compute_and_notify(album_dir, on_album_done) for album_dir in albums
+    ]
     return gallery_stats_from_album_stats(album_stats_list)
+
+
+def _compute_and_notify(
+    album_dir: Path,
+    on_album_done: Callable[[str], None] | None,
+) -> AlbumStats:
+    stats = compute_album_stats(album_dir)
+    if on_album_done is not None:
+        on_album_done(album_dir.name)
+    return stats
