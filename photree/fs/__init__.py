@@ -9,7 +9,6 @@ from .fileutils import (
 )
 from .ios import (
     PICTURE_PRIORITY_EXTENSIONS,
-    _group_by_number,
     dedup_media_dict,
     find_files_by_number,
     find_files_by_stem,
@@ -88,7 +87,6 @@ __all__ = [
     "matching_subdirectories",
     # ios (iOS-specific convenience wrappers)
     "PICTURE_PRIORITY_EXTENSIONS",
-    "_group_by_number",
     "dedup_media_dict",
     "find_files_by_number",
     "find_files_by_stem",

@@ -9,7 +9,6 @@ from .media import (
     PICTURE_PRIORITY_EXTENSIONS,
     dedup_media_dict as _generic_dedup,
     find_files_by_key,
-    group_by_key,
     pick_media_priority,
 )
 
@@ -27,13 +26,6 @@ __all__ = [
 def img_number(filename: str) -> str:
     """Extract the numeric portion of a filename (e.g. ``"0410"`` from ``"IMG_0410.HEIC"``)."""
     return "".join(c for c in filename if c.isdigit())
-
-
-def _group_by_number(
-    files: list[str], media_extensions: frozenset[str]
-) -> dict[str, list[str]]:
-    """Group media files by their numeric ID."""
-    return group_by_key(files, media_extensions, img_number)
 
 
 def dedup_media_dict(
