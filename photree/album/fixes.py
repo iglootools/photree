@@ -13,7 +13,7 @@ from pathlib import Path
 
 from rich.console import Console
 
-from ..uiconventions import CHECK
+from ..common.formatting import CHECK
 
 from . import browsable as browsable_module
 from . import jpeg

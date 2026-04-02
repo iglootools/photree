@@ -19,7 +19,7 @@ from ..fs import (
     VID_EXTENSIONS,
     discover_media_sources,
 )
-from ..uiconventions import CHECK
+from ..common.formatting import CHECK
 
 _console = Console(highlight=False)
 

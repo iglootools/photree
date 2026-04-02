@@ -18,20 +18,19 @@ Dependencies between top-level modules (auto-generated via `mise run depgraph`):
 graph TD
     album["album/"]
     albums["albums/"]
-    base58["base58"]
     check["check/"]
     cli["cli/"]
     clicommons["clicommons/"]
+    common["common/"]
     config["config/"]
     demo["demo/"]
     fs["fs/"]
     gallery["gallery/"]
-    uiconventions["uiconventions"]
 
     album --> clicommons
+    album --> common
     album --> config
     album --> fs
-    album --> uiconventions
     albums --> album
     albums --> clicommons
     albums --> config
@@ -44,12 +43,11 @@ graph TD
     cli --> check
     cli --> demo
     cli --> gallery
+    clicommons --> common
     clicommons --> fs
-    clicommons --> uiconventions
     config --> fs
     demo --> album
-    fs --> base58
-    fs --> uiconventions
+    fs --> common
     gallery --> album
     gallery --> albums
     gallery --> clicommons

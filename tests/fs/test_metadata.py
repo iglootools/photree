@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from photree.base58 import base58_decode, base58_encode
+from photree.common.base58 import base58_decode, base58_encode
 from photree.fs import (
     ALBUM_YAML,
     AlbumMetadata,

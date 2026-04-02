@@ -25,7 +25,7 @@ from ..fs import (
     display_path,
     list_files,
 )
-from ..uiconventions import CHECK
+from ..common.formatting import CHECK
 
 _console = Console(highlight=False)
 

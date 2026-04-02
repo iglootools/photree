@@ -13,7 +13,7 @@ from textwrap import dedent
 from pydantic import BaseModel, ConfigDict, Field
 from uuid6 import uuid7
 
-from ..base58 import base58_decode, base58_encode
+from ..common.base58 import base58_decode, base58_encode
 
 # ---------------------------------------------------------------------------
 # Pydantic base model (kebab-case YAML aliases, frozen)

@@ -6,7 +6,7 @@ from textwrap import dedent
 
 from rich.markup import escape
 
-from ...uiconventions import CHECK, CROSS, WARNING
+from ...common.formatting import CHECK, CROSS, WARNING
 from .troubleshoot import suggest_exif_fixes, suggest_fixes
 from ..naming import AlbumNamingResult, BatchNamingResult
 from . import AlbumMediaSourceSummary, AlbumPreflightResult

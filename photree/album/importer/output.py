@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from textwrap import dedent
 
-from ...uiconventions import CHECK, CROSS
+from ...common.formatting import CHECK, CROSS
 from ...fs import SELECTION_DIR
 from .image_capture import ValidationError
 from .preflight import (
