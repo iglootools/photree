@@ -32,6 +32,7 @@ graph TD
     album --> common
     album --> config
     album --> fs
+    album --> fsprotocol
     albums --> album
     albums --> clihelpers
     albums --> common
