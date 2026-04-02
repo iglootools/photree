@@ -15,13 +15,15 @@ from ...album.fix.output import (
     refresh_jpeg_summary,
     rm_upstream_summary,
 )
-from ...album.integrity.output import format_integrity_checks
-from ...album.preflight import output as preflight_output
-from ...album.integrity.testkit import (
+from ...album.check import output as preflight_output
+from ...album.check.output import format_integrity_checks
+from ...album.check.testkit import (
     FULL_INTEGRITY_FAILURES,
     FULL_INTEGRITY_OK,
+    PREFLIGHT_FAILURES,
+    PREFLIGHT_OK,
+    PREFLIGHT_OTHER,
 )
-from ...album.preflight.testkit import PREFLIGHT_FAILURES, PREFLIGHT_OK, PREFLIGHT_OTHER
 from ...album.importer import output as importer_output
 from ...album.importer.testkit.preflight import (
     IC_CHECK_OK,

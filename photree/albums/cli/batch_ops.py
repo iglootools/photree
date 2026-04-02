@@ -14,13 +14,13 @@ from pathlib import Path
 import typer
 
 from ...album import (
-    preflight as album_preflight,
+    check as album_preflight,
 )
+from ...album.check import output as preflight_output
+from ...album.check.output import batch_check_summary
 from ...album.fix.output import batch_fix_summary
 from ...album.fix.ios.output import batch_fix_ios_summary
 from ...album.optimize import batch_optimize_summary
-from ...album.preflight import output as preflight_output
-from ...album.preflight.output import batch_check_summary
 from ...album.stats import output as stats_output
 from ...common.exif import try_start_exiftool
 from ...common.formatting import CHECK

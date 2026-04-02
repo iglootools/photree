@@ -8,7 +8,7 @@ from enum import StrEnum
 from pathlib import Path
 
 from ...config import load_config
-from ..preflight import check_sips_available
+from ..check import check_sips_available
 from ..store.protocol import SELECTION_DIR
 
 DEFAULT_IMAGE_CAPTURE_DIR = Path.home() / "Pictures" / "iPhone"

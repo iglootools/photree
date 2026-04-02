@@ -1,17 +1,24 @@
-"""Fake integrity check results for demo and testing purposes."""
+"""Fake check results for demo and testing purposes."""
 
 from __future__ import annotations
 
-from ..store.protocol import MAIN_MEDIA_SOURCE
+from ..store.protocol import MAIN_MEDIA_SOURCE, std_media_source
 from . import (
-    BrowsableDirCheck,
-    FileComparison,
+    AlbumDirCheck,
+    AlbumMediaSourceSummary,
+    AlbumPreflightResult,
+)
+from .browsable import BrowsableDirCheck, FileComparison, MissingFile
+from .ios import (
     IosAlbumFullIntegrityResult,
     IosAlbumIntegrityResult,
-    JpegCheck,
-    MissingFile,
-    SidecarCheck,
 )
+from .jpeg import JpegCheck
+from .sidecar import SidecarCheck
+
+# ---------------------------------------------------------------------------
+# Integrity testkit (was album/integrity/testkit.py)
+# ---------------------------------------------------------------------------
 
 INTEGRITY_OK = IosAlbumIntegrityResult(
     browsable_heic=BrowsableDirCheck(
@@ -83,4 +90,53 @@ FULL_INTEGRITY_OK = IosAlbumFullIntegrityResult(
 
 FULL_INTEGRITY_FAILURES = IosAlbumFullIntegrityResult(
     by_media_source=((MAIN_MEDIA_SOURCE, INTEGRITY_FAILURES),)
+)
+
+# ---------------------------------------------------------------------------
+# Preflight testkit (was album/preflight/testkit.py)
+# ---------------------------------------------------------------------------
+
+PREFLIGHT_OK = AlbumPreflightResult(
+    sips_available=True,
+    exiftool_available=True,
+    media_source_summary=AlbumMediaSourceSummary(media_sources=(MAIN_MEDIA_SOURCE,)),
+    dir_check=AlbumDirCheck(
+        present=(
+            "orig-img",
+            "orig-vid",
+            "edit-img",
+            "edit-vid",
+            "main-img",
+            "main-vid",
+            "main-jpg",
+        ),
+        missing=(),
+    ),
+    ios_integrity=FULL_INTEGRITY_OK,
+)
+
+PREFLIGHT_FAILURES = AlbumPreflightResult(
+    sips_available=False,
+    exiftool_available=True,
+    media_source_summary=AlbumMediaSourceSummary(media_sources=(MAIN_MEDIA_SOURCE,)),
+    dir_check=AlbumDirCheck(
+        present=("orig-img", "main-img"),
+        missing=(
+            "orig-vid",
+            "edit-img",
+            "edit-vid",
+            "main-vid",
+            "main-jpg",
+        ),
+    ),
+    ios_integrity=FULL_INTEGRITY_FAILURES,
+)
+
+PREFLIGHT_OTHER = AlbumPreflightResult(
+    sips_available=True,
+    exiftool_available=True,
+    media_source_summary=AlbumMediaSourceSummary(
+        media_sources=(std_media_source("main"),)
+    ),
+    dir_check=AlbumDirCheck(present=(), missing=()),
 )

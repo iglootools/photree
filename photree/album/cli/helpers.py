@@ -8,10 +8,10 @@ import typer
 
 from ...clihelpers.console import console, err_console
 from ...config import ConfigError
-from .. import preflight as album_preflight
+from .. import check as album_preflight
+from ..check import output as preflight_output
 from ..importer import output as importer_output
 from ..importer.preflight import resolve_image_capture_dir, run_preflight
-from ..preflight import output as preflight_output
 
 
 def _check_sips_or_exit() -> None:

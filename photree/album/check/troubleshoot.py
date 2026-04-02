@@ -8,8 +8,8 @@ from textwrap import dedent, indent
 
 from rich.markup import escape
 
-from ..integrity import IosAlbumIntegrityResult
 from ..naming import ExifMismatch
+from .ios import IosAlbumIntegrityResult
 
 
 def suggest_fixes(

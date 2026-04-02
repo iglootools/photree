@@ -7,8 +7,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from ...album import (
+    check as album_preflight,
     optimize as album_optimize,
-    preflight as album_preflight,
 )
 from ...fsprotocol import LinkMode
 

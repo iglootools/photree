@@ -15,7 +15,7 @@ from ...clihelpers.options import (
     RM_MISCATEGORIZED_SAFE_OPTION,
     RM_ORPHAN_SIDECAR_OPTION,
 )
-from .. import preflight as album_preflight
+from .. import check as album_preflight
 from ..fix.ios import (
     FixIosValidationError,
     run_fix_ios,

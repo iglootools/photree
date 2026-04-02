@@ -21,8 +21,8 @@ from ..naming import (
     check_exif_date_match,
     parse_album_name,
 )
-from ..preflight import check_exiftool_available
-from ..preflight.output import format_naming_checks
+from ..check import check_exiftool_available
+from ..check.output import format_naming_checks
 from ..store.protocol import SELECTION_DIR
 from . import album_app
 from .helpers import _run_preflight_checks
