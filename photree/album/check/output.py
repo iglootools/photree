@@ -452,10 +452,10 @@ def format_album_preflight_troubleshoot(
 
     integrity_suggestions = [
         suggestion
-        for _, contrib_result in (
+        for ms, contrib_result in (
             result.integrity.ios_results if result.integrity is not None else ()
         )
-        for suggestion in suggest_fixes(contrib_result, album_dir_flag)
+        for suggestion in suggest_fixes(contrib_result, album_dir_flag, ms)
     ]
 
     # Missing browsable directories → suggest optimize + refresh-jpeg
