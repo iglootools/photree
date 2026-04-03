@@ -468,7 +468,7 @@ def format_album_preflight_troubleshoot(
         *(
             [
                 dedent(f"""\
-                    photree album optimize {album_dir_flag}
+                    photree album optimize {album_dir_flag} --no-check
                       Rebuild browsable directories ({", ".join(sorted(missing_browsable))})
                       from archive sources, then regenerate JPEGs.""")
             ]
