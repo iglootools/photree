@@ -11,6 +11,7 @@ from ..naming import AlbumNamingResult, BatchNamingResult
 from ..id import format_album_external_id
 from . import AlbumIntegrityResult, AlbumMediaSourceSummary, AlbumPreflightResult
 from .media_metadata import MediaMetadataCheck
+from .unexpected_dirs import UnexpectedDirsCheck
 from .browsable import BrowsableDirCheck
 from .ios import IosMediaSourceIntegrityResult
 from .jpeg import AlbumJpegIntegrityResult, JpegCheck
@@ -80,16 +81,8 @@ def media_metadata_check_line(check: MediaMetadataCheck) -> str:
         return f"{CROSS} media metadata: {len(check.duplicate_ids)} duplicate id(s)"
     if check.new_keys or check.stale_keys:
         parts = [
-            *(
-                [f"{len(check.new_keys)} new"]
-                if check.new_keys
-                else []
-            ),
-            *(
-                [f"{len(check.stale_keys)} removed"]
-                if check.stale_keys
-                else []
-            ),
+            *([f"{len(check.new_keys)} new"] if check.new_keys else []),
+            *([f"{len(check.stale_keys)} removed"] if check.stale_keys else []),
         ]
         return f"{CROSS} media metadata: stale ({', '.join(parts)})"
     return (
@@ -111,6 +104,18 @@ def album_dir_check(
         *[f"{CHECK} dir: {d}/ (optional, absent)" for d in optional_absent],
     ]
     return "\n".join(lines)
+
+
+def unexpected_dirs_check_line(check: UnexpectedDirsCheck) -> str:
+    if check.success:
+        return f"{CHECK} no unexpected directories"
+    else:
+        return "\n".join(
+            [
+                f"{CROSS} unexpected directories:",
+                *[f"    {d}/" for d in check.unexpected],
+            ]
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -381,6 +386,11 @@ def format_album_preflight_checks(
                     result.dir_check.optional_absent,
                 ).splitlines()
                 if result.media_source_summary.media_sources
+                else []
+            ),
+            *(
+                unexpected_dirs_check_line(result.unexpected_dirs_check).splitlines()
+                if result.unexpected_dirs_check is not None
                 else []
             ),
             *(

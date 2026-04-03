@@ -12,6 +12,7 @@ from . import (
 from ..store.protocol import MAIN_MEDIA_SOURCE, std_media_source
 from .browsable import BrowsableDirCheck, FileComparison, MissingFile
 from .ios import IosMediaSourceIntegrityResult
+from .unexpected_dirs import UnexpectedDirsCheck
 from .ios.sidecar import SidecarCheck
 from .jpeg import AlbumJpegIntegrityResult, JpegCheck
 from .std import StdMediaSourceIntegrityResult
@@ -207,6 +208,7 @@ PREFLIGHT_OK = AlbumPreflightResult(
     album_id_check=AlbumIdCheck(
         has_id=True, album_id="01234567-89ab-7def-8123-456789abcdef"
     ),
+    unexpected_dirs_check=UnexpectedDirsCheck(unexpected=()),
     integrity=INTEGRITY_OK,
     jpeg_check=JPEG_INTEGRITY_OK,
 )
@@ -241,6 +243,7 @@ PREFLIGHT_STD = AlbumPreflightResult(
     album_id_check=AlbumIdCheck(
         has_id=True, album_id="01234567-89ab-7def-8123-456789abcdef"
     ),
+    unexpected_dirs_check=UnexpectedDirsCheck(unexpected=()),
     integrity=AlbumIntegrityResult(
         by_media_source=((std_media_source("main"), STD_INTEGRITY_OK),)
     ),

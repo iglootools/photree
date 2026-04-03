@@ -27,6 +27,20 @@ def list_files(directory: Path) -> list[str]:
     )
 
 
+def list_dirs(directory: Path) -> list[str]:
+    """Return subdirectory names in *directory*, excluding dotdirs (e.g. .photree).
+
+    Returns an empty list when *directory* does not exist.
+    """
+    if not directory.is_dir():
+        return []
+    return sorted(
+        f
+        for f in os.listdir(directory)
+        if not f.startswith(".") and (directory / f).is_dir()
+    )
+
+
 def file_ext(filename: str) -> str:
     """Return the lowercased file extension (e.g. ``".heic"``)."""
     return Path(filename).suffix.lower()
