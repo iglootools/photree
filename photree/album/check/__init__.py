@@ -34,6 +34,7 @@ from .system import (
     check_exiftool_available as check_exiftool_available,
     check_sips_available,
 )
+from .unexpected_dirs import UnexpectedDirsCheck, check_unexpected_dirs
 
 # Union of per-media-source integrity results
 MediaSourceIntegrityResult = (
@@ -130,6 +131,7 @@ class AlbumPreflightResult:
     media_source_summary: AlbumMediaSourceSummary
     dir_check: AlbumDirCheck
     album_id_check: AlbumIdCheck | None = None
+    unexpected_dirs_check: UnexpectedDirsCheck | None = None
     media_metadata_check: MediaMetadataCheck | None = None
     integrity: AlbumIntegrityResult | None = None
     jpeg_check: AlbumJpegIntegrityResult | None = None
@@ -141,6 +143,9 @@ class AlbumPreflightResult:
             self.sips_available
             and self.dir_check.success
             and (self.album_id_check is None or self.album_id_check.has_id)
+            and (
+                self.unexpected_dirs_check is None or self.unexpected_dirs_check.success
+            )
             and (self.media_metadata_check is None or self.media_metadata_check.in_sync)
             and (self.integrity is None or self.integrity.success)
             and (self.jpeg_check is None or self.jpeg_check.success)
@@ -178,6 +183,12 @@ class AlbumPreflightResult:
                     ["missing album id"]
                     if self.album_id_check is not None
                     and not self.album_id_check.has_id
+                    else []
+                ),
+                *(
+                    ["unexpected dirs"]
+                    if self.unexpected_dirs_check is not None
+                    and not self.unexpected_dirs_check.success
                     else []
                 ),
                 *(
@@ -326,6 +337,7 @@ def run_album_check(
     )
 
     dir_check = check_album_dir_structure(album_dir)
+    unexpected_dirs = check_unexpected_dirs(album_dir)
 
     media_metadata_check = check_media_metadata(album_dir) if media_sources else None
 
@@ -361,6 +373,7 @@ def run_album_check(
         media_source_summary=summary,
         dir_check=dir_check,
         album_id_check=album_id_check,
+        unexpected_dirs_check=unexpected_dirs,
         media_metadata_check=media_metadata_check,
         integrity=integrity,
         jpeg_check=jpeg_check,

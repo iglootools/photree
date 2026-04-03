@@ -217,5 +217,3 @@ class TestRefreshMultipleSources:
         # Std source keys are stems
         std_keys = set(meta.media_sources["nelu"].images.values())
         assert std_keys == {"DSC_1234", "DSC_5678"}
-
-
