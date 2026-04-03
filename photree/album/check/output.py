@@ -458,6 +458,25 @@ def format_album_preflight_troubleshoot(
         for suggestion in suggest_fixes(contrib_result, album_dir_flag)
     ]
 
+    # Missing browsable directories → suggest optimize + refresh-jpeg
+    missing_browsable = frozenset(result.dir_check.missing) & frozenset(
+        d
+        for ms in result.media_source_summary.media_sources
+        for d in (ms.img_dir, ms.vid_dir, ms.jpg_dir)
+    )
+    missing_dirs_suggestions = [
+        *(
+            [
+                dedent(f"""\
+                    photree album optimize {album_dir_flag}
+                      Rebuild browsable directories ({", ".join(sorted(missing_browsable))})
+                      from archive sources, then regenerate JPEGs.""")
+            ]
+            if missing_browsable
+            else []
+        ),
+    ]
+
     media_metadata_suggestions = [
         *(
             [
@@ -471,7 +490,11 @@ def format_album_preflight_troubleshoot(
         ),
     ]
 
-    all_suggestions = [*integrity_suggestions, *media_metadata_suggestions]
+    all_suggestions = [
+        *missing_dirs_suggestions,
+        *integrity_suggestions,
+        *media_metadata_suggestions,
+    ]
 
     lines = [
         *([sips_troubleshoot()] if not result.sips_available else []),
