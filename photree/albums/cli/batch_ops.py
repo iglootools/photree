@@ -27,7 +27,7 @@ from ...common.formatting import CHECK
 from ...album.store.album_discovery import discover_potential_albums
 from ...album.store.media_sources_discovery import discover_media_sources
 from ...album.store.metadata import load_album_metadata
-from ...album.id import format_album_external_id
+from ...album.id import format_album_external_id, format_image_external_id
 from ...common.fs import display_path
 from ...fsprotocol import LinkMode
 from ...clihelpers.console import console, err_console
@@ -38,6 +38,7 @@ from ..cmd_handler.fix import batch_fix
 from ..cmd_handler.optimize import batch_optimize
 from ..cmd_handler.fix_ios import batch_fix_ios
 from ..cmd_handler.stats import batch_stats
+from ..cmd_handler.refresh import batch_refresh
 from ..cmd_handler.rename import batch_rename_from_csv
 
 
@@ -94,6 +95,52 @@ def run_batch_init(
         for album_dir in result.failed_albums:
             err_console.print(
                 f'  photree album init --album-dir "{display_path(album_dir, cwd)}"'
+            )
+        raise typer.Exit(code=1)
+
+
+def run_batch_refresh(
+    albums: list[Path],
+    display_base: Path | None,
+    *,
+    dry_run: bool = False,
+) -> None:
+    """Shared implementation for albums refresh / gallery refresh."""
+    cwd = Path.cwd()
+
+    if not albums:
+        typer.echo("\nNo albums found.")
+        raise typer.Exit(code=0)
+
+    if display_base is not None:
+        typer.echo(f"\nFound {len(albums)} album(s).\n")
+
+    progress = BatchProgressBar(
+        total=len(albums), description="Refreshing", done_description="refresh"
+    )
+
+    result = batch_refresh(
+        albums,
+        dry_run=dry_run,
+        display_fn=_make_display_fn(display_base, cwd),
+        on_start=progress.on_start,
+        on_end=lambda name, success, errors: progress.on_end(
+            name, success=success, error_labels=errors
+        ),
+    )
+
+    progress.stop()
+
+    typer.echo(
+        f"\nDone. {result.refreshed} album(s) refreshed,"
+        f" {len(result.failed_albums)} failed."
+    )
+
+    if result.failed_albums:
+        err_console.print("\nFailed albums:")
+        for album_dir in result.failed_albums:
+            err_console.print(
+                f'  photree album refresh --album-dir "{display_path(album_dir, cwd)}"'
             )
         raise typer.Exit(code=1)
 
@@ -318,6 +365,15 @@ def run_batch_check(
                 err_console.print(f"    {display_path(p, cwd)}")
     else:
         console.print(f"{CHECK} no duplicate album ids")
+
+    if result.duplicate_media_ids:
+        for mid, paths in result.duplicate_media_ids.items():
+            ext_id = format_image_external_id(mid)
+            err_console.print(f"[red]\u2717[/red] duplicate media id: {ext_id}")
+            for p in paths:
+                err_console.print(f"    {display_path(p, cwd)}")
+    else:
+        console.print(f"{CHECK} no duplicate media ids")
 
     # Summary
     console.print(

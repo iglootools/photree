@@ -31,6 +31,7 @@ STAGE_COPY = "copy"
 STAGE_ID = "id"
 STAGE_JPEG = "jpeg"
 STAGE_OPTIMIZE = "optimize"
+STAGE_REFRESH_MEDIA = "refresh-media"
 
 
 @dataclass(frozen=True)
@@ -246,6 +247,7 @@ def import_album(
     2. Generate album ID if missing
     3. Refresh JPEGs if stale
     4. Optimize (replace copies with links)
+    5. Refresh media metadata (assign media IDs)
 
     Raises :class:`ValueError` if the target directory already exists or
     the album name cannot be parsed.
@@ -274,6 +276,12 @@ def import_album(
     _notify(on_stage_start, STAGE_OPTIMIZE)
     optimized = _stage_optimize(work_dir, link_mode=link_mode, dry_run=dry_run)
     _notify(on_stage_end, STAGE_OPTIMIZE)
+
+    _notify(on_stage_start, STAGE_REFRESH_MEDIA)
+    from ..album.refresh import refresh_media_metadata
+
+    refresh_media_metadata(work_dir, dry_run=dry_run)
+    _notify(on_stage_end, STAGE_REFRESH_MEDIA)
 
     return AlbumImportResult(
         album_name=album_name,

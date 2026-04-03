@@ -28,6 +28,7 @@ from ..store.protocol import MediaSource
 from .dir_structure import AlbumDirCheck, check_album_dir_structure
 from .ios import IosMediaSourceIntegrityResult, check_ios_media_source_integrity
 from .jpeg import AlbumJpegIntegrityResult, check_album_jpeg_integrity
+from .media_metadata import MediaMetadataCheck, check_media_metadata
 from .std import StdMediaSourceIntegrityResult, check_std_media_source_integrity
 from .system import (
     check_exiftool_available as check_exiftool_available,
@@ -129,6 +130,7 @@ class AlbumPreflightResult:
     media_source_summary: AlbumMediaSourceSummary
     dir_check: AlbumDirCheck
     album_id_check: AlbumIdCheck | None = None
+    media_metadata_check: MediaMetadataCheck | None = None
     integrity: AlbumIntegrityResult | None = None
     jpeg_check: AlbumJpegIntegrityResult | None = None
     naming: AlbumNamingResult | None = None
@@ -139,6 +141,7 @@ class AlbumPreflightResult:
             self.sips_available
             and self.dir_check.success
             and (self.album_id_check is None or self.album_id_check.has_id)
+            and (self.media_metadata_check is None or self.media_metadata_check.in_sync)
             and (self.integrity is None or self.integrity.success)
             and (self.jpeg_check is None or self.jpeg_check.success)
             and (self.naming is None or self.naming.success)
@@ -175,6 +178,12 @@ class AlbumPreflightResult:
                     ["missing album id"]
                     if self.album_id_check is not None
                     and not self.album_id_check.has_id
+                    else []
+                ),
+                *(
+                    ["media metadata stale"]
+                    if self.media_metadata_check is not None
+                    and not self.media_metadata_check.in_sync
                     else []
                 ),
                 *(
@@ -318,6 +327,8 @@ def run_album_check(
 
     dir_check = check_album_dir_structure(album_dir)
 
+    media_metadata_check = check_media_metadata(album_dir) if media_sources else None
+
     integrity = (
         check_album_integrity(
             album_dir, checksum=checksum, on_file_checked=on_file_checked
@@ -350,6 +361,7 @@ def run_album_check(
         media_source_summary=summary,
         dir_check=dir_check,
         album_id_check=album_id_check,
+        media_metadata_check=media_metadata_check,
         integrity=integrity,
         jpeg_check=jpeg_check,
         naming=naming,

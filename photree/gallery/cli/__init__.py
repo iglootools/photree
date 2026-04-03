@@ -20,6 +20,7 @@ from . import (  # noqa: E402, F401 — imported for command registration side e
     init_cmd,
     list_albums_cmd,
     optimize_cmd,
+    refresh_cmd,
     rename_from_csv_cmd,
     show_cmd,
     stats_cmd,

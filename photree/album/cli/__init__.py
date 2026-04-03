@@ -21,6 +21,7 @@ from . import (  # noqa: E402, F401 — imported for command registration side e
     init_cmd,
     mv_media_cmd,
     optimize_cmd,
+    refresh_cmd,
     rm_media_cmd,
     show_cmd,
     stats_cmd,

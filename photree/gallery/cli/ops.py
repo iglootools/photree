@@ -125,12 +125,13 @@ def run_single_import(
     """Execute a single album import with stage progress bar."""
     typer.echo("Import:")
     progress = StageProgressBar(
-        total=4,
+        total=5,
         labels={
             "copy": "Copying album",
             "id": "Checking album ID",
             "jpeg": "Refreshing JPEGs",
             "optimize": "Optimizing links",
+            "refresh-media": "Refreshing media metadata",
         },
     )
     try:

@@ -10,6 +10,7 @@ from ...common.formatting import CHECK, CROSS, WARNING
 from ..naming import AlbumNamingResult, BatchNamingResult
 from ..id import format_album_external_id
 from . import AlbumIntegrityResult, AlbumMediaSourceSummary, AlbumPreflightResult
+from .media_metadata import MediaMetadataCheck
 from .browsable import BrowsableDirCheck
 from .ios import IosMediaSourceIntegrityResult
 from .jpeg import AlbumJpegIntegrityResult, JpegCheck
@@ -70,6 +71,31 @@ def album_id_check_line(has_id: bool, album_id: str | None = None) -> str:
         return f"{CHECK} album id: {format_album_external_id(album_id)}"
     else:
         return f"{CROSS} album id: missing (.photree/album.yaml)"
+
+
+def media_metadata_check_line(check: MediaMetadataCheck) -> str:
+    if not check.has_media_metadata:
+        return f"{CROSS} media metadata: missing"
+    if check.duplicate_ids:
+        return f"{CROSS} media metadata: {len(check.duplicate_ids)} duplicate id(s)"
+    if check.new_keys or check.stale_keys:
+        parts = [
+            *(
+                [f"{len(check.new_keys)} new"]
+                if check.new_keys
+                else []
+            ),
+            *(
+                [f"{len(check.stale_keys)} removed"]
+                if check.stale_keys
+                else []
+            ),
+        ]
+        return f"{CROSS} media metadata: stale ({', '.join(parts)})"
+    return (
+        f"{CHECK} media metadata: {check.image_count} image(s),"
+        f" {check.video_count} video(s)"
+    )
 
 
 def album_dir_check(
@@ -343,6 +369,11 @@ def format_album_preflight_checks(
                 else []
             ),
             *(
+                [media_metadata_check_line(result.media_metadata_check)]
+                if result.media_metadata_check is not None
+                else []
+            ),
+            *(
                 album_dir_check(
                     result.dir_check.present,
                     result.dir_check.missing,
@@ -409,13 +440,28 @@ def format_album_preflight_troubleshoot(
     """Format troubleshooting info for failed album checks. Returns None if no failures."""
     album_dir_flag = f'--album-dir "{album_dir}"'
 
-    all_suggestions = [
+    integrity_suggestions = [
         suggestion
         for _, contrib_result in (
             result.integrity.ios_results if result.integrity is not None else ()
         )
         for suggestion in suggest_fixes(contrib_result, album_dir_flag)
     ]
+
+    media_metadata_suggestions = [
+        *(
+            [
+                dedent(f"""\
+                    photree album refresh {album_dir_flag}
+                      Generate or update media IDs in .photree/media.yaml.""")
+            ]
+            if result.media_metadata_check is not None
+            and not result.media_metadata_check.in_sync
+            else []
+        ),
+    ]
+
+    all_suggestions = [*integrity_suggestions, *media_metadata_suggestions]
 
     lines = [
         *([sips_troubleshoot()] if not result.sips_available else []),
