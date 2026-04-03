@@ -9,12 +9,14 @@ from textwrap import dedent, indent
 from rich.markup import escape
 
 from ..naming import ExifMismatch
+from ..store.protocol import MediaSource
 from .ios import IosMediaSourceIntegrityResult
 
 
 def suggest_fixes(
     integrity: IosMediaSourceIntegrityResult,
     album_dir_flag: str,
+    media_source: MediaSource,
 ) -> list[str]:
     """Suggest fix commands based on integrity check failures."""
     heic = integrity.browsable_img
@@ -43,8 +45,8 @@ def suggest_fixes(
             [
                 dedent(f"""\
                     photree album fix {album_dir_flag} --refresh-browsable --dry-run
-                      Rebuild main-img/ and main-vid/ from orig/edited sources,
-                      then regenerate main-jpg/. Use when main files are missing,
+                      Rebuild {media_source.img_dir}/ and {media_source.vid_dir}/ from orig/edited sources,
+                      then regenerate {media_source.jpg_dir}/. Use when files are missing,
                       corrupted, or out of sync with their sources.""")
             ]
             if has_browsable_issues
@@ -54,12 +56,12 @@ def suggest_fixes(
             [
                 dedent(f"""\
                     photree album fix {album_dir_flag} --refresh-jpeg --dry-run
-                      Regenerate main-jpg/ from main-img/. Use when JPEG files
-                      are missing but main-img/ is correct.
+                      Regenerate {media_source.jpg_dir}/ from {media_source.img_dir}/. Use when JPEG files
+                      are missing but {media_source.img_dir}/ is correct.
 
                     photree album fix {album_dir_flag} --rm-upstream --dry-run
-                      Alternatively, if you intentionally deleted files from main-jpg/,
-                      propagate those deletions to main-img/, edit-img/, and orig-img/.""")
+                      Alternatively, if you intentionally deleted files from {media_source.jpg_dir}/,
+                      propagate those deletions to {media_source.img_dir}/, edit-img/, and orig-img/.""")
             ]
             if has_jpeg_missing and not has_browsable_issues
             else []
@@ -68,8 +70,8 @@ def suggest_fixes(
             [
                 dedent(f"""\
                     photree album fix {album_dir_flag} --rm-orphan --dry-run
-                      Remove edited and main files that have no corresponding orig file.
-                      Use when extra files appear in main directories that don't belong.""")
+                      Remove edited and browsable files that have no corresponding orig file.
+                      Use when extra files appear in browsable directories that don't belong.""")
             ]
             if has_browsable_extra or has_jpeg_extra
             else []
