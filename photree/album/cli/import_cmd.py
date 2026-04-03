@@ -144,12 +144,13 @@ def import_cmd(
     typer.echo("\nImport:")
     converter = noop_convert_single if skip_heic_to_jpeg else convert_single_file
     progress = StageProgressBar(
-        total=4,
+        total=5,
         labels={
             "import-ic": "Importing from Image Capture",
             "refresh-main-img": "Refreshing main-img",
             "refresh-main-vid": "Refreshing main-vid",
             "refresh-main-jpg": "Refreshing main-jpg",
+            "refresh-media": "Refreshing media metadata",
         },
     )
     try:

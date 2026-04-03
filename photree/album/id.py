@@ -1,4 +1,4 @@
-"""Album ID generation, formatting, and parsing."""
+"""Album and media ID generation, formatting, and parsing."""
 
 from __future__ import annotations
 
@@ -9,10 +9,17 @@ from uuid6 import uuid7
 from ..common.base58 import base58_decode, base58_encode
 
 ALBUM_ID_PREFIX = "album"
+IMAGE_ID_PREFIX = "image"
+VIDEO_ID_PREFIX = "video"
 
 
 def generate_album_id() -> str:
     """Generate a new UUID v7 string for an album."""
+    return str(uuid7())
+
+
+def generate_media_id() -> str:
+    """Generate a new UUID v7 string for a media item (image or video)."""
     return str(uuid7())
 
 
@@ -32,3 +39,23 @@ def parse_external_id(external_id: str, expected_prefix: str) -> str:
 def format_album_external_id(internal_id: str) -> str:
     """Convenience wrapper for album external IDs."""
     return format_external_id(ALBUM_ID_PREFIX, internal_id)
+
+
+def format_image_external_id(internal_id: str) -> str:
+    """Convenience wrapper for image external IDs."""
+    return format_external_id(IMAGE_ID_PREFIX, internal_id)
+
+
+def format_video_external_id(internal_id: str) -> str:
+    """Convenience wrapper for video external IDs."""
+    return format_external_id(VIDEO_ID_PREFIX, internal_id)
+
+
+def parse_image_external_id(external_id: str) -> str:
+    """Parse an image external ID back to a UUID string."""
+    return parse_external_id(external_id, IMAGE_ID_PREFIX)
+
+
+def parse_video_external_id(external_id: str) -> str:
+    """Parse a video external ID back to a UUID string."""
+    return parse_external_id(external_id, VIDEO_ID_PREFIX)

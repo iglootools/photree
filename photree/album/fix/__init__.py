@@ -146,7 +146,7 @@ def run_fix(
     media_sources = [
         ms
         for ms in discover_media_sources(album_dir)
-        if ms.is_ios or (album_dir / ms.archive_dir).is_dir()
+        if (album_dir / ms.archive_dir).is_dir()
     ]
 
     if not media_sources:

@@ -49,6 +49,7 @@ $ photree album [OPTIONS] COMMAND [ARGS]...
 * `init`: Initialize album metadata...
 * `mv-media`: Move media files and all their variants...
 * `optimize`: Optimize main directories by replacing...
+* `refresh`: Refresh media metadata...
 * `rm-media`: Remove media files and all their variants...
 * `show`: Display album metadata and parsed name.
 * `stats`: Show disk usage and content statistics for...
@@ -333,6 +334,22 @@ $ photree album optimize [OPTIONS]
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
+### `photree album refresh`
+
+Refresh media metadata (.photree/media.yaml) — assign IDs to new media.
+
+**Usage**:
+
+```console
+$ photree album refresh [OPTIONS]
+```
+
+**Options**:
+
+* `-a, --album-dir DIRECTORY`: Album directory.  [default: .]
+* `--dry-run`: Show what would change without writing.
+* `--help`: Show this message and exit.
+
 ### `photree album rm-media`
 
 Remove media files and all their variants from an album.
@@ -412,6 +429,7 @@ $ photree albums [OPTIONS] COMMAND [ARGS]...
 * `init`: Initialize album metadata...
 * `list`: List all discovered albums with their...
 * `optimize`: Optimize all albums with archives under a...
+* `refresh`: Refresh media metadata...
 * `rename-from-csv`: Rename albums from a CSV file (from list...
 * `stats`: Show aggregated disk usage and content...
 
@@ -601,6 +619,23 @@ $ photree albums optimize [OPTIONS]
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
+### `photree albums refresh`
+
+Refresh media metadata (.photree/media.yaml) for multiple albums.
+
+**Usage**:
+
+```console
+$ photree albums refresh [OPTIONS]
+```
+
+**Options**:
+
+* `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
+* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
+* `-n, --dry-run`: Print what would happen without modifying files.
+* `--help`: Show this message and exit.
+
 ### `photree albums rename-from-csv`
 
 Rename albums from a CSV file (from list --format csv, edited).
@@ -749,6 +784,7 @@ $ photree gallery [OPTIONS] COMMAND [ARGS]...
 * `init`: Initialize gallery metadata...
 * `list-albums`: List all albums in the gallery.
 * `optimize`: Optimize all iOS albums in the gallery.
+* `refresh`: Refresh media metadata...
 * `rename-from-csv`: Rename albums from a CSV file (from...
 * `show`: Display gallery metadata.
 * `stats`: Show aggregated disk usage and content...
@@ -940,6 +976,22 @@ $ photree gallery optimize [OPTIONS]
 * `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.
 * `--check / --no-check`: Run integrity checks before optimizing (default: enabled).  [default: check]
 * `--checksum / --no-checksum`: Enable/disable SHA-256 checksum verification (default: enabled).  [default: checksum]
+* `-n, --dry-run`: Print what would happen without modifying files.
+* `--help`: Show this message and exit.
+
+### `photree gallery refresh`
+
+Refresh media metadata (.photree/media.yaml) for all albums in the gallery.
+
+**Usage**:
+
+```console
+$ photree gallery refresh [OPTIONS]
+```
+
+**Options**:
+
+* `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 

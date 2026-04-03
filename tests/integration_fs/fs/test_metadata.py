@@ -19,8 +19,13 @@ from photree.album.store.metadata import load_album_metadata, save_album_metadat
 from photree.album.id import (
     format_album_external_id,
     format_external_id,
+    format_image_external_id,
+    format_video_external_id,
     generate_album_id,
+    generate_media_id,
     parse_external_id,
+    parse_image_external_id,
+    parse_video_external_id,
 )
 from photree.album.store.protocol import ALBUM_YAML, AlbumMetadata
 from photree.fsprotocol import LinkMode, PHOTREE_DIR
@@ -103,6 +108,49 @@ class TestExternalId:
             assert False, "Should have raised ValueError"
         except ValueError:
             pass
+
+
+class TestMediaExternalId:
+    def test_image_roundtrip(self) -> None:
+        internal = str(uuid.uuid4())
+        external = format_image_external_id(internal)
+        assert parse_image_external_id(external) == internal
+
+    def test_video_roundtrip(self) -> None:
+        internal = str(uuid.uuid4())
+        external = format_video_external_id(internal)
+        assert parse_video_external_id(external) == internal
+
+    def test_image_starts_with_prefix(self) -> None:
+        internal = str(uuid.uuid4())
+        assert format_image_external_id(internal).startswith("image_")
+
+    def test_video_starts_with_prefix(self) -> None:
+        internal = str(uuid.uuid4())
+        assert format_video_external_id(internal).startswith("video_")
+
+    def test_parse_image_wrong_prefix_raises(self) -> None:
+        internal = str(uuid.uuid4())
+        external = format_video_external_id(internal)
+        with pytest.raises(ValueError, match="Expected 'image_"):
+            parse_image_external_id(external)
+
+    def test_parse_video_wrong_prefix_raises(self) -> None:
+        internal = str(uuid.uuid4())
+        external = format_image_external_id(internal)
+        with pytest.raises(ValueError, match="Expected 'video_"):
+            parse_video_external_id(external)
+
+
+class TestGenerateMediaId:
+    def test_returns_valid_uuid(self) -> None:
+        mid = generate_media_id()
+        parsed = uuid.UUID(mid)
+        assert parsed.version == 7
+
+    def test_unique_ids(self) -> None:
+        ids = {generate_media_id() for _ in range(100)}
+        assert len(ids) == 100
 
 
 class TestAlbumMetadata:

@@ -15,6 +15,7 @@ from ...album import (
 from ...album.naming import BatchNamingResult
 from ...album.id import format_album_external_id
 from ..index import find_duplicate_album_ids
+from ..media_index import find_duplicate_media_ids
 
 
 @dataclass(frozen=True)
@@ -26,6 +27,7 @@ class BatchCheckResult:
     failed_albums: list[Path] = field(default_factory=list)
     naming_result: BatchNamingResult | None = None
     duplicate_ids: dict[str, list[Path]] = field(default_factory=dict)
+    duplicate_media_ids: dict[str, list[Path]] = field(default_factory=dict)
 
 
 def batch_check(
@@ -120,10 +122,16 @@ def batch_check(
     if duplicate_ids:
         failed_albums.extend(p for paths in duplicate_ids.values() for p in paths)
 
+    # Duplicate media ID detection
+    duplicate_media_ids = find_duplicate_media_ids(albums)
+    if duplicate_media_ids:
+        failed_albums.extend(p for paths in duplicate_media_ids.values() for p in paths)
+
     return BatchCheckResult(
         passed=passed,
         warned=warned,
         failed_albums=failed_albums,
         naming_result=naming_result,
         duplicate_ids=duplicate_ids,
+        duplicate_media_ids=duplicate_media_ids,
     )
