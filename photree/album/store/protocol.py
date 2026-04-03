@@ -37,7 +37,7 @@ IMG_EXTENSIONS = frozenset({".dng", ".heic", ".heif", ".jpeg", ".jpg", ".png"})
 VID_EXTENSIONS = frozenset({".avi", ".mov", ".mp4", ".wmv"})
 
 # iOS-specific subsets (used by importer, iOS fixes, integrity checks)
-IOS_IMG_EXTENSIONS = frozenset({".dng", ".heic", ".jpeg", ".jpg", ".png"})
+IOS_IMG_EXTENSIONS = frozenset({".dng", ".heic", ".heif", ".jpeg", ".jpg", ".png"})
 IOS_VID_EXTENSIONS = frozenset({".mov"})
 IOS_SIDECAR_EXTENSIONS = frozenset({".aae"})
 
