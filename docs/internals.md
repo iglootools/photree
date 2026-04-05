@@ -346,6 +346,20 @@ The `--link-mode` CLI argument overrides the gallery-level setting.
 If no gallery.yaml is found and no CLI argument is given, the default
 is `hardlink`.
 
+### Editing Metadata
+
+The `.photree/` directory and its YAML files are managed by photree and
+should not be edited directly. Use the provided CLI commands instead:
+
+- **Gallery settings**: `photree gallery metadata set --link-mode <value>`
+- **Album ID**: Generated automatically at import time; use
+  `photree album fix --id` or `photree gallery fix --id` to generate
+  missing IDs.
+- **Media IDs**: Use `photree album refresh` (or `photree albums refresh` /
+  `photree gallery refresh`) to generate and update media IDs.
+
+Direct edits may be silently overwritten or cause unexpected behavior.
+
 ## EXIF Metadata
 
 ### Usage
