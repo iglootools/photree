@@ -10,6 +10,10 @@ gallery_app = typer.Typer(
     no_args_is_help=True,
 )
 
+from .metadata import gallery_metadata_app  # noqa: E402
+
+gallery_app.add_typer(gallery_metadata_app)
+
 from . import (  # noqa: E402, F401 — imported for command registration side effects
     check_cmd,
     export_cmd,

@@ -40,7 +40,7 @@ def init_cmd(
     if gallery_yaml.is_file():
         typer.echo(
             f"Gallery already initialized: {display_path(gallery_yaml, Path.cwd())}\n"
-            "Edit the file directly to change settings.",
+            "Use 'photree gallery metadata set' to change settings.",
             err=True,
         )
         raise typer.Exit(code=1)

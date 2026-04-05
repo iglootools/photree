@@ -788,6 +788,7 @@ $ photree gallery [OPTIONS] COMMAND [ARGS]...
 * `rename-from-csv`: Rename albums from a CSV file (from...
 * `show`: Display gallery metadata.
 * `stats`: Show aggregated disk usage and content...
+* `metadata`: Gallery metadata management.
 
 ### `photree gallery check`
 
@@ -1048,4 +1049,38 @@ $ photree gallery stats [OPTIONS]
 **Options**:
 
 * `-d, --gallery-dir DIRECTORY`: Gallery root directory.
+* `--help`: Show this message and exit.
+
+### `photree gallery metadata`
+
+Gallery metadata management.
+
+**Usage**:
+
+```console
+$ photree gallery metadata [OPTIONS] COMMAND [ARGS]...
+```
+
+**Options**:
+
+* `--help`: Show this message and exit.
+
+**Commands**:
+
+* `set`: Update gallery metadata fields.
+
+#### `photree gallery metadata set`
+
+Update gallery metadata fields.
+
+**Usage**:
+
+```console
+$ photree gallery metadata set [OPTIONS]
+```
+
+**Options**:
+
+* `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `--link-mode [copy|hardlink|symlink]`: Default link mode for optimize and other link-mode operations.
 * `--help`: Show this message and exit.
