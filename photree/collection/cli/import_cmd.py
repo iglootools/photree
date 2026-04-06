@@ -62,11 +62,19 @@ def import_cmd(
         )
         raise typer.Exit(code=1)
 
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+
     exiftool = try_start_exiftool()
     try:
-        result = import_collection_members(
-            collection_dir, resolved_gallery, dry_run=dry_run, exiftool=exiftool
-        )
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            transient=True,
+        ) as progress:
+            progress.add_task("Resolving members...", total=None)
+            result = import_collection_members(
+                collection_dir, resolved_gallery, dry_run=dry_run, exiftool=exiftool
+            )
     except FileNotFoundError as exc:
         err_console.print(str(exc))
         raise typer.Exit(code=1) from exc
