@@ -4,17 +4,16 @@ Takes a list of selection entries (IDs, directory names, media filenames)
 and resolves each to a concrete member (album, collection, image, or video)
 by scanning the gallery.
 
-Resolution order:
-1. External ID (``album_*``, ``collection_*``, ``image_*``, ``video_*``)
-2. Internal UUID
-3. Media filename (has media extension) — uses key + date_hint
-4. Directory name (album or collection)
+Uses a scan-and-match approach: selection entries are loaded into memory,
+then the gallery is scanned once. Each album/collection is checked against
+all pending entries. Matches are accumulated; ambiguous and unresolved
+entries are reported as errors.
 """
 
 from __future__ import annotations
 
 import re
-from collections import defaultdict
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -24,7 +23,7 @@ from ...album.id import (
     VIDEO_ID_PREFIX,
     parse_external_id,
 )
-from ...album.naming import _timestamp_in_album_range
+from ...album.naming import _timestamp_in_album_range, parse_album_name
 from ...album.store.album_discovery import discover_albums
 from ...album.store.media_metadata import load_media_metadata
 from ...album.store.metadata import load_album_metadata
@@ -73,7 +72,7 @@ class ResolutionResult:
 
 
 # ---------------------------------------------------------------------------
-# ID parsing helpers
+# Entry classification helpers
 # ---------------------------------------------------------------------------
 
 _EXTERNAL_PREFIXES = {
@@ -87,25 +86,28 @@ _UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
 
 _MEDIA_EXTENSIONS = IMG_EXTENSIONS | VID_EXTENSIONS
 
+_PREFIX_MAP: dict[str, tuple[str, str]] = {
+    "album": ("album", ALBUM_ID_PREFIX),
+    "collection": ("collection", COLLECTION_ID_PREFIX),
+    "image": ("image", IMAGE_ID_PREFIX),
+    "video": ("video", VIDEO_ID_PREFIX),
+}
+
 
 def _looks_like_external_id(entry: str) -> bool:
-    """Check if entry looks like an external ID (prefix_base58)."""
     parts = entry.split("_", 1)
     return len(parts) == 2 and parts[0] in _EXTERNAL_PREFIXES
 
 
 def _looks_like_uuid(entry: str) -> bool:
-    """Check if entry looks like a UUID (8-4-4-4-12 hex)."""
     return bool(_UUID_RE.match(entry))
 
 
 def _has_media_extension(entry: str) -> bool:
-    """Check if entry has a recognized media file extension."""
     return file_ext(entry) in _MEDIA_EXTENSIONS
 
 
 def _parse_external_id_safe(entry: str, prefix: str) -> str | None:
-    """Parse an external ID, returning None on failure."""
     try:
         return parse_external_id(entry, prefix)
     except ValueError:
@@ -125,263 +127,79 @@ def _extract_media_key(filename: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Gallery scanning
+# Per-item scan data — abstracts album/collection on-disk details
 # ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
-class _MediaKeyEntry:
-    """A media item indexed by its key."""
+class ScannedAlbum:
+    """Data extracted from a single album during gallery scan."""
 
     album_id: str
-    media_id: str
+    dir_name: str
     album_date: str | None
+    image_keys: dict[str, str]  # media key → image UUID
+    video_keys: dict[str, str]  # media key → video UUID
 
 
 @dataclass(frozen=True)
-class _GalleryIndex:
-    """Lightweight index built by scanning the gallery once."""
+class ScannedCollection:
+    """Data extracted from a single collection during gallery scan."""
 
-    album_ids: frozenset[str]
-    album_names: dict[str, tuple[str, ...]]  # dir name → album internal IDs
-    collection_ids: frozenset[str]
-    collection_names: dict[str, tuple[str, ...]]  # dir name → collection internal IDs
-    image_ids: frozenset[str]
-    video_ids: frozenset[str]
-    # Media key indexes for filename-based resolution
-    image_keys: dict[str, list[_MediaKeyEntry]]  # key → entries
-    video_keys: dict[str, list[_MediaKeyEntry]]  # key → entries
+    collection_id: str
+    dir_name: str
 
 
-def _build_gallery_index(gallery_dir: Path) -> _GalleryIndex:
-    """Scan the gallery and build a lightweight lookup index."""
-    album_ids: set[str] = set()
-    album_names: defaultdict[str, list[str]] = defaultdict(list)
-    image_ids: set[str] = set()
-    video_ids: set[str] = set()
-    image_keys: defaultdict[str, list[_MediaKeyEntry]] = defaultdict(list)
-    video_keys: defaultdict[str, list[_MediaKeyEntry]] = defaultdict(list)
-
+def _scan_albums(gallery_dir: Path) -> Iterator[ScannedAlbum]:
+    """Yield album data for each album in the gallery."""
     for album_dir in discover_albums(gallery_dir / ALBUMS_DIR):
         meta = load_album_metadata(album_dir)
-        if meta is not None:
-            album_ids.add(meta.id)
-            album_names[album_dir.name].append(meta.id)
+        if meta is None:
+            continue
 
-            # Parse album date for date-hint filtering
-            from ...album.naming import parse_album_name
+        parsed = parse_album_name(album_dir.name)
+        album_date = parsed.date if parsed is not None else None
 
-            parsed = parse_album_name(album_dir.name)
-            album_date = parsed.date if parsed is not None else None
+        image_keys: dict[str, str] = {}
+        video_keys: dict[str, str] = {}
+        media_meta = load_media_metadata(album_dir)
+        if media_meta is not None:
+            for source in media_meta.media_sources.values():
+                # Invert uuid→key to key→uuid
+                for mid, key in source.images.items():
+                    image_keys[key] = mid
+                for mid, key in source.videos.items():
+                    video_keys[key] = mid
 
-            media_meta = load_media_metadata(album_dir)
-            if media_meta is not None:
-                for source in media_meta.media_sources.values():
-                    for mid, key in source.images.items():
-                        image_ids.add(mid)
-                        image_keys[key].append(
-                            _MediaKeyEntry(
-                                album_id=meta.id,
-                                media_id=mid,
-                                album_date=album_date,
-                            )
-                        )
-                    for mid, key in source.videos.items():
-                        video_ids.add(mid)
-                        video_keys[key].append(
-                            _MediaKeyEntry(
-                                album_id=meta.id,
-                                media_id=mid,
-                                album_date=album_date,
-                            )
-                        )
+        yield ScannedAlbum(
+            album_id=meta.id,
+            dir_name=album_dir.name,
+            album_date=album_date,
+            image_keys=image_keys,
+            video_keys=video_keys,
+        )
 
-    collection_ids: set[str] = set()
-    collection_names: defaultdict[str, list[str]] = defaultdict(list)
+
+def _scan_collections(gallery_dir: Path) -> Iterator[ScannedCollection]:
+    """Yield collection data for each collection in the gallery."""
     for col_dir in discover_collections(gallery_dir / COLLECTIONS_DIR):
-        col_meta = load_collection_metadata(col_dir)
-        if col_meta is not None:
-            collection_ids.add(col_meta.id)
-            collection_names[col_dir.name].append(col_meta.id)
-
-    return _GalleryIndex(
-        album_ids=frozenset(album_ids),
-        album_names={k: tuple(v) for k, v in album_names.items()},
-        collection_ids=frozenset(collection_ids),
-        collection_names={k: tuple(v) for k, v in collection_names.items()},
-        image_ids=frozenset(image_ids),
-        video_ids=frozenset(video_ids),
-        image_keys=dict(image_keys),
-        video_keys=dict(video_keys),
-    )
-
-
-# ---------------------------------------------------------------------------
-# Entry resolution
-# ---------------------------------------------------------------------------
-
-_PREFIX_MAP: dict[str, tuple[str, str]] = {
-    "album": ("album", ALBUM_ID_PREFIX),
-    "collection": ("collection", COLLECTION_ID_PREFIX),
-    "image": ("image", IMAGE_ID_PREFIX),
-    "video": ("video", VIDEO_ID_PREFIX),
-}
-
-
-def _resolve_external_id(
-    entry: str, index: _GalleryIndex
-) -> tuple[str | None, str | None, ResolutionError | None]:
-    """Try to resolve as an external ID."""
-    prefix = entry.split("_", 1)[0]
-    mapping = _PREFIX_MAP.get(prefix)
-    if mapping is None:
-        return (None, None, ResolutionError(entry, f"unknown ID prefix: {prefix}"))
-
-    member_type, id_prefix = mapping
-    internal = _parse_external_id_safe(entry, id_prefix)
-    id_pool = {
-        "album": index.album_ids,
-        "collection": index.collection_ids,
-        "image": index.image_ids,
-        "video": index.video_ids,
-    }[member_type]
-
-    if internal and internal in id_pool:
-        return (member_type, internal, None)
-    else:
-        return (
-            None,
-            None,
-            ResolutionError(entry, f"{member_type} not found in gallery"),
-        )
-
-
-def _resolve_uuid(
-    entry: str, index: _GalleryIndex
-) -> tuple[str | None, str | None, ResolutionError | None]:
-    """Try to resolve as an internal UUID."""
-    pools = [
-        ("album", index.album_ids),
-        ("collection", index.collection_ids),
-        ("image", index.image_ids),
-        ("video", index.video_ids),
-    ]
-    for member_type, pool in pools:
-        if entry in pool:
-            return (member_type, entry, None)
-    return (None, None, ResolutionError(entry, "UUID not found in gallery"))
-
-
-def _resolve_media_file(
-    selection: SelectionEntry, index: _GalleryIndex
-) -> tuple[str | None, str | None, ResolutionError | None]:
-    """Resolve a media filename by key extraction + date hint filtering.
-
-    Determines media type from extension, extracts key (image number or
-    stem), looks up candidates in the key index, and uses date_hint to
-    disambiguate when multiple candidates match.
-    """
-    ext = file_ext(selection.value)
-    if ext in IMG_EXTENSIONS:
-        member_type = "image"
-        key_index = index.image_keys
-    else:
-        member_type = "video"
-        key_index = index.video_keys
-
-    key = _extract_media_key(selection.value)
-    candidates = key_index.get(key, [])
-
-    if not candidates:
-        return (
-            None,
-            None,
-            ResolutionError(
-                selection.value, f"no {member_type} with key '{key}' found in gallery"
-            ),
-        )
-
-    # Filter by date hint if available
-    if selection.date_hint is not None and len(candidates) > 1:
-        candidates = [
-            c
-            for c in candidates
-            if c.album_date is not None
-            and _timestamp_in_album_range(selection.date_hint, c.album_date)
-        ]
-
-    match len(candidates):
-        case 0:
-            return (
-                None,
-                None,
-                ResolutionError(
-                    selection.value,
-                    f"no {member_type} with key '{key}' matches date hint "
-                    f"{selection.date_hint}",
-                ),
-            )
-        case 1:
-            return (member_type, candidates[0].media_id, None)
-        case n:
-            album_ids = {c.album_id for c in candidates}
-            return (
-                None,
-                None,
-                ResolutionError(
-                    selection.value,
-                    f"ambiguous: {member_type} key '{key}' matches {n} items "
-                    f"across {len(album_ids)} album(s)"
-                    + (
-                        " — provide a date hint to disambiguate"
-                        if selection.date_hint is None
-                        else ""
-                    ),
-                ),
+        meta = load_collection_metadata(col_dir)
+        if meta is not None:
+            yield ScannedCollection(
+                collection_id=meta.id,
+                dir_name=col_dir.name,
             )
 
 
-def _resolve_name(
-    entry: str, index: _GalleryIndex
-) -> tuple[str | None, str | None, ResolutionError | None]:
-    """Try to resolve as a directory name."""
-    name_pools = [
-        ("album", index.album_names),
-        ("collection", index.collection_names),
-    ]
-    for member_type, names in name_pools:
-        if entry in names:
-            ids = names[entry]
-            match len(ids):
-                case 1:
-                    return (member_type, ids[0], None)
-                case n:
-                    return (
-                        None,
-                        None,
-                        ResolutionError(
-                            entry, f"ambiguous: matches {n} {member_type}s"
-                        ),
-                    )
-    return (None, None, ResolutionError(entry, "not found in gallery"))
+# ---------------------------------------------------------------------------
+# Match: a resolved (member_type, internal_id) for a selection entry
+# ---------------------------------------------------------------------------
 
 
-def _resolve_entry(
-    selection: SelectionEntry, index: _GalleryIndex
-) -> tuple[str | None, str | None, ResolutionError | None]:
-    """Resolve a single entry to (member_type, internal_id, error).
-
-    Returns exactly one of: a resolved member or an error.
-    """
-    entry = selection.value
-    if _looks_like_external_id(entry):
-        return _resolve_external_id(entry, index)
-    elif _looks_like_uuid(entry):
-        return _resolve_uuid(entry, index)
-    elif _has_media_extension(entry):
-        return _resolve_media_file(selection, index)
-    else:
-        return _resolve_name(entry, index)
+@dataclass(frozen=True)
+class _Match:
+    member_type: str  # "album", "collection", "image", "video"
+    internal_id: str
 
 
 # ---------------------------------------------------------------------------
@@ -395,45 +213,153 @@ def resolve_entries(
 ) -> ResolutionResult:
     """Resolve selection entries against the gallery.
 
-    Scans the gallery once to build a lookup index, then resolves each
-    entry. Returns resolved members and any errors.
-
-    Uses imperative accumulation because duplicate detection requires
-    tracking state (seen_ids) across iterations.
+    Loads entries into memory, scans the gallery once, and matches each
+    album/collection against pending entries. Reports ambiguous (multiple
+    matches) and unresolved entries as errors.
     """
-    index = _build_gallery_index(gallery_dir)
+    # Accumulate all matches per entry value (to detect ambiguity)
+    matches: dict[str, list[_Match]] = {e.value: [] for e in entries}
+    entry_by_value: dict[str, SelectionEntry] = {e.value: e for e in entries}
 
+    # Classify entries for efficient matching
+    external_ids = {e.value for e in entries if _looks_like_external_id(e.value)}
+    uuids = {e.value for e in entries if _looks_like_uuid(e.value)}
+    media_filenames = {e.value for e in entries if _has_media_extension(e.value)}
+    dir_names = {
+        e.value
+        for e in entries
+        if not _looks_like_external_id(e.value)
+        and not _looks_like_uuid(e.value)
+        and not _has_media_extension(e.value)
+    }
+
+    # Pre-resolve external IDs to internal UUIDs
+    # (these don't need gallery scan — just parse the base58)
+    resolved_external: dict[str, tuple[str, str]] = {}  # value → (type, internal)
+    for ext_id in external_ids:
+        prefix = ext_id.split("_", 1)[0]
+        mapping = _PREFIX_MAP.get(prefix)
+        if mapping is not None:
+            member_type, id_prefix = mapping
+            internal = _parse_external_id_safe(ext_id, id_prefix)
+            if internal is not None:
+                resolved_external[ext_id] = (member_type, internal)
+
+    # Collect all internal IDs we're looking for (UUIDs + parsed external IDs)
+    wanted_ids: dict[str, str] = {}  # internal_id → entry value
+    for ext_value, (_, internal) in resolved_external.items():
+        wanted_ids[internal] = ext_value
+    for uuid_value in uuids:
+        wanted_ids[uuid_value] = uuid_value
+
+    # Pre-compute media keys for media filename entries
+    media_keys: dict[str, tuple[str, SelectionEntry]] = {}  # key → (media_type, entry)
+    for fname in media_filenames:
+        ext = file_ext(fname)
+        media_type = "image" if ext in IMG_EXTENSIONS else "video"
+        key = _extract_media_key(fname)
+        media_keys.setdefault(key, (media_type, entry_by_value[fname]))
+
+    # --- Scan albums ---
+    for album in _scan_albums(gallery_dir):
+        # Match by ID (album ID)
+        if album.album_id in wanted_ids:
+            entry_value = wanted_ids[album.album_id]
+            matches[entry_value].append(_Match("album", album.album_id))
+
+        # Match by dir name
+        if album.dir_name in dir_names:
+            matches[album.dir_name].append(_Match("album", album.album_id))
+
+        # Match media by image key
+        for key, img_uuid in album.image_keys.items():
+            if img_uuid in wanted_ids:
+                entry_value = wanted_ids[img_uuid]
+                matches[entry_value].append(_Match("image", img_uuid))
+            if key in media_keys:
+                media_type, sel_entry = media_keys[key]
+                if media_type == "image":
+                    matches[sel_entry.value].append(_Match("image", img_uuid))
+
+        # Match media by video key
+        for key, vid_uuid in album.video_keys.items():
+            if vid_uuid in wanted_ids:
+                entry_value = wanted_ids[vid_uuid]
+                matches[entry_value].append(_Match("video", vid_uuid))
+            if key in media_keys:
+                media_type, sel_entry = media_keys[key]
+                if media_type == "video":
+                    matches[sel_entry.value].append(_Match("video", vid_uuid))
+
+    # --- Scan collections ---
+    for col in _scan_collections(gallery_dir):
+        if col.collection_id in wanted_ids:
+            entry_value = wanted_ids[col.collection_id]
+            matches[entry_value].append(_Match("collection", col.collection_id))
+
+        if col.dir_name in dir_names:
+            matches[col.dir_name].append(_Match("collection", col.collection_id))
+
+    # --- Build results ---
     albums: list[str] = []
     collections: list[str] = []
     images: list[str] = []
     videos: list[str] = []
     errors: list[ResolutionError] = []
+    seen_ids: dict[str, str] = {}  # internal_id → entry value (duplicate detection)
 
-    seen_ids: dict[str, str] = {}  # internal_id → entry value (for duplicate detection)
+    for entry in entries:
+        entry_matches = matches[entry.value]
 
-    for selection in entries:
-        member_type, internal_id, error = _resolve_entry(selection, index)
-        if error is not None:
-            errors.append(error)
-        elif internal_id in seen_ids:
-            errors.append(
-                ResolutionError(
-                    selection.value,
-                    f"duplicate: same item already referenced by '{seen_ids[internal_id]}'",
+        # Apply date-hint filtering for media filenames with multiple matches
+        if (
+            len(entry_matches) > 1
+            and entry.date_hint is not None
+            and _has_media_extension(entry.value)
+        ):
+            # Find the album date for each match via the scanned data
+            # Re-scan is avoided because we filter using the match's album context
+            # For media matches, filter by album date overlap
+            entry_matches = _filter_by_date_hint(entry_matches, entry, gallery_dir)
+
+        match len(entry_matches):
+            case 0:
+                errors.append(ResolutionError(entry.value, "not found in gallery"))
+            case 1:
+                m = entry_matches[0]
+                if m.internal_id in seen_ids:
+                    errors.append(
+                        ResolutionError(
+                            entry.value,
+                            f"duplicate: same item already referenced by "
+                            f"'{seen_ids[m.internal_id]}'",
+                        )
+                    )
+                else:
+                    seen_ids[m.internal_id] = entry.value
+                    match m.member_type:
+                        case "album":
+                            albums.append(m.internal_id)
+                        case "collection":
+                            collections.append(m.internal_id)
+                        case "image":
+                            images.append(m.internal_id)
+                        case "video":
+                            videos.append(m.internal_id)
+            case n:
+                unique_ids = {m.internal_id for m in entry_matches}
+                errors.append(
+                    ResolutionError(
+                        entry.value,
+                        f"ambiguous: matches {n} items ({len(unique_ids)} unique)"
+                        + (
+                            " — provide a date hint to disambiguate"
+                            if entry.date_hint is None
+                            and _has_media_extension(entry.value)
+                            else ""
+                        ),
+                    )
                 )
-            )
-        else:
-            assert member_type is not None and internal_id is not None
-            seen_ids[internal_id] = selection.value
-            match member_type:
-                case "album":
-                    albums.append(internal_id)
-                case "collection":
-                    collections.append(internal_id)
-                case "image":
-                    images.append(internal_id)
-                case "video":
-                    videos.append(internal_id)
 
     return ResolutionResult(
         members=ResolvedMembers(
@@ -444,3 +370,40 @@ def resolve_entries(
         ),
         errors=tuple(errors),
     )
+
+
+def _filter_by_date_hint(
+    entry_matches: list[_Match],
+    entry: SelectionEntry,
+    gallery_dir: Path,
+) -> list[_Match]:
+    """Filter media matches by date hint using album date ranges.
+
+    Requires a second pass over album metadata for date information.
+    Only called when there are multiple matches and a date hint is available.
+    """
+    assert entry.date_hint is not None
+
+    # Build album_id → date lookup from matched albums
+    album_ids_needed = {m.internal_id for m in entry_matches}
+    # We need the album that contains each media item — the match's internal_id
+    # is the media UUID, not the album ID. We need to re-derive the album context.
+    # Since this is rare (only for ambiguous media), a targeted scan is acceptable.
+    media_to_album_date: dict[str, str | None] = {}
+    for album in _scan_albums(gallery_dir):
+        for img_uuid in album.image_keys.values():
+            if img_uuid in album_ids_needed:
+                media_to_album_date[img_uuid] = album.album_date
+        for vid_uuid in album.video_keys.values():
+            if vid_uuid in album_ids_needed:
+                media_to_album_date[vid_uuid] = album.album_date
+
+    return [
+        m
+        for m in entry_matches
+        if media_to_album_date.get(m.internal_id) is not None
+        and _timestamp_in_album_range(
+            entry.date_hint,
+            media_to_album_date[m.internal_id],  # type: ignore[arg-type]
+        )
+    ]
