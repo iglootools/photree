@@ -316,12 +316,14 @@ series spanning multiple album days, or a curated "Best of 2024" selection.
 ### Collection Naming Convention
 
 ```
-[DATE - ] Title
+[DATE - ] Title [@ Location] [tags]
 ```
 
 The date prefix is optional (unlike albums where it is required). Some
 collections are atemporal and have no date. The date format follows the
 same spec as albums: `YYYY`, `YYYY-MM`, `YYYY-MM-DD`, or ranges with `--`.
+Location and tags follow the same rules as albums: `@` separates the
+location, `[private]` is the only currently allowed tag.
 
 ### Collection Kind
 
