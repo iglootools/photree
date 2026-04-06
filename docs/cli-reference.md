@@ -731,7 +731,7 @@ $ photree collection [OPTIONS] COMMAND [ARGS]...
 * `check`: Check collection integrity (member...
 * `import`: Import members into a collection from...
 * `init`: Initialize collection metadata...
-* `show`: Display collection metadata.
+* `show`: Display collection metadata and parsed name.
 * `metadata`: Collection metadata management.
 
 ### `photree collection check`
@@ -786,7 +786,7 @@ $ photree collection init [OPTIONS]
 
 ### `photree collection show`
 
-Display collection metadata.
+Display collection metadata and parsed name.
 
 **Usage**:
 
