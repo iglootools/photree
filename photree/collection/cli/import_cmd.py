@@ -83,6 +83,10 @@ def import_cmd(
             err_console.print(f"  - [{error.entry}] {error.message}")
         raise typer.Exit(code=1)
 
+    if result.warnings:
+        for warning in result.warnings:
+            typer.echo(f"  warning: [{warning.entry}] {warning.message}")
+
     members = result.members
     typer.echo(f"Imported into: {display_path(collection_dir, cwd)}")
     typer.echo(f"  Collection: {format_collection_external_id(metadata.id)}")

@@ -60,11 +60,20 @@ class ResolutionError:
 
 
 @dataclass(frozen=True)
+class ResolutionWarning:
+    """A non-fatal warning during resolution."""
+
+    entry: str
+    message: str
+
+
+@dataclass(frozen=True)
 class ResolutionResult:
     """Full result of resolving selection entries."""
 
     members: ResolvedMembers
     errors: tuple[ResolutionError, ...]
+    warnings: tuple[ResolutionWarning, ...] = ()
 
     @property
     def success(self) -> bool:
@@ -310,6 +319,25 @@ def _collect_collection_matches(
 # ---------------------------------------------------------------------------
 
 
+def _check_date_mismatch(entry: SelectionEntry, m: _Match) -> list[ResolutionWarning]:
+    """Warn if a single-match media entry's date hint doesn't match the album date."""
+    if (
+        entry.date_hint is not None
+        and m.album_date is not None
+        and _has_media_extension(entry.value)
+        and not _timestamp_in_album_range(entry.date_hint, m.album_date)
+    ):
+        return [
+            ResolutionWarning(
+                entry.value,
+                f"date hint {entry.date_hint.isoformat()} does not match "
+                f"album date {m.album_date}",
+            )
+        ]
+    else:
+        return []
+
+
 def _filter_by_date_hint(
     entry_matches: list[_Match], date_hint: object
 ) -> list[_Match]:
@@ -336,6 +364,7 @@ def _build_results(
     images: list[str] = []
     videos: list[str] = []
     errors: list[ResolutionError] = []
+    warnings: list[ResolutionWarning] = []
     seen_ids: dict[str, str] = {}  # internal_id → entry value
 
     for entry in entries:
@@ -373,6 +402,9 @@ def _build_results(
                             images.append(m.internal_id)
                         case "video":
                             videos.append(m.internal_id)
+
+                    # Warn if date hint doesn't match album date
+                    warnings.extend(_check_date_mismatch(entry, m))
             case n:
                 unique_ids = {m.internal_id for m in entry_matches}
                 errors.append(
@@ -396,6 +428,7 @@ def _build_results(
             videos=tuple(videos),
         ),
         errors=tuple(errors),
+        warnings=tuple(warnings),
     )
 
 

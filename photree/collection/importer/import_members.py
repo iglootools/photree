@@ -9,7 +9,12 @@ from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ..store.metadata import load_collection_metadata, save_collection_metadata
 from ..store.protocol import CollectionMetadata
-from .resolve import ResolutionError, ResolvedMembers, resolve_entries
+from .resolve import (
+    ResolutionError,
+    ResolutionWarning,
+    ResolvedMembers,
+    resolve_entries,
+)
 from .selection import SELECTION_CSV, SELECTION_DIR, read_selection
 
 
@@ -20,6 +25,7 @@ class CollectionImportResult:
     collection_dir: Path
     members: ResolvedMembers
     errors: tuple[ResolutionError, ...]
+    warnings: tuple[ResolutionWarning, ...] = ()
 
     @property
     def success(self) -> bool:
@@ -82,6 +88,7 @@ def import_collection_members(
             collection_dir=collection_dir,
             members=result.members,
             errors=result.errors,
+            warnings=result.warnings,
         )
 
     if not dry_run:
@@ -102,4 +109,5 @@ def import_collection_members(
         collection_dir=collection_dir,
         members=result.members,
         errors=(),
+        warnings=result.warnings,
     )

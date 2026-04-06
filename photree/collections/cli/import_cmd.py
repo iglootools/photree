@@ -106,6 +106,10 @@ def import_cmd(
                 if result.success:
                     typer.echo(f"  {CHECK} {name}")
                     imported += 1
+                    for warning in result.warnings:
+                        typer.echo(
+                            f"      warning: [{warning.entry}] {warning.message}"
+                        )
                 else:
                     failed += 1
                     typer.echo(f"  {CROSS} {name}")
