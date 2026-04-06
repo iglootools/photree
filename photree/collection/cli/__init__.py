@@ -15,6 +15,7 @@ from .metadata import collection_metadata_app  # noqa: E402
 collection_app.add_typer(collection_metadata_app)
 
 from . import (  # noqa: E402, F401 — imported for command registration side effects
+    import_cmd,
     init_cmd,
     show_cmd,
 )

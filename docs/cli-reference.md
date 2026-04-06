@@ -728,9 +728,27 @@ $ photree collection [OPTIONS] COMMAND [ARGS]...
 
 **Commands**:
 
+* `import`: Import members into a collection from...
 * `init`: Initialize collection metadata...
 * `show`: Display collection metadata.
 * `metadata`: Collection metadata management.
+
+### `photree collection import`
+
+Import members into a collection from to-import/ or to-import.csv.
+
+**Usage**:
+
+```console
+$ photree collection import [OPTIONS]
+```
+
+**Options**:
+
+* `-c, --collection-dir DIRECTORY`: Collection directory (must be initialized).  [default: .]
+* `-g, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `-n, --dry-run`: Show what would be imported without modifying files.
+* `--help`: Show this message and exit.
 
 ### `photree collection init`
 

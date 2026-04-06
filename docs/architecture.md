@@ -53,6 +53,7 @@ graph TD
     collection --> clihelpers
     collection --> common
     collection --> fsprotocol
+    collection --> gallery
     config --> fsprotocol
     demo --> album
     gallery --> album
