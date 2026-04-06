@@ -354,10 +354,18 @@ location, `[private]` is the only currently allowed tag.
   they contain exactly the albums sharing that series.
 
 A collection can be converted between lifecycles using
-`collection metadata set --lifecycle <lifecycle>`. Converting from implicit
-to explicit preserves the collection but stops automatic management.
-Converting from explicit to implicit causes `gallery refresh` to add the
-collection title as a series component to the contained albums' names.
+`collection metadata set --lifecycle <lifecycle>`. On the next
+`gallery refresh`, album titles are synced with the new lifecycle:
+
+- **Implicit → explicit**: The explicit collection now owns the grouping,
+  so the series component in album names is redundant. `gallery refresh`
+  strips the series from album names (e.g.
+  `2024-07-14 - 01 - Canada Trip - Hiking` becomes
+  `2024-07-14 - 01 - Hiking`).
+- **Explicit → implicit**: The collection title is added as a series
+  component to the contained albums' names (e.g.
+  `2024-07-14 - 01 - Hiking` becomes
+  `2024-07-14 - 01 - Canada Trip - Hiking`).
 
 ### Collection Directory Layout
 
