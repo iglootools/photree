@@ -39,6 +39,8 @@ class _BaseModel(BaseModel):
 # ---------------------------------------------------------------------------
 
 PHOTREE_DIR = ".photree"
+ALBUMS_DIR = "albums"
+COLLECTIONS_DIR = "collections"
 
 
 # ---------------------------------------------------------------------------

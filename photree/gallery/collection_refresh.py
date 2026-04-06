@@ -39,8 +39,7 @@ from ..collection.store.protocol import (
     CollectionLifecycle,
     CollectionMetadata,
 )
-
-COLLECTIONS_DIR = "collections"
+from ..fsprotocol import ALBUMS_DIR, COLLECTIONS_DIR
 
 
 # ---------------------------------------------------------------------------
@@ -110,7 +109,7 @@ def _scan_albums(
     gallery_dir: Path,
 ) -> tuple[list[_AlbumInfo], list[CollectionRefreshError]]:
     """Scan and validate all albums. Returns (valid_albums, errors)."""
-    results = [_try_scan_album(d) for d in discover_albums(gallery_dir)]
+    results = [_try_scan_album(d) for d in discover_albums(gallery_dir / ALBUMS_DIR)]
     return (
         [r for r in results if isinstance(r, _AlbumInfo)],
         [r for r in results if isinstance(r, CollectionRefreshError)],
@@ -135,7 +134,7 @@ def _scan_existing_collections(gallery_dir: Path) -> list[_ExistingCollection]:
     """Find all existing collections in the gallery."""
     return [
         _ExistingCollection(path=col_dir, metadata=meta, name=col_dir.name)
-        for col_dir in discover_collections(gallery_dir)
+        for col_dir in discover_collections(gallery_dir / COLLECTIONS_DIR)
         for meta in [load_collection_metadata(col_dir)]
         if meta is not None
     ]

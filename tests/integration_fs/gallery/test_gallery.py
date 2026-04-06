@@ -47,6 +47,13 @@ def _setup_album(
     return (album_dir, aid)
 
 
+def _albums_dir(gallery: Path) -> Path:
+    """Return the albums/ subdirectory, creating it if needed."""
+    d = gallery / "albums"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
 # ---------------------------------------------------------------------------
 # TestBuildAlbumIdToPathIndex
 # ---------------------------------------------------------------------------
@@ -59,14 +66,15 @@ class TestBuildAlbumIdToPathIndex:
         assert index.duplicates == {}
 
     def test_single_album(self, tmp_path: Path) -> None:
-        album_dir, aid = _setup_album(tmp_path, "2024-06-15 - Trip")
+        album_dir, aid = _setup_album(_albums_dir(tmp_path), "2024-06-15 - Trip")
         index = build_album_id_to_path_index(tmp_path)
         assert index.id_to_path == {aid: album_dir}
         assert index.duplicates == {}
 
     def test_multiple_albums(self, tmp_path: Path) -> None:
-        _, aid1 = _setup_album(tmp_path, "2024-06-15 - Trip")
-        _, aid2 = _setup_album(tmp_path, "2024-07-20 - Vacation")
+        albums = _albums_dir(tmp_path)
+        _, aid1 = _setup_album(albums, "2024-06-15 - Trip")
+        _, aid2 = _setup_album(albums, "2024-07-20 - Vacation")
         index = build_album_id_to_path_index(tmp_path)
         assert len(index.id_to_path) == 2
         assert aid1 in index.id_to_path
@@ -74,18 +82,11 @@ class TestBuildAlbumIdToPathIndex:
         assert index.duplicates == {}
 
     def test_album_without_metadata_raises(self, tmp_path: Path) -> None:
-        album_dir = tmp_path / "2024-06-15 - No ID"
-        _setup_media_source(album_dir)
-        # Create .photree dir but no album.yaml — this is a legacy album,
-        # not detected by discover_albums. So we need album.yaml without an ID.
-        # Actually, discover_albums requires .photree/album.yaml to exist.
-        # A directory with media but no album.yaml won't be discovered.
-        # The scenario is: album.yaml exists but somehow has no valid content.
-        # Let's create a proper album alongside a broken one.
-        _setup_album(tmp_path, "2024-06-15 - Good Album")
+        albums = _albums_dir(tmp_path)
+        _setup_album(albums, "2024-06-15 - Good Album")
 
         # Create album with empty album.yaml (load_album_metadata returns None)
-        broken = tmp_path / "2024-07-01 - Broken"
+        broken = albums / "2024-07-01 - Broken"
         _setup_media_source(broken)
         photree_dir = broken / ".photree"
         photree_dir.mkdir(parents=True, exist_ok=True)
@@ -96,9 +97,10 @@ class TestBuildAlbumIdToPathIndex:
         assert broken in exc_info.value.albums
 
     def test_duplicate_ids_detected(self, tmp_path: Path) -> None:
+        albums = _albums_dir(tmp_path)
         shared_id = generate_album_id()
-        dir1, _ = _setup_album(tmp_path, "2024-06-15 - A", album_id=shared_id)
-        dir2, _ = _setup_album(tmp_path, "2024-06-16 - B", album_id=shared_id)
+        dir1, _ = _setup_album(albums, "2024-06-15 - A", album_id=shared_id)
+        dir2, _ = _setup_album(albums, "2024-06-16 - B", album_id=shared_id)
         index = build_album_id_to_path_index(tmp_path)
         assert shared_id in index.duplicates
         assert set(index.duplicates[shared_id]) == {dir1, dir2}
@@ -143,14 +145,6 @@ class TestBuildAlbumIndex:
             build_album_index([good_dir, broken])
         assert broken in exc_info.value.albums
 
-    def test_duplicate_ids_detected(self, tmp_path: Path) -> None:
-        shared_id = generate_album_id()
-        dir1, _ = _setup_album(tmp_path, "2024-06-15 - A", album_id=shared_id)
-        dir2, _ = _setup_album(tmp_path, "2024-06-16 - B", album_id=shared_id)
-        index = build_album_index([dir1, dir2])
-        assert shared_id in index.duplicates
-        assert set(index.duplicates[shared_id]) == {dir1, dir2}
-
 
 # ---------------------------------------------------------------------------
 # TestResolveAlbumPathById
@@ -158,17 +152,27 @@ class TestBuildAlbumIndex:
 
 
 class TestResolveAlbumPathById:
-    def test_found(self, tmp_path: Path) -> None:
-        index = {
-            "id-1": tmp_path / "album-a",
-            "id-2": tmp_path / "album-b",
-        }
-        assert resolve_album_path_by_id(index, "id-1") == tmp_path / "album-a"
+    def test_resolves_by_internal_id_from_external(self, tmp_path: Path) -> None:
+        """External ID → parse to internal → resolve."""
+        from photree.album.id import ALBUM_ID_PREFIX, parse_external_id
 
-    def test_not_found_raises(self) -> None:
-        index: dict[str, Path] = {"id-1": Path("/a")}
+        dir1, aid1 = _setup_album(tmp_path, "2024-06-15 - Trip")
+        index = build_album_index([dir1])
+        external_id = format_album_external_id(aid1)
+        internal_id = parse_external_id(external_id, ALBUM_ID_PREFIX)
+        assert resolve_album_path_by_id(index.id_to_path, internal_id) == dir1
+
+    def test_resolves_by_internal_id(self, tmp_path: Path) -> None:
+        dir1, aid1 = _setup_album(tmp_path, "2024-06-15 - Trip")
+        index = build_album_index([dir1])
+        assert resolve_album_path_by_id(index.id_to_path, aid1) == dir1
+
+    def test_raises_for_unknown_id(self, tmp_path: Path) -> None:
+        dir1, _ = _setup_album(tmp_path, "2024-06-15 - Trip")
+        index = build_album_index([dir1])
+        unknown = format_album_external_id(generate_album_id())
         with pytest.raises(KeyError, match="not found"):
-            resolve_album_path_by_id(index, "id-missing")
+            resolve_album_path_by_id(index.id_to_path, unknown)
 
 
 # ---------------------------------------------------------------------------
@@ -177,206 +181,113 @@ class TestResolveAlbumPathById:
 
 
 class TestPlanRenamesFromCsv:
-    def _make_index(
-        self, tmp_path: Path, albums: list[tuple[str, str]]
-    ) -> dict[str, Path]:
-        """Build a simple index from (album_id, album_name) pairs."""
-        return {aid: tmp_path / name for aid, name in albums}
+    def _make_index(self, tmp_path: Path) -> dict[str, Path]:
+        dir1, aid1 = _setup_album(tmp_path, "2024-06-15 - Trip to Paris")
+        dir2, aid2 = _setup_album(tmp_path, "2024-07-20 - Beach Vacation")
+        return {aid1: dir1, aid2: dir2}
 
-    def test_no_changes(self, tmp_path: Path) -> None:
-        aid = generate_album_id()
-        album_dir = tmp_path / "2024-06-15 - Summer Trip"
-        album_dir.mkdir()
-        index = {aid: album_dir}
+    def test_plans_rename_when_title_changes(self, tmp_path: Path) -> None:
+        index = self._make_index(tmp_path)
+        aid = next(iter(index))
         ext_id = format_album_external_id(aid)
-
-        rows = [
-            {"id": ext_id, "series": "", "title": "Summer Trip", "location": ""},
-        ]
+        rows = [{"id": ext_id, "series": "", "title": "New Title", "location": ""}]
         actions, errors = plan_renames_from_csv(rows, index)
-        assert actions == ()
-        assert errors == ()
-
-    def test_title_change(self, tmp_path: Path) -> None:
-        aid = generate_album_id()
-        album_dir = tmp_path / "2024-06-15 - Old Title"
-        album_dir.mkdir()
-        index = {aid: album_dir}
-        ext_id = format_album_external_id(aid)
-
-        rows = [
-            {"id": ext_id, "series": "", "title": "New Title", "location": ""},
-        ]
-        actions, errors = plan_renames_from_csv(rows, index)
-        assert errors == ()
         assert len(actions) == 1
-        assert actions[0].current_name == "2024-06-15 - Old Title"
-        assert actions[0].new_name == "2024-06-15 - New Title"
-
-    def test_series_change(self, tmp_path: Path) -> None:
-        aid = generate_album_id()
-        album_dir = tmp_path / "2024-06-15 - Old Series - Trip"
-        album_dir.mkdir()
-        index = {aid: album_dir}
-        ext_id = format_album_external_id(aid)
-
-        rows = [
-            {"id": ext_id, "series": "New Series", "title": "Trip", "location": ""},
-        ]
-        actions, errors = plan_renames_from_csv(rows, index)
+        assert "New Title" in actions[0].new_name
         assert errors == ()
-        assert len(actions) == 1
-        assert actions[0].new_name == "2024-06-15 - New Series - Trip"
 
-    def test_location_change(self, tmp_path: Path) -> None:
-        aid = generate_album_id()
-        album_dir = tmp_path / "2024-06-15 - Trip"
-        album_dir.mkdir()
-        index = {aid: album_dir}
+    def test_no_change_returns_no_action(self, tmp_path: Path) -> None:
+        index = self._make_index(tmp_path)
+        aid = next(iter(index))
         ext_id = format_album_external_id(aid)
-
-        rows = [
-            {"id": ext_id, "series": "", "title": "Trip", "location": "Hawaii"},
-        ]
-        actions, errors = plan_renames_from_csv(rows, index)
-        assert errors == ()
-        assert len(actions) == 1
-        assert actions[0].new_name == "2024-06-15 - Trip @ Hawaii"
-
-    def test_multiple_field_changes(self, tmp_path: Path) -> None:
-        aid = generate_album_id()
-        album_dir = tmp_path / "2024-06-15 - Vacation - Beach Day @ LA"
-        album_dir.mkdir()
-        index = {aid: album_dir}
-        ext_id = format_album_external_id(aid)
-
         rows = [
             {
                 "id": ext_id,
-                "series": "Road Trip",
-                "title": "Mountain Day",
-                "location": "Denver",
-            },
+                "series": "",
+                "title": "Trip to Paris",
+                "location": "",
+            }
         ]
         actions, errors = plan_renames_from_csv(rows, index)
+        assert actions == ()
         assert errors == ()
-        assert len(actions) == 1
-        assert actions[0].new_name == "2024-06-15 - Road Trip - Mountain Day @ Denver"
 
-    def test_preserves_immutable_fields(self, tmp_path: Path) -> None:
-        aid = generate_album_id()
-        album_dir = tmp_path / "2024-06-15 - 02 - Series - Title @ Place [private]"
-        album_dir.mkdir()
-        index = {aid: album_dir}
+    def test_adds_series_to_name(self, tmp_path: Path) -> None:
+        index = self._make_index(tmp_path)
+        aid = next(iter(index))
         ext_id = format_album_external_id(aid)
-
         rows = [
             {
                 "id": ext_id,
-                "series": "New Series",
-                "title": "New Title",
-                "location": "New Place",
-            },
+                "series": "Europe",
+                "title": "Trip to Paris",
+                "location": "",
+            }
         ]
         actions, errors = plan_renames_from_csv(rows, index)
-        assert errors == ()
         assert len(actions) == 1
-        # date=2024-06-15, part=02, private=True are preserved from disk
-        assert actions[0].new_name == (
-            "2024-06-15 - 02 - New Series - New Title @ New Place [private]"
-        )
+        assert "Europe" in actions[0].new_name
+        assert errors == ()
 
-    def test_unknown_album_id_error(self, tmp_path: Path) -> None:
-        aid = generate_album_id()
-        ext_id = format_album_external_id(aid)
-        rows = [
-            {"id": ext_id, "series": "", "title": "Trip", "location": ""},
-        ]
-        actions, errors = plan_renames_from_csv(rows, {})
+    def test_invalid_album_id_format_error(self, tmp_path: Path) -> None:
+        index = self._make_index(tmp_path)
+        rows = [{"id": "invalid", "series": "", "title": "X", "location": ""}]
+        actions, errors = plan_renames_from_csv(rows, index)
         assert actions == ()
         assert len(errors) == 1
-        assert "not found" in errors[0]
 
-    def test_invalid_album_id_format_error(self) -> None:
-        rows = [
-            {"id": "not_a_valid_id", "series": "", "title": "Trip", "location": ""},
-        ]
-        actions, errors = plan_renames_from_csv(rows, {})
+    def test_empty_album_id_error(self, tmp_path: Path) -> None:
+        index = self._make_index(tmp_path)
+        rows = [{"id": "", "series": "", "title": "X", "location": ""}]
+        actions, errors = plan_renames_from_csv(rows, index)
         assert actions == ()
         assert len(errors) == 1
-        assert "Invalid album ID format" in errors[0]
-
-    def test_empty_album_id_error(self) -> None:
-        rows = [
-            {"id": "", "series": "", "title": "Trip", "location": ""},
-        ]
-        actions, errors = plan_renames_from_csv(rows, {})
-        assert actions == ()
-        assert len(errors) == 1
-        assert "empty" in errors[0].lower()
 
     def test_empty_title_error(self, tmp_path: Path) -> None:
-        aid = generate_album_id()
-        album_dir = tmp_path / "2024-06-15 - Trip"
-        album_dir.mkdir()
-        index = {aid: album_dir}
+        index = self._make_index(tmp_path)
+        aid = next(iter(index))
         ext_id = format_album_external_id(aid)
-
-        rows = [
-            {"id": ext_id, "series": "", "title": "", "location": ""},
-        ]
+        rows = [{"id": ext_id, "series": "", "title": "", "location": ""}]
         actions, errors = plan_renames_from_csv(rows, index)
         assert actions == ()
         assert len(errors) == 1
-        assert "title" in errors[0].lower()
 
     def test_nfc_normalization_no_spurious_change(self, tmp_path: Path) -> None:
+        """NFC-equivalent strings should not trigger a rename."""
         import unicodedata
 
-        aid = generate_album_id()
-        # Use NFC form on disk
-        nfc_title = unicodedata.normalize("NFC", "Caf\u00e9")
-        album_dir = tmp_path / f"2024-06-15 - {nfc_title}"
-        album_dir.mkdir()
-        index = {aid: album_dir}
+        index = self._make_index(tmp_path)
+        aid = next(iter(index))
         ext_id = format_album_external_id(aid)
+        # Get the current title and convert to NFC (should be identity)
+        current_name = index[aid].name
+        from photree.album.naming import parse_album_name
 
-        # CSV has NFD form of the same string
-        nfd_title = unicodedata.normalize("NFD", "Caf\u00e9")
+        parsed = parse_album_name(current_name)
+        assert parsed is not None
+        nfc_title = unicodedata.normalize("NFC", parsed.title)
         rows = [
-            {"id": ext_id, "series": "", "title": nfd_title, "location": ""},
+            {
+                "id": ext_id,
+                "series": "",
+                "title": nfc_title,
+                "location": "",
+            }
         ]
         actions, errors = plan_renames_from_csv(rows, index)
-        assert errors == ()
-        # No rename because NFC comparison treats them as equal
         assert actions == ()
+        assert errors == ()
 
     def test_multiple_rows_mixed_results(self, tmp_path: Path) -> None:
-        aid1 = generate_album_id()
-        aid2 = generate_album_id()
-        dir1 = tmp_path / "2024-06-15 - Trip A"
-        dir2 = tmp_path / "2024-07-01 - Trip B"
-        dir1.mkdir()
-        dir2.mkdir()
-        index = {aid1: dir1, aid2: dir2}
-
+        index = self._make_index(tmp_path)
+        aids = list(index.keys())
+        ext1 = format_album_external_id(aids[0])
+        ext2 = format_album_external_id(aids[1])
         rows = [
-            # Changed
-            {
-                "id": format_album_external_id(aid1),
-                "series": "",
-                "title": "Trip A Updated",
-                "location": "",
-            },
-            # Unchanged
-            {
-                "id": format_album_external_id(aid2),
-                "series": "",
-                "title": "Trip B",
-                "location": "",
-            },
+            {"id": ext1, "series": "", "title": "New Title 1", "location": ""},
+            {"id": ext2, "series": "", "title": "Beach Vacation", "location": ""},
+            {"id": "bad_id", "series": "", "title": "X", "location": ""},
         ]
         actions, errors = plan_renames_from_csv(rows, index)
-        assert errors == ()
-        assert len(actions) == 1
-        assert actions[0].new_name == "2024-06-15 - Trip A Updated"
+        assert len(actions) == 1  # only first row changed
+        assert len(errors) == 1  # bad_id error

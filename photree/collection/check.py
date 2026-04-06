@@ -16,6 +16,7 @@ from ..album.naming import _album_date_range, parse_album_name
 from ..album.store.album_discovery import discover_albums
 from ..album.store.media_metadata import load_media_metadata
 from ..album.store.metadata import load_album_metadata
+from ..fsprotocol import ALBUMS_DIR, COLLECTIONS_DIR
 from .naming import parse_collection_name
 from .store.collection_discovery import discover_collections
 from .store.metadata import load_collection_metadata
@@ -71,7 +72,7 @@ def _scan_album_data(
     image_ids: set[str] = set()
     video_ids: set[str] = set()
 
-    for album_dir in discover_albums(gallery_dir):
+    for album_dir in discover_albums(gallery_dir / ALBUMS_DIR):
         meta = load_album_metadata(album_dir)
         if meta is not None:
             album_ids.add(meta.id)
@@ -94,7 +95,7 @@ def build_gallery_lookup(gallery_dir: Path) -> _GalleryLookup:
 
     collection_metas = [
         (col_dir, load_collection_metadata(col_dir))
-        for col_dir in discover_collections(gallery_dir)
+        for col_dir in discover_collections(gallery_dir / COLLECTIONS_DIR)
     ]
 
     return _GalleryLookup(
@@ -236,5 +237,5 @@ def check_all_collections(
     lookup = build_gallery_lookup(gallery_dir)
     return [
         check_collection(col_dir, lookup)
-        for col_dir in discover_collections(gallery_dir)
+        for col_dir in discover_collections(gallery_dir / COLLECTIONS_DIR)
     ]
