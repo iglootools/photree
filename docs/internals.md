@@ -370,6 +370,31 @@ A collection can be converted between lifecycles using
   `2024-07-14 - 01 - Hiking` becomes
   `2024-07-14 - 01 - Canada Trip - Hiking`).
 
+### Implicit Collection Refresh
+
+`gallery refresh` manages implicit collections through the following steps:
+
+1. **Group albums by contiguous series** — albums are sorted chronologically
+   (by directory name). Contiguous runs sharing the same series form groups.
+   Non-contiguous occurrences of the same series produce separate groups.
+
+2. **Match each group to an existing implicit collection** — a three-tier
+   strategy preserves the collection ID across changes:
+   - **Exact name match**: the collection name (including date range) is
+     unchanged — fast path.
+   - **Title + member overlap**: the date range changed (albums added or
+     removed) but the series title is the same and the collection shares
+     at least one album with the group. The collection is renamed to
+     reflect the new date range and its members are updated.
+   - **Exact member match**: the series title changed but the album
+     members are identical — treated as a rename.
+
+3. **Create new** — groups with no matching collection get a new implicit
+   collection in `collections/YYYY/`.
+
+4. **Delete orphaned** — implicit collections whose series no longer
+   appears in any album are removed.
+
 ### Collection Directory Layout
 
 ```
