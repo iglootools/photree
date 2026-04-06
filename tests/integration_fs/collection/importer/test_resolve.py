@@ -254,7 +254,7 @@ class TestResolveByMediaFilename:
 
         result = resolve_entries((_entry("IMG_9999.HEIC"),), gallery)
         assert not result.success
-        assert "no image" in result.errors[0].message
+        assert "not found" in result.errors[0].message
 
     def test_resolve_std_stem_based_file(self, tmp_path: Path) -> None:
         """Non-IMG_ prefixed file uses stem for matching."""
