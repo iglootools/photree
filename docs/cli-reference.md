@@ -20,6 +20,8 @@ $ photree [OPTIONS] COMMAND [ARGS]...
 * `album`: Album management commands.
 * `albums`: Batch operations on multiple albums.
 * `check`: System prerequisite checks.
+* `collection`: Collection management commands.
+* `collections`: Batch operations on multiple collections.
 * `demo`: Demo commands for development.
 * `gallery`: Batch operations on multiple albums.
 
@@ -704,6 +706,107 @@ Check that all system prerequisites are met.
 
 ```console
 $ photree check system [OPTIONS]
+```
+
+**Options**:
+
+* `--help`: Show this message and exit.
+
+## `photree collection`
+
+Collection management commands.
+
+**Usage**:
+
+```console
+$ photree collection [OPTIONS] COMMAND [ARGS]...
+```
+
+**Options**:
+
+* `--help`: Show this message and exit.
+
+**Commands**:
+
+* `init`: Initialize collection metadata...
+* `show`: Display collection metadata.
+* `metadata`: Collection metadata management.
+
+### `photree collection init`
+
+Initialize collection metadata (.photree/collection.yaml).
+
+**Usage**:
+
+```console
+$ photree collection init [OPTIONS]
+```
+
+**Options**:
+
+* `-d, --dir DIRECTORY`: Collection directory.  [default: .]
+* `--kind [smart|manual]`: How members are determined: smart (auto by date range) or manual.  [default: manual]
+* `--lifecycle [implicit|explicit]`: How the collection is managed: explicit (user) or implicit (from album series).  [default: explicit]
+* `--help`: Show this message and exit.
+
+### `photree collection show`
+
+Display collection metadata.
+
+**Usage**:
+
+```console
+$ photree collection show [OPTIONS]
+```
+
+**Options**:
+
+* `-d, --dir DIRECTORY`: Collection directory.  [default: .]
+* `--help`: Show this message and exit.
+
+### `photree collection metadata`
+
+Collection metadata management.
+
+**Usage**:
+
+```console
+$ photree collection metadata [OPTIONS] COMMAND [ARGS]...
+```
+
+**Options**:
+
+* `--help`: Show this message and exit.
+
+**Commands**:
+
+* `set`: Update collection metadata fields.
+
+#### `photree collection metadata set`
+
+Update collection metadata fields.
+
+**Usage**:
+
+```console
+$ photree collection metadata set [OPTIONS]
+```
+
+**Options**:
+
+* `-d, --dir DIRECTORY`: Collection directory.  [default: .]
+* `--kind [smart|manual]`: How members are determined: smart (auto by date range) or manual.
+* `--lifecycle [implicit|explicit]`: How the collection is managed: explicit (user) or implicit (from album series).
+* `--help`: Show this message and exit.
+
+## `photree collections`
+
+Batch operations on multiple collections.
+
+**Usage**:
+
+```console
+$ photree collections [OPTIONS] COMMAND [ARGS]...
 ```
 
 **Options**:
