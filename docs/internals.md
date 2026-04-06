@@ -370,13 +370,34 @@ A collection can be converted between lifecycles using
   `2024-07-14 - 01 - Hiking` becomes
   `2024-07-14 - 01 - Canada Trip - Hiking`).
 
-### Implicit Collection Refresh
+### Collection Refresh
 
-`gallery refresh` manages implicit collections through the following steps:
+`gallery refresh` runs four phases for collections, after the album media
+refresh:
 
-1. **Group albums by contiguous series** — albums are sorted chronologically
-   (by directory name). Contiguous runs sharing the same series form groups.
-   Non-contiguous occurrences of the same series produce separate groups.
+#### Phase 1: Album Title Sync
+
+Syncs album directory names with collection lifecycle state. This runs
+first so that implicit collection detection (phase 2) sees the updated
+album names.
+
+- **Album has series + explicit collection with that title exists** →
+  strip the series from the album name. The explicit collection owns
+  the grouping, so the series is redundant.
+- **Album has no series + implicit collection contains it** → add the
+  collection title as series to the album name.
+
+See [Collection Lifecycle](#collection-lifecycle) for examples.
+
+#### Phase 2: Implicit Collection Refresh
+
+Detects album series and creates/updates/renames/deletes implicit
+collections:
+
+1. **Group albums by contiguous series** — albums are sorted
+   chronologically (by directory name). Contiguous runs sharing the same
+   series form groups. Non-contiguous occurrences of the same series
+   produce separate groups.
 
 2. **Match each group to an existing implicit collection** — a three-tier
    strategy preserves the collection ID across changes:
@@ -394,6 +415,18 @@ A collection can be converted between lifecycles using
 
 4. **Delete orphaned** — implicit collections whose series no longer
    appears in any album are removed.
+
+#### Phase 3: Smart Collection Refresh
+
+Materializes members for `kind: smart` collections based on date range
+overlap:
+
+- For each smart collection with a date, finds all albums and
+  sub-collections whose date ranges overlap with the collection's range.
+- Writes the matched IDs into `collection.yaml`, replacing the previous
+  album and collection member lists.
+- Existing image and video members are preserved (not affected by smart
+  refresh).
 
 ### Collection Directory Layout
 
