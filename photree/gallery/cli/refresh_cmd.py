@@ -10,9 +10,16 @@ import typer
 from . import gallery_app
 from ...clihelpers.console import err_console
 from ...clihelpers.options import DRY_RUN_OPTION
+from ...clihelpers.progress import StageProgressBar
 from ...albums.cli.batch_ops import run_batch_refresh
 from ...albums.cli.ops import resolve_check_batch_albums
-from ..collection_refresh import refresh_collections
+from ..collection_refresh import (
+    STAGE_IMPLICIT_REFRESH,
+    STAGE_SCAN_ALBUMS,
+    STAGE_SMART_REFRESH,
+    STAGE_TITLE_SYNC,
+    refresh_collections,
+)
 from .ops import resolve_gallery_or_exit
 
 
@@ -38,7 +45,23 @@ def refresh_cmd(
 
     # Refresh collections (implicit detection + smart materialization)
     typer.echo("\nCollections:")
-    col_result = refresh_collections(resolved, dry_run=dry_run)
+    progress = StageProgressBar(
+        total=4,
+        labels={
+            STAGE_SCAN_ALBUMS: "Scanning albums",
+            STAGE_TITLE_SYNC: "Syncing album titles",
+            STAGE_IMPLICIT_REFRESH: "Refreshing implicit collections",
+            STAGE_SMART_REFRESH: "Refreshing smart collections",
+        },
+    )
+
+    col_result = refresh_collections(
+        resolved,
+        dry_run=dry_run,
+        on_stage_start=progress.on_start,
+        on_stage_end=progress.on_end,
+    )
+    progress.stop()
 
     if col_result.created:
         for name in col_result.created:

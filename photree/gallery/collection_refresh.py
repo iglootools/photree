@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import shutil
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -622,27 +623,53 @@ def _sync_album_titles(
 # ---------------------------------------------------------------------------
 
 
+# Refresh stage names (for progress callbacks)
+STAGE_SCAN_ALBUMS = "scan-albums"
+STAGE_TITLE_SYNC = "title-sync"
+STAGE_IMPLICIT_REFRESH = "implicit-refresh"
+STAGE_SMART_REFRESH = "smart-refresh"
+
+REFRESH_STAGES = (
+    STAGE_SCAN_ALBUMS,
+    STAGE_TITLE_SYNC,
+    STAGE_IMPLICIT_REFRESH,
+    STAGE_SMART_REFRESH,
+)
+
+
+def _notify(callback: Callable[[str], None] | None, value: str) -> None:
+    if callback is not None:
+        callback(value)
+
+
 def refresh_collections(
     gallery_dir: Path,
     *,
     dry_run: bool = False,
+    on_stage_start: Callable[[str], None] | None = None,
+    on_stage_end: Callable[[str], None] | None = None,
 ) -> CollectionRefreshResult:
     """Refresh all collections in the gallery.
 
-    1. Validate album names (light check, no EXIF)
+    1. Scan and validate album names (light check, no EXIF)
     2. Sync album titles with existing collection lifecycle changes
-    3. Re-scan albums (titles may have changed)
-    4. Refresh implicit collections from album series
-    5. Materialize smart collection members
+    3. Refresh implicit collections from album series
+    4. Materialize smart collection members
     """
+    # Stage 1: scan albums
+    _notify(on_stage_start, STAGE_SCAN_ALBUMS)
     albums, scan_errors = _scan_albums(gallery_dir)
+    existing = _scan_existing_collections(gallery_dir)
+    _notify(on_stage_end, STAGE_SCAN_ALBUMS)
+
     if scan_errors:
         return CollectionRefreshResult(errors=tuple(scan_errors))
 
-    existing = _scan_existing_collections(gallery_dir)
-
-    # Sync album titles first (before implicit refresh modifies collections)
+    # Stage 2: sync album titles
+    _notify(on_stage_start, STAGE_TITLE_SYNC)
     album_renames, sync_errors = _sync_album_titles(albums, existing, dry_run=dry_run)
+    _notify(on_stage_end, STAGE_TITLE_SYNC)
+
     if sync_errors:
         return CollectionRefreshResult(
             album_renames=tuple(album_renames),
@@ -658,10 +685,12 @@ def refresh_collections(
                 errors=tuple(scan_errors),
             )
 
-    # Refresh implicit collections
+    # Stage 3: refresh implicit collections
+    _notify(on_stage_start, STAGE_IMPLICIT_REFRESH)
     created, updated, renamed, deleted, implicit_errors = _refresh_implicit_collections(
         gallery_dir, albums, existing, dry_run=dry_run
     )
+    _notify(on_stage_end, STAGE_IMPLICIT_REFRESH)
 
     if implicit_errors:
         return CollectionRefreshResult(
@@ -673,11 +702,11 @@ def refresh_collections(
             errors=tuple(implicit_errors),
         )
 
-    # Re-scan collections after implicit refresh (new ones may have been created)
+    # Stage 4: materialize smart collection members
+    _notify(on_stage_start, STAGE_SMART_REFRESH)
     existing = _scan_existing_collections(gallery_dir)
-
-    # Materialize smart collection members
     smart_updated = _refresh_smart_collections(albums, existing, dry_run=dry_run)
+    _notify(on_stage_end, STAGE_SMART_REFRESH)
 
     return CollectionRefreshResult(
         created=tuple(created),
