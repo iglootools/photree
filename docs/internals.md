@@ -225,7 +225,8 @@ The default media source is named `main`.
     album.yaml            album metadata (id)
     media.yaml            media ID mappings (image/video UUIDs)
     title.bkp             original directory name backup
-  to-import/              user selection files (workflow input)
+  to-import/              selection files exported from Photos (workflow input)
+  to-import.csv           alternative selection list (one filename per row)
 
   # iOS media source "main"
   ios-main/               archive (iOS)
@@ -274,6 +275,31 @@ directories at the top level are the browsable/shareable versions:
 - **`{name}-vid/`**: Same logic as `{name}-img/` but for videos.
 - **`{name}-jpg/`**: JPEG versions for sharing/web. Generated from `{name}-img/`
   via HEIC/HEIF/DNG→JPEG conversion (sips). JPG/PNG files are copied as-is.
+
+## Selection Mechanism
+
+The selection tells photree which photos to import from Image Capture.
+Conceptually, a selection is a **list of filenames** — the actual file
+contents are irrelevant. Only the filenames matter because matching against
+Image Capture files is done by image number (digits extracted from the
+filename, e.g. `0410` from `IMG_0410.HEIC`).
+
+Two sources are supported:
+
+- **`to-import/` directory** — files exported from Apple Photos. The files
+  themselves are not used; only their names serve as the selection list.
+- **`to-import.csv`** — a one-column CSV file (no header) where each row is
+  a filename (e.g. `IMG_0410.HEIC`).
+
+When both sources exist, their entries are merged (union). If the same image
+number appears in both sources, it is deduplicated silently. After a
+successful import, processed files are deleted from `to-import/` and
+`to-import.csv` is deleted if all its entries were processed.
+
+This design decouples the selection from any specific tool. Exporting from
+Apple Photos into `to-import/` is the most common workflow, but the
+selection can equally be generated from a phone, a custom CLI, an LLM,
+AppleScript, or any other workflow that can produce a list of filenames.
 
 ## Metadata Files
 

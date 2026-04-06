@@ -7,7 +7,7 @@ from pathlib import Path
 from ..preflight import (
     ImageCaptureDirCheck,
     ImportPreflightResult,
-    SelectionDirStatus,
+    SelectionStatus,
 )
 
 IC_CHECK_OK = ImageCaptureDirCheck(
@@ -26,7 +26,7 @@ IC_CHECK_WARNINGS = ImageCaptureDirCheck(
 
 PREFLIGHT_OK = ImportPreflightResult(
     sips_available=True,
-    selection_dir_status=SelectionDirStatus.OK,
+    selection_status=SelectionStatus.OK,
     selection_path=Path("/albums/trip-paris/to-import"),
     image_capture_dir=Path("~/Pictures/iPhone"),
     image_capture_dir_found=True,
@@ -36,7 +36,7 @@ PREFLIGHT_OK = ImportPreflightResult(
 
 PREFLIGHT_FAILURES = ImportPreflightResult(
     sips_available=False,
-    selection_dir_status=SelectionDirStatus.NOT_FOUND,
+    selection_status=SelectionStatus.NOT_FOUND,
     selection_path=Path("/albums/trip-paris/to-import"),
     image_capture_dir=Path("~/Pictures/iPhone"),
     image_capture_dir_found=True,

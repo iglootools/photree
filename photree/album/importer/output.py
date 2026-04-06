@@ -6,13 +6,13 @@ from pathlib import Path
 from textwrap import dedent
 
 from ...common.formatting import CHECK, CROSS
-from ..store.protocol import SELECTION_DIR
+from ..store.protocol import SELECTION_CSV, SELECTION_DIR
 from .image_capture import ValidationError
 from .preflight import (
     _IMG_PREFIX_THRESHOLD,
     ImageCaptureDirCheck,
     ImportPreflightResult,
-    SelectionDirStatus,
+    SelectionStatus,
 )
 
 
@@ -22,30 +22,42 @@ def selection_dir_check(
     found: bool,
     empty: bool = False,
 ) -> str:
-    """Format the selection directory check line."""
+    """Format the selection check line."""
     match (found, empty):
         case (False, _):
-            return f"{CROSS} {SELECTION_DIR}/: {selection_path} (not found)"
+            return (
+                f"{CROSS} selection: {selection_path.parent} "
+                f"(no {SELECTION_DIR}/ or {SELECTION_CSV})"
+            )
         case (True, True):
-            return f"{CROSS} {SELECTION_DIR}/: {selection_path} (empty)"
+            return f"{CROSS} selection: {selection_path.parent} (empty)"
         case _:
-            return f"{CHECK} {SELECTION_DIR}/: {selection_path}"
+            return f"{CHECK} selection: {selection_path.parent}"
 
 
 def selection_dir_troubleshoot(selection_path: Path, *, found: bool) -> str:
-    """Troubleshooting info for the selection directory."""
+    """Troubleshooting info for the selection."""
+    csv_path = selection_path.parent / SELECTION_CSV
     if found:
         return dedent(f"""\
             {SELECTION_DIR}/: Export your photo selection from the Photos app into this folder:
 
-              Photos > File > Export > Export Originals… into {selection_path}""")
+              Photos > File > Export > Export Originals… into {selection_path}
+
+            Or create a {SELECTION_CSV} file with one filename per row (no header):
+
+              {csv_path}""")
     else:
         return dedent(f"""\
             {SELECTION_DIR}/: Create the folder inside your album directory and export
             your photo selection from the Photos app into it:
 
               mkdir -p "{selection_path}"
-              # Then: Photos > File > Export > Export Originals… into {selection_path}""")
+              # Then: Photos > File > Export > Export Originals… into {selection_path}
+
+            Or create a {SELECTION_CSV} file with one filename per row (no header):
+
+              {csv_path}""")
 
 
 def _format_ic_dir_warnings(check: ImageCaptureDirCheck) -> list[str]:
@@ -121,18 +133,18 @@ def format_preflight_checks(result: ImportPreflightResult) -> str:
             *(
                 [
                     {
-                        SelectionDirStatus.OK: selection_dir_check(
+                        SelectionStatus.OK: selection_dir_check(
                             result.selection_path, found=True
                         ),
-                        SelectionDirStatus.NOT_FOUND: selection_dir_check(
+                        SelectionStatus.NOT_FOUND: selection_dir_check(
                             result.selection_path, found=False
                         ),
-                        SelectionDirStatus.EMPTY: selection_dir_check(
+                        SelectionStatus.EMPTY: selection_dir_check(
                             result.selection_path, found=True, empty=True
                         ),
-                    }[result.selection_dir_status]
+                    }[result.selection_status]
                 ]
-                if result.selection_dir_status is not None
+                if result.selection_status is not None
                 and result.selection_path is not None
                 else []
             ),
@@ -157,11 +169,11 @@ def format_preflight_troubleshoot(result: ImportPreflightResult) -> str | None:
             [
                 selection_dir_troubleshoot(
                     result.selection_path,
-                    found=result.selection_dir_status != SelectionDirStatus.NOT_FOUND,
+                    found=result.selection_status != SelectionStatus.NOT_FOUND,
                 )
             ]
-            if result.selection_dir_status
-            in (SelectionDirStatus.NOT_FOUND, SelectionDirStatus.EMPTY)
+            if result.selection_status
+            in (SelectionStatus.NOT_FOUND, SelectionStatus.EMPTY)
             and result.selection_path is not None
             else []
         ),

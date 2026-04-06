@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from photree.album.store.protocol import SELECTION_DIR
+from photree.album.store.protocol import SELECTION_CSV, SELECTION_DIR
 from photree.album.importer.batch import (
     categorize_albums,
     run_batch_import,
@@ -184,3 +184,50 @@ class TestBatchImport:
         assert "invalid" in validation_errors
         # valid album should NOT have been processed either
         assert not (albums_dir / "valid" / "ios-main/orig-img").exists()
+
+
+# ---------------------------------------------------------------------------
+# CSV-based album categorization and batch import
+# ---------------------------------------------------------------------------
+
+
+def _setup_album_csv(parent: Path, album_name: str, csv_entries: list[str]) -> Path:
+    """Create an album with a to-import.csv file (no to-import/ dir)."""
+    album = parent / album_name
+    album.mkdir(parents=True)
+    (album / SELECTION_CSV).write_text("\n".join(csv_entries) + "\n")
+    return album
+
+
+class TestCategorizeAlbumsCsv:
+    def test_csv_only_album_is_to_import(self, tmp_path: Path) -> None:
+        csv_album = _setup_album_csv(tmp_path, "csv-album", ["IMG_0001.HEIC"])
+        scan = categorize_albums([csv_album])
+        assert len(scan.to_import) == 1
+        assert len(scan.no_selection) == 0
+        assert len(scan.empty_selection) == 0
+
+    def test_csv_and_dir_album_is_to_import(self, tmp_path: Path) -> None:
+        album = _setup_album(tmp_path, "both-album", ["IMG_0001.HEIC"])
+        (album / SELECTION_CSV).write_text("IMG_0002.HEIC\n")
+        scan = categorize_albums([album])
+        assert len(scan.to_import) == 1
+
+
+class TestBatchImportCsv:
+    def test_batch_imports_csv_album(self, tmp_path: Path) -> None:
+        albums_dir = tmp_path / "albums"
+        albums_dir.mkdir()
+        ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0001.HEIC", "IMG_0001.AAE"])
+        _setup_album_csv(albums_dir, "csv-trip", ["IMG_0001.HEIC"])
+
+        result = run_batch_import(
+            albums_dir=albums_dir, image_capture_dir=ic_dir, convert_file=_noop_convert
+        )
+
+        assert result.imported == 1
+        assert (
+            albums_dir / "csv-trip" / "ios-main/orig-img" / "IMG_0001.HEIC"
+        ).exists()
+        # CSV should be cleaned up
+        assert not (albums_dir / "csv-trip" / SELECTION_CSV).exists()

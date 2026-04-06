@@ -24,6 +24,7 @@ from ..store.protocol import (
     DEFAULT_MEDIA_SOURCE,
     IOS_IMG_EXTENSIONS,
     IOS_VID_EXTENSIONS,
+    SELECTION_CSV,
     SELECTION_DIR,
     IOS_SIDECAR_EXTENSIONS,
     AlbumMetadata,
@@ -119,12 +120,15 @@ class ImportResult:
     unprocessed: tuple[str, ...]
 
 
-def plan_import_from_dirs(
-    selection_dir: Path,
+def plan_import_from_album(
+    album_dir: Path,
     image_capture_dir: Path,
 ) -> ImportPlan:
-    """Build an import plan by reading files from the given directories."""
-    return plan_import(list_files(selection_dir), list_files(image_capture_dir))
+    """Build an import plan using merged selection (dir + CSV)."""
+    from .selection import read_selection
+
+    sources = read_selection(album_dir)
+    return plan_import(list(sources.merged), list_files(image_capture_dir))
 
 
 def _build_ic_index(image_capture_files: list[str]) -> dict[str, list[str]]:
@@ -447,15 +451,17 @@ def run_import(
     Parameters:
     - ``convert_file(src, dst_dir, dry_run=)`` — per-file HEIC→JPEG converter (default: sips via album.jpeg)
     """
-    album_selection = album_dir / SELECTION_DIR
+    from .selection import read_selection
 
-    # Read input files
-    selection_files = list_files(album_selection)
+    # Read input files from both to-import/ and to-import.csv
+    sources = read_selection(album_dir)
+    selection_files = list(sources.merged)
     image_capture_files = list_files(image_capture_dir)
 
     if not selection_files:
         raise FileNotFoundError(
-            f"Could not find any selection files in {album_selection}"
+            f"Could not find any selection files in "
+            f"{album_dir / SELECTION_DIR} or {album_dir / SELECTION_CSV}"
         )
     if not image_capture_files:
         raise FileNotFoundError(
@@ -601,8 +607,14 @@ def run_import(
 
     # Cleanup: only delete processed selection files, keep unmatched ones
     if not dry_run:
+        album_selection = album_dir / SELECTION_DIR
         for sel_file in processed:
             (album_selection / sel_file).unlink(missing_ok=True)
+        # Delete to-import.csv if all its entries were processed
+        if sources.csv_files:
+            csv_unprocessed = set(sources.csv_files) - processed
+            if not csv_unprocessed:
+                (album_dir / SELECTION_CSV).unlink(missing_ok=True)
         _remove_empty_folders(album_dir)
 
     return ImportResult(

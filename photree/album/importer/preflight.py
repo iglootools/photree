@@ -9,7 +9,7 @@ from pathlib import Path
 
 from ...config import load_config
 from ..check import check_sips_available
-from ..store.protocol import SELECTION_DIR
+from ..store.protocol import SELECTION_CSV, SELECTION_DIR
 
 DEFAULT_IMAGE_CAPTURE_DIR = Path.home() / "Pictures" / "iPhone"
 
@@ -36,7 +36,7 @@ _KNOWN_EXTENSIONS = frozenset({".heic", ".jpg", ".jpeg", ".png", ".mov", ".aae"}
 _IMG_PREFIX_THRESHOLD = 0.5  # at least 50% of files must start with IMG_
 
 
-class SelectionDirStatus(StrEnum):
+class SelectionStatus(StrEnum):
     OK = "ok"
     NOT_FOUND = "not_found"
     EMPTY = "empty"
@@ -47,7 +47,7 @@ class ImportPreflightResult:
     """Structured result of all import preflight checks."""
 
     sips_available: bool | None  # None if skipped
-    selection_dir_status: SelectionDirStatus | None  # None if no album_dir provided
+    selection_status: SelectionStatus | None  # None if no album_dir provided
     selection_path: Path | None
     image_capture_dir: Path
     image_capture_dir_found: bool
@@ -57,7 +57,7 @@ class ImportPreflightResult:
     @property
     def success(self) -> bool:
         sips_ok = self.sips_available is not False
-        selection_ok = self.selection_dir_status in (SelectionDirStatus.OK, None)
+        selection_ok = self.selection_status in (SelectionStatus.OK, None)
         ic_ok = self.image_capture_dir_found and (
             self.image_capture_dir_check is None or self.image_capture_dir_check.success
         )
@@ -112,17 +112,23 @@ def check_image_capture_dir(path: Path) -> ImageCaptureDirCheck:
     )
 
 
-def _check_selection_dir(
+def _check_selection(
     album_dir: Path,
-) -> tuple[SelectionDirStatus, Path]:
-    """Check the selection directory status."""
+) -> tuple[SelectionStatus, Path]:
+    """Check the selection status (``to-import/`` and ``to-import.csv``)."""
+    from .selection import has_selection
+
     selection_path = album_dir / SELECTION_DIR
-    if not selection_path.is_dir():
-        return SelectionDirStatus.NOT_FOUND, selection_path
-    elif not any(selection_path.iterdir()):
-        return SelectionDirStatus.EMPTY, selection_path
+    csv_path = album_dir / SELECTION_CSV
+    has_dir = selection_path.is_dir()
+    has_csv = csv_path.is_file()
+
+    if not has_dir and not has_csv:
+        return SelectionStatus.NOT_FOUND, selection_path
+    elif has_selection(album_dir):
+        return SelectionStatus.OK, selection_path
     else:
-        return SelectionDirStatus.OK, selection_path
+        return SelectionStatus.EMPTY, selection_path
 
 
 def run_preflight(
@@ -136,7 +142,7 @@ def run_preflight(
     sips_available = None if skip_heic_to_jpeg else check_sips_available()
 
     if album_dir is not None:
-        selection_status, selection_path = _check_selection_dir(album_dir)
+        selection_status, selection_path = _check_selection(album_dir)
     else:
         selection_status, selection_path = None, None
 
@@ -147,7 +153,7 @@ def run_preflight(
 
     return ImportPreflightResult(
         sips_available=sips_available,
-        selection_dir_status=selection_status,
+        selection_status=selection_status,
         selection_path=selection_path,
         image_capture_dir=image_capture_dir,
         image_capture_dir_found=ic_found,

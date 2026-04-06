@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from photree.album.store.protocol import SELECTION_DIR
+from photree.album.store.protocol import SELECTION_CSV, SELECTION_DIR
 from photree.fsprotocol import LinkMode
 from photree.album.importer.image_capture import (
     STAGE_IMPORT_IC,
@@ -41,6 +41,14 @@ def _setup_album(tmp_path: Path, selection_files: list[str]) -> Path:
     selection.mkdir(parents=True)
     for name in selection_files:
         (selection / name).write_text("data")
+    return album
+
+
+def _setup_album_csv(tmp_path: Path, csv_entries: list[str]) -> Path:
+    """Create an album directory with a to-import.csv file (no to-import/ dir)."""
+    album = tmp_path / "album"
+    album.mkdir(parents=True)
+    (album / SELECTION_CSV).write_text("\n".join(csv_entries) + "\n")
     return album
 
 
@@ -496,3 +504,83 @@ class TestRunImportLinkMode:
         orig = album / "ios-main/orig-img" / "IMG_0100.HEIC"
         assert not browsable.is_symlink()
         assert os.stat(browsable).st_ino != os.stat(orig).st_ino
+
+
+# ---------------------------------------------------------------------------
+# run_import with to-import.csv
+# ---------------------------------------------------------------------------
+
+
+class TestRunImportCsv:
+    def test_import_from_csv_only(self, tmp_path: Path) -> None:
+        album = _setup_album_csv(tmp_path, ["IMG_0410.HEIC"])
+        ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0410.HEIC", "IMG_0410.AAE"])
+
+        result = run_import(
+            album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
+        )
+
+        assert result.unprocessed == ()
+        assert (album / "ios-main/orig-img" / "IMG_0410.HEIC").exists()
+        # CSV should be deleted after successful import
+        assert not (album / SELECTION_CSV).exists()
+
+    def test_import_from_both_sources(self, tmp_path: Path) -> None:
+        album = tmp_path / "album"
+        sel_dir = album / SELECTION_DIR
+        sel_dir.mkdir(parents=True)
+        (sel_dir / "IMG_0410.HEIC").write_text("data")
+        (album / SELECTION_CSV).write_text("IMG_0411.HEIC\n")
+
+        ic_dir = _setup_image_capture_dir(
+            tmp_path,
+            ["IMG_0410.HEIC", "IMG_0410.AAE", "IMG_0411.HEIC", "IMG_0411.AAE"],
+        )
+
+        result = run_import(
+            album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
+        )
+
+        assert result.unprocessed == ()
+        assert (album / "ios-main/orig-img" / "IMG_0410.HEIC").exists()
+        assert (album / "ios-main/orig-img" / "IMG_0411.HEIC").exists()
+        # Both sources cleaned up
+        assert not (album / SELECTION_DIR).exists()
+        assert not (album / SELECTION_CSV).exists()
+
+    def test_csv_kept_when_unprocessed(self, tmp_path: Path) -> None:
+        """CSV is kept if it has entries that didn't match IC files."""
+        album = _setup_album_csv(tmp_path, ["IMG_0410.HEIC", "IMG_9999.HEIC"])
+        ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0410.HEIC", "IMG_0410.AAE"])
+
+        # Plan will have an unmatched entry — import should still work
+        # but we need to check CSV is kept. However, the import itself
+        # will succeed for matched files. Unmatched go to plan.unmatched
+        # which triggers a validation error in the CLI layer but not in
+        # run_import itself. The CSV has one unprocessed entry so it stays.
+        run_import(
+            album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
+        )
+
+        assert (album / "ios-main/orig-img" / "IMG_0410.HEIC").exists()
+        # CSV should be kept because IMG_9999.HEIC was not processed
+        assert (album / SELECTION_CSV).exists()
+
+    def test_dedup_across_sources(self, tmp_path: Path) -> None:
+        """Same image number in dir and CSV results in single import."""
+        album = tmp_path / "album"
+        sel_dir = album / SELECTION_DIR
+        sel_dir.mkdir(parents=True)
+        (sel_dir / "IMG_0410.JPEG").write_text("data")
+        (album / SELECTION_CSV).write_text("IMG_0410.HEIC\n")
+
+        ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0410.HEIC", "IMG_0410.AAE"])
+
+        result = run_import(
+            album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
+        )
+
+        assert result.unprocessed == ()
+        assert (album / "ios-main/orig-img" / "IMG_0410.HEIC").exists()
+        # Dir entry was used (JPEG), so that file gets cleaned up
+        assert not (album / SELECTION_DIR / "IMG_0410.JPEG").exists()

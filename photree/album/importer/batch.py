@@ -8,7 +8,7 @@ from pathlib import Path
 
 from ...fsprotocol import LinkMode
 from ..jpeg import convert_single_file
-from ..store.protocol import SELECTION_DIR
+from ..store.protocol import SELECTION_CSV, SELECTION_DIR
 from . import image_capture
 from ...common.fs import list_files
 from .image_capture import (
@@ -68,25 +68,32 @@ def scan_albums(albums_dir: Path) -> AlbumScan:
 
 
 def categorize_albums(album_dirs: Sequence[Path]) -> AlbumScan:
-    """Categorize album directories by their selection-folder state."""
+    """Categorize album directories by their selection state.
+
+    Selection can come from ``to-import/`` directory, ``to-import.csv``, or both.
+    """
+    from .selection import has_selection
+
+    has_dir = {d for d in album_dirs if (d / SELECTION_DIR).is_dir()}
+    has_csv = {d for d in album_dirs if (d / SELECTION_CSV).is_file()}
+    has_any_source = has_dir | has_csv
+
     return AlbumScan(
-        no_selection=tuple(d for d in album_dirs if not (d / SELECTION_DIR).is_dir()),
+        no_selection=tuple(d for d in album_dirs if d not in has_any_source),
         empty_selection=tuple(
-            d
-            for d in album_dirs
-            if (d / SELECTION_DIR).is_dir() and not any((d / SELECTION_DIR).iterdir())
+            d for d in album_dirs if d in has_any_source and not has_selection(d)
         ),
         to_import=tuple(
-            d
-            for d in album_dirs
-            if (d / SELECTION_DIR).is_dir() and any((d / SELECTION_DIR).iterdir())
+            d for d in album_dirs if d in has_any_source and has_selection(d)
         ),
     )
 
 
 def _validate_album(album_dir: Path, image_capture_files: list[str]) -> AlbumValidation:
     """Validate a single album against the IC file list."""
-    selection_files = list_files(album_dir / SELECTION_DIR)
+    from .selection import read_selection
+
+    selection_files = list(read_selection(album_dir).merged)
     plan = plan_import(selection_files, image_capture_files)
     errors = validate_import_plan(plan)
     return AlbumValidation(album_dir=album_dir, plan=plan, errors=tuple(errors))
@@ -142,11 +149,11 @@ def run_batch_import(
 
     for album_dir in scan.no_selection:
         if on_skipped:
-            on_skipped(album_dir.name, f"no {SELECTION_DIR}/ folder")
+            on_skipped(album_dir.name, f"no {SELECTION_DIR}/ or {SELECTION_CSV}")
 
     for album_dir in scan.empty_selection:
         if on_skipped:
-            on_skipped(album_dir.name, f"{SELECTION_DIR}/ is empty")
+            on_skipped(album_dir.name, "selection is empty")
 
     # Validate all albums before importing any
     ic_files = list_files(image_capture_dir) if scan.to_import else []
