@@ -37,12 +37,13 @@ description = "Install dependencies"
 run = "poetry install"
 
 [tasks.check]
-description = "Run all checks (format, lint, type-check, compat-check, clidocs-check, depgraph-check)"
+description = "Run all checks (format, lint, type-check, compat-check, lock-check, clidocs-check, depgraph-check)"
 run = [
   { task = "format" },
   { task = "lint" },
   { task = "type-check" },
   { task = "compat-check" },
+  { task = "lock-check" },
   { task = "clidocs-check" },
   { task = "depgraph-check" },
 ]
@@ -117,6 +118,26 @@ run = "poetry run pyright photree/ build-scripts/"
 [tasks.compat-check]
 description = "Verify no Python features above 3.12 are used"
 run = "poetry run vermin --target=3.12- --no-tips --no-parse-comments photree/ tests/"
+
+# mise.lock freshness check.
+# CI may override the python version via `mise use`, which changes mise.toml
+# and causes `mise lock` to produce a different lockfile than the committed one.
+# The task temporarily reverts mise.toml to its git state for the check.
+[tasks.lock-check]
+description = "Check that mise.lock is up to date"
+run = """
+cp mise.toml mise.toml.lock-check-bak
+git checkout mise.toml
+mise lock
+result=0
+if ! git diff --quiet mise.lock; then
+  echo "mise.lock is out of date. Run 'mise lock' and commit the result." >&2
+  git diff mise.lock >&2
+  result=1
+fi
+mv mise.toml.lock-check-bak mise.toml
+exit $result
+"""
 
 # Demo Tasks
 [tasks.demo]
