@@ -164,17 +164,20 @@ class TestImplicitCollectionDetection:
         assert len(result.deleted) == 1
         assert not col_dir.exists()
 
-    def test_updates_members_on_refresh(self, tmp_path: Path) -> None:
+    def test_adding_album_preserves_collection_id(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
         _, aid1 = _setup_album(gallery, "2024-07-14 - 01 - Trip - Day 1")
 
         # First refresh creates the collection
         refresh_collections(gallery)
+        collections = discover_collections(gallery)
+        assert len(collections) == 1
+        original_id = load_collection_metadata(collections[0]).id
 
-        # Add another album with same series
+        # Add another album with same series (extends date range)
         _, aid2 = _setup_album(gallery, "2024-07-15 - 02 - Trip - Day 2")
 
-        # Second refresh should update members
+        # Second refresh should update members and rename, preserving ID
         result = refresh_collections(gallery)
         assert result.success
 
@@ -183,6 +186,34 @@ class TestImplicitCollectionDetection:
         meta = load_collection_metadata(collections[0])
         assert meta is not None
         assert sorted(meta.albums) == sorted([aid1, aid2])
+        assert meta.id == original_id
+
+    def test_removing_album_preserves_collection_id(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        _, aid1 = _setup_album(gallery, "2024-07-14 - 01 - Trip - Day 1")
+        album2, aid2 = _setup_album(gallery, "2024-07-15 - 02 - Trip - Day 2")
+
+        # First refresh creates the collection with both albums
+        refresh_collections(gallery)
+        collections = discover_collections(gallery)
+        assert len(collections) == 1
+        original_id = load_collection_metadata(collections[0]).id
+
+        # Remove second album's series (rename it to drop series)
+        import shutil
+
+        shutil.rmtree(album2)
+
+        # Second refresh should update members, preserving ID
+        result = refresh_collections(gallery)
+        assert result.success
+
+        collections = discover_collections(gallery)
+        assert len(collections) == 1
+        meta = load_collection_metadata(collections[0])
+        assert meta is not None
+        assert meta.albums == [aid1]
+        assert meta.id == original_id
 
 
 class TestImplicitCollectionRename:

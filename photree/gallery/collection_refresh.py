@@ -306,6 +306,30 @@ def _update_existing_implicit(
 # ---------------------------------------------------------------------------
 
 
+def _find_by_title_overlap(
+    candidates: list[_ExistingCollection],
+    active_ids: set[str],
+    album_ids: list[str],
+) -> _ExistingCollection | None:
+    """Find an implicit collection with the same title that shares members.
+
+    Used when the date range changed (albums added/removed) but the series
+    title is the same. Matches the candidate that shares at least one album
+    with the current group, preferring the one with the most overlap.
+    """
+    album_set = set(album_ids)
+    best: _ExistingCollection | None = None
+    best_overlap = 0
+    for col in candidates:
+        if col.metadata.id in active_ids:
+            continue
+        overlap = len(album_set & set(col.metadata.albums))
+        if overlap > best_overlap:
+            best = col
+            best_overlap = overlap
+    return best
+
+
 def _find_renamed_implicit(
     existing: list[_ExistingCollection],
     active_ids: set[str],
@@ -436,15 +460,21 @@ def _refresh_implicit_collections(
     # Group albums into contiguous series runs
     series_groups = _group_contiguous_series(albums)
 
-    # Index existing implicit collections by title
-    # Note: multiple implicit collections may share the same title (from
-    # non-contiguous series). We index by (title, date) for precise matching.
+    # Index existing implicit collections
     implicit_cols = [
         col
         for col in existing
         if col.metadata.lifecycle == CollectionLifecycle.IMPLICIT
     ]
+    # By exact name (for fast match when date range is unchanged)
     implicit_by_name = {col.name: col for col in implicit_cols}
+    # By title (for match when date range changed but series title is the same)
+    # Multiple collections may share a title (non-contiguous series), so
+    # we store lists and match by overlap with the group's album IDs.
+    implicit_by_title: dict[str, list[_ExistingCollection]] = {}
+    for col in implicit_cols:
+        title = parse_collection_name(col.name).title
+        implicit_by_title.setdefault(title, []).append(col)
 
     active_implicit_ids: set[str] = set()
 
@@ -453,9 +483,21 @@ def _refresh_implicit_collections(
         collection_name = _build_collection_name(group.series_title, album_dates)
         album_ids = sorted(a.album_id for a in group.albums)
 
+        # 1. Exact name match (date range unchanged)
         existing_col = implicit_by_name.get(collection_name)
+
+        # 2. Title match with member overlap (date range changed due to
+        #    albums added/removed — find the collection for this series
+        #    that shares at least one album with the current group)
+        if existing_col is None:
+            existing_col = _find_by_title_overlap(
+                implicit_by_title.get(group.series_title, []),
+                active_implicit_ids,
+                album_ids,
+            )
+
         if existing_col is not None:
-            # Update existing implicit collection
+            # Update existing implicit collection (may rename if date changed)
             active_implicit_ids.add(existing_col.metadata.id)
             _, renamed_pair, updated_name = _update_existing_implicit(
                 gallery_dir,
@@ -469,7 +511,7 @@ def _refresh_implicit_collections(
             if updated_name is not None:
                 updated.append(updated_name)
         else:
-            # Try rename detection (members match an existing implicit)
+            # 3. Rename detection (all members match — series title changed)
             renamed_from = _find_renamed_implicit(
                 existing, active_implicit_ids, album_ids
             )
@@ -485,7 +527,7 @@ def _refresh_implicit_collections(
                     )
                 )
             else:
-                # Create new
+                # 4. Create new
                 result = _create_implicit(
                     gallery_dir, collection_name, album_ids, dry_run=dry_run
                 )
