@@ -18,6 +18,7 @@ from . import (  # noqa: E402, F401 — imported for command registration side e
     fix_ios_cmd,
     import_check_cmd,
     import_cmd,
+    list_media_cmd,
     init_cmd,
     mv_media_cmd,
     optimize_cmd,
