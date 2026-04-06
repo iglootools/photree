@@ -851,6 +851,7 @@ $ photree collections [OPTIONS] COMMAND [ARGS]...
 **Commands**:
 
 * `check`: Check all collections in the gallery.
+* `import`: Batch import members for multiple...
 
 ### `photree collections check`
 
@@ -865,6 +866,24 @@ $ photree collections check [OPTIONS]
 **Options**:
 
 * `-g, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `--help`: Show this message and exit.
+
+### `photree collections import`
+
+Batch import members for multiple collections.
+
+**Usage**:
+
+```console
+$ photree collections import [OPTIONS]
+```
+
+**Options**:
+
+* `-d, --dir DIRECTORY`: Parent directory to scan for collections with selections.
+* `-c, --collection-dir DIRECTORY`: Collection directory to import (repeatable).
+* `-g, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `-n, --dry-run`: Show what would be imported without modifying files.
 * `--help`: Show this message and exit.
 
 ## `photree demo`
