@@ -10,7 +10,8 @@ import typer
 from . import gallery_app
 from ...clihelpers.console import err_console
 from ...clihelpers.options import DRY_RUN_OPTION
-from ...albums.cli.batch_ops import resolve_check_batch_albums, run_batch_refresh
+from ...albums.cli.batch_ops import run_batch_refresh
+from ...albums.cli.ops import resolve_check_batch_albums
 from ..collection_refresh import refresh_collections
 from .ops import resolve_gallery_or_exit
 

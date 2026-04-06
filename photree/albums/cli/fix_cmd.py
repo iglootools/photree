@@ -18,7 +18,8 @@ from ...clihelpers.options import (
     RM_UPSTREAM_OPTION,
 )
 from ...fsprotocol import LinkMode
-from .batch_ops import resolve_check_batch_albums, run_batch_fix
+from .batch_ops import run_batch_fix
+from .ops import resolve_check_batch_albums
 
 
 @albums_app.command("fix")

@@ -18,7 +18,8 @@ from ...clihelpers.options import (
 )
 from ...album.cli.helpers import _check_sips_or_exit
 from ...album.fix import FixValidationError
-from ...albums.cli.batch_ops import resolve_check_batch_albums, run_batch_fix
+from ...albums.cli.batch_ops import run_batch_fix
+from ...albums.cli.ops import resolve_check_batch_albums
 from ...fsprotocol import resolve_link_mode
 from .ops import resolve_gallery_or_exit
 

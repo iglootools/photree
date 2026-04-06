@@ -17,7 +17,8 @@ from ...clihelpers.options import (
     FATAL_SIDECAR_OPTION,
     FATAL_WARNINGS_OPTION,
 )
-from ...albums.cli.batch_ops import resolve_check_batch_albums, run_batch_check
+from ...albums.cli.batch_ops import run_batch_check
+from ...albums.cli.ops import resolve_check_batch_albums
 from ...collection.check import check_all_collections
 from ...common.formatting import CHECK, CROSS
 from .ops import resolve_gallery_or_exit
