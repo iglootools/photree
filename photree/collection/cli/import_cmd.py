@@ -8,6 +8,7 @@ from typing import Annotated, Optional
 import typer
 
 from ...clihelpers.console import err_console
+from ...common.exif import try_start_exiftool
 from ...common.fs import display_path
 from ...gallery.cli.ops import resolve_gallery_or_exit
 from ..id import format_collection_external_id
@@ -61,9 +62,10 @@ def import_cmd(
         )
         raise typer.Exit(code=1)
 
+    exiftool = try_start_exiftool()
     try:
         result = import_collection_members(
-            collection_dir, resolved_gallery, dry_run=dry_run
+            collection_dir, resolved_gallery, dry_run=dry_run, exiftool=exiftool
         )
     except FileNotFoundError as exc:
         err_console.print(str(exc))
@@ -71,6 +73,9 @@ def import_cmd(
     except ValueError as exc:
         err_console.print(str(exc))
         raise typer.Exit(code=1) from exc
+    finally:
+        if exiftool is not None:
+            exiftool.__exit__(None, None, None)
 
     if not result.success:
         err_console.print("Resolution errors:")

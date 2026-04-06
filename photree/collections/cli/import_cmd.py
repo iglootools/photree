@@ -8,6 +8,7 @@ from typing import Annotated, Optional
 import typer
 
 from ...clihelpers.console import err_console
+from ...common.exif import try_start_exiftool
 from ...common.formatting import CHECK, CROSS
 from ...common.fs import display_path
 from ...collection.importer.import_members import import_collection_members
@@ -90,24 +91,29 @@ def import_cmd(
     imported = 0
     failed = 0
 
-    for col_dir in to_import:
-        name = display_path(col_dir, cwd)
-        try:
-            result = import_collection_members(
-                col_dir, resolved_gallery, dry_run=dry_run
-            )
-        except (FileNotFoundError, ValueError) as exc:
-            typer.echo(f"  {CROSS} {name}: {exc}")
-            failed += 1
-        else:
-            if result.success:
-                typer.echo(f"  {CHECK} {name}")
-                imported += 1
-            else:
+    exiftool = try_start_exiftool()
+    try:
+        for col_dir in to_import:
+            name = display_path(col_dir, cwd)
+            try:
+                result = import_collection_members(
+                    col_dir, resolved_gallery, dry_run=dry_run, exiftool=exiftool
+                )
+            except (FileNotFoundError, ValueError) as exc:
+                typer.echo(f"  {CROSS} {name}: {exc}")
                 failed += 1
-                typer.echo(f"  {CROSS} {name}")
-                for error in result.errors:
-                    err_console.print(f"      [{error.entry}] {error.message}")
+            else:
+                if result.success:
+                    typer.echo(f"  {CHECK} {name}")
+                    imported += 1
+                else:
+                    failed += 1
+                    typer.echo(f"  {CROSS} {name}")
+                    for error in result.errors:
+                        err_console.print(f"      [{error.entry}] {error.message}")
+    finally:
+        if exiftool is not None:
+            exiftool.__exit__(None, None, None)
 
     typer.echo(
         f"\n{imported} collection(s) imported, {len(skipped)} skipped, {failed} failed."
