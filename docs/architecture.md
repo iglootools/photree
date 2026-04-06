@@ -21,6 +21,7 @@ graph TD
     check["check/"]
     cli["cli/"]
     clihelpers["clihelpers/"]
+    collection["collection/"]
     common["common/"]
     config["config/"]
     demo["demo/"]
@@ -45,6 +46,8 @@ graph TD
     cli --> gallery
     clihelpers --> common
     clihelpers --> fsprotocol
+    collection --> album
+    collection --> fsprotocol
     config --> fsprotocol
     demo --> album
     gallery --> album

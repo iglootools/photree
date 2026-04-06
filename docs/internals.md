@@ -129,11 +129,12 @@ Base58 encoding uses the Bitcoin alphabet
 (`123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz`). A 16-byte
 UUID encodes to ~22 characters, making the full external ID ~28 characters.
 
-| Object | Type prefix | Example external ID |
-|--------|-------------|---------------------|
-| Album  | `album`     | `album_3K8vJxNm2cYpR7qWz5FhG` |
-| Image  | `image`     | `image_4L9wKyOo3dZqS8rXA6GiH` |
-| Video  | `video`     | `video_5M0xLzPp4eArT9sYB7HjI` |
+| Object     | Type prefix  | Example external ID |
+|------------|--------------|---------------------|
+| Album      | `album`      | `album_3K8vJxNm2cYpR7qWz5FhG` |
+| Collection | `collection` | `collection_6N1yMAPq5fBsU0tZC8IkJ` |
+| Image      | `image`      | `image_4L9wKyOo3dZqS8rXA6GiH` |
+| Video      | `video`      | `video_5M0xLzPp4eArT9sYB7HjI` |
 
 ## Gallery Directory Layout
 
@@ -150,11 +151,16 @@ subdirectory where imported albums are organized by year:
     2024/
       2024-07-14 - Hiking the Rockies/
       2024-07-14 - 01 - Canada Trip - Hiking the Rockies/
+  collections/
+    2024/
+      2024-07-14--2024-07-16 - Canada Trip/
+    Best of All Time/
 ```
 
 Albums are placed in `albums/YYYY/` where YYYY is extracted from the album
-name's date prefix. The `gallery import` and `gallery import-all` commands
-automate this placement.
+name's date prefix. Collections are placed in `collections/YYYY/` using the
+start year, or directly in `collections/` for dateless collections. The
+`gallery import` and `gallery import-all` commands automate album placement.
 
 ### Gallery Resolution
 
@@ -301,6 +307,59 @@ Apple Photos into `to-import/` is the most common workflow, but the
 selection can equally be generated from a phone, a custom CLI, an LLM,
 AppleScript, or any other workflow that can produce a list of filenames.
 
+## Collections
+
+Collections group albums, media items, and other collections. They enable
+organizing content beyond the flat album structure — e.g., a "Canada Trip"
+series spanning multiple album days, or a curated "Best of 2024" selection.
+
+### Collection Naming Convention
+
+```
+[DATE - ] Title
+```
+
+The date prefix is optional (unlike albums where it is required). Some
+collections are atemporal and have no date. The date format follows the
+same spec as albums: `YYYY`, `YYYY-MM`, `YYYY-MM-DD`, or ranges with `--`.
+
+### Collection Kind
+
+- **`smart`** — members are auto-populated by `gallery refresh` based on
+  the collection's date range. Albums and sub-collections whose dates fall
+  within the range are materialized in `collection.yaml`.
+- **`manual`** — members are listed explicitly. Added via `collection import`
+  or managed by `gallery refresh` for implicit collections.
+
+### Collection Lifecycle
+
+- **`explicit`** — created and deleted by the user (via `collection init`,
+  `collection import`). Not affected by album title changes.
+- **`implicit`** — derived from album series (the series component parsed
+  from album titles). Created, renamed, and deleted automatically by
+  `gallery refresh`. Implicit collections are always `kind: manual` —
+  they contain exactly the albums sharing that series.
+
+A collection can be converted between lifecycles using
+`collection metadata set --lifecycle <lifecycle>`. Converting from implicit
+to explicit preserves the collection but stops automatic management.
+Converting from explicit to implicit causes `gallery refresh` to add the
+collection title as a series component to the contained albums' names.
+
+### Collection Directory Layout
+
+```
+<Collection Title>/
+  .photree/
+    collection.yaml         collection metadata
+  to-import/                selection files (for collection import)
+  to-import.csv             alternative selection list
+```
+
+Collections are placed in `collections/YYYY/` within the gallery, using the
+start year of the date (or directly in `collections/` for dateless
+collections).
+
 ## Metadata Files
 
 ### Album Metadata (`.photree/album.yaml`)
@@ -352,6 +411,32 @@ fast. Use `photree album refresh` (or `photree albums refresh` /
 commands verify that `media.yaml` is in sync with the directory structure.
 
 Media IDs are derived from archive directories (`orig-img/`, `orig-vid/`).
+
+### Collection Metadata (`.photree/collection.yaml`)
+
+Each collection has a `.photree/collection.yaml` file:
+
+```yaml
+id: 0192d4e1-7c3f-7b4a-8c5e-f6a7b8c9d0e1
+kind: manual
+lifecycle: implicit
+albums:
+- 0192d4e1-7c3f-7b4a-8c5e-f6a7b8c9d0e2
+- 0192d4e1-7c3f-7b4a-8c5e-f6a7b8c9d0e3
+collections: []
+images: []
+videos: []
+```
+
+| Field         | Type           | Description |
+|---------------|----------------|-------------|
+| `id`          | string         | UUID v7 identifying the collection. |
+| `kind`        | string         | `smart` or `manual`. |
+| `lifecycle`   | string         | `implicit` or `explicit`. |
+| `albums`      | list\[string\] | Album internal UUIDs. |
+| `collections` | list\[string\] | Collection internal UUIDs. |
+| `images`      | list\[string\] | Image internal UUIDs. |
+| `videos`      | list\[string\] | Video internal UUIDs. |
 
 ### Gallery Metadata (`.photree/gallery.yaml`)
 
