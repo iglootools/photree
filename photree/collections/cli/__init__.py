@@ -10,4 +10,7 @@ collections_app = typer.Typer(
     no_args_is_help=True,
 )
 
-from . import check_cmd  # noqa: E402, F401 — imported for command registration side effects
+from . import (  # noqa: E402, F401 — imported for command registration side effects
+    check_cmd,
+    import_cmd,
+)

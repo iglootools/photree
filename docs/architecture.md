@@ -54,6 +54,7 @@ graph TD
     collection --> common
     collection --> fsprotocol
     collection --> gallery
+    collections --> clihelpers
     collections --> collection
     collections --> common
     collections --> gallery
