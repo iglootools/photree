@@ -7,9 +7,8 @@ from typing import Annotated, Optional
 
 import typer
 
-from ...clihelpers.console import err_console
+from ...clihelpers.progress import BatchProgressBar
 from ...common.exif import try_start_exiftool
-from ...common.formatting import CHECK, CROSS
 from ...common.fs import display_path
 from ...collection.importer.import_members import import_collection_members
 from ...collection.importer.selection import has_selection
@@ -85,8 +84,14 @@ def import_cmd(
         typer.echo("No collections found.")
         raise typer.Exit(code=0)
 
+    progress = BatchProgressBar(
+        total=len(to_import) + len(skipped),
+        description="Importing",
+        done_description="import",
+    )
+
     for col_dir in skipped:
-        typer.echo(f"  Skipping: {display_path(col_dir, cwd)} (no selection)")
+        progress.on_skipped(str(display_path(col_dir, cwd)), "no selection")
 
     imported = 0
     failed = 0
@@ -94,17 +99,18 @@ def import_cmd(
     exiftool = try_start_exiftool()
     try:
         for col_dir in to_import:
-            name = display_path(col_dir, cwd)
+            name = str(display_path(col_dir, cwd))
+            progress.on_start(name)
             try:
                 result = import_collection_members(
                     col_dir, resolved_gallery, dry_run=dry_run, exiftool=exiftool
                 )
             except (FileNotFoundError, ValueError) as exc:
-                typer.echo(f"  {CROSS} {name}: {exc}")
+                progress.on_end(name, success=False, error_labels=(str(exc),))
                 failed += 1
             else:
                 if result.success:
-                    typer.echo(f"  {CHECK} {name}")
+                    progress.on_end(name, success=True)
                     imported += 1
                     for warning in result.warnings:
                         typer.echo(
@@ -112,12 +118,16 @@ def import_cmd(
                         )
                 else:
                     failed += 1
-                    typer.echo(f"  {CROSS} {name}")
-                    for error in result.errors:
-                        err_console.print(f"      [{error.entry}] {error.message}")
+                    progress.on_end(
+                        name,
+                        success=False,
+                        error_labels=tuple(e.message for e in result.errors),
+                    )
     finally:
         if exiftool is not None:
             exiftool.__exit__(None, None, None)
+
+    progress.stop()
 
     typer.echo(
         f"\n{imported} collection(s) imported, {len(skipped)} skipped, {failed} failed."
