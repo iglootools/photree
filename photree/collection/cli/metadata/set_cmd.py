@@ -80,13 +80,18 @@ def set_cmd(
         raise typer.Exit(code=0)
 
     save_collection_metadata(collection_dir, updated)
-    changes: list[str] = []
-    if kind is not None and kind != current.kind:
-        changes.append(f"  kind: {current.kind.value} -> {updated.kind.value}")
-    if lifecycle is not None and lifecycle != current.lifecycle:
-        changes.append(
-            f"  lifecycle: {current.lifecycle.value} -> {updated.lifecycle.value}"
-        )
+    changes = [
+        *(
+            [f"  kind: {current.kind.value} -> {updated.kind.value}"]
+            if kind is not None and kind != current.kind
+            else []
+        ),
+        *(
+            [f"  lifecycle: {current.lifecycle.value} -> {updated.lifecycle.value}"]
+            if lifecycle is not None and lifecycle != current.lifecycle
+            else []
+        ),
+    ]
     typer.echo(f"Updated {display_path(collection_yaml_path, cwd)}")
     for change in changes:
         typer.echo(change)

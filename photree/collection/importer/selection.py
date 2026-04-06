@@ -56,12 +56,8 @@ def read_selection(collection_dir: Path) -> CollectionSelectionSources:
     """
     dir_entries = _read_dir_entries(collection_dir / SELECTION_DIR)
     csv_entries = _read_csv(collection_dir / SELECTION_CSV)
-    seen: set[str] = set()
-    merged: list[str] = []
-    for entry in [*dir_entries, *csv_entries]:
-        if entry not in seen:
-            seen.add(entry)
-            merged.append(entry)
+    # Deduplicate preserving order (dir entries first)
+    merged = dict.fromkeys([*dir_entries, *csv_entries])
     return CollectionSelectionSources(
         dir_entries=tuple(dir_entries),
         csv_entries=tuple(csv_entries),
