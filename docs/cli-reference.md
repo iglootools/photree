@@ -959,6 +959,7 @@ $ photree gallery [OPTIONS] COMMAND [ARGS]...
 * `import`: Import an existing album directory into...
 * `init`: Initialize gallery metadata...
 * `list-albums`: List all albums in the gallery.
+* `list-collections`: List all collections in the gallery.
 * `optimize`: Optimize all iOS albums in the gallery.
 * `refresh`: Refresh media metadata and collections for...
 * `rename-from-csv`: Rename albums from a CSV file (from...
@@ -1133,6 +1134,24 @@ $ photree gallery list-albums [OPTIONS]
 
 * `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--metadata / --no-metadata`: Show parsed album metadata and media sources (default: enabled).  [default: metadata]
+* `--format TEXT`: Output format: text (default) or csv.  [default: text]
+* `-o, --output FILE`: Write output to a file instead of stdout.
+* `--help`: Show this message and exit.
+
+### `photree gallery list-collections`
+
+List all collections in the gallery.
+
+**Usage**:
+
+```console
+$ photree gallery list-collections [OPTIONS]
+```
+
+**Options**:
+
+* `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `--metadata / --no-metadata`: Show parsed collection metadata (default: enabled).  [default: metadata]
 * `--format TEXT`: Output format: text (default) or csv.  [default: text]
 * `-o, --output FILE`: Write output to a file instead of stdout.
 * `--help`: Show this message and exit.
