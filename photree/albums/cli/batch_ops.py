@@ -63,21 +63,18 @@ def run_batch_init(
     if display_base is not None:
         typer.echo(f"\nFound {len(albums)} album(s).\n")
 
-    progress = BatchProgressBar(
+    with BatchProgressBar(
         total=len(albums), description="Initializing", done_description="init"
-    )
-
-    result = batch_init(
-        albums,
-        dry_run=dry_run,
-        display_fn=make_display_fn(display_base, cwd),
-        on_start=progress.on_start,
-        on_end=lambda name, success, errors: progress.on_end(
-            name, success=success, error_labels=errors
-        ),
-    )
-
-    progress.stop()
+    ) as progress:
+        result = batch_init(
+            albums,
+            dry_run=dry_run,
+            display_fn=make_display_fn(display_base, cwd),
+            on_start=progress.on_start,
+            on_end=lambda name, success, errors: progress.on_end(
+                name, success=success, error_labels=errors
+            ),
+        )
 
     typer.echo(
         f"\nDone. {result.initialized} album(s) initialized, {len(result.failed_albums)} failed."
@@ -108,21 +105,18 @@ def run_batch_refresh(
     if display_base is not None:
         typer.echo(f"\nFound {len(albums)} album(s).\n")
 
-    progress = BatchProgressBar(
+    with BatchProgressBar(
         total=len(albums), description="Refreshing", done_description="refresh"
-    )
-
-    result = batch_refresh(
-        albums,
-        dry_run=dry_run,
-        display_fn=make_display_fn(display_base, cwd),
-        on_start=progress.on_start,
-        on_end=lambda name, success, errors: progress.on_end(
-            name, success=success, error_labels=errors
-        ),
-    )
-
-    progress.stop()
+    ) as progress:
+        result = batch_refresh(
+            albums,
+            dry_run=dry_run,
+            display_fn=make_display_fn(display_base, cwd),
+            on_start=progress.on_start,
+            on_end=lambda name, success, errors: progress.on_end(
+                name, success=success, error_labels=errors
+            ),
+        )
 
     typer.echo(
         f"\nDone. {result.refreshed} album(s) refreshed,"
@@ -314,34 +308,31 @@ def run_batch_check(
     fatal_sidecar = fatal_warnings or fatal_sidecar_arg
     fatal_exif = fatal_warnings or fatal_exif_date_match
 
-    progress = BatchProgressBar(
+    with BatchProgressBar(
         total=len(albums), description="Checking", done_description="check"
-    )
-
-    try:
-        result = batch_check(
-            albums,
-            sips_available=sips_available,
-            exiftool=exiftool,
-            checksum=checksum,
-            fatal_sidecar=fatal_sidecar,
-            fatal_exif=fatal_exif,
-            check_naming=check_naming,
-            check_date_part_collision=check_date_part_collision,
-            display_fn=make_display_fn(display_base, cwd),
-            on_start=progress.on_start,
-            on_end=lambda name, success, errors, warnings: progress.on_end(
-                name,
-                success=success,
-                error_labels=errors,
-                warning_labels=warnings,
-            ),
-        )
-    finally:
-        if exiftool is not None:
-            exiftool.__exit__(None, None, None)
-
-    progress.stop()
+    ) as progress:
+        try:
+            result = batch_check(
+                albums,
+                sips_available=sips_available,
+                exiftool=exiftool,
+                checksum=checksum,
+                fatal_sidecar=fatal_sidecar,
+                fatal_exif=fatal_exif,
+                check_naming=check_naming,
+                check_date_part_collision=check_date_part_collision,
+                display_fn=make_display_fn(display_base, cwd),
+                on_start=progress.on_start,
+                on_end=lambda name, success, errors, warnings: progress.on_end(
+                    name,
+                    success=success,
+                    error_labels=errors,
+                    warning_labels=warnings,
+                ),
+            )
+        finally:
+            if exiftool is not None:
+                exiftool.__exit__(None, None, None)
 
     # Display naming issues
     if result.naming_result is not None:
@@ -412,26 +403,23 @@ def run_batch_fix(
     if display_base is not None:
         typer.echo(f"\nFound {len(albums)} album(s).\n")
 
-    progress = BatchProgressBar(
+    with BatchProgressBar(
         total=len(albums), description="Fixing", done_description="fix"
-    )
-
-    result = batch_fix(
-        albums,
-        fix_id=fix_id,
-        new_id=new_id,
-        link_mode=link_mode,
-        refresh_browsable=refresh_browsable,
-        refresh_jpeg=refresh_jpeg,
-        rm_upstream=rm_upstream,
-        rm_orphan=rm_orphan,
-        dry_run=dry_run,
-        display_fn=make_display_fn(display_base, cwd),
-        on_start=progress.on_start,
-        on_end=lambda name, success: progress.on_end(name, success=success),
-    )
-
-    progress.stop()
+    ) as progress:
+        result = batch_fix(
+            albums,
+            fix_id=fix_id,
+            new_id=new_id,
+            link_mode=link_mode,
+            refresh_browsable=refresh_browsable,
+            refresh_jpeg=refresh_jpeg,
+            rm_upstream=rm_upstream,
+            rm_orphan=rm_orphan,
+            dry_run=dry_run,
+            display_fn=make_display_fn(display_base, cwd),
+            on_start=progress.on_start,
+            on_end=lambda name, success: progress.on_end(name, success=success),
+        )
 
     if result.album_reports:
         typer.echo("")
@@ -481,23 +469,20 @@ def run_batch_optimize(
     else:
         typer.echo("")
 
-    progress = BatchProgressBar(
+    with BatchProgressBar(
         total=len(albums), description="Optimizing", done_description="optimize"
-    )
-
-    result = batch_optimize(
-        albums,
-        link_mode=link_mode,
-        check=check,
-        checksum=checksum,
-        sips_available=sips_available,
-        dry_run=dry_run,
-        display_fn=make_display_fn(display_base, cwd),
-        on_start=progress.on_start,
-        on_end=lambda name, success: progress.on_end(name, success=success),
-    )
-
-    progress.stop()
+    ) as progress:
+        result = batch_optimize(
+            albums,
+            link_mode=link_mode,
+            check=check,
+            checksum=checksum,
+            sips_available=sips_available,
+            dry_run=dry_run,
+            display_fn=make_display_fn(display_base, cwd),
+            on_start=progress.on_start,
+            on_end=lambda name, success: progress.on_end(name, success=success),
+        )
 
     console.print(batch_optimize_summary(result.optimized, len(result.failed_albums)))
 
@@ -531,24 +516,21 @@ def run_batch_fix_ios(
     if display_base is not None:
         typer.echo(f"Found {len(albums)} iOS album(s).\n")
 
-    progress = BatchProgressBar(
+    with BatchProgressBar(
         total=len(albums), description="Fixing", done_description="fix-ios"
-    )
-
-    result = batch_fix_ios(
-        albums,
-        dry_run=dry_run,
-        rm_orphan_sidecar=rm_orphan_sidecar,
-        prefer_higher_quality_when_dups=prefer_higher_quality_when_dups,
-        rm_miscategorized=rm_miscategorized,
-        rm_miscategorized_safe=rm_miscategorized_safe,
-        mv_miscategorized=mv_miscategorized,
-        display_fn=make_display_fn(display_base, cwd),
-        on_start=progress.on_start,
-        on_end=lambda name, success: progress.on_end(name, success=success),
-    )
-
-    progress.stop()
+    ) as progress:
+        result = batch_fix_ios(
+            albums,
+            dry_run=dry_run,
+            rm_orphan_sidecar=rm_orphan_sidecar,
+            prefer_higher_quality_when_dups=prefer_higher_quality_when_dups,
+            rm_miscategorized=rm_miscategorized,
+            rm_miscategorized_safe=rm_miscategorized_safe,
+            mv_miscategorized=mv_miscategorized,
+            display_fn=make_display_fn(display_base, cwd),
+            on_start=progress.on_start,
+            on_end=lambda name, success: progress.on_end(name, success=success),
+        )
 
     if result.album_reports:
         typer.echo("")
@@ -593,18 +575,15 @@ def run_batch_stats(
     if display_base is not None:
         typer.echo(f"Found {len(albums)} album(s).\n")
 
-    progress = BatchProgressBar(
+    with BatchProgressBar(
         total=len(albums), description="Computing stats", done_description="stats"
-    )
-
-    result = batch_stats(
-        albums,
-        display_fn=make_display_fn(display_base, cwd),
-        on_start=progress.on_start,
-        on_end=lambda name, success: progress.on_end(name, success=success),
-    )
-
-    progress.stop()
+    ) as progress:
+        result = batch_stats(
+            albums,
+            display_fn=make_display_fn(display_base, cwd),
+            on_start=progress.on_start,
+            on_end=lambda name, success: progress.on_end(name, success=success),
+        )
 
     typer.echo("")
     console.print(stats_output.format_gallery_stats(result))

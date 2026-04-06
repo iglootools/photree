@@ -84,50 +84,47 @@ def import_cmd(
         typer.echo("No collections found.")
         raise typer.Exit(code=0)
 
-    progress = BatchProgressBar(
+    with BatchProgressBar(
         total=len(to_import) + len(skipped),
         description="Importing",
         done_description="import",
-    )
+    ) as progress:
+        for col_dir in skipped:
+            progress.on_skipped(str(display_path(col_dir, cwd)), "no selection")
 
-    for col_dir in skipped:
-        progress.on_skipped(str(display_path(col_dir, cwd)), "no selection")
+        imported = 0
+        failed = 0
 
-    imported = 0
-    failed = 0
-
-    exiftool = try_start_exiftool()
-    try:
-        for col_dir in to_import:
-            name = str(display_path(col_dir, cwd))
-            progress.on_start(name)
-            try:
-                result = import_collection_members(
-                    col_dir, resolved_gallery, dry_run=dry_run, exiftool=exiftool
-                )
-            except (FileNotFoundError, ValueError) as exc:
-                progress.on_end(name, success=False, error_labels=(str(exc),))
-                failed += 1
-            else:
-                if result.success:
-                    progress.on_end(name, success=True)
-                    imported += 1
-                    for warning in result.warnings:
-                        typer.echo(
-                            f"      warning: [{warning.entry}] {warning.message}"
-                        )
-                else:
-                    failed += 1
-                    progress.on_end(
-                        name,
-                        success=False,
-                        error_labels=tuple(e.message for e in result.errors),
+        exiftool = try_start_exiftool()
+        try:
+            for col_dir in to_import:
+                name = str(display_path(col_dir, cwd))
+                progress.on_start(name)
+                try:
+                    result = import_collection_members(
+                        col_dir, resolved_gallery, dry_run=dry_run, exiftool=exiftool
                     )
-    finally:
-        if exiftool is not None:
-            exiftool.__exit__(None, None, None)
-
-    progress.stop()
+                except (FileNotFoundError, ValueError) as exc:
+                    progress.on_end(name, success=False, error_labels=(str(exc),))
+                    failed += 1
+                else:
+                    if result.success:
+                        progress.on_end(name, success=True)
+                        imported += 1
+                        for warning in result.warnings:
+                            typer.echo(
+                                f"      warning: [{warning.entry}] {warning.message}"
+                            )
+                    else:
+                        failed += 1
+                        progress.on_end(
+                            name,
+                            success=False,
+                            error_labels=tuple(e.message for e in result.errors),
+                        )
+        finally:
+            if exiftool is not None:
+                exiftool.__exit__(None, None, None)
 
     typer.echo(
         f"\n{imported} collection(s) imported, {len(skipped)} skipped, {failed} failed."

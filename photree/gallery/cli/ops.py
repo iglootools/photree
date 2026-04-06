@@ -124,7 +124,7 @@ def run_single_import(
 ) -> AlbumImportResult:
     """Execute a single album import with stage progress bar."""
     typer.echo("Import:")
-    progress = StageProgressBar(
+    with StageProgressBar(
         total=5,
         labels={
             "copy": "Copying album",
@@ -133,22 +133,19 @@ def run_single_import(
             "optimize": "Optimizing links",
             "refresh-media": "Refreshing media metadata",
         },
-    )
-    try:
-        result = _run_single_import(
-            album_dir,
-            gallery_dir,
-            link_mode,
-            dry_run,
-            on_stage_start=progress.on_start,
-            on_stage_end=progress.on_end,
-        )
-    except ValueError as exc:
-        progress.stop()
-        err_console.print(str(exc))
-        raise typer.Exit(code=1) from exc
-    finally:
-        progress.stop()
+    ) as progress:
+        try:
+            result = _run_single_import(
+                album_dir,
+                gallery_dir,
+                link_mode,
+                dry_run,
+                on_stage_start=progress.on_start,
+                on_stage_end=progress.on_end,
+            )
+        except ValueError as exc:
+            err_console.print(str(exc))
+            raise typer.Exit(code=1) from exc
     return result
 
 
@@ -206,22 +203,20 @@ def run_batch_import(
 
     Returns ``(imported_count, failed_albums)``.
     """
-    progress = BatchProgressBar(
+    with BatchProgressBar(
         total=len(albums), description="Importing", done_description="import"
-    )
+    ) as progress:
+        result = _run_batch_import(
+            albums,
+            gallery_dir,
+            link_mode,
+            dry_run,
+            on_start=progress.on_start,
+            on_end=lambda name, success, errors: progress.on_end(
+                name, success=success, error_labels=errors
+            ),
+        )
 
-    result = _run_batch_import(
-        albums,
-        gallery_dir,
-        link_mode,
-        dry_run,
-        on_start=progress.on_start,
-        on_end=lambda name, success, errors: progress.on_end(
-            name, success=success, error_labels=errors
-        ),
-    )
-
-    progress.stop()
     return result.imported, result.failed_albums
 
 
@@ -233,20 +228,18 @@ def run_batch_post_import_check(
 
     Returns the list of albums that failed checking.
     """
-    check_progress = BatchProgressBar(
+    with BatchProgressBar(
         total=len(imported_targets),
         description="Checking",
         done_description="check",
-    )
+    ) as check_progress:
+        check_failed = _run_batch_post_import_check(
+            imported_targets,
+            display_fn=lambda p: str(display_path(p, cwd)),
+            on_start=check_progress.on_start,
+            on_end=lambda name, success, errors: check_progress.on_end(
+                name, success=success, error_labels=errors
+            ),
+        )
 
-    check_failed = _run_batch_post_import_check(
-        imported_targets,
-        display_fn=lambda p: str(display_path(p, cwd)),
-        on_start=check_progress.on_start,
-        on_end=lambda name, success, errors: check_progress.on_end(
-            name, success=success, error_labels=errors
-        ),
-    )
-
-    check_progress.stop()
     return check_failed

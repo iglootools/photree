@@ -109,24 +109,21 @@ def import_cmd(
     typer.echo("\nImport:")
     converter = noop_convert_single if skip_heic_to_jpeg else convert_single_file
 
-    if album_dirs is not None:
-        progress = BatchProgressBar(
-            total=len(album_dirs), description="Importing", done_description="import"
+    total = (
+        len(album_dirs)
+        if album_dirs is not None
+        else len(
+            [
+                p
+                for p in (
+                    albums_dir if albums_dir is not None else Path(".").resolve()
+                ).iterdir()
+                if p.is_dir()
+            ]
         )
-    else:
-        resolved_dir = albums_dir if albums_dir is not None else Path(".").resolve()
-        all_subdirs = [p for p in resolved_dir.iterdir() if p.is_dir()]
-        progress = BatchProgressBar(
-            total=len(all_subdirs), description="Importing", done_description="import"
-        )
+    )
 
     has_validation_errors = False
-
-    def _on_validation_error(name: str, errors: list) -> None:
-        nonlocal has_validation_errors
-        has_validation_errors = True
-        progress.stop()
-        err_console.print(importer_output.validation_errors(name, errors))
 
     resolved_albums_dir = (
         None
@@ -134,20 +131,29 @@ def import_cmd(
         else (albums_dir if albums_dir is not None else Path(".").resolve())
     )
 
-    result = batch.run_batch_import(
-        albums_dir=resolved_albums_dir,
-        album_dirs=album_dirs,
-        image_capture_dir=ic_dir,
-        link_mode=link_mode,
-        dry_run=dry_run,
-        on_importing=progress.on_start,
-        on_imported=lambda name: progress.on_end(name, success=True),
-        on_skipped=progress.on_skipped,
-        on_error=lambda name, error: progress.on_end(name, success=False),
-        on_validation_error=_on_validation_error,
-        convert_file=converter,
-    )
-    progress.stop()
+    with BatchProgressBar(
+        total=total, description="Importing", done_description="import"
+    ) as progress:
+
+        def _on_validation_error(name: str, errors: list) -> None:
+            nonlocal has_validation_errors
+            has_validation_errors = True
+            progress.stop()
+            err_console.print(importer_output.validation_errors(name, errors))
+
+        result = batch.run_batch_import(
+            albums_dir=resolved_albums_dir,
+            album_dirs=album_dirs,
+            image_capture_dir=ic_dir,
+            link_mode=link_mode,
+            dry_run=dry_run,
+            on_importing=progress.on_start,
+            on_imported=lambda name: progress.on_end(name, success=True),
+            on_skipped=progress.on_skipped,
+            on_error=lambda name, error: progress.on_end(name, success=False),
+            on_validation_error=_on_validation_error,
+            convert_file=converter,
+        )
 
     if has_validation_errors:
         err_console.print("\nAborted: validation failed. No imports were performed.")

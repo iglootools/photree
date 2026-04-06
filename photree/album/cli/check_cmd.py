@@ -58,21 +58,29 @@ def check_cmd(
         + count_unique_media_numbers(album_dir / c.orig_vid_dir, VID_EXTENSIONS)
         for c in discover_media_sources(album_dir)
     )
-    progress = (
+    progress_cm = (
         SilentProgressBar(total=max(file_count, 1), description="Checking")
         if file_count > 0
         else None
     )
 
-    result = album_check.run_album_preflight(
-        album_dir,
-        checksum=checksum,
-        check_naming_flag=check_naming,
-        check_exif_date_match=check_exif_date_match,
-        on_file_checked=progress.advance if progress else None,
-    )
-    if progress:
-        progress.stop()
+    if progress_cm is not None:
+        with progress_cm as progress:
+            result = album_check.run_album_preflight(
+                album_dir,
+                checksum=checksum,
+                check_naming_flag=check_naming,
+                check_exif_date_match=check_exif_date_match,
+                on_file_checked=progress.advance,
+            )
+    else:
+        result = album_check.run_album_preflight(
+            album_dir,
+            checksum=checksum,
+            check_naming_flag=check_naming,
+            check_exif_date_match=check_exif_date_match,
+            on_file_checked=None,
+        )
 
     fatal_sidecar = fatal_warnings or fatal_sidecar_arg
     fatal_exif = fatal_warnings or fatal_exif_date_match

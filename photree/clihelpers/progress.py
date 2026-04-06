@@ -2,9 +2,19 @@
 
 Each progress bar is transient (disappears after completion) and prints
 result lines (✓/✗) above the bar as each unit completes.
+
+All progress bars support context manager usage::
+
+    with BatchProgressBar(total=10, ...) as bar:
+        bar.on_start("album")
+        bar.on_end("album", success=True)
+    # .stop() called automatically
 """
 
 from __future__ import annotations
+
+from types import TracebackType
+from typing import TypeVar
 
 from rich.progress import (
     BarColumn,
@@ -22,14 +32,34 @@ def _result_icon(success: bool) -> str:
     return CHECK if success else CROSS
 
 
-class SilentProgressBar:
+class _ProgressContextMixin:
+    """Mixin adding context manager support to progress bars."""
+
+    def stop(self) -> None:  # noqa: B027 — overridden by subclasses
+        ...
+
+    def __enter__(self: _T) -> _T:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        self.stop()
+
+
+_T = TypeVar("_T")
+
+
+class SilentProgressBar(_ProgressContextMixin):
     """Silent progress bar that shows a spinner and count but no per-file output.
 
     Usage::
 
-        bar = SilentProgressBar(total=file_count)
-        run_check(..., on_file_checked=bar.advance)
-        bar.stop()
+        with SilentProgressBar(total=file_count, description="Checking") as bar:
+            run_check(..., on_file_checked=bar.advance)
     """
 
     def __init__(self, total: int, description: str) -> None:
@@ -50,14 +80,13 @@ class SilentProgressBar:
         self._progress.stop()
 
 
-class FileProgressBar:
+class FileProgressBar(_ProgressContextMixin):
     """Progress bar for per-file operations — one check line per file.
 
     Usage::
 
-        bar = FileProgressBar(total=file_count)
-        run_check(..., on_file_checked=bar.on_end)
-        bar.stop()
+        with FileProgressBar(total=file_count, ...) as bar:
+            run_check(..., on_file_checked=bar.on_end)
     """
 
     def __init__(
@@ -108,18 +137,17 @@ class FileProgressBar:
             self._progress.stop()
 
 
-class StageProgressBar:
+class StageProgressBar(_ProgressContextMixin):
     """Progress bar for stage-based operations — one check line per stage.
 
     Usage::
 
-        bar = StageProgressBar(total=4, labels={"build": "Building"})
-        run_import(
-            ...,
-            on_stage_start=bar.on_start,
-            on_stage_end=bar.on_end,
-        )
-        bar.stop()
+        with StageProgressBar(total=4, labels={"build": "Building"}) as bar:
+            run_import(
+                ...,
+                on_stage_start=bar.on_start,
+                on_stage_end=bar.on_end,
+            )
     """
 
     def __init__(self, total: int, labels: dict[str, str] | None = None) -> None:
@@ -155,18 +183,15 @@ class StageProgressBar:
             self._progress.stop()
 
 
-class BatchProgressBar:
-    """Progress bar for batch import — one check line per album subdirectory.
+class BatchProgressBar(_ProgressContextMixin):
+    """Progress bar for batch operations — one check line per album/item.
 
     Usage::
 
-        bar = BatchProgressBar(total=len(subdirs))
-        # for each album:
-        bar.on_start(album_name)
-        bar.on_end(album_name, success=True)
-        # or:
-        bar.on_skipped(album_name, reason)
-        bar.stop()
+        with BatchProgressBar(total=len(items), ...) as bar:
+            for item in items:
+                bar.on_start(item.name)
+                bar.on_end(item.name, success=True)
     """
 
     def __init__(
