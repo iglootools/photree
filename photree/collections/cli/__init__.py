@@ -9,3 +9,5 @@ collections_app = typer.Typer(
     help="Batch operations on multiple collections.",
     no_args_is_help=True,
 )
+
+from . import check_cmd  # noqa: E402, F401 — imported for command registration side effects
