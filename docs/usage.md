@@ -220,6 +220,19 @@ photree collection metadata set -d my-collection/ --kind smart
 photree collection metadata set -d my-collection/ --lifecycle explicit
 ```
 
+**Converting between lifecycles:**
+
+When you convert an implicit collection to explicit (or vice versa),
+`gallery refresh` syncs album titles on the next run:
+
+- **Implicit → explicit**: strips the series from album names (the
+  collection now owns the grouping)
+- **Explicit → implicit**: adds the collection title as series to the
+  contained albums' names
+
+See [internals.md — Collection Lifecycle](./internals.md#collection-lifecycle)
+for details.
+
 ### Optimize Albums
 
 Reduces disk usage by replacing file copies with links for all iOS albums in the gallery.
