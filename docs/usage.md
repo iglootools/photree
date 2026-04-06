@@ -165,8 +165,27 @@ photree gallery check -W
 
 ### Collections
 
-Collections group albums, media items, and other collections. See
-[internals.md — Collections](./internals.md#collections) for the design.
+Collections group albums, media items, and other collections.
+
+**Kind** determines how members are managed:
+
+- **`manual`** (default) — members are added explicitly via
+  `collection import`. Can contain albums, collections, images, and videos.
+- **`smart`** — album and collection members are auto-populated by
+  `gallery refresh` based on date range overlap. Cannot contain images or
+  videos. Cannot be imported into — use `collection metadata set --kind
+  manual` to convert first.
+
+**Lifecycle** determines how the collection itself is managed:
+
+- **`explicit`** (default) — created and managed by the user. Not
+  affected by album title changes.
+- **`implicit`** — derived automatically from album series by
+  `gallery refresh`. Created, renamed, and deleted as albums change.
+  Always `kind: manual`.
+
+See [internals.md — Collections](./internals.md#collections) for the full
+design details.
 
 **Initialize a collection:**
 
