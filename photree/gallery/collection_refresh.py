@@ -403,7 +403,7 @@ def _create_implicit(
             target,
             CollectionMetadata(
                 id=generate_collection_id(),
-                kind=CollectionKind.MANUAL,
+                kind=CollectionKind.SMART,
                 lifecycle=CollectionLifecycle.IMPLICIT,
                 albums=album_ids,
             ),
@@ -582,6 +582,10 @@ def _refresh_smart_collections(
 
     for col in all_collections:
         if col.metadata.kind != CollectionKind.SMART:
+            continue
+        # Implicit smart collections derive members from album series
+        # (handled by implicit refresh), not from date range overlap
+        if col.metadata.lifecycle == CollectionLifecycle.IMPLICIT:
             continue
 
         parsed = parse_collection_name(col.name)

@@ -16,6 +16,7 @@ from ...store.protocol import (
     CollectionKind,
     CollectionLifecycle,
     CollectionMetadata,
+    validate_kind_lifecycle,
 )
 from . import collection_metadata_app
 
@@ -65,10 +66,18 @@ def set_cmd(
         )
         raise typer.Exit(code=1)
 
+    new_kind = kind if kind is not None else current.kind
+    new_lifecycle = lifecycle if lifecycle is not None else current.lifecycle
+
+    validation_error = validate_kind_lifecycle(new_kind, new_lifecycle)
+    if validation_error is not None:
+        err_console.print(validation_error)
+        raise typer.Exit(code=1)
+
     updated = CollectionMetadata(
         id=current.id,
-        kind=kind if kind is not None else current.kind,
-        lifecycle=lifecycle if lifecycle is not None else current.lifecycle,
+        kind=new_kind,
+        lifecycle=new_lifecycle,
         albums=current.albums,
         collections=current.collections,
         images=current.images,

@@ -8,7 +8,7 @@ from pathlib import Path
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ..store.metadata import load_collection_metadata, save_collection_metadata
-from ..store.protocol import CollectionKind, CollectionMetadata
+from ..store.protocol import CollectionKind, CollectionLifecycle, CollectionMetadata
 from .resolve import (
     ResolutionError,
     ResolutionWarning,
@@ -74,6 +74,12 @@ def import_collection_members(
     metadata = load_collection_metadata(collection_dir)
     if metadata is None:
         raise FileNotFoundError(f"No collection metadata found in {collection_dir}")
+
+    if metadata.lifecycle == CollectionLifecycle.IMPLICIT:
+        raise ValueError(
+            "Cannot import into an implicit collection — members are managed "
+            "by 'gallery refresh' via album series detection."
+        )
 
     if metadata.kind == CollectionKind.SMART:
         raise ValueError(
