@@ -20,7 +20,7 @@ from ..fsprotocol import ALBUMS_DIR, COLLECTIONS_DIR
 from .naming import parse_collection_name
 from .store.collection_discovery import discover_collections
 from .store.metadata import load_collection_metadata
-from .store.protocol import CollectionMetadata
+from .store.protocol import CollectionKind, CollectionMetadata
 
 
 # ---------------------------------------------------------------------------
@@ -205,6 +205,38 @@ def _check_date_coverage(
     ]
 
 
+def _check_smart_no_media(
+    metadata: CollectionMetadata,
+) -> list[CollectionCheckIssue]:
+    """Smart collections cannot contain image or video members."""
+    if metadata.kind != CollectionKind.SMART:
+        return []
+    return [
+        *(
+            [
+                CollectionCheckIssue(
+                    "smart-has-images",
+                    f"smart collection has {len(metadata.images)} image member(s) "
+                    f"— smart collections can only contain albums and collections",
+                )
+            ]
+            if metadata.images
+            else []
+        ),
+        *(
+            [
+                CollectionCheckIssue(
+                    "smart-has-videos",
+                    f"smart collection has {len(metadata.videos)} video member(s) "
+                    f"— smart collections can only contain albums and collections",
+                )
+            ]
+            if metadata.videos
+            else []
+        ),
+    ]
+
+
 def check_collection(
     collection_dir: Path,
     lookup: _GalleryLookup,
@@ -225,6 +257,7 @@ def check_collection(
             [
                 *_check_member_existence(metadata, lookup),
                 *_check_date_coverage(collection_dir, metadata, lookup),
+                *_check_smart_no_media(metadata),
             ]
         ),
     )

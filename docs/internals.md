@@ -338,11 +338,14 @@ location, `[private]` is the only currently allowed tag.
 
 ### Collection Kind
 
-- **`smart`** — members are auto-populated by `gallery refresh` based on
-  the collection's date range. Albums and sub-collections whose dates fall
-  within the range are materialized in `collection.yaml`.
+- **`smart`** — album and collection members are auto-populated by
+  `gallery refresh` based on date range overlap. Smart collections cannot
+  contain image or video members — they only group albums and
+  sub-collections. `collection import` is not allowed on smart collections.
 - **`manual`** — members are listed explicitly. Added via `collection import`
-  or managed by `gallery refresh` for implicit collections.
+  or managed by `gallery refresh` for implicit collections. Manual
+  collections can contain all member types (albums, collections, images,
+  videos).
 
 ### Collection Lifecycle
 
@@ -433,8 +436,8 @@ overlap:
   sub-collections whose date ranges overlap with the collection's range.
 - Writes the matched IDs into `collection.yaml`, replacing the previous
   album and collection member lists.
-- Existing image and video members are preserved (not affected by smart
-  refresh).
+- Smart collections do not support image or video members — these fields
+  are cleared on each refresh.
 
 ### Collection Directory Layout
 

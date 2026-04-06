@@ -611,8 +611,8 @@ def _refresh_smart_collections(
             lifecycle=col.metadata.lifecycle,
             albums=matching_album_ids,
             collections=matching_col_ids,
-            images=col.metadata.images,
-            videos=col.metadata.videos,
+            images=[],
+            videos=[],
         )
 
         if new_meta != col.metadata:

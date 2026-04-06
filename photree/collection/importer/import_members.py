@@ -8,7 +8,7 @@ from pathlib import Path
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ..store.metadata import load_collection_metadata, save_collection_metadata
-from ..store.protocol import CollectionMetadata
+from ..store.protocol import CollectionKind, CollectionMetadata
 from .resolve import (
     ResolutionError,
     ResolutionWarning,
@@ -74,6 +74,13 @@ def import_collection_members(
     metadata = load_collection_metadata(collection_dir)
     if metadata is None:
         raise FileNotFoundError(f"No collection metadata found in {collection_dir}")
+
+    if metadata.kind == CollectionKind.SMART:
+        raise ValueError(
+            "Cannot import into a smart collection — members are managed "
+            "automatically by 'gallery refresh'. Use 'collection metadata set "
+            "--kind manual' to convert first."
+        )
 
     sources = read_selection(collection_dir, exiftool=exiftool)
     if not sources.merged:
