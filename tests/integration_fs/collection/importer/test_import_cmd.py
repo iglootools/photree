@@ -31,6 +31,12 @@ def _write(path: Path, content: str = "data") -> None:
     path.write_text(content)
 
 
+def _write_csv(path: Path, entries: list[str]) -> None:
+    """Write a collection to-import.csv with header."""
+    lines = ["entry,date", *[f"{e}," for e in entries]]
+    path.write_text("\n".join(lines) + "\n")
+
+
 def _setup_gallery(tmp_path: Path) -> Path:
     gallery = tmp_path / "gallery"
     gallery.mkdir()
@@ -69,7 +75,7 @@ class TestCollectionImportCmd:
         col_dir = _setup_collection(tmp_path)
 
         ext_id = format_album_external_id(album_id)
-        (col_dir / SELECTION_CSV).write_text(f"{ext_id}\n")
+        _write_csv(col_dir / SELECTION_CSV, [ext_id])
 
         result = runner.invoke(
             app,
@@ -123,7 +129,7 @@ class TestCollectionImportCmd:
         gallery = _setup_gallery(tmp_path)
         col_dir = _setup_collection(tmp_path)
 
-        (col_dir / SELECTION_CSV).write_text("nonexistent-album\n")
+        _write_csv(col_dir / SELECTION_CSV, ["nonexistent-album"])
 
         result = runner.invoke(
             app,
@@ -145,7 +151,7 @@ class TestCollectionImportCmd:
         col_dir = _setup_collection(tmp_path)
 
         ext_id = format_album_external_id(album_id)
-        (col_dir / SELECTION_CSV).write_text(f"{ext_id}\n")
+        _write_csv(col_dir / SELECTION_CSV, [ext_id])
 
         result = runner.invoke(
             app,
@@ -185,7 +191,7 @@ class TestCollectionImportCmd:
         )
 
         ext_id2 = format_album_external_id(album_id2)
-        (col_dir / SELECTION_CSV).write_text(f"{ext_id2}\n")
+        _write_csv(col_dir / SELECTION_CSV, [ext_id2])
 
         result = runner.invoke(
             app,
@@ -208,7 +214,7 @@ class TestCollectionImportCmd:
         gallery = _setup_gallery(tmp_path)
         col_dir = tmp_path / "uninit"
         col_dir.mkdir()
-        (col_dir / SELECTION_CSV).write_text("something\n")
+        _write_csv(col_dir / SELECTION_CSV, ["something"])
 
         result = runner.invoke(
             app,

@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from exiftool import ExifToolHelper  # type: ignore[import-untyped]
+
 from ..store.metadata import load_collection_metadata, save_collection_metadata
 from ..store.protocol import CollectionMetadata
 from .resolve import ResolutionError, ResolvedMembers, resolve_entries
@@ -53,6 +55,7 @@ def import_collection_members(
     gallery_dir: Path,
     *,
     dry_run: bool = False,
+    exiftool: ExifToolHelper | None = None,
 ) -> CollectionImportResult:
     """Resolve selection entries and merge into collection metadata.
 
@@ -66,7 +69,7 @@ def import_collection_members(
     if metadata is None:
         raise FileNotFoundError(f"No collection metadata found in {collection_dir}")
 
-    sources = read_selection(collection_dir)
+    sources = read_selection(collection_dir, exiftool=exiftool)
     if not sources.merged:
         raise ValueError(
             f"No selection entries found in {SELECTION_DIR}/ or {SELECTION_CSV}"
