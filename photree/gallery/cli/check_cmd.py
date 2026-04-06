@@ -18,6 +18,8 @@ from ...clihelpers.options import (
     FATAL_WARNINGS_OPTION,
 )
 from ...albums.cli.batch_ops import resolve_check_batch_albums, run_batch_check
+from ...collection.check import check_all_collections
+from ...common.formatting import CHECK, CROSS
 from .ops import resolve_gallery_or_exit
 
 
@@ -42,7 +44,7 @@ def check_cmd(
     check_date_part_collision: CHECK_DATE_PART_COLLISION_OPTION = True,
     check_exif_date_match: CHECK_EXIF_DATE_MATCH_OPTION = True,
 ) -> None:
-    """Check all albums in the gallery."""
+    """Check all albums and collections in the gallery."""
     resolved = resolve_gallery_or_exit(gallery_dir)
     albums, display_base = resolve_check_batch_albums(resolved, None)
     run_batch_check(
@@ -56,3 +58,23 @@ def check_cmd(
         check_date_part_collision=check_date_part_collision,
         check_exif_date_match=check_exif_date_match,
     )
+
+    # Collection checks
+    cwd = Path.cwd()
+    col_results = check_all_collections(resolved)
+    if col_results:
+        typer.echo("\nCollections:")
+        col_failed = 0
+        for result in col_results:
+            from ...common.fs import display_path
+
+            name = display_path(result.collection_dir, cwd)
+            if result.success:
+                typer.echo(f"  {CHECK} {name}")
+            else:
+                col_failed += 1
+                typer.echo(f"  {CROSS} {name}")
+                for issue in result.issues:
+                    typer.echo(f"      {issue.message}")
+        if col_failed:
+            raise typer.Exit(code=1)

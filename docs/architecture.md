@@ -54,6 +54,9 @@ graph TD
     collection --> common
     collection --> fsprotocol
     collection --> gallery
+    collections --> collection
+    collections --> common
+    collections --> gallery
     config --> fsprotocol
     demo --> album
     gallery --> album

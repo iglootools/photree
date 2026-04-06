@@ -728,10 +728,27 @@ $ photree collection [OPTIONS] COMMAND [ARGS]...
 
 **Commands**:
 
+* `check`: Check collection integrity (member...
 * `import`: Import members into a collection from...
 * `init`: Initialize collection metadata...
 * `show`: Display collection metadata.
 * `metadata`: Collection metadata management.
+
+### `photree collection check`
+
+Check collection integrity (member existence, date coverage).
+
+**Usage**:
+
+```console
+$ photree collection check [OPTIONS]
+```
+
+**Options**:
+
+* `-d, --dir DIRECTORY`: Collection directory.  [default: .]
+* `-g, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `--help`: Show this message and exit.
 
 ### `photree collection import`
 
@@ -831,6 +848,25 @@ $ photree collections [OPTIONS] COMMAND [ARGS]...
 
 * `--help`: Show this message and exit.
 
+**Commands**:
+
+* `check`: Check all collections in the gallery.
+
+### `photree collections check`
+
+Check all collections in the gallery.
+
+**Usage**:
+
+```console
+$ photree collections check [OPTIONS]
+```
+
+**Options**:
+
+* `-g, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `--help`: Show this message and exit.
+
 ## `photree demo`
 
 Demo commands for development.
@@ -896,7 +932,7 @@ $ photree gallery [OPTIONS] COMMAND [ARGS]...
 
 **Commands**:
 
-* `check`: Check all albums in the gallery.
+* `check`: Check all albums and collections in the...
 * `export`: Batch export multiple albums to a shared...
 * `fix`: Fix all albums in the gallery.
 * `fix-ios`: Apply fix-ios to all iOS albums in the...
@@ -913,7 +949,7 @@ $ photree gallery [OPTIONS] COMMAND [ARGS]...
 
 ### `photree gallery check`
 
-Check all albums in the gallery.
+Check all albums and collections in the gallery.
 
 **Usage**:
 
