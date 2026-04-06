@@ -351,7 +351,10 @@ location, `[private]` is the only currently allowed tag.
 - **`implicit`** — derived from album series (the series component parsed
   from album titles). Created, renamed, and deleted automatically by
   `gallery refresh`. Implicit collections are always `kind: manual` —
-  they contain exactly the albums sharing that series.
+  they contain exactly the albums sharing that series. Only **contiguous**
+  albums with the same series form a single collection; if the same series
+  is interrupted by other albums, each contiguous run produces a separate
+  collection (disambiguated by date range in the collection name).
 
 A collection can be converted between lifecycles using
 `collection metadata set --lifecycle <lifecycle>`. On the next
