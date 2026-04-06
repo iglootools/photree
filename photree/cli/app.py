@@ -8,6 +8,8 @@ import typer
 from ..album.cli import album_app
 from ..albums.cli import albums_app
 from ..check.cli import check_app
+from ..collection.cli import collection_app
+from ..collections.cli import collections_app
 from ..demo.cli.cmd import demo_app
 from ..gallery.cli import gallery_app
 
@@ -44,5 +46,7 @@ def _main(
 app.add_typer(album_app)
 app.add_typer(albums_app)
 app.add_typer(check_app)
+app.add_typer(collection_app)
+app.add_typer(collections_app)
 app.add_typer(demo_app)
 app.add_typer(gallery_app)
