@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from . import AlbumDirOption, DirOption, albums_app
 from ...clihelpers.options import DRY_RUN_OPTION
-from .batch_ops import resolve_init_batch_albums, run_batch_init
+from .batch_ops import run_batch_init
+from .ops import resolve_init_batch_albums
 
 
 @albums_app.command("init")

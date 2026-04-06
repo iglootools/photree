@@ -14,7 +14,8 @@ from ...clihelpers.options import (
     DRY_RUN_OPTION,
     LINK_MODE_OPTION,
 )
-from ...albums.cli.batch_ops import resolve_batch_albums, run_batch_optimize
+from ...albums.cli.batch_ops import run_batch_optimize
+from ...albums.cli.ops import resolve_batch_albums
 from ...fsprotocol import resolve_link_mode
 from .ops import resolve_gallery_or_exit
 

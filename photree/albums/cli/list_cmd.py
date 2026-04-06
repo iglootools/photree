@@ -8,7 +8,8 @@ from typing import Annotated, Optional
 import typer
 
 from . import AlbumDirOption, DirOption, albums_app
-from .batch_ops import resolve_check_batch_albums, run_batch_list_albums
+from .batch_ops import run_batch_list_albums
+from .ops import resolve_check_batch_albums
 
 
 @albums_app.command("list")

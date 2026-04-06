@@ -10,7 +10,8 @@ from ...clihelpers.options import (
     DRY_RUN_OPTION,
     LINK_MODE_REQUIRED_OPTION,
 )
-from .batch_ops import resolve_batch_albums, run_batch_optimize
+from .batch_ops import run_batch_optimize
+from .ops import resolve_batch_albums
 
 
 @albums_app.command("optimize")

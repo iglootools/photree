@@ -14,7 +14,8 @@ from ...clihelpers.options import (
     RM_MISCATEGORIZED_SAFE_OPTION,
     RM_ORPHAN_SIDECAR_OPTION,
 )
-from .batch_ops import resolve_batch_albums, run_batch_fix_ios
+from .batch_ops import run_batch_fix_ios
+from .ops import resolve_batch_albums
 
 
 @albums_app.command("fix-ios")

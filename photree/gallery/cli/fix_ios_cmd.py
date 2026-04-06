@@ -17,7 +17,8 @@ from ...clihelpers.options import (
     RM_ORPHAN_SIDECAR_OPTION,
 )
 from ...album.fix.ios import FixIosValidationError, validate_fix_flags
-from ...albums.cli.batch_ops import resolve_batch_albums, run_batch_fix_ios
+from ...albums.cli.batch_ops import run_batch_fix_ios
+from ...albums.cli.ops import resolve_batch_albums
 from .ops import resolve_gallery_or_exit
 
 

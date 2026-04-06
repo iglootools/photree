@@ -8,7 +8,8 @@ from typing import Annotated, Optional
 import typer
 
 from . import gallery_app
-from ...albums.cli.batch_ops import resolve_check_batch_albums, run_batch_stats
+from ...albums.cli.batch_ops import run_batch_stats
+from ...albums.cli.ops import resolve_check_batch_albums
 from .ops import resolve_gallery_or_exit
 
 

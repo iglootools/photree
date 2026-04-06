@@ -4,11 +4,12 @@ Each ``run_batch_*`` function creates progress bars, calls the
 corresponding command handler, displays results, and handles
 ``typer.Exit``. Both ``gallery`` and ``albums`` CLI commands delegate
 to these wrappers.
+
+Album resolution helpers live in :mod:`ops`.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from pathlib import Path
 
 import typer
@@ -24,7 +25,6 @@ from ...album.optimize import batch_optimize_summary
 from ...album.stats import output as stats_output
 from ...common.exif import try_start_exiftool
 from ...common.formatting import CHECK
-from ...album.store.album_discovery import discover_potential_albums
 from ...album.store.media_sources_discovery import discover_media_sources
 from ...album.store.metadata import load_album_metadata
 from ...album.id import format_album_external_id, format_image_external_id
@@ -40,18 +40,7 @@ from ..cmd_handler.fix_ios import batch_fix_ios
 from ..cmd_handler.stats import batch_stats
 from ..cmd_handler.refresh import batch_refresh
 from ..cmd_handler.rename import batch_rename_from_csv
-
-
-def display_name(album_dir: Path, base_dir: Path | None, cwd: Path) -> str:
-    """Human-readable album name relative to *base_dir* or *cwd*."""
-    if base_dir is not None:
-        return str(album_dir.relative_to(base_dir))
-
-    return str(display_path(album_dir, cwd))
-
-
-def _make_display_fn(display_base: Path | None, cwd: Path) -> Callable[[Path], str]:
-    return lambda album_dir: display_name(album_dir, display_base, cwd)
+from .ops import display_name, make_display_fn
 
 
 def run_batch_init(
@@ -77,7 +66,7 @@ def run_batch_init(
     result = batch_init(
         albums,
         dry_run=dry_run,
-        display_fn=_make_display_fn(display_base, cwd),
+        display_fn=make_display_fn(display_base, cwd),
         on_start=progress.on_start,
         on_end=lambda name, success, errors: progress.on_end(
             name, success=success, error_labels=errors
@@ -122,7 +111,7 @@ def run_batch_refresh(
     result = batch_refresh(
         albums,
         dry_run=dry_run,
-        display_fn=_make_display_fn(display_base, cwd),
+        display_fn=make_display_fn(display_base, cwd),
         on_start=progress.on_start,
         on_end=lambda name, success, errors: progress.on_end(
             name, success=success, error_labels=errors
@@ -335,7 +324,7 @@ def run_batch_check(
             fatal_exif=fatal_exif,
             check_naming=check_naming,
             check_date_part_collision=check_date_part_collision,
-            display_fn=_make_display_fn(display_base, cwd),
+            display_fn=make_display_fn(display_base, cwd),
             on_start=progress.on_start,
             on_end=lambda name, success, errors, warnings: progress.on_end(
                 name,
@@ -433,7 +422,7 @@ def run_batch_fix(
         rm_upstream=rm_upstream,
         rm_orphan=rm_orphan,
         dry_run=dry_run,
-        display_fn=_make_display_fn(display_base, cwd),
+        display_fn=make_display_fn(display_base, cwd),
         on_start=progress.on_start,
         on_end=lambda name, success: progress.on_end(name, success=success),
     )
@@ -499,7 +488,7 @@ def run_batch_optimize(
         checksum=checksum,
         sips_available=sips_available,
         dry_run=dry_run,
-        display_fn=_make_display_fn(display_base, cwd),
+        display_fn=make_display_fn(display_base, cwd),
         on_start=progress.on_start,
         on_end=lambda name, success: progress.on_end(name, success=success),
     )
@@ -550,7 +539,7 @@ def run_batch_fix_ios(
         rm_miscategorized=rm_miscategorized,
         rm_miscategorized_safe=rm_miscategorized_safe,
         mv_miscategorized=mv_miscategorized,
-        display_fn=_make_display_fn(display_base, cwd),
+        display_fn=make_display_fn(display_base, cwd),
         on_start=progress.on_start,
         on_end=lambda name, success: progress.on_end(name, success=success),
     )
@@ -606,7 +595,7 @@ def run_batch_stats(
 
     result = batch_stats(
         albums,
-        display_fn=_make_display_fn(display_base, cwd),
+        display_fn=make_display_fn(display_base, cwd),
         on_start=progress.on_start,
         on_end=lambda name, success: progress.on_end(name, success=success),
     )
@@ -658,81 +647,3 @@ def run_batch_rename_from_csv(
         typer.echo(f"[dry run] {len(result.actions)} album(s) would be renamed.")
     else:
         typer.echo(f"Renamed {result.renamed} album(s).")
-
-
-# ---------------------------------------------------------------------------
-# Album resolution helpers
-# ---------------------------------------------------------------------------
-
-
-def resolve_check_batch_albums(
-    base_dir: Path | None,
-    album_dirs: list[Path] | None,
-) -> tuple[list[Path], Path | None]:
-    """Resolve album list for check commands (all album types).
-
-    Uses :func:`discover_albums` which detects iOS albums, ``.album``
-    sentinels, and leaf directories.
-    """
-    return _resolve_batch_albums_with(base_dir, album_dirs, album_check.discover_albums)
-
-
-def resolve_batch_albums(
-    base_dir: Path | None,
-    album_dirs: list[Path] | None,
-) -> tuple[list[Path], Path | None]:
-    """Resolve album list for archive-based commands.
-
-    Uses :func:`discover_archive_albums` which finds albums with iOS
-    (``ios-*/``) or std (``std-*/``) archive directories.
-    """
-    return _resolve_batch_albums_with(
-        base_dir, album_dirs, album_check.discover_archive_albums
-    )
-
-
-def resolve_init_batch_albums(
-    base_dir: Path | None,
-    album_dirs: list[Path] | None,
-) -> tuple[list[Path], Path | None]:
-    """Resolve album list for init commands.
-
-    Uses :func:`discover_potential_albums` which finds directories with
-    media sources regardless of whether ``.photree/album.yaml`` exists.
-    """
-    return _resolve_batch_albums_with(base_dir, album_dirs, discover_potential_albums)
-
-
-def _resolve_batch_albums_with(
-    base_dir: Path | None,
-    album_dirs: list[Path] | None,
-    discover_fn: Callable[[Path], list[Path]],
-) -> tuple[list[Path], Path | None]:
-    """Resolve album list from mutually exclusive --dir / --album-dir options.
-
-    Returns ``(albums, display_base)`` where *display_base* is the base
-    directory when --dir was used (for relative display names), or ``None``
-    when --album-dir was used (display names are CWD-relative).
-    """
-    from rich.progress import Progress, SpinnerColumn, TextColumn
-
-    if base_dir is not None and album_dirs is not None:
-        typer.echo(
-            "--dir and --album-dir are mutually exclusive.",
-            err=True,
-        )
-        raise typer.Exit(code=1)
-
-    if album_dirs is not None:
-        return (album_dirs, None)
-
-    # --dir mode (explicit or default)
-    resolved_base = base_dir if base_dir is not None else Path(".").resolve()
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        transient=True,
-    ) as progress:
-        progress.add_task("Resolving album list...", total=None)
-        albums = discover_fn(resolved_base)
-    return (albums, resolved_base)
