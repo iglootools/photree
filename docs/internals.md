@@ -157,10 +157,21 @@ subdirectory where imported albums are organized by year:
     Best of All Time/
 ```
 
-Albums are placed in `albums/YYYY/` where YYYY is extracted from the album
-name's date prefix. Collections are placed in `collections/YYYY/` using the
-start year, or directly in `collections/` for dateless collections. The
-`gallery import` and `gallery import-all` commands automate album placement.
+A gallery has two top-level directories with a fixed structure:
+
+- **`albums/`** — albums organized by year (`albums/YYYY/<album-name>/`).
+  YYYY is extracted from the album name's date prefix.
+- **`collections/`** — collections organized by year
+  (`collections/YYYY/<collection-name>/`), or directly under `collections/`
+  for dateless collections. YYYY uses the start year for date ranges.
+
+Gallery commands (`gallery check`, `gallery refresh`, `gallery show`, etc.)
+discover albums exclusively in `albums/` and collections exclusively in
+`collections/`. Content placed outside these directories is not managed by
+photree.
+
+The `gallery import` and `gallery import-all` commands automate album
+placement into `albums/YYYY/`.
 
 ### Gallery Resolution
 

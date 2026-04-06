@@ -22,7 +22,7 @@ from ..album.store.media_sources_discovery import discover_media_sources
 from ..album.store.metadata import load_album_metadata, save_album_metadata
 from ..album.id import generate_album_id
 from ..album.store.protocol import AlbumMetadata, parse_album_year
-from ..fsprotocol import LinkMode
+from ..fsprotocol import ALBUMS_DIR, LinkMode
 from . import AlbumIndex
 
 
@@ -53,7 +53,7 @@ def _notify(callback: Callable[[str], None] | None, stage: str) -> None:
 def compute_target_dir(gallery_dir: Path, album_name: str) -> Path:
     """Compute the target path: ``<gallery_dir>/albums/YYYY/<album_name>``."""
     year = parse_album_year(album_name)
-    return gallery_dir / "albums" / year / album_name
+    return gallery_dir / ALBUMS_DIR / year / album_name
 
 
 def _jpeg_is_stale(album_dir: Path) -> bool:

@@ -33,6 +33,7 @@ from ...collection.id import COLLECTION_ID_PREFIX
 from ...collection.store.collection_discovery import discover_collections
 from ...collection.store.metadata import load_collection_metadata
 from ...common.fs import file_ext
+from ...fsprotocol import ALBUMS_DIR, COLLECTIONS_DIR
 from .selection import SelectionEntry
 
 
@@ -161,7 +162,7 @@ def _build_gallery_index(gallery_dir: Path) -> _GalleryIndex:
     image_keys: defaultdict[str, list[_MediaKeyEntry]] = defaultdict(list)
     video_keys: defaultdict[str, list[_MediaKeyEntry]] = defaultdict(list)
 
-    for album_dir in discover_albums(gallery_dir):
+    for album_dir in discover_albums(gallery_dir / ALBUMS_DIR):
         meta = load_album_metadata(album_dir)
         if meta is not None:
             album_ids.add(meta.id)
@@ -197,7 +198,7 @@ def _build_gallery_index(gallery_dir: Path) -> _GalleryIndex:
 
     collection_ids: set[str] = set()
     collection_names: defaultdict[str, list[str]] = defaultdict(list)
-    for col_dir in discover_collections(gallery_dir):
+    for col_dir in discover_collections(gallery_dir / COLLECTIONS_DIR):
         col_meta = load_collection_metadata(col_dir)
         if col_meta is not None:
             collection_ids.add(col_meta.id)

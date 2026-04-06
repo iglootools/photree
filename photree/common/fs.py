@@ -72,8 +72,11 @@ def matching_subdirectories(
     """Recursively collect subdirectories of *base_dir* that satisfy *predicate*.
 
     When a directory matches, it is collected and its subtree is not descended
-    into. *base_dir* itself is never returned.
+    into. *base_dir* itself is never returned. Returns an empty list when
+    *base_dir* does not exist.
     """
+    if not base_dir.is_dir():
+        return []
 
     def walk(directory: Path) -> Iterator[Path]:
         if predicate(directory):

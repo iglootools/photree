@@ -10,7 +10,7 @@ import typer
 from . import gallery_app
 from ...album.store.album_discovery import discover_albums
 from ...common.fs import display_path
-from ...fsprotocol import PHOTREE_DIR
+from ...fsprotocol import ALBUMS_DIR, PHOTREE_DIR
 from ...fsprotocol import load_gallery_metadata
 from ...fsprotocol import GALLERY_YAML
 from .ops import resolve_gallery_or_exit
@@ -34,7 +34,7 @@ def show_cmd(
     resolved = resolve_gallery_or_exit(gallery_dir)
     cwd = Path.cwd()
     metadata = load_gallery_metadata(resolved / PHOTREE_DIR / GALLERY_YAML)
-    albums = discover_albums(resolved)
+    albums = discover_albums(resolved / ALBUMS_DIR)
 
     typer.echo(f"Gallery: {display_path(resolved, cwd)}")
     typer.echo(f"  link-mode: {metadata.link_mode}")
