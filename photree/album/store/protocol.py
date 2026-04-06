@@ -22,6 +22,7 @@ ALBUM_YAML = "album.yaml"
 MEDIA_YAML = "media.yaml"
 
 SELECTION_DIR = "to-import"
+SELECTION_CSV = "to-import.csv"
 
 IOS_DIR_PREFIX = "ios-"
 STD_DIR_PREFIX = "std-"

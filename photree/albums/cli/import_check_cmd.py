@@ -8,7 +8,8 @@ from typing import Annotated, Optional
 import typer
 
 from . import albums_app
-from ...album.store.protocol import SELECTION_DIR
+from ...album.importer.selection import has_selection
+from ...album.store.protocol import SELECTION_CSV, SELECTION_DIR
 from ...album.cli.helpers import _run_preflight_checks
 from ...clihelpers.progress import BatchProgressBar
 
@@ -56,10 +57,10 @@ def import_check_cmd(
         ),
     ] = None,
 ) -> None:
-    f"""Check system prerequisites and selection directories for batch import.
+    f"""Check system prerequisites and selection for batch import.
 
     Runs shared preflight checks (sips, Image Capture directory) once, then
-    checks each album's {SELECTION_DIR}/ status.
+    checks each album's selection ({SELECTION_DIR}/ and/or {SELECTION_CSV}).
     """
     if albums_dir is not None and album_dirs is not None:
         typer.echo("--dir and --album-dir are mutually exclusive.", err=True)
@@ -89,11 +90,12 @@ def import_check_cmd(
     for album_dir in albums:
         album_name = album_dir.name
         progress.on_start(album_name)
-        selection_path = album_dir / SELECTION_DIR
-        if not selection_path.is_dir():
-            progress.on_end(album_name, success=False, error_labels=("no to-import/",))
+        has_dir = (album_dir / SELECTION_DIR).is_dir()
+        has_csv = (album_dir / SELECTION_CSV).is_file()
+        if not has_dir and not has_csv:
+            progress.on_end(album_name, success=False, error_labels=("no selection",))
             not_ready.append((album_dir, "not found"))
-        elif not any(selection_path.iterdir()):
+        elif not has_selection(album_dir):
             progress.on_end(album_name, success=False, error_labels=("empty",))
             not_ready.append((album_dir, "empty"))
         else:

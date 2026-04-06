@@ -77,10 +77,29 @@ See [internals.md](./internals.md) for the Image Capture file structure and albu
 
 **Workflow:**
 
-1. Create the album directory with a `to-import/` subfolder
+1. Create the album directory
 2. Import all pictures using macOS Image Capture (output: `~/Pictures/<Device Name>/`)
-3. Import all pictures using Apple Photos, curate your selection, then export to `to-import/`
+3. Tell photree which photos to import (your "selection")
 4. Run `photree album import` from the album directory
+
+**Specifying the selection:**
+
+The selection is just a list of filenames — photree matches them by image
+number against the Image Capture directory. The file contents don't matter,
+only the names. Two mechanisms are available:
+
+- **`to-import/` directory** — export from Apple Photos into this subfolder.
+  This is the most common workflow: Photos is convenient for reviewing and
+  curating a selection, and the exported files provide the filename list.
+- **`to-import.csv`** — a one-column file (no header) with one filename per
+  row (e.g. `IMG_0410.HEIC`). Useful when the selection is generated
+  programmatically (a script, AppleScript, an LLM, a phone app, etc.).
+
+In practice you'd use one or the other. Both are supported simultaneously
+(entries are merged and deduplicated), but there's rarely a reason to mix them.
+
+See [internals.md — Selection Mechanism](./internals.md#selection-mechanism)
+for the full details.
 
 ```bash
 # Import image capture pictures for a single album

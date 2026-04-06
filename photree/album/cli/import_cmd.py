@@ -13,7 +13,7 @@ from ...clihelpers.progress import StageProgressBar
 from ...fsprotocol import LinkMode
 from ..importer import image_capture
 from ..importer import output as importer_output
-from ..importer.image_capture import plan_import_from_dirs, validate_import_plan
+from ..importer.image_capture import plan_import_from_album, validate_import_plan
 from ..jpeg import convert_single_file, noop_convert_single
 from ..naming import (
     AlbumNamingResult,
@@ -23,7 +23,7 @@ from ..naming import (
 )
 from ..check import check_exiftool_available
 from ..check.output import format_naming_checks
-from ..store.protocol import SELECTION_DIR
+from ..store.protocol import SELECTION_CSV, SELECTION_DIR
 from . import album_app
 from .helpers import _run_preflight_checks
 
@@ -35,7 +35,7 @@ def import_cmd(
         typer.Option(
             "--album-dir",
             "-a",
-            help=f"Album directory (must contain a {SELECTION_DIR}/ subfolder).",
+            help=f"Album directory (with {SELECTION_DIR}/ and/or {SELECTION_CSV}).",
             exists=True,
             file_okay=False,
             resolve_path=True,
@@ -92,9 +92,9 @@ def import_cmd(
 ) -> None:
     f"""Organize files imported by macOS Image Capture into an album directory.
 
-    Reads the {SELECTION_DIR}/ inside ALBUM_DIR, matches files from the
-    Image Capture source directory, and sorts them into the media source's
-    archival and browsable subdirectories.
+    Reads the selection from {SELECTION_DIR}/ and/or {SELECTION_CSV} inside
+    ALBUM_DIR, matches files from the Image Capture source directory, and sorts
+    them into the media source's archival and browsable subdirectories.
 
     The source directory is resolved in this order:
     1. --source flag (explicit)
@@ -127,8 +127,7 @@ def import_cmd(
         raise typer.Exit(code=1)
 
     # Pre-validate the import plan
-    selection_path = album_dir / SELECTION_DIR
-    plan = plan_import_from_dirs(selection_path, image_capture_dir)
+    plan = plan_import_from_album(album_dir, image_capture_dir)
 
     # Show dedup warnings (informational, doesn't block import)
     if plan.dedup_warnings:

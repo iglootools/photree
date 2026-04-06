@@ -241,7 +241,7 @@ $ photree album import-check [OPTIONS]
 
 **Options**:
 
-* `-a, --album-dir DIRECTORY`: Album directory (should contain a to-import/ subfolder).  [default: .]
+* `-a, --album-dir DIRECTORY`: Album directory (with to-import/ and/or to-import.csv).  [default: .]
 * `-s, --source DIRECTORY`: Image Capture output directory. Overrides config and default.
 * `-c, --config TEXT`: Path to config file.
 * `--help`: Show this message and exit.
@@ -256,7 +256,7 @@ $ photree album import [OPTIONS]
 
 **Options**:
 
-* `-a, --album-dir DIRECTORY`: Album directory (must contain a to-import/ subfolder).  [default: .]
+* `-a, --album-dir DIRECTORY`: Album directory (with to-import/ and/or to-import.csv).  [default: .]
 * `-s, --source DIRECTORY`: Image Capture output directory. Overrides config and default.
 * `-c, --config TEXT`: Path to config file.
 * `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.  [default: hardlink]
