@@ -416,6 +416,14 @@ collections:
 4. **Delete orphaned** — implicit collections whose series no longer
    appears in any album are removed.
 
+**Limitation**: changing the series title and adding/removing albums at the
+same time (before a refresh) causes the old collection to be deleted and a
+new one created — the collection ID is not preserved. Each tier handles one
+kind of change: title+overlap handles member changes, exact-member handles
+title changes, but neither covers both simultaneously. To preserve the ID,
+apply changes incrementally: rename the series in one refresh, then
+add/remove albums in a subsequent refresh.
+
 #### Phase 3: Smart Collection Refresh
 
 Materializes members for `kind: smart` collections based on date range
