@@ -142,7 +142,7 @@ def import_cmd(
 
     typer.echo("\nImport:")
     converter = noop_convert_single if skip_heic_to_jpeg else convert_single_file
-    progress = StageProgressBar(
+    with StageProgressBar(
         total=5,
         labels={
             "import-ic": "Importing from Image Capture",
@@ -151,24 +151,21 @@ def import_cmd(
             "refresh-main-jpg": "Refreshing main-jpg",
             "refresh-media": "Refreshing media metadata",
         },
-    )
-    try:
-        result = image_capture.run_import(
-            album_dir=album_dir,
-            image_capture_dir=image_capture_dir,
-            media_source_name=album_media_source,
-            link_mode=link_mode,
-            dry_run=dry_run,
-            on_stage_start=progress.on_start,
-            on_stage_end=progress.on_end,
-            convert_file=converter,
-        )
-    except FileNotFoundError as exc:
-        progress.stop()
-        err_console.print(str(exc))
-        raise typer.Exit(code=1) from exc
-    finally:
-        progress.stop()
+    ) as progress:
+        try:
+            result = image_capture.run_import(
+                album_dir=album_dir,
+                image_capture_dir=image_capture_dir,
+                media_source_name=album_media_source,
+                link_mode=link_mode,
+                dry_run=dry_run,
+                on_stage_start=progress.on_start,
+                on_stage_end=progress.on_end,
+                convert_file=converter,
+            )
+        except FileNotFoundError as exc:
+            err_console.print(str(exc))
+            raise typer.Exit(code=1) from exc
 
     if result.unprocessed:
         err_console.print(

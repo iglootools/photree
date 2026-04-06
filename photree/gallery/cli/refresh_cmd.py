@@ -45,7 +45,7 @@ def refresh_cmd(
 
     # Refresh collections (implicit detection + smart materialization)
     typer.echo("\nCollections:")
-    progress = StageProgressBar(
+    with StageProgressBar(
         total=4,
         labels={
             STAGE_SCAN_ALBUMS: "Scanning albums",
@@ -53,15 +53,13 @@ def refresh_cmd(
             STAGE_IMPLICIT_REFRESH: "Refreshing implicit collections",
             STAGE_SMART_REFRESH: "Refreshing smart collections",
         },
-    )
-
-    col_result = refresh_collections(
-        resolved,
-        dry_run=dry_run,
-        on_stage_start=progress.on_start,
-        on_stage_end=progress.on_end,
-    )
-    progress.stop()
+    ) as progress:
+        col_result = refresh_collections(
+            resolved,
+            dry_run=dry_run,
+            on_stage_start=progress.on_start,
+            on_stage_end=progress.on_end,
+        )
 
     if col_result.created:
         for name in col_result.created:

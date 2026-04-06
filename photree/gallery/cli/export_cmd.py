@@ -101,22 +101,20 @@ def export_cmd(
         typer.echo("No albums found.")
         raise typer.Exit(code=0)
 
-    progress = BatchProgressBar(
+    with BatchProgressBar(
         total=len(albums), description="Exporting", done_description="export"
-    )
-
-    result = _batch.run_batch_export(
-        base_dir=resolved_base,
-        album_dirs=album_dirs,
-        share_dir=settings.share_dir,
-        share_layout=settings.share_layout,
-        album_layout=settings.album_layout,
-        link_mode=settings.link_mode,
-        on_exporting=progress.on_start,
-        on_exported=lambda name: progress.on_end(name, success=True),
-        on_error=lambda name, error: progress.on_end(name, success=False),
-    )
-    progress.stop()
+    ) as progress:
+        result = _batch.run_batch_export(
+            base_dir=resolved_base,
+            album_dirs=album_dirs,
+            share_dir=settings.share_dir,
+            share_layout=settings.share_layout,
+            album_layout=settings.album_layout,
+            link_mode=settings.link_mode,
+            on_exporting=progress.on_start,
+            on_exported=lambda name: progress.on_end(name, success=True),
+            on_error=lambda name, error: progress.on_end(name, success=False),
+        )
 
     typer.echo(_export_output.batch_export_summary(result.exported, len(result.failed)))
 

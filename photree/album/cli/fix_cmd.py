@@ -119,7 +119,7 @@ def fix_cmd(
     if refresh_browsable or refresh_jpeg:
         _check_sips_or_exit()
 
-    stage_progress = (
+    stage_progress_cm = (
         StageProgressBar(
             total=4,
             labels={
@@ -141,7 +141,7 @@ def fix_cmd(
             for c in media_sources
             if (album_dir / c.img_dir).is_dir()
         )
-    file_progress = (
+    file_progress_cm = (
         FileProgressBar(
             total=file_count,
             description="Converting JPEG",
@@ -151,28 +151,35 @@ def fix_cmd(
         else None
     )
 
-    result = album_fixes.run_fix(
-        album_dir,
-        link_mode=resolve_link_mode(link_mode, album_dir),
-        dry_run=dry_run,
-        refresh_browsable_flag=refresh_browsable,
-        refresh_jpeg_flag=refresh_jpeg,
-        rm_upstream_flag=rm_upstream,
-        rm_orphan_flag=rm_orphan,
-        on_refresh_browsable_stage_start=stage_progress.on_start
-        if stage_progress
-        else None,
-        on_refresh_browsable_stage_end=stage_progress.on_end
-        if stage_progress
-        else None,
-        on_refresh_jpeg_file_start=file_progress.on_start if file_progress else None,
-        on_refresh_jpeg_file_end=file_progress.on_end if file_progress else None,
-    )
+    import contextlib
 
-    if stage_progress:
-        stage_progress.stop()
-    if file_progress:
-        file_progress.stop()
+    with contextlib.ExitStack() as stack:
+        stage_progress = (
+            stack.enter_context(stage_progress_cm) if stage_progress_cm else None
+        )
+        file_progress = (
+            stack.enter_context(file_progress_cm) if file_progress_cm else None
+        )
+
+        result = album_fixes.run_fix(
+            album_dir,
+            link_mode=resolve_link_mode(link_mode, album_dir),
+            dry_run=dry_run,
+            refresh_browsable_flag=refresh_browsable,
+            refresh_jpeg_flag=refresh_jpeg,
+            rm_upstream_flag=rm_upstream,
+            rm_orphan_flag=rm_orphan,
+            on_refresh_browsable_stage_start=stage_progress.on_start
+            if stage_progress
+            else None,
+            on_refresh_browsable_stage_end=stage_progress.on_end
+            if stage_progress
+            else None,
+            on_refresh_jpeg_file_start=file_progress.on_start
+            if file_progress
+            else None,
+            on_refresh_jpeg_file_end=file_progress.on_end if file_progress else None,
+        )
 
     for line in format_fix_result(result):
         typer.echo(line)

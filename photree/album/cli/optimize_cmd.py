@@ -63,19 +63,25 @@ def optimize_cmd(
             + count_unique_media_numbers(album_dir / c.orig_vid_dir, VID_EXTENSIONS)
             for c in discover_media_sources(album_dir)
         )
-        progress = (
+        progress_cm = (
             SilentProgressBar(total=max(file_count, 1), description="Checking")
             if file_count > 0
             else None
         )
 
-        check_result = album_check.run_album_preflight(
-            album_dir,
-            checksum=checksum,
-            on_file_checked=progress.advance if progress else None,
-        )
-        if progress:
-            progress.stop()
+        if progress_cm is not None:
+            with progress_cm as progress:
+                check_result = album_check.run_album_preflight(
+                    album_dir,
+                    checksum=checksum,
+                    on_file_checked=progress.advance,
+                )
+        else:
+            check_result = album_check.run_album_preflight(
+                album_dir,
+                checksum=checksum,
+                on_file_checked=None,
+            )
 
         console.print(preflight_output.format_album_preflight_checks(check_result))
 

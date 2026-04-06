@@ -81,27 +81,28 @@ def import_check_cmd(
         raise typer.Exit(code=0)
 
     typer.echo(f"\nSelection Directories ({len(albums)} album(s)):")
-    progress = BatchProgressBar(
-        total=len(albums), description="Checking", done_description="check"
-    )
 
     ready = 0
     not_ready: list[tuple[Path, str]] = []
-    for album_dir in albums:
-        album_name = album_dir.name
-        progress.on_start(album_name)
-        has_dir = (album_dir / SELECTION_DIR).is_dir()
-        has_csv = (album_dir / SELECTION_CSV).is_file()
-        if not has_dir and not has_csv:
-            progress.on_end(album_name, success=False, error_labels=("no selection",))
-            not_ready.append((album_dir, "not found"))
-        elif not has_selection(album_dir):
-            progress.on_end(album_name, success=False, error_labels=("empty",))
-            not_ready.append((album_dir, "empty"))
-        else:
-            progress.on_end(album_name, success=True)
-            ready += 1
-    progress.stop()
+    with BatchProgressBar(
+        total=len(albums), description="Checking", done_description="check"
+    ) as progress:
+        for album_dir in albums:
+            album_name = album_dir.name
+            progress.on_start(album_name)
+            has_dir = (album_dir / SELECTION_DIR).is_dir()
+            has_csv = (album_dir / SELECTION_CSV).is_file()
+            if not has_dir and not has_csv:
+                progress.on_end(
+                    album_name, success=False, error_labels=("no selection",)
+                )
+                not_ready.append((album_dir, "not found"))
+            elif not has_selection(album_dir):
+                progress.on_end(album_name, success=False, error_labels=("empty",))
+                not_ready.append((album_dir, "empty"))
+            else:
+                progress.on_end(album_name, success=True)
+                ready += 1
 
     typer.echo(f"\n{ready} album(s) ready to import, {len(not_ready)} not ready.")
     if not_ready:
