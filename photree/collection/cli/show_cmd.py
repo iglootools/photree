@@ -10,6 +10,7 @@ import typer
 from ...common.fs import display_path
 from ...fsprotocol import PHOTREE_DIR
 from ..id import format_collection_external_id
+from ..naming import parse_collection_name
 from ..store.metadata import load_collection_metadata
 from ..store.protocol import COLLECTION_YAML
 from . import collection_app
@@ -29,7 +30,7 @@ def show_cmd(
         ),
     ] = Path("."),
 ) -> None:
-    """Display collection metadata."""
+    """Display collection metadata and parsed name."""
     cwd = Path.cwd()
     metadata = load_collection_metadata(collection_dir)
     if metadata is None:
@@ -41,9 +42,20 @@ def show_cmd(
         raise typer.Exit(code=1)
 
     typer.echo(f"Collection: {display_path(collection_dir, cwd)}")
+    typer.echo(f"  directory: {collection_dir.name}")
     typer.echo(f"  id: {format_collection_external_id(metadata.id)}")
     typer.echo(f"  kind: {metadata.kind}")
     typer.echo(f"  lifecycle: {metadata.lifecycle}")
+
+    parsed = parse_collection_name(collection_dir.name)
+    if parsed.date is not None:
+        typer.echo(f"  date: {parsed.date}")
+    typer.echo(f"  title: {parsed.title}")
+    if parsed.location is not None:
+        typer.echo(f"  location: {parsed.location}")
+    if parsed.private:
+        typer.echo("  private: yes")
+
     typer.echo(f"  albums: {len(metadata.albums)}")
     typer.echo(f"  collections: {len(metadata.collections)}")
     typer.echo(f"  images: {len(metadata.images)}")
