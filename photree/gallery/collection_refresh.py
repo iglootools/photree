@@ -9,7 +9,6 @@ Called by ``gallery refresh`` to:
 from __future__ import annotations
 
 import shutil
-from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
@@ -182,6 +181,55 @@ def _build_collection_name(series_title: str, album_dates: list[str]) -> str:
     date_str = _compute_date_string(album_dates)
     raw_name = f"{date_str} - {series_title}" if date_str else series_title
     return reconstruct_collection_name(parse_collection_name(raw_name))
+
+
+@dataclass(frozen=True)
+class _SeriesGroup:
+    """A contiguous run of albums sharing the same series."""
+
+    series_title: str
+    albums: tuple[_AlbumInfo, ...]
+
+
+def _group_contiguous_series(albums: list[_AlbumInfo]) -> list[_SeriesGroup]:
+    """Group albums into contiguous runs of the same series.
+
+    Albums are sorted by name (chronological, since names start with dates).
+    A series interrupted by albums without that series (or with a different
+    series) produces separate groups. The same series title appearing in
+    non-contiguous positions results in multiple groups.
+    """
+    sorted_albums = sorted(albums, key=lambda a: a.path.name)
+
+    groups: list[_SeriesGroup] = []
+    current_series: str | None = None
+    current_run: list[_AlbumInfo] = []
+
+    for album in sorted_albums:
+        if album.parsed.series is not None and album.parsed.series == current_series:
+            # Continue the current run
+            current_run.append(album)
+        else:
+            # Flush previous run
+            if current_series is not None and current_run:
+                groups.append(
+                    _SeriesGroup(series_title=current_series, albums=tuple(current_run))
+                )
+            # Start new run (or reset if no series)
+            if album.parsed.series is not None:
+                current_series = album.parsed.series
+                current_run = [album]
+            else:
+                current_series = None
+                current_run = []
+
+    # Flush final run
+    if current_series is not None and current_run:
+        groups.append(
+            _SeriesGroup(series_title=current_series, albums=tuple(current_run))
+        )
+
+    return groups
 
 
 def _rename_collection_dir(
@@ -385,30 +433,27 @@ def _refresh_implicit_collections(
     renamed: list[tuple[str, str]] = []
     errors: list[CollectionRefreshError] = []
 
-    # Group albums by series
-    series_albums: defaultdict[str, list[_AlbumInfo]] = defaultdict(list)
-    for album in albums:
-        if album.parsed.series is not None:
-            series_albums[album.parsed.series].append(album)
+    # Group albums into contiguous series runs
+    series_groups = _group_contiguous_series(albums)
 
     # Index existing implicit collections by title
+    # Note: multiple implicit collections may share the same title (from
+    # non-contiguous series). We index by (title, date) for precise matching.
     implicit_cols = [
         col
         for col in existing
         if col.metadata.lifecycle == CollectionLifecycle.IMPLICIT
     ]
-    implicit_by_title = {
-        parse_collection_name(col.name).title: col for col in implicit_cols
-    }
+    implicit_by_name = {col.name: col for col in implicit_cols}
 
     active_implicit_ids: set[str] = set()
 
-    for series_title, series_album_list in series_albums.items():
-        album_dates = [a.parsed.date for a in series_album_list]
-        collection_name = _build_collection_name(series_title, album_dates)
-        album_ids = sorted(a.album_id for a in series_album_list)
+    for group in series_groups:
+        album_dates = [a.parsed.date for a in group.albums]
+        collection_name = _build_collection_name(group.series_title, album_dates)
+        album_ids = sorted(a.album_id for a in group.albums)
 
-        existing_col = implicit_by_title.get(series_title)
+        existing_col = implicit_by_name.get(collection_name)
         if existing_col is not None:
             # Update existing implicit collection
             active_implicit_ids.add(existing_col.metadata.id)

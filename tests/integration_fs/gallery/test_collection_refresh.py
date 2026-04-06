@@ -93,6 +93,48 @@ class TestImplicitCollectionDetection:
         assert result.success
         assert any("2024-07-14 - Trip" in name for name in result.created)
 
+    def test_non_contiguous_series_creates_separate_collections(
+        self, tmp_path: Path
+    ) -> None:
+        """Same series interrupted by another album → two collections."""
+        gallery = _setup_gallery(tmp_path)
+        _setup_album(gallery, "2024-07-14 - 01 - Trip - Day 1")
+        _setup_album(gallery, "2024-07-15 - Beach Day")  # interrupts
+        _setup_album(gallery, "2024-07-16 - 02 - Trip - Day 2")
+
+        result = refresh_collections(gallery)
+        assert result.success
+        trip_collections = [n for n in result.created if "Trip" in n]
+        assert len(trip_collections) == 2
+
+        # Each should have exactly 1 album
+        collections = discover_collections(gallery)
+        trip_cols = [c for c in collections if "Trip" in c.name]
+        assert len(trip_cols) == 2
+        for col_dir in trip_cols:
+            meta = load_collection_metadata(col_dir)
+            assert meta is not None
+            assert len(meta.albums) == 1
+
+    def test_contiguous_series_creates_single_collection(self, tmp_path: Path) -> None:
+        """Same series with no interruption → one collection."""
+        gallery = _setup_gallery(tmp_path)
+        _setup_album(gallery, "2024-07-14 - 01 - Trip - Day 1")
+        _setup_album(gallery, "2024-07-15 - 02 - Trip - Day 2")
+        _setup_album(gallery, "2024-07-16 - 03 - Trip - Day 3")
+
+        result = refresh_collections(gallery)
+        assert result.success
+        trip_collections = [n for n in result.created if "Trip" in n]
+        assert len(trip_collections) == 1
+
+        collections = discover_collections(gallery)
+        trip_cols = [c for c in collections if "Trip" in c.name]
+        assert len(trip_cols) == 1
+        meta = load_collection_metadata(trip_cols[0])
+        assert meta is not None
+        assert len(meta.albums) == 3
+
     def test_no_series_no_collection(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
         _setup_album(gallery, "2024-07-14 - Just Hiking")
