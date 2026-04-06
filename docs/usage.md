@@ -147,7 +147,17 @@ The command refuses to import if the target path already exists in the gallery.
 
 ### Check Albums
 
-Validates all albums in the gallery (structure, integrity, naming conventions, EXIF dates).
+Validates all albums in the gallery. photree uses two validation levels:
+
+- **Light check** (naming only) — validates album directory names. Used
+  automatically as a gate before `gallery refresh` and `gallery import`.
+- **Full check** — includes structure, integrity, checksums, EXIF dates,
+  and cross-album collision detection. Used by the `check` commands below.
+
+Use `--no-checksum` or `--no-check-exif-date-match` to skip expensive
+operations. See
+[internals.md — Album Validation Levels](./internals.md#album-validation-levels)
+for details.
 
 ```bash
 # Check all gallery albums (resolved from cwd)

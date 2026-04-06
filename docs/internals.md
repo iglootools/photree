@@ -638,3 +638,38 @@ operations.
 - Images: `.dng`, `.heic`, `.jpeg`, `.jpg`, `.png`
 - Videos: `.mov`
 - Sidecars: `.aae`
+
+## Album Validation Levels
+
+photree has two levels of album validation, used in different contexts:
+
+### Light Check (naming only)
+
+Validates the album directory name against the naming convention. No
+filesystem or media file access beyond the name string itself. Fast,
+suitable as a pre-validation gate.
+
+Used by:
+- `gallery refresh` — ensures all album names are parsable before
+  modifying any collections
+- `gallery import` / `gallery import-all` — validates naming before
+  importing an album into the gallery
+- `album import` — validates naming before importing Image Capture files
+
+### Full Check
+
+Includes the light check plus filesystem and media validation:
+- Directory structure (required/optional subdirectories)
+- Album ID and media metadata presence and sync
+- Per-media-source integrity (checksum verification, browsable/archive
+  consistency, JPEG completeness, duplicate detection)
+- EXIF timestamp validation (requires exiftool, reads media files)
+- Cross-album checks (date collisions, duplicate IDs)
+
+Used by:
+- `album check` / `albums check` / `gallery check`
+- Post-import checks after `gallery import`
+
+The full check accepts flags to disable expensive operations:
+`--no-checksum` skips file checksums, `--no-check-exif-date-match`
+skips EXIF timestamp reading.
