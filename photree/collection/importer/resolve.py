@@ -7,7 +7,9 @@ by scanning the gallery.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import re
+from collections import defaultdict
+from dataclasses import dataclass
 from pathlib import Path
 
 from ...album.id import (
@@ -70,6 +72,8 @@ _EXTERNAL_PREFIXES = {
     VIDEO_ID_PREFIX,
 }
 
+_UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+
 
 def _looks_like_external_id(entry: str) -> bool:
     """Check if entry looks like an external ID (prefix_base58)."""
@@ -79,14 +83,7 @@ def _looks_like_external_id(entry: str) -> bool:
 
 def _looks_like_uuid(entry: str) -> bool:
     """Check if entry looks like a UUID (8-4-4-4-12 hex)."""
-    import re
-
-    return bool(
-        re.match(
-            r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-            entry,
-        )
-    )
+    return bool(_UUID_RE.match(entry))
 
 
 def _parse_external_id_safe(entry: str, prefix: str) -> str | None:
@@ -102,58 +99,135 @@ def _parse_external_id_safe(entry: str, prefix: str) -> str | None:
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class _GalleryIndex:
     """Lightweight index built by scanning the gallery once."""
 
-    # album internal ID → True
-    album_ids: dict[str, bool] = field(default_factory=dict)
-    # album dir name → album internal ID (may have multiple; track for ambiguity)
-    album_names: dict[str, list[str]] = field(default_factory=dict)
-    # collection internal ID → True
-    collection_ids: dict[str, bool] = field(default_factory=dict)
-    # collection dir name → collection internal ID
-    collection_names: dict[str, list[str]] = field(default_factory=dict)
-    # image internal ID → True
-    image_ids: dict[str, bool] = field(default_factory=dict)
-    # video internal ID → True
-    video_ids: dict[str, bool] = field(default_factory=dict)
+    album_ids: frozenset[str]
+    album_names: dict[str, tuple[str, ...]]  # dir name → album internal IDs
+    collection_ids: frozenset[str]
+    collection_names: dict[str, tuple[str, ...]]  # dir name → collection internal IDs
+    image_ids: frozenset[str]
+    video_ids: frozenset[str]
 
 
 def _build_gallery_index(gallery_dir: Path) -> _GalleryIndex:
     """Scan the gallery and build a lightweight lookup index."""
-    index = _GalleryIndex()
+    album_ids: set[str] = set()
+    album_names: defaultdict[str, list[str]] = defaultdict(list)
+    image_ids: set[str] = set()
+    video_ids: set[str] = set()
 
-    # Scan albums
     for album_dir in discover_albums(gallery_dir):
         meta = load_album_metadata(album_dir)
-        if meta is None:
-            continue
-        index.album_ids[meta.id] = True
-        index.album_names.setdefault(album_dir.name, []).append(meta.id)
-        # Scan media metadata
-        media_meta = load_media_metadata(album_dir)
-        if media_meta is not None:
-            for source in media_meta.media_sources.values():
-                for img_id in source.images:
-                    index.image_ids[img_id] = True
-                for vid_id in source.videos:
-                    index.video_ids[vid_id] = True
+        if meta is not None:
+            album_ids.add(meta.id)
+            album_names[album_dir.name].append(meta.id)
+            media_meta = load_media_metadata(album_dir)
+            if media_meta is not None:
+                for source in media_meta.media_sources.values():
+                    image_ids.update(source.images)
+                    video_ids.update(source.videos)
 
-    # Scan collections
+    collection_ids: set[str] = set()
+    collection_names: defaultdict[str, list[str]] = defaultdict(list)
     for col_dir in discover_collections(gallery_dir):
         meta = load_collection_metadata(col_dir)
-        if meta is None:
-            continue
-        index.collection_ids[meta.id] = True
-        index.collection_names.setdefault(col_dir.name, []).append(meta.id)
+        if meta is not None:
+            collection_ids.add(meta.id)
+            collection_names[col_dir.name].append(meta.id)
 
-    return index
+    return _GalleryIndex(
+        album_ids=frozenset(album_ids),
+        album_names={k: tuple(v) for k, v in album_names.items()},
+        collection_ids=frozenset(collection_ids),
+        collection_names={k: tuple(v) for k, v in collection_names.items()},
+        image_ids=frozenset(image_ids),
+        video_ids=frozenset(video_ids),
+    )
 
 
 # ---------------------------------------------------------------------------
 # Entry resolution
 # ---------------------------------------------------------------------------
+
+# Mapping from external prefix to (member_type, id_prefix, index_field)
+_PREFIX_MAP: dict[str, tuple[str, str]] = {
+    "album": ("album", ALBUM_ID_PREFIX),
+    "collection": ("collection", COLLECTION_ID_PREFIX),
+    "image": ("image", IMAGE_ID_PREFIX),
+    "video": ("video", VIDEO_ID_PREFIX),
+}
+
+
+def _resolve_external_id(
+    entry: str, index: _GalleryIndex
+) -> tuple[str | None, str | None, ResolutionError | None]:
+    """Try to resolve as an external ID."""
+    prefix = entry.split("_", 1)[0]
+    mapping = _PREFIX_MAP.get(prefix)
+    if mapping is None:
+        return (None, None, ResolutionError(entry, f"unknown ID prefix: {prefix}"))
+
+    member_type, id_prefix = mapping
+    internal = _parse_external_id_safe(entry, id_prefix)
+    id_pool = {
+        "album": index.album_ids,
+        "collection": index.collection_ids,
+        "image": index.image_ids,
+        "video": index.video_ids,
+    }[member_type]
+
+    if internal and internal in id_pool:
+        return (member_type, internal, None)
+    else:
+        return (
+            None,
+            None,
+            ResolutionError(entry, f"{member_type} not found in gallery"),
+        )
+
+
+def _resolve_uuid(
+    entry: str, index: _GalleryIndex
+) -> tuple[str | None, str | None, ResolutionError | None]:
+    """Try to resolve as an internal UUID."""
+    # Check pools in priority order
+    pools = [
+        ("album", index.album_ids),
+        ("collection", index.collection_ids),
+        ("image", index.image_ids),
+        ("video", index.video_ids),
+    ]
+    for member_type, pool in pools:
+        if entry in pool:
+            return (member_type, entry, None)
+    return (None, None, ResolutionError(entry, "UUID not found in gallery"))
+
+
+def _resolve_name(
+    entry: str, index: _GalleryIndex
+) -> tuple[str | None, str | None, ResolutionError | None]:
+    """Try to resolve as a directory name."""
+    name_pools = [
+        ("album", index.album_names),
+        ("collection", index.collection_names),
+    ]
+    for member_type, names in name_pools:
+        if entry in names:
+            ids = names[entry]
+            match len(ids):
+                case 1:
+                    return (member_type, ids[0], None)
+                case n:
+                    return (
+                        None,
+                        None,
+                        ResolutionError(
+                            entry, f"ambiguous: matches {n} {member_type}s"
+                        ),
+                    )
+    return (None, None, ResolutionError(entry, "not found in gallery"))
 
 
 def _resolve_entry(
@@ -163,87 +237,12 @@ def _resolve_entry(
 
     Returns exactly one of: a resolved member or an error.
     """
-    # 1. Try external ID formats
     if _looks_like_external_id(entry):
-        prefix = entry.split("_", 1)[0]
-        match prefix:
-            case "album":
-                internal = _parse_external_id_safe(entry, ALBUM_ID_PREFIX)
-                if internal and internal in index.album_ids:
-                    return ("album", internal, None)
-                return (
-                    None,
-                    None,
-                    ResolutionError(entry, "album not found in gallery"),
-                )
-            case "collection":
-                internal = _parse_external_id_safe(entry, COLLECTION_ID_PREFIX)
-                if internal and internal in index.collection_ids:
-                    return ("collection", internal, None)
-                return (
-                    None,
-                    None,
-                    ResolutionError(entry, "collection not found in gallery"),
-                )
-            case "image":
-                internal = _parse_external_id_safe(entry, IMAGE_ID_PREFIX)
-                if internal and internal in index.image_ids:
-                    return ("image", internal, None)
-                return (
-                    None,
-                    None,
-                    ResolutionError(entry, "image not found in gallery"),
-                )
-            case "video":
-                internal = _parse_external_id_safe(entry, VIDEO_ID_PREFIX)
-                if internal and internal in index.video_ids:
-                    return ("video", internal, None)
-                return (
-                    None,
-                    None,
-                    ResolutionError(entry, "video not found in gallery"),
-                )
-            case _:
-                return (
-                    None,
-                    None,
-                    ResolutionError(entry, f"unknown ID prefix: {prefix}"),
-                )
-
-    # 2. Try internal UUID — check all ID pools
-    if _looks_like_uuid(entry):
-        if entry in index.album_ids:
-            return ("album", entry, None)
-        if entry in index.collection_ids:
-            return ("collection", entry, None)
-        if entry in index.image_ids:
-            return ("image", entry, None)
-        if entry in index.video_ids:
-            return ("video", entry, None)
-        return (None, None, ResolutionError(entry, "UUID not found in gallery"))
-
-    # 3. Try directory name — albums first, then collections
-    if entry in index.album_names:
-        ids = index.album_names[entry]
-        if len(ids) > 1:
-            return (
-                None,
-                None,
-                ResolutionError(entry, f"ambiguous: matches {len(ids)} albums"),
-            )
-        return ("album", ids[0], None)
-
-    if entry in index.collection_names:
-        ids = index.collection_names[entry]
-        if len(ids) > 1:
-            return (
-                None,
-                None,
-                ResolutionError(entry, f"ambiguous: matches {len(ids)} collections"),
-            )
-        return ("collection", ids[0], None)
-
-    return (None, None, ResolutionError(entry, "not found in gallery"))
+        return _resolve_external_id(entry, index)
+    elif _looks_like_uuid(entry):
+        return _resolve_uuid(entry, index)
+    else:
+        return _resolve_name(entry, index)
 
 
 # ---------------------------------------------------------------------------
@@ -259,6 +258,9 @@ def resolve_entries(
 
     Scans the gallery once to build a lookup index, then resolves each
     entry. Returns resolved members and any errors.
+
+    Uses imperative accumulation because duplicate detection requires
+    tracking state (seen_ids) across iterations.
     """
     index = _build_gallery_index(gallery_dir)
 
@@ -274,29 +276,25 @@ def resolve_entries(
         member_type, internal_id, error = _resolve_entry(entry, index)
         if error is not None:
             errors.append(error)
-            continue
-        assert member_type is not None and internal_id is not None
-
-        # Check for duplicates
-        if internal_id in seen_ids:
+        elif internal_id in seen_ids:
             errors.append(
                 ResolutionError(
                     entry,
                     f"duplicate: same item already referenced by '{seen_ids[internal_id]}'",
                 )
             )
-            continue
-        seen_ids[internal_id] = entry
-
-        match member_type:
-            case "album":
-                albums.append(internal_id)
-            case "collection":
-                collections.append(internal_id)
-            case "image":
-                images.append(internal_id)
-            case "video":
-                videos.append(internal_id)
+        else:
+            assert member_type is not None and internal_id is not None
+            seen_ids[internal_id] = entry
+            match member_type:
+                case "album":
+                    albums.append(internal_id)
+                case "collection":
+                    collections.append(internal_id)
+                case "image":
+                    images.append(internal_id)
+                case "video":
+                    videos.append(internal_id)
 
     return ResolutionResult(
         members=ResolvedMembers(

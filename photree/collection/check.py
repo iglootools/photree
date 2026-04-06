@@ -9,6 +9,7 @@ Validates:
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 
 from ..album.naming import _album_date_range, parse_album_name
@@ -61,8 +62,10 @@ class _GalleryLookup:
     video_ids: frozenset[str]
 
 
-def build_gallery_lookup(gallery_dir: Path) -> _GalleryLookup:
-    """Build a lightweight lookup for collection checks."""
+def _scan_album_data(
+    gallery_dir: Path,
+) -> tuple[set[str], dict[str, str], set[str], set[str]]:
+    """Scan albums and return (album_ids, album_dates, image_ids, video_ids)."""
     album_ids: set[str] = set()
     album_dates: dict[str, str] = {}
     image_ids: set[str] = set()
@@ -70,33 +73,41 @@ def build_gallery_lookup(gallery_dir: Path) -> _GalleryLookup:
 
     for album_dir in discover_albums(gallery_dir):
         meta = load_album_metadata(album_dir)
-        if meta is None:
-            continue
-        album_ids.add(meta.id)
-        parsed = parse_album_name(album_dir.name)
-        if parsed is not None:
-            album_dates[meta.id] = parsed.date
+        if meta is not None:
+            album_ids.add(meta.id)
+            parsed = parse_album_name(album_dir.name)
+            if parsed is not None:
+                album_dates[meta.id] = parsed.date
 
-        media_meta = load_media_metadata(album_dir)
-        if media_meta is not None:
-            for source in media_meta.media_sources.values():
-                image_ids.update(source.images)
-                video_ids.update(source.videos)
+            media_meta = load_media_metadata(album_dir)
+            if media_meta is not None:
+                for source in media_meta.media_sources.values():
+                    image_ids.update(source.images)
+                    video_ids.update(source.videos)
 
-    collection_ids: set[str] = set()
-    collection_dates: dict[str, str | None] = {}
-    for col_dir in discover_collections(gallery_dir):
-        col_meta = load_collection_metadata(col_dir)
-        if col_meta is not None:
-            collection_ids.add(col_meta.id)
-            parsed_col = parse_collection_name(col_dir.name)
-            collection_dates[col_meta.id] = parsed_col.date
+    return album_ids, album_dates, image_ids, video_ids
+
+
+def build_gallery_lookup(gallery_dir: Path) -> _GalleryLookup:
+    """Build a lightweight lookup for collection checks."""
+    album_ids, album_dates, image_ids, video_ids = _scan_album_data(gallery_dir)
+
+    collection_metas = [
+        (col_dir, load_collection_metadata(col_dir))
+        for col_dir in discover_collections(gallery_dir)
+    ]
 
     return _GalleryLookup(
         album_ids=frozenset(album_ids),
         album_dates=album_dates,
-        collection_ids=frozenset(collection_ids),
-        collection_dates=collection_dates,
+        collection_ids=frozenset(
+            meta.id for _, meta in collection_metas if meta is not None
+        ),
+        collection_dates={
+            meta.id: parse_collection_name(col_dir.name).date
+            for col_dir, meta in collection_metas
+            if meta is not None
+        },
         image_ids=frozenset(image_ids),
         video_ids=frozenset(video_ids),
     )
@@ -107,45 +118,47 @@ def build_gallery_lookup(gallery_dir: Path) -> _GalleryLookup:
 # ---------------------------------------------------------------------------
 
 
+def _check_missing_ids(
+    ids: list[str], known: frozenset[str], code: str, label: str
+) -> list[CollectionCheckIssue]:
+    """Check that all IDs in *ids* exist in *known*."""
+    return [
+        CollectionCheckIssue(code, f"{label} {mid} not found in gallery")
+        for mid in ids
+        if mid not in known
+    ]
+
+
 def _check_member_existence(
     metadata: CollectionMetadata, lookup: _GalleryLookup
 ) -> list[CollectionCheckIssue]:
     """Check all member IDs exist in the gallery."""
-    issues: list[CollectionCheckIssue] = []
+    return [
+        *_check_missing_ids(
+            metadata.albums, lookup.album_ids, "missing-album", "album"
+        ),
+        *_check_missing_ids(
+            metadata.collections,
+            lookup.collection_ids,
+            "missing-collection",
+            "collection",
+        ),
+        *_check_missing_ids(
+            metadata.images, lookup.image_ids, "missing-image", "image"
+        ),
+        *_check_missing_ids(
+            metadata.videos, lookup.video_ids, "missing-video", "video"
+        ),
+    ]
 
-    for album_id in metadata.albums:
-        if album_id not in lookup.album_ids:
-            issues.append(
-                CollectionCheckIssue(
-                    "missing-album", f"album {album_id} not found in gallery"
-                )
-            )
 
-    for col_id in metadata.collections:
-        if col_id not in lookup.collection_ids:
-            issues.append(
-                CollectionCheckIssue(
-                    "missing-collection", f"collection {col_id} not found in gallery"
-                )
-            )
-
-    for img_id in metadata.images:
-        if img_id not in lookup.image_ids:
-            issues.append(
-                CollectionCheckIssue(
-                    "missing-image", f"image {img_id} not found in gallery"
-                )
-            )
-
-    for vid_id in metadata.videos:
-        if vid_id not in lookup.video_ids:
-            issues.append(
-                CollectionCheckIssue(
-                    "missing-video", f"video {vid_id} not found in gallery"
-                )
-            )
-
-    return issues
+def _date_outside_range(member_date: str, col_start: date, col_end: date) -> bool:
+    """Check if a member's date range falls outside the collection's range."""
+    rng = _album_date_range(member_date)
+    if rng is None:
+        return False
+    m_start, m_end = rng
+    return m_start < col_start or m_end > col_end
 
 
 def _check_date_coverage(
@@ -163,43 +176,32 @@ def _check_date_coverage(
         return []
 
     col_start, col_end = col_range
-    issues: list[CollectionCheckIssue] = []
 
-    # Check album dates
-    for album_id in metadata.albums:
-        album_date = lookup.album_dates.get(album_id)
-        if album_date is None:
-            continue
-        album_range = _album_date_range(album_date)
-        if album_range is None:
-            continue
-        a_start, a_end = album_range
-        if a_start < col_start or a_end > col_end:
-            issues.append(
-                CollectionCheckIssue(
-                    "date-not-covered",
-                    f"album {album_id} date {album_date} outside collection range {parsed.date}",
-                )
+    return [
+        # Albums outside range
+        *[
+            CollectionCheckIssue(
+                "date-not-covered",
+                f"album {aid} date {lookup.album_dates[aid]} "
+                f"outside collection range {parsed.date}",
             )
-
-    # Check sub-collection dates
-    for col_id in metadata.collections:
-        sub_date = lookup.collection_dates.get(col_id)
-        if sub_date is None:
-            continue
-        sub_range = _album_date_range(sub_date)
-        if sub_range is None:
-            continue
-        s_start, s_end = sub_range
-        if s_start < col_start or s_end > col_end:
-            issues.append(
-                CollectionCheckIssue(
-                    "date-not-covered",
-                    f"collection {col_id} date {sub_date} outside collection range {parsed.date}",
-                )
+            for aid in metadata.albums
+            if aid in lookup.album_dates
+            and _date_outside_range(lookup.album_dates[aid], col_start, col_end)
+        ],
+        # Sub-collections outside range
+        *[
+            CollectionCheckIssue(
+                "date-not-covered",
+                f"collection {cid} date {sub_date} "
+                f"outside collection range {parsed.date}",
             )
-
-    return issues
+            for cid in metadata.collections
+            for sub_date in [lookup.collection_dates.get(cid)]
+            if sub_date is not None
+            and _date_outside_range(sub_date, col_start, col_end)
+        ],
+    ]
 
 
 def check_collection(
@@ -216,13 +218,14 @@ def check_collection(
             ),
         )
 
-    issues: list[CollectionCheckIssue] = []
-    issues.extend(_check_member_existence(metadata, lookup))
-    issues.extend(_check_date_coverage(collection_dir, metadata, lookup))
-
     return CollectionCheckResult(
         collection_dir=collection_dir,
-        issues=tuple(issues),
+        issues=tuple(
+            [
+                *_check_member_existence(metadata, lookup),
+                *_check_date_coverage(collection_dir, metadata, lookup),
+            ]
+        ),
     )
 
 
@@ -231,7 +234,7 @@ def check_all_collections(
 ) -> list[CollectionCheckResult]:
     """Check all collections in the gallery."""
     lookup = build_gallery_lookup(gallery_dir)
-    results: list[CollectionCheckResult] = []
-    for col_dir in discover_collections(gallery_dir):
-        results.append(check_collection(col_dir, lookup))
-    return results
+    return [
+        check_collection(col_dir, lookup)
+        for col_dir in discover_collections(gallery_dir)
+    ]

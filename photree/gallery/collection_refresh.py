@@ -85,41 +85,36 @@ class _AlbumInfo:
     parsed: ParsedAlbumName
 
 
+def _try_scan_album(
+    album_dir: Path,
+) -> _AlbumInfo | CollectionRefreshError:
+    """Validate and scan a single album. Returns info or error."""
+    # Light check: naming only (no EXIF)
+    if check_album_naming(album_dir.name):
+        return CollectionRefreshError(f"album '{album_dir.name}': unparseable name")
+
+    parsed = parse_album_name(album_dir.name)
+    if parsed is None:
+        return CollectionRefreshError(f"album '{album_dir.name}': unparseable name")
+
+    meta = load_album_metadata(album_dir)
+    if meta is None:
+        return CollectionRefreshError(
+            f"album '{album_dir.name}': missing album metadata"
+        )
+
+    return _AlbumInfo(path=album_dir, album_id=meta.id, parsed=parsed)
+
+
 def _scan_albums(
     gallery_dir: Path,
 ) -> tuple[list[_AlbumInfo], list[CollectionRefreshError]]:
     """Scan and validate all albums. Returns (valid_albums, errors)."""
-    albums: list[_AlbumInfo] = []
-    errors: list[CollectionRefreshError] = []
-
-    for album_dir in discover_albums(gallery_dir):
-        # Light check: naming only (no EXIF)
-        naming_issues = check_album_naming(album_dir.name)
-        if naming_issues:
-            errors.append(
-                CollectionRefreshError(f"album '{album_dir.name}': unparseable name")
-            )
-            continue
-
-        parsed = parse_album_name(album_dir.name)
-        if parsed is None:
-            errors.append(
-                CollectionRefreshError(f"album '{album_dir.name}': unparseable name")
-            )
-            continue
-
-        meta = load_album_metadata(album_dir)
-        if meta is None:
-            errors.append(
-                CollectionRefreshError(
-                    f"album '{album_dir.name}': missing album metadata"
-                )
-            )
-            continue
-
-        albums.append(_AlbumInfo(path=album_dir, album_id=meta.id, parsed=parsed))
-
-    return albums, errors
+    results = [_try_scan_album(d) for d in discover_albums(gallery_dir)]
+    return (
+        [r for r in results if isinstance(r, _AlbumInfo)],
+        [r for r in results if isinstance(r, CollectionRefreshError)],
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -138,14 +133,12 @@ class _ExistingCollection:
 
 def _scan_existing_collections(gallery_dir: Path) -> list[_ExistingCollection]:
     """Find all existing collections in the gallery."""
-    result = []
-    for col_dir in discover_collections(gallery_dir):
-        meta = load_collection_metadata(col_dir)
-        if meta is not None:
-            result.append(
-                _ExistingCollection(path=col_dir, metadata=meta, name=col_dir.name)
-            )
-    return result
+    return [
+        _ExistingCollection(path=col_dir, metadata=meta, name=col_dir.name)
+        for col_dir in discover_collections(gallery_dir)
+        for meta in [load_collection_metadata(col_dir)]
+        if meta is not None
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -164,19 +157,12 @@ def _compute_date_string(dates: list[str]) -> str:
         return dates[0]
 
     # Find min start and max end across all dates
-    all_starts: list[date] = []
-    all_ends: list[date] = []
-    for d in dates:
-        rng = _album_date_range(d)
-        if rng is not None:
-            all_starts.append(rng[0])
-            all_ends.append(rng[1])
-
-    if not all_starts:
+    ranges = [rng for d in dates for rng in [_album_date_range(d)] if rng is not None]
+    if not ranges:
         return dates[0]
 
-    min_start = min(all_starts)
-    max_end = max(all_ends)
+    min_start = min(s for s, _ in ranges)
+    max_end = max(e for _, e in ranges)
 
     if min_start == max_end:
         return str(min_start)
@@ -218,13 +204,14 @@ def _refresh_implicit_collections(
             series_albums[album.parsed.series].append(album)
 
     # Index existing implicit collections by title
-    implicit_by_title: dict[str, _ExistingCollection] = {}
-    implicit_by_id: dict[str, _ExistingCollection] = {}
-    for col in existing:
-        if col.metadata.lifecycle == CollectionLifecycle.IMPLICIT:
-            parsed_col = parse_collection_name(col.name)
-            implicit_by_title[parsed_col.title] = col
-            implicit_by_id[col.metadata.id] = col
+    implicit_cols = [
+        col
+        for col in existing
+        if col.metadata.lifecycle == CollectionLifecycle.IMPLICIT
+    ]
+    implicit_by_title = {
+        parse_collection_name(col.name).title: col for col in implicit_cols
+    }
 
     # Track which implicit collections are still active
     active_implicit_ids: set[str] = set()
@@ -361,14 +348,23 @@ def _refresh_smart_collections(
     """
     updated: list[str] = []
 
-    # Build collection index for sub-collection matching
-    col_date_ranges: dict[str, tuple[date, date]] = {}
-    for col in all_collections:
-        parsed = parse_collection_name(col.name)
-        if parsed.date is not None:
-            rng = _album_date_range(parsed.date)
-            if rng is not None:
-                col_date_ranges[col.metadata.id] = rng
+    # Build collection date range index for sub-collection matching
+    col_date_ranges: dict[str, tuple[date, date]] = {
+        col.metadata.id: rng
+        for col in all_collections
+        for parsed_col in [parse_collection_name(col.name)]
+        if parsed_col.date is not None
+        for rng in [_album_date_range(parsed_col.date)]
+        if rng is not None
+    }
+
+    # Pre-compute album date ranges
+    album_ranges = [
+        (album.album_id, rng)
+        for album in albums
+        for rng in [_album_date_range(album.parsed.date)]
+        if rng is not None
+    ]
 
     for col in all_collections:
         if col.metadata.kind != CollectionKind.SMART:
@@ -384,34 +380,26 @@ def _refresh_smart_collections(
 
         col_start, col_end = col_range
 
-        # Find albums in range
-        matching_album_ids: list[str] = []
-        for album in albums:
-            album_range = _album_date_range(album.parsed.date)
-            if album_range is None:
-                continue
-            a_start, a_end = album_range
-            # Album is in range if it overlaps with the collection range
-            if a_start <= col_end and a_end >= col_start:
-                matching_album_ids.append(album.album_id)
+        # Albums overlapping the collection range
+        matching_album_ids = sorted(
+            aid
+            for aid, (a_start, a_end) in album_ranges
+            if a_start <= col_end and a_end >= col_start
+        )
 
-        # Find sub-collections in range
-        matching_col_ids: list[str] = []
-        for other_col in all_collections:
-            if other_col.metadata.id == col.metadata.id:
-                continue
-            if other_col.metadata.id not in col_date_ranges:
-                continue
-            o_start, o_end = col_date_ranges[other_col.metadata.id]
-            if o_start <= col_end and o_end >= col_start:
-                matching_col_ids.append(other_col.metadata.id)
+        # Sub-collections overlapping the collection range
+        matching_col_ids = sorted(
+            cid
+            for cid, (o_start, o_end) in col_date_ranges.items()
+            if cid != col.metadata.id and o_start <= col_end and o_end >= col_start
+        )
 
         new_meta = CollectionMetadata(
             id=col.metadata.id,
             kind=col.metadata.kind,
             lifecycle=col.metadata.lifecycle,
-            albums=sorted(matching_album_ids),
-            collections=sorted(matching_col_ids),
+            albums=matching_album_ids,
+            collections=matching_col_ids,
             images=col.metadata.images,
             videos=col.metadata.videos,
         )
@@ -446,18 +434,19 @@ def _sync_album_titles(
     errors: list[CollectionRefreshError] = []
 
     # Index explicit collections by title
-    explicit_by_title: dict[str, _ExistingCollection] = {}
-    for col in existing:
-        if col.metadata.lifecycle == CollectionLifecycle.EXPLICIT:
-            parsed = parse_collection_name(col.name)
-            explicit_by_title[parsed.title] = col
+    explicit_by_title = {
+        parse_collection_name(col.name).title: col
+        for col in existing
+        if col.metadata.lifecycle == CollectionLifecycle.EXPLICIT
+    }
 
     # Index implicit collections by album ID
-    implicit_by_album: dict[str, _ExistingCollection] = {}
-    for col in existing:
-        if col.metadata.lifecycle == CollectionLifecycle.IMPLICIT:
-            for album_id in col.metadata.albums:
-                implicit_by_album[album_id] = col
+    implicit_by_album = {
+        album_id: col
+        for col in existing
+        if col.metadata.lifecycle == CollectionLifecycle.IMPLICIT
+        for album_id in col.metadata.albums
+    }
 
     for album in albums:
         # Case 1: Album has series, explicit collection exists with that title
