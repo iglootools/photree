@@ -179,12 +179,10 @@ Collections group albums, media items, and other collections.
 
 **Kind** determines how members are managed:
 
-- **`manual`** (default) — members are added explicitly via
-  `collection import`. Can contain albums, collections, images, and videos.
-- **`smart`** — album and collection members are auto-populated by
-  `gallery refresh` based on date range overlap. Cannot contain images or
-  videos. Cannot be imported into — use `collection metadata set --kind
-  manual` to convert first.
+- **`manual`** — members are added explicitly via `collection import`.
+  Can contain albums, collections, images, and videos.
+- **`smart`** — members are managed automatically by `gallery refresh`.
+  Cannot contain images or videos. Cannot be imported into.
 
 **Lifecycle** determines how the collection itself is managed:
 
@@ -192,7 +190,17 @@ Collections group albums, media items, and other collections.
   affected by album title changes.
 - **`implicit`** — derived automatically from album series by
   `gallery refresh`. Created, renamed, and deleted as albums change.
-  Always `kind: manual`.
+  Always `kind: smart`.
+
+**Valid combinations**:
+
+| Kind | Lifecycle | Members determined by |
+|------|-----------|----------------------|
+| manual | explicit | user (`collection import`) |
+| smart | explicit | date range overlap (`gallery refresh`) |
+| smart | implicit | contiguous album series (`gallery refresh`) |
+
+The combination `implicit + manual` is not allowed.
 
 See [internals.md — Collections](./internals.md#collections) for the full
 design details.

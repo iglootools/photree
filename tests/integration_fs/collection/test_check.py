@@ -170,6 +170,38 @@ class TestCheckDateCoverage:
         assert result.success
 
 
+class TestCheckKindLifecycle:
+    def test_implicit_smart_passes(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        col_dir, _ = _setup_collection(
+            gallery,
+            "2024-07 - July",
+            kind=CollectionKind.SMART,
+            lifecycle=CollectionLifecycle.IMPLICIT,
+        )
+        lookup = build_gallery_lookup(gallery)
+        result = check_collection(col_dir, lookup)
+        assert result.success
+
+    def test_implicit_manual_fails(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        col_dir = gallery / "collections" / "2024" / "2024-07 - July"
+        col_dir.mkdir(parents=True)
+        # Manually write invalid combination (bypassing validation)
+        save_collection_metadata(
+            col_dir,
+            CollectionMetadata(
+                id=generate_collection_id(),
+                kind=CollectionKind.MANUAL,
+                lifecycle=CollectionLifecycle.IMPLICIT,
+            ),
+        )
+        lookup = build_gallery_lookup(gallery)
+        result = check_collection(col_dir, lookup)
+        assert not result.success
+        assert any(i.code == "invalid-kind-lifecycle" for i in result.issues)
+
+
 class TestCheckEmpty:
     def test_empty_collection_passes(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)

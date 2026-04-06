@@ -71,7 +71,7 @@ class TestImplicitCollectionDetection:
         meta = load_collection_metadata(collections[0])
         assert meta is not None
         assert meta.lifecycle == CollectionLifecycle.IMPLICIT
-        assert meta.kind == CollectionKind.MANUAL
+        assert meta.kind == CollectionKind.SMART
         assert len(meta.albums) == 2
 
     def test_date_range_for_multiday_series(self, tmp_path: Path) -> None:
@@ -153,7 +153,7 @@ class TestImplicitCollectionDetection:
             col_dir,
             CollectionMetadata(
                 id=generate_collection_id(),
-                kind=CollectionKind.MANUAL,
+                kind=CollectionKind.SMART,
                 lifecycle=CollectionLifecycle.IMPLICIT,
                 albums=["nonexistent-id"],
             ),
@@ -370,7 +370,7 @@ class TestAlbumTitleSync:
             col_dir,
             CollectionMetadata(
                 id=generate_collection_id(),
-                kind=CollectionKind.MANUAL,
+                kind=CollectionKind.SMART,
                 lifecycle=CollectionLifecycle.IMPLICIT,
                 albums=[aid],
             ),

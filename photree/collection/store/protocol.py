@@ -40,6 +40,21 @@ class CollectionLifecycle(StrEnum):
 # ---------------------------------------------------------------------------
 
 
+def validate_kind_lifecycle(
+    kind: CollectionKind, lifecycle: CollectionLifecycle
+) -> str | None:
+    """Return an error message if the kind + lifecycle combination is invalid.
+
+    Returns ``None`` when the combination is valid.
+    """
+    if lifecycle == CollectionLifecycle.IMPLICIT and kind != CollectionKind.SMART:
+        return (
+            "implicit collections must be kind=smart (implicit + manual is not allowed)"
+        )
+    else:
+        return None
+
+
 class CollectionMetadata(_BaseModel):
     """Per-collection metadata stored in ``.photree/collection.yaml``."""
 

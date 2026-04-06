@@ -62,6 +62,25 @@ class TestCollectionInit:
         assert metadata.kind == CollectionKind.SMART
         assert metadata.lifecycle == CollectionLifecycle.IMPLICIT
 
+    def test_rejects_implicit_manual(self, tmp_path: Path) -> None:
+        col = tmp_path / "my-collection"
+        col.mkdir()
+        result = runner.invoke(
+            app,
+            [
+                "collection",
+                "init",
+                "-d",
+                str(col),
+                "--kind",
+                "manual",
+                "--lifecycle",
+                "implicit",
+            ],
+        )
+        assert result.exit_code == 1
+        assert "implicit" in result.output
+
     def test_fails_if_already_initialized(self, tmp_path: Path) -> None:
         col = tmp_path / "my-collection"
         col.mkdir()

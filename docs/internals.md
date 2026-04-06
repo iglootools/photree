@@ -338,14 +338,18 @@ location, `[private]` is the only currently allowed tag.
 
 ### Collection Kind
 
-- **`smart`** — album and collection members are auto-populated by
-  `gallery refresh` based on date range overlap. Smart collections cannot
-  contain image or video members — they only group albums and
-  sub-collections. `collection import` is not allowed on smart collections.
-- **`manual`** — members are listed explicitly. Added via `collection import`
-  or managed by `gallery refresh` for implicit collections. Manual
-  collections can contain all member types (albums, collections, images,
-  videos).
+- **`smart`** — members are managed automatically by `gallery refresh`.
+  Smart collections cannot contain image or video members — they only
+  group albums and sub-collections. `collection import` is not allowed
+  on smart collections. The specific membership rule depends on the
+  lifecycle:
+  - **explicit + smart**: members derived from date range overlap
+  - **implicit + smart**: members derived from contiguous album series
+- **`manual`** — members are listed explicitly via `collection import`.
+  Can contain all member types (albums, collections, images, videos).
+  Only valid with `lifecycle: explicit`.
+
+The combination `implicit + manual` is forbidden.
 
 ### Collection Lifecycle
 
@@ -353,7 +357,7 @@ location, `[private]` is the only currently allowed tag.
   `collection import`). Not affected by album title changes.
 - **`implicit`** — derived from album series (the series component parsed
   from album titles). Created, renamed, and deleted automatically by
-  `gallery refresh`. Implicit collections are always `kind: manual` —
+  `gallery refresh`. Implicit collections are always `kind: smart` —
   they contain exactly the albums sharing that series. Only **contiguous**
   albums with the same series form a single collection; if the same series
   is interrupted by other albums, each contiguous run produces a separate

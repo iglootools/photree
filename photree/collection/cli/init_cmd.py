@@ -16,6 +16,7 @@ from ..store.protocol import (
     CollectionKind,
     CollectionLifecycle,
     CollectionMetadata,
+    validate_kind_lifecycle,
 )
 from . import collection_app
 
@@ -58,6 +59,11 @@ def init_cmd(
             "Use 'photree collection metadata set' to change settings.",
             err=True,
         )
+        raise typer.Exit(code=1)
+
+    validation_error = validate_kind_lifecycle(kind, lifecycle)
+    if validation_error is not None:
+        typer.echo(validation_error, err=True)
         raise typer.Exit(code=1)
 
     generated_id = generate_collection_id()

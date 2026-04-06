@@ -20,7 +20,7 @@ from ..fsprotocol import ALBUMS_DIR, COLLECTIONS_DIR
 from .naming import parse_collection_name
 from .store.collection_discovery import discover_collections
 from .store.metadata import load_collection_metadata
-from .store.protocol import CollectionKind, CollectionMetadata
+from .store.protocol import CollectionKind, CollectionMetadata, validate_kind_lifecycle
 
 
 # ---------------------------------------------------------------------------
@@ -205,6 +205,17 @@ def _check_date_coverage(
     ]
 
 
+def _check_kind_lifecycle(
+    metadata: CollectionMetadata,
+) -> list[CollectionCheckIssue]:
+    """Validate kind + lifecycle combination."""
+    error = validate_kind_lifecycle(metadata.kind, metadata.lifecycle)
+    if error is not None:
+        return [CollectionCheckIssue("invalid-kind-lifecycle", error)]
+    else:
+        return []
+
+
 def _check_smart_no_media(
     metadata: CollectionMetadata,
 ) -> list[CollectionCheckIssue]:
@@ -255,6 +266,7 @@ def check_collection(
         collection_dir=collection_dir,
         issues=tuple(
             [
+                *_check_kind_lifecycle(metadata),
                 *_check_member_existence(metadata, lookup),
                 *_check_date_coverage(collection_dir, metadata, lookup),
                 *_check_smart_no_media(metadata),

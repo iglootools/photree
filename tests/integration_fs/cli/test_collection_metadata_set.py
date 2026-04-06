@@ -49,7 +49,8 @@ class TestCollectionMetadataSet:
         assert loaded is not None
         assert loaded.kind == CollectionKind.SMART
 
-    def test_updates_lifecycle(self, tmp_path: Path) -> None:
+    def test_updates_lifecycle_to_implicit_requires_smart(self, tmp_path: Path) -> None:
+        """Setting lifecycle=implicit on a manual collection is rejected."""
         _init_collection(tmp_path, lifecycle=CollectionLifecycle.EXPLICIT)
         result = runner.invoke(
             app,
@@ -63,8 +64,28 @@ class TestCollectionMetadataSet:
                 "implicit",
             ],
         )
+        assert result.exit_code == 1
+        assert "implicit" in result.output
+
+    def test_updates_lifecycle_to_implicit_with_smart(self, tmp_path: Path) -> None:
+        _init_collection(
+            tmp_path,
+            kind=CollectionKind.SMART,
+            lifecycle=CollectionLifecycle.EXPLICIT,
+        )
+        result = runner.invoke(
+            app,
+            [
+                "collection",
+                "metadata",
+                "set",
+                "-d",
+                str(tmp_path),
+                "--lifecycle",
+                "implicit",
+            ],
+        )
         assert result.exit_code == 0
-        assert "lifecycle: explicit -> implicit" in result.output
         loaded = load_collection_metadata(tmp_path)
         assert loaded is not None
         assert loaded.lifecycle == CollectionLifecycle.IMPLICIT
