@@ -48,6 +48,7 @@ $ photree album [OPTIONS] COMMAND [ARGS]...
 * `fix-ios`: Fix iOS-specific album issues.
 * `import-check`: Check that system prerequisites for import...
 * `import`
+* `list-media`: List all media items in an album.
 * `init`: Initialize album metadata...
 * `mv-media`: Move media files and all their variants...
 * `optimize`: Optimize main directories by replacing...
@@ -268,6 +269,23 @@ $ photree album import [OPTIONS]
 * `--media-source TEXT`: Target media source within the album (default: main).  [default: main]
 * `--help`: Show this message and exit.
 
+### `photree album list-media`
+
+List all media items in an album.
+
+**Usage**:
+
+```console
+$ photree album list-media [OPTIONS]
+```
+
+**Options**:
+
+* `-a, --album-dir DIRECTORY`: Album directory.  [default: .]
+* `--format TEXT`: Output format: text (default) or csv.  [default: text]
+* `-o, --output FILE`: Write output to a file instead of stdout.
+* `--help`: Show this message and exit.
+
 ### `photree album init`
 
 Initialize album metadata (.photree/album.yaml) with a new album ID.
@@ -430,6 +448,7 @@ $ photree albums [OPTIONS] COMMAND [ARGS]...
 * `import`
 * `init`: Initialize album metadata...
 * `list`: List all discovered albums with their...
+* `list-media`: List all media items across multiple albums.
 * `optimize`: Optimize all albums with archives under a...
 * `refresh`: Refresh media metadata...
 * `rename-from-csv`: Rename albums from a CSV file (from list...
@@ -597,6 +616,24 @@ $ photree albums list [OPTIONS]
 * `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
 * `-a, --album-dir DIRECTORY`: Album directory (repeatable).
 * `--metadata / --no-metadata`: Show parsed album metadata and media sources (default: enabled).  [default: metadata]
+* `--format TEXT`: Output format: text (default) or csv.  [default: text]
+* `-o, --output FILE`: Write output to a file instead of stdout.
+* `--help`: Show this message and exit.
+
+### `photree albums list-media`
+
+List all media items across multiple albums.
+
+**Usage**:
+
+```console
+$ photree albums list-media [OPTIONS]
+```
+
+**Options**:
+
+* `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
+* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
 * `--format TEXT`: Output format: text (default) or csv.  [default: text]
 * `-o, --output FILE`: Write output to a file instead of stdout.
 * `--help`: Show this message and exit.
@@ -960,6 +997,7 @@ $ photree gallery [OPTIONS] COMMAND [ARGS]...
 * `init`: Initialize gallery metadata...
 * `list-albums`: List all albums in the gallery.
 * `list-collections`: List all collections in the gallery.
+* `list-media`: List all media items across all albums in...
 * `optimize`: Optimize all iOS albums in the gallery.
 * `refresh`: Refresh media metadata and collections for...
 * `rename-from-csv`: Rename albums from a CSV file (from...
@@ -1152,6 +1190,23 @@ $ photree gallery list-collections [OPTIONS]
 
 * `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--metadata / --no-metadata`: Show parsed collection metadata (default: enabled).  [default: metadata]
+* `--format TEXT`: Output format: text (default) or csv.  [default: text]
+* `-o, --output FILE`: Write output to a file instead of stdout.
+* `--help`: Show this message and exit.
+
+### `photree gallery list-media`
+
+List all media items across all albums in the gallery.
+
+**Usage**:
+
+```console
+$ photree gallery list-media [OPTIONS]
+```
+
+**Options**:
+
+* `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--format TEXT`: Output format: text (default) or csv.  [default: text]
 * `-o, --output FILE`: Write output to a file instead of stdout.
 * `--help`: Show this message and exit.

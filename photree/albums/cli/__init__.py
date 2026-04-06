@@ -49,6 +49,7 @@ from . import (  # noqa: E402, F401 — imported for command registration side e
     import_cmd,
     init_cmd,
     list_cmd,
+    list_media_cmd,
     optimize_cmd,
     refresh_cmd,
     rename_from_csv_cmd,
