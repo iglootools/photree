@@ -163,6 +163,63 @@ photree gallery check --no-checksum
 photree gallery check -W
 ```
 
+### Collections
+
+Collections group albums, media items, and other collections. See
+[internals.md — Collections](./internals.md#collections) for the design.
+
+**Initialize a collection:**
+
+```bash
+# Manual collection (default)
+photree collection init -d "2024-07 - July Highlights"
+
+# Smart collection (auto-populates by date range)
+photree collection init -d "2024 - Best of 2024" --kind smart
+```
+
+**Import members into a collection:**
+
+```bash
+# Create a to-import.csv with album names, IDs, or media IDs
+echo "2024-07-14 - Hiking the Rockies" > my-collection/to-import.csv
+echo "album_3K8vJxNm2cYpR7qWz5FhG" >> my-collection/to-import.csv
+
+# Import members
+photree collection import -c my-collection/
+```
+
+**Implicit collections from album series:**
+
+Albums with a series component (e.g. `2024-07-14 - 01 - Canada Trip - Hiking`)
+automatically create implicit collections when `gallery refresh` runs.
+
+```bash
+# Refresh creates/updates/deletes implicit collections
+photree gallery refresh
+```
+
+**Check collections:**
+
+```bash
+# Check a single collection
+photree collection check -d my-collection/ -g ~/Pictures/gallery
+
+# Check all collections in the gallery
+photree collections check
+
+# Gallery check includes collection checks
+photree gallery check
+```
+
+**Update collection settings:**
+
+```bash
+# Change kind or lifecycle
+photree collection metadata set -d my-collection/ --kind smart
+photree collection metadata set -d my-collection/ --lifecycle explicit
+```
+
 ### Optimize Albums
 
 Reduces disk usage by replacing file copies with links for all iOS albums in the gallery.
