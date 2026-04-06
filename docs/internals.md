@@ -643,15 +643,21 @@ operations.
 
 photree has two levels of album validation, used in different contexts:
 
-### Light Check (naming only)
+### Light Check (naming + cross-album)
 
-Validates the album directory name against the naming convention. No
-filesystem or media file access beyond the name string itself. Fast,
-suitable as a pre-validation gate.
+Validates album directory names against the naming convention and detects
+cross-album date collisions. No media file access — only inspects names
+and album metadata. Fast, suitable as a pre-validation gate.
+
+Includes:
+- Per-album naming validation (parseability, tags, part number rules,
+  canonical spacing)
+- Cross-album date collision detection (multiple non-private single-day
+  albums on the same date without part numbers)
 
 Used by:
-- `gallery refresh` — ensures all album names are parsable before
-  modifying any collections
+- `gallery refresh` — ensures all album names are parsable and
+  collision-free before modifying any collections
 - `gallery import` / `gallery import-all` — validates naming before
   importing an album into the gallery
 - `album import` — validates naming before importing Image Capture files

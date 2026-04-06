@@ -18,6 +18,7 @@ from ..album.naming import (
     ParsedAlbumName,
     _album_date_range,
     check_album_naming,
+    check_batch_date_collisions,
     parse_album_name,
     reconstruct_name,
 )
@@ -743,7 +744,7 @@ def refresh_collections(
     3. Refresh implicit collections from album series
     4. Materialize smart collection members
     """
-    # Stage 1: scan albums
+    # Stage 1: scan albums + validate
     _notify(on_stage_start, STAGE_SCAN_ALBUMS)
     albums, scan_errors = _scan_albums(gallery_dir)
     existing = _scan_existing_collections(gallery_dir)
@@ -751,6 +752,20 @@ def refresh_collections(
 
     if scan_errors:
         return CollectionRefreshResult(errors=tuple(scan_errors))
+
+    # Check for date collisions before modifying anything
+    batch_naming = check_batch_date_collisions(
+        [(a.path.name, a.parsed) for a in albums]
+    )
+    if not batch_naming.success:
+        collision_errors = tuple(
+            CollectionRefreshError(
+                f"date collision on {album_date}: "
+                f"{', '.join(names)} — add part numbers to disambiguate"
+            )
+            for album_date, names in batch_naming.date_collisions
+        )
+        return CollectionRefreshResult(errors=collision_errors)
 
     # Stage 2: sync album titles
     _notify(on_stage_start, STAGE_TITLE_SYNC)
