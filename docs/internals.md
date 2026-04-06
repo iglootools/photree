@@ -375,13 +375,19 @@ A collection can be converted between lifecycles using
 
 ### Collection Refresh
 
-`gallery refresh` runs four phases for collections, after the album media
-refresh:
+`gallery refresh` runs the following phases for collections, after the
+album media refresh:
 
-#### Phase 1: Album Title Sync
+#### Phase 1: Scan and Validate Albums
+
+Parses all album names (light check) and detects cross-album date
+collisions. If any album name is unparseable or date collisions are
+found, the refresh aborts before modifying anything.
+
+#### Phase 2: Album Title Sync
 
 Syncs album directory names with collection lifecycle state. This runs
-first so that implicit collection detection (phase 2) sees the updated
+before implicit collection detection so that phase 3 sees the updated
 album names.
 
 - **Album has series + explicit collection with that title exists** →
@@ -392,7 +398,7 @@ album names.
 
 See [Collection Lifecycle](#collection-lifecycle) for examples.
 
-#### Phase 2: Implicit Collection Refresh
+#### Phase 3: Implicit Collection Refresh
 
 Detects album series and creates/updates/renames/deletes implicit
 collections:
@@ -427,7 +433,7 @@ title changes, but neither covers both simultaneously. To preserve the ID,
 apply changes incrementally: rename the series in one refresh, then
 add/remove albums in a subsequent refresh.
 
-#### Phase 3: Smart Collection Refresh
+#### Phase 4: Smart Collection Refresh
 
 Materializes members for `kind: smart` collections based on date range
 overlap:
