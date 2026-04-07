@@ -95,7 +95,7 @@ def _validate_album(album_dir: Path, image_capture_files: list[str]) -> AlbumVal
 
     selection_files = list(read_selection(album_dir).merged)
     plan = plan_import(selection_files, image_capture_files)
-    errors = validate_import_plan(plan)
+    errors, _warnings = validate_import_plan(plan)
     return AlbumValidation(album_dir=album_dir, plan=plan, errors=tuple(errors))
 
 

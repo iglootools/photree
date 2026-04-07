@@ -145,12 +145,12 @@ class TestValidateImportPlan:
             ["IMG_0410.HEIC"],
             ["IMG_0410.HEIC", "IMG_0410.AAE", "IMG_E0410.HEIC", "IMG_O0410.AAE"],
         )
-        errors = validate_import_plan(plan)
+        errors, warnings = validate_import_plan(plan)
         assert errors == []
 
     def test_unmatched_selection_file(self) -> None:
         plan = plan_import(["IMG_9999.HEIC"], ["IMG_0001.HEIC"])
-        errors = validate_import_plan(plan)
+        errors, warnings = validate_import_plan(plan)
         assert len(errors) == 1
         assert "no matching original" in errors[0].message
 
@@ -159,7 +159,7 @@ class TestValidateImportPlan:
             ["IMG_0410.HEIC"],
             ["IMG_0410.HEIC", "IMG_0410.AAE", "IMG_E0410.HEIC"],
         )
-        errors = validate_import_plan(plan)
+        errors, warnings = validate_import_plan(plan)
         assert any("rendered sidecar" in e.message for e in errors)
 
     def test_rendered_sidecar_without_rendered_media(self) -> None:
@@ -167,7 +167,7 @@ class TestValidateImportPlan:
             ["IMG_0410.HEIC"],
             ["IMG_0410.HEIC", "IMG_0410.AAE", "IMG_O0410.AAE"],
         )
-        errors = validate_import_plan(plan)
+        errors, warnings = validate_import_plan(plan)
         assert any("rendered media" in e.message for e in errors)
 
     def test_heic_without_aae_warns(self) -> None:
@@ -175,15 +175,16 @@ class TestValidateImportPlan:
             ["IMG_0410.HEIC"],
             ["IMG_0410.HEIC"],
         )
-        errors = validate_import_plan(plan)
-        assert any("no AAE sidecar" in e.message for e in errors)
+        errors, warnings = validate_import_plan(plan)
+        assert not errors
+        assert any("no AAE sidecar" in w.message for w in warnings)
 
     def test_png_without_aae_is_fine(self) -> None:
         plan = plan_import(
             ["IMG_0073.PNG"],
             ["IMG_0073.PNG"],
         )
-        errors = validate_import_plan(plan)
+        errors, warnings = validate_import_plan(plan)
         assert errors == []
 
     def test_multiple_orig_media_deduped_with_heic_priority(self) -> None:
@@ -193,7 +194,7 @@ class TestValidateImportPlan:
             ["IMG_0410.HEIC", "IMG_0410.JPG", "IMG_0410.AAE"],
         )
         # No validation errors (dedup resolved it)
-        errors = validate_import_plan(plan)
+        errors, warnings = validate_import_plan(plan)
         assert not any("expected 1 original media file" in e.message for e in errors)
         # Dedup warning on the plan
         assert any("IMG_0410.JPG dropped" in w for w in plan.dedup_warnings)
@@ -215,7 +216,7 @@ class TestValidateImportPlan:
                 "IMG_O0410.AAE",
             ],
         )
-        errors = validate_import_plan(plan)
+        errors, warnings = validate_import_plan(plan)
         assert not any(
             "expected at most 1 rendered media file" in e.message for e in errors
         )
