@@ -193,7 +193,7 @@ Collections group albums, media items, and other collections.
 **Strategy** determines the rule for member selection:
 
 - **`import`** — members added manually (default for manual collections)
-- **`date-range`** — auto-populated by date range overlap (default for
+- **`date-range`** — auto-populated by date range containment (default for
   smart explicit)
 - **`album-series`** — auto-populated from contiguous album series
   (used by implicit collections)
@@ -205,7 +205,7 @@ Collections group albums, media items, and other collections.
 | Members | Lifecycle | Strategy | Description |
 |---------|-----------|----------|-------------|
 | manual | explicit | import | User-managed via `collection import` |
-| smart | explicit | date-range | Auto by date range overlap |
+| smart | explicit | date-range | Auto by date range containment |
 | smart | explicit | chapter | Auto by date range, no overlap with other chapters |
 | smart | implicit | album-series | Auto from contiguous album series |
 
