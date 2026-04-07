@@ -13,6 +13,7 @@ from ...clihelpers.options import DRY_RUN_OPTION
 from ...clihelpers.progress import StageProgressBar
 from ...albums.cli.batch_ops import run_batch_refresh
 from ...albums.cli.ops import resolve_check_batch_albums
+from ..browsable_refresh import refresh_browsable
 from ..collection_refresh import (
     STAGE_IMPLICIT_REFRESH,
     STAGE_SCAN_ALBUMS,
@@ -91,3 +92,26 @@ def refresh_cmd(
         or col_result.album_renames
     ):
         typer.echo("  no changes")
+
+    # Refresh browsable directory structure
+    typer.echo("\nBrowsable:")
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        transient=True,
+    ) as progress:
+        progress.add_task("Rendering browsable structure...", total=None)
+        browsable_result = refresh_browsable(resolved, dry_run=dry_run)
+
+    if not browsable_result.success:
+        for error in browsable_result.errors:
+            err_console.print(f"  error: {error.message}")
+        raise typer.Exit(code=1)
+
+    typer.echo(
+        f"  {browsable_result.albums_rendered} album(s), "
+        f"{browsable_result.collections_rendered} collection(s), "
+        f"{browsable_result.symlinks_created} symlink(s)"
+    )
