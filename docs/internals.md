@@ -336,20 +336,16 @@ same spec as albums: `YYYY`, `YYYY-MM`, `YYYY-MM-DD`, or ranges with `--`.
 Location and tags follow the same rules as albums: `@` separates the
 location, `[private]` is the only currently allowed tag.
 
-### Collection Kind
+### Collection Members
+
+Determines how members are selected:
 
 - **`smart`** — members are managed automatically by `gallery refresh`.
   Smart collections cannot contain image or video members — they only
   group albums and sub-collections. `collection import` is not allowed
-  on smart collections. The specific membership rule depends on the
-  lifecycle:
-  - **explicit + smart**: members derived from date range overlap
-  - **implicit + smart**: members derived from contiguous album series
+  on smart collections.
 - **`manual`** — members are listed explicitly via `collection import`.
   Can contain all member types (albums, collections, images, videos).
-  Only valid with `lifecycle: explicit`.
-
-The combination `implicit + manual` is forbidden.
 
 ### Collection Lifecycle
 
@@ -357,8 +353,7 @@ The combination `implicit + manual` is forbidden.
   `collection import`). Not affected by album title changes.
 - **`implicit`** — derived from album series (the series component parsed
   from album titles). Created, renamed, and deleted automatically by
-  `gallery refresh`. Implicit collections are always `kind: smart` —
-  they contain exactly the albums sharing that series. Only **contiguous**
+  `gallery refresh`. Only **contiguous**
   albums with the same series form a single collection; if the same series
   is interrupted by other albums, each contiguous run produces a separate
   collection (disambiguated by date range in the collection name).
@@ -376,6 +371,32 @@ A collection can be converted between lifecycles using
   component to the contained albums' names (e.g.
   `2024-07-14 - 01 - Hiking` becomes
   `2024-07-14 - 01 - Canada Trip - Hiking`).
+
+### Collection Strategy
+
+Determines the rule for member selection:
+
+- **`import`** — members added manually via `collection import`. Default
+  for manual collections.
+- **`date-range`** — members auto-populated by date range overlap.
+  Default for smart explicit collections.
+- **`album-series`** — members auto-populated from contiguous album
+  series. Used by implicit collections.
+- **`chapter`** — like `date-range`, but with an additional constraint:
+  chapter collections must not overlap in date range with other chapter
+  collections. Enforced at both `collection check` and `gallery refresh`.
+
+### Valid Combinations
+
+| members | lifecycle | strategy | Description |
+|---------|-----------|----------|-------------|
+| manual | explicit | import | User-managed via `collection import` |
+| smart | explicit | date-range | Auto-populated by date range overlap |
+| smart | explicit | chapter | Auto-populated by date range, no overlap with other chapters |
+| smart | implicit | album-series | Auto-populated from contiguous album series |
+
+Other combinations are rejected at `collection init`, `collection metadata
+set`, and `collection check`.
 
 ### Collection Refresh
 
@@ -439,7 +460,7 @@ add/remove albums in a subsequent refresh.
 
 #### Phase 4: Smart Collection Refresh
 
-Materializes members for `kind: smart` collections based on date range
+Materializes members for `members: smart` collections based on date range
 overlap:
 
 - For each smart collection with a date, finds all albums and
@@ -521,8 +542,9 @@ Each collection has a `.photree/collection.yaml` file:
 
 ```yaml
 id: 0192d4e1-7c3f-7b4a-8c5e-f6a7b8c9d0e1
-kind: manual
+members: smart
 lifecycle: implicit
+strategy: album-series
 albums:
 - 0192d4e1-7c3f-7b4a-8c5e-f6a7b8c9d0e2
 - 0192d4e1-7c3f-7b4a-8c5e-f6a7b8c9d0e3
@@ -534,8 +556,9 @@ videos: []
 | Field         | Type           | Description |
 |---------------|----------------|-------------|
 | `id`          | string         | UUID v7 identifying the collection. |
-| `kind`        | string         | `smart` or `manual`. |
+| `members`     | string         | `smart` or `manual`. |
 | `lifecycle`   | string         | `implicit` or `explicit`. |
+| `strategy`    | string         | `import`, `date-range`, `album-series`, or `chapter`. |
 | `albums`      | list\[string\] | Album internal UUIDs. |
 | `collections` | list\[string\] | Collection internal UUIDs. |
 | `images`      | list\[string\] | Image internal UUIDs. |
