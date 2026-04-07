@@ -551,9 +551,11 @@ def _refresh_implicit_collections(
 # ---------------------------------------------------------------------------
 
 
-def _overlaps(start_a: date, end_a: date, start_b: date, end_b: date) -> bool:
-    """Check if two date ranges overlap."""
-    return start_a <= end_b and end_a >= start_b
+def _is_contained(
+    member_start: date, member_end: date, col_start: date, col_end: date
+) -> bool:
+    """Check if the member's date range is fully contained within the collection's."""
+    return member_start >= col_start and member_end <= col_end
 
 
 def _refresh_smart_collections(
@@ -614,7 +616,7 @@ def _refresh_smart_collections(
         matching_album_ids = sorted(
             aid
             for aid, (a_start, a_end), is_private_album in album_ranges
-            if _overlaps(a_start, a_end, col_start, col_end)
+            if _is_contained(a_start, a_end, col_start, col_end)
             and is_private_album == is_private_col
         )
 
@@ -622,7 +624,7 @@ def _refresh_smart_collections(
             cid
             for cid, (o_start, o_end) in col_date_ranges.items()
             if cid != col.metadata.id
-            and _overlaps(o_start, o_end, col_start, col_end)
+            and _is_contained(o_start, o_end, col_start, col_end)
             and col_private.get(cid, False) == is_private_col
         )
 

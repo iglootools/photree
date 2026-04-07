@@ -394,7 +394,7 @@ Determines the rule for member selection:
 
 - **`import`** — members added manually via `collection import`. Default
   for manual collections.
-- **`date-range`** — members auto-populated by date range overlap.
+- **`date-range`** — members auto-populated by date range containment.
   Default for smart explicit collections.
 - **`album-series`** — members auto-populated from contiguous album
   series. Used by implicit collections.
@@ -407,7 +407,7 @@ Determines the rule for member selection:
 | members | lifecycle | strategy | Description |
 |---------|-----------|----------|-------------|
 | manual | explicit | import | User-managed via `collection import` |
-| smart | explicit | date-range | Auto-populated by date range overlap |
+| smart | explicit | date-range | Auto-populated by date range containment |
 | smart | explicit | chapter | Auto-populated by date range, no overlap with other chapters |
 | smart | implicit | album-series | Auto-populated from contiguous album series |
 
@@ -476,11 +476,15 @@ add/remove albums in a subsequent refresh.
 
 #### Phase 4: Smart Collection Refresh
 
-Materializes members for `members: smart` collections based on date range
-overlap:
+Materializes members for `members: smart` collections based on strict
+date range containment:
 
 - For each smart collection with a date, finds all albums and
-  sub-collections whose date ranges overlap with the collection's range.
+  sub-collections whose date ranges are **fully contained** within the
+  collection's range. Mere overlap is not sufficient — the member's
+  entire date range must fall within the collection's boundaries.
+- Private smart collections only include private members; non-private
+  smart collections exclude private members.
 - Writes the matched IDs into `collection.yaml`, replacing the previous
   album and collection member lists.
 - Smart collections do not support image or video members — these fields
