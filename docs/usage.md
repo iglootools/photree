@@ -177,30 +177,37 @@ photree gallery check -W
 
 Collections group albums, media items, and other collections.
 
-**Kind** determines how members are managed:
+**Members** determines how members are selected:
 
-- **`manual`** — members are added explicitly via `collection import`.
+- **`manual`** — members added explicitly via `collection import`.
   Can contain albums, collections, images, and videos.
-- **`smart`** — members are managed automatically by `gallery refresh`.
+- **`smart`** — members managed automatically by `gallery refresh`.
   Cannot contain images or videos. Cannot be imported into.
 
 **Lifecycle** determines how the collection itself is managed:
 
-- **`explicit`** (default) — created and managed by the user. Not
-  affected by album title changes.
+- **`explicit`** (default) — created and managed by the user.
 - **`implicit`** — derived automatically from album series by
   `gallery refresh`. Created, renamed, and deleted as albums change.
-  Always `kind: smart`.
+
+**Strategy** determines the rule for member selection:
+
+- **`import`** — members added manually (default for manual collections)
+- **`date-range`** — auto-populated by date range overlap (default for
+  smart explicit)
+- **`album-series`** — auto-populated from contiguous album series
+  (used by implicit collections)
+- **`chapter`** — like date-range, but chapters must not overlap in time
+  with other chapters
 
 **Valid combinations**:
 
-| Kind | Lifecycle | Members determined by |
-|------|-----------|----------------------|
-| manual | explicit | user (`collection import`) |
-| smart | explicit | date range overlap (`gallery refresh`) |
-| smart | implicit | contiguous album series (`gallery refresh`) |
-
-The combination `implicit + manual` is not allowed.
+| Members | Lifecycle | Strategy | Description |
+|---------|-----------|----------|-------------|
+| manual | explicit | import | User-managed via `collection import` |
+| smart | explicit | date-range | Auto by date range overlap |
+| smart | explicit | chapter | Auto by date range, no overlap with other chapters |
+| smart | implicit | album-series | Auto from contiguous album series |
 
 See [internals.md — Collections](./internals.md#collections) for the full
 design details.
@@ -212,7 +219,7 @@ design details.
 photree collection init -d "2024-07 - July Highlights"
 
 # Smart collection (auto-populates by date range)
-photree collection init -d "2024 - Best of 2024" --kind smart
+photree collection init -d "2024 - Best of 2024" --members smart --strategy date-range
 ```
 
 **Import members into a collection:**
@@ -253,7 +260,7 @@ photree gallery check
 
 ```bash
 # Change kind or lifecycle
-photree collection metadata set -d my-collection/ --kind smart
+photree collection metadata set -d my-collection/ --members smart --strategy date-range
 photree collection metadata set -d my-collection/ --lifecycle explicit
 ```
 
