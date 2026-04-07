@@ -500,6 +500,64 @@ date range containment:
   to-import.csv             alternative selection list
 ```
 
+## Browsable Directory
+
+`gallery refresh` generates a `browsable/` directory at the gallery root
+with relative symlinks that organize content for easy navigation.
+
+### Structure
+
+```
+browsable/
+  public/
+    albums/
+      by-year/<YYYY>/<album-name>/
+        main-jpg -> (relative symlink to album's main-jpg)
+        main-vid -> (relative symlink to album's main-vid)
+    collections/
+      by-year/<YYYY>/<collection-name>/
+        albums/<album rendering>
+        collections/<sub-collection rendering (recursive)>
+        images/<symlinks to individual JPG files>
+        videos/<symlinks to individual video files>
+      all-time/<dateless-collection-name>/...
+      by-chapter/<chapter-collection-name>/...
+  private/
+    (same structure as public/)
+```
+
+### Rendering Rules
+
+- **Albums**: Each album gets a directory with symlinks to its `{name}-jpg`
+  and `{name}-vid` browsable dirs (main-img excluded — JPGs preferred for
+  browsability). One symlink per media source.
+- **Collections** (recursive):
+  - `albums/` — album members rendered as above
+  - `collections/` — sub-collection members rendered recursively
+  - `images/` — symlinks to individual JPG files from the album's
+    `{name}-jpg/` directory
+  - `videos/` — symlinks to individual video files from the album's
+    `{name}-vid/` directory
+- **Visibility**: Albums and collections with `[private]` tag go under
+  `private/`; all others under `public/`.
+- **Collection buckets**: `by-year/<YYYY>` for dated collections,
+  `all-time/` for dateless, `by-chapter/` for `strategy=chapter`.
+
+### Refresh Strategy
+
+The browsable directory is **deleted and recreated** on each
+`gallery refresh`. Before deletion, a safety check validates that
+the directory only contains directories and symlinks (no regular files
+that could be accidentally destroyed). All symlinks are relative for
+gallery portability.
+
+### Cycle Detection
+
+During recursive collection rendering, visited collection IDs are
+tracked. If a collection references another that has already been
+rendered in the current path, a cycle is detected and the refresh
+reports an error.
+
 Collections are placed in `collections/YYYY/` within the gallery, using the
 start year of the date (or directly in `collections/` for dateless
 collections).
