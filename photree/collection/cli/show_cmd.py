@@ -44,8 +44,9 @@ def show_cmd(
     typer.echo(f"Collection: {display_path(collection_dir, cwd)}")
     typer.echo(f"  directory: {collection_dir.name}")
     typer.echo(f"  id: {format_collection_external_id(metadata.id)}")
-    typer.echo(f"  kind: {metadata.kind}")
+    typer.echo(f"  members: {metadata.members}")
     typer.echo(f"  lifecycle: {metadata.lifecycle}")
+    typer.echo(f"  strategy: {metadata.strategy}")
 
     parsed = parse_collection_name(collection_dir.name)
     if parsed.date is not None:

@@ -13,10 +13,11 @@ from ....fsprotocol import PHOTREE_DIR
 from ...store.metadata import load_collection_metadata, save_collection_metadata
 from ...store.protocol import (
     COLLECTION_YAML,
-    CollectionKind,
     CollectionLifecycle,
+    CollectionMembers,
     CollectionMetadata,
-    validate_kind_lifecycle,
+    CollectionStrategy,
+    validate_collection_config,
 )
 from . import collection_metadata_app
 
@@ -34,10 +35,10 @@ def set_cmd(
             resolve_path=True,
         ),
     ] = Path("."),
-    kind: Annotated[
-        Optional[CollectionKind],
+    members: Annotated[
+        Optional[CollectionMembers],
         typer.Option(
-            "--kind",
+            "--members",
             help="How members are determined: smart (auto by date range) or manual.",
         ),
     ] = None,
@@ -48,11 +49,18 @@ def set_cmd(
             help="How the collection is managed: explicit (user) or implicit (from album series).",
         ),
     ] = None,
+    strategy: Annotated[
+        Optional[CollectionStrategy],
+        typer.Option(
+            "--strategy",
+            help="Rule for member selection: import, date-range, album-series, or chapter.",
+        ),
+    ] = None,
 ) -> None:
     """Update collection metadata fields."""
-    if kind is None and lifecycle is None:
+    if members is None and lifecycle is None and strategy is None:
         err_console.print(
-            "No fields specified. Use --kind and/or --lifecycle to set a value."
+            "No fields specified. Use --members, --lifecycle, and/or --strategy to set a value."
         )
         raise typer.Exit(code=1)
 
@@ -66,18 +74,22 @@ def set_cmd(
         )
         raise typer.Exit(code=1)
 
-    new_kind = kind if kind is not None else current.kind
+    new_members = members if members is not None else current.members
     new_lifecycle = lifecycle if lifecycle is not None else current.lifecycle
+    new_strategy = strategy if strategy is not None else current.strategy
 
-    validation_error = validate_kind_lifecycle(new_kind, new_lifecycle)
+    validation_error = validate_collection_config(
+        new_members, new_lifecycle, new_strategy
+    )
     if validation_error is not None:
         err_console.print(validation_error)
         raise typer.Exit(code=1)
 
     updated = CollectionMetadata(
         id=current.id,
-        kind=new_kind,
+        members=new_members,
         lifecycle=new_lifecycle,
+        strategy=new_strategy,
         albums=current.albums,
         collections=current.collections,
         images=current.images,
@@ -91,13 +103,18 @@ def set_cmd(
     save_collection_metadata(collection_dir, updated)
     changes = [
         *(
-            [f"  kind: {current.kind.value} -> {updated.kind.value}"]
-            if kind is not None and kind != current.kind
+            [f"  members: {current.members.value} -> {updated.members.value}"]
+            if members is not None and members != current.members
             else []
         ),
         *(
             [f"  lifecycle: {current.lifecycle.value} -> {updated.lifecycle.value}"]
             if lifecycle is not None and lifecycle != current.lifecycle
+            else []
+        ),
+        *(
+            [f"  strategy: {current.strategy.value} -> {updated.strategy.value}"]
+            if strategy is not None and strategy != current.strategy
             else []
         ),
     ]

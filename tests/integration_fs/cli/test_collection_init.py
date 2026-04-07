@@ -13,9 +13,10 @@ from photree.collection.store.metadata import (
     save_collection_metadata,
 )
 from photree.collection.store.protocol import (
-    CollectionKind,
     CollectionLifecycle,
+    CollectionMembers,
     CollectionMetadata,
+    CollectionStrategy,
 )
 
 runner = CliRunner()
@@ -37,10 +38,10 @@ class TestCollectionInit:
         runner.invoke(app, ["collection", "init", "-d", str(col)])
         metadata = load_collection_metadata(col)
         assert metadata is not None
-        assert metadata.kind == CollectionKind.MANUAL
+        assert metadata.members == CollectionMembers.MANUAL
         assert metadata.lifecycle == CollectionLifecycle.EXPLICIT
 
-    def test_custom_kind_and_lifecycle(self, tmp_path: Path) -> None:
+    def test_custom_members_and_lifecycle(self, tmp_path: Path) -> None:
         col = tmp_path / "my-collection"
         col.mkdir()
         result = runner.invoke(
@@ -50,17 +51,20 @@ class TestCollectionInit:
                 "init",
                 "-d",
                 str(col),
-                "--kind",
+                "--members",
                 "smart",
                 "--lifecycle",
                 "implicit",
+                "--strategy",
+                "album-series",
             ],
         )
         assert result.exit_code == 0
         metadata = load_collection_metadata(col)
         assert metadata is not None
-        assert metadata.kind == CollectionKind.SMART
+        assert metadata.members == CollectionMembers.SMART
         assert metadata.lifecycle == CollectionLifecycle.IMPLICIT
+        assert metadata.strategy == CollectionStrategy.ALBUM_SERIES
 
     def test_rejects_implicit_manual(self, tmp_path: Path) -> None:
         col = tmp_path / "my-collection"
@@ -72,14 +76,14 @@ class TestCollectionInit:
                 "init",
                 "-d",
                 str(col),
-                "--kind",
+                "--members",
                 "manual",
                 "--lifecycle",
                 "implicit",
             ],
         )
         assert result.exit_code == 1
-        assert "implicit" in result.output
+        assert "invalid combination" in result.output
 
     def test_fails_if_already_initialized(self, tmp_path: Path) -> None:
         col = tmp_path / "my-collection"
@@ -88,7 +92,7 @@ class TestCollectionInit:
             col,
             CollectionMetadata(
                 id=generate_collection_id(),
-                kind=CollectionKind.MANUAL,
+                members=CollectionMembers.MANUAL,
                 lifecycle=CollectionLifecycle.EXPLICIT,
             ),
         )
@@ -104,7 +108,7 @@ class TestCollectionInit:
             col,
             CollectionMetadata(
                 id=original_id,
-                kind=CollectionKind.MANUAL,
+                members=CollectionMembers.MANUAL,
                 lifecycle=CollectionLifecycle.EXPLICIT,
             ),
         )

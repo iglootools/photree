@@ -20,7 +20,12 @@ from ..fsprotocol import ALBUMS_DIR, COLLECTIONS_DIR
 from .naming import parse_collection_name
 from .store.collection_discovery import discover_collections
 from .store.metadata import load_collection_metadata
-from .store.protocol import CollectionKind, CollectionMetadata, validate_kind_lifecycle
+from .store.protocol import (
+    CollectionMembers,
+    CollectionMetadata,
+    CollectionStrategy,
+    validate_collection_config,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -205,13 +210,15 @@ def _check_date_coverage(
     ]
 
 
-def _check_kind_lifecycle(
+def _check_collection_config(
     metadata: CollectionMetadata,
 ) -> list[CollectionCheckIssue]:
-    """Validate kind + lifecycle combination."""
-    error = validate_kind_lifecycle(metadata.kind, metadata.lifecycle)
+    """Validate members + lifecycle + strategy combination."""
+    error = validate_collection_config(
+        metadata.members, metadata.lifecycle, metadata.strategy
+    )
     if error is not None:
-        return [CollectionCheckIssue("invalid-kind-lifecycle", error)]
+        return [CollectionCheckIssue("invalid-collection-config", error)]
     else:
         return []
 
@@ -220,7 +227,7 @@ def _check_smart_no_media(
     metadata: CollectionMetadata,
 ) -> list[CollectionCheckIssue]:
     """Smart collections cannot contain image or video members."""
-    if metadata.kind != CollectionKind.SMART:
+    if metadata.members != CollectionMembers.SMART:
         return []
     return [
         *(
@@ -248,6 +255,57 @@ def _check_smart_no_media(
     ]
 
 
+def _check_chapter_no_overlap(
+    collection_dir: Path,
+    metadata: CollectionMetadata,
+    lookup: _GalleryLookup,
+) -> list[CollectionCheckIssue]:
+    """Chapter collections must not overlap in date range with other chapters."""
+    if metadata.strategy != CollectionStrategy.CHAPTER:
+        return []
+
+    parsed = parse_collection_name(collection_dir.name)
+    if parsed.date is None:
+        return []
+
+    my_range = _album_date_range(parsed.date)
+    if my_range is None:
+        return []
+
+    my_start, my_end = my_range
+    issues: list[CollectionCheckIssue] = []
+
+    # Walk all collections looking for other chapters
+    collections_dir = collection_dir.parent
+    if collections_dir.exists():
+        for col_dir in discover_collections(collections_dir):
+            if col_dir == collection_dir:
+                continue
+            other_meta = load_collection_metadata(col_dir)
+            if other_meta is None or other_meta.strategy != CollectionStrategy.CHAPTER:
+                continue
+
+            other_parsed = parse_collection_name(col_dir.name)
+            if other_parsed.date is None:
+                continue
+
+            other_range = _album_date_range(other_parsed.date)
+            if other_range is None:
+                continue
+
+            other_start, other_end = other_range
+            if my_start < other_end and other_start < my_end:
+                issues.append(
+                    CollectionCheckIssue(
+                        "chapter-date-overlap",
+                        f"chapter date range {parsed.date} overlaps with "
+                        f"chapter '{col_dir.name}' ({other_parsed.date})",
+                    )
+                )
+
+    return issues
+
+
 def check_collection(
     collection_dir: Path,
     lookup: _GalleryLookup,
@@ -266,10 +324,11 @@ def check_collection(
         collection_dir=collection_dir,
         issues=tuple(
             [
-                *_check_kind_lifecycle(metadata),
+                *_check_collection_config(metadata),
                 *_check_member_existence(metadata, lookup),
                 *_check_date_coverage(collection_dir, metadata, lookup),
                 *_check_smart_no_media(metadata),
+                *_check_chapter_no_overlap(collection_dir, metadata, lookup),
             ]
         ),
     )

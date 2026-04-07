@@ -17,8 +17,8 @@ from photree.collection.store.metadata import (
     save_collection_metadata,
 )
 from photree.collection.store.protocol import (
-    CollectionKind,
     CollectionLifecycle,
+    CollectionMembers,
     CollectionMetadata,
 )
 from photree.fsprotocol import GalleryMetadata, save_gallery_metadata
@@ -61,7 +61,7 @@ def _setup_collection(tmp_path: Path) -> Path:
         col_dir,
         CollectionMetadata(
             id=generate_collection_id(),
-            kind=CollectionKind.MANUAL,
+            members=CollectionMembers.MANUAL,
             lifecycle=CollectionLifecycle.EXPLICIT,
         ),
     )
@@ -184,7 +184,7 @@ class TestCollectionImportCmd:
             col_dir,
             CollectionMetadata(
                 id=generate_collection_id(),
-                kind=CollectionKind.MANUAL,
+                members=CollectionMembers.MANUAL,
                 lifecycle=CollectionLifecycle.EXPLICIT,
                 albums=[album_id1],
             ),

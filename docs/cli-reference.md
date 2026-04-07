@@ -817,8 +817,9 @@ $ photree collection init [OPTIONS]
 **Options**:
 
 * `-d, --dir DIRECTORY`: Collection directory.  [default: .]
-* `--kind [smart|manual]`: How members are determined: smart (auto by date range) or manual.  [default: manual]
+* `--members [smart|manual]`: How members are determined: smart (auto by date range) or manual.  [default: manual]
 * `--lifecycle [implicit|explicit]`: How the collection is managed: explicit (user) or implicit (from album series).  [default: explicit]
+* `--strategy [import|date-range|album-series|chapter]`: Rule for member selection: import, date-range, album-series, or chapter.  [default: import]
 * `--help`: Show this message and exit.
 
 ### `photree collection show`
@@ -867,8 +868,9 @@ $ photree collection metadata set [OPTIONS]
 **Options**:
 
 * `-d, --dir DIRECTORY`: Collection directory.  [default: .]
-* `--kind [smart|manual]`: How members are determined: smart (auto by date range) or manual.
+* `--members [smart|manual]`: How members are determined: smart (auto by date range) or manual.
 * `--lifecycle [implicit|explicit]`: How the collection is managed: explicit (user) or implicit (from album series).
+* `--strategy [import|date-range|album-series|chapter]`: Rule for member selection: import, date-range, album-series, or chapter.
 * `--help`: Show this message and exit.
 
 ## `photree collections`

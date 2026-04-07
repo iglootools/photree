@@ -13,9 +13,10 @@ from photree.collection.store.metadata import (
     save_collection_metadata,
 )
 from photree.collection.store.protocol import (
-    CollectionKind,
     CollectionLifecycle,
+    CollectionMembers,
     CollectionMetadata,
+    CollectionStrategy,
 )
 
 runner = CliRunner()
@@ -23,31 +24,43 @@ runner = CliRunner()
 
 def _init_collection(
     collection_dir: Path,
-    kind: CollectionKind = CollectionKind.MANUAL,
+    members: CollectionMembers = CollectionMembers.MANUAL,
     lifecycle: CollectionLifecycle = CollectionLifecycle.EXPLICIT,
+    strategy: CollectionStrategy = CollectionStrategy.IMPORT,
 ) -> None:
     save_collection_metadata(
         collection_dir,
         CollectionMetadata(
             id=generate_collection_id(),
-            kind=kind,
+            members=members,
             lifecycle=lifecycle,
+            strategy=strategy,
         ),
     )
 
 
 class TestCollectionMetadataSet:
-    def test_updates_kind(self, tmp_path: Path) -> None:
-        _init_collection(tmp_path, kind=CollectionKind.MANUAL)
+    def test_updates_members(self, tmp_path: Path) -> None:
+        _init_collection(tmp_path, members=CollectionMembers.MANUAL)
         result = runner.invoke(
             app,
-            ["collection", "metadata", "set", "-d", str(tmp_path), "--kind", "smart"],
+            [
+                "collection",
+                "metadata",
+                "set",
+                "-d",
+                str(tmp_path),
+                "--members",
+                "smart",
+                "--strategy",
+                "date-range",
+            ],
         )
         assert result.exit_code == 0
-        assert "kind: manual -> smart" in result.output
+        assert "members: manual -> smart" in result.output
         loaded = load_collection_metadata(tmp_path)
         assert loaded is not None
-        assert loaded.kind == CollectionKind.SMART
+        assert loaded.members == CollectionMembers.SMART
 
     def test_updates_lifecycle_to_implicit_requires_smart(self, tmp_path: Path) -> None:
         """Setting lifecycle=implicit on a manual collection is rejected."""
@@ -65,13 +78,14 @@ class TestCollectionMetadataSet:
             ],
         )
         assert result.exit_code == 1
-        assert "implicit" in result.output
+        assert "invalid combination" in result.output
 
     def test_updates_lifecycle_to_implicit_with_smart(self, tmp_path: Path) -> None:
         _init_collection(
             tmp_path,
-            kind=CollectionKind.SMART,
+            members=CollectionMembers.SMART,
             lifecycle=CollectionLifecycle.EXPLICIT,
+            strategy=CollectionStrategy.DATE_RANGE,
         )
         result = runner.invoke(
             app,
@@ -83,6 +97,8 @@ class TestCollectionMetadataSet:
                 str(tmp_path),
                 "--lifecycle",
                 "implicit",
+                "--strategy",
+                "album-series",
             ],
         )
         assert result.exit_code == 0
@@ -90,7 +106,7 @@ class TestCollectionMetadataSet:
         assert loaded is not None
         assert loaded.lifecycle == CollectionLifecycle.IMPLICIT
 
-    def test_updates_both(self, tmp_path: Path) -> None:
+    def test_updates_all(self, tmp_path: Path) -> None:
         _init_collection(tmp_path)
         result = runner.invoke(
             app,
@@ -100,17 +116,20 @@ class TestCollectionMetadataSet:
                 "set",
                 "-d",
                 str(tmp_path),
-                "--kind",
+                "--members",
                 "smart",
                 "--lifecycle",
                 "implicit",
+                "--strategy",
+                "album-series",
             ],
         )
         assert result.exit_code == 0
         loaded = load_collection_metadata(tmp_path)
         assert loaded is not None
-        assert loaded.kind == CollectionKind.SMART
+        assert loaded.members == CollectionMembers.SMART
         assert loaded.lifecycle == CollectionLifecycle.IMPLICIT
+        assert loaded.strategy == CollectionStrategy.ALBUM_SERIES
 
     def test_no_change_when_same_values(self, tmp_path: Path) -> None:
         _init_collection(tmp_path)
@@ -122,7 +141,7 @@ class TestCollectionMetadataSet:
                 "set",
                 "-d",
                 str(tmp_path),
-                "--kind",
+                "--members",
                 "manual",
             ],
         )
@@ -138,7 +157,7 @@ class TestCollectionMetadataSet:
                 "set",
                 "-d",
                 str(tmp_path),
-                "--kind",
+                "--members",
                 "smart",
             ],
         )
@@ -154,13 +173,13 @@ class TestCollectionMetadataSet:
         assert "No fields specified" in result.output
 
     def test_preserves_members(self, tmp_path: Path) -> None:
-        """Updating kind/lifecycle should not wipe existing members."""
+        """Updating members/lifecycle should not wipe existing members."""
         album_id = "0192d4e1-7c3f-7b4a-8c5e-f6a7b8c9d0e1"
         save_collection_metadata(
             tmp_path,
             CollectionMetadata(
                 id=generate_collection_id(),
-                kind=CollectionKind.MANUAL,
+                members=CollectionMembers.MANUAL,
                 lifecycle=CollectionLifecycle.EXPLICIT,
                 albums=[album_id],
             ),
@@ -173,8 +192,10 @@ class TestCollectionMetadataSet:
                 "set",
                 "-d",
                 str(tmp_path),
-                "--kind",
+                "--members",
                 "smart",
+                "--strategy",
+                "date-range",
             ],
         )
         loaded = load_collection_metadata(tmp_path)

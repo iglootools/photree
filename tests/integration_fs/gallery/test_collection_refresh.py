@@ -14,9 +14,10 @@ from photree.collection.store.metadata import (
     save_collection_metadata,
 )
 from photree.collection.store.protocol import (
-    CollectionKind,
     CollectionLifecycle,
+    CollectionMembers,
     CollectionMetadata,
+    CollectionStrategy,
 )
 from photree.fsprotocol import GalleryMetadata, save_gallery_metadata
 from photree.gallery.collection_refresh import (
@@ -71,7 +72,7 @@ class TestImplicitCollectionDetection:
         meta = load_collection_metadata(collections[0])
         assert meta is not None
         assert meta.lifecycle == CollectionLifecycle.IMPLICIT
-        assert meta.kind == CollectionKind.SMART
+        assert meta.members == CollectionMembers.SMART
         assert len(meta.albums) == 2
 
     def test_date_range_for_multiday_series(self, tmp_path: Path) -> None:
@@ -153,8 +154,9 @@ class TestImplicitCollectionDetection:
             col_dir,
             CollectionMetadata(
                 id=generate_collection_id(),
-                kind=CollectionKind.SMART,
+                members=CollectionMembers.SMART,
                 lifecycle=CollectionLifecycle.IMPLICIT,
+                strategy=CollectionStrategy.ALBUM_SERIES,
                 albums=["nonexistent-id"],
             ),
         )
@@ -281,8 +283,9 @@ class TestSmartCollectionRefresh:
             col_dir,
             CollectionMetadata(
                 id=generate_collection_id(),
-                kind=CollectionKind.SMART,
+                members=CollectionMembers.SMART,
                 lifecycle=CollectionLifecycle.EXPLICIT,
+                strategy=CollectionStrategy.DATE_RANGE,
             ),
         )
 
@@ -302,7 +305,7 @@ class TestSmartCollectionRefresh:
         sub_dir.mkdir(parents=True)
         sub_meta = CollectionMetadata(
             id=generate_collection_id(),
-            kind=CollectionKind.MANUAL,
+            members=CollectionMembers.MANUAL,
             lifecycle=CollectionLifecycle.EXPLICIT,
         )
         save_collection_metadata(sub_dir, sub_meta)
@@ -314,8 +317,9 @@ class TestSmartCollectionRefresh:
             smart_dir,
             CollectionMetadata(
                 id=generate_collection_id(),
-                kind=CollectionKind.SMART,
+                members=CollectionMembers.SMART,
                 lifecycle=CollectionLifecycle.EXPLICIT,
+                strategy=CollectionStrategy.DATE_RANGE,
             ),
         )
 
@@ -345,7 +349,7 @@ class TestAlbumTitleSync:
             col_dir,
             CollectionMetadata(
                 id=generate_collection_id(),
-                kind=CollectionKind.MANUAL,
+                members=CollectionMembers.MANUAL,
                 lifecycle=CollectionLifecycle.EXPLICIT,
             ),
         )
@@ -370,8 +374,9 @@ class TestAlbumTitleSync:
             col_dir,
             CollectionMetadata(
                 id=generate_collection_id(),
-                kind=CollectionKind.SMART,
+                members=CollectionMembers.SMART,
                 lifecycle=CollectionLifecycle.IMPLICIT,
+                strategy=CollectionStrategy.ALBUM_SERIES,
                 albums=[aid],
             ),
         )

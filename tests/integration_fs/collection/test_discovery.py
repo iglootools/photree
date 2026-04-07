@@ -11,8 +11,8 @@ from photree.collection.store.collection_discovery import (
 )
 from photree.collection.store.metadata import save_collection_metadata
 from photree.collection.store.protocol import (
-    CollectionKind,
     CollectionLifecycle,
+    CollectionMembers,
     CollectionMetadata,
 )
 
@@ -23,7 +23,7 @@ def _init_collection(collection_dir: Path) -> None:
         collection_dir,
         CollectionMetadata(
             id=generate_collection_id(),
-            kind=CollectionKind.MANUAL,
+            members=CollectionMembers.MANUAL,
             lifecycle=CollectionLifecycle.EXPLICIT,
         ),
     )

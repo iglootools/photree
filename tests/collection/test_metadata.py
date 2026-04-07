@@ -11,9 +11,10 @@ from photree.collection.store.metadata import (
 )
 from photree.collection.store.protocol import (
     COLLECTION_YAML,
-    CollectionKind,
     CollectionLifecycle,
+    CollectionMembers,
     CollectionMetadata,
+    CollectionStrategy,
 )
 from photree.fsprotocol import PHOTREE_DIR
 
@@ -24,14 +25,14 @@ class TestCollectionMetadata:
         collection_dir.mkdir()
         metadata = CollectionMetadata(
             id=generate_collection_id(),
-            kind=CollectionKind.MANUAL,
+            members=CollectionMembers.MANUAL,
             lifecycle=CollectionLifecycle.EXPLICIT,
         )
         save_collection_metadata(collection_dir, metadata)
         loaded = load_collection_metadata(collection_dir)
         assert loaded is not None
         assert loaded.id == metadata.id
-        assert loaded.kind == CollectionKind.MANUAL
+        assert loaded.members == CollectionMembers.MANUAL
         assert loaded.lifecycle == CollectionLifecycle.EXPLICIT
 
     def test_load_returns_none_when_missing(self, tmp_path: Path) -> None:
@@ -42,8 +43,9 @@ class TestCollectionMetadata:
         collection_dir.mkdir()
         metadata = CollectionMetadata(
             id=generate_collection_id(),
-            kind=CollectionKind.SMART,
+            members=CollectionMembers.SMART,
             lifecycle=CollectionLifecycle.IMPLICIT,
+            strategy=CollectionStrategy.ALBUM_SERIES,
         )
         save_collection_metadata(collection_dir, metadata)
         loaded = load_collection_metadata(collection_dir)
@@ -60,7 +62,7 @@ class TestCollectionMetadata:
         image_id = "0192d4e1-7c3f-7b4a-8c5e-f6a7b8c9d0e2"
         metadata = CollectionMetadata(
             id=generate_collection_id(),
-            kind=CollectionKind.MANUAL,
+            members=CollectionMembers.MANUAL,
             lifecycle=CollectionLifecycle.EXPLICIT,
             albums=[album_id],
             images=[image_id],
@@ -78,7 +80,7 @@ class TestCollectionMetadata:
         collection_dir.mkdir()
         metadata = CollectionMetadata(
             id=generate_collection_id(),
-            kind=CollectionKind.MANUAL,
+            members=CollectionMembers.MANUAL,
             lifecycle=CollectionLifecycle.EXPLICIT,
         )
         save_collection_metadata(collection_dir, metadata)
@@ -90,12 +92,13 @@ class TestCollectionMetadata:
         collection_dir.mkdir()
         metadata = CollectionMetadata(
             id=generate_collection_id(),
-            kind=CollectionKind.MANUAL,
+            members=CollectionMembers.MANUAL,
             lifecycle=CollectionLifecycle.EXPLICIT,
         )
         save_collection_metadata(collection_dir, metadata)
         content = (collection_dir / PHOTREE_DIR / COLLECTION_YAML).read_text()
-        assert "kind:" in content
+        assert "members:" in content
         assert "lifecycle:" in content
+        assert "strategy:" in content
         # No underscores in keys
         assert "collection_" not in content

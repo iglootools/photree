@@ -13,10 +13,11 @@ from ..id import format_collection_external_id, generate_collection_id
 from ..store.metadata import load_collection_metadata, save_collection_metadata
 from ..store.protocol import (
     COLLECTION_YAML,
-    CollectionKind,
     CollectionLifecycle,
+    CollectionMembers,
     CollectionMetadata,
-    validate_kind_lifecycle,
+    CollectionStrategy,
+    validate_collection_config,
 )
 from . import collection_app
 
@@ -34,13 +35,13 @@ def init_cmd(
             resolve_path=True,
         ),
     ] = Path("."),
-    kind: Annotated[
-        CollectionKind,
+    members: Annotated[
+        CollectionMembers,
         typer.Option(
-            "--kind",
+            "--members",
             help="How members are determined: smart (auto by date range) or manual.",
         ),
-    ] = CollectionKind.MANUAL,
+    ] = CollectionMembers.MANUAL,
     lifecycle: Annotated[
         CollectionLifecycle,
         typer.Option(
@@ -48,6 +49,13 @@ def init_cmd(
             help="How the collection is managed: explicit (user) or implicit (from album series).",
         ),
     ] = CollectionLifecycle.EXPLICIT,
+    strategy: Annotated[
+        CollectionStrategy,
+        typer.Option(
+            "--strategy",
+            help="Rule for member selection: import, date-range, album-series, or chapter.",
+        ),
+    ] = CollectionStrategy.IMPORT,
 ) -> None:
     """Initialize collection metadata (.photree/collection.yaml)."""
     cwd = Path.cwd()
@@ -61,7 +69,7 @@ def init_cmd(
         )
         raise typer.Exit(code=1)
 
-    validation_error = validate_kind_lifecycle(kind, lifecycle)
+    validation_error = validate_collection_config(members, lifecycle, strategy)
     if validation_error is not None:
         typer.echo(validation_error, err=True)
         raise typer.Exit(code=1)
@@ -71,14 +79,16 @@ def init_cmd(
         collection_dir,
         CollectionMetadata(
             id=generated_id,
-            kind=kind,
+            members=members,
             lifecycle=lifecycle,
+            strategy=strategy,
         ),
     )
     collection_yaml = collection_dir / PHOTREE_DIR / COLLECTION_YAML
     typer.echo(
         f"Created {display_path(collection_yaml, cwd)}\n"
         f"Collection ID: {format_collection_external_id(generated_id)}\n"
-        f"  kind: {kind}\n"
-        f"  lifecycle: {lifecycle}"
+        f"  members: {members}\n"
+        f"  lifecycle: {lifecycle}\n"
+        f"  strategy: {strategy}"
     )

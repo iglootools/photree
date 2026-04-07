@@ -8,7 +8,7 @@ from pathlib import Path
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ..store.metadata import load_collection_metadata, save_collection_metadata
-from ..store.protocol import CollectionKind, CollectionLifecycle, CollectionMetadata
+from ..store.protocol import CollectionLifecycle, CollectionMembers, CollectionMetadata
 from .resolve import (
     ResolutionError,
     ResolutionWarning,
@@ -81,11 +81,11 @@ def import_collection_members(
             "by 'gallery refresh' via album series detection."
         )
 
-    if metadata.kind == CollectionKind.SMART:
+    if metadata.members == CollectionMembers.SMART:
         raise ValueError(
             "Cannot import into a smart collection — members are managed "
             "automatically by 'gallery refresh'. Use 'collection metadata set "
-            "--kind manual' to convert first."
+            "--members manual' to convert first."
         )
 
     sources = read_selection(collection_dir, exiftool=exiftool)
@@ -108,8 +108,9 @@ def import_collection_members(
         members = result.members
         updated = CollectionMetadata(
             id=metadata.id,
-            kind=metadata.kind,
+            members=metadata.members,
             lifecycle=metadata.lifecycle,
+            strategy=metadata.strategy,
             albums=_merge_ids(metadata.albums, members.albums),
             collections=_merge_ids(metadata.collections, members.collections),
             images=_merge_ids(metadata.images, members.images),

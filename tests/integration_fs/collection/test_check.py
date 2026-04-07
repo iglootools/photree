@@ -16,9 +16,10 @@ from photree.collection.check import build_gallery_lookup, check_collection
 from photree.collection.id import generate_collection_id
 from photree.collection.store.metadata import save_collection_metadata
 from photree.collection.store.protocol import (
-    CollectionKind,
     CollectionLifecycle,
+    CollectionMembers,
     CollectionMetadata,
+    CollectionStrategy,
 )
 from photree.fsprotocol import GalleryMetadata, save_gallery_metadata
 
@@ -57,8 +58,9 @@ def _setup_collection(
         col_dir,
         CollectionMetadata(
             id=cid,
-            kind=kwargs.get("kind", CollectionKind.MANUAL),
+            members=kwargs.get("members", CollectionMembers.MANUAL),
             lifecycle=kwargs.get("lifecycle", CollectionLifecycle.EXPLICIT),
+            strategy=kwargs.get("strategy", CollectionStrategy.IMPORT),
             albums=kwargs.get("albums", []),
             collections=kwargs.get("collections", []),
             images=kwargs.get("images", []),
@@ -159,7 +161,7 @@ class TestCheckDateCoverage:
             col_dir,
             CollectionMetadata(
                 id=generate_collection_id(),
-                kind=CollectionKind.MANUAL,
+                members=CollectionMembers.MANUAL,
                 lifecycle=CollectionLifecycle.EXPLICIT,
                 albums=[album_id],
             ),
@@ -170,14 +172,15 @@ class TestCheckDateCoverage:
         assert result.success
 
 
-class TestCheckKindLifecycle:
+class TestCheckCollectionConfig:
     def test_implicit_smart_passes(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
         col_dir, _ = _setup_collection(
             gallery,
             "2024-07 - July",
-            kind=CollectionKind.SMART,
+            members=CollectionMembers.SMART,
             lifecycle=CollectionLifecycle.IMPLICIT,
+            strategy=CollectionStrategy.ALBUM_SERIES,
         )
         lookup = build_gallery_lookup(gallery)
         result = check_collection(col_dir, lookup)
@@ -192,14 +195,14 @@ class TestCheckKindLifecycle:
             col_dir,
             CollectionMetadata(
                 id=generate_collection_id(),
-                kind=CollectionKind.MANUAL,
+                members=CollectionMembers.MANUAL,
                 lifecycle=CollectionLifecycle.IMPLICIT,
             ),
         )
         lookup = build_gallery_lookup(gallery)
         result = check_collection(col_dir, lookup)
         assert not result.success
-        assert any(i.code == "invalid-kind-lifecycle" for i in result.issues)
+        assert any(i.code == "invalid-collection-config" for i in result.issues)
 
 
 class TestCheckEmpty:

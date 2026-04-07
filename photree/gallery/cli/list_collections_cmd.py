@@ -96,8 +96,9 @@ def _list_csv(
                 "title",
                 "location",
                 "tags",
-                "kind",
+                "members",
                 "lifecycle",
+                "strategy",
                 "albums",
                 "collections",
                 "images",
@@ -122,8 +123,9 @@ def _list_csv(
                     parsed.title,
                     parsed.location or "",
                     "private" if parsed.private else "",
-                    col_meta.kind.value if col_meta is not None else "",
+                    col_meta.members.value if col_meta is not None else "",
                     col_meta.lifecycle.value if col_meta is not None else "",
+                    col_meta.strategy.value if col_meta is not None else "",
                     len(col_meta.albums) if col_meta is not None else 0,
                     len(col_meta.collections) if col_meta is not None else 0,
                     len(col_meta.images) if col_meta is not None else 0,
@@ -151,8 +153,9 @@ def _list_text(
             col_meta = load_collection_metadata(col_dir)
             if col_meta is not None:
                 typer.echo(f"  id: {format_collection_external_id(col_meta.id)}")
-                typer.echo(f"  kind: {col_meta.kind}")
+                typer.echo(f"  members: {col_meta.members}")
                 typer.echo(f"  lifecycle: {col_meta.lifecycle}")
+                typer.echo(f"  strategy: {col_meta.strategy}")
             else:
                 typer.echo("  id: (missing)")
 
