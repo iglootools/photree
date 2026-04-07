@@ -62,20 +62,24 @@ class CollectionCheckResult:
 class _GalleryLookup:
     album_ids: frozenset[str]
     album_dates: dict[str, str]  # album_id → date string
+    album_private: dict[str, bool]  # album_id → private flag
     collection_ids: frozenset[str]
     collection_dates: dict[str, str | None]  # collection_id → date string or None
+    collection_private: dict[str, bool]  # collection_id → private flag
     image_ids: frozenset[str]
     video_ids: frozenset[str]
+    # media_id → album_id (for checking if media comes from a private album)
+    media_album: dict[str, str]
 
 
-def _scan_album_data(
-    gallery_dir: Path,
-) -> tuple[set[str], dict[str, str], set[str], set[str]]:
-    """Scan albums and return (album_ids, album_dates, image_ids, video_ids)."""
+def build_gallery_lookup(gallery_dir: Path) -> _GalleryLookup:
+    """Build a lightweight lookup for collection checks."""
     album_ids: set[str] = set()
     album_dates: dict[str, str] = {}
+    album_private: dict[str, bool] = {}
     image_ids: set[str] = set()
     video_ids: set[str] = set()
+    media_album: dict[str, str] = {}
 
     for album_dir in discover_albums(gallery_dir / ALBUMS_DIR):
         meta = load_album_metadata(album_dir)
@@ -84,19 +88,17 @@ def _scan_album_data(
             parsed = parse_album_name(album_dir.name)
             if parsed is not None:
                 album_dates[meta.id] = parsed.date
+                album_private[meta.id] = parsed.private
 
             media_meta = load_media_metadata(album_dir)
             if media_meta is not None:
                 for source in media_meta.media_sources.values():
-                    image_ids.update(source.images)
-                    video_ids.update(source.videos)
-
-    return album_ids, album_dates, image_ids, video_ids
-
-
-def build_gallery_lookup(gallery_dir: Path) -> _GalleryLookup:
-    """Build a lightweight lookup for collection checks."""
-    album_ids, album_dates, image_ids, video_ids = _scan_album_data(gallery_dir)
+                    for mid in source.images:
+                        image_ids.add(mid)
+                        media_album[mid] = meta.id
+                    for mid in source.videos:
+                        video_ids.add(mid)
+                        media_album[mid] = meta.id
 
     collection_metas = [
         (col_dir, load_collection_metadata(col_dir))
@@ -106,6 +108,7 @@ def build_gallery_lookup(gallery_dir: Path) -> _GalleryLookup:
     return _GalleryLookup(
         album_ids=frozenset(album_ids),
         album_dates=album_dates,
+        album_private=album_private,
         collection_ids=frozenset(
             meta.id for _, meta in collection_metas if meta is not None
         ),
@@ -114,8 +117,14 @@ def build_gallery_lookup(gallery_dir: Path) -> _GalleryLookup:
             for col_dir, meta in collection_metas
             if meta is not None
         },
+        collection_private={
+            meta.id: parse_collection_name(col_dir.name).private
+            for col_dir, meta in collection_metas
+            if meta is not None
+        },
         image_ids=frozenset(image_ids),
         video_ids=frozenset(video_ids),
+        media_album=media_album,
     )
 
 
@@ -306,6 +315,81 @@ def _check_chapter_no_overlap(
     return issues
 
 
+def _check_private_viral(
+    collection_dir: Path,
+    metadata: CollectionMetadata,
+    lookup: _GalleryLookup,
+) -> list[CollectionCheckIssue]:
+    """Enforce private tag virality.
+
+    - Non-private collections cannot have private members (albums,
+      collections, or media from private albums).
+    - Smart private collections should only include private members
+      (validated here; enforced during smart refresh).
+    """
+    parsed = parse_collection_name(collection_dir.name)
+    is_private = parsed.private
+    is_smart = metadata.members == CollectionMembers.SMART
+
+    if is_private and is_smart:
+        # Smart + private: should only include private members
+        return [
+            *[
+                CollectionCheckIssue(
+                    "private-smart-has-non-private-album",
+                    f"private smart collection contains non-private album {aid}",
+                )
+                for aid in metadata.albums
+                if aid in lookup.album_private and not lookup.album_private[aid]
+            ],
+            *[
+                CollectionCheckIssue(
+                    "private-smart-has-non-private-collection",
+                    f"private smart collection contains non-private collection {cid}",
+                )
+                for cid in metadata.collections
+                if cid in lookup.collection_private
+                and not lookup.collection_private[cid]
+            ],
+        ]
+    elif not is_private:
+        # Non-private: cannot have any private members
+        return [
+            *[
+                CollectionCheckIssue(
+                    "non-private-has-private-album",
+                    f"non-private collection contains private album {aid}",
+                )
+                for aid in metadata.albums
+                if lookup.album_private.get(aid, False)
+            ],
+            *[
+                CollectionCheckIssue(
+                    "non-private-has-private-collection",
+                    f"non-private collection contains private collection {cid}",
+                )
+                for cid in metadata.collections
+                if lookup.collection_private.get(cid, False)
+            ],
+            *[
+                CollectionCheckIssue(
+                    "non-private-has-private-media",
+                    f"non-private collection contains {media_type} {mid} "
+                    f"from private album",
+                )
+                for media_type, media_ids in [
+                    ("image", metadata.images),
+                    ("video", metadata.videos),
+                ]
+                for mid in media_ids
+                if mid in lookup.media_album
+                and lookup.album_private.get(lookup.media_album[mid], False)
+            ],
+        ]
+    else:
+        return []
+
+
 def check_collection(
     collection_dir: Path,
     lookup: _GalleryLookup,
@@ -329,6 +413,7 @@ def check_collection(
                 *_check_date_coverage(collection_dir, metadata, lookup),
                 *_check_smart_no_media(metadata),
                 *_check_chapter_no_overlap(collection_dir, metadata, lookup),
+                *_check_private_viral(collection_dir, metadata, lookup),
             ]
         ),
     )

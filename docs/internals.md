@@ -336,6 +336,22 @@ same spec as albums: `YYYY`, `YYYY-MM`, `YYYY-MM-DD`, or ranges with `--`.
 Location and tags follow the same rules as albums: `@` separates the
 location, `[private]` is the only currently allowed tag.
 
+### Private Tag Virality
+
+The `[private]` tag is viral: private content can only live inside
+private collections.
+
+- **Non-private collections** cannot contain private members (private
+  albums, private sub-collections, or media from private albums).
+- **Private smart collections** only include private members — non-private
+  albums/collections in the date range are excluded during
+  `gallery refresh`.
+- **Private manual collections** may contain non-private members (the
+  private tag protects the collection, not its contents).
+
+These rules are enforced by `collection check` and (for smart
+collections) by `gallery refresh`.
+
 ### Collection Members
 
 Determines how members are selected:

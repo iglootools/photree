@@ -577,12 +577,18 @@ def _refresh_smart_collections(
         if rng is not None
     }
 
+    # Include private status for privacy filtering
     album_ranges = [
-        (album.album_id, rng)
+        (album.album_id, rng, album.parsed.private)
         for album in albums
         for rng in [_album_date_range(album.parsed.date)]
         if rng is not None
     ]
+
+    col_private = {
+        col.metadata.id: parse_collection_name(col.name).private
+        for col in all_collections
+    }
 
     for col in all_collections:
         if col.metadata.members != CollectionMembers.SMART:
@@ -601,17 +607,23 @@ def _refresh_smart_collections(
             continue
 
         col_start, col_end = col_range
+        is_private_col = parsed.private
 
+        # Private smart collections only include private members;
+        # non-private smart collections exclude private members
         matching_album_ids = sorted(
             aid
-            for aid, (a_start, a_end) in album_ranges
+            for aid, (a_start, a_end), is_private_album in album_ranges
             if _overlaps(a_start, a_end, col_start, col_end)
+            and is_private_album == is_private_col
         )
 
         matching_col_ids = sorted(
             cid
             for cid, (o_start, o_end) in col_date_ranges.items()
-            if cid != col.metadata.id and _overlaps(o_start, o_end, col_start, col_end)
+            if cid != col.metadata.id
+            and _overlaps(o_start, o_end, col_start, col_end)
+            and col_private.get(cid, False) == is_private_col
         )
 
         new_meta = CollectionMetadata(
