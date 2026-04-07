@@ -49,6 +49,7 @@ Most entity types support the same set of operations:
 | `import` | Import content | album, albums, collection, collections, gallery |
 | `fix` | Repair issues | album, albums, gallery |
 | `list` / `list-*` | List items with optional CSV | albums, gallery |
+| `stats` | Aggregated disk usage and content statistics | album, albums, gallery |
 | `metadata set` | Update settings after init | collection, gallery |
 
 ### Option Conventions
