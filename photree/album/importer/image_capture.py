@@ -112,6 +112,14 @@ class ValidationError:
 
 
 @dataclass(frozen=True)
+class ValidationWarning:
+    """A non-fatal warning for a specific selection file."""
+
+    selection_file: str
+    message: str
+
+
+@dataclass(frozen=True)
 class ImportResult:
     """Result of running an import."""
 
@@ -265,8 +273,10 @@ def plan_import(
     )
 
 
-def _validate_match(match: SelectionMatch) -> list[ValidationError]:
-    """Validate a single selection match. Returns errors found."""
+def _validate_match(
+    match: SelectionMatch,
+) -> tuple[list[ValidationError], list[ValidationWarning]]:
+    """Validate a single selection match. Returns (errors, warnings)."""
     orig_media = [f for f in match.orig_files if _is_media(f)]
     rendered_media = [f for f in match.rendered_files if _is_media(f)]
     rendered_sidecars = [f for f in match.rendered_files if _is_sidecar(f)]
@@ -344,40 +354,44 @@ def _validate_match(match: SelectionMatch) -> list[ValidationError]:
         ),
     ]
 
-    # HEIC should have AAE
+    errors = [
+        *type_errors,
+        *orig_count_errors,
+        *rendered_count_errors,
+        *rendered_pair_errors,
+    ]
+
+    # HEIC without AAE is normal for photos without edits — warn, don't block
     orig_heic = [f for f in orig_media if file_ext(f) == ".heic"]
     orig_aae = [f for f in match.orig_files if _is_sidecar(f)]
-    heic_aae_errors = (
+    warnings = (
         [
-            ValidationError(
+            ValidationWarning(
                 match.selection_file,
-                f"original HEIC ({orig_heic[0]}) has no AAE sidecar (unusual)",
+                f"original HEIC ({orig_heic[0]}) has no AAE sidecar",
             )
         ]
         if orig_heic and not orig_aae
         else []
     )
 
-    return [
-        *type_errors,
-        *orig_count_errors,
-        *rendered_count_errors,
-        *rendered_pair_errors,
-        *heic_aae_errors,
-    ]
+    return errors, warnings
 
 
-def validate_import_plan(plan: ImportPlan) -> list[ValidationError]:
-    """Validate an import plan. Returns a list of errors (empty = all good)."""
-    return [
-        # Unmatched selection files
+def validate_import_plan(
+    plan: ImportPlan,
+) -> tuple[list[ValidationError], list[ValidationWarning]]:
+    """Validate an import plan. Returns (errors, warnings)."""
+    match_results = [_validate_match(m) for m in plan.matches]
+    errors = [
         *[
             ValidationError(f, "no matching original found in Image Capture directory")
             for f in plan.unmatched
         ],
-        # Per-match validation
-        *(error for match in plan.matches for error in _validate_match(match)),
+        *(e for errs, _ in match_results for e in errs),
     ]
+    warnings = [w for _, warns in match_results for w in warns]
+    return errors, warnings
 
 
 # ---------------------------------------------------------------------------

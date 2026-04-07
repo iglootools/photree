@@ -135,7 +135,11 @@ def import_cmd(
         for w in plan.dedup_warnings:
             typer.echo(f"  {w}")
 
-    errors = validate_import_plan(plan)
+    errors, warnings = validate_import_plan(plan)
+    if warnings:
+        typer.echo("\nWarnings:")
+        for w in warnings:
+            typer.echo(f"  [{w.selection_file}] {w.message}")
     if errors:
         err_console.print(importer_output.validation_errors(album_dir.name, errors))
         raise typer.Exit(code=1)
