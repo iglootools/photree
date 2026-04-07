@@ -36,9 +36,10 @@ from ..collection.store.metadata import (
     save_collection_metadata,
 )
 from ..collection.store.protocol import (
-    CollectionKind,
     CollectionLifecycle,
+    CollectionMembers,
     CollectionMetadata,
+    CollectionStrategy,
 )
 from ..fsprotocol import ALBUMS_DIR, COLLECTIONS_DIR
 
@@ -287,8 +288,9 @@ def _update_existing_implicit(
     # Update members
     new_meta = CollectionMetadata(
         id=col.metadata.id,
-        kind=col.metadata.kind,
+        members=col.metadata.members,
         lifecycle=CollectionLifecycle.IMPLICIT,
+        strategy=CollectionStrategy.ALBUM_SERIES,
         albums=album_ids,
         collections=col.metadata.collections,
         images=col.metadata.images,
@@ -366,8 +368,9 @@ def _apply_rename(
         col.path.rename(new_path)
         new_meta = CollectionMetadata(
             id=col.metadata.id,
-            kind=col.metadata.kind,
+            members=col.metadata.members,
             lifecycle=CollectionLifecycle.IMPLICIT,
+            strategy=CollectionStrategy.ALBUM_SERIES,
             albums=album_ids,
             collections=col.metadata.collections,
             images=col.metadata.images,
@@ -403,8 +406,9 @@ def _create_implicit(
             target,
             CollectionMetadata(
                 id=generate_collection_id(),
-                kind=CollectionKind.SMART,
+                members=CollectionMembers.SMART,
                 lifecycle=CollectionLifecycle.IMPLICIT,
+                strategy=CollectionStrategy.ALBUM_SERIES,
                 albums=album_ids,
             ),
         )
@@ -581,11 +585,11 @@ def _refresh_smart_collections(
     ]
 
     for col in all_collections:
-        if col.metadata.kind != CollectionKind.SMART:
+        if col.metadata.members != CollectionMembers.SMART:
             continue
-        # Implicit smart collections derive members from album series
+        # Album-series smart collections derive members from album series
         # (handled by implicit refresh), not from date range overlap
-        if col.metadata.lifecycle == CollectionLifecycle.IMPLICIT:
+        if col.metadata.strategy == CollectionStrategy.ALBUM_SERIES:
             continue
 
         parsed = parse_collection_name(col.name)
@@ -612,8 +616,9 @@ def _refresh_smart_collections(
 
         new_meta = CollectionMetadata(
             id=col.metadata.id,
-            kind=col.metadata.kind,
+            members=col.metadata.members,
             lifecycle=col.metadata.lifecycle,
+            strategy=col.metadata.strategy,
             albums=matching_album_ids,
             collections=matching_col_ids,
             images=[],

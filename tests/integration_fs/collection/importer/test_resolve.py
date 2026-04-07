@@ -27,8 +27,8 @@ from photree.collection.importer.resolve import resolve_entries
 from photree.collection.importer.selection import SelectionEntry
 from photree.collection.store.metadata import save_collection_metadata
 from photree.collection.store.protocol import (
-    CollectionKind,
     CollectionLifecycle,
+    CollectionMembers,
     CollectionMetadata,
 )
 from photree.fsprotocol import GalleryMetadata, save_gallery_metadata
@@ -90,7 +90,7 @@ def _setup_collection(gallery: Path, name: str) -> tuple[Path, str]:
         col_dir,
         CollectionMetadata(
             id=cid,
-            kind=CollectionKind.MANUAL,
+            members=CollectionMembers.MANUAL,
             lifecycle=CollectionLifecycle.EXPLICIT,
         ),
     )
