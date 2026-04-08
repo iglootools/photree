@@ -26,6 +26,7 @@ from ..store.media_sources_discovery import discover_media_sources
 from ..store.metadata import load_album_metadata
 from ..store.protocol import MediaSource
 from .dir_structure import AlbumDirCheck, check_album_dir_structure
+from .face_state import FaceStateCheck, check_face_state
 from .ios import IosMediaSourceIntegrityResult, check_ios_media_source_integrity
 from .jpeg import AlbumJpegIntegrityResult, check_album_jpeg_integrity
 from .media_metadata import MediaMetadataCheck, check_media_metadata
@@ -136,6 +137,7 @@ class AlbumPreflightResult:
     integrity: AlbumIntegrityResult | None = None
     jpeg_check: AlbumJpegIntegrityResult | None = None
     naming: AlbumNamingResult | None = None
+    face_state_check: FaceStateCheck | None = None
 
     @property
     def success(self) -> bool:
@@ -150,6 +152,7 @@ class AlbumPreflightResult:
             and (self.integrity is None or self.integrity.success)
             and (self.jpeg_check is None or self.jpeg_check.success)
             and (self.naming is None or self.naming.success)
+            and (self.face_state_check is None or self.face_state_check.success)
         )
 
     @property
@@ -210,6 +213,12 @@ class AlbumPreflightResult:
                 *(
                     ["naming errors"]
                     if self.naming is not None and not self.naming.success
+                    else []
+                ),
+                *(
+                    ["face state stale"]
+                    if self.face_state_check is not None
+                    and not self.face_state_check.success
                     else []
                 ),
             ]
@@ -367,6 +376,8 @@ def run_album_check(
             exif_check=exif_check,
         )
 
+    face_state = check_face_state(album_dir)
+
     return AlbumPreflightResult(
         sips_available=sips_available,
         exiftool_available=exiftool is not None,
@@ -378,6 +389,7 @@ def run_album_check(
         integrity=integrity,
         jpeg_check=jpeg_check,
         naming=naming,
+        face_state_check=face_state,
     )
 
 
