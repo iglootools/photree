@@ -10,6 +10,7 @@ from ...common.formatting import CHECK, CROSS, WARNING
 from ..naming import AlbumNamingResult, BatchNamingResult
 from ..id import format_album_external_id
 from . import AlbumIntegrityResult, AlbumMediaSourceSummary, AlbumPreflightResult
+from .face_state import FaceStateCheck
 from .media_metadata import MediaMetadataCheck
 from .unexpected_dirs import UnexpectedDirsCheck
 from .browsable import BrowsableDirCheck
@@ -346,6 +347,39 @@ def format_jpeg_integrity_checks(result: AlbumJpegIntegrityResult) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Face state output
+# ---------------------------------------------------------------------------
+
+
+def format_face_state_check(check: FaceStateCheck) -> str:
+    """Format face state check results."""
+    if check.success:
+        return f"{CHECK} face state"
+
+    lines = [f"{CROSS} face state ({check.issue_count} issue(s))"]
+    if check.unprocessed:
+        lines.append(f"    unprocessed: {', '.join(check.unprocessed[:5])}")
+        if len(check.unprocessed) > 5:
+            lines.append(f"    ... and {len(check.unprocessed) - 5} more")
+    if check.stale_entries:
+        lines.append(f"    stale entries: {', '.join(check.stale_entries[:5])}")
+    if check.missing_thumbs:
+        lines.append(f"    missing thumbnails: {', '.join(check.missing_thumbs[:5])}")
+    if check.stale_thumbs:
+        lines.append(f"    stale thumbnails: {', '.join(check.stale_thumbs[:5])}")
+    if check.model_mismatch:
+        lines.append("    model version mismatch")
+    if check.npz_yaml_sync_errors:
+        for err in check.npz_yaml_sync_errors:
+            lines.append(f"    {err}")
+    lines.append(
+        "    Run 'photree album refresh' or 'photree album detect-faces --redetect'"
+        " to fix."
+    )
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
 # Preflight orchestration output
 # ---------------------------------------------------------------------------
 
@@ -410,6 +444,11 @@ def format_album_preflight_checks(
                     result.naming, fatal_exif=fatal_exif, album_dir=album_dir
                 ).splitlines()
                 if result.naming is not None
+                else []
+            ),
+            *(
+                format_face_state_check(result.face_state_check).splitlines()
+                if result.face_state_check is not None
                 else []
             ),
         ]
