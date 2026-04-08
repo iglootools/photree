@@ -423,6 +423,8 @@ def format_album_stats(stats: AlbumStats) -> Group:
 
 def format_gallery_stats(stats: GalleryStats) -> Group:
     """Format gallery-level statistics as a Rich renderable."""
+    from ...collection.stats.output import format_collections_overview
+
     renderables = _format_aggregate_tables(
         stats.aggregate,
         album_count=stats.album_count,
@@ -431,6 +433,9 @@ def format_gallery_stats(stats: GalleryStats) -> Group:
     if stats.by_year:
         renderables.append(Text(""))
         renderables.append(_year_table(stats.by_year))
+    if stats.collection_stats is not None and stats.collection_stats.total > 0:
+        renderables.append(Text(""))
+        renderables.append(format_collections_overview(stats.collection_stats))
     renderables.append(Text(""))
     renderables.append(_LEGEND)
     return Group(*renderables)
