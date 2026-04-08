@@ -38,11 +38,31 @@ def refresh_cmd(
         ),
     ] = None,
     dry_run: DRY_RUN_OPTION = False,
+    redetect_faces: Annotated[
+        bool,
+        typer.Option(
+            "--redetect-faces",
+            help="Re-run face detection on all images (reuses cached thumbnails).",
+        ),
+    ] = False,
+    regenerate_face_thumbs: Annotated[
+        bool,
+        typer.Option(
+            "--regenerate-face-thumbs",
+            help="Regenerate face detection thumbnails from originals.",
+        ),
+    ] = False,
 ) -> None:
-    """Refresh media metadata and collections for all albums in the gallery."""
+    """Refresh media metadata, face data, and collections for all albums in the gallery."""
     resolved = resolve_gallery_or_exit(gallery_dir)
     albums, display_base = resolve_check_batch_albums(resolved, None)
-    run_batch_refresh(albums, display_base, dry_run=dry_run)
+    run_batch_refresh(
+        albums,
+        display_base,
+        dry_run=dry_run,
+        redetect_faces=redetect_faces,
+        regenerate_face_thumbs=regenerate_face_thumbs,
+    )
 
     # Refresh collections (implicit detection + smart materialization)
     typer.echo("\nCollections:")
