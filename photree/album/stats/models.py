@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ..store.protocol import MediaSourceType
+from ...collection.stats.models import GalleryCollectionStats
 
 
 @dataclass(frozen=True)
@@ -105,3 +106,4 @@ class GalleryStats:
     aggregate: AggregateStats
     unique_media_source_names: tuple[str, ...]
     by_year: tuple[YearStats, ...]
+    collection_stats: GalleryCollectionStats | None = None

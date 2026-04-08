@@ -30,4 +30,4 @@ def stats_cmd(
     """Show aggregated disk usage and content statistics for all albums in the gallery."""
     resolved = resolve_gallery_or_exit(gallery_dir)
     albums, display_base = resolve_check_batch_albums(resolved, None)
-    run_batch_stats(albums, display_base)
+    run_batch_stats(albums, display_base, gallery_dir=resolved)

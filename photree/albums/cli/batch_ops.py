@@ -552,6 +552,8 @@ def run_batch_fix_ios(
 def run_batch_stats(
     albums: list[Path],
     display_base: Path | None,
+    *,
+    gallery_dir: Path | None = None,
 ) -> None:
     """Shared implementation for gallery stats / albums stats."""
     from ...album.naming import parse_album_name
@@ -583,6 +585,21 @@ def run_batch_stats(
             display_fn=make_display_fn(display_base, cwd),
             on_start=progress.on_start,
             on_end=lambda name, success: progress.on_end(name, success=success),
+        )
+
+    # Add collection stats if gallery context is available
+    if gallery_dir is not None:
+        from ...collection.stats import compute_gallery_collection_stats
+        from ...album.stats.models import GalleryStats
+
+        col_stats = compute_gallery_collection_stats(gallery_dir)
+        result = GalleryStats(
+            album_count=result.album_count,
+            by_album=result.by_album,
+            aggregate=result.aggregate,
+            unique_media_source_names=result.unique_media_source_names,
+            by_year=result.by_year,
+            collection_stats=col_stats,
         )
 
     typer.echo("")
