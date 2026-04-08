@@ -42,6 +42,7 @@ AlbumDirOption = Annotated[Optional[list[Path]], ALBUM_DIR_OPTION]
 
 from . import (  # noqa: E402, F401 — imported for command registration side effects
     check_cmd,
+    detect_faces_cmd,
     export_cmd,
     fix_cmd,
     fix_ios_cmd,

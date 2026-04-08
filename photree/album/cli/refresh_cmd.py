@@ -9,6 +9,7 @@ import typer
 
 from ...common.fs import display_path
 from ...fsprotocol import PHOTREE_DIR
+from ..faces.refresh import refresh_face_data
 from ..refresh import refresh_media_metadata
 from ..store.protocol import MEDIA_YAML
 from . import album_app
@@ -31,8 +32,22 @@ def refresh_cmd(
         bool,
         typer.Option("--dry-run", help="Show what would change without writing."),
     ] = False,
+    redetect_faces: Annotated[
+        bool,
+        typer.Option(
+            "--redetect-faces",
+            help="Re-run face detection on all images (reuses cached thumbnails).",
+        ),
+    ] = False,
+    regenerate_face_thumbs: Annotated[
+        bool,
+        typer.Option(
+            "--regenerate-face-thumbs",
+            help="Regenerate face detection thumbnails from originals.",
+        ),
+    ] = False,
 ) -> None:
-    """Refresh media metadata (.photree/media.yaml) — assign IDs to new media."""
+    """Refresh media metadata and face detection data."""
     cwd = Path.cwd()
     result = refresh_media_metadata(album_dir, dry_run=dry_run)
 
@@ -56,3 +71,26 @@ def refresh_cmd(
                 f"{ms_result.removed_images + ms_result.removed_videos} removed"
             )
         typer.echo(f"  {ms_name}: {', '.join(parts)}")
+
+    # Face detection
+    typer.echo("\nFaces:")
+    face_result = refresh_face_data(
+        album_dir,
+        redetect=redetect_faces,
+        regenerate_thumbs=regenerate_face_thumbs,
+        dry_run=dry_run,
+    )
+
+    if not face_result.by_media_source:
+        typer.echo("  no media sources")
+    elif not face_result.changed:
+        typer.echo("  no changes")
+    else:
+        for ms_name, ms_result in face_result.by_media_source:
+            if ms_result.changed:
+                parts = [f"{ms_result.processed} processed"]
+                if ms_result.faces_detected:
+                    parts.append(f"{ms_result.faces_detected} face(s)")
+                if ms_result.failed:
+                    parts.append(f"{ms_result.failed} failed")
+                typer.echo(f"  {ms_name}: {', '.join(parts)}")
