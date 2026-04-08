@@ -103,6 +103,17 @@ class GalleryMetadata(_BaseModel):
         default=LinkMode.HARDLINK,
         description="Default link mode for optimize and other link-mode operations.",
     )
+    faces_enabled: bool = Field(
+        default=True,
+        description="Enable face detection and clustering during gallery refresh.",
+    )
+    face_cluster_threshold: float | None = Field(
+        default=None,
+        description=(
+            "Cosine distance threshold for face clustering (0.0-1.0). "
+            "Lower = stricter (fewer merges). Default: 0.45 when not set."
+        ),
+    )
 
 
 def save_gallery_metadata(gallery_dir: Path, metadata: GalleryMetadata) -> None:
