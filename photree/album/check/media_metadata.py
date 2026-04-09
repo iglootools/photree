@@ -195,13 +195,16 @@ def _find_duplicate_ids(uuids: list[str]) -> tuple[DuplicateId, ...]:
 # ---------------------------------------------------------------------------
 
 
-def check_media_metadata(album_dir: Path) -> MediaMetadataCheck:
+def check_media_metadata(
+    album_dir: Path,
+    media_sources: list[MediaSource] | None = None,
+) -> MediaMetadataCheck:
     """Compare ``.photree/media-ids`` against actual files on disk."""
     metadata = load_media_metadata(album_dir)
     if metadata is None:
         return MediaMetadataCheck(has_media_metadata=False)
 
-    media_sources = discover_media_sources(album_dir)
+    media_sources = media_sources or discover_media_sources(album_dir)
     discovered_names = {ms.name for ms in media_sources}
 
     # Check discovered media sources against metadata
