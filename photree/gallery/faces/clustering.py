@@ -92,6 +92,7 @@ def _build_sparse_connectivity(embeddings: np.ndarray, *, k: int) -> object:
     index.add(embeddings.astype(np.float32))  # type: ignore[call-arg]
     _, indices = index.search(embeddings.astype(np.float32), k + 1)  # type: ignore[call-arg]
 
+    # lil_matrix is inherently mutable (sparse matrix construction)
     n = len(embeddings)
     connectivity = lil_matrix((n, n), dtype=np.int8)
     for i in range(n):
@@ -128,25 +129,48 @@ def assign_to_nearest_cluster(
         return np.array([], dtype=np.int32)
 
     if index.ntotal == 0:
-        # No existing faces — each new face gets its own cluster
         return np.arange(
             next_cluster_id, next_cluster_id + len(new_embeddings), dtype=np.int32
         )
 
-    similarities, nn_indices = index.search(new_embeddings.astype(np.float32), 1)  # type: ignore[call-arg]
+    similarities, nn_indices = index.search(  # type: ignore[call-arg]
+        new_embeddings.astype(np.float32), 1
+    )
 
-    new_labels = np.empty(len(new_embeddings), dtype=np.int32)
+    return _assign_labels(
+        similarities[:, 0],
+        nn_indices[:, 0],
+        existing_labels,
+        distance_threshold=distance_threshold,
+        next_cluster_id=next_cluster_id,
+    )
+
+
+def _assign_labels(
+    similarities: np.ndarray,
+    nn_indices: np.ndarray,
+    existing_labels: np.ndarray,
+    *,
+    distance_threshold: float,
+    next_cluster_id: int,
+) -> np.ndarray:
+    """Assign each face to an existing cluster or a new singleton.
+
+    Stateful: ``next_cluster_id`` increments for each new singleton, so
+    this cannot be a pure comprehension without accumulating state.
+    """
+    labels = np.empty(len(similarities), dtype=np.int32)
     current_id = next_cluster_id
 
-    for i, (sim, nn_idx) in enumerate(zip(similarities[:, 0], nn_indices[:, 0])):
+    for i, (sim, nn_idx) in enumerate(zip(similarities, nn_indices)):
         cosine_distance = 1.0 - sim
         if cosine_distance <= distance_threshold and nn_idx >= 0:
-            new_labels[i] = existing_labels[nn_idx]
+            labels[i] = existing_labels[nn_idx]
         else:
-            new_labels[i] = current_id
+            labels[i] = current_id
             current_id += 1
 
-    return new_labels
+    return labels
 
 
 # ---------------------------------------------------------------------------
@@ -163,22 +187,23 @@ def compute_medoids(
     The medoid is the face closest to the cluster centroid.
     Returns ``{cluster_label: face_index}``.
     """
-    unique_labels = np.unique(labels)
-    medoids: dict[int, int] = {}
+    return {
+        int(label): _medoid_for_cluster(embeddings, labels, label)
+        for label in np.unique(labels)
+    }
 
-    for label in unique_labels:
-        mask = labels == label
-        cluster_indices = np.where(mask)[0]
-        cluster_embeddings = embeddings[mask]
 
-        centroid = cluster_embeddings.mean(axis=0)
-        centroid = centroid / (np.linalg.norm(centroid) + 1e-10)
+def _medoid_for_cluster(embeddings: np.ndarray, labels: np.ndarray, label: int) -> int:
+    """Return the index of the face closest to the cluster centroid."""
+    mask = labels == label
+    cluster_indices = np.where(mask)[0]
+    cluster_embeddings = embeddings[mask]
 
-        similarities = cluster_embeddings @ centroid
-        best_idx = cluster_indices[np.argmax(similarities)]
-        medoids[int(label)] = int(best_idx)
+    centroid = cluster_embeddings.mean(axis=0)
+    centroid = centroid / (np.linalg.norm(centroid) + 1e-10)
 
-    return medoids
+    similarities = cluster_embeddings @ centroid
+    return int(cluster_indices[np.argmax(similarities)])
 
 
 def match_clusters_by_medoid(
@@ -204,34 +229,87 @@ def match_clusters_by_medoid(
     old_medoids = compute_medoids(old_embeddings, old_labels)
     new_medoids = compute_medoids(new_embeddings, new_labels)
 
-    # Build a FAISS index of old medoid embeddings
-    old_medoid_embeddings = np.stack(
-        [old_embeddings[idx] for idx in old_medoids.values()]
-    ).astype(np.float32)
-    old_medoid_labels = list(old_medoids.keys())
+    old_medoid_index, old_medoid_labels = _build_medoid_index(
+        old_embeddings, old_medoids
+    )
 
-    index = faiss.IndexFlatIP(old_medoid_embeddings.shape[1])  # type: ignore[call-arg]
-    index.add(old_medoid_embeddings)  # type: ignore[call-arg]
+    return _match_new_to_old(
+        new_medoids,
+        new_embeddings,
+        old_medoid_index,
+        old_medoid_labels,
+        old_cluster_ids,
+        threshold=threshold,
+    )
 
+
+def _build_medoid_index(
+    embeddings: np.ndarray, medoids: dict[int, int]
+) -> tuple[faiss.IndexFlatIP, list[int]]:
+    """Build a FAISS index of medoid embeddings for nearest-neighbor matching."""
+    medoid_embeddings = np.stack([embeddings[idx] for idx in medoids.values()]).astype(
+        np.float32
+    )
+    medoid_labels = list(medoids.keys())
+
+    index = faiss.IndexFlatIP(medoid_embeddings.shape[1])  # type: ignore[call-arg]
+    index.add(medoid_embeddings)  # type: ignore[call-arg]
+    return (index, medoid_labels)
+
+
+def _match_new_to_old(
+    new_medoids: dict[int, int],
+    new_embeddings: np.ndarray,
+    old_index: faiss.IndexFlatIP,
+    old_medoid_labels: list[int],
+    old_cluster_ids: dict[int, str],
+    *,
+    threshold: float,
+) -> dict[int, str]:
+    """Match each new cluster's medoid to the nearest old cluster.
+
+    Greedy: each old UUID is used at most once (first match wins).
+    """
     matched: dict[int, str] = {}
     used_old_uuids: set[str] = set()
 
     for new_label, new_medoid_idx in sorted(new_medoids.items()):
-        query = new_embeddings[new_medoid_idx : new_medoid_idx + 1].astype(np.float32)
-        similarities, indices = index.search(query, 1)  # type: ignore[call-arg]
-
-        if indices[0][0] >= 0:
-            sim = float(similarities[0][0])
-            cosine_dist = 1.0 - sim
-            old_label = old_medoid_labels[indices[0][0]]
-            old_uuid = old_cluster_ids.get(old_label)
-
-            if (
-                old_uuid is not None
-                and cosine_dist <= threshold
-                and old_uuid not in used_old_uuids
-            ):
-                matched[new_label] = old_uuid
-                used_old_uuids.add(old_uuid)
+        match = _find_best_match(
+            new_embeddings[new_medoid_idx],
+            old_index,
+            old_medoid_labels,
+            old_cluster_ids,
+            threshold=threshold,
+            exclude=used_old_uuids,
+        )
+        if match is not None:
+            matched[new_label] = match
+            used_old_uuids.add(match)
 
     return matched
+
+
+def _find_best_match(
+    query_embedding: np.ndarray,
+    old_index: faiss.IndexFlatIP,
+    old_medoid_labels: list[int],
+    old_cluster_ids: dict[int, str],
+    *,
+    threshold: float,
+    exclude: set[str],
+) -> str | None:
+    """Find the best matching old cluster UUID for a query embedding."""
+    query = query_embedding.reshape(1, -1).astype(np.float32)
+    similarities, indices = old_index.search(query, 1)  # type: ignore[call-arg]
+
+    if indices[0][0] < 0:
+        return None
+
+    cosine_dist = 1.0 - float(similarities[0][0])
+    old_label = old_medoid_labels[indices[0][0]]
+    old_uuid = old_cluster_ids.get(old_label)
+
+    if old_uuid is not None and cosine_dist <= threshold and old_uuid not in exclude:
+        return old_uuid
+    else:
+        return None
