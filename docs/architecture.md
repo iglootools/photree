@@ -40,6 +40,7 @@ graph TD
     albums --> common
     albums --> config
     albums --> fsprotocol
+    albums --> gallery
     check --> album
     check --> clihelpers
     cli --> album

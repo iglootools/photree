@@ -86,6 +86,7 @@ class AlbumStats:
     album_year: str
     by_media_source: tuple[MediaSourceStats, ...]
     aggregate: AggregateStats
+    face_storage: SizeStats | None = None
 
 
 @dataclass(frozen=True)
@@ -107,3 +108,4 @@ class GalleryStats:
     unique_media_source_names: tuple[str, ...]
     by_year: tuple[YearStats, ...]
     collection_stats: GalleryCollectionStats | None = None
+    face_storage: SizeStats | None = None

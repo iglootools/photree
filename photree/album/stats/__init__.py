@@ -34,6 +34,7 @@ from .scan import (
     categorize_size_stats,
     count_unique_pictures,
     count_unique_videos,
+    scan_directory_size,
     tag_format_role,
 )
 
@@ -179,6 +180,8 @@ def compute_album_stats(album_dir: Path) -> AlbumStats:
 
     Raises :class:`ValueError` when the album name cannot be parsed.
     """
+    from ..faces.store import faces_dir
+
     album_name = album_dir.name
     year = _extract_year(album_name)
     if year is None:
@@ -194,11 +197,14 @@ def compute_album_stats(album_dir: Path) -> AlbumStats:
         compute_media_source_stats(album_dir, ms, seen_inodes) for ms in media_sources
     )
 
+    face_storage = scan_directory_size(faces_dir(album_dir))
+
     return AlbumStats(
         album_name=album_name,
         album_year=year,
         by_media_source=ms_stats,
         aggregate=aggregate_media_sources(ms_stats),
+        face_storage=face_storage if face_storage.file_count > 0 else None,
     )
 
 
@@ -225,12 +231,16 @@ def gallery_stats_from_album_stats(
         for year, albums in groupby(sorted_albums, key=lambda a: a.album_year)
     )
 
+    album_face_sizes = [a.face_storage for a in album_stats_list if a.face_storage]
+    face_storage = merge_size_stats(album_face_sizes) if album_face_sizes else None
+
     return GalleryStats(
         album_count=len(album_stats_list),
         by_album=tuple(album_stats_list),
         aggregate=merge_aggregates(a.aggregate for a in album_stats_list),
         unique_media_source_names=tuple(all_ms_names),
         by_year=by_year,
+        face_storage=face_storage,
     )
 
 

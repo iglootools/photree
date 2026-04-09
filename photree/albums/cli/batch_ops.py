@@ -593,12 +593,23 @@ def run_batch_stats(
             on_end=lambda name, success: progress.on_end(name, success=success),
         )
 
-    # Add collection stats if gallery context is available
+    # Add collection and face storage stats if gallery context is available
     if gallery_dir is not None:
-        from ...collection.stats import compute_gallery_collection_stats
         from ...album.stats.models import GalleryStats
+        from ...album.stats.scan import scan_directory_size
+        from ...collection.stats import compute_gallery_collection_stats
+        from ...gallery.faces.manifest import gallery_faces_dir
 
         col_stats = compute_gallery_collection_stats(gallery_dir)
+
+        # Merge album-level face storage with gallery-level face index storage
+        from ...album.stats.aggregate import merge_size_stats
+
+        gallery_face_size = scan_directory_size(gallery_faces_dir(gallery_dir))
+        face_storage = merge_size_stats(
+            [s for s in [result.face_storage, gallery_face_size] if s.file_count > 0]
+        )
+
         result = GalleryStats(
             album_count=result.album_count,
             by_album=result.by_album,
@@ -606,6 +617,7 @@ def run_batch_stats(
             unique_media_source_names=result.unique_media_source_names,
             by_year=result.by_year,
             collection_stats=col_stats,
+            face_storage=face_storage if face_storage.file_count > 0 else None,
         )
 
     typer.echo("")
