@@ -828,7 +828,7 @@ for acceleration.
 ```
 <Album>/
   .photree/
-    faces/
+    faces-cache/
       main.npz           # face data (embeddings, bboxes, landmarks, scores)
       main.yaml           # processing state (mtimes, model version)
       main-thumbs/        # resized 640px JPEGs for face detection

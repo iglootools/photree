@@ -10,8 +10,8 @@ from ...fsprotocol import _BaseModel
 # Constants
 # ---------------------------------------------------------------------------
 
-FACES_DIR = "faces"
-"""Subdirectory under ``.photree/`` for face detection data."""
+FACES_DIR = "faces-cache"
+"""Subdirectory under ``.photree/`` for face detection cache (album-level)."""
 
 FACES_STATE_SUFFIX = ".yaml"
 """Suffix for per-media-source processing state files."""
