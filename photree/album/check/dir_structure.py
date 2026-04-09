@@ -8,7 +8,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..store.media_sources_discovery import discover_media_sources
 from ..store.protocol import MAIN_MEDIA_SOURCE, MediaSource  # noqa: F401 — re-exported
 
 
@@ -38,7 +37,7 @@ def _has_any(album_dir: Path, group: tuple[str, ...]) -> bool:
 
 def check_album_dir_structure(
     album_dir: Path,
-    media_sources: list[MediaSource] | None = None,
+    media_sources: list[MediaSource],
 ) -> AlbumDirCheck:
     """Check which expected album subdirectories are present in *album_dir*.
 
@@ -57,7 +56,6 @@ def check_album_dir_structure(
     yet exist on disk, archive sub-directories will naturally be reported as
     missing or optional depending on which browsable directories are present.
     """
-    media_sources = media_sources or discover_media_sources(album_dir)
     if not media_sources:
         # No media sources found — report missing for main media source
         return AlbumDirCheck(

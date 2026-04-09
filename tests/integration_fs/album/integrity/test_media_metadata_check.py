@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from photree.album.store.media_sources_discovery import discover_media_sources
 from photree.album.check.media_metadata import (
     MediaType,
     UnmatchedKey,
@@ -41,7 +42,9 @@ class TestMediaMetadataCheckInSync:
         _setup_ios_album(album)
         refresh_media_metadata(album)
 
-        result = check_media_metadata(album)
+        result = check_media_metadata(
+            album, media_sources=discover_media_sources(album)
+        )
 
         assert result.has_media_metadata
         assert result.in_sync
@@ -57,7 +60,9 @@ class TestMediaMetadataCheckMissing:
         album = tmp_path / "album"
         _setup_ios_album(album)
 
-        result = check_media_metadata(album)
+        result = check_media_metadata(
+            album, media_sources=discover_media_sources(album)
+        )
 
         assert not result.has_media_metadata
         assert not result.in_sync
@@ -72,7 +77,9 @@ class TestMediaMetadataCheckNewFiles:
         # Add a new file
         _write(album / "ios-main" / "orig-img" / "IMG_0412.HEIC")
 
-        result = check_media_metadata(album)
+        result = check_media_metadata(
+            album, media_sources=discover_media_sources(album)
+        )
 
         assert not result.in_sync
         assert len(result.new_keys) == 1
@@ -85,7 +92,9 @@ class TestMediaMetadataCheckNewFiles:
 
         _write(album / "ios-main" / "orig-vid" / "IMG_0200.MOV")
 
-        result = check_media_metadata(album)
+        result = check_media_metadata(
+            album, media_sources=discover_media_sources(album)
+        )
 
         assert not result.in_sync
         assert len(result.new_keys) == 1
@@ -100,7 +109,9 @@ class TestMediaMetadataCheckStaleFiles:
 
         (album / "ios-main" / "orig-img" / "IMG_0410.HEIC").unlink()
 
-        result = check_media_metadata(album)
+        result = check_media_metadata(
+            album, media_sources=discover_media_sources(album)
+        )
 
         assert not result.in_sync
         assert len(result.stale_keys) == 1
@@ -126,7 +137,9 @@ class TestMediaMetadataCheckDuplicateIds:
             ),
         )
 
-        result = check_media_metadata(album)
+        result = check_media_metadata(
+            album, media_sources=discover_media_sources(album)
+        )
 
         assert not result.in_sync
         assert len(result.duplicate_ids) == 1
@@ -155,7 +168,9 @@ class TestMediaMetadataCheckStaleMediaSource:
         )
         save_media_metadata(album, meta)
 
-        result = check_media_metadata(album)
+        result = check_media_metadata(
+            album, media_sources=discover_media_sources(album)
+        )
 
         assert not result.in_sync
         stale_sources = {k.media_source for k in result.stale_keys}

@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ...common.fs import list_dirs
-from ..store.media_sources_discovery import discover_media_sources
 from ..store.protocol import SELECTION_DIR, MediaSource
 
 
@@ -23,7 +22,7 @@ class UnexpectedDirsCheck:
 
 def check_unexpected_dirs(
     album_dir: Path,
-    media_sources: list[MediaSource] | None = None,
+    media_sources: list[MediaSource],
 ) -> UnexpectedDirsCheck:
     """Check for unexpected top-level directories in *album_dir*.
 
@@ -31,7 +30,6 @@ def check_unexpected_dirs(
     to discovered media sources.  Dotdirs (e.g. ``.photree/``) are excluded
     by :func:`list_dirs` and never flagged.
     """
-    media_sources = media_sources or discover_media_sources(album_dir)
     expected = frozenset(
         {
             SELECTION_DIR,

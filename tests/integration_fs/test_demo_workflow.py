@@ -147,7 +147,9 @@ class TestDemoWorkflow:
             assert not p.is_symlink(), f"{name} in main-jpg should not be a symlink"
 
         # Integrity still passes after optimization
-        integrity_after = check_album_integrity(album_dir, checksum=True)
+        integrity_after = check_album_integrity(
+            album_dir, checksum=True, media_sources=discover_media_sources(album_dir)
+        )
         assert integrity_after.success
 
         # ── Export (main-jpg) ─────────────────────────────────

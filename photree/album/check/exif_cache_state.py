@@ -12,7 +12,6 @@ from pathlib import Path
 
 from ..exif_cache.protocol import EXIF_CACHE_DIR
 from ..exif_cache.store import cache_path
-from ..store.media_sources_discovery import discover_media_sources
 from ..store.protocol import MediaSource
 from ...fsprotocol import PHOTREE_DIR
 
@@ -34,7 +33,7 @@ class ExifCacheStateCheck:
 
 def check_exif_cache_state(
     album_dir: Path,
-    media_sources: list[MediaSource] | None = None,
+    media_sources: list[MediaSource],
 ) -> ExifCacheStateCheck | None:
     """Validate EXIF cache state for an album.
 
@@ -42,7 +41,6 @@ def check_exif_cache_state(
     that each media source has a cache file — trusts the cache content
     without per-file mtime verification.
     """
-    media_sources = media_sources or discover_media_sources(album_dir)
     if not media_sources:
         return None
 

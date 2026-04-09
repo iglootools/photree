@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from photree.album.check.unexpected_dirs import check_unexpected_dirs
+from photree.album.store.media_sources_discovery import discover_media_sources
 from photree.album.store.protocol import (
     MAIN_MEDIA_SOURCE,
     SELECTION_DIR,
@@ -38,7 +39,9 @@ class TestCheckUnexpectedDirs:
         album = tmp_path / "album"
         _setup_ios_album(album)
 
-        result = check_unexpected_dirs(album)
+        result = check_unexpected_dirs(
+            album, media_sources=discover_media_sources(album)
+        )
         assert result.success
         assert result.unexpected == ()
 
@@ -46,7 +49,9 @@ class TestCheckUnexpectedDirs:
         album = tmp_path / "album"
         _setup_std_album(album)
 
-        result = check_unexpected_dirs(album)
+        result = check_unexpected_dirs(
+            album, media_sources=discover_media_sources(album)
+        )
         assert result.success
         assert result.unexpected == ()
 
@@ -55,7 +60,9 @@ class TestCheckUnexpectedDirs:
         _setup_ios_album(album)
         (album / "random-folder").mkdir()
 
-        result = check_unexpected_dirs(album)
+        result = check_unexpected_dirs(
+            album, media_sources=discover_media_sources(album)
+        )
         assert not result.success
         assert result.unexpected == ("random-folder",)
 
@@ -65,7 +72,9 @@ class TestCheckUnexpectedDirs:
         (album / "zzz-extra").mkdir()
         (album / "aaa-stray").mkdir()
 
-        result = check_unexpected_dirs(album)
+        result = check_unexpected_dirs(
+            album, media_sources=discover_media_sources(album)
+        )
         assert not result.success
         assert result.unexpected == ("aaa-stray", "zzz-extra")
 
@@ -74,7 +83,9 @@ class TestCheckUnexpectedDirs:
         _setup_ios_album(album)
         (album / SELECTION_DIR).mkdir()
 
-        result = check_unexpected_dirs(album)
+        result = check_unexpected_dirs(
+            album, media_sources=discover_media_sources(album)
+        )
         assert result.success
 
     def test_dotdirs_ignored(self, tmp_path: Path) -> None:
@@ -82,7 +93,9 @@ class TestCheckUnexpectedDirs:
         _setup_ios_album(album)
         (album / ".hidden-dir").mkdir()
 
-        result = check_unexpected_dirs(album)
+        result = check_unexpected_dirs(
+            album, media_sources=discover_media_sources(album)
+        )
         assert result.success
 
     def test_multi_media_source(self, tmp_path: Path) -> None:
@@ -90,7 +103,9 @@ class TestCheckUnexpectedDirs:
         _setup_ios_album(album)
         _setup_std_album(album, name="bruno")
 
-        result = check_unexpected_dirs(album)
+        result = check_unexpected_dirs(
+            album, media_sources=discover_media_sources(album)
+        )
         assert result.success
 
     def test_multi_media_source_with_unexpected(self, tmp_path: Path) -> None:
@@ -99,7 +114,9 @@ class TestCheckUnexpectedDirs:
         _setup_std_album(album, name="bruno")
         (album / "leftover").mkdir()
 
-        result = check_unexpected_dirs(album)
+        result = check_unexpected_dirs(
+            album, media_sources=discover_media_sources(album)
+        )
         assert not result.success
         assert result.unexpected == ("leftover",)
 
@@ -108,7 +125,9 @@ class TestCheckUnexpectedDirs:
         (album / ".photree").mkdir(parents=True)
         (album / SELECTION_DIR).mkdir()
 
-        result = check_unexpected_dirs(album)
+        result = check_unexpected_dirs(
+            album, media_sources=discover_media_sources(album)
+        )
         assert result.success
 
     def test_no_media_sources_unexpected_flagged(self, tmp_path: Path) -> None:
@@ -116,6 +135,8 @@ class TestCheckUnexpectedDirs:
         (album / ".photree").mkdir(parents=True)
         (album / "stray").mkdir()
 
-        result = check_unexpected_dirs(album)
+        result = check_unexpected_dirs(
+            album, media_sources=discover_media_sources(album)
+        )
         assert not result.success
         assert result.unexpected == ("stray",)
