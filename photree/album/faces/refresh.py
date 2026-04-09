@@ -80,7 +80,7 @@ class FaceRefreshResult:
 
 
 # ---------------------------------------------------------------------------
-# Core refresh logic
+# Public API
 # ---------------------------------------------------------------------------
 
 
@@ -129,6 +129,11 @@ def refresh_face_data(
     return FaceRefreshResult(by_media_source=tuple(results))
 
 
+# ---------------------------------------------------------------------------
+# Per-source refresh orchestration
+# ---------------------------------------------------------------------------
+
+
 def _refresh_source(
     album_dir: Path,
     ms: MediaSource,
@@ -146,24 +151,14 @@ def _refresh_source(
     if on_source_start:
         on_source_start(ms.name)
 
-    # Load existing state
     existing_state = load_face_state(album_dir, ms.name) or FaceProcessingState()
     existing_data = load_face_data(album_dir, ms.name) or FaceData.empty()
 
-    # Scan current images on disk
-    img_ext = IOS_IMG_EXTENSIONS if ms.is_ios else IMG_EXTENSIONS
-    current_files = dedup_media_dict(
-        list_files(album_dir / ms.orig_img_dir), img_ext, ms.key_fn
-    )
+    current_files = _scan_current_images(album_dir, ms)
     current_keys = set(current_files.keys())
 
-    # Determine model version change
-    model_changed = (
-        existing_state.model_name != model_name
-        or existing_state.model_version != model_version
-    )
+    model_changed = _model_version_changed(existing_state, model_name, model_version)
 
-    # Classify keys
     keys_to_process = _keys_needing_processing(
         current_files,
         album_dir / ms.orig_img_dir,
@@ -173,76 +168,43 @@ def _refresh_source(
     )
     stale_keys = set(existing_state.processed_keys.keys()) - current_keys
 
+    # Early returns for no-op and dry-run
     if not keys_to_process and not stale_keys:
         if on_source_end:
             on_source_end(ms.name, True)
-        return FaceSourceRefreshResult(
-            processed=0,
-            skipped=len(current_keys),
-            faces_detected=0,
-            failed=0,
-        )
+        return _no_change_result(current_keys)
 
     if dry_run:
         if on_source_end:
             on_source_end(ms.name, True)
-        return FaceSourceRefreshResult(
-            processed=len(keys_to_process),
-            skipped=len(current_keys) - len(keys_to_process),
-            faces_detected=0,
-            failed=0,
-        )
+        return _dry_run_result(keys_to_process, current_keys)
 
-    # Generate thumbnails (parallel sips)
-    thumb_dir = thumbs_dir(album_dir, ms.name)
-    thumb_results = _generate_thumbnails(
-        keys_to_process,
+    # Detect faces
+    new_faces, new_state_keys, failed = _run_detection(
+        album_dir,
+        ms,
         current_files,
-        album_dir / ms.orig_img_dir,
-        thumb_dir,
+        keys_to_process,
         existing_state=existing_state,
-        regenerate=regenerate_thumbs or model_changed,
+        regenerate_thumbs=regenerate_thumbs or model_changed,
+        analyzer=analyzer,
     )
 
-    # Run face detection on each thumbnail
-    detection_results = [
-        _detect_single(tr, album_dir / ms.orig_img_dir, analyzer)
-        for tr in thumb_results
-    ]
-    new_faces = [
-        face for faces, _ in detection_results if faces is not None for face in faces
-    ]
-    new_state_keys = {
-        tr.key: state_key
-        for tr, (_, state_key) in zip(thumb_results, detection_results)
-        if state_key is not None
-    }
-    failed = sum(1 for faces, _ in detection_results if faces is None)
-
-    # Remove stale thumbnails
-    for key in stale_keys:
-        stale_thumb = thumb_dir / thumb_filename(key)
-        if stale_thumb.is_file():
-            stale_thumb.unlink()
-
-    # Build updated face data: keep existing (minus stale and reprocessed), add new
-    keep_keys = current_keys - set(keys_to_process) - stale_keys
-    retained_data = filter_face_data(existing_data, keep_keys=keep_keys)
-    new_data = _faces_to_face_data(new_faces) if new_faces else FaceData.empty()
-    merged_data = merge_face_data(retained_data, new_data)
-
-    # Build updated state
-    retained_state_keys = {
-        k: v for k, v in existing_state.processed_keys.items() if k in keep_keys
-    }
-    updated_state = FaceProcessingState(
+    # Cleanup + persist
+    _delete_stale_thumbnails(thumbs_dir(album_dir, ms.name), stale_keys)
+    _save_updated_state(
+        album_dir,
+        ms,
+        existing_data,
+        existing_state,
+        current_keys=current_keys,
+        keys_to_process=keys_to_process,
+        stale_keys=stale_keys,
+        new_faces=new_faces,
+        new_state_keys=new_state_keys,
         model_name=model_name,
         model_version=model_version,
-        processed_keys={**retained_state_keys, **new_state_keys},
     )
-
-    save_face_data(album_dir, ms.name, merged_data)
-    save_face_state(album_dir, ms.name, updated_state)
 
     if on_source_end:
         on_source_end(ms.name, failed == 0)
@@ -256,8 +218,20 @@ def _refresh_source(
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Scanning and diffing
 # ---------------------------------------------------------------------------
+
+
+def _scan_current_images(album_dir: Path, ms: MediaSource) -> dict[str, str]:
+    """Scan ``orig-img/`` and return deduplicated ``{key: filename}`` mapping."""
+    img_ext = IOS_IMG_EXTENSIONS if ms.is_ios else IMG_EXTENSIONS
+    return dedup_media_dict(list_files(album_dir / ms.orig_img_dir), img_ext, ms.key_fn)
+
+
+def _model_version_changed(
+    state: FaceProcessingState, model_name: str, model_version: str
+) -> bool:
+    return state.model_name != model_name or state.model_version != model_version
 
 
 def _keys_needing_processing(
@@ -293,61 +267,51 @@ def _needs_processing(
     return file_path.is_file() and entry.mtime != file_path.stat().st_mtime
 
 
-def _generate_thumbnails(
-    keys: list[str],
+# ---------------------------------------------------------------------------
+# Detection
+# ---------------------------------------------------------------------------
+
+
+def _run_detection(
+    album_dir: Path,
+    ms: MediaSource,
     current_files: dict[str, str],
-    orig_dir: Path,
-    thumb_dir: Path,
+    keys_to_process: list[str],
     *,
     existing_state: FaceProcessingState,
-    regenerate: bool,
-) -> list[ThumbnailResult]:
-    """Generate thumbnails for keys that need them, in parallel."""
-    thumb_dir.mkdir(parents=True, exist_ok=True)
+    regenerate_thumbs: bool,
+    analyzer: FaceAnalysis,
+) -> tuple[list[DetectedFace], dict[str, FaceProcessedKey], int]:
+    """Generate thumbnails and run face detection.
 
-    # Determine which keys actually need thumbnail generation
-    needs_thumb = [
-        key
-        for key in keys
-        if regenerate
-        or not (thumb_dir / thumb_filename(key)).is_file()
-        or _needs_processing(key, current_files[key], orig_dir, existing_state)
-    ]
-
-    # Keys with existing valid thumbnails
-    reuse_keys = [key for key in keys if key not in needs_thumb]
-
-    # Generate missing thumbnails in parallel
-    tasks: list[tuple[str, Callable[[], ThumbnailResult]]] = [
-        (
-            key,
-            partial(
-                generate_thumbnail,
-                key,
-                current_files[key],
-                orig_dir / current_files[key],
-                thumb_dir / thumb_filename(key),
-            ),
-        )
-        for key in needs_thumb
-    ]
-
-    generated: dict[str, ThumbnailResult] = (
-        {pr.key: pr.value for pr in run_parallel(tasks) if pr.success and pr.value}
-        if tasks
-        else {}
+    Returns ``(new_faces, new_state_keys, failed_count)``.
+    """
+    thumb_dir = thumbs_dir(album_dir, ms.name)
+    thumb_results = _generate_thumbnails(
+        keys_to_process,
+        current_files,
+        album_dir / ms.orig_img_dir,
+        thumb_dir,
+        existing_state=existing_state,
+        regenerate=regenerate_thumbs,
     )
 
-    # Build ThumbnailResult for reused thumbnails
-    reused = [
-        _reuse_thumbnail(key, current_files[key], thumb_dir / thumb_filename(key))
-        for key in reuse_keys
+    detection_results = [
+        _detect_single(tr, album_dir / ms.orig_img_dir, analyzer)
+        for tr in thumb_results
     ]
 
-    return [
-        *(generated[key] for key in needs_thumb if key in generated),
-        *reused,
+    new_faces = [
+        face for faces, _ in detection_results if faces is not None for face in faces
     ]
+    new_state_keys = {
+        tr.key: state_key
+        for tr, (_, state_key) in zip(thumb_results, detection_results)
+        if state_key is not None
+    }
+    failed = sum(1 for faces, _ in detection_results if faces is None)
+
+    return (new_faces, new_state_keys, failed)
 
 
 def _detect_single(
@@ -372,13 +336,68 @@ def _detect_single(
         return (None, None)
 
 
+# ---------------------------------------------------------------------------
+# Thumbnail generation
+# ---------------------------------------------------------------------------
+
+
+def _generate_thumbnails(
+    keys: list[str],
+    current_files: dict[str, str],
+    orig_dir: Path,
+    thumb_dir: Path,
+    *,
+    existing_state: FaceProcessingState,
+    regenerate: bool,
+) -> list[ThumbnailResult]:
+    """Generate thumbnails for keys that need them, in parallel."""
+    thumb_dir.mkdir(parents=True, exist_ok=True)
+
+    needs_thumb = [
+        key
+        for key in keys
+        if regenerate
+        or not (thumb_dir / thumb_filename(key)).is_file()
+        or _needs_processing(key, current_files[key], orig_dir, existing_state)
+    ]
+    reuse_keys = [key for key in keys if key not in needs_thumb]
+
+    tasks: list[tuple[str, Callable[[], ThumbnailResult]]] = [
+        (
+            key,
+            partial(
+                generate_thumbnail,
+                key,
+                current_files[key],
+                orig_dir / current_files[key],
+                thumb_dir / thumb_filename(key),
+            ),
+        )
+        for key in needs_thumb
+    ]
+
+    generated: dict[str, ThumbnailResult] = (
+        {pr.key: pr.value for pr in run_parallel(tasks) if pr.success and pr.value}
+        if tasks
+        else {}
+    )
+
+    reused = [
+        _reuse_thumbnail(key, current_files[key], thumb_dir / thumb_filename(key))
+        for key in reuse_keys
+    ]
+
+    return [
+        *(generated[key] for key in needs_thumb if key in generated),
+        *reused,
+    ]
+
+
 def _reuse_thumbnail(key: str, file_name: str, thumb_path: Path) -> ThumbnailResult:
     """Build a ThumbnailResult for an existing thumbnail."""
     from ...common.sips import get_dimensions
 
     thumb_w, thumb_h = get_dimensions(thumb_path)
-    # We don't re-read original dimensions for reused thumbnails.
-    # Use 0 as placeholder; the state file has the authoritative values.
     return ThumbnailResult(
         key=key,
         file_name=file_name,
@@ -388,6 +407,80 @@ def _reuse_thumbnail(key: str, file_name: str, thumb_path: Path) -> ThumbnailRes
         thumb_width=thumb_w,
         thumb_height=thumb_h,
     )
+
+
+# ---------------------------------------------------------------------------
+# Persistence
+# ---------------------------------------------------------------------------
+
+
+def _delete_stale_thumbnails(thumb_dir: Path, stale_keys: set[str]) -> None:
+    """Remove thumbnails for keys no longer on disk."""
+    for key in stale_keys:
+        stale_thumb = thumb_dir / thumb_filename(key)
+        if stale_thumb.is_file():
+            stale_thumb.unlink()
+
+
+def _save_updated_state(
+    album_dir: Path,
+    ms: MediaSource,
+    existing_data: FaceData,
+    existing_state: FaceProcessingState,
+    *,
+    current_keys: set[str],
+    keys_to_process: list[str],
+    stale_keys: set[str],
+    new_faces: list[DetectedFace],
+    new_state_keys: dict[str, FaceProcessedKey],
+    model_name: str,
+    model_version: str,
+) -> None:
+    """Merge detection results with existing data and save to disk."""
+    keep_keys = current_keys - set(keys_to_process) - stale_keys
+
+    retained_data = filter_face_data(existing_data, keep_keys=keep_keys)
+    new_data = _faces_to_face_data(new_faces) if new_faces else FaceData.empty()
+    merged_data = merge_face_data(retained_data, new_data)
+
+    retained_state_keys = {
+        k: v for k, v in existing_state.processed_keys.items() if k in keep_keys
+    }
+    updated_state = FaceProcessingState(
+        model_name=model_name,
+        model_version=model_version,
+        processed_keys={**retained_state_keys, **new_state_keys},
+    )
+
+    save_face_data(album_dir, ms.name, merged_data)
+    save_face_state(album_dir, ms.name, updated_state)
+
+
+# ---------------------------------------------------------------------------
+# Result constructors
+# ---------------------------------------------------------------------------
+
+
+def _no_change_result(current_keys: set[str]) -> FaceSourceRefreshResult:
+    return FaceSourceRefreshResult(
+        processed=0, skipped=len(current_keys), faces_detected=0, failed=0
+    )
+
+
+def _dry_run_result(
+    keys_to_process: list[str], current_keys: set[str]
+) -> FaceSourceRefreshResult:
+    return FaceSourceRefreshResult(
+        processed=len(keys_to_process),
+        skipped=len(current_keys) - len(keys_to_process),
+        faces_detected=0,
+        failed=0,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Conversion helpers
+# ---------------------------------------------------------------------------
 
 
 def _faces_to_face_data(faces: list[DetectedFace]) -> FaceData:
