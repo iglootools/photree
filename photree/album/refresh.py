@@ -1,9 +1,12 @@
-"""Refresh media metadata — scan directories and assign/reconcile media IDs."""
+"""Refresh album derived data — media IDs, EXIF cache, face detection."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+
+from exiftool import ExifToolHelper  # type: ignore[import-untyped]
+from insightface.app import FaceAnalysis
 
 from ..common.fs import list_files
 from .id import generate_media_id
@@ -167,4 +170,37 @@ def refresh_media_metadata(
 
     return RefreshResult(
         by_media_source=tuple((name, result) for name, _, result in refreshed),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Composite refresh (media IDs + EXIF cache + face detection)
+# ---------------------------------------------------------------------------
+
+
+def refresh_album_derived_data(
+    album_dir: Path,
+    *,
+    exiftool: ExifToolHelper | None = None,
+    face_analyzer: FaceAnalysis | None = None,
+    redetect_faces: bool = False,
+    refresh_face_thumbs: bool = False,
+    dry_run: bool = False,
+) -> None:
+    """Refresh all derived album data: media IDs, EXIF cache, face detection.
+
+    Shared instances (*exiftool*, *face_analyzer*) can be passed to
+    amortize startup cost across albums in batch operations.
+    """
+    from .exif_cache.refresh import refresh_exif_cache
+    from .faces.refresh import refresh_face_data
+
+    refresh_media_metadata(album_dir, dry_run=dry_run)
+    refresh_exif_cache(album_dir, exiftool=exiftool, dry_run=dry_run)
+    refresh_face_data(
+        album_dir,
+        face_analyzer=face_analyzer,
+        redetect=redetect_faces,
+        refresh_thumbs=refresh_face_thumbs,
+        dry_run=dry_run,
     )

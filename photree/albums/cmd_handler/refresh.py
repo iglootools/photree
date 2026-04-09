@@ -6,13 +6,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from exiftool import ExifToolHelper  # type: ignore[import-untyped]
-from insightface.app import FaceAnalysis
-
-from ...album.exif_cache.refresh import refresh_exif_cache
 from ...album.faces.detect import create_face_analyzer
-from ...album.faces.refresh import refresh_face_data
-from ...album.refresh import refresh_media_metadata
+from ...album.refresh import refresh_album_derived_data
 from ...common.exif import try_start_exiftool
 
 
@@ -34,7 +29,7 @@ def batch_refresh(
     on_start: Callable[[str], None] | None = None,
     on_end: Callable[[str, bool, tuple[str, ...]], None] | None = None,
 ) -> BatchRefreshResult:
-    """Refresh media metadata, EXIF cache, and face data for multiple albums.
+    """Refresh all derived data for multiple albums.
 
     Calls ``on_start(name)`` before and
     ``on_end(name, success, error_labels)`` after each album.
@@ -44,8 +39,8 @@ def batch_refresh(
     refreshed = 0
     failed_albums: list[Path] = []
 
-    face_analyzer: FaceAnalysis | None = None
-    exiftool: ExifToolHelper | None = try_start_exiftool()
+    exiftool = try_start_exiftool()
+    face_analyzer = create_face_analyzer()
 
     try:
         for album_dir in albums:
@@ -54,18 +49,12 @@ def batch_refresh(
                 on_start(album_name)
 
             try:
-                refresh_media_metadata(album_dir, dry_run=dry_run)
-
-                refresh_exif_cache(album_dir, exiftool=exiftool, dry_run=dry_run)
-
-                if face_analyzer is None:
-                    face_analyzer = create_face_analyzer()
-
-                refresh_face_data(
+                refresh_album_derived_data(
                     album_dir,
+                    exiftool=exiftool,
                     face_analyzer=face_analyzer,
-                    redetect=redetect_faces,
-                    refresh_thumbs=refresh_face_thumbs,
+                    redetect_faces=redetect_faces,
+                    refresh_face_thumbs=refresh_face_thumbs,
                     dry_run=dry_run,
                 )
 
