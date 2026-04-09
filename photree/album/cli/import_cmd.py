@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Annotated
 
@@ -166,6 +167,7 @@ def import_cmd(
                 on_stage_start=progress.on_start,
                 on_stage_end=progress.on_end,
                 convert_file=converter,
+                max_workers=os.cpu_count(),
             )
         except FileNotFoundError as exc:
             err_console.print(str(exc))

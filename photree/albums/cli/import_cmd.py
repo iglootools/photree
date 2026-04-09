@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Annotated, Optional
 
@@ -153,6 +154,7 @@ def import_cmd(
             on_error=lambda name, error: progress.on_end(name, success=False),
             on_validation_error=_on_validation_error,
             convert_file=converter,
+            max_workers=os.cpu_count(),
         )
 
     if has_validation_errors:

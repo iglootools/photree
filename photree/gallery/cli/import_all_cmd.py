@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Annotated, Optional
 
@@ -104,7 +105,7 @@ def import_all_cmd(
     typer.echo(f"Found {len(albums)} album(s).\n")
     typer.echo("Import:")
     imported, failed_albums = run_batch_import(
-        albums, resolved_gallery, resolved_lm, dry_run
+        albums, resolved_gallery, resolved_lm, dry_run, max_workers=os.cpu_count()
     )
 
     if not dry_run and imported > 0:

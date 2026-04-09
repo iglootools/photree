@@ -195,6 +195,7 @@ def _stage_refresh_jpeg(
     *,
     dry_run: bool,
     convert_file: Callable[..., Path | None],
+    max_workers: int | None = None,
 ) -> bool:
     """Stage 3: refresh JPEGs if stale. Returns whether a refresh was needed."""
     if not _jpeg_is_stale(work_dir):
@@ -203,7 +204,11 @@ def _stage_refresh_jpeg(
         for ms in discover_media_sources(work_dir):
             if (work_dir / ms.img_dir).is_dir():
                 album_fixes.refresh_jpeg(
-                    work_dir, ms, dry_run=False, convert_file=convert_file
+                    work_dir,
+                    ms,
+                    dry_run=False,
+                    convert_file=convert_file,
+                    max_workers=max_workers,
                 )
     return True
 
@@ -240,6 +245,7 @@ def import_album(
     on_stage_start: Callable[[str], None] | None = None,
     on_stage_end: Callable[[str], None] | None = None,
     convert_file: Callable[..., Path | None] = convert_single_file,
+    max_workers: int | None = None,
 ) -> AlbumImportResult:
     """Import an album directory into a gallery.
 
@@ -269,7 +275,10 @@ def import_album(
 
     _notify(on_stage_start, STAGE_JPEG)
     jpeg_refreshed = _stage_refresh_jpeg(
-        work_dir, dry_run=dry_run, convert_file=convert_file
+        work_dir,
+        dry_run=dry_run,
+        convert_file=convert_file,
+        max_workers=max_workers,
     )
     _notify(on_stage_end, STAGE_JPEG)
 

@@ -33,6 +33,7 @@ def refresh_browsable(
     convert_file: Callable[..., Path | None] = convert_single_file,
     on_stage_start: Callable[[str], None] | None = None,
     on_stage_end: Callable[[str], None] | None = None,
+    max_workers: int | None = None,
 ) -> RefreshBrowsableResult:
     """Delete browsable dirs, rebuild img/vid from archive, then jpeg.
 
@@ -96,6 +97,7 @@ def refresh_browsable(
             browsable_jpg,
             dry_run=dry_run,
             convert_file=convert_file,
+            max_workers=max_workers,
         )
         if has_img
         else None

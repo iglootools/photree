@@ -396,6 +396,7 @@ def run_batch_fix(
     rm_upstream: bool = False,
     rm_orphan: bool = False,
     dry_run: bool = False,
+    max_workers: int | None = None,
 ) -> None:
     """Shared implementation for gallery fix / albums fix."""
     cwd = Path.cwd()
@@ -423,6 +424,7 @@ def run_batch_fix(
             display_fn=make_display_fn(display_base, cwd),
             on_start=progress.on_start,
             on_end=lambda name, success: progress.on_end(name, success=success),
+            max_workers=max_workers,
         )
 
     if result.album_reports:

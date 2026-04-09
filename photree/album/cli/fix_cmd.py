@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Annotated
 
@@ -179,6 +180,7 @@ def fix_cmd(
             if file_progress
             else None,
             on_refresh_jpeg_file_end=file_progress.on_end if file_progress else None,
+            max_workers=os.cpu_count(),
         )
 
     for line in format_fix_result(result):
