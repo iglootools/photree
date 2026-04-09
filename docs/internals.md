@@ -243,6 +243,17 @@ The default media source is named `main`.
     media-ids/            per-source media ID mappings (image/video UUIDs)
       main.yaml
       bruno.yaml
+    cache/                derived data (safely deletable, rebuilt by refresh)
+      exif/               cached EXIF timestamps per media source
+        main.yaml
+        bruno.yaml
+      faces/              face detection data per media source
+        main.npz          embeddings, bboxes, landmarks, scores
+        main.yaml         processing state (mtimes, model version)
+        main-thumbs/      resized 640px JPEGs for face detection
+        bruno.npz
+        bruno.yaml
+        bruno-thumbs/
   to-import/              selection files exported from Photos (workflow input)
   to-import.csv           alternative selection list (one filename per row)
 
