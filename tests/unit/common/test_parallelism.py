@@ -70,3 +70,24 @@ class TestRunParallel:
         run_parallel(tasks, max_workers=1)
 
         assert sorted(order) == ["1", "2"]
+
+    def test_captures_return_values(self) -> None:
+        tasks = [
+            ("a", lambda: 10),
+            ("b", lambda: 20),
+            ("c", lambda: 30),
+        ]
+        results = run_parallel(tasks, max_workers=2)
+
+        values_by_key = {r.key: r.value for r in results}
+        assert values_by_key == {"a": 10, "b": 20, "c": 30}
+
+    def test_failed_task_has_none_value(self) -> None:
+        def fail() -> int:
+            raise RuntimeError("boom")
+
+        tasks = [("x", fail)]
+        results = run_parallel(tasks, max_workers=1)
+
+        assert results[0].value is None
+        assert not results[0].success

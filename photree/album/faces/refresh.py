@@ -324,11 +324,11 @@ def _generate_thumbnails(
     reuse_keys = [key for key in keys if key not in needs_thumb]
 
     # Generate missing thumbnails in parallel
-    tasks: list[tuple[str, Callable[[], object]]] = [
+    tasks: list[tuple[str, Callable[[], ThumbnailResult]]] = [
         (
             key,
             partial(
-                _generate_single_thumbnail,
+                generate_thumbnail,
                 key,
                 current_files[key],
                 orig_dir / current_files[key],
@@ -338,12 +338,11 @@ def _generate_thumbnails(
         for key in needs_thumb
     ]
 
-    generated: dict[str, ThumbnailResult] = {}
-    if tasks:
-        results = run_parallel(tasks)
-        for pr in results:
-            if pr.success and pr.key in _thumb_result_cache:
-                generated[pr.key] = _thumb_result_cache.pop(pr.key)
+    generated: dict[str, ThumbnailResult] = (
+        {pr.key: pr.value for pr in run_parallel(tasks) if pr.success and pr.value}
+        if tasks
+        else {}
+    )
 
     # Build ThumbnailResult for reused thumbnails
     reused = [
@@ -355,17 +354,6 @@ def _generate_thumbnails(
         *(generated[key] for key in needs_thumb if key in generated),
         *reused,
     ]
-
-
-# Thread-local cache for thumbnail results from parallel generation.
-# run_parallel tasks can't return values directly, so we store results here.
-_thumb_result_cache: dict[str, ThumbnailResult] = {}
-
-
-def _generate_single_thumbnail(key: str, file_name: str, src: Path, dst: Path) -> None:
-    """Generate one thumbnail and cache the result."""
-    result = generate_thumbnail(key, file_name, src, dst)
-    _thumb_result_cache[key] = result
 
 
 def _reuse_thumbnail(key: str, file_name: str, thumb_path: Path) -> ThumbnailResult:
