@@ -140,7 +140,7 @@ def refresh_cmd(
     from ...clihelpers.console import console
 
     console.print(
-        f"  {CHECK} browsable "
+        f"{CHECK} browsable "
         f"({browsable_result.albums_rendered} album(s), "
         f"{browsable_result.collections_rendered} collection(s), "
         f"{browsable_result.symlinks_created} symlink(s))"
