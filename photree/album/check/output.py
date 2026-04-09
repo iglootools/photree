@@ -351,32 +351,42 @@ def format_jpeg_integrity_checks(result: AlbumJpegIntegrityResult) -> str:
 # ---------------------------------------------------------------------------
 
 
-def format_face_state_check(check: FaceStateCheck) -> str:
+def format_face_state_check(check: FaceStateCheck, indent: str = "    ") -> str:
     """Format face state check results."""
     if check.success:
         return f"{CHECK} face state"
 
-    lines = [f"{CROSS} face state ({check.issue_count} issue(s))"]
-    if check.unprocessed:
-        lines.append(f"    unprocessed: {', '.join(check.unprocessed[:5])}")
-        if len(check.unprocessed) > 5:
-            lines.append(f"    ... and {len(check.unprocessed) - 5} more")
-    if check.stale_entries:
-        lines.append(f"    stale entries: {', '.join(check.stale_entries[:5])}")
-    if check.missing_thumbs:
-        lines.append(f"    missing thumbnails: {', '.join(check.missing_thumbs[:5])}")
-    if check.stale_thumbs:
-        lines.append(f"    stale thumbnails: {', '.join(check.stale_thumbs[:5])}")
-    if check.model_mismatch:
-        lines.append("    model version mismatch")
-    if check.npz_yaml_sync_errors:
-        for err in check.npz_yaml_sync_errors:
-            lines.append(f"    {err}")
-    lines.append(
-        "    Run 'photree album refresh' or 'photree album detect-faces --redetect'"
-        " to fix."
+    return "\n".join(
+        [
+            f"{CROSS} face state ({check.issue_count} issue(s))",
+            *_format_issue_group("unprocessed", check.unprocessed, indent),
+            *_format_issue_group("stale entries", check.stale_entries, indent),
+            *_format_issue_group("missing thumbnails", check.missing_thumbs, indent),
+            *_format_issue_group("stale thumbnails", check.stale_thumbs, indent),
+            *([f"{indent}model version mismatch"] if check.model_mismatch else []),
+            *[f"{indent}{err}" for err in check.npz_yaml_sync_errors],
+            (
+                f"{indent}Run 'photree album refresh' or"
+                " 'photree album detect-faces --redetect' to fix."
+            ),
+        ]
     )
-    return "\n".join(lines)
+
+
+def _format_issue_group(
+    label: str, items: tuple[str, ...], indent: str, *, max_shown: int = 5
+) -> list[str]:
+    """Format a group of issues with truncation."""
+    if not items:
+        return []
+    return [
+        f"{indent}{label}: {', '.join(items[:max_shown])}",
+        *(
+            [f"{indent}... and {len(items) - max_shown} more"]
+            if len(items) > max_shown
+            else []
+        ),
+    ]
 
 
 # ---------------------------------------------------------------------------
