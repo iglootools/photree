@@ -13,6 +13,7 @@ from ...album.store.album_discovery import discover_albums
 from ...album.store.metadata import load_album_metadata
 from ...albums.cli.batch_ops import run_batch_check
 from ...albums.cli.ops import resolve_check_batch_albums
+from ...clihelpers.console import console
 from ...collection.check import check_all_collections
 from ...common.formatting import CHECK, CROSS
 from ...common.fs import display_path
@@ -102,9 +103,9 @@ def _check_collections(gallery_dir: Path) -> None:
     for result in col_results:
         name = display_path(result.collection_dir, cwd)
         if result.success:
-            typer.echo(f"  {CHECK} {name}")
+            console.print(f"  {CHECK} {name}")
         else:
-            typer.echo(f"  {CROSS} {name}")
+            console.print(f"  {CROSS} {name}")
             for issue in result.issues:
                 typer.echo(f"      {issue.message}")
 
@@ -132,13 +133,13 @@ def _check_face_clusters(gallery_dir: Path) -> None:
     ]
 
     if issues:
-        typer.echo(f"  {CROSS} face clusters ({len(issues)} issue(s))")
+        console.print(f"  {CROSS} face clusters ({len(issues)} issue(s))")
         for issue in issues:
             typer.echo(f"      {issue}")
         typer.echo("    Run 'photree gallery cluster-faces --redetect' to rebuild.")
         raise typer.Exit(code=1)
     else:
-        typer.echo(
+        console.print(
             f"  {CHECK} face clusters "
             f"({clusters.face_count} face(s),"
             f" {clusters.cluster_count} cluster(s))"
