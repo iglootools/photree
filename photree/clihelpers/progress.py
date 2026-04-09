@@ -13,6 +13,7 @@ All progress bars support context manager usage::
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from types import TracebackType
 from typing import TypeVar
 
@@ -257,3 +258,21 @@ class BatchProgressBar(_ProgressContextMixin):
     def stop(self) -> None:
         if self._progress is not None:
             self._progress.stop()
+
+
+# ---------------------------------------------------------------------------
+# Transient spinner for slow one-off operations
+# ---------------------------------------------------------------------------
+
+T = TypeVar("T")
+
+
+def run_with_spinner(description: str, fn: "Callable[[], T]") -> "T":
+    """Run *fn* with a transient spinner showing *description*."""
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        transient=True,
+    ) as progress:
+        progress.add_task(description, total=None)
+        return fn()

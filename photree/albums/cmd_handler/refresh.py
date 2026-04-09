@@ -8,6 +8,7 @@ from pathlib import Path
 
 from ...album.faces.detect import create_face_analyzer
 from ...album.refresh import refresh_album_derived_data
+from ...clihelpers.progress import run_with_spinner
 from ...common.exif import try_start_exiftool
 
 
@@ -40,7 +41,9 @@ def batch_refresh(
     failed_albums: list[Path] = []
 
     exiftool = try_start_exiftool()
-    face_analyzer = create_face_analyzer()
+    face_analyzer = run_with_spinner(
+        "Loading face detection model...", create_face_analyzer
+    )
 
     try:
         for album_dir in albums:
