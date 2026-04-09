@@ -612,16 +612,18 @@ def run_batch_stats(
 def _enrich_gallery_stats(
     result: stats_models.GalleryStats, gallery_dir: Path
 ) -> stats_models.GalleryStats:
-    """Add collection and face storage stats from gallery context."""
+    """Add collection stats and gallery-level cache storage from gallery context."""
     from ...album.stats.aggregate import merge_size_stats
     from ...album.stats.scan import scan_directory_size
     from ...collection.stats import compute_gallery_collection_stats
     from ...gallery.faces.manifest import gallery_faces_dir
 
     col_stats = compute_gallery_collection_stats(gallery_dir)
+
+    # Gallery-level face index storage (clusters, FAISS index, manifest)
     gallery_face_size = scan_directory_size(gallery_faces_dir(gallery_dir))
-    face_storage = merge_size_stats(
-        [s for s in [result.face_storage, gallery_face_size] if s.file_count > 0]
+    cache_storage = merge_size_stats(
+        [s for s in [result.cache_storage, gallery_face_size] if s.file_count > 0]
     )
 
     return stats_models.GalleryStats(
@@ -631,7 +633,7 @@ def _enrich_gallery_stats(
         unique_media_source_names=result.unique_media_source_names,
         by_year=result.by_year,
         collection_stats=col_stats,
-        face_storage=face_storage if face_storage.file_count > 0 else None,
+        cache_storage=cache_storage if cache_storage.file_count > 0 else None,
     )
 
 

@@ -180,8 +180,6 @@ def compute_album_stats(album_dir: Path) -> AlbumStats:
 
     Raises :class:`ValueError` when the album name cannot be parsed.
     """
-    from ..faces.store import faces_dir
-
     album_name = album_dir.name
     year = _extract_year(album_name)
     if year is None:
@@ -197,14 +195,16 @@ def compute_album_stats(album_dir: Path) -> AlbumStats:
         compute_media_source_stats(album_dir, ms, seen_inodes) for ms in media_sources
     )
 
-    face_storage = scan_directory_size(faces_dir(album_dir))
+    from ...fsprotocol import PHOTREE_DIR
+
+    cache_size = scan_directory_size(album_dir / PHOTREE_DIR / "cache")
 
     return AlbumStats(
         album_name=album_name,
         album_year=year,
         by_media_source=ms_stats,
         aggregate=aggregate_media_sources(ms_stats),
-        face_storage=face_storage if face_storage.file_count > 0 else None,
+        cache_storage=cache_size if cache_size.file_count > 0 else None,
     )
 
 
@@ -227,12 +227,17 @@ def gallery_stats_from_album_stats(
             year=year,
             album_count=len(group := list(albums)),
             aggregate=merge_aggregates(a.aggregate for a in group),
+            cache_storage=merge_size_stats(
+                [a.cache_storage for a in group if a.cache_storage]
+            )
+            if any(a.cache_storage for a in group)
+            else None,
         )
         for year, albums in groupby(sorted_albums, key=lambda a: a.album_year)
     )
 
-    album_face_sizes = [a.face_storage for a in album_stats_list if a.face_storage]
-    face_storage = merge_size_stats(album_face_sizes) if album_face_sizes else None
+    album_cache_sizes = [a.cache_storage for a in album_stats_list if a.cache_storage]
+    cache_storage = merge_size_stats(album_cache_sizes) if album_cache_sizes else None
 
     return GalleryStats(
         album_count=len(album_stats_list),
@@ -240,7 +245,7 @@ def gallery_stats_from_album_stats(
         aggregate=merge_aggregates(a.aggregate for a in album_stats_list),
         unique_media_source_names=tuple(all_ms_names),
         by_year=by_year,
-        face_storage=face_storage,
+        cache_storage=cache_storage,
     )
 
 
