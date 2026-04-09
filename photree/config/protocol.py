@@ -26,7 +26,7 @@ class ExporterProfile:
 
     share_dir: Path
     share_layout: ShareDirectoryLayout = ShareDirectoryLayout.FLAT
-    album_layout: AlbumShareLayout = AlbumShareLayout.MAIN_JPG
+    album_layout: AlbumShareLayout = AlbumShareLayout.BROWSABLE_JPG
     link_mode: LinkMode = LinkMode.HARDLINK
 
 

@@ -2,8 +2,8 @@
 
 Supports three album layouts for albums with archives (iOS and std sources):
 
-- **main-jpg** (default): Copies main-jpg/ and main-vid/ (most compatible formats).
-- **main**: Copies main-img/, main-jpg/, and main-vid/.
+- **browsable-jpg** (default): Copies {name}-jpg/ and {name}-vid/ (most compatible formats).
+- **browsable**: Copies {name}-img/, {name}-jpg/, and {name}-vid/.
 - **all**: Copies archival directories (orig-*, edit-*) and main-jpg/ as-is,
   then recreates main-img/ and main-vid/ using the specified link mode.
 
@@ -30,7 +30,7 @@ from ..store.protocol import (
 )
 
 
-def _main_jpg_dirs(ms: MediaSource) -> tuple[tuple[str, str], ...]:
+def _browsable_jpg_dirs(ms: MediaSource) -> tuple[tuple[str, str], ...]:
     """JPEG + video directories for the ``main-jpg`` layout."""
     return (
         (ms.jpg_dir, ms.jpg_dir),
@@ -38,7 +38,7 @@ def _main_jpg_dirs(ms: MediaSource) -> tuple[tuple[str, str], ...]:
     )
 
 
-def _main_dirs(ms: MediaSource) -> tuple[tuple[str, str], ...]:
+def _browsable_dirs(ms: MediaSource) -> tuple[tuple[str, str], ...]:
     """Browsable directories and their export names for a media source."""
     return (
         (ms.img_dir, ms.img_dir),
@@ -129,23 +129,23 @@ def _export_plain(album_dir: Path, target_dir: Path) -> int:
     return _copytree(album_dir, target_dir)
 
 
-def _export_main_jpg(album_dir: Path, target_dir: Path) -> int:
+def _export_browsable_jpg(album_dir: Path, target_dir: Path) -> int:
     """Export JPEG + video dirs for all media sources."""
     target_dir.mkdir(parents=True, exist_ok=True)
     return sum(
         _copy_dir(album_dir / src_name, target_dir / dst_name)
         for ms in discover_media_sources(album_dir)
-        for src_name, dst_name in _main_jpg_dirs(ms)
+        for src_name, dst_name in _browsable_jpg_dirs(ms)
     )
 
 
-def _export_main(album_dir: Path, target_dir: Path) -> int:
+def _export_browsable(album_dir: Path, target_dir: Path) -> int:
     """Export browsable dirs for all media sources."""
     target_dir.mkdir(parents=True, exist_ok=True)
     return sum(
         _copy_dir(album_dir / src_name, target_dir / dst_name)
         for ms in discover_media_sources(album_dir)
-        for src_name, dst_name in _main_dirs(ms)
+        for src_name, dst_name in _browsable_dirs(ms)
     )
 
 
@@ -204,16 +204,13 @@ def export_album(
     album_dir: Path,
     target_dir: Path,
     *,
-    album_layout: AlbumShareLayout = AlbumShareLayout.MAIN_JPG,
+    album_layout: AlbumShareLayout = AlbumShareLayout.BROWSABLE_JPG,
     link_mode: LinkMode = LinkMode.HARDLINK,
 ) -> ExportResult:
     """Export a single album to *target_dir*.
 
     The caller is responsible for computing *target_dir* (e.g. via
     :func:`compute_target_dir`).
-
-    Albums without archives (legacy std sources with browsable dirs only)
-    are copied in their entirety regardless of *album_layout*.
     Albums with archives (iOS or std) are exported according to *album_layout*.
     """
     album_name = album_dir.name
@@ -224,10 +221,10 @@ def export_album(
         files_copied = _export_plain(album_dir, target_dir)
     else:
         match album_layout:
-            case AlbumShareLayout.MAIN_JPG:
-                files_copied = _export_main_jpg(album_dir, target_dir)
-            case AlbumShareLayout.MAIN:
-                files_copied = _export_main(album_dir, target_dir)
+            case AlbumShareLayout.BROWSABLE_JPG:
+                files_copied = _export_browsable_jpg(album_dir, target_dir)
+            case AlbumShareLayout.BROWSABLE:
+                files_copied = _export_browsable(album_dir, target_dir)
             case AlbumShareLayout.ALL:
                 files_copied = _export_all(album_dir, target_dir, link_mode=link_mode)
 

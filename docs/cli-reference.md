@@ -129,7 +129,7 @@ $ photree album export [OPTIONS]
 * `-p, --profile TEXT`: Exporter profile name from config.
 * `-c, --config TEXT`: Path to config file.
 * `--share-layout [flat|albums]`: Share layout: flat (default) or albums.
-* `--album-layout [main-jpg|main|all]`: Export layout: main-jpg (default), main, or all.
+* `--album-layout [browsable-jpg|browsable|all]`: Export layout: main-jpg (default), main, or all.
 * `--link-mode [copy|hardlink|symlink]`: How to create main files in all layout: hardlink (default), symlink, or copy.
 * `--help`: Show this message and exit.
 
@@ -503,7 +503,7 @@ $ photree albums export [OPTIONS]
 * `-p, --profile TEXT`: Exporter profile name from config.
 * `-c, --config TEXT`: Path to config file.
 * `--share-layout [flat|albums]`: Share layout: flat (default) or albums.
-* `--album-layout [main-jpg|main|all]`: Export layout: main-jpg (default), main, or all.
+* `--album-layout [browsable-jpg|browsable|all]`: Export layout: main-jpg (default), main, or all.
 * `--link-mode [copy|hardlink|symlink]`: How to create main files in all layout: hardlink (default), symlink, or copy.
 * `--help`: Show this message and exit.
 
@@ -1058,7 +1058,7 @@ $ photree gallery export [OPTIONS]
 * `-p, --profile TEXT`: Exporter profile name from config.
 * `-c, --config TEXT`: Path to config file.
 * `--share-layout [flat|albums]`: Share layout: flat (default) or albums.
-* `--album-layout [main-jpg|main|all]`: Export layout: main-jpg (default), main, or all.
+* `--album-layout [browsable-jpg|browsable|all]`: Export layout: main-jpg (default), main, or all.
 * `--link-mode [copy|hardlink|symlink]`: How to create main files in all layout: hardlink (default), symlink, or copy.
 * `--help`: Show this message and exit.
 

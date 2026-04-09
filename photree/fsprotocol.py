@@ -71,8 +71,8 @@ SHARE_SENTINEL = ".photree-share"
 class AlbumShareLayout(StrEnum):
     """How an album is exported."""
 
-    MAIN_JPG = "main-jpg"
-    MAIN = "main"
+    BROWSABLE_JPG = "browsable-jpg"
+    BROWSABLE = "browsable"
     ALL = "all"
 
 

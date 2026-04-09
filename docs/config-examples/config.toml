@@ -7,5 +7,5 @@ image-capture-dir = "~/Pictures/Sami Dalouche\u2019s iPhone"
 [exporter.profiles.mega]
 share-dir = "~/MEGAsync/to-share"
 share-layout = "flat"
-album-layout = "main-jpg"
+album-layout = "browsable-jpg"
 link-mode = "hardlink"

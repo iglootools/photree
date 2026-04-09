@@ -49,7 +49,7 @@ def run_batch_export(
     album_dirs: Sequence[Path] | None = None,
     share_dir: Path,
     share_layout: ShareDirectoryLayout = ShareDirectoryLayout.FLAT,
-    album_layout: AlbumShareLayout = AlbumShareLayout.MAIN_JPG,
+    album_layout: AlbumShareLayout = AlbumShareLayout.BROWSABLE_JPG,
     link_mode: LinkMode = LinkMode.HARDLINK,
     on_exporting: Callable[[str], None] | None = None,
     on_exported: Callable[[str], None] | None = None,
