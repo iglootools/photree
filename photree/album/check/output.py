@@ -59,11 +59,6 @@ def exiftool_troubleshoot() -> str:
 # ---------------------------------------------------------------------------
 
 
-def album_type_check(album_type: str) -> str:
-    """Deprecated — use media_sources_check instead."""
-    return f"{CHECK} album type: {album_type}"
-
-
 def media_sources_check(summary: AlbumMediaSourceSummary) -> str:
     if not summary.media_sources:
         return f"{CROSS} media sources: none detected"
@@ -133,47 +128,71 @@ def format_naming_checks(
     album_dir: str = ".",
 ) -> str:
     """Format naming validation results."""
-    lines: list[str] = []
+    return "\n".join(
+        [
+            *_format_naming_line(result),
+            *_format_exif_line(result, fatal_exif=fatal_exif, album_dir=album_dir),
+        ]
+    )
 
+
+def _format_naming_line(result: AlbumNamingResult) -> list[str]:
     if result.issues:
-        lines.append(f"{CROSS} naming: {len(result.issues)} issue(s)")
-        lines.extend(f"    {issue.message}" for issue in result.issues)
+        return [
+            f"{CROSS} naming: {len(result.issues)} issue(s)",
+            *[f"    {issue.message}" for issue in result.issues],
+        ]
     else:
-        lines.append(f"{CHECK} naming")
+        return [f"{CHECK} naming"]
 
-    if result.exif_check is not None:
-        if result.exif_check.matches:
-            lines.append(f"{CHECK} exif timestamps match album date")
-        else:
-            icon = CROSS if fatal_exif else WARNING
-            if result.exif_check.mismatches:
-                n = len(result.exif_check.mismatches)
-                lines.append(
-                    f"{icon} exif: {n} file(s) outside album date"
-                    f" ({result.exif_check.album_date})"
-                )
-                max_examples = 5
-                for m in result.exif_check.mismatches[:max_examples]:
-                    lines.append(f"    {m.file_name}  {m.timestamp}")
-                remaining = n - max_examples
-                if remaining > 0:
-                    lines.append(f"    ... and {remaining} more")
 
-                lines.append("")
-                lines.extend(
-                    suggest_exif_fixes(
-                        result.exif_check.mismatches,
-                        album_date=result.exif_check.album_date,
-                        album_dir=album_dir,
-                    )
-                )
-            if result.exif_check.no_exact_album_date_match:
-                lines.append(
-                    f"{icon} exif: no file matches the album date"
-                    f" ({result.exif_check.album_date}) exactly"
-                )
+def _format_exif_line(
+    result: AlbumNamingResult, *, fatal_exif: bool, album_dir: str
+) -> list[str]:
+    if result.exif_check is None:
+        return []
 
-    return "\n".join(lines)
+    if result.exif_check.matches:
+        return [f"{CHECK} exif timestamps match album date"]
+
+    icon = CROSS if fatal_exif else WARNING
+
+    return [
+        *_format_exif_mismatches(result.exif_check, icon, album_dir),
+        *(
+            [
+                f"{icon} exif: no file matches the album date"
+                f" ({result.exif_check.album_date}) exactly"
+            ]
+            if result.exif_check.no_exact_album_date_match
+            else []
+        ),
+    ]
+
+
+def _format_exif_mismatches(exif_check: object, icon: str, album_dir: str) -> list[str]:
+    """Format EXIF mismatch details with examples and fix suggestions."""
+    from ..naming import ExifTimestampCheck
+
+    if not isinstance(exif_check, ExifTimestampCheck) or not exif_check.mismatches:
+        return []
+
+    n = len(exif_check.mismatches)
+    max_examples = 5
+    return [
+        f"{icon} exif: {n} file(s) outside album date ({exif_check.album_date})",
+        *[
+            f"    {m.file_name}  {m.timestamp}"
+            for m in exif_check.mismatches[:max_examples]
+        ],
+        *([f"    ... and {n - max_examples} more"] if n > max_examples else []),
+        "",
+        *suggest_exif_fixes(
+            exif_check.mismatches,
+            album_date=exif_check.album_date,
+            album_dir=album_dir,
+        ),
+    ]
 
 
 def format_batch_naming_issues(result: BatchNamingResult) -> str:
@@ -387,7 +406,6 @@ def _format_issue_group(
     ]
 
 
-# ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
 # EXIF cache state output
 # ---------------------------------------------------------------------------
