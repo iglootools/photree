@@ -9,6 +9,7 @@ import typer
 
 from ...common.fs import display_path
 from ...fsprotocol import PHOTREE_DIR
+from ..exif_cache.refresh import refresh_exif_cache
 from ..faces.refresh import refresh_face_data
 from ..refresh import refresh_media_metadata
 from ..store.protocol import MEDIA_YAML
@@ -71,6 +72,21 @@ def refresh_cmd(
                 f"{ms_result.removed_images + ms_result.removed_videos} removed"
             )
         typer.echo(f"  {ms_name}: {', '.join(parts)}")
+
+    # EXIF cache
+    typer.echo("\nEXIF cache:")
+    exif_result = refresh_exif_cache(album_dir, dry_run=dry_run)
+    if not exif_result.by_media_source:
+        typer.echo("  no media sources")
+    elif not exif_result.changed:
+        typer.echo("  no changes")
+    else:
+        for ms_name, ms_result in exif_result.by_media_source:
+            if ms_result.changed:
+                parts = [f"{ms_result.refreshed} refreshed"]
+                if ms_result.pruned:
+                    parts.append(f"{ms_result.pruned} pruned")
+                typer.echo(f"  {ms_name}: {', '.join(parts)}")
 
     # Face detection
     typer.echo("\nFaces:")

@@ -6,11 +6,14 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 from insightface.app import FaceAnalysis
 
+from ...album.exif_cache.refresh import refresh_exif_cache
 from ...album.faces.detect import create_face_analyzer
 from ...album.faces.refresh import refresh_face_data
 from ...album.refresh import refresh_media_metadata
+from ...common.exif import try_start_exiftool
 
 
 @dataclass(frozen=True)
@@ -31,46 +34,50 @@ def batch_refresh(
     on_start: Callable[[str], None] | None = None,
     on_end: Callable[[str, bool, tuple[str, ...]], None] | None = None,
 ) -> BatchRefreshResult:
-    """Refresh media metadata and face data for multiple albums.
+    """Refresh media metadata, EXIF cache, and face data for multiple albums.
 
     Calls ``on_start(name)`` before and
     ``on_end(name, success, error_labels)`` after each album.
 
-    A single :class:`FaceAnalysis` instance is shared across albums
-    to avoid reloading the model (~500 MB) for each album.
+    Shared instances (exiftool, FaceAnalysis) are reused across albums.
     """
     refreshed = 0
     failed_albums: list[Path] = []
 
-    # Create shared face analyzer once for all albums
     face_analyzer: FaceAnalysis | None = None
+    exiftool: ExifToolHelper | None = try_start_exiftool()
 
-    for album_dir in albums:
-        album_name = display_fn(album_dir)
-        if on_start:
-            on_start(album_name)
+    try:
+        for album_dir in albums:
+            album_name = display_fn(album_dir)
+            if on_start:
+                on_start(album_name)
 
-        try:
-            refresh_media_metadata(album_dir, dry_run=dry_run)
+            try:
+                refresh_media_metadata(album_dir, dry_run=dry_run)
 
-            # Lazy-init face analyzer on first use
-            if face_analyzer is None:
-                face_analyzer = create_face_analyzer()
+                refresh_exif_cache(album_dir, exiftool=exiftool, dry_run=dry_run)
 
-            refresh_face_data(
-                album_dir,
-                face_analyzer=face_analyzer,
-                redetect=redetect_faces,
-                refresh_thumbs=refresh_face_thumbs,
-                dry_run=dry_run,
-            )
+                if face_analyzer is None:
+                    face_analyzer = create_face_analyzer()
 
-            if on_end:
-                on_end(album_name, True, ())
-            refreshed += 1
-        except Exception:
-            if on_end:
-                on_end(album_name, False, ())
-            failed_albums.append(album_dir)
+                refresh_face_data(
+                    album_dir,
+                    face_analyzer=face_analyzer,
+                    redetect=redetect_faces,
+                    refresh_thumbs=refresh_face_thumbs,
+                    dry_run=dry_run,
+                )
+
+                if on_end:
+                    on_end(album_name, True, ())
+                refreshed += 1
+            except Exception:
+                if on_end:
+                    on_end(album_name, False, ())
+                failed_albums.append(album_dir)
+    finally:
+        if exiftool is not None:
+            exiftool.__exit__(None, None, None)
 
     return BatchRefreshResult(refreshed=refreshed, failed_albums=failed_albums)
