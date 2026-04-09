@@ -21,7 +21,14 @@ from ...albums.cli.batch_ops import run_batch_check
 from ...albums.cli.ops import resolve_check_batch_albums
 from ...collection.check import check_all_collections
 from ...common.formatting import CHECK, CROSS
-from ..faces.manifest import load_clusters, load_manifest
+from ...album.store.album_discovery import discover_albums
+from ...album.store.metadata import load_album_metadata
+from ..faces.manifest import (
+    compute_npz_checksum,
+    load_checksums,
+    load_clusters,
+    load_manifest,
+)
 from .ops import resolve_gallery_or_exit
 
 
@@ -106,6 +113,32 @@ def check_cmd(
                 f"face count mismatch: clusters.yaml says {clusters.face_count}, "
                 f"manifest has {manifest_size}"
             )
+
+        # Check album face data checksums match gallery index
+        stored_checksums = load_checksums(resolved)
+        if stored_checksums is not None:
+            albums_dir = resolved / "albums"
+            for album_dir in discover_albums(albums_dir):
+                meta = load_album_metadata(album_dir)
+                if meta is None:
+                    continue
+                album_checksums = stored_checksums.albums.get(meta.id, {})
+                faces_dir = album_dir / ".photree" / "faces"
+                if not faces_dir.is_dir():
+                    continue
+                for npz_file in sorted(faces_dir.glob("*.npz")):
+                    ms_name = npz_file.stem
+                    stored = album_checksums.get(ms_name)
+                    if stored is None:
+                        face_issues.append(
+                            f"album {meta.id[:12]}.../{ms_name}: "
+                            "face data not in gallery index"
+                        )
+                    elif stored != compute_npz_checksum(npz_file):
+                        face_issues.append(
+                            f"album {meta.id[:12]}.../{ms_name}: "
+                            "checksum mismatch (album face data changed)"
+                        )
 
         if face_issues:
             typer.echo(f"  {CROSS} face clusters ({len(face_issues)} issue(s))")
