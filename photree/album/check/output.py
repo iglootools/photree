@@ -6,10 +6,11 @@ from textwrap import dedent
 
 from rich.markup import escape
 
-from ...common.formatting import CHECK, CROSS, WARNING
+from ...common.formatting import CHECK, CROSS, WARNING, format_check_line
 from ..naming import AlbumNamingResult, BatchNamingResult
 from ..id import format_album_external_id
 from . import AlbumIntegrityResult, AlbumMediaSourceSummary, AlbumPreflightResult
+from .dir_structure import AlbumDirCheck
 from .exif_cache_state import ExifCacheStateCheck
 from .face_state import FaceStateCheck
 from .media_metadata import MediaMetadataCheck
@@ -421,73 +422,134 @@ def format_album_preflight_checks(
     fatal_exif: bool = False,
     album_dir: str = ".",
 ) -> str:
-    """Format all album preflight check lines."""
+    """Format all album preflight check lines, grouped by category."""
+    sections = [
+        _format_system_section(result),
+        _format_structure_section(result),
+        _format_media_section(result, fatal_sidecar=fatal_sidecar),
+        _format_naming_section(result, fatal_exif=fatal_exif, album_dir=album_dir),
+        _format_cache_section(result),
+    ]
+    return "\n\n".join(s for s in sections if s)
+
+
+def _format_system_section(result: AlbumPreflightResult) -> str:
     return "\n".join(
         [
+            "System:",
             sips_check(result.sips_available),
             exiftool_check(result.exiftool_available),
-            media_sources_check(result.media_source_summary),
-            *(
-                [
-                    album_id_check_line(
-                        result.album_id_check.has_id,
-                        result.album_id_check.album_id,
-                    )
-                ]
-                if result.album_id_check is not None
-                else []
-            ),
-            *(
-                [media_metadata_check_line(result.media_metadata_check)]
-                if result.media_metadata_check is not None
-                else []
-            ),
-            *(
-                album_dir_check(
-                    result.dir_check.present,
-                    result.dir_check.missing,
-                    result.dir_check.optional_present,
-                    result.dir_check.optional_absent,
-                ).splitlines()
-                if result.media_source_summary.media_sources
-                else []
-            ),
-            *(
-                unexpected_dirs_check_line(result.unexpected_dirs_check).splitlines()
-                if result.unexpected_dirs_check is not None
-                else []
-            ),
-            *(
-                format_integrity_checks(
-                    result.integrity, fatal_sidecar=fatal_sidecar
-                ).splitlines()
-                if result.integrity is not None
-                else []
-            ),
-            *(
-                format_jpeg_integrity_checks(result.jpeg_check).splitlines()
-                if result.jpeg_check is not None
-                else []
-            ),
-            *(
-                format_naming_checks(
-                    result.naming, fatal_exif=fatal_exif, album_dir=album_dir
-                ).splitlines()
-                if result.naming is not None
-                else []
-            ),
-            *(
-                format_face_state_check(result.face_state_check).splitlines()
-                if result.face_state_check is not None
-                else []
-            ),
-            *(
-                format_exif_cache_check(result.exif_cache_check).splitlines()
-                if result.exif_cache_check is not None
-                else []
-            ),
         ]
     )
+
+
+def _format_structure_section(result: AlbumPreflightResult) -> str:
+    lines = ["Structure:"]
+
+    if result.album_id_check is not None:
+        lines.append(
+            album_id_check_line(
+                result.album_id_check.has_id, result.album_id_check.album_id
+            )
+        )
+
+    if result.media_source_summary.media_sources:
+        lines.append(_directory_structure_line(result.dir_check))
+
+    if result.unexpected_dirs_check is not None:
+        lines.extend(
+            unexpected_dirs_check_line(result.unexpected_dirs_check).splitlines()
+        )
+
+    lines.append(media_sources_check(result.media_source_summary))
+
+    if result.media_metadata_check is not None:
+        lines.append(media_metadata_check_line(result.media_metadata_check))
+
+    return "\n".join(lines)
+
+
+def _directory_structure_line(check: AlbumDirCheck) -> str:
+    """Collapsed directory structure check — single line on success, details on failure."""
+    total_present = len(check.present) + len(check.optional_present)
+    opt_absent = len(check.optional_absent)
+    missing = len(check.missing)
+
+    if missing == 0:
+        parts = [f"{total_present} present"]
+        if opt_absent:
+            parts.append(f"{opt_absent} optional absent")
+        return format_check_line(
+            "directory structure", success=True, summary=", ".join(parts)
+        )
+    else:
+        return format_check_line(
+            "directory structure",
+            success=False,
+            summary=f"{missing} missing",
+            details=tuple(
+                [
+                    f"missing: {', '.join(check.missing)}",
+                    *(
+                        [f"present: {', '.join(check.present)}"]
+                        if check.present
+                        else []
+                    ),
+                ]
+            ),
+        )
+
+
+def _format_media_section(
+    result: AlbumPreflightResult, *, fatal_sidecar: bool
+) -> str | None:
+    if result.integrity is None and result.jpeg_check is None:
+        return None
+
+    lines = ["Media:"]
+
+    if result.integrity is not None:
+        lines.extend(
+            format_integrity_checks(
+                result.integrity, fatal_sidecar=fatal_sidecar
+            ).splitlines()
+        )
+
+    if result.jpeg_check is not None:
+        lines.extend(format_jpeg_integrity_checks(result.jpeg_check).splitlines())
+
+    return "\n".join(lines)
+
+
+def _format_naming_section(
+    result: AlbumPreflightResult, *, fatal_exif: bool, album_dir: str
+) -> str | None:
+    if result.naming is None:
+        return None
+
+    return "\n".join(
+        [
+            "Naming:",
+            *format_naming_checks(
+                result.naming, fatal_exif=fatal_exif, album_dir=album_dir
+            ).splitlines(),
+        ]
+    )
+
+
+def _format_cache_section(result: AlbumPreflightResult) -> str | None:
+    if result.face_state_check is None and result.exif_cache_check is None:
+        return None
+
+    lines = ["Cache:"]
+
+    if result.face_state_check is not None:
+        lines.extend(format_face_state_check(result.face_state_check).splitlines())
+
+    if result.exif_cache_check is not None:
+        lines.extend(format_exif_cache_check(result.exif_cache_check).splitlines())
+
+    return "\n".join(lines)
 
 
 def format_fatal_warnings(
