@@ -91,6 +91,7 @@ class GalleryFaceRefreshResult:
 @dataclass(frozen=True)
 class _AlbumFaceSource:
     album_id: str
+    album_dir: Path
     media_source: str
     npz_path: Path
     checksum: str
@@ -399,6 +400,7 @@ def _scan_album_face_sources(album_dir: Path) -> list[_AlbumFaceSource]:
     return [
         _AlbumFaceSource(
             album_id=metadata.id,
+            album_dir=album_dir,
             media_source=npz_file.stem,
             npz_path=npz_file,
             checksum=compute_npz_checksum(npz_file),
@@ -441,8 +443,7 @@ def _load_source_faces(
     src: _AlbumFaceSource,
 ) -> tuple[list[FaceReference] | None, np.ndarray | None]:
     """Load face references and embeddings from a single album face source."""
-    album_dir = src.npz_path.parent.parent.parent
-    data = load_face_data(album_dir, src.media_source)
+    data = load_face_data(src.album_dir, src.media_source)
     if data is None or data.count == 0:
         return (None, None)
     refs = [
