@@ -802,9 +802,10 @@ mtimes — no exiftool process needed.
 ```
 <Album>/
   .photree/
-    exif-cache/
-      main.yaml          # cached timestamps for media source "main"
-      bruno.yaml          # cached timestamps for media source "bruno"
+    cache/
+      exif/
+        main.yaml        # cached timestamps for media source "main"
+        bruno.yaml        # cached timestamps for media source "bruno"
 ```
 
 ### Cache Schema
@@ -835,7 +836,7 @@ A file needs EXIF re-reading when:
 - Its mtime differs from cached mtime (file changed)
 
 Stale keys (files removed from disk) are pruned on refresh. The
-`exif-cache` directory is purely derived data and can be safely deleted.
+`cache/exif` directory is purely derived data and can be safely deleted.
 
 ## Face Detection and Clustering Pipeline
 
@@ -874,15 +875,16 @@ for acceleration.
 ```
 <Album>/
   .photree/
-    faces-cache/
-      main.npz           # face data (embeddings, bboxes, landmarks, scores)
-      main.yaml           # processing state (mtimes, model version)
-      main-thumbs/        # resized 640px JPEGs for face detection
-        0410.jpg
-        0411.jpg
-      bruno.npz
-      bruno.yaml
-      bruno-thumbs/
+    cache/
+      faces/
+        main.npz           # face data (embeddings, bboxes, landmarks, scores)
+        main.yaml           # processing state (mtimes, model version)
+        main-thumbs/        # resized 640px JPEGs for face detection
+          0410.jpg
+          0411.jpg
+        bruno.npz
+        bruno.yaml
+        bruno-thumbs/
 ```
 
 Per media source: one `.npz` (binary face data) + one `.yaml` (state) +
