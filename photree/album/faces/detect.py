@@ -7,6 +7,8 @@ Macs for Neural Engine acceleration.
 
 from __future__ import annotations
 
+import contextlib
+import io
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
@@ -32,9 +34,12 @@ def create_face_analyzer(
     Prefers ``CoreMLExecutionProvider`` (M-series Neural Engine) with
     fallback to ``CPUExecutionProvider``.
     """
-    # Suppress FutureWarning from insightface calling deprecated scikit-image API
-    # (SimilarityTransform.estimate → SimilarityTransform.from_estimate)
-    with warnings.catch_warnings():
+    # Suppress insightface's verbose stdout (model loading messages) and
+    # FutureWarning from deprecated scikit-image API calls.
+    with (
+        warnings.catch_warnings(),
+        contextlib.redirect_stdout(io.StringIO()),
+    ):
         warnings.filterwarnings("ignore", category=FutureWarning, module="insightface")
         app = FaceAnalysis(
             name=model_name,
