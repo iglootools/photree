@@ -100,7 +100,7 @@ def _parse_profile(name: str, section: object) -> ExporterProfile:
             name,
         ),
         album_layout=_parse_enum(
-            section.get("album-layout", AlbumShareLayout.MAIN_JPG),
+            section.get("album-layout", AlbumShareLayout.BROWSABLE_JPG),
             AlbumShareLayout,
             "album-layout",
             name,

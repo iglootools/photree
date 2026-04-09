@@ -140,7 +140,7 @@ class TestDemoWorkflow:
         export_result = export_album(
             album_dir,
             target_dir,
-            album_layout=AlbumShareLayout.MAIN_JPG,
+            album_layout=AlbumShareLayout.BROWSABLE_JPG,
             link_mode=LinkMode.COPY,
         )
 

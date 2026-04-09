@@ -61,7 +61,7 @@ def resolve_export_settings(
     resolved_album_layout = (
         album_layout
         or (profile.album_layout if profile else None)
-        or AlbumShareLayout.MAIN_JPG
+        or AlbumShareLayout.BROWSABLE_JPG
     )
     resolved_link_mode = (
         link_mode or (profile.link_mode if profile else None) or LinkMode.HARDLINK

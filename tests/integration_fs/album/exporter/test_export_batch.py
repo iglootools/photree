@@ -60,7 +60,7 @@ class TestBatchExport:
         result = run_batch_export(
             base_dir=base,
             share_dir=share_dir,
-            album_layout=AlbumShareLayout.MAIN_JPG,
+            album_layout=AlbumShareLayout.BROWSABLE_JPG,
         )
 
         assert result.exported == 2
@@ -77,7 +77,7 @@ class TestBatchExport:
         result = run_batch_export(
             album_dirs=[album_a, album_b],
             share_dir=share_dir,
-            album_layout=AlbumShareLayout.MAIN_JPG,
+            album_layout=AlbumShareLayout.BROWSABLE_JPG,
         )
 
         assert result.exported == 2
@@ -125,7 +125,7 @@ class TestBatchExport:
         result = run_batch_export(
             base_dir=base,
             share_dir=share_dir,
-            album_layout=AlbumShareLayout.MAIN_JPG,
+            album_layout=AlbumShareLayout.BROWSABLE_JPG,
             link_mode=LinkMode.COPY,
         )
 
