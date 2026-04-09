@@ -27,7 +27,7 @@ from ...album.optimize import batch_optimize_summary
 from ...album.stats import models as stats_models
 from ...album.stats import output as stats_output
 from ...common.exif import try_start_exiftool
-from ...common.formatting import CHECK
+from ...common.formatting import CHECK, CROSS
 from ...album.store.media_sources_discovery import discover_media_sources
 from ...album.store.metadata import load_album_metadata
 from ...album.id import (
@@ -370,7 +370,7 @@ def run_batch_check(
     if cross_album.duplicate_ids:
         for aid, paths in cross_album.duplicate_ids.items():
             ext_id = format_album_external_id(aid)
-            err_console.print(f"[red]\u2717[/red] duplicate album id: {ext_id}")
+            err_console.print(f"{CROSS} duplicate album id: {ext_id}")
             for p in paths:
                 err_console.print(f"    {display_path(p, cwd)}")
     else:
@@ -379,7 +379,7 @@ def run_batch_check(
     if cross_album.duplicate_media_ids:
         for mid, paths in cross_album.duplicate_media_ids.items():
             ext_id = format_image_external_id(mid)
-            err_console.print(f"[red]\u2717[/red] duplicate media id: {ext_id}")
+            err_console.print(f"{CROSS} duplicate media id: {ext_id}")
             for p in paths:
                 err_console.print(f"    {display_path(p, cwd)}")
     else:

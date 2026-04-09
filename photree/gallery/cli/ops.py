@@ -298,13 +298,13 @@ def run_face_clustering(
     match result.mode:
         case "none":
             console.print(
-                f"  {CHECK} face clustering (no changes —"
+                f"{CHECK} face clustering (no changes —"
                 f" {result.total_faces} face(s),"
                 f" {result.total_clusters} cluster(s))"
             )
         case _:
             console.print(
-                f"  {CHECK} face clustering"
+                f"{CHECK} face clustering"
                 f" ({result.total_faces} face(s),"
                 f" {result.total_clusters} cluster(s),"
                 f" {result.mode})"
