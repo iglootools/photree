@@ -16,6 +16,7 @@ gallery_app.add_typer(gallery_metadata_app)
 
 from . import (  # noqa: E402, F401 — imported for command registration side effects
     check_cmd,
+    cluster_faces_cmd,
     export_cmd,
     fix_cmd,
     fix_ios_cmd,
