@@ -50,8 +50,20 @@ def check_cmd(
     check_naming: CHECK_NAMING_OPTION = True,
     check_exif_date_match: CHECK_EXIF_DATE_MATCH_OPTION = True,
     check_date_part_collision: CHECK_DATE_PART_COLLISION_OPTION = True,
+    refresh_exif_cache: Annotated[
+        bool,
+        typer.Option(
+            "--refresh-exif-cache",
+            help="Refresh the EXIF timestamp cache before checking.",
+        ),
+    ] = False,
 ) -> None:
     """Check system prerequisites, album directory structure, and file integrity."""
+    if refresh_exif_cache:
+        from ..exif_cache.refresh import refresh_exif_cache as _refresh_exif
+
+        _refresh_exif(album_dir)
+
     # Count unique media numbers across all media_sources' orig dirs
     file_count = sum(
         count_unique_media_numbers(album_dir / c.orig_img_dir, IMG_EXTENSIONS)

@@ -56,6 +56,13 @@ def check_cmd(
     check_naming: CHECK_NAMING_OPTION = True,
     check_date_part_collision: CHECK_DATE_PART_COLLISION_OPTION = True,
     check_exif_date_match: CHECK_EXIF_DATE_MATCH_OPTION = True,
+    refresh_exif_cache: Annotated[
+        bool,
+        typer.Option(
+            "--refresh-exif-cache",
+            help="Refresh the EXIF timestamp cache before checking.",
+        ),
+    ] = False,
 ) -> None:
     """Check all albums and collections in the gallery."""
     resolved = resolve_gallery_or_exit(gallery_dir)
@@ -70,6 +77,7 @@ def check_cmd(
         check_naming=check_naming,
         check_date_part_collision=check_date_part_collision,
         check_exif_date_match=check_exif_date_match,
+        refresh_exif_cache=refresh_exif_cache,
     )
 
     _check_collections(resolved)
