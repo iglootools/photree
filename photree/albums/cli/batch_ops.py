@@ -96,7 +96,7 @@ def run_batch_refresh(
     *,
     dry_run: bool = False,
     redetect_faces: bool = False,
-    regenerate_face_thumbs: bool = False,
+    refresh_face_thumbs: bool = False,
 ) -> None:
     """Shared implementation for albums refresh / gallery refresh."""
     cwd = Path.cwd()
@@ -115,7 +115,7 @@ def run_batch_refresh(
             albums,
             dry_run=dry_run,
             redetect_faces=redetect_faces,
-            regenerate_face_thumbs=regenerate_face_thumbs,
+            refresh_face_thumbs=refresh_face_thumbs,
             display_fn=make_display_fn(display_base, cwd),
             on_start=progress.on_start,
             on_end=lambda name, success, errors: progress.on_end(

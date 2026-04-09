@@ -91,7 +91,7 @@ def refresh_face_data(
     model_name: str = DEFAULT_MODEL_NAME,
     model_version: str = DEFAULT_MODEL_VERSION,
     redetect: bool = False,
-    regenerate_thumbs: bool = False,
+    refresh_thumbs: bool = False,
     dry_run: bool = False,
     on_source_start: Callable[[str], None] | None = None,
     on_source_end: Callable[[str, bool], None] | None = None,
@@ -117,7 +117,7 @@ def refresh_face_data(
                 model_name=model_name,
                 model_version=model_version,
                 redetect=redetect,
-                regenerate_thumbs=regenerate_thumbs,
+                refresh_thumbs=refresh_thumbs,
                 dry_run=dry_run,
                 on_source_start=on_source_start,
                 on_source_end=on_source_end,
@@ -142,7 +142,7 @@ def _refresh_source(
     model_name: str,
     model_version: str,
     redetect: bool,
-    regenerate_thumbs: bool,
+    refresh_thumbs: bool,
     dry_run: bool,
     on_source_start: Callable[[str], None] | None,
     on_source_end: Callable[[str, bool], None] | None,
@@ -186,7 +186,7 @@ def _refresh_source(
         current_files,
         keys_to_process,
         existing_state=existing_state,
-        regenerate_thumbs=regenerate_thumbs or model_changed,
+        refresh_thumbs=refresh_thumbs or model_changed,
         analyzer=analyzer,
     )
 
@@ -279,7 +279,7 @@ def _run_detection(
     keys_to_process: list[str],
     *,
     existing_state: FaceProcessingState,
-    regenerate_thumbs: bool,
+    refresh_thumbs: bool,
     analyzer: FaceAnalysis,
 ) -> tuple[list[DetectedFace], dict[str, FaceProcessedKey], int]:
     """Generate thumbnails and run face detection.
@@ -293,7 +293,7 @@ def _run_detection(
         album_dir / ms.orig_img_dir,
         thumb_dir,
         existing_state=existing_state,
-        regenerate=regenerate_thumbs,
+        regenerate=refresh_thumbs,
     )
 
     detection_results = [

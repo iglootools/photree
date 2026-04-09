@@ -43,11 +43,11 @@ def cluster_faces_cmd(
             help="Re-run face detection on all images (reuses cached thumbnails).",
         ),
     ] = False,
-    regenerate_thumbs: Annotated[
+    refresh_thumbs: Annotated[
         bool,
         typer.Option(
-            "--regenerate-thumbs",
-            help="Regenerate face detection thumbnails from originals.",
+            "--refresh-thumbs",
+            help="Refresh face detection thumbnails from originals.",
         ),
     ] = False,
     threshold: Annotated[
@@ -62,7 +62,7 @@ def cluster_faces_cmd(
     resolved = resolve_gallery_or_exit(gallery_dir)
 
     # Run album-level face detection first (batch)
-    if redetect or regenerate_thumbs:
+    if redetect or refresh_thumbs:
         from ...albums.cli.batch_ops import run_batch_refresh
         from ...albums.cli.ops import resolve_check_batch_albums
 
@@ -72,7 +72,7 @@ def cluster_faces_cmd(
             display_base,
             dry_run=dry_run,
             redetect_faces=redetect,
-            regenerate_face_thumbs=regenerate_thumbs,
+            refresh_face_thumbs=refresh_thumbs,
         )
 
     # Gallery-level clustering

@@ -35,11 +35,11 @@ def detect_faces_cmd(
             help="Re-run face detection on all images (reuses cached thumbnails).",
         ),
     ] = False,
-    regenerate_thumbs: Annotated[
+    refresh_thumbs: Annotated[
         bool,
         typer.Option(
-            "--regenerate-thumbs",
-            help="Regenerate face detection thumbnails from originals.",
+            "--refresh-thumbs",
+            help="Refresh face detection thumbnails from originals.",
         ),
     ] = False,
 ) -> None:
@@ -47,7 +47,7 @@ def detect_faces_cmd(
     result = refresh_face_data(
         album_dir,
         redetect=redetect,
-        regenerate_thumbs=regenerate_thumbs,
+        refresh_thumbs=refresh_thumbs,
         dry_run=dry_run,
     )
 

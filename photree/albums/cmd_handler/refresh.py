@@ -26,7 +26,7 @@ def batch_refresh(
     *,
     dry_run: bool = False,
     redetect_faces: bool = False,
-    regenerate_face_thumbs: bool = False,
+    refresh_face_thumbs: bool = False,
     display_fn: Callable[[Path], str] = lambda p: p.name,
     on_start: Callable[[str], None] | None = None,
     on_end: Callable[[str, bool, tuple[str, ...]], None] | None = None,
@@ -61,7 +61,7 @@ def batch_refresh(
                 album_dir,
                 face_analyzer=face_analyzer,
                 redetect=redetect_faces,
-                regenerate_thumbs=regenerate_face_thumbs,
+                refresh_thumbs=refresh_face_thumbs,
                 dry_run=dry_run,
             )
 
