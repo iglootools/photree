@@ -790,3 +790,179 @@ Used by:
 The full check accepts flags to disable expensive operations:
 `--no-checksum` skips file checksums, `--no-check-exif-date-match`
 skips EXIF timestamp reading.
+
+## Face Detection and Clustering Pipeline
+
+photree includes a face detection and clustering pipeline built on
+[InsightFace](https://github.com/deepinsight/insightface) (detection +
+recognition) and [FAISS](https://github.com/facebookresearch/faiss)
+(similarity search + clustering).
+
+### Overview
+
+The pipeline has two levels:
+
+1. **Album-level**: Face detection runs per-album during `album refresh`,
+   extracting face bounding boxes, landmarks, and 512-dimensional
+   embedding vectors for each detected face.
+2. **Gallery-level**: Face clustering runs during `gallery refresh`,
+   collecting all album embeddings and grouping faces by identity using
+   agglomerative clustering.
+
+### InsightFace Pipeline (per image)
+
+The `buffalo_l` model bundles two neural networks:
+
+1. **RetinaFace** — detects face regions, producing bounding boxes,
+   detection scores, and 5-point landmarks (eyes, nose, mouth corners).
+2. **ArcFace** — produces a 512-dimensional L2-normalized embedding
+   vector that encodes facial identity. Similar people produce similar
+   vectors across photos, lighting, and expressions.
+
+InsightFace internally resizes images to 640x640 for detection. On
+M-series Macs, the `CoreMLExecutionProvider` leverages the Neural Engine
+for acceleration.
+
+### Album-Level Storage
+
+```
+<Album>/
+  .photree/
+    faces/
+      main.npz           # face data (embeddings, bboxes, landmarks, scores)
+      main.yaml           # processing state (mtimes, model version)
+      main-thumbs/        # resized 640px JPEGs for face detection
+        0410.jpg
+        0411.jpg
+      bruno.npz
+      bruno.yaml
+      bruno-thumbs/
+```
+
+Per media source: one `.npz` (binary face data) + one `.yaml` (state) +
+one `-thumbs/` directory (resized JPEGs).
+
+#### .npz Schema
+
+| Array         | Shape        | Dtype    | Description |
+|--------------|-------------|----------|-------------|
+| `keys`       | `(N,)`      | str      | Media key per face |
+| `face_indices`| `(N,)`     | int32    | 0-based face index within image |
+| `det_scores` | `(N,)`      | float32  | Detection confidence |
+| `bboxes`     | `(N, 4)`    | float32  | Bounding boxes [x1, y1, x2, y2] |
+| `landmarks`  | `(N, 5, 2)` | float32  | 5-point landmarks |
+| `embeddings` | `(N, 512)`  | float32  | ArcFace embeddings |
+
+#### Processing State (.yaml)
+
+```yaml
+model-name: buffalo_l
+model-version: "1.0"
+processed-keys:
+  "0410":
+    mtime: 1712345678.123
+    file-name: IMG_0410.HEIC
+    face-count: 2
+    orig-width: 4032
+    orig-height: 3024
+    thumb-width: 640
+    thumb-height: 480
+```
+
+#### Thumbnail Generation
+
+Since OpenCV cannot read HEIC/DNG natively, photree generates resized
+JPEG thumbnails (640px max dimension) from originals via macOS `sips`.
+These are cached in `-thumbs/` directories and reused for re-detection
+(e.g., model upgrades), making re-analysis fast (~100ms per image).
+
+Thumbnail generation runs in parallel via `ThreadPoolExecutor`, and
+InsightFace inference uses `CoreMLExecutionProvider` on M-series Macs
+to overlap CPU-bound `sips` work with Neural Engine inference.
+
+#### Change Detection
+
+An image needs re-processing when:
+- Not yet in `processed-keys` (new image)
+- File modification time differs from stored `mtime`
+- Model name/version changed (only re-detection, thumbnails reused)
+
+### Gallery-Level Storage
+
+```
+<Gallery>/
+  .photree/
+    faces/
+      face-index.faiss        # serialized FAISS IndexFlatIP
+      face-manifest.yaml      # maps index rows to face references
+      clusters.yaml           # cluster UUIDs + member face indices
+      album-checksums.yaml    # tracks ingested album face data
+```
+
+#### Clustering Algorithm
+
+Agglomerative clustering with cosine distance and average linkage:
+
+```python
+AgglomerativeClustering(
+    n_clusters=None,
+    metric="cosine",
+    linkage="average",
+    distance_threshold=0.45,  # configurable via gallery.yaml
+)
+```
+
+For N > 10,000 faces, a sparse k-NN connectivity matrix (via FAISS)
+limits memory from O(N^2) to O(N*k).
+
+#### FAISS Index
+
+Uses `IndexFlatIP` (exact inner-product search). For L2-normalized
+InsightFace embeddings, inner product = cosine similarity. At personal
+library scale (<50k faces), exact search is instant (~1ms).
+
+#### Incremental Updates
+
+- **Adding photos**: New faces are assigned to nearest existing cluster
+  (or create singleton clusters). Cluster UUIDs are naturally stable.
+- **Removing photos**: Full rebuild of FAISS index + full re-cluster
+  with medoid-based UUID matching to preserve cluster identity.
+- **Threshold change**: Triggers full re-cluster (reuses existing
+  FAISS index).
+
+#### Cluster UUID Stability
+
+Each cluster receives a UUID v7 at creation. On full re-cluster,
+medoid matching preserves UUIDs: for each old/new cluster, the medoid
+(face nearest to centroid) is compared. If the old and new medoids are
+similar, the UUID is preserved.
+
+### CLI Commands
+
+| Command | Scope | Description |
+|---------|-------|-------------|
+| `album refresh` | Single album | Includes face detection |
+| `albums refresh` | Batch | Shared FaceAnalysis instance |
+| `gallery refresh` | Gallery | Detection + clustering (gated by `faces-enabled`) |
+| `album detect-faces` | Single album | Standalone face detection |
+| `albums detect-faces` | Batch | Standalone batch face detection |
+| `gallery cluster-faces` | Gallery | Standalone detection + clustering |
+
+#### Force-Rebuild Flags
+
+| Context | Flag | Effect |
+|---------|------|--------|
+| `refresh` commands | `--redetect-faces` | Re-detect all (reuse thumbnails) |
+| `refresh` commands | `--regenerate-face-thumbs` | Regenerate thumbnails + re-detect |
+| Standalone commands | `--redetect` | Re-detect all (reuse thumbnails) |
+| Standalone commands | `--regenerate-thumbs` | Regenerate thumbnails + re-detect |
+| `gallery cluster-faces` | `--threshold N` | Override clustering threshold |
+
+### Gallery Configuration
+
+```yaml
+# .photree/gallery.yaml
+link-mode: hardlink
+faces-enabled: true                # enable face pipeline (default: true)
+face-cluster-threshold: 0.45      # cosine distance threshold (optional)
+```
