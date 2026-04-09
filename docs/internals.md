@@ -791,6 +791,53 @@ The full check accepts flags to disable expensive operations:
 `--no-checksum` skips file checksums, `--no-check-exif-date-match`
 skips EXIF timestamp reading.
 
+## EXIF Timestamp Cache
+
+photree caches EXIF timestamps to speed up album checks. Without the
+cache, every `album check` reads EXIF metadata from all browsable files
+via exiftool. With the cache, checks only need `stat()` calls to verify
+mtimes — no exiftool process needed.
+
+### Storage Layout
+
+```
+<Album>/
+  .photree/
+    exif-cache/
+      main.yaml          # cached timestamps for media source "main"
+      bruno.yaml          # cached timestamps for media source "bruno"
+```
+
+### Cache Schema
+
+```yaml
+files:
+  "0410":
+    mtime: 1721008370.5
+    file-name: IMG_0410.jpg
+    timestamp: "2024-07-14T14:32:50"
+  "0411":
+    mtime: 1721010622.3
+    file-name: IMG_0411.jpg
+    timestamp: null              # no EXIF timestamp found
+```
+
+### Cache Lifecycle
+
+- **Populated during** `album refresh` / `albums refresh` / `gallery refresh`
+- **Consumed during** `album check` / `albums check` / `gallery check`
+- **Falls back** to exiftool when cache is missing or stale
+- **Refreshable** via `album check --refresh-exif-cache`
+
+### Change Detection
+
+A file needs EXIF re-reading when:
+- Its key is not in the cache (new file)
+- Its mtime differs from cached mtime (file changed)
+
+Stale keys (files removed from disk) are pruned on refresh. The
+`exif-cache` directory is purely derived data and can be safely deleted.
+
 ## Face Detection and Clustering Pipeline
 
 photree includes a face detection and clustering pipeline built on
