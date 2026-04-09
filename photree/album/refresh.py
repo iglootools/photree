@@ -139,7 +139,7 @@ def refresh_media_metadata(
     *,
     dry_run: bool = False,
 ) -> RefreshResult:
-    """Scan archive directories and reconcile with ``.photree/media.yaml``.
+    """Scan archive directories and reconcile with ``.photree/media-ids/``.
 
     Assigns new UUIDs to media files not yet tracked, removes stale entries
     for files no longer on disk.

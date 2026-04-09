@@ -12,7 +12,7 @@ from ...fsprotocol import PHOTREE_DIR
 from ..exif_cache.refresh import refresh_exif_cache
 from ..faces.refresh import refresh_face_data
 from ..refresh import refresh_media_metadata
-from ..store.protocol import MEDIA_YAML
+from ..store.protocol import MEDIA_IDS_DIR
 from . import album_app
 
 
@@ -56,11 +56,11 @@ def refresh_cmd(
         typer.echo("No media sources with archives found.")
         raise typer.Exit(code=0)
 
-    media_yaml = album_dir / PHOTREE_DIR / MEDIA_YAML
+    media_ids = album_dir / PHOTREE_DIR / MEDIA_IDS_DIR
     if dry_run:
-        typer.echo(f"[dry run] Would write {display_path(media_yaml, cwd)}")
+        typer.echo(f"[dry run] Would write {display_path(media_ids, cwd)}")
     else:
-        typer.echo(f"Refreshed {display_path(media_yaml, cwd)}")
+        typer.echo(f"Refreshed {display_path(media_ids, cwd)}")
 
     for ms_name, ms_result in result.by_media_source:
         parts = [

@@ -457,7 +457,7 @@ def run_import(
     2. ``refresh-main-img`` — build main-img from orig-img + edit-img
     3. ``refresh-main-vid`` — build main-vid from orig-vid + edit-vid
     4. ``refresh-main-jpg`` — build main-jpg from main-img
-    5. ``refresh-media`` — assign media IDs to new files in .photree/media.yaml
+    5. ``refresh-media`` — assign media IDs to new files in .photree/media-ids/
 
     Callbacks:
     - ``on_stage_start(stage)`` — called before each stage
@@ -610,7 +610,7 @@ def run_import(
     _notify(on_stage_end, STAGE_REFRESH_MAIN_JPG)
 
     # ── Stage 5: refresh-media ──
-    # Assign media IDs to new files in .photree/media.yaml
+    # Assign media IDs to new files in .photree/media-ids/
     _notify(on_stage_start, STAGE_REFRESH_MEDIA)
     from ..refresh import refresh_media_metadata
 

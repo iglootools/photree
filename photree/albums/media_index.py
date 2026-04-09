@@ -14,7 +14,7 @@ def find_duplicate_media_ids(
     """Find media UUIDs that appear in more than one album.
 
     Returns a dict mapping each duplicated media ID to the list of album
-    paths that share it. Albums without ``.photree/media.yaml`` are
+    paths that share it. Albums without ``.photree/media-ids/`` are
     silently skipped.
     """
     pairs: list[tuple[str, Path]] = []

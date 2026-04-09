@@ -240,7 +240,9 @@ The default media source is named `main`.
 <Album Title>/
   .photree/               album metadata directory
     album.yaml            album metadata (id)
-    media.yaml            media ID mappings (image/video UUIDs)
+    media-ids/            per-source media ID mappings (image/video UUIDs)
+      main.yaml
+      bruno.yaml
   to-import/              selection files exported from Photos (workflow input)
   to-import.csv           alternative selection list (one filename per row)
 
@@ -579,37 +581,32 @@ The album ID is generated automatically during import. For existing albums
 without an ID, use `photree album fix --id` or `photree gallery fix --id`
 to generate missing IDs.
 
-### Media Metadata (`.photree/media.yaml`)
+### Media Metadata (`.photree/media-ids/`)
 
-Each album can have a `.photree/media.yaml` file that assigns stable UUIDs
-to individual images and videos. Each media item is identified by its **key**
-(image number for iOS sources, filename stem for std sources) — one ID per
-key regardless of file variants (original, edited, browsable, JPEG).
+Each media source has a YAML file under ``.photree/media-ids/`` that assigns
+stable UUIDs to individual images and videos. Each media item is identified
+by its **key** (image number for iOS sources, filename stem for std sources)
+— one ID per key regardless of file variants (original, edited, browsable,
+JPEG).
 
 ```yaml
-media-sources:
-  main:
-    images:
-      0192d4e1-7c3f-7b4a-8c5e-f6a7b8c9d0e1: "0410"
-      0192d4e1-7c3f-7b4a-8c5e-f6a7b8c9d0e2: "0411"
-    videos:
-      0192d4e1-7c3f-7b4a-8c5e-f6a7b8c9d0e3: "0115"
-  bruno:
-    images:
-      0192d4e1-7c3f-7b4a-8c5e-f6a7b8c9d0e4: DSC_1234
-    videos: {}
+# .photree/media-ids/main.yaml
+images:
+  0192d4e1-7c3f-7b4a-8c5e-f6a7b8c9d0e1: "0410"
+  0192d4e1-7c3f-7b4a-8c5e-f6a7b8c9d0e2: "0411"
+videos:
+  0192d4e1-7c3f-7b4a-8c5e-f6a7b8c9d0e3: "0115"
 ```
 
-| Field            | Type                     | Description |
-|------------------|--------------------------|-------------|
-| `media-sources`  | map[string, object]      | Media source name → image/video ID mappings. |
-| `images`         | map[string, string]      | UUID v7 → key (image number for iOS, stem for std). |
-| `videos`         | map[string, string]      | UUID v7 → key (image number for iOS, stem for std). |
+| Field    | Type                | Description |
+|----------|---------------------|-------------|
+| `images` | map[string, string] | UUID v7 → key (image number for iOS, stem for std). |
+| `videos` | map[string, string] | UUID v7 → key (image number for iOS, stem for std). |
 
 Media metadata is stored separately from `album.yaml` to keep album loading
 fast. Use `photree album refresh` (or `photree albums refresh` /
 `photree gallery refresh`) to generate and update media IDs. The `check`
-commands verify that `media.yaml` is in sync with the directory structure.
+commands verify that `media-ids` is in sync with the directory structure.
 
 Media IDs are derived from archive directories (`orig-img/`, `orig-vid/`).
 
