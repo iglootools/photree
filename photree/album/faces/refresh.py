@@ -11,7 +11,7 @@ import numpy as np
 from insightface.app import FaceAnalysis
 
 from ...common.fs import list_files
-from ...common.sips import run_parallel
+from ...common.parallelism import run_parallel
 from ..store.media_sources import dedup_media_dict
 from ..store.media_sources_discovery import discover_media_sources
 from ..store.protocol import IMG_EXTENSIONS, IOS_IMG_EXTENSIONS, MediaSource
