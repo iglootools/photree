@@ -13,6 +13,7 @@ from ...clihelpers.options import DRY_RUN_OPTION
 from ...clihelpers.progress import StageProgressBar
 from ...albums.cli.batch_ops import run_batch_refresh
 from ...albums.cli.ops import resolve_check_batch_albums
+from ...fsprotocol import GALLERY_YAML, PHOTREE_DIR, load_gallery_metadata
 from ..browsable_refresh import refresh_browsable
 from ..collection_refresh import (
     STAGE_IMPLICIT_REFRESH,
@@ -20,6 +21,13 @@ from ..collection_refresh import (
     STAGE_SMART_REFRESH,
     STAGE_TITLE_SYNC,
     refresh_collections,
+)
+from ..faces.face_refresh import (
+    STAGE_BUILD_INDEX,
+    STAGE_CLUSTER,
+    STAGE_SAVE,
+    STAGE_SCAN_FACE_DATA,
+    refresh_face_clusters,
 )
 from .ops import resolve_gallery_or_exit
 
@@ -63,6 +71,39 @@ def refresh_cmd(
         redetect_faces=redetect_faces,
         regenerate_face_thumbs=regenerate_face_thumbs,
     )
+
+    # Face clustering (before collection refresh so cluster data is available)
+    gallery_meta = load_gallery_metadata(resolved / PHOTREE_DIR / GALLERY_YAML)
+    if gallery_meta.faces_enabled:
+        typer.echo("\nFaces:")
+        threshold = gallery_meta.face_cluster_threshold
+        with StageProgressBar(
+            total=4,
+            labels={
+                STAGE_SCAN_FACE_DATA: "Scanning face data",
+                STAGE_BUILD_INDEX: "Building similarity index",
+                STAGE_CLUSTER: "Clustering faces",
+                STAGE_SAVE: "Saving results",
+            },
+        ) as face_progress:
+            face_result = refresh_face_clusters(
+                resolved,
+                distance_threshold=threshold,
+                dry_run=dry_run,
+                force_full=redetect_faces,
+                on_stage_start=face_progress.on_start,
+                on_stage_end=face_progress.on_end,
+            )
+
+        typer.echo(
+            f"  {face_result.total_faces} face(s), "
+            f"{face_result.total_clusters} cluster(s) "
+            f"({face_result.mode})"
+        )
+        if not face_result.success:
+            for error in face_result.errors:
+                err_console.print(f"  error: {error.message}")
+            raise typer.Exit(code=1)
 
     # Refresh collections (implicit detection + smart materialization)
     typer.echo("\nCollections:")
