@@ -347,13 +347,11 @@ def run_batch_check(
             if exiftool is not None:
                 exiftool.__exit__(None, None, None)
 
-    # Display naming issues
+    # Cross-album checks
+    typer.echo("\nCross-album checks:")
     if result.naming_result is not None:
-        typer.echo("")
         console.print(preflight_output.format_batch_naming_issues(result.naming_result))
 
-    # Display duplicate IDs
-    typer.echo("")
     if result.duplicate_ids:
         for aid, paths in result.duplicate_ids.items():
             ext_id = format_album_external_id(aid)
