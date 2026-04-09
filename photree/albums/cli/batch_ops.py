@@ -22,6 +22,7 @@ from ...album.check.output import batch_check_summary
 from ...album.fix.output import batch_fix_summary
 from ...album.fix.ios.output import batch_fix_ios_summary
 from ...album.optimize import batch_optimize_summary
+from ...album.stats import models as stats_models
 from ...album.stats import output as stats_output
 from ...common.exif import try_start_exiftool
 from ...common.formatting import CHECK
@@ -593,35 +594,37 @@ def run_batch_stats(
             on_end=lambda name, success: progress.on_end(name, success=success),
         )
 
-    # Add collection and face storage stats if gallery context is available
     if gallery_dir is not None:
-        from ...album.stats.models import GalleryStats
-        from ...album.stats.scan import scan_directory_size
-        from ...collection.stats import compute_gallery_collection_stats
-        from ...gallery.faces.manifest import gallery_faces_dir
-
-        col_stats = compute_gallery_collection_stats(gallery_dir)
-
-        # Merge album-level face storage with gallery-level face index storage
-        from ...album.stats.aggregate import merge_size_stats
-
-        gallery_face_size = scan_directory_size(gallery_faces_dir(gallery_dir))
-        face_storage = merge_size_stats(
-            [s for s in [result.face_storage, gallery_face_size] if s.file_count > 0]
-        )
-
-        result = GalleryStats(
-            album_count=result.album_count,
-            by_album=result.by_album,
-            aggregate=result.aggregate,
-            unique_media_source_names=result.unique_media_source_names,
-            by_year=result.by_year,
-            collection_stats=col_stats,
-            face_storage=face_storage if face_storage.file_count > 0 else None,
-        )
+        result = _enrich_gallery_stats(result, gallery_dir)
 
     typer.echo("")
     console.print(stats_output.format_gallery_stats(result))
+
+
+def _enrich_gallery_stats(
+    result: stats_models.GalleryStats, gallery_dir: Path
+) -> stats_models.GalleryStats:
+    """Add collection and face storage stats from gallery context."""
+    from ...album.stats.aggregate import merge_size_stats
+    from ...album.stats.scan import scan_directory_size
+    from ...collection.stats import compute_gallery_collection_stats
+    from ...gallery.faces.manifest import gallery_faces_dir
+
+    col_stats = compute_gallery_collection_stats(gallery_dir)
+    gallery_face_size = scan_directory_size(gallery_faces_dir(gallery_dir))
+    face_storage = merge_size_stats(
+        [s for s in [result.face_storage, gallery_face_size] if s.file_count > 0]
+    )
+
+    return stats_models.GalleryStats(
+        album_count=result.album_count,
+        by_album=result.by_album,
+        aggregate=result.aggregate,
+        unique_media_source_names=result.unique_media_source_names,
+        by_year=result.by_year,
+        collection_stats=col_stats,
+        face_storage=face_storage if face_storage.file_count > 0 else None,
+    )
 
 
 def run_batch_rename_from_csv(
