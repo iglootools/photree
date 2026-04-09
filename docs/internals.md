@@ -241,7 +241,6 @@ The default media source is named `main`.
   .photree/               album metadata directory
     album.yaml            album metadata (id)
     media.yaml            media ID mappings (image/video UUIDs)
-    title.bkp             original directory name backup
   to-import/              selection files exported from Photos (workflow input)
   to-import.csv           alternative selection list (one filename per row)
 
