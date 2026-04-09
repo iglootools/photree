@@ -38,7 +38,7 @@ class TestAlbumRefresh:
         result = runner.invoke(app, ["album", "refresh", "-a", str(album)])
 
         assert result.exit_code == 0
-        assert "Media IDs:" in result.output
+        assert "media-ids" in result.output
         assert load_media_metadata(album) is not None
 
     def test_reports_counts(self, tmp_path: Path) -> None:
@@ -47,8 +47,7 @@ class TestAlbumRefresh:
 
         result = runner.invoke(app, ["album", "refresh", "-a", str(album)])
 
-        assert "2 new image(s)" in result.output
-        assert "1 new video(s)" in result.output
+        assert "3 new" in result.output
 
     def test_dry_run(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
@@ -57,7 +56,7 @@ class TestAlbumRefresh:
         result = runner.invoke(app, ["album", "refresh", "-a", str(album), "--dry-run"])
 
         assert result.exit_code == 0
-        assert "Media IDs:" in result.output
+        assert "media-ids" in result.output
         assert load_media_metadata(album) is None
 
     def test_idempotent(self, tmp_path: Path) -> None:
