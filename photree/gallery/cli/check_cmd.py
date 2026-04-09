@@ -92,8 +92,13 @@ def check_cmd(
 
 def _check_collections(gallery_dir: Path) -> None:
     """Run collection checks and print results."""
+    from ...clihelpers.progress import run_with_spinner
+
     cwd = Path.cwd()
-    col_results = check_all_collections(gallery_dir)
+    col_results = run_with_spinner(
+        "Checking collections...",
+        lambda: check_all_collections(gallery_dir),
+    )
     if not col_results:
         return
 
@@ -125,12 +130,17 @@ def _check_face_clusters(gallery_dir: Path) -> None:
     if manifest is None or clusters is None:
         return
 
+    from ...clihelpers.progress import run_with_spinner
+
     typer.echo("\nFace clusters:")
-    issues = [
-        *_check_face_index_bounds(clusters, len(manifest.faces)),
-        *_check_face_count_consistency(clusters, len(manifest.faces)),
-        *_check_album_checksums(gallery_dir),
-    ]
+    issues = run_with_spinner(
+        "Checking face clusters...",
+        lambda: [
+            *_check_face_index_bounds(clusters, len(manifest.faces)),
+            *_check_face_count_consistency(clusters, len(manifest.faces)),
+            *_check_album_checksums(gallery_dir),
+        ],
+    )
 
     if issues:
         console.print(f"  {CROSS} face clusters ({len(issues)} issue(s))")
