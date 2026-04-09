@@ -129,16 +129,26 @@ def refresh_face_clusters(
     has_changes = (
         changes.new_sources or changes.modified_sources or changes.removed_album_sources
     )
-    if not has_changes and not force_full:
+    existing_clusters = load_clusters(gallery_dir)
+
+    # Force rebuild when clusters are empty but album face data exists —
+    # handles the case where a previous run saved checksums before .npz
+    # files were populated.
+    stale_empty = changes.unchanged_sources and (
+        existing_clusters is None or existing_clusters.face_count == 0
+    )
+
+    if not has_changes and not force_full and not stale_empty:
         _skip_remaining_stages(on_stage_start, on_stage_end)
-        existing_clusters = load_clusters(gallery_dir)
         return GalleryFaceRefreshResult(
             total_faces=existing_clusters.face_count if existing_clusters else 0,
             total_clusters=existing_clusters.cluster_count if existing_clusters else 0,
             mode="none",
         )
 
-    needs_full = _needs_full_recluster(changes, force_full, gallery_dir, threshold)
+    needs_full = stale_empty or _needs_full_recluster(
+        changes, force_full, gallery_dir, threshold
+    )
 
     if dry_run:
         _skip_remaining_stages(on_stage_start, on_stage_end)
