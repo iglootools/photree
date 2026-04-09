@@ -22,9 +22,9 @@ def build_faiss_index(embeddings: np.ndarray) -> faiss.IndexFlatIP:
     For normalized vectors, inner product = cosine similarity.
     """
     dim = embeddings.shape[1] if embeddings.ndim == 2 else 512
-    index = faiss.IndexFlatIP(dim)
+    index = faiss.IndexFlatIP(dim)  # type: ignore[call-arg]
     if len(embeddings) > 0:
-        index.add(embeddings.astype(np.float32))
+        index.add(embeddings.astype(np.float32))  # type: ignore[call-arg]
     return index
 
 
@@ -88,9 +88,9 @@ def _build_sparse_connectivity(embeddings: np.ndarray, *, k: int) -> object:
     """
     from scipy.sparse import lil_matrix
 
-    index = faiss.IndexFlatIP(embeddings.shape[1])
-    index.add(embeddings.astype(np.float32))
-    _, indices = index.search(embeddings.astype(np.float32), k + 1)
+    index = faiss.IndexFlatIP(embeddings.shape[1])  # type: ignore[call-arg]
+    index.add(embeddings.astype(np.float32))  # type: ignore[call-arg]
+    _, indices = index.search(embeddings.astype(np.float32), k + 1)  # type: ignore[call-arg]
 
     n = len(embeddings)
     connectivity = lil_matrix((n, n), dtype=np.int8)
@@ -133,7 +133,7 @@ def assign_to_nearest_cluster(
             next_cluster_id, next_cluster_id + len(new_embeddings), dtype=np.int32
         )
 
-    similarities, nn_indices = index.search(new_embeddings.astype(np.float32), 1)
+    similarities, nn_indices = index.search(new_embeddings.astype(np.float32), 1)  # type: ignore[call-arg]
 
     new_labels = np.empty(len(new_embeddings), dtype=np.int32)
     current_id = next_cluster_id
@@ -210,15 +210,15 @@ def match_clusters_by_medoid(
     ).astype(np.float32)
     old_medoid_labels = list(old_medoids.keys())
 
-    index = faiss.IndexFlatIP(old_medoid_embeddings.shape[1])
-    index.add(old_medoid_embeddings)
+    index = faiss.IndexFlatIP(old_medoid_embeddings.shape[1])  # type: ignore[call-arg]
+    index.add(old_medoid_embeddings)  # type: ignore[call-arg]
 
     matched: dict[int, str] = {}
     used_old_uuids: set[str] = set()
 
     for new_label, new_medoid_idx in sorted(new_medoids.items()):
         query = new_embeddings[new_medoid_idx : new_medoid_idx + 1].astype(np.float32)
-        similarities, indices = index.search(query, 1)
+        similarities, indices = index.search(query, 1)  # type: ignore[call-arg]
 
         if indices[0][0] >= 0:
             sim = float(similarities[0][0])

@@ -418,7 +418,7 @@ def _run_incremental(
     )
 
     # Append to index
-    index.add(new_embeddings)
+    index.add(new_embeddings)  # type: ignore[call-arg]
 
     # Merge manifests
     updated_refs = [*manifest.faces, *new_refs]
