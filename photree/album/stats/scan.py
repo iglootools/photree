@@ -20,6 +20,29 @@ from .models import FormatStats, SizeStats
 _ZERO = SizeStats(file_count=0, apparent_bytes=0, on_disk_bytes=0)
 
 
+def scan_directory_size(directory: Path) -> SizeStats:
+    """Recursively compute file count and total size of a directory.
+
+    Does not deduplicate inodes — face storage directories do not
+    contain hardlinks.
+    """
+    if not directory.is_dir():
+        return _ZERO
+
+    file_count = 0
+    total_bytes = 0
+    for entry in directory.rglob("*"):
+        if entry.is_file():
+            file_count += 1
+            total_bytes += entry.stat().st_size
+
+    return SizeStats(
+        file_count=file_count,
+        apparent_bytes=total_bytes,
+        on_disk_bytes=total_bytes,
+    )
+
+
 # ---------------------------------------------------------------------------
 # File info extraction
 # ---------------------------------------------------------------------------

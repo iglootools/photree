@@ -14,6 +14,7 @@ from .models import (
     AlbumStats,
     GalleryStats,
     MediaSourceStats,
+    SizeStats,
     YearStats,
 )
 
@@ -125,6 +126,7 @@ def _overview_panel(
     *,
     album_count: int | None = None,
     unique_media_source_names: tuple[str, ...] | None = None,
+    face_storage: SizeStats | None = None,
 ) -> Panel:
     """Key-value overview wrapped in a Panel."""
     table = Table(show_header=False, box=None, padding=(0, 2))
@@ -166,6 +168,13 @@ def _overview_panel(
     table.add_row(
         "Derived size", f"[{cs}]{_format_bytes(agg.derived.apparent_bytes)}[/{cs}]"
     )
+
+    if face_storage is not None:
+        table.add_row(
+            "Face storage",
+            f"[{cs}]{_format_bytes(face_storage.apparent_bytes)}"
+            f" ({_format_count(face_storage.file_count)} files)[/{cs}]",
+        )
 
     return Panel(table, title="[bold]Overview[/bold]", title_align="left", expand=False)
 
@@ -326,6 +335,7 @@ def _format_aggregate_tables(
     album_count: int | None = None,
     unique_media_source_names: tuple[str, ...] | None = None,
     media_sources: tuple[MediaSourceStats, ...] | None = None,
+    face_storage: SizeStats | None = None,
 ) -> list[Panel | Table | Text]:
     """Build the shared set of tables from ``AggregateStats``."""
     sep = Text("")
@@ -334,6 +344,7 @@ def _format_aggregate_tables(
             agg,
             album_count=album_count,
             unique_media_source_names=unique_media_source_names,
+            face_storage=face_storage,
         ),
         sep,
         _media_type_table(agg),
@@ -415,6 +426,7 @@ def format_album_stats(stats: AlbumStats) -> Group:
     renderables = _format_aggregate_tables(
         stats.aggregate,
         media_sources=stats.by_media_source,
+        face_storage=stats.face_storage,
     )
     renderables.append(Text(""))
     renderables.append(_LEGEND)
@@ -429,6 +441,7 @@ def format_gallery_stats(stats: GalleryStats) -> Group:
         stats.aggregate,
         album_count=stats.album_count,
         unique_media_source_names=stats.unique_media_source_names,
+        face_storage=stats.face_storage,
     )
     if stats.by_year:
         renderables.append(Text(""))
