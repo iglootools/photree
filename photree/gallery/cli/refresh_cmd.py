@@ -53,11 +53,11 @@ def refresh_cmd(
             help="Re-run face detection on all images (reuses cached thumbnails).",
         ),
     ] = False,
-    regenerate_face_thumbs: Annotated[
+    refresh_face_thumbs: Annotated[
         bool,
         typer.Option(
-            "--regenerate-face-thumbs",
-            help="Regenerate face detection thumbnails from originals.",
+            "--refresh-face-thumbs",
+            help="Refresh face detection thumbnails from originals.",
         ),
     ] = False,
 ) -> None:
@@ -69,7 +69,7 @@ def refresh_cmd(
         display_base,
         dry_run=dry_run,
         redetect_faces=redetect_faces,
-        regenerate_face_thumbs=regenerate_face_thumbs,
+        refresh_face_thumbs=refresh_face_thumbs,
     )
 
     # Face clustering (before collection refresh so cluster data is available)

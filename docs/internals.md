@@ -953,9 +953,9 @@ similar, the UUID is preserved.
 | Context | Flag | Effect |
 |---------|------|--------|
 | `refresh` commands | `--redetect-faces` | Re-detect all (reuse thumbnails) |
-| `refresh` commands | `--regenerate-face-thumbs` | Regenerate thumbnails + re-detect |
+| `refresh` commands | `--refresh-face-thumbs` | Refresh thumbnails + re-detect |
 | Standalone commands | `--redetect` | Re-detect all (reuse thumbnails) |
-| Standalone commands | `--regenerate-thumbs` | Regenerate thumbnails + re-detect |
+| Standalone commands | `--refresh-thumbs` | Refresh thumbnails + re-detect |
 | `gallery cluster-faces` | `--threshold N` | Override clustering threshold |
 
 ### Gallery Configuration

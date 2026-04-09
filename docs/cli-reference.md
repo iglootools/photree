@@ -95,7 +95,7 @@ $ photree album detect-faces [OPTIONS]
 * `-a, --album-dir DIRECTORY`: Album directory.  [default: .]
 * `--dry-run`: Show what would change without writing.
 * `--redetect`: Re-run face detection on all images (reuses cached thumbnails).
-* `--regenerate-thumbs`: Regenerate face detection thumbnails from originals.
+* `--refresh-thumbs`: Refresh face detection thumbnails from originals.
 * `--help`: Show this message and exit.
 
 ### `photree album export`
@@ -388,7 +388,7 @@ $ photree album refresh [OPTIONS]
 * `-a, --album-dir DIRECTORY`: Album directory.  [default: .]
 * `--dry-run`: Show what would change without writing.
 * `--redetect-faces`: Re-run face detection on all images (reuses cached thumbnails).
-* `--regenerate-face-thumbs`: Regenerate face detection thumbnails from originals.
+* `--refresh-face-thumbs`: Refresh face detection thumbnails from originals.
 * `--help`: Show this message and exit.
 
 ### `photree album rm-media`
@@ -515,7 +515,7 @@ $ photree albums detect-faces [OPTIONS]
 * `-a, --album-dir DIRECTORY`: Album directory (repeatable).
 * `--dry-run`: Show what would change without writing.
 * `--redetect`: Re-run face detection on all images (reuses cached thumbnails).
-* `--regenerate-thumbs`: Regenerate face detection thumbnails from originals.
+* `--refresh-thumbs`: Refresh face detection thumbnails from originals.
 * `--help`: Show this message and exit.
 
 ### `photree albums export`
@@ -715,7 +715,7 @@ $ photree albums refresh [OPTIONS]
 * `-a, --album-dir DIRECTORY`: Album directory (repeatable).
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--redetect-faces`: Re-run face detection on all images (reuses cached thumbnails).
-* `--regenerate-face-thumbs`: Regenerate face detection thumbnails from originals.
+* `--refresh-face-thumbs`: Refresh face detection thumbnails from originals.
 * `--help`: Show this message and exit.
 
 ### `photree albums rename-from-csv`
@@ -1088,7 +1088,7 @@ $ photree gallery cluster-faces [OPTIONS]
 * `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--redetect`: Re-run face detection on all images (reuses cached thumbnails).
-* `--regenerate-thumbs`: Regenerate face detection thumbnails from originals.
+* `--refresh-thumbs`: Refresh face detection thumbnails from originals.
 * `--threshold FLOAT`: Cosine distance threshold for clustering (0.0-1.0). Overrides gallery.yaml.
 * `--help`: Show this message and exit.
 
@@ -1310,7 +1310,7 @@ $ photree gallery refresh [OPTIONS]
 * `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--redetect-faces`: Re-run face detection on all images (reuses cached thumbnails).
-* `--regenerate-face-thumbs`: Regenerate face detection thumbnails from originals.
+* `--refresh-face-thumbs`: Refresh face detection thumbnails from originals.
 * `--help`: Show this message and exit.
 
 ### `photree gallery rename-from-csv`
