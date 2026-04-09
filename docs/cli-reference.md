@@ -42,6 +42,7 @@ $ photree album [OPTIONS] COMMAND [ARGS]...
 **Commands**:
 
 * `check`: Check system prerequisites, album...
+* `detect-faces`: Run face detection on album images.
 * `export`: Export a single album to a shared directory.
 * `fix`: Fix album issues.
 * `fix-exif`: Fix EXIF dates on media files.
@@ -52,7 +53,7 @@ $ photree album [OPTIONS] COMMAND [ARGS]...
 * `init`: Initialize album metadata...
 * `mv-media`: Move media files and all their variants...
 * `optimize`: Optimize main directories by replacing...
-* `refresh`: Refresh media metadata...
+* `refresh`: Refresh media metadata and face detection...
 * `rm-media`: Remove media files and all their variants...
 * `show`: Display album metadata and parsed name.
 * `stats`: Show disk usage and content statistics for...
@@ -77,6 +78,24 @@ $ photree album check [OPTIONS]
 * `--check-naming / --no-check-naming`: Enable/disable album naming convention checks (default: enabled).  [default: check-naming]
 * `--check-exif-date-match / --no-check-exif-date-match`: Enable/disable EXIF timestamp vs album date validation (default: enabled).  [default: check-exif-date-match]
 * `--check-date-part-collision / --no-check-date-part-collision`: Enable/disable cross-album date collision detection (default: enabled).  [default: check-date-part-collision]
+* `--help`: Show this message and exit.
+
+### `photree album detect-faces`
+
+Run face detection on album images.
+
+**Usage**:
+
+```console
+$ photree album detect-faces [OPTIONS]
+```
+
+**Options**:
+
+* `-a, --album-dir DIRECTORY`: Album directory.  [default: .]
+* `--dry-run`: Show what would change without writing.
+* `--redetect`: Re-run face detection on all images (reuses cached thumbnails).
+* `--regenerate-thumbs`: Regenerate face detection thumbnails from originals.
 * `--help`: Show this message and exit.
 
 ### `photree album export`
@@ -356,7 +375,7 @@ $ photree album optimize [OPTIONS]
 
 ### `photree album refresh`
 
-Refresh media metadata (.photree/media.yaml) — assign IDs to new media.
+Refresh media metadata and face detection data.
 
 **Usage**:
 
@@ -368,6 +387,8 @@ $ photree album refresh [OPTIONS]
 
 * `-a, --album-dir DIRECTORY`: Album directory.  [default: .]
 * `--dry-run`: Show what would change without writing.
+* `--redetect-faces`: Re-run face detection on all images (reuses cached thumbnails).
+* `--regenerate-face-thumbs`: Regenerate face detection thumbnails from originals.
 * `--help`: Show this message and exit.
 
 ### `photree album rm-media`
@@ -441,6 +462,7 @@ $ photree albums [OPTIONS] COMMAND [ARGS]...
 **Commands**:
 
 * `check`: Check all albums under a directory or from...
+* `detect-faces`: Run face detection on images in multiple...
 * `export`: Batch export multiple albums to a shared...
 * `fix`: Fix all albums under a directory or from...
 * `fix-ios`: Apply fix-ios to all iOS albums under a...
@@ -450,7 +472,7 @@ $ photree albums [OPTIONS] COMMAND [ARGS]...
 * `list`: List all discovered albums with their...
 * `list-media`: List all media items across multiple albums.
 * `optimize`: Optimize all albums with archives under a...
-* `refresh`: Refresh media metadata...
+* `refresh`: Refresh media metadata and face detection...
 * `rename-from-csv`: Rename albums from a CSV file (from list...
 * `stats`: Show aggregated disk usage and content...
 
@@ -475,6 +497,25 @@ $ photree albums check [OPTIONS]
 * `--check-naming / --no-check-naming`: Enable/disable album naming convention checks (default: enabled).  [default: check-naming]
 * `--check-date-part-collision / --no-check-date-part-collision`: Enable/disable cross-album date collision detection (default: enabled).  [default: check-date-part-collision]
 * `--check-exif-date-match / --no-check-exif-date-match`: Enable/disable EXIF timestamp vs album date validation (default: enabled).  [default: check-exif-date-match]
+* `--help`: Show this message and exit.
+
+### `photree albums detect-faces`
+
+Run face detection on images in multiple albums.
+
+**Usage**:
+
+```console
+$ photree albums detect-faces [OPTIONS]
+```
+
+**Options**:
+
+* `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
+* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
+* `--dry-run`: Show what would change without writing.
+* `--redetect`: Re-run face detection on all images (reuses cached thumbnails).
+* `--regenerate-thumbs`: Regenerate face detection thumbnails from originals.
 * `--help`: Show this message and exit.
 
 ### `photree albums export`
@@ -660,7 +701,7 @@ $ photree albums optimize [OPTIONS]
 
 ### `photree albums refresh`
 
-Refresh media metadata (.photree/media.yaml) for multiple albums.
+Refresh media metadata and face detection data for multiple albums.
 
 **Usage**:
 
@@ -673,6 +714,8 @@ $ photree albums refresh [OPTIONS]
 * `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
 * `-a, --album-dir DIRECTORY`: Album directory (repeatable).
 * `-n, --dry-run`: Print what would happen without modifying files.
+* `--redetect-faces`: Re-run face detection on all images (reuses cached thumbnails).
+* `--regenerate-face-thumbs`: Regenerate face detection thumbnails from originals.
 * `--help`: Show this message and exit.
 
 ### `photree albums rename-from-csv`
@@ -991,6 +1034,7 @@ $ photree gallery [OPTIONS] COMMAND [ARGS]...
 **Commands**:
 
 * `check`: Check all albums and collections in the...
+* `cluster-faces`: Run face detection and clustering on all...
 * `export`: Batch export multiple albums to a shared...
 * `fix`: Fix all albums in the gallery.
 * `fix-ios`: Apply fix-ios to all iOS albums in the...
@@ -1001,7 +1045,7 @@ $ photree gallery [OPTIONS] COMMAND [ARGS]...
 * `list-collections`: List all collections in the gallery.
 * `list-media`: List all media items across all albums in...
 * `optimize`: Optimize all iOS albums in the gallery.
-* `refresh`: Refresh media metadata and collections for...
+* `refresh`: Refresh media metadata, face data, and...
 * `rename-from-csv`: Rename albums from a CSV file (from...
 * `show`: Display gallery metadata.
 * `stats`: Show aggregated disk usage and content...
@@ -1027,6 +1071,25 @@ $ photree gallery check [OPTIONS]
 * `--check-naming / --no-check-naming`: Enable/disable album naming convention checks (default: enabled).  [default: check-naming]
 * `--check-date-part-collision / --no-check-date-part-collision`: Enable/disable cross-album date collision detection (default: enabled).  [default: check-date-part-collision]
 * `--check-exif-date-match / --no-check-exif-date-match`: Enable/disable EXIF timestamp vs album date validation (default: enabled).  [default: check-exif-date-match]
+* `--help`: Show this message and exit.
+
+### `photree gallery cluster-faces`
+
+Run face detection and clustering on all albums in the gallery.
+
+**Usage**:
+
+```console
+$ photree gallery cluster-faces [OPTIONS]
+```
+
+**Options**:
+
+* `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `-n, --dry-run`: Print what would happen without modifying files.
+* `--redetect`: Re-run face detection on all images (reuses cached thumbnails).
+* `--regenerate-thumbs`: Regenerate face detection thumbnails from originals.
+* `--threshold FLOAT`: Cosine distance threshold for clustering (0.0-1.0). Overrides gallery.yaml.
 * `--help`: Show this message and exit.
 
 ### `photree gallery export`
@@ -1234,7 +1297,7 @@ $ photree gallery optimize [OPTIONS]
 
 ### `photree gallery refresh`
 
-Refresh media metadata and collections for all albums in the gallery.
+Refresh media metadata, face data, and collections for all albums in the gallery.
 
 **Usage**:
 
@@ -1246,6 +1309,8 @@ $ photree gallery refresh [OPTIONS]
 
 * `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `-n, --dry-run`: Print what would happen without modifying files.
+* `--redetect-faces`: Re-run face detection on all images (reuses cached thumbnails).
+* `--regenerate-face-thumbs`: Regenerate face detection thumbnails from originals.
 * `--help`: Show this message and exit.
 
 ### `photree gallery rename-from-csv`
@@ -1335,4 +1400,6 @@ $ photree gallery metadata set [OPTIONS]
 
 * `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--link-mode [copy|hardlink|symlink]`: Default link mode for optimize and other link-mode operations.
+* `--faces-enabled`: Enable face detection and clustering during gallery refresh.
+* `--face-cluster-threshold FLOAT`: Cosine distance threshold for face clustering (0.0-1.0).
 * `--help`: Show this message and exit.
