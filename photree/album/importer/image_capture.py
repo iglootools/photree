@@ -36,7 +36,7 @@ STAGE_IMPORT_IC = "import-ic"
 STAGE_REFRESH_MAIN_IMG = "refresh-main-img"
 STAGE_REFRESH_MAIN_VID = "refresh-main-vid"
 STAGE_REFRESH_MAIN_JPG = "refresh-main-jpg"
-STAGE_REFRESH_MEDIA = "refresh-media"
+STAGE_REFRESH_MEDIA_IDS = "refresh-media-ids"
 
 
 class MediaType(StrEnum):
@@ -457,7 +457,7 @@ def run_import(
     2. ``refresh-main-img`` — build main-img from orig-img + edit-img
     3. ``refresh-main-vid`` — build main-vid from orig-vid + edit-vid
     4. ``refresh-main-jpg`` — build main-jpg from main-img
-    5. ``refresh-media`` — assign media IDs to new files in .photree/media-ids/
+    5. ``refresh-media-ids`` — assign media IDs to new files in .photree/media-ids/
 
     Callbacks:
     - ``on_stage_start(stage)`` — called before each stage
@@ -609,13 +609,13 @@ def run_import(
     )
     _notify(on_stage_end, STAGE_REFRESH_MAIN_JPG)
 
-    # ── Stage 5: refresh-media ──
+    # ── Stage 5: refresh-media-ids ──
     # Assign media IDs to new files in .photree/media-ids/
-    _notify(on_stage_start, STAGE_REFRESH_MEDIA)
+    _notify(on_stage_start, STAGE_REFRESH_MEDIA_IDS)
     from ..refresh import refresh_media_metadata
 
     refresh_media_metadata(album_dir, dry_run=dry_run)
-    _notify(on_stage_end, STAGE_REFRESH_MEDIA)
+    _notify(on_stage_end, STAGE_REFRESH_MEDIA_IDS)
 
     # Sanity check: all matched selection files should have been processed
     all_matched = {m.selection_file for m in plan.matches}

@@ -12,7 +12,7 @@ from photree.album.importer.image_capture import (
     STAGE_REFRESH_MAIN_IMG,
     STAGE_REFRESH_MAIN_JPG,
     STAGE_REFRESH_MAIN_VID,
-    STAGE_REFRESH_MEDIA,
+    STAGE_REFRESH_MEDIA_IDS,
     ImportResult,
     plan_import,
     run_import,
@@ -421,8 +421,8 @@ class TestRunImport:
             ("end", STAGE_REFRESH_MAIN_VID),
             ("start", STAGE_REFRESH_MAIN_JPG),
             ("end", STAGE_REFRESH_MAIN_JPG),
-            ("start", STAGE_REFRESH_MEDIA),
-            ("end", STAGE_REFRESH_MEDIA),
+            ("start", STAGE_REFRESH_MEDIA_IDS),
+            ("end", STAGE_REFRESH_MEDIA_IDS),
         ]
 
     def test_refuses_to_overwrite_existing_files(self, tmp_path: Path) -> None:
