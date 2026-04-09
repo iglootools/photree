@@ -360,10 +360,6 @@ def format_face_state_check(check: FaceStateCheck, indent: str = "    ") -> str:
     return "\n".join(
         [
             f"{CROSS} face state ({check.issue_count} issue(s))",
-            *_format_issue_group("unprocessed", check.unprocessed, indent),
-            *_format_issue_group("stale entries", check.stale_entries, indent),
-            *_format_issue_group("missing thumbnails", check.missing_thumbs, indent),
-            *_format_issue_group("stale thumbnails", check.stale_thumbs, indent),
             *([f"{indent}model version mismatch"] if check.model_mismatch else []),
             *[f"{indent}{err}" for err in check.npz_yaml_sync_errors],
             (
