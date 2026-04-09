@@ -484,9 +484,14 @@ def _refresh_implicit_collections(
     active_implicit_ids: set[str] = set()
 
     for group in series_groups:
-        album_dates = [a.parsed.date for a in group.albums]
+        # Non-private implicit collections exclude private albums
+        non_private_albums = [a for a in group.albums if not a.parsed.private]
+        if not non_private_albums:
+            continue
+
+        album_dates = [a.parsed.date for a in non_private_albums]
         collection_name = _build_collection_name(group.series_title, album_dates)
-        album_ids = sorted(a.album_id for a in group.albums)
+        album_ids = sorted(a.album_id for a in non_private_albums)
 
         # 1. Exact name match (date range unchanged)
         existing_col = implicit_by_name.get(collection_name)
