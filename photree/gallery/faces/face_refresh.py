@@ -225,23 +225,9 @@ def _run_full_cluster(
 
     # ── Stage 2: build-index ──
     _notify(on_stage_start, STAGE_BUILD_INDEX)
-    all_refs: list[FaceReference] = []
-    all_embeddings: list[np.ndarray] = []
-
-    for src in all_sources:
-        data = load_face_data(src.npz_path.parent.parent.parent, src.media_source)
-        if data is None or data.count == 0:
-            continue
-        for i in range(data.count):
-            all_refs.append(
-                FaceReference(
-                    album_id=src.album_id,
-                    media_source=src.media_source,
-                    media_key=str(data.keys[i]),
-                    face_index=int(data.face_indices[i]),
-                )
-            )
-        all_embeddings.append(data.embeddings)
+    loaded = [_load_source_faces(src) for src in all_sources]
+    all_refs = [ref for refs, _ in loaded if refs for ref in refs]
+    all_embeddings = [emb for _, emb in loaded if emb is not None]
 
     if not all_embeddings:
         _notify(on_stage_end, STAGE_BUILD_INDEX)
@@ -359,24 +345,9 @@ def _run_incremental(
         )
 
     # Collect new face data
-    new_refs: list[FaceReference] = []
-    new_embeddings_list: list[np.ndarray] = []
-
-    for src in changes.new_sources:
-        album_dir = src.npz_path.parent.parent.parent
-        data = load_face_data(album_dir, src.media_source)
-        if data is None or data.count == 0:
-            continue
-        for i in range(data.count):
-            new_refs.append(
-                FaceReference(
-                    album_id=src.album_id,
-                    media_source=src.media_source,
-                    media_key=str(data.keys[i]),
-                    face_index=int(data.face_indices[i]),
-                )
-            )
-        new_embeddings_list.append(data.embeddings)
+    loaded = [_load_source_faces(src) for src in changes.new_sources]
+    new_refs = [ref for refs, _ in loaded if refs for ref in refs]
+    new_embeddings_list = [emb for _, emb in loaded if emb is not None]
 
     if not new_embeddings_list:
         _notify(on_stage_end, STAGE_BUILD_INDEX)
@@ -473,6 +444,26 @@ def _run_incremental(
 # ---------------------------------------------------------------------------
 
 
+def _load_source_faces(
+    src: _AlbumFaceSource,
+) -> tuple[list[FaceReference] | None, np.ndarray | None]:
+    """Load face references and embeddings from an album face source."""
+    album_dir = src.npz_path.parent.parent.parent
+    data = load_face_data(album_dir, src.media_source)
+    if data is None or data.count == 0:
+        return (None, None)
+    refs = [
+        FaceReference(
+            album_id=src.album_id,
+            media_source=src.media_source,
+            media_key=str(data.keys[i]),
+            face_index=int(data.face_indices[i]),
+        )
+        for i in range(data.count)
+    ]
+    return (refs, data.embeddings)
+
+
 def _notify(callback: Callable[[str], None] | None, stage: str) -> None:
     if callback:
         callback(stage)
@@ -484,55 +475,60 @@ def _compute_changes(
     existing_checksums: AlbumFaceChecksums,
 ) -> _ChangeSet:
     """Compute which album face sources are new, modified, removed, or unchanged."""
-    new: list[_AlbumFaceSource] = []
-    modified: list[_AlbumFaceSource] = []
-    unchanged: list[_AlbumFaceSource] = []
-    seen_keys: set[tuple[str, str]] = set()
-
-    for album_dir in album_dirs:
-        metadata = load_album_metadata(album_dir)
-        if metadata is None:
-            continue
-        album_id = metadata.id
-
-        # Find all .npz files for this album
-        faces_dir = album_dir / PHOTREE_DIR / FACES_DIR
-        if not faces_dir.is_dir():
-            continue
-
-        for npz_file in sorted(faces_dir.glob("*.npz")):
-            ms_name = npz_file.stem
-            checksum = compute_npz_checksum(npz_file)
-            src = _AlbumFaceSource(
-                album_id=album_id,
-                media_source=ms_name,
-                npz_path=npz_file,
-                checksum=checksum,
-            )
-            seen_keys.add((album_id, ms_name))
-
-            old_checksum = existing_checksums.albums.get(album_id, {}).get(ms_name)
-            if old_checksum is None:
-                new.append(src)
-            elif old_checksum != checksum:
-                modified.append(src)
-            else:
-                unchanged.append(src)
-
-    # Find removed
-    removed: list[tuple[str, str]] = [
-        (album_id, ms_name)
-        for album_id, sources in existing_checksums.albums.items()
-        for ms_name in sources
-        if (album_id, ms_name) not in seen_keys
+    all_sources = [
+        src for album_dir in album_dirs for src in _scan_album_face_sources(album_dir)
     ]
 
+    classified = [
+        (src, _classify_source(src, existing_checksums)) for src in all_sources
+    ]
+
+    seen_keys = {(src.album_id, src.media_source) for src in all_sources}
+
     return _ChangeSet(
-        new_sources=new,
-        modified_sources=modified,
-        removed_album_sources=removed,
-        unchanged_sources=unchanged,
+        new_sources=[src for src, cat in classified if cat == "new"],
+        modified_sources=[src for src, cat in classified if cat == "modified"],
+        removed_album_sources=[
+            (album_id, ms_name)
+            for album_id, sources in existing_checksums.albums.items()
+            for ms_name in sources
+            if (album_id, ms_name) not in seen_keys
+        ],
+        unchanged_sources=[src for src, cat in classified if cat == "unchanged"],
     )
+
+
+def _scan_album_face_sources(album_dir: Path) -> list[_AlbumFaceSource]:
+    """Discover all face .npz files for an album."""
+    metadata = load_album_metadata(album_dir)
+    if metadata is None:
+        return []
+    faces_dir = album_dir / PHOTREE_DIR / FACES_DIR
+    if not faces_dir.is_dir():
+        return []
+    return [
+        _AlbumFaceSource(
+            album_id=metadata.id,
+            media_source=npz_file.stem,
+            npz_path=npz_file,
+            checksum=compute_npz_checksum(npz_file),
+        )
+        for npz_file in sorted(faces_dir.glob("*.npz"))
+    ]
+
+
+def _classify_source(
+    src: _AlbumFaceSource,
+    existing_checksums: AlbumFaceChecksums,
+) -> str:
+    """Classify a face source as 'new', 'modified', or 'unchanged'."""
+    old_checksum = existing_checksums.albums.get(src.album_id, {}).get(src.media_source)
+    if old_checksum is None:
+        return "new"
+    elif old_checksum != src.checksum:
+        return "modified"
+    else:
+        return "unchanged"
 
 
 def _count_faces(npz_path: Path) -> int:
