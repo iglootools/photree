@@ -133,7 +133,7 @@ def run_single_import(
             "id": "Checking album ID",
             "jpeg": "Refreshing JPEGs",
             "optimize": "Optimizing links",
-            "refresh-media": "Refreshing media metadata",
+            "refresh-derived": "Refreshing media IDs, EXIF cache, faces",
         },
     ) as progress:
         try:

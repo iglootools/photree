@@ -14,6 +14,9 @@ from pathlib import Path
 
 import itertools
 
+from exiftool import ExifToolHelper  # type: ignore[import-untyped]
+from insightface.app import FaceAnalysis
+
 from ..album import fix as album_fixes
 from ..album import optimize as album_optimize
 from ..album.check import check_album_integrity, check_album_jpeg_integrity
@@ -31,7 +34,7 @@ STAGE_COPY = "copy"
 STAGE_ID = "id"
 STAGE_JPEG = "jpeg"
 STAGE_OPTIMIZE = "optimize"
-STAGE_REFRESH_MEDIA = "refresh-media"
+STAGE_REFRESH_DERIVED = "refresh-derived"
 
 
 @dataclass(frozen=True)
@@ -246,6 +249,8 @@ def import_album(
     on_stage_end: Callable[[str], None] | None = None,
     convert_file: Callable[..., Path | None] = convert_single_file,
     max_workers: int | None = None,
+    exiftool: ExifToolHelper | None = None,
+    face_analyzer: FaceAnalysis | None = None,
 ) -> AlbumImportResult:
     """Import an album directory into a gallery.
 
@@ -253,7 +258,7 @@ def import_album(
     2. Generate album ID if missing
     3. Refresh JPEGs if stale
     4. Optimize (replace copies with links)
-    5. Refresh media metadata (assign media IDs)
+    5. Refresh derived data (media IDs, EXIF cache, face detection)
 
     Raises :class:`ValueError` if the target directory already exists or
     the album name cannot be parsed.
@@ -286,11 +291,16 @@ def import_album(
     optimized = _stage_optimize(work_dir, link_mode=link_mode, dry_run=dry_run)
     _notify(on_stage_end, STAGE_OPTIMIZE)
 
-    _notify(on_stage_start, STAGE_REFRESH_MEDIA)
-    from ..album.refresh import refresh_media_metadata
+    _notify(on_stage_start, STAGE_REFRESH_DERIVED)
+    from ..album.refresh import refresh_album_derived_data
 
-    refresh_media_metadata(work_dir, dry_run=dry_run)
-    _notify(on_stage_end, STAGE_REFRESH_MEDIA)
+    refresh_album_derived_data(
+        work_dir,
+        exiftool=exiftool,
+        face_analyzer=face_analyzer,
+        dry_run=dry_run,
+    )
+    _notify(on_stage_end, STAGE_REFRESH_DERIVED)
 
     return AlbumImportResult(
         album_name=album_name,
