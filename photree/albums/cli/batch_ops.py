@@ -285,6 +285,7 @@ def run_batch_check(
     check_naming: bool = True,
     check_date_part_collision: bool = True,
     check_exif_date_match: bool = True,
+    refresh_exif_cache: bool = False,
 ) -> None:
     """Shared implementation for gallery check / albums check."""
     cwd = Path.cwd()
@@ -304,6 +305,13 @@ def run_batch_check(
     if not albums:
         typer.echo("\nNo albums found.")
         raise typer.Exit(code=0)
+
+    if refresh_exif_cache:
+        from ...album.exif_cache.refresh import refresh_exif_cache as _refresh_exif
+
+        typer.echo("\nRefreshing EXIF cache...")
+        for album_dir in albums:
+            _refresh_exif(album_dir, exiftool=exiftool)
 
     if display_base is not None:
         typer.echo(f"\nFound {len(albums)} album(s).\n")

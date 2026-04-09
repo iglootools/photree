@@ -78,6 +78,7 @@ $ photree album check [OPTIONS]
 * `--check-naming / --no-check-naming`: Enable/disable album naming convention checks (default: enabled).  [default: check-naming]
 * `--check-exif-date-match / --no-check-exif-date-match`: Enable/disable EXIF timestamp vs album date validation (default: enabled).  [default: check-exif-date-match]
 * `--check-date-part-collision / --no-check-date-part-collision`: Enable/disable cross-album date collision detection (default: enabled).  [default: check-date-part-collision]
+* `--refresh-exif-cache`: Refresh the EXIF timestamp cache before checking.
 * `--help`: Show this message and exit.
 
 ### `photree album detect-faces`
@@ -497,6 +498,7 @@ $ photree albums check [OPTIONS]
 * `--check-naming / --no-check-naming`: Enable/disable album naming convention checks (default: enabled).  [default: check-naming]
 * `--check-date-part-collision / --no-check-date-part-collision`: Enable/disable cross-album date collision detection (default: enabled).  [default: check-date-part-collision]
 * `--check-exif-date-match / --no-check-exif-date-match`: Enable/disable EXIF timestamp vs album date validation (default: enabled).  [default: check-exif-date-match]
+* `--refresh-exif-cache`: Refresh the EXIF timestamp cache before checking.
 * `--help`: Show this message and exit.
 
 ### `photree albums detect-faces`
@@ -1071,6 +1073,7 @@ $ photree gallery check [OPTIONS]
 * `--check-naming / --no-check-naming`: Enable/disable album naming convention checks (default: enabled).  [default: check-naming]
 * `--check-date-part-collision / --no-check-date-part-collision`: Enable/disable cross-album date collision detection (default: enabled).  [default: check-date-part-collision]
 * `--check-exif-date-match / --no-check-exif-date-match`: Enable/disable EXIF timestamp vs album date validation (default: enabled).  [default: check-exif-date-match]
+* `--refresh-exif-cache`: Refresh the EXIF timestamp cache before checking.
 * `--help`: Show this message and exit.
 
 ### `photree gallery cluster-faces`
