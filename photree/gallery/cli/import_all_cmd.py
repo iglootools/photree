@@ -10,9 +10,17 @@ import typer
 
 from . import gallery_app
 from ...clihelpers.console import err_console
+from ...clihelpers.progress import StageProgressBar
 from ...common.fs import display_path
-from ...fsprotocol import LinkMode
+from ...fsprotocol import GALLERY_YAML, LinkMode, PHOTREE_DIR, load_gallery_metadata
 from ...fsprotocol import resolve_link_mode
+from ..faces.face_refresh import (
+    STAGE_BUILD_INDEX,
+    STAGE_CLUSTER,
+    STAGE_SAVE,
+    STAGE_SCAN_FACE_DATA,
+    refresh_face_clusters,
+)
 from ..importer import (
     BatchImportValidationError,
     compute_target_dir,
@@ -122,6 +130,34 @@ def import_all_cmd(
                 err_console.print(
                     f'  photree album check --album-dir "{display_path(target_dir, cwd)}"'
                 )
+
+    # Gallery-wide face clustering (once after all albums imported)
+    gallery_meta = load_gallery_metadata(resolved_gallery / PHOTREE_DIR / GALLERY_YAML)
+    if gallery_meta.faces_enabled and not dry_run and imported > 0:
+        typer.echo("\nFace clustering:")
+        with StageProgressBar(
+            total=4,
+            labels={
+                STAGE_SCAN_FACE_DATA: "Scanning face data",
+                STAGE_BUILD_INDEX: "Building similarity index",
+                STAGE_CLUSTER: "Clustering faces",
+                STAGE_SAVE: "Saving results",
+            },
+        ) as progress:
+            face_result = refresh_face_clusters(
+                resolved_gallery,
+                distance_threshold=gallery_meta.face_cluster_threshold,
+                on_stage_start=progress.on_start,
+                on_stage_end=progress.on_end,
+            )
+        typer.echo(
+            f"  {face_result.total_faces} face(s), "
+            f"{face_result.total_clusters} cluster(s) "
+            f"({face_result.mode})"
+        )
+        if not face_result.success:
+            for error in face_result.errors:
+                err_console.print(f"  error: {error.message}")
 
     typer.echo(f"\nDone. {imported} album(s) imported, {len(failed_albums)} failed.")
     if failed_albums:
