@@ -12,6 +12,7 @@ from ...album import (
     check as album_check,
 )
 from ...album.id import format_album_external_id
+from ...fsprotocol import LinkMode
 
 
 @dataclass(frozen=True)
@@ -28,6 +29,7 @@ def batch_check(
     *,
     sips_available: bool,
     exiftool: ExifToolHelper | None = None,
+    link_mode: LinkMode,
     checksum: bool = True,
     fatal_warnings: bool = False,
     fatal_sidecar: bool = False,
@@ -59,6 +61,7 @@ def batch_check(
             album_dir,
             sips_available=sips_available,
             exiftool=exiftool,
+            link_mode=link_mode,
             checksum=checksum,
             check_naming_flag=check_naming,
         )

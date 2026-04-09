@@ -8,17 +8,11 @@ from typing import Annotated
 import typer
 
 from ...clihelpers.console import console
-from ...clihelpers.progress import StageProgressBar
+from ...clihelpers.progress import run_with_spinner
 from ...common.formatting import CHECK
-from ..exif_cache.refresh import refresh_exif_cache
-from ..faces.refresh import refresh_face_data
-from ..refresh import RefreshResult, refresh_media_metadata
+from ..faces.detect import create_face_analyzer
+from ...common.exif import try_start_exiftool
 from . import album_app
-
-# Stage names for the album refresh pipeline
-_STAGE_MEDIA_IDS = "media-ids"
-_STAGE_EXIF_CACHE = "exif-cache"
-_STAGE_FACES = "faces"
 
 
 @album_app.command("refresh")
@@ -38,6 +32,27 @@ def refresh_cmd(
         bool,
         typer.Option("--dry-run", help="Show what would change without writing."),
     ] = False,
+    refresh_browsable: Annotated[
+        bool,
+        typer.Option(
+            "--refresh-browsable",
+            help="Force rebuild all browsable directories (skip check gate).",
+        ),
+    ] = False,
+    refresh_jpeg: Annotated[
+        bool,
+        typer.Option(
+            "--refresh-jpeg",
+            help="Force rebuild all JPEG directories (skip check gate).",
+        ),
+    ] = False,
+    refresh_exif_cache: Annotated[
+        bool,
+        typer.Option(
+            "--refresh-exif-cache",
+            help="Force re-read all EXIF timestamps.",
+        ),
+    ] = False,
     redetect_faces: Annotated[
         bool,
         typer.Option(
@@ -53,79 +68,31 @@ def refresh_cmd(
         ),
     ] = False,
 ) -> None:
-    """Refresh media IDs, EXIF cache, and face detection data."""
-    with StageProgressBar(
-        total=3,
-        labels={
-            _STAGE_MEDIA_IDS: "Refreshing media IDs",
-            _STAGE_EXIF_CACHE: "Refreshing EXIF cache",
-            _STAGE_FACES: "Refreshing face detection",
-        },
-    ) as progress:
-        progress.on_start(_STAGE_MEDIA_IDS)
-        media_result = refresh_media_metadata(album_dir, dry_run=dry_run)
-        progress.on_end(_STAGE_MEDIA_IDS)
+    """Refresh all derived album data (browsable, JPEG, media IDs, EXIF cache, faces)."""
+    from ..refresh import refresh_album_derived_data
 
-        if not media_result.by_media_source:
-            typer.echo("No media sources with archives found.")
-            raise typer.Exit(code=0)
+    exiftool = try_start_exiftool()
+    face_analyzer = run_with_spinner(
+        "Loading face detection model...", create_face_analyzer
+    )
 
-        progress.on_start(_STAGE_EXIF_CACHE)
-        exif_result = refresh_exif_cache(album_dir, dry_run=dry_run)
-        progress.on_end(_STAGE_EXIF_CACHE)
-
-        progress.on_start(_STAGE_FACES)
-        face_result = refresh_face_data(
-            album_dir,
-            redetect=redetect_faces,
-            refresh_thumbs=refresh_face_thumbs,
-            dry_run=dry_run,
-        )
-        progress.on_end(_STAGE_FACES)
-
-    _print_summary(media_result, exif_result, face_result)
-
-
-# ---------------------------------------------------------------------------
-# Summary output
-# ---------------------------------------------------------------------------
-
-
-def _print_summary(
-    media_result: RefreshResult,
-    exif_result: object,
-    face_result: object,
-) -> None:
-    """Print one-line summaries for each refresh step."""
-    from ..exif_cache.refresh import ExifCacheRefreshResult
-    from ..faces.refresh import FaceRefreshResult
-
-    # Media IDs
-    if media_result.changed:
-        parts = [
-            f"{media_result.total_new} new",
-            *(
-                [f"{media_result.total_removed} removed"]
-                if media_result.total_removed
-                else []
+    try:
+        run_with_spinner(
+            "Refreshing album...",
+            lambda: refresh_album_derived_data(
+                album_dir,
+                exiftool=exiftool,
+                face_analyzer=face_analyzer,
+                force_browsable=refresh_browsable,
+                force_jpeg=refresh_jpeg,
+                force_exif_cache=refresh_exif_cache,
+                redetect_faces=redetect_faces,
+                refresh_face_thumbs=refresh_face_thumbs,
+                dry_run=dry_run,
             ),
-        ]
-        console.print(f"  {CHECK} media-ids ({', '.join(parts)})")
-    else:
-        console.print(f"  {CHECK} media-ids (no changes)")
+        )
+    finally:
+        if exiftool is not None:
+            exiftool.__exit__(None, None, None)
 
-    # EXIF cache
-    if isinstance(exif_result, ExifCacheRefreshResult) and exif_result.changed:
-        total_refreshed = exif_result.total_refreshed
-        console.print(f"  {CHECK} exif-cache ({total_refreshed} refreshed)")
-    else:
-        console.print(f"  {CHECK} exif-cache (no changes)")
-
-    # Faces
-    if isinstance(face_result, FaceRefreshResult) and face_result.changed:
-        parts = [f"{face_result.total_processed} processed"]
-        if face_result.total_faces:
-            parts.append(f"{face_result.total_faces} face(s)")
-        console.print(f"  {CHECK} faces ({', '.join(parts)})")
-    else:
-        console.print(f"  {CHECK} faces (no changes)")
+    console.print(f"{CHECK} album refresh complete")

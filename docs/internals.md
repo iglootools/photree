@@ -674,7 +674,7 @@ face-cluster-threshold: 0.45
 
 | Field                    | Type           | Default    | Description |
 |--------------------------|----------------|------------|-------------|
-| `link-mode`              | string         | `hardlink` | Default link mode for optimize and other link-mode operations. Values: `hardlink`, `symlink`, `copy`. |
+| `link-mode`              | string         | `hardlink` | Default link mode for refresh and other link-mode operations. Values: `hardlink`, `symlink`, `copy`. |
 | `faces-enabled`          | bool           | `true`     | Enable face detection and clustering during gallery refresh. |
 | `face-cluster-threshold` | float or null  | `null`     | Cosine distance threshold for face clustering (0.0–1.0). When null, defaults to 0.45 at runtime. Lower = stricter (fewer merges). |
 

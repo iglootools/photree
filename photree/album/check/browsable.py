@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ...common.fs import list_files
+from ...fsprotocol import LinkMode
 from ..store.media_sources import dedup_media_dict
 from ..store.protocol import _KeyFn
 
@@ -42,6 +43,15 @@ class MissingFile:
 
 
 @dataclass(frozen=True)
+class WrongLinkMode:
+    """A file with correct content but wrong link type."""
+
+    filename: str
+    expected: str  # "hardlink", "symlink", or "copy"
+    actual: str  # "hardlink", "symlink", or "copy"
+
+
+@dataclass(frozen=True)
 class BrowsableDirCheck:
     """Result of checking a browsable directory against archive orig/edited."""
 
@@ -49,6 +59,7 @@ class BrowsableDirCheck:
     missing: tuple[MissingFile, ...]
     extra: tuple[str, ...]
     wrong_source: tuple[str, ...]
+    wrong_link_mode: tuple[WrongLinkMode, ...]
     size_mismatches: tuple[FileComparison, ...]
     checksum_mismatches: tuple[FileComparison, ...]
 
@@ -58,6 +69,7 @@ class BrowsableDirCheck:
             not self.missing
             and not self.extra
             and not self.wrong_source
+            and not self.wrong_link_mode
             and not self.size_mismatches
             and not self.checksum_mismatches
         )
@@ -108,41 +120,77 @@ def _is_link_to(main_path: Path, source_path: Path) -> bool:
     )
 
 
+_LINK_MODE_NAMES: dict[LinkMode, str] = {
+    LinkMode.HARDLINK: "hardlink",
+    LinkMode.SYMLINK: "symlink",
+    LinkMode.COPY: "copy",
+}
+
+
+def _detect_actual_link_mode(main_path: Path, source_path: Path) -> str:
+    """Return the actual link mode of *main_path* relative to *source_path*."""
+    if _is_symlink_to(main_path, source_path):
+        return "symlink"
+    if _is_hardlink_to(main_path, source_path):
+        return "hardlink"
+    return "copy"
+
+
 def _compare_file(
     main_path: Path,
     source_path: Path,
     *,
+    link_mode: LinkMode,
     checksum: bool,
-) -> FileComparison:
+) -> tuple[FileComparison, WrongLinkMode | None]:
     """Compare a main file against its expected source.
 
-    If the main file is a hardlink or symlink to the source, the comparison
-    succeeds immediately without checking size or checksum.
-    """
-    if _is_link_to(main_path, source_path):
-        return FileComparison(
-            filename=main_path.name,
-            expected_source=source_path.name,
-            size_match=True,
-            checksum_match=True if checksum else None,
-            link_verified=True,
-        )
-    else:
-        size_match = _file_size(main_path) == _file_size(source_path)
-        match (checksum, size_match):
-            case (False, _):
-                checksum_match = None
-            case (True, False):
-                checksum_match = False
-            case (True, True):
-                checksum_match = _file_sha256(main_path) == _file_sha256(source_path)
+    Returns a ``(comparison, wrong_link_mode)`` tuple. If the file uses
+    the wrong link type, *wrong_link_mode* is set but the comparison may
+    still succeed (content is correct, just the link type is wrong).
 
-        return FileComparison(
+    If the main file is a hardlink or symlink to the source, content
+    verification is skipped (the link guarantees correctness).
+    """
+    actual = _detect_actual_link_mode(main_path, source_path)
+    expected = _LINK_MODE_NAMES[link_mode]
+    wrong_lm = (
+        WrongLinkMode(filename=main_path.name, expected=expected, actual=actual)
+        if actual != expected
+        else None
+    )
+
+    is_link = actual in ("hardlink", "symlink")
+    if is_link:
+        return (
+            FileComparison(
+                filename=main_path.name,
+                expected_source=source_path.name,
+                size_match=True,
+                checksum_match=True if checksum else None,
+                link_verified=True,
+            ),
+            wrong_lm,
+        )
+
+    size_match = _file_size(main_path) == _file_size(source_path)
+    match (checksum, size_match):
+        case (False, _):
+            checksum_match = None
+        case (True, False):
+            checksum_match = False
+        case (True, True):
+            checksum_match = _file_sha256(main_path) == _file_sha256(source_path)
+
+    return (
+        FileComparison(
             filename=main_path.name,
             expected_source=source_path.name,
             size_match=size_match,
             checksum_match=checksum_match,
-        )
+        ),
+        wrong_lm,
+    )
 
 
 def _classify_expected_file(
@@ -152,11 +200,13 @@ def _classify_expected_file(
     browsable_dir: Path,
     browsable_files: set[str],
     *,
+    link_mode: LinkMode,
     checksum: bool,
     on_file_checked: Callable[[str, bool], None] | None,
 ) -> tuple[
     list[FileComparison],  # correct
     list[MissingFile],  # missing
+    list[WrongLinkMode],  # wrong_link_mode
     list[FileComparison],  # size_mismatches
     list[FileComparison],  # checksum_mismatches
 ]:
@@ -164,26 +214,27 @@ def _classify_expected_file(
     if expected_name not in browsable_files:
         if on_file_checked:
             on_file_checked(expected_name, False)
-        return [], [MissingFile(expected_name, source_dir.name)], [], []
+        return [], [MissingFile(expected_name, source_dir.name)], [], [], []
 
-    comparison = _compare_file(
+    comparison, wrong_lm = _compare_file(
         browsable_dir / expected_name,
         source_dir / source_name,
+        link_mode=link_mode,
         checksum=checksum,
     )
 
     if not comparison.size_match:
         if on_file_checked:
             on_file_checked(expected_name, False)
-        return [], [], [comparison], []
+        return [], [], [wrong_lm] if wrong_lm else [], [comparison], []
     elif comparison.checksum_match is False:
         if on_file_checked:
             on_file_checked(expected_name, False)
-        return [], [], [], [comparison]
+        return [], [], [wrong_lm] if wrong_lm else [], [], [comparison]
     else:
         if on_file_checked:
             on_file_checked(expected_name, True)
-        return [comparison], [], [], []
+        return [comparison], [], [wrong_lm] if wrong_lm else [], [], []
 
 
 # ---------------------------------------------------------------------------
@@ -198,6 +249,7 @@ def check_browsable_dir(
     *,
     media_extensions: frozenset[str],
     key_fn: _KeyFn,
+    link_mode: LinkMode,
     checksum: bool = True,
     on_file_checked: Callable[[str, bool], None] | None = None,
 ) -> BrowsableDirCheck:
@@ -206,6 +258,10 @@ def check_browsable_dir(
     For each media key in orig_dir, the browsable_dir should contain
     either the edited variant (if one exists in edit_dir) or the original.
     Files are matched using *key_fn* (image number for iOS, stem for std).
+
+    When *link_mode* is ``HARDLINK`` or ``SYMLINK``, also verifies that
+    each file uses the expected link type. Files with correct content but
+    wrong link type are reported as ``wrong_link_mode``.
     """
     orig_files = list_files(orig_dir)
     edit_files = list_files(edit_dir)
@@ -244,6 +300,7 @@ def check_browsable_dir(
             source_dir,
             browsable_dir,
             browsable_files,
+            link_mode=link_mode,
             checksum=checksum,
             on_file_checked=on_file_checked,
         )
@@ -252,8 +309,9 @@ def check_browsable_dir(
 
     correct = [c for cls in classifications for c in cls[0]]
     missing = [m for cls in classifications for m in cls[1]]
-    size_mismatches = [s for cls in classifications for s in cls[2]]
-    checksum_mismatches = [c for cls in classifications for c in cls[3]]
+    wrong_link_mode = [w for cls in classifications for w in cls[2]]
+    size_mismatches = [s for cls in classifications for s in cls[3]]
+    checksum_mismatches = [c for cls in classifications for c in cls[4]]
 
     # Wrong source: orig in main when edited version exists
     wrong_source = [
@@ -272,6 +330,7 @@ def check_browsable_dir(
         missing=tuple(missing),
         extra=tuple(extra),
         wrong_source=tuple(wrong_source),
+        wrong_link_mode=tuple(wrong_link_mode),
         size_mismatches=tuple(size_mismatches),
         checksum_mismatches=tuple(checksum_mismatches),
     )

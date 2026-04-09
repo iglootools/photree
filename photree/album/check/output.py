@@ -225,6 +225,10 @@ def format_browsable_dir_check(label: str, check: BrowsableDirCheck) -> str:
             *[f"  - extra: {f}" for f in check.extra],
             *[f"  - wrong source: {f}" for f in check.wrong_source],
             *[
+                f"  - wrong link mode: {w.filename} (expected {w.expected}, got {w.actual})"
+                for w in check.wrong_link_mode
+            ],
+            *[
                 f"  - size mismatch: {c.filename} (expected match with {c.expected_source})"
                 for c in check.size_mismatches
             ],
@@ -612,7 +616,7 @@ def format_album_preflight_troubleshoot(
         for suggestion in suggest_fixes(contrib_result, album_dir_flag, ms)
     ]
 
-    # Missing browsable directories → suggest optimize + refresh-jpeg
+    # Missing browsable directories → suggest refresh --refresh-browsable
     missing_browsable = frozenset(result.dir_check.missing) & frozenset(
         d
         for ms in result.media_source_summary.media_sources
@@ -622,7 +626,7 @@ def format_album_preflight_troubleshoot(
         *(
             [
                 dedent(f"""\
-                    photree album optimize {album_dir_flag} --no-check
+                    photree album refresh {album_dir_flag} --refresh-browsable
                       Rebuild browsable directories ({", ".join(sorted(missing_browsable))})
                       from archive sources, then regenerate JPEGs.""")
             ]

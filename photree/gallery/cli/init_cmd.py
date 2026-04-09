@@ -31,7 +31,7 @@ def init_cmd(
         LinkMode,
         typer.Option(
             "--link-mode",
-            help="Default link mode for optimize and other link-mode operations.",
+            help="Default link mode for refresh and other link-mode operations.",
         ),
     ] = LinkMode.HARDLINK,
 ) -> None:

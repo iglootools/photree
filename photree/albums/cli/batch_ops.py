@@ -23,7 +23,6 @@ from ...album.naming import BatchNamingResult
 from ...album.check.output import batch_check_summary
 from ...album.fix.output import batch_fix_summary
 from ...album.fix.ios.output import batch_fix_ios_summary
-from ...album.optimize import batch_optimize_summary
 from ...album.stats import models as stats_models
 from ...album.stats import output as stats_output
 from ...common.exif import try_start_exiftool
@@ -36,13 +35,12 @@ from ...album.id import (
     format_video_external_id,
 )
 from ...common.fs import display_path
-from ...fsprotocol import LinkMode
+from ...fsprotocol import LinkMode, resolve_link_mode
 from ...clihelpers.console import console, err_console
 from ...clihelpers.progress import BatchProgressBar
 from ..cmd_handler.init import batch_init
 from ..cmd_handler.check import batch_check
 from ..cmd_handler.fix import batch_fix
-from ..cmd_handler.optimize import batch_optimize
 from ..cmd_handler.fix_ios import batch_fix_ios
 from ..cmd_handler.stats import batch_stats
 from ..cmd_handler.refresh import batch_refresh
@@ -97,6 +95,9 @@ def run_batch_refresh(
     display_base: Path | None,
     *,
     dry_run: bool = False,
+    force_browsable: bool = False,
+    force_jpeg: bool = False,
+    force_exif_cache: bool = False,
     redetect_faces: bool = False,
     refresh_face_thumbs: bool = False,
 ) -> None:
@@ -116,6 +117,9 @@ def run_batch_refresh(
         result = batch_refresh(
             albums,
             dry_run=dry_run,
+            force_browsable=force_browsable,
+            force_jpeg=force_jpeg,
+            force_exif_cache=force_exif_cache,
             redetect_faces=redetect_faces,
             refresh_face_thumbs=refresh_face_thumbs,
             display_fn=make_display_fn(display_base, cwd),
@@ -322,6 +326,9 @@ def run_batch_check(
 
     fatal_sidecar = fatal_warnings or fatal_sidecar_arg
     fatal_exif = fatal_warnings or fatal_exif_date_match
+    resolved_link_mode = (
+        resolve_link_mode(None, albums[0]) if albums else LinkMode.HARDLINK
+    )
 
     with BatchProgressBar(
         total=len(albums), description="Checking", done_description="check"
@@ -331,6 +338,7 @@ def run_batch_check(
                 albums,
                 sips_available=sips_available,
                 exiftool=exiftool,
+                link_mode=resolved_link_mode,
                 checksum=checksum,
                 fatal_sidecar=fatal_sidecar,
                 fatal_exif=fatal_exif,
@@ -468,8 +476,6 @@ def run_batch_fix(
     fix_id: bool = False,
     new_id: bool = False,
     link_mode: LinkMode = LinkMode.HARDLINK,
-    refresh_browsable: bool = False,
-    refresh_jpeg: bool = False,
     rm_upstream: bool = False,
     rm_orphan: bool = False,
     dry_run: bool = False,
@@ -493,8 +499,6 @@ def run_batch_fix(
             fix_id=fix_id,
             new_id=new_id,
             link_mode=link_mode,
-            refresh_browsable=refresh_browsable,
-            refresh_jpeg=refresh_jpeg,
             rm_upstream=rm_upstream,
             rm_orphan=rm_orphan,
             dry_run=dry_run,
@@ -517,63 +521,6 @@ def run_batch_fix(
         for album_dir in result.failed_albums:
             err_console.print(
                 f'  photree album fix --album-dir "{display_path(album_dir, cwd)}"'
-            )
-        raise typer.Exit(code=1)
-
-
-def run_batch_optimize(
-    albums: list[Path],
-    display_base: Path | None,
-    *,
-    link_mode: LinkMode,
-    check: bool = True,
-    checksum: bool = True,
-    dry_run: bool = False,
-) -> None:
-    """Shared implementation for gallery optimize / albums optimize."""
-    cwd = Path.cwd()
-
-    sips_available = True
-    if check:
-        sips_available = album_check.check_sips_available()
-        typer.echo("System Checks:")
-        console.print(preflight_output.sips_check(sips_available))
-        if not sips_available:
-            typer.echo("")
-            err_console.print(preflight_output.sips_troubleshoot())
-            raise typer.Exit(code=1)
-
-    if not albums:
-        typer.echo("\nNo iOS albums found.")
-        raise typer.Exit(code=0)
-
-    if display_base is not None:
-        typer.echo(f"\nFound {len(albums)} iOS album(s).\n")
-    else:
-        typer.echo("")
-
-    with BatchProgressBar(
-        total=len(albums), description="Optimizing", done_description="optimize"
-    ) as progress:
-        result = batch_optimize(
-            albums,
-            link_mode=link_mode,
-            check=check,
-            checksum=checksum,
-            sips_available=sips_available,
-            dry_run=dry_run,
-            display_fn=make_display_fn(display_base, cwd),
-            on_start=progress.on_start,
-            on_end=lambda name, success: progress.on_end(name, success=success),
-        )
-
-    console.print(batch_optimize_summary(result.optimized, len(result.failed_albums)))
-
-    if result.failed_albums:
-        err_console.print("\nTo investigate failures:")
-        for album_dir in result.failed_albums:
-            err_console.print(
-                f'  photree album check --album-dir "{display_path(album_dir, cwd)}"'
             )
         raise typer.Exit(code=1)
 

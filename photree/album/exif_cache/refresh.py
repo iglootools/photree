@@ -59,10 +59,12 @@ def refresh_exif_cache(
     album_dir: Path,
     *,
     exiftool: ExifToolHelper | None = None,
+    force: bool = False,
     dry_run: bool = False,
 ) -> ExifCacheRefreshResult:
     """Refresh EXIF timestamp cache for all media sources in an album.
 
+    When *force* is True, re-read all files regardless of mtime.
     *exiftool* can be shared across albums in batch operations.
     """
     sources = discover_media_sources(album_dir)
@@ -77,7 +79,9 @@ def refresh_exif_cache(
         results = [
             (
                 ms.name,
-                _refresh_source(album_dir, ms, exiftool=et, dry_run=dry_run),
+                _refresh_source(
+                    album_dir, ms, exiftool=et, force=force, dry_run=dry_run
+                ),
             )
             for ms in sources
         ]
@@ -98,6 +102,7 @@ def _refresh_source(
     ms: MediaSource,
     *,
     exiftool: ExifToolHelper | None,
+    force: bool,
     dry_run: bool,
 ) -> ExifCacheSourceResult:
     """Refresh EXIF cache for a single media source."""
@@ -107,7 +112,11 @@ def _refresh_source(
     current_keys = set(current_files.keys())
     stale_keys = set(existing.files.keys()) - current_keys
 
-    keys_to_refresh = _keys_needing_refresh(current_files, album_dir, ms, existing)
+    keys_to_refresh = (
+        sorted(current_keys)
+        if force
+        else _keys_needing_refresh(current_files, album_dir, ms, existing)
+    )
 
     if not keys_to_refresh and not stale_keys:
         # Ensure cache file exists even when empty (no browsable files),

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from photree.album.jpeg import noop_convert_single
+from photree.album.jpeg import copy_convert_single, noop_convert_single
 from photree.album.store.metadata import load_album_metadata, save_album_metadata
 from photree.album.id import generate_album_id
 from photree.album.store.protocol import AlbumMetadata
@@ -158,38 +158,23 @@ class TestImportAlbum:
 
         target = result.target_dir
         assert (target / "nelu-img/sunset.heic").is_file()
-        assert not result.optimized  # std albums don't get optimized
 
     def test_refreshes_stale_jpegs(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
         album = tmp_path / "2024-07-14 - Hiking"
         _setup_ios_album(album)
-        # Add an image without a corresponding JPEG to make it stale
+        # Add an image to both archive and browsable without a JPEG
+        _write(album / "ios-main/orig-img/IMG_0002.HEIC", "heic2")
         _write(album / "main-img/IMG_0002.HEIC", "heic2")
 
         result = import_album(
             source_dir=album,
             gallery_dir=gallery,
-            convert_file=noop_convert_single,
+            convert_file=copy_convert_single,
         )
 
-        assert result.jpeg_refreshed
-
-    def test_rejects_optimize_when_browsable_files_mismatch(
-        self, tmp_path: Path
-    ) -> None:
-        gallery = _setup_gallery(tmp_path)
-        album = tmp_path / "2024-07-14 - Hiking"
-        _setup_ios_album(album)
-        # Corrupt the browsable copy so it no longer matches the archival source
-        _write(album / "main-img/IMG_0001.HEIC", "corrupted-data")
-
-        with pytest.raises(ValueError, match="Pre-optimize integrity check failed"):
-            import_album(
-                source_dir=album,
-                gallery_dir=gallery,
-                convert_file=noop_convert_single,
-            )
+        # Unified pipeline rebuilds JPEGs when stale
+        assert (result.target_dir / "main-jpg/IMG_0002.jpg").is_file()
 
     def test_stage_callbacks_invoked(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
@@ -208,5 +193,4 @@ class TestImportAlbum:
         stage_names = [name for _, name in stages]
         assert "copy" in stage_names
         assert "id" in stage_names
-        assert "jpeg" in stage_names
-        assert "optimize" in stage_names
+        assert "refresh-derived" in stage_names

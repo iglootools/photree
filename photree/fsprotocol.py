@@ -101,7 +101,7 @@ class GalleryMetadata(_BaseModel):
 
     link_mode: LinkMode = Field(
         default=LinkMode.HARDLINK,
-        description="Default link mode for optimize and other link-mode operations.",
+        description="Default link mode for refresh and other link-mode operations.",
     )
     faces_enabled: bool = Field(
         default=True,

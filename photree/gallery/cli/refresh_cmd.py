@@ -15,7 +15,7 @@ from ...common.formatting import CHECK
 from ...albums.cli.batch_ops import run_batch_refresh
 from ...albums.cli.ops import resolve_check_batch_albums
 from ...fsprotocol import GALLERY_YAML, PHOTREE_DIR, load_gallery_metadata
-from ..browsable_refresh import refresh_browsable
+from ..browsable_refresh import refresh_browsable as refresh_gallery_browsable
 from ..collection_refresh import (
     STAGE_IMPLICIT_REFRESH,
     STAGE_SCAN_ALBUMS,
@@ -40,6 +40,27 @@ def refresh_cmd(
         ),
     ] = None,
     dry_run: DRY_RUN_OPTION = False,
+    refresh_browsable: Annotated[
+        bool,
+        typer.Option(
+            "--refresh-browsable",
+            help="Force rebuild all browsable directories (skip check gate).",
+        ),
+    ] = False,
+    refresh_jpeg: Annotated[
+        bool,
+        typer.Option(
+            "--refresh-jpeg",
+            help="Force rebuild all JPEG directories (skip check gate).",
+        ),
+    ] = False,
+    refresh_exif_cache: Annotated[
+        bool,
+        typer.Option(
+            "--refresh-exif-cache",
+            help="Force re-read all EXIF timestamps.",
+        ),
+    ] = False,
     redetect_faces: Annotated[
         bool,
         typer.Option(
@@ -55,13 +76,16 @@ def refresh_cmd(
         ),
     ] = False,
 ) -> None:
-    """Refresh media metadata, face data, and collections for all albums in the gallery."""
+    """Refresh all derived data, face clusters, and collections for the gallery."""
     resolved = resolve_gallery_or_exit(gallery_dir)
     albums, display_base = resolve_check_batch_albums(resolved, None)
     run_batch_refresh(
         albums,
         display_base,
         dry_run=dry_run,
+        force_browsable=refresh_browsable,
+        force_jpeg=refresh_jpeg,
+        force_exif_cache=refresh_exif_cache,
         redetect_faces=redetect_faces,
         refresh_face_thumbs=refresh_face_thumbs,
     )
@@ -129,7 +153,7 @@ def refresh_cmd(
     typer.echo("\nBrowsable:")
     browsable_result = run_with_spinner(
         "Rendering browsable structure...",
-        lambda: refresh_browsable(resolved, dry_run=dry_run),
+        lambda: refresh_gallery_browsable(resolved, dry_run=dry_run),
     )
 
     if not browsable_result.success:

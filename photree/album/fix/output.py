@@ -8,34 +8,6 @@ if TYPE_CHECKING:
     from . import FixResult
 
 
-def refresh_jpeg_summary(converted: int, copied: int, skipped: int) -> str:
-    return f"Done. {converted} converted, {copied} copied, {skipped} skipped."
-
-
-def refresh_browsable_summary(
-    heic_copied: int,
-    mov_copied: int,
-    jpeg_converted: int,
-    jpeg_copied: int,
-    jpeg_skipped: int,
-) -> str:
-    jpeg_parts = ", ".join(
-        [
-            *([f"{jpeg_converted} converted"] if jpeg_converted else []),
-            *([f"{jpeg_copied} copied"] if jpeg_copied else []),
-            *([f"{jpeg_skipped} skipped"] if jpeg_skipped else []),
-        ]
-    )
-    parts = ", ".join(
-        [
-            *([f"{heic_copied} heic"] if heic_copied else []),
-            *([f"{mov_copied} mov"] if mov_copied else []),
-            *([f"jpeg: {jpeg_parts}"] if jpeg_parts else []),
-        ]
-    )
-    return f"Done. {parts}." if parts else "Done. nothing to do."
-
-
 def rm_upstream_summary(
     heic_jpeg: int,
     heic_browsable: int,
@@ -80,22 +52,6 @@ def rm_orphan_summary(
 def format_fix_result(result: FixResult) -> list[str]:
     """Format a :class:`FixResult` into output lines."""
     lines: list[str] = []
-
-    if result.refresh_browsable_result is not None:
-        rc = result.refresh_browsable_result
-        lines.append(
-            refresh_browsable_summary(
-                heic_copied=rc.heic_copied,
-                mov_copied=rc.mov_copied,
-                jpeg_converted=rc.jpeg_converted,
-                jpeg_copied=rc.jpeg_copied,
-                jpeg_skipped=rc.jpeg_skipped,
-            )
-        )
-
-    if result.refresh_jpeg_result is not None:
-        rj = result.refresh_jpeg_result
-        lines.append(refresh_jpeg_summary(rj.converted, rj.copied, rj.skipped))
 
     if result.rm_upstream_result is not None:
         ru = result.rm_upstream_result
