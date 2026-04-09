@@ -249,3 +249,58 @@ def run_batch_post_import_check(
         )
 
     return check_failed
+
+
+# ---------------------------------------------------------------------------
+# Face clustering helper
+# ---------------------------------------------------------------------------
+
+
+def run_face_clustering(
+    gallery_dir: Path,
+    *,
+    distance_threshold: float | None = None,
+    dry_run: bool = False,
+    force_full: bool = False,
+) -> None:
+    """Run gallery-wide face clustering with progress bar and output.
+
+    Raises :class:`typer.Exit` on clustering errors.
+    """
+    from ..faces.face_refresh import (
+        STAGE_BUILD_INDEX,
+        STAGE_CLUSTER,
+        STAGE_SAVE,
+        STAGE_SCAN_FACE_DATA,
+        refresh_face_clusters,
+    )
+
+    typer.echo("\nFace clustering:")
+    with StageProgressBar(
+        total=4,
+        labels={
+            STAGE_SCAN_FACE_DATA: "Scanning face data",
+            STAGE_BUILD_INDEX: "Building similarity index",
+            STAGE_CLUSTER: "Clustering faces",
+            STAGE_SAVE: "Saving results",
+        },
+    ) as progress:
+        result = refresh_face_clusters(
+            gallery_dir,
+            distance_threshold=distance_threshold,
+            dry_run=dry_run,
+            force_full=force_full,
+            on_stage_start=progress.on_start,
+            on_stage_end=progress.on_end,
+        )
+
+    typer.echo(
+        f"  {result.total_faces} face(s), "
+        f"{result.total_clusters} cluster(s) "
+        f"({result.mode})"
+    )
+
+    if not result.success:
+        for error in result.errors:
+            err_console.print(f"  error: {error.message}")
+        raise typer.Exit(code=1)
