@@ -9,22 +9,13 @@ from typing import Annotated, Optional
 import typer
 
 from . import gallery_app
-from ...fsprotocol import LinkMode
+from ...fsprotocol import GALLERY_YAML, LinkMode, PHOTREE_DIR, load_gallery_metadata
 from ...fsprotocol import resolve_link_mode
-from ...clihelpers.console import err_console
-from ...clihelpers.progress import StageProgressBar
-from ...fsprotocol import GALLERY_YAML, PHOTREE_DIR, load_gallery_metadata
-from ..faces.face_refresh import (
-    STAGE_BUILD_INDEX,
-    STAGE_CLUSTER,
-    STAGE_SAVE,
-    STAGE_SCAN_FACE_DATA,
-    refresh_face_clusters,
-)
 from .ops import (
     build_index_or_exit,
     print_single_import_result,
     resolve_gallery_or_exit,
+    run_face_clustering,
     run_single_import,
     validate_single_import_or_exit,
 )
@@ -70,12 +61,7 @@ def import_cmd(
         ),
     ] = False,
 ) -> None:
-    """Import an existing album directory into the gallery.
-
-    Copies the album to <gallery>/albums/YYYY/<album-name>/, generates a
-    missing album ID, refreshes JPEGs if stale, optimizes links, and runs
-    integrity checks.
-    """
+    """Import an existing album directory into the gallery."""
     resolved_gallery = resolve_gallery_or_exit(gallery_dir)
     resolved_lm = resolve_link_mode(link_mode, resolved_gallery)
     cwd = Path.cwd()
@@ -87,31 +73,9 @@ def import_cmd(
     )
     print_single_import_result(result, cwd, dry_run)
 
-    # Gallery-wide face clustering (incremental — adds new album's faces)
     gallery_meta = load_gallery_metadata(resolved_gallery / PHOTREE_DIR / GALLERY_YAML)
     if gallery_meta.faces_enabled and not dry_run:
-        typer.echo("\nFace clustering:")
-        with StageProgressBar(
-            total=4,
-            labels={
-                STAGE_SCAN_FACE_DATA: "Scanning face data",
-                STAGE_BUILD_INDEX: "Building similarity index",
-                STAGE_CLUSTER: "Clustering faces",
-                STAGE_SAVE: "Saving results",
-            },
-        ) as progress:
-            face_result = refresh_face_clusters(
-                resolved_gallery,
-                distance_threshold=gallery_meta.face_cluster_threshold,
-                on_stage_start=progress.on_start,
-                on_stage_end=progress.on_end,
-            )
-        typer.echo(
-            f"  {face_result.total_faces} face(s), "
-            f"{face_result.total_clusters} cluster(s) "
-            f"({face_result.mode})"
+        run_face_clustering(
+            resolved_gallery,
+            distance_threshold=gallery_meta.face_cluster_threshold,
         )
-        if not face_result.success:
-            for error in face_result.errors:
-                err_console.print(f"  error: {error.message}")
-            raise typer.Exit(code=1)

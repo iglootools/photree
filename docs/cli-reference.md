@@ -1192,10 +1192,6 @@ $ photree gallery import-all [OPTIONS]
 
 Import an existing album directory into the gallery.
 
-Copies the album to &lt;gallery&gt;/albums/YYYY/&lt;album-name&gt;/, generates a
-missing album ID, refreshes JPEGs if stale, optimizes links, and runs
-integrity checks.
-
 **Usage**:
 
 ```console
