@@ -33,6 +33,9 @@ def create_face_analyzer(
 
     Prefers ``CoreMLExecutionProvider`` (M-series Neural Engine) with
     fallback to ``CPUExecutionProvider``.
+
+    Model download (~300 MB) happens on first use. Subsequent calls
+    load from ``~/.insightface/models/`` (takes a few seconds).
     """
     # Suppress insightface's verbose stdout (model loading messages) and
     # FutureWarning from deprecated scikit-image API calls.

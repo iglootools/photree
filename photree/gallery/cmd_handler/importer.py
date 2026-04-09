@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from ...album.faces.detect import create_face_analyzer
+from ...clihelpers.progress import run_with_spinner
 from ...common.exif import try_start_exiftool
 from ...fsprotocol import LinkMode
 from .. import importer as gallery_importer
@@ -29,7 +30,9 @@ def run_single_import(
     Raises :class:`ValueError` on import errors.
     """
     exiftool = try_start_exiftool()
-    face_analyzer = create_face_analyzer()
+    face_analyzer = run_with_spinner(
+        "Loading face detection model...", create_face_analyzer
+    )
 
     try:
         return gallery_importer.import_album(
@@ -76,7 +79,9 @@ def run_batch_import(
     failed: list[Path] = []
 
     exiftool = try_start_exiftool()
-    face_analyzer = create_face_analyzer()
+    face_analyzer = run_with_spinner(
+        "Loading face detection model...", create_face_analyzer
+    )
 
     try:
         for album_path in albums:
