@@ -144,7 +144,12 @@ subdirectory where imported albums are organized by year:
 ```
 <Gallery Root>/
   .photree/
-    gallery.yaml            gallery-wide settings (link-mode)
+    gallery.yaml            gallery-wide settings
+    faces/                  gallery-level face clustering data
+      face-index.faiss      serialized FAISS index
+      face-manifest.yaml    maps index rows to face references
+      clusters.yaml         cluster UUIDs + member face indices
+      album-checksums.yaml  tracks ingested album face data
   albums/
     2023/
       2023-12-25 - Christmas/
