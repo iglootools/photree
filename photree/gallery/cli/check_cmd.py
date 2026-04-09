@@ -212,9 +212,10 @@ def _checksum_issue(
     """Return an issue string if a checksum is missing or mismatched."""
     stored = album_checksums.get(ms_name)
     prefix = f"album {album_id[:12]}.../{ms_name}"
-    if stored is None:
-        return f"{prefix}: face data not in gallery index"
-    elif stored != compute_npz_checksum(npz_file):
-        return f"{prefix}: checksum mismatch (album face data changed)"
-    else:
-        return None
+    match stored:
+        case None:
+            return f"{prefix}: face data not in gallery index"
+        case ck if ck != compute_npz_checksum(npz_file):
+            return f"{prefix}: checksum mismatch (album face data changed)"
+        case _:
+            return None
