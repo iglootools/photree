@@ -588,7 +588,9 @@ def _read_timestamps_from_cache_or_exiftool(
 def _try_read_from_cache(album_dir: Path) -> list[tuple[Path, datetime]] | None:
     """Try to read all timestamps from the EXIF cache.
 
-    Returns ``None`` if the cache is missing for any media source.
+    Returns ``None`` if any media source has no cache file. An empty
+    cache file (written for sources with no browsable files) is valid.
+
     Trusts cached entries without per-file mtime verification — the
     cache is validated at write time during ``album refresh``. Use
     ``--refresh-exif-cache`` on check commands to force a re-read.
