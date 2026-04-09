@@ -7,12 +7,9 @@ from typing import Annotated
 
 import typer
 
-from ...common.fs import display_path
-from ...fsprotocol import PHOTREE_DIR
 from ..exif_cache.refresh import refresh_exif_cache
 from ..faces.refresh import refresh_face_data
 from ..refresh import refresh_media_metadata
-from ..store.protocol import MEDIA_IDS_DIR
 from . import album_app
 
 
@@ -48,32 +45,53 @@ def refresh_cmd(
         ),
     ] = False,
 ) -> None:
-    """Refresh media metadata and face detection data."""
-    cwd = Path.cwd()
+    """Refresh media IDs, EXIF cache, and face detection data."""
     result = refresh_media_metadata(album_dir, dry_run=dry_run)
 
     if not result.by_media_source:
         typer.echo("No media sources with archives found.")
         raise typer.Exit(code=0)
 
-    media_ids = album_dir / PHOTREE_DIR / MEDIA_IDS_DIR
-    if dry_run:
-        typer.echo(f"[dry run] Would write {display_path(media_ids, cwd)}")
+    _print_media_ids_result(result)
+    _print_exif_cache_result(album_dir, dry_run=dry_run)
+    _print_face_detection_result(
+        album_dir,
+        redetect_faces=redetect_faces,
+        refresh_face_thumbs=refresh_face_thumbs,
+        dry_run=dry_run,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Output helpers
+# ---------------------------------------------------------------------------
+
+
+def _print_media_ids_result(result: object) -> None:
+    """Print media ID refresh results."""
+    from ..refresh import RefreshResult
+
+    if not isinstance(result, RefreshResult):
+        return
+
+    typer.echo("Media IDs:")
+    if not result.changed:
+        typer.echo("  no changes")
     else:
-        typer.echo(f"Refreshed {display_path(media_ids, cwd)}")
+        for ms_name, ms_result in result.by_media_source:
+            parts = [
+                f"{ms_result.new_images} new image(s)",
+                f"{ms_result.new_videos} new video(s)",
+            ]
+            if ms_result.removed_images or ms_result.removed_videos:
+                parts.append(
+                    f"{ms_result.removed_images + ms_result.removed_videos} removed"
+                )
+            typer.echo(f"  {ms_name}: {', '.join(parts)}")
 
-    for ms_name, ms_result in result.by_media_source:
-        parts = [
-            f"{ms_result.new_images} new image(s)",
-            f"{ms_result.new_videos} new video(s)",
-        ]
-        if ms_result.removed_images or ms_result.removed_videos:
-            parts.append(
-                f"{ms_result.removed_images + ms_result.removed_videos} removed"
-            )
-        typer.echo(f"  {ms_name}: {', '.join(parts)}")
 
-    # EXIF cache
+def _print_exif_cache_result(album_dir: Path, *, dry_run: bool) -> None:
+    """Refresh and print EXIF cache results."""
     typer.echo("\nEXIF cache:")
     exif_result = refresh_exif_cache(album_dir, dry_run=dry_run)
     if not exif_result.by_media_source:
@@ -88,7 +106,15 @@ def refresh_cmd(
                     parts.append(f"{ms_result.pruned} pruned")
                 typer.echo(f"  {ms_name}: {', '.join(parts)}")
 
-    # Face detection
+
+def _print_face_detection_result(
+    album_dir: Path,
+    *,
+    redetect_faces: bool,
+    refresh_face_thumbs: bool,
+    dry_run: bool,
+) -> None:
+    """Refresh and print face detection results."""
     typer.echo("\nFaces:")
     face_result = refresh_face_data(
         album_dir,

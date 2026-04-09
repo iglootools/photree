@@ -31,14 +31,14 @@ def _setup_album(album_dir: Path) -> None:
 
 
 class TestAlbumRefresh:
-    def test_creates_media_yaml(self, tmp_path: Path) -> None:
+    def test_creates_media_ids(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_album(album)
 
         result = runner.invoke(app, ["album", "refresh", "-a", str(album)])
 
         assert result.exit_code == 0
-        assert "Refreshed" in result.output
+        assert "Media IDs:" in result.output
         assert load_media_metadata(album) is not None
 
     def test_reports_counts(self, tmp_path: Path) -> None:
@@ -57,7 +57,7 @@ class TestAlbumRefresh:
         result = runner.invoke(app, ["album", "refresh", "-a", str(album), "--dry-run"])
 
         assert result.exit_code == 0
-        assert "[dry run]" in result.output
+        assert "Media IDs:" in result.output
         assert load_media_metadata(album) is None
 
     def test_idempotent(self, tmp_path: Path) -> None:
@@ -68,4 +68,4 @@ class TestAlbumRefresh:
         result = runner.invoke(app, ["album", "refresh", "-a", str(album)])
 
         assert result.exit_code == 0
-        assert "0 new image(s)" in result.output
+        assert "no changes" in result.output
