@@ -39,6 +39,7 @@ from ..cmd_handler.post_import_check import (
     run_batch_post_import_check as _run_batch_post_import_check,
 )
 from ...clihelpers.console import console, err_console
+from ...common.formatting import CHECK
 from ...clihelpers.progress import BatchProgressBar, StageProgressBar
 
 
@@ -294,11 +295,20 @@ def run_face_clustering(
             on_stage_end=progress.on_end,
         )
 
-    typer.echo(
-        f"  {result.total_faces} face(s), "
-        f"{result.total_clusters} cluster(s) "
-        f"({result.mode})"
-    )
+    match result.mode:
+        case "none":
+            console.print(
+                f"  {CHECK} face clustering (no changes —"
+                f" {result.total_faces} face(s),"
+                f" {result.total_clusters} cluster(s))"
+            )
+        case _:
+            console.print(
+                f"  {CHECK} face clustering"
+                f" ({result.total_faces} face(s),"
+                f" {result.total_clusters} cluster(s),"
+                f" {result.mode})"
+            )
 
     if not result.success:
         for error in result.errors:
