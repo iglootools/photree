@@ -5,7 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..faces.protocol import DEFAULT_MODEL_NAME, DEFAULT_MODEL_VERSION
+from ...common.fs import list_files
+from ..faces.detect import thumb_filename
+from ..faces.protocol import (
+    DEFAULT_MODEL_NAME,
+    DEFAULT_MODEL_VERSION,
+    FaceProcessingState,
+)
 from ..faces.store import (
     data_path,
     load_face_data,
@@ -16,7 +22,6 @@ from ..faces.store import (
 from ..store.media_sources import dedup_media_dict
 from ..store.media_sources_discovery import discover_media_sources
 from ..store.protocol import IMG_EXTENSIONS, IOS_IMG_EXTENSIONS, MediaSource
-from ...common.fs import list_files
 
 
 @dataclass(frozen=True)
@@ -93,6 +98,11 @@ def check_face_state(
     )
 
 
+# ---------------------------------------------------------------------------
+# Per-source check
+# ---------------------------------------------------------------------------
+
+
 @dataclass(frozen=True)
 class _SourceCheck:
     """Per-media-source face state check result."""
@@ -127,35 +137,18 @@ def _check_source(
     if state is None:
         return _EMPTY_SOURCE_CHECK
 
-    img_ext = IOS_IMG_EXTENSIONS if ms.is_ios else IMG_EXTENSIONS
-    current_files = dedup_media_dict(
-        list_files(album_dir / ms.orig_img_dir), img_ext, ms.key_fn
-    )
-    current_keys = set(current_files.keys())
+    current_keys = _scan_current_keys(album_dir, ms)
     processed_keys = set(state.processed_keys.keys())
-
     thumb_dir_path = thumbs_dir(album_dir, ms.name)
 
     return _SourceCheck(
-        unprocessed=tuple(
-            f"{ms.name}:{k}" for k in sorted(current_keys - processed_keys)
+        unprocessed=_find_unprocessed(ms.name, current_keys, processed_keys),
+        stale_entries=_find_stale_entries(ms.name, current_keys, processed_keys),
+        missing_thumbs=_find_missing_thumbs(
+            ms.name, state, current_keys, thumb_dir_path
         ),
-        stale_entries=tuple(
-            f"{ms.name}:{k}" for k in sorted(processed_keys - current_keys)
-        ),
-        missing_thumbs=tuple(
-            f"{ms.name}:{key}"
-            for key in state.processed_keys
-            if key in current_keys and not (thumb_dir_path / f"{key}.jpg").is_file()
-        ),
-        stale_thumbs=tuple(
-            f"{ms.name}:{key}"
-            for key, entry in state.processed_keys.items()
-            if key in current_keys
-            and (thumb_dir_path / f"{key}.jpg").is_file()
-            and (album_dir / ms.orig_img_dir / entry.file_name).is_file()
-            and (album_dir / ms.orig_img_dir / entry.file_name).stat().st_mtime
-            != entry.mtime
+        stale_thumbs=_find_stale_thumbs(
+            ms.name, state, current_keys, thumb_dir_path, album_dir / ms.orig_img_dir
         ),
         model_mismatch=(
             state.model_name != model_name or state.model_version != model_version
@@ -164,17 +157,83 @@ def _check_source(
     )
 
 
+# ---------------------------------------------------------------------------
+# Individual checks
+# ---------------------------------------------------------------------------
+
+
+def _scan_current_keys(album_dir: Path, ms: MediaSource) -> set[str]:
+    """Return the set of media keys currently on disk for a media source."""
+    img_ext = IOS_IMG_EXTENSIONS if ms.is_ios else IMG_EXTENSIONS
+    return set(
+        dedup_media_dict(
+            list_files(album_dir / ms.orig_img_dir), img_ext, ms.key_fn
+        ).keys()
+    )
+
+
+def _find_unprocessed(
+    ms_name: str, current_keys: set[str], processed_keys: set[str]
+) -> tuple[str, ...]:
+    return tuple(f"{ms_name}:{k}" for k in sorted(current_keys - processed_keys))
+
+
+def _find_stale_entries(
+    ms_name: str, current_keys: set[str], processed_keys: set[str]
+) -> tuple[str, ...]:
+    return tuple(f"{ms_name}:{k}" for k in sorted(processed_keys - current_keys))
+
+
+def _find_missing_thumbs(
+    ms_name: str,
+    state: FaceProcessingState,
+    current_keys: set[str],
+    thumb_dir: Path,
+) -> tuple[str, ...]:
+    return tuple(
+        f"{ms_name}:{key}"
+        for key in state.processed_keys
+        if key in current_keys and not (thumb_dir / thumb_filename(key)).is_file()
+    )
+
+
+def _find_stale_thumbs(
+    ms_name: str,
+    state: FaceProcessingState,
+    current_keys: set[str],
+    thumb_dir: Path,
+    orig_dir: Path,
+) -> tuple[str, ...]:
+    return tuple(
+        f"{ms_name}:{key}"
+        for key, entry in state.processed_keys.items()
+        if _is_stale_thumb(key, entry, current_keys, thumb_dir, orig_dir)
+    )
+
+
+def _is_stale_thumb(
+    key: str,
+    entry: object,
+    current_keys: set[str],
+    thumb_dir: Path,
+    orig_dir: Path,
+) -> bool:
+    """Return True when a thumbnail exists but its original has a newer mtime."""
+    from ..faces.protocol import FaceProcessedKey
+
+    if key not in current_keys or not isinstance(entry, FaceProcessedKey):
+        return False
+    thumb = thumb_dir / thumb_filename(key)
+    orig = orig_dir / entry.file_name
+    return thumb.is_file() and orig.is_file() and orig.stat().st_mtime != entry.mtime
+
+
 def _check_npz_yaml_sync(
     album_dir: Path,
     ms_name: str,
-    state: object,
+    state: FaceProcessingState,
 ) -> tuple[str, ...]:
     """Check .npz/.yaml consistency for a media source."""
-    from ..faces.protocol import FaceProcessingState
-
-    if not isinstance(state, FaceProcessingState):
-        return ()
-
     face_data = load_face_data(album_dir, ms_name)
     if face_data is None:
         return ()
