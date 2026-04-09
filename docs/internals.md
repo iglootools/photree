@@ -556,10 +556,10 @@ browsable/
 - **Collections** (recursive):
   - `albums/` — album members rendered as above
   - `collections/` — sub-collection members rendered recursively
-  - `images/` — symlinks to individual JPG files from the album's
-    `{name}-jpg/` directory
-  - `videos/` — symlinks to individual video files from the album's
-    `{name}-vid/` directory
+  - `images/` — symlinks to individual JPG files, prefixed with
+    album name and media source to prevent collisions
+    (e.g. `2024-07-14 - Hiking - main - IMG_0001.jpg`)
+  - `videos/` — symlinks to individual video files, same naming
 - **Visibility**: Albums and collections with `[private]` tag go under
   `private/`; all others under `public/`.
 - **Collection buckets**: `by-year/<YYYY>` for dated collections,

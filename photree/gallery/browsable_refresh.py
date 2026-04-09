@@ -120,6 +120,7 @@ class _MediaLocation:
     """Where a media item's browsable file lives."""
 
     album_path: Path
+    media_source_name: str
     jpg_dir: str
     vid_dir: str
     key: str
@@ -166,14 +167,21 @@ def _build_media_locations(
     if media_meta is None or not media_sources:
         return {}
 
-    ms = media_sources[0]  # primary media source
-    return {
-        mid: _MediaLocation(
-            album_path=album_dir, jpg_dir=ms.jpg_dir, vid_dir=ms.vid_dir, key=key
-        )
-        for source in media_meta.media_sources.values()
-        for mid, key in [*source.images.items(), *source.videos.items()]
-    }
+    ms_by_name = {ms.name: ms for ms in media_sources}
+    result: dict[str, _MediaLocation] = {}
+    for source_name, source in media_meta.media_sources.items():
+        ms = ms_by_name.get(source_name)
+        if ms is None:
+            continue
+        for mid, key in [*source.images.items(), *source.videos.items()]:
+            result[mid] = _MediaLocation(
+                album_path=album_dir,
+                media_source_name=ms.name,
+                jpg_dir=ms.jpg_dir,
+                vid_dir=ms.vid_dir,
+                key=key,
+            )
+    return result
 
 
 def _scan_album_entries(
@@ -278,16 +286,24 @@ def _render_media_files(
     target_subdir: Path,
     dir_attr: str,
 ) -> int:
-    """Symlink individual media files into target_subdir. Returns count."""
+    """Symlink individual media files into target_subdir. Returns count.
+
+    Symlinks are prefixed with the album name and media source to
+    prevent collisions when multiple albums or sources contain files
+    with the same name (e.g. ``IMG_0001.jpg``).  The resulting name
+    is ``{album_name} - {media_source} - {filename}``.
+    """
     count = 0
     for mid in media_ids:
         loc = media_locations.get(mid)
         if loc is not None:
             browsable_dir = loc.album_path / getattr(loc, dir_attr)
             if browsable_dir.is_dir():
+                prefix = f"{loc.album_path.name} - {loc.media_source_name}"
                 for f in browsable_dir.iterdir():
                     if f.is_file() and _matches_key(f.name, loc.key):
-                        _make_relative_symlink(f, target_subdir / f.name)
+                        link_name = f"{prefix} - {f.name}"
+                        _make_relative_symlink(f, target_subdir / link_name)
                         count += 1
     return count
 
