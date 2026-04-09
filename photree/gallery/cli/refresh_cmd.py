@@ -10,7 +10,8 @@ import typer
 from . import gallery_app
 from ...clihelpers.console import err_console
 from ...clihelpers.options import DRY_RUN_OPTION
-from ...clihelpers.progress import StageProgressBar
+from ...clihelpers.progress import StageProgressBar, run_with_spinner
+from ...common.formatting import CHECK
 from ...albums.cli.batch_ops import run_batch_refresh
 from ...albums.cli.ops import resolve_check_batch_albums
 from ...fsprotocol import GALLERY_YAML, PHOTREE_DIR, load_gallery_metadata
@@ -126,23 +127,21 @@ def refresh_cmd(
 
     # Refresh browsable directory structure
     typer.echo("\nBrowsable:")
-    from rich.progress import Progress, SpinnerColumn, TextColumn
-
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        transient=True,
-    ) as progress:
-        progress.add_task("Rendering browsable structure...", total=None)
-        browsable_result = refresh_browsable(resolved, dry_run=dry_run)
+    browsable_result = run_with_spinner(
+        "Rendering browsable structure...",
+        lambda: refresh_browsable(resolved, dry_run=dry_run),
+    )
 
     if not browsable_result.success:
         for error in browsable_result.errors:
             err_console.print(f"  error: {error.message}")
         raise typer.Exit(code=1)
 
-    typer.echo(
-        f"  {browsable_result.albums_rendered} album(s), "
+    from ...clihelpers.console import console
+
+    console.print(
+        f"  {CHECK} browsable "
+        f"({browsable_result.albums_rendered} album(s), "
         f"{browsable_result.collections_rendered} collection(s), "
-        f"{browsable_result.symlinks_created} symlink(s)"
+        f"{browsable_result.symlinks_created} symlink(s))"
     )
