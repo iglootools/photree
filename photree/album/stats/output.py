@@ -64,39 +64,42 @@ def _space_saved(agg: AggregateStats) -> tuple[int, float]:
 
 
 def _size_columns(table: Table) -> None:
-    """Add the standard On-Disk / Size / Archive / Browsable / Derived column group."""
+    """Add the standard On-Disk / Size / Archive / Browsable / Derived / Cache column group."""
     table.add_column("On-Disk", justify="right", style=_SIZE_STYLE)
     table.add_column("Size", justify="right", style=_SIZE_STYLE)
     table.add_column("Archive", justify="right", style=_SIZE_STYLE)
     table.add_column("Browsable", justify="right", style=_SIZE_STYLE)
     table.add_column("Derived", justify="right", style=_SIZE_STYLE)
+    table.add_column("Cache", justify="right", style=_SIZE_STYLE)
 
 
 def _size_cells(
-    total: int, on_disk: int, archive: int, derived: int
-) -> tuple[str, str, str, str, str]:
-    """Return (on_disk, size, archive, browsable, derived) formatted strings."""
-    browsable = total - archive - derived
+    total: int, on_disk: int, archive: int, derived: int, cache: int = 0
+) -> tuple[str, str, str, str, str, str]:
+    """Return (on_disk, size, archive, browsable, derived, cache) formatted strings."""
+    browsable = total - archive - derived - cache
     return (
         _format_bytes(on_disk),
         _format_bytes(total),
         _format_bytes(archive),
         _format_bytes(browsable),
         _format_bytes(derived),
+        _format_bytes(cache),
     )
 
 
 def _bold_size_cells(
-    total: int, on_disk: int, archive: int, derived: int
-) -> tuple[str, str, str, str, str]:
+    total: int, on_disk: int, archive: int, derived: int, cache: int = 0
+) -> tuple[str, str, str, str, str, str]:
     """Like ``_size_cells`` but wrapped in bold markup."""
-    browsable = total - archive - derived
+    browsable = total - archive - derived - cache
     return (
         f"[bold]{_format_bytes(on_disk)}[/bold]",
         f"[bold]{_format_bytes(total)}[/bold]",
         f"[bold]{_format_bytes(archive)}[/bold]",
         f"[bold]{_format_bytes(browsable)}[/bold]",
         f"[bold]{_format_bytes(derived)}[/bold]",
+        f"[bold]{_format_bytes(cache)}[/bold]",
     )
 
 
@@ -106,13 +109,14 @@ def _bold_size_cells(
 
 _LEGEND = Text.from_markup(
     "[bold]Legend[/bold]\n"
-    "  [bold]On-Disk[/bold]    Actual disk usage (inode-deduplicated; hardlinks and symlinks counted once)\n"
-    "  [bold]Size[/bold]       Apparent size (naive sum of all file sizes)\n"
-    "  [bold]Archive[/bold]    Original and edited files in archival directories (ios-{{name}}/ or std-{{name}}/)\n"
-    "  [bold]Browsable[/bold]  Best-version files in {{name}}-img/ and {{name}}-vid/ (typically links to archive)\n"
-    "  [bold]Derived[/bold]    JPEG conversions in {{name}}-jpg/\n"
-    "  [bold]Size[/bold] = [bold]Archive[/bold] + [bold]Browsable[/bold] + [bold]Derived[/bold]\n"
-    "  [bold]Year[/bold]       Albums with date ranges are attributed to the start year"
+    "  [bold]On-Disk[/bold]      Actual disk usage (inode-deduplicated; hardlinks and symlinks counted once)\n"
+    "  [bold]Size[/bold]         Apparent size (naive sum of all file sizes)\n"
+    "  [bold]Archive[/bold]      Original and edited files in archival directories (ios-{{name}}/ or std-{{name}}/)\n"
+    "  [bold]Browsable[/bold]    Best-version files in {{name}}-img/ and {{name}}-vid/ (typically links to archive)\n"
+    "  [bold]Derived[/bold]      JPEG conversions in {{name}}-jpg/\n"
+    "  [bold]Cache[/bold]        Derived data in .photree/cache/ (EXIF timestamps, face detection)\n"
+    "  [bold]Size[/bold] = [bold]Archive[/bold] + [bold]Browsable[/bold] + [bold]Derived[/bold] + [bold]Cache[/bold]\n"
+    "  [bold]Year[/bold]         Albums with date ranges are attributed to the start year"
 )
 
 
@@ -121,12 +125,24 @@ _LEGEND = Text.from_markup(
 # ---------------------------------------------------------------------------
 
 
+def _cache_bytes(cache: SizeStats | None) -> int:
+    return cache.apparent_bytes if cache is not None else 0
+
+
+def _cache_on_disk(cache: SizeStats | None) -> int:
+    return cache.on_disk_bytes if cache is not None else 0
+
+
+def _cache_files(cache: SizeStats | None) -> int:
+    return cache.file_count if cache is not None else 0
+
+
 def _overview_panel(
     agg: AggregateStats,
     *,
     album_count: int | None = None,
     unique_media_source_names: tuple[str, ...] | None = None,
-    face_storage: SizeStats | None = None,
+    cache_storage: SizeStats | None = None,
 ) -> Panel:
     """Key-value overview wrapped in a Panel."""
     table = Table(show_header=False, box=None, padding=(0, 2))
@@ -143,14 +159,21 @@ def _overview_panel(
 
     table.add_row("Unique pictures", _format_count(agg.unique_pictures))
     table.add_row("Unique videos", _format_count(agg.unique_videos))
-    table.add_row("Total files", _format_count(agg.total.file_count))
+
+    cb = _cache_bytes(cache_storage)
+    cod = _cache_on_disk(cache_storage)
+    cf = _cache_files(cache_storage)
+
+    table.add_row("Total files", _format_count(agg.total.file_count + cf))
 
     cs = _SIZE_STYLE
     table.add_row(
-        "On-disk size", f"[{cs}]{_format_bytes(agg.total.on_disk_bytes)}[/{cs}]"
+        "On-disk size",
+        f"[{cs}]{_format_bytes(agg.total.on_disk_bytes + cod)}[/{cs}]",
     )
     table.add_row(
-        "Apparent size", f"[{cs}]{_format_bytes(agg.total.apparent_bytes)}[/{cs}]"
+        "Apparent size",
+        f"[{cs}]{_format_bytes(agg.total.apparent_bytes + cb)}[/{cs}]",
     )
 
     saved, pct = _space_saved(agg)
@@ -168,23 +191,23 @@ def _overview_panel(
     table.add_row(
         "Derived size", f"[{cs}]{_format_bytes(agg.derived.apparent_bytes)}[/{cs}]"
     )
-
-    if face_storage is not None:
-        table.add_row(
-            "Face storage",
-            f"[{cs}]{_format_bytes(face_storage.apparent_bytes)}"
-            f" ({_format_count(face_storage.file_count)} files)[/{cs}]",
-        )
+    table.add_row("Cache size", f"[{cs}]{_format_bytes(cb)}[/{cs}]")
 
     return Panel(table, title="[bold]Overview[/bold]", title_align="left", expand=False)
 
 
-def _media_type_table(agg: AggregateStats) -> Table:
+def _media_type_table(
+    agg: AggregateStats, *, cache_storage: SizeStats | None = None
+) -> Table:
     """Breakdown by media type (images / videos / sidecars)."""
     table = Table(title="By Media Type", box=_TABLE_BOX)
     table.add_column("Type")
     table.add_column("Files", justify="right")
     _size_columns(table)
+
+    cb = _cache_bytes(cache_storage)
+    cod = _cache_on_disk(cache_storage)
+    cf = _cache_files(cache_storage)
 
     total_files = 0
     total_bytes = 0
@@ -215,20 +238,17 @@ def _media_type_table(agg: AggregateStats) -> Table:
     table.add_section()
     table.add_row(
         "[bold]Total[/bold]",
-        f"[bold]{_format_count(total_files)}[/bold]",
-        *_bold_size_cells(total_bytes, total_on_disk, total_archive, total_derived),
+        f"[bold]{_format_count(total_files + cf)}[/bold]",
+        *_bold_size_cells(
+            total_bytes + cb, total_on_disk + cod, total_archive, total_derived, cb
+        ),
     )
 
     return table
 
 
 def _source_type_table(agg: AggregateStats) -> Table:
-    """Breakdown by media source type (iOS / std).
-
-    Note: archive/original/derived are combined across all types in the
-    aggregate, so per-type size breakdowns are approximate when both iOS
-    and std sources coexist.
-    """
+    """Breakdown by media source type (iOS / std)."""
     table = Table(title="By Media Source Type", box=_TABLE_BOX)
     table.add_column("Type")
     table.add_column("Files", justify="right")
@@ -293,12 +313,18 @@ def _per_media_source_table(
     return table
 
 
-def _format_table(agg: AggregateStats) -> Table:
+def _format_table(
+    agg: AggregateStats, *, cache_storage: SizeStats | None = None
+) -> Table:
     """Breakdown by file extension, sorted by size descending."""
     table = Table(title="By Format", box=_TABLE_BOX)
     table.add_column("Format")
     table.add_column("Files", justify="right")
     _size_columns(table)
+
+    cb = _cache_bytes(cache_storage)
+    cod = _cache_on_disk(cache_storage)
+    cf = _cache_files(cache_storage)
 
     total_files = 0
     total_bytes = 0
@@ -322,8 +348,10 @@ def _format_table(agg: AggregateStats) -> Table:
     table.add_section()
     table.add_row(
         "[bold]Total[/bold]",
-        f"[bold]{_format_count(total_files)}[/bold]",
-        *_bold_size_cells(total_bytes, total_on_disk, total_archive, total_derived),
+        f"[bold]{_format_count(total_files + cf)}[/bold]",
+        *_bold_size_cells(
+            total_bytes + cb, total_on_disk + cod, total_archive, total_derived, cb
+        ),
     )
 
     return table
@@ -335,7 +363,7 @@ def _format_aggregate_tables(
     album_count: int | None = None,
     unique_media_source_names: tuple[str, ...] | None = None,
     media_sources: tuple[MediaSourceStats, ...] | None = None,
-    face_storage: SizeStats | None = None,
+    cache_storage: SizeStats | None = None,
 ) -> list[Panel | Table | Text]:
     """Build the shared set of tables from ``AggregateStats``."""
     sep = Text("")
@@ -344,10 +372,10 @@ def _format_aggregate_tables(
             agg,
             album_count=album_count,
             unique_media_source_names=unique_media_source_names,
-            face_storage=face_storage,
+            cache_storage=cache_storage,
         ),
         sep,
-        _media_type_table(agg),
+        _media_type_table(agg, cache_storage=cache_storage),
         sep,
     ]
 
@@ -357,7 +385,7 @@ def _format_aggregate_tables(
         renderables.append(_source_type_table(agg))
 
     renderables.append(sep)
-    renderables.append(_format_table(agg))
+    renderables.append(_format_table(agg, cache_storage=cache_storage))
     return renderables
 
 
@@ -382,27 +410,31 @@ def _year_table(by_year: tuple[YearStats, ...]) -> Table:
     total_on_disk = 0
     total_archive = 0
     total_derived = 0
+    total_cache = 0
     for ys in by_year:
         a = ys.aggregate
+        cb = _cache_bytes(ys.cache_storage)
         table.add_row(
             ys.year,
             _format_count(ys.album_count),
             _format_count(a.unique_pictures),
             _format_count(a.unique_videos),
             *_size_cells(
-                a.total.apparent_bytes,
-                a.total.on_disk_bytes,
+                a.total.apparent_bytes + cb,
+                a.total.on_disk_bytes + _cache_on_disk(ys.cache_storage),
                 a.archive.apparent_bytes,
                 a.derived.apparent_bytes,
+                cb,
             ),
         )
         total_albums += ys.album_count
         total_pictures += a.unique_pictures
         total_videos += a.unique_videos
-        total_bytes += a.total.apparent_bytes
-        total_on_disk += a.total.on_disk_bytes
+        total_bytes += a.total.apparent_bytes + cb
+        total_on_disk += a.total.on_disk_bytes + _cache_on_disk(ys.cache_storage)
         total_archive += a.archive.apparent_bytes
         total_derived += a.derived.apparent_bytes
+        total_cache += cb
 
     table.add_section()
     table.add_row(
@@ -410,7 +442,9 @@ def _year_table(by_year: tuple[YearStats, ...]) -> Table:
         f"[bold]{_format_count(total_albums)}[/bold]",
         f"[bold]{_format_count(total_pictures)}[/bold]",
         f"[bold]{_format_count(total_videos)}[/bold]",
-        *_bold_size_cells(total_bytes, total_on_disk, total_archive, total_derived),
+        *_bold_size_cells(
+            total_bytes, total_on_disk, total_archive, total_derived, total_cache
+        ),
     )
 
     return table
@@ -426,7 +460,7 @@ def format_album_stats(stats: AlbumStats) -> Group:
     renderables = _format_aggregate_tables(
         stats.aggregate,
         media_sources=stats.by_media_source,
-        face_storage=stats.face_storage,
+        cache_storage=stats.cache_storage,
     )
     renderables.append(Text(""))
     renderables.append(_LEGEND)
@@ -441,7 +475,7 @@ def format_gallery_stats(stats: GalleryStats) -> Group:
         stats.aggregate,
         album_count=stats.album_count,
         unique_media_source_names=stats.unique_media_source_names,
-        face_storage=stats.face_storage,
+        cache_storage=stats.cache_storage,
     )
     if stats.by_year:
         renderables.append(Text(""))
