@@ -7,6 +7,7 @@ from typing import Annotated, Optional
 
 import typer
 
+from ...clihelpers.console import console
 from ...common.fs import display_path
 from ...common.formatting import CHECK, CROSS
 from ...collection.check import check_all_collections
@@ -41,10 +42,10 @@ def check_cmd(
     for result in results:
         name = display_path(result.collection_dir, cwd)
         if result.success:
-            typer.echo(f"{CHECK} {name}")
+            console.print(f"{CHECK} {name}")
         else:
             failed += 1
-            typer.echo(f"{CROSS} {name}")
+            console.print(f"{CROSS} {name}")
             for issue in result.issues:
                 typer.echo(f"    {issue.message}")
 

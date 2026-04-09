@@ -7,7 +7,7 @@ from typing import Annotated
 
 import typer
 
-from ...clihelpers.console import err_console
+from ...clihelpers.console import console, err_console
 from ...common.fs import display_path
 from ...common.formatting import CHECK, CROSS
 from ...gallery.cli.ops import resolve_gallery_or_exit
@@ -47,10 +47,10 @@ def check_cmd(
     result = check_collection(collection_dir, lookup)
 
     for issue in result.issues:
-        typer.echo(f"  {CROSS} {issue.message}")
+        console.print(f"  {CROSS} {issue.message}")
 
     if result.success:
-        typer.echo(f"{CHECK} {display_path(collection_dir, cwd)}")
+        console.print(f"{CHECK} {display_path(collection_dir, cwd)}")
     else:
         err_console.print(
             f"\n{len(result.issues)} issue(s) found in "

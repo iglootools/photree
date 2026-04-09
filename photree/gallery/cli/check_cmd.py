@@ -108,11 +108,11 @@ def _check_collections(gallery_dir: Path) -> None:
     for result in col_results:
         name = display_path(result.collection_dir, cwd)
         if result.success:
-            console.print(f"  {CHECK} {name}")
+            console.print(f"{CHECK} {name}")
         else:
-            console.print(f"  {CROSS} {name}")
+            console.print(f"{CROSS} {name}")
             for issue in result.issues:
-                typer.echo(f"      {issue.message}")
+                typer.echo(f"    {issue.message}")
 
     if col_failed:
         raise typer.Exit(code=1)
@@ -143,14 +143,14 @@ def _check_face_clusters(gallery_dir: Path) -> None:
     )
 
     if issues:
-        console.print(f"  {CROSS} face clusters ({len(issues)} issue(s))")
+        console.print(f"{CROSS} face clusters ({len(issues)} issue(s))")
         for issue in issues:
-            typer.echo(f"      {issue}")
+            typer.echo(f"    {issue}")
         typer.echo("    Run 'photree gallery cluster-faces --redetect' to rebuild.")
         raise typer.Exit(code=1)
     else:
         console.print(
-            f"  {CHECK} face clusters "
+            f"{CHECK} face clusters "
             f"({clusters.face_count} face(s),"
             f" {clusters.cluster_count} cluster(s))"
         )
