@@ -339,30 +339,79 @@ def run_album_check(
     check_naming_flag: bool = True,
     on_file_checked: Callable[[str, bool], None] | None = None,
 ) -> AlbumPreflightResult:
-    """Run album-specific checks (dir structure, integrity, naming).
+    """Run album-specific checks grouped by category.
 
     Accepts ``sips_available`` and ``exiftool`` as parameters so
     system checks can be done once for batch operations.
     """
     media_sources = discover_media_sources(album_dir)
-    summary = AlbumMediaSourceSummary(media_sources=tuple(media_sources))
 
-    # Album ID check
+    # Structure: album identity, directory layout, media metadata
+    summary, album_id, dir_check, unexpected_dirs, media_meta = _check_structure(
+        album_dir, media_sources
+    )
+
+    # Media: file integrity, JPEG completeness
+    integrity, jpeg_check = _check_media(
+        album_dir, media_sources, checksum=checksum, on_file_checked=on_file_checked
+    )
+
+    # Naming: convention + EXIF timestamp match
+    naming = _check_naming(album_dir, exiftool, check_naming_flag)
+
+    # Cache: face state, EXIF cache state
+    face_state, exif_cache_state = _check_cache(album_dir, media_sources)
+
+    return AlbumPreflightResult(
+        sips_available=sips_available,
+        exiftool_available=exiftool is not None,
+        media_source_summary=summary,
+        dir_check=dir_check,
+        album_id_check=album_id,
+        unexpected_dirs_check=unexpected_dirs,
+        media_metadata_check=media_meta,
+        integrity=integrity,
+        jpeg_check=jpeg_check,
+        naming=naming,
+        face_state_check=face_state,
+        exif_cache_check=exif_cache_state,
+    )
+
+
+def _check_structure(
+    album_dir: Path, media_sources: list[MediaSource]
+) -> tuple[
+    AlbumMediaSourceSummary,
+    AlbumIdCheck,
+    AlbumDirCheck,
+    UnexpectedDirsCheck,
+    MediaMetadataCheck | None,
+]:
+    """Structure checks: album ID, directories, media sources, media metadata."""
+    summary = AlbumMediaSourceSummary(media_sources=tuple(media_sources))
     metadata = load_album_metadata(album_dir)
-    album_id_check = AlbumIdCheck(
+    album_id = AlbumIdCheck(
         has_id=metadata is not None,
         album_id=metadata.id if metadata is not None else None,
     )
-
     dir_check = check_album_dir_structure(album_dir, media_sources=media_sources)
     unexpected_dirs = check_unexpected_dirs(album_dir, media_sources=media_sources)
-
-    media_metadata_check = (
+    media_meta = (
         check_media_metadata(album_dir, media_sources=media_sources)
         if media_sources
         else None
     )
+    return (summary, album_id, dir_check, unexpected_dirs, media_meta)
 
+
+def _check_media(
+    album_dir: Path,
+    media_sources: list[MediaSource],
+    *,
+    checksum: bool,
+    on_file_checked: Callable[[str, bool], None] | None,
+) -> tuple[AlbumIntegrityResult | None, AlbumJpegIntegrityResult | None]:
+    """Media checks: file integrity + JPEG completeness."""
     integrity = (
         check_album_integrity(
             album_dir,
@@ -373,44 +422,41 @@ def run_album_check(
         if media_sources
         else None
     )
-
     jpeg_check = (
         check_album_jpeg_integrity(album_dir, media_sources=media_sources)
         if media_sources
         else None
     )
+    return (integrity, jpeg_check)
 
-    naming = None
-    if check_naming_flag:
-        issues = check_album_naming(album_dir.name)
-        parsed = parse_album_name(album_dir.name)
-        exif_check = None
-        if exiftool is not None and parsed is not None:
-            exif_check = check_exif_date_match(
-                album_dir, parsed.date, exiftool=exiftool, part=parsed.part
-            )
-        naming = AlbumNamingResult(
-            parsed=parsed,
-            issues=issues,
-            exif_check=exif_check,
+
+def _check_naming(
+    album_dir: Path,
+    exiftool: ExifToolHelper | None,
+    check_naming_flag: bool,
+) -> AlbumNamingResult | None:
+    """Naming checks: convention + EXIF timestamp match."""
+    if not check_naming_flag:
+        return None
+    issues = check_album_naming(album_dir.name)
+    parsed = parse_album_name(album_dir.name)
+    exif_check = (
+        check_exif_date_match(
+            album_dir, parsed.date, exiftool=exiftool, part=parsed.part
         )
+        if exiftool is not None and parsed is not None
+        else None
+    )
+    return AlbumNamingResult(parsed=parsed, issues=issues, exif_check=exif_check)
 
-    face_state = check_face_state(album_dir, media_sources=media_sources)
-    exif_cache_state = check_exif_cache_state(album_dir, media_sources=media_sources)
 
-    return AlbumPreflightResult(
-        sips_available=sips_available,
-        exiftool_available=exiftool is not None,
-        media_source_summary=summary,
-        dir_check=dir_check,
-        album_id_check=album_id_check,
-        unexpected_dirs_check=unexpected_dirs,
-        media_metadata_check=media_metadata_check,
-        integrity=integrity,
-        jpeg_check=jpeg_check,
-        naming=naming,
-        face_state_check=face_state,
-        exif_cache_check=exif_cache_state,
+def _check_cache(
+    album_dir: Path, media_sources: list[MediaSource]
+) -> tuple[FaceStateCheck | None, ExifCacheStateCheck | None]:
+    """Cache checks: face state + EXIF cache state."""
+    return (
+        check_face_state(album_dir, media_sources=media_sources),
+        check_exif_cache_state(album_dir, media_sources=media_sources),
     )
 
 
