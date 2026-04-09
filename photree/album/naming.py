@@ -588,41 +588,27 @@ def _read_timestamps_from_cache_or_exiftool(
 def _try_read_from_cache(album_dir: Path) -> list[tuple[Path, datetime]] | None:
     """Try to read all timestamps from the EXIF cache.
 
-    Returns ``None`` if the cache is missing, incomplete, or stale
-    (any file's mtime differs from the cached value).
+    Returns ``None`` if the cache is missing for any media source.
+    Trusts cached entries without per-file mtime verification — the
+    cache is validated at write time during ``album refresh``. Use
+    ``--refresh-exif-cache`` on check commands to force a re-read.
     """
     media_sources = discover_media_sources(album_dir)
     if not media_sources:
         return None
 
-    all_timestamps: list[tuple[Path, datetime]] = []
+    caches = [(ms, load_exif_cache(album_dir, ms.name)) for ms in media_sources]
+    if any(cache is None for _, cache in caches):
+        return None
 
-    for ms in media_sources:
-        cache = load_exif_cache(album_dir, ms.name)
-        if cache is None:
-            return None  # no cache for this source → fall back
-
-        for key, entry in cache.files.items():
-            # Verify mtime is still fresh
-            file_path = album_dir / entry.file_name
-            # entry.file_name may be relative (e.g. "main-jpg/IMG_0410.jpg")
-            # but the cache stores just the basename — resolve from browsable dirs
-            for subdir in (ms.jpg_dir, ms.vid_dir):
-                candidate = album_dir / subdir / entry.file_name
-                if candidate.is_file():
-                    file_path = candidate
-                    break
-
-            if not file_path.is_file():
-                return None  # file missing → cache stale
-            if file_path.stat().st_mtime != entry.mtime:
-                return None  # mtime changed → cache stale
-
-            if entry.timestamp is not None:
-                ts = datetime.fromisoformat(entry.timestamp)
-                all_timestamps.append((file_path, ts))
-
-    return all_timestamps
+    return [
+        (album_dir / ms.jpg_dir / entry.file_name, ts)
+        for ms, cache in caches
+        if cache is not None
+        for entry in cache.files.values()
+        if entry.timestamp is not None
+        for ts in [datetime.fromisoformat(entry.timestamp)]
+    ]
 
 
 # ---------------------------------------------------------------------------
