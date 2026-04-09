@@ -5,6 +5,7 @@ from pathlib import Path
 
 from photree.album.check.browsable import check_browsable_dir
 from photree.album.check import check_album_integrity
+from photree.album.store.media_sources_discovery import discover_media_sources
 from photree.album.check.ios import check_miscategorized_files
 from photree.album.check.jpeg import check_jpeg_dir
 from photree.album.check.ios.sidecar import check_sidecars
@@ -425,7 +426,9 @@ class TestCheckIosAlbumIntegrity:
         album = tmp_path / "album"
         _setup_ios_album(album)
 
-        result = check_album_integrity(album, checksum=True)
+        result = check_album_integrity(
+            album, checksum=True, media_sources=discover_media_sources(album)
+        )
         assert result.success
 
     def test_calls_on_file_checked(self, tmp_path: Path) -> None:
@@ -437,6 +440,7 @@ class TestCheckIosAlbumIntegrity:
             album,
             checksum=False,
             on_file_checked=lambda f, ok: checked.append((f, ok)),
+            media_sources=discover_media_sources(album),
         )
         assert len(checked) > 0
         assert all(ok for _, ok in checked)

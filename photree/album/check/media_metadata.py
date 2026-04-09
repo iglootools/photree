@@ -13,7 +13,6 @@ from ..store.media_metadata import (
     load_media_metadata,
 )
 from ..store.media_sources import dedup_media_dict
-from ..store.media_sources_discovery import discover_media_sources
 from ..store.protocol import (
     IMG_EXTENSIONS,
     IOS_IMG_EXTENSIONS,
@@ -197,14 +196,13 @@ def _find_duplicate_ids(uuids: list[str]) -> tuple[DuplicateId, ...]:
 
 def check_media_metadata(
     album_dir: Path,
-    media_sources: list[MediaSource] | None = None,
+    media_sources: list[MediaSource],
 ) -> MediaMetadataCheck:
     """Compare ``.photree/media-ids`` against actual files on disk."""
     metadata = load_media_metadata(album_dir)
     if metadata is None:
         return MediaMetadataCheck(has_media_metadata=False)
 
-    media_sources = media_sources or discover_media_sources(album_dir)
     discovered_names = {ms.name for ms in media_sources}
 
     # Check discovered media sources against metadata

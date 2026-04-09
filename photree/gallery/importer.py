@@ -61,7 +61,8 @@ def compute_target_dir(gallery_dir: Path, album_name: str) -> Path:
 
 def _jpeg_is_stale(album_dir: Path) -> bool:
     """Check if any media source has missing JPEGs."""
-    result = check_album_jpeg_integrity(album_dir)
+    media_sources = discover_media_sources(album_dir)
+    result = check_album_jpeg_integrity(album_dir, media_sources=media_sources)
     return any(not check.success for _, check in result.by_media_source)
 
 
@@ -222,7 +223,9 @@ def _stage_optimize(work_dir: Path, *, link_mode: LinkMode, dry_run: bool) -> bo
     if not ios_sources:
         return False
     if not dry_run:
-        integrity = check_album_integrity(work_dir, checksum=True)
+        integrity = check_album_integrity(
+            work_dir, checksum=True, media_sources=ios_sources
+        )
         mismatched = [
             ms.name
             for ms, result in integrity.by_media_source

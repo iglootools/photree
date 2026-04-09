@@ -11,7 +11,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ...common.fs import file_ext, list_files
-from ..store.media_sources_discovery import discover_media_sources
 from ..store.protocol import (
     CONVERT_TO_JPEG_EXTENSIONS,
     COPY_AS_IS_TO_JPEG_EXTENSIONS,
@@ -108,13 +107,12 @@ def check_jpeg_dir(
 
 def check_album_jpeg_integrity(
     album_dir: Path,
-    media_sources: list[MediaSource] | None = None,
+    media_sources: list[MediaSource],
 ) -> AlbumJpegIntegrityResult:
     """Check ``{name}-jpg/`` for every media source (iOS + std).
 
     Only checks media sources that have a ``{name}-img/`` directory.
     """
-    media_sources = media_sources or discover_media_sources(album_dir)
     return AlbumJpegIntegrityResult(
         by_media_source=tuple(
             (

@@ -21,7 +21,6 @@ from ..faces.store import (
     load_face_state,
     state_path,
 )
-from ..store.media_sources_discovery import discover_media_sources
 from ..store.protocol import MediaSource
 
 
@@ -46,7 +45,7 @@ def check_face_state(
     *,
     model_name: str = DEFAULT_MODEL_NAME,
     model_version: str = DEFAULT_MODEL_VERSION,
-    media_sources: list[MediaSource] | None = None,
+    media_sources: list[MediaSource],
 ) -> FaceStateCheck | None:
     """Validate face detection state for an album.
 
@@ -54,7 +53,6 @@ def check_face_state(
     per-file mtime verification — the state is validated at write time
     during album refresh.
     """
-    media_sources = media_sources or discover_media_sources(album_dir)
     if not media_sources:
         return None
 

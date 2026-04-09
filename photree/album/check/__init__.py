@@ -287,14 +287,13 @@ def check_album_integrity(
     *,
     checksum: bool = True,
     on_file_checked: Callable[[str, bool], None] | None = None,
-    media_sources: list[MediaSource] | None = None,
+    media_sources: list[MediaSource],
 ) -> AlbumIntegrityResult:
     """Run integrity checks for all media sources in an album.
 
     Dispatches to iOS or std checks based on each media source's type.
     Legacy std sources without archives are skipped.
     """
-    media_sources = media_sources or discover_media_sources(album_dir)
     results: list[tuple[MediaSource, MediaSourceIntegrityResult]] = []
 
     for ms in media_sources:
