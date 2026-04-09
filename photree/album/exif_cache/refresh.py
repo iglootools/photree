@@ -110,6 +110,10 @@ def _refresh_source(
     keys_to_refresh = _keys_needing_refresh(current_files, album_dir, ms, existing)
 
     if not keys_to_refresh and not stale_keys:
+        # Ensure cache file exists even when empty (no browsable files),
+        # so the check path knows this source was processed.
+        if not dry_run and load_exif_cache(album_dir, ms.name) is None:
+            save_exif_cache(album_dir, ms.name, existing)
         return ExifCacheSourceResult(cached=len(current_keys), refreshed=0, pruned=0)
 
     if dry_run:
