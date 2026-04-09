@@ -355,14 +355,16 @@ private collections.
 
 - **Non-private collections** cannot contain private members (private
   albums, private sub-collections, or media from private albums).
+- **Non-private smart collections** exclude private members during
+  `gallery refresh` member materialization.
 - **Private smart collections** only include private members — non-private
   albums/collections in the date range are excluded during
   `gallery refresh`.
 - **Private manual collections** may contain non-private members (the
   private tag protects the collection, not its contents).
 
-These rules are enforced by `collection check` and (for smart
-collections) by `gallery refresh`.
+These rules are enforced by `collection check` (validation) and by
+`gallery refresh` (materialization for smart collections).
 
 ### Collection Members
 
@@ -459,7 +461,10 @@ collections:
 1. **Group albums by contiguous series** — albums are sorted
    chronologically (by directory name). Contiguous runs sharing the same
    series form groups. Non-contiguous occurrences of the same series
-   produce separate groups.
+   produce separate groups. **Private albums are excluded** from implicit
+   collections (implicit collection names are built from the series title
+   without `[private]` tags, so they are always non-private). If all
+   albums in a series are private, no implicit collection is created.
 
 2. **Match each group to an existing implicit collection** — a three-tier
    strategy preserves the collection ID across changes:
@@ -658,11 +663,15 @@ gallery metadata by walking up the directory hierarchy from the album
 
 ```yaml
 link-mode: hardlink
+faces-enabled: true
+face-cluster-threshold: 0.45
 ```
 
-| Field       | Type   | Default    | Description |
-|-------------|--------|------------|-------------|
-| `link-mode` | string | `hardlink` | Default link mode for optimize and other link-mode operations. Values: `hardlink`, `symlink`, `copy`. |
+| Field                    | Type           | Default    | Description |
+|--------------------------|----------------|------------|-------------|
+| `link-mode`              | string         | `hardlink` | Default link mode for optimize and other link-mode operations. Values: `hardlink`, `symlink`, `copy`. |
+| `faces-enabled`          | bool           | `true`     | Enable face detection and clustering during gallery refresh. |
+| `face-cluster-threshold` | float or null  | `null`     | Cosine distance threshold for face clustering (0.0–1.0). When null, defaults to 0.45 at runtime. Lower = stricter (fewer merges). |
 
 The `--link-mode` CLI argument overrides the gallery-level setting.
 If no gallery.yaml is found and no CLI argument is given, the default
@@ -673,7 +682,8 @@ is `hardlink`.
 The `.photree/` directory and its YAML files are managed by photree and
 should not be edited directly. Use the provided CLI commands instead:
 
-- **Gallery settings**: `photree gallery metadata set --link-mode <value>`
+- **Gallery settings**: `photree gallery metadata set --link-mode <value>`,
+  `--faces-enabled`, `--face-cluster-threshold`
 - **Album ID**: Generated automatically at import time; use
   `photree album fix --id` or `photree gallery fix --id` to generate
   missing IDs.
@@ -788,6 +798,8 @@ Includes the light check plus filesystem and media validation:
 - Per-media-source integrity (checksum verification, browsable/archive
   consistency, JPEG completeness, duplicate detection)
 - EXIF timestamp validation (requires exiftool, reads media files)
+- EXIF cache state (cache file presence per media source, if cache exists)
+- Face detection state (model version, .npz/.yaml sync, if face data exists)
 - Cross-album checks (date collisions, duplicate IDs)
 
 Used by:
@@ -1020,5 +1032,5 @@ similar, the UUID is preserved.
 # .photree/gallery.yaml
 link-mode: hardlink
 faces-enabled: true                # enable face pipeline (default: true)
-face-cluster-threshold: 0.45      # cosine distance threshold (optional)
+face-cluster-threshold: 0.45      # cosine distance threshold (optional, defaults to 0.45)
 ```
