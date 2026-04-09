@@ -125,9 +125,7 @@ def load_face_state(
         return None
     with open(path) as f:
         raw = yaml.safe_load(f)
-    return (
-        FaceProcessingState.model_validate(raw) if isinstance(raw, dict) else None
-    )
+    return FaceProcessingState.model_validate(raw) if isinstance(raw, dict) else None
 
 
 def save_face_state(
