@@ -10,12 +10,8 @@ from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ...album import (
     check as album_check,
-    naming as album_naming,
 )
-from ...album.naming import BatchNamingResult
 from ...album.id import format_album_external_id
-from ..index import find_duplicate_album_ids
-from ..media_index import find_duplicate_media_ids
 
 
 @dataclass(frozen=True)
@@ -25,9 +21,6 @@ class BatchCheckResult:
     passed: int
     warned: int
     failed_albums: list[Path] = field(default_factory=list)
-    naming_result: BatchNamingResult | None = None
-    duplicate_ids: dict[str, list[Path]] = field(default_factory=dict)
-    duplicate_media_ids: dict[str, list[Path]] = field(default_factory=dict)
 
 
 def batch_check(
@@ -102,36 +95,8 @@ def batch_check(
                 on_end(album_label, False, err_labels, warn_labels)
             failed_albums.append(album_dir)
 
-    # Batch naming checks (date collisions across all albums)
-    naming_result = None
-    if check_naming and check_date_part_collision:
-        parsed_albums = [
-            (album.name, parsed)
-            for album in albums
-            if (parsed := album_naming.parse_album_name(album.name)) is not None
-        ]
-        naming_result = album_naming.check_batch_date_collisions(parsed_albums)
-        if not naming_result.success:
-            colliding_names = {
-                name for _, names in naming_result.date_collisions for name in names
-            }
-            failed_albums.extend(a for a in albums if a.name in colliding_names)
-
-    # Duplicate album ID detection
-    duplicate_ids = find_duplicate_album_ids(albums)
-    if duplicate_ids:
-        failed_albums.extend(p for paths in duplicate_ids.values() for p in paths)
-
-    # Duplicate media ID detection
-    duplicate_media_ids = find_duplicate_media_ids(albums)
-    if duplicate_media_ids:
-        failed_albums.extend(p for paths in duplicate_media_ids.values() for p in paths)
-
     return BatchCheckResult(
         passed=passed,
         warned=warned,
         failed_albums=failed_albums,
-        naming_result=naming_result,
-        duplicate_ids=duplicate_ids,
-        duplicate_media_ids=duplicate_media_ids,
     )

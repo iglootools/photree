@@ -10,6 +10,7 @@ Album resolution helpers live in :mod:`ops`.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 
 import typer
@@ -18,6 +19,7 @@ from ...album import (
     check as album_check,
 )
 from ...album.check import output as preflight_output
+from ...album.naming import BatchNamingResult
 from ...album.check.output import batch_check_summary
 from ...album.fix.output import batch_fix_summary
 from ...album.fix.ios.output import batch_fix_ios_summary
@@ -347,13 +349,26 @@ def run_batch_check(
             if exiftool is not None:
                 exiftool.__exit__(None, None, None)
 
-    # Cross-album checks
-    typer.echo("\nCross-album checks:")
-    if result.naming_result is not None:
-        console.print(preflight_output.format_batch_naming_issues(result.naming_result))
+    # Cross-album checks (with spinner — duplicate ID scan reads all metadata)
+    from ...clihelpers.progress import run_with_spinner
 
-    if result.duplicate_ids:
-        for aid, paths in result.duplicate_ids.items():
+    cross_album = run_with_spinner(
+        "Running cross-album checks...",
+        lambda: _compute_cross_album_checks(
+            albums,
+            check_naming=check_naming,
+            check_date_part_collision=check_date_part_collision,
+        ),
+    )
+
+    typer.echo("\nCross-album checks:")
+    if cross_album.naming_result is not None:
+        console.print(
+            preflight_output.format_batch_naming_issues(cross_album.naming_result)
+        )
+
+    if cross_album.duplicate_ids:
+        for aid, paths in cross_album.duplicate_ids.items():
             ext_id = format_album_external_id(aid)
             err_console.print(f"[red]\u2717[/red] duplicate album id: {ext_id}")
             for p in paths:
@@ -361,14 +376,18 @@ def run_batch_check(
     else:
         console.print(f"{CHECK} no duplicate album ids")
 
-    if result.duplicate_media_ids:
-        for mid, paths in result.duplicate_media_ids.items():
+    if cross_album.duplicate_media_ids:
+        for mid, paths in cross_album.duplicate_media_ids.items():
             ext_id = format_image_external_id(mid)
             err_console.print(f"[red]\u2717[/red] duplicate media id: {ext_id}")
             for p in paths:
                 err_console.print(f"    {display_path(p, cwd)}")
     else:
         console.print(f"{CHECK} no duplicate media ids")
+
+    # Merge cross-album failures into result
+    if cross_album.failed_albums:
+        result.failed_albums.extend(cross_album.failed_albums)
 
     # Summary
     console.print(
@@ -389,6 +408,57 @@ def run_batch_check(
                 f'  photree album check --album-dir "{display_path(album_dir, cwd)}"{extra_flags}'
             )
         raise typer.Exit(code=1)
+
+
+@dataclass(frozen=True)
+class _CrossAlbumResult:
+    naming_result: BatchNamingResult | None
+    duplicate_ids: dict[str, list[Path]]
+    duplicate_media_ids: dict[str, list[Path]]
+    failed_albums: list[Path]
+
+
+def _compute_cross_album_checks(
+    albums: list[Path],
+    *,
+    check_naming: bool,
+    check_date_part_collision: bool,
+) -> _CrossAlbumResult:
+    """Run cross-album checks (date collisions, duplicate IDs)."""
+    from ...album import naming as album_naming
+    from ..index import find_duplicate_album_ids
+    from ..media_index import find_duplicate_media_ids
+
+    failed: list[Path] = []
+
+    naming_result = None
+    if check_naming and check_date_part_collision:
+        parsed_albums = [
+            (album.name, parsed)
+            for album in albums
+            if (parsed := album_naming.parse_album_name(album.name)) is not None
+        ]
+        naming_result = album_naming.check_batch_date_collisions(parsed_albums)
+        if not naming_result.success:
+            colliding_names = {
+                name for _, names in naming_result.date_collisions for name in names
+            }
+            failed.extend(a for a in albums if a.name in colliding_names)
+
+    duplicate_ids = find_duplicate_album_ids(albums)
+    if duplicate_ids:
+        failed.extend(p for paths in duplicate_ids.values() for p in paths)
+
+    duplicate_media_ids = find_duplicate_media_ids(albums)
+    if duplicate_media_ids:
+        failed.extend(p for paths in duplicate_media_ids.values() for p in paths)
+
+    return _CrossAlbumResult(
+        naming_result=naming_result,
+        duplicate_ids=duplicate_ids,
+        duplicate_media_ids=duplicate_media_ids,
+        failed_albums=failed,
+    )
 
 
 def run_batch_fix(
