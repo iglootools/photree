@@ -31,6 +31,7 @@ _BROWSABLE_OK = BrowsableDirCheck(
     missing=(),
     extra=(),
     wrong_source=(),
+    wrong_link_mode=(),
     size_mismatches=(),
     checksum_mismatches=(),
 )
@@ -40,6 +41,7 @@ _BROWSABLE_VID_OK = BrowsableDirCheck(
     missing=(),
     extra=(),
     wrong_source=(),
+    wrong_link_mode=(),
     size_mismatches=(),
     checksum_mismatches=(),
 )
@@ -49,6 +51,7 @@ _BROWSABLE_EMPTY = BrowsableDirCheck(
     missing=(),
     extra=(),
     wrong_source=(),
+    wrong_link_mode=(),
     size_mismatches=(),
     checksum_mismatches=(),
 )
@@ -58,6 +61,7 @@ _BROWSABLE_FAILURES = BrowsableDirCheck(
     missing=(MissingFile("IMG_E0001.HEIC", "edit-img"),),
     extra=("STRAY_FILE.HEIC",),
     wrong_source=("IMG_0002.HEIC (should be IMG_E0002.HEIC, edited version exists)",),
+    wrong_link_mode=(),
     size_mismatches=(FileComparison("IMG_0003.HEIC", "IMG_0003.HEIC", False, None),),
     checksum_mismatches=(),
 )
@@ -114,6 +118,7 @@ _STD_BROWSABLE_OK = BrowsableDirCheck(
     missing=(),
     extra=(),
     wrong_source=(),
+    wrong_link_mode=(),
     size_mismatches=(),
     checksum_mismatches=(),
 )
@@ -123,6 +128,7 @@ _STD_VID_OK = BrowsableDirCheck(
     missing=(),
     extra=(),
     wrong_source=(),
+    wrong_link_mode=(),
     size_mismatches=(),
     checksum_mismatches=(),
 )
@@ -139,6 +145,7 @@ STD_INTEGRITY_FAILURES = StdMediaSourceIntegrityResult(
         missing=(MissingFile("photo1.heic", "orig-img"),),
         extra=("stray.png",),
         wrong_source=(),
+        wrong_link_mode=(),
         size_mismatches=(),
         checksum_mismatches=(),
     ),

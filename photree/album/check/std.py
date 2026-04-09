@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ...common.fs import file_ext, list_files
+from ...fsprotocol import LinkMode
 from ..store.protocol import IMG_EXTENSIONS, VID_EXTENSIONS, MediaSource
 from .browsable import BrowsableDirCheck, check_browsable_dir
 from .jpeg import JpegCheck, check_jpeg_dir
@@ -58,6 +59,7 @@ def check_std_media_source_integrity(
     album_dir: Path,
     ms: MediaSource,
     *,
+    link_mode: LinkMode,
     checksum: bool = True,
     on_file_checked: Callable[[str, bool], None] | None = None,
 ) -> StdMediaSourceIntegrityResult:
@@ -74,6 +76,7 @@ def check_std_media_source_integrity(
         album_dir / ms.img_dir,
         media_extensions=IMG_EXTENSIONS,
         key_fn=ms.key_fn,
+        link_mode=link_mode,
         checksum=checksum,
         on_file_checked=on_file_checked,
     )
@@ -84,6 +87,7 @@ def check_std_media_source_integrity(
         album_dir / ms.vid_dir,
         media_extensions=VID_EXTENSIONS,
         key_fn=ms.key_fn,
+        link_mode=link_mode,
         checksum=checksum,
         on_file_checked=on_file_checked,
     )

@@ -52,8 +52,7 @@ $ photree album [OPTIONS] COMMAND [ARGS]...
 * `list-media`: List all media items in an album.
 * `init`: Initialize album metadata...
 * `mv-media`: Move media files and all their variants...
-* `optimize`: Optimize main directories by replacing...
-* `refresh`: Refresh media IDs, EXIF cache, and face...
+* `refresh`: Refresh all derived album data (browsable,...
 * `rm-media`: Remove media files and all their variants...
 * `show`: Display album metadata and parsed name.
 * `stats`: Show disk usage and content statistics for...
@@ -143,15 +142,6 @@ albums that already have an ID.
 
 --new-id: Regenerates the album ID, replacing any existing one.
 
---refresh-browsable: Deletes {name}-img/, {name}-vid/, and
-{name}-jpg/, then rebuilds {name}-img and {name}-vid from
-orig/edit sources. If {name}-img/ is created, also regenerates
-{name}-jpg/ via HEIC-&gt;JPEG conversion.
-
---refresh-jpeg: Deletes all files in {name}-jpg/ and re-converts
-every file from {name}-img/. HEIC/HEIF/DNG files are converted
-via sips; JPEG/PNG files are copied as-is.
-
 --rm-upstream: Propagates deletions from browsing directories to
 upstream directories.
 
@@ -170,8 +160,6 @@ $ photree album fix [OPTIONS]
 * `--id`: Generate missing album ID (.photree/album.yaml).
 * `--new-id`: Regenerate album ID (replaces existing ID).
 * `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.
-* `--refresh-browsable`: Rebuild main-img/ and main-vid/ from orig/edit, then regenerate main-jpg/.
-* `--refresh-jpeg`: Refresh main-jpg/ from main-img/ (re-convert all HEIC→JPEG).
 * `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
 * `--rm-orphan`: Delete edited and main files that have no corresponding orig file.
 * `-n, --dry-run`: Print what would happen without modifying files.
@@ -346,37 +334,9 @@ $ photree album mv-media [OPTIONS] FILES...
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
-### `photree album optimize`
-
-Optimize main directories by replacing file copies with links.
-
-Recreates main-img/ and main-vid/ files as hard links (default),
-symbolic links, or copies depending on --link-mode. Does not touch
-main-jpg/ (those are HEIC-to-JPEG conversions that cannot be linked).
-
-Runs structural integrity checks first (unless --no-check): directory
-structure, file matching, checksums, sidecars, duplicates, and
-miscategorized files. Naming and EXIF checks are not performed.
-Refuses to optimize if errors are found.
-
-**Usage**:
-
-```console
-$ photree album optimize [OPTIONS]
-```
-
-**Options**:
-
-* `-a, --album-dir DIRECTORY`: Album directory to optimize.  [default: .]
-* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.
-* `--check / --no-check`: Run integrity checks before optimizing (default: enabled).  [default: check]
-* `--checksum / --no-checksum`: Enable/disable SHA-256 checksum verification (default: enabled).  [default: checksum]
-* `-n, --dry-run`: Print what would happen without modifying files.
-* `--help`: Show this message and exit.
-
 ### `photree album refresh`
 
-Refresh media IDs, EXIF cache, and face detection data.
+Refresh all derived album data (browsable, JPEG, media IDs, EXIF cache, faces).
 
 **Usage**:
 
@@ -388,6 +348,9 @@ $ photree album refresh [OPTIONS]
 
 * `-a, --album-dir DIRECTORY`: Album directory.  [default: .]
 * `--dry-run`: Show what would change without writing.
+* `--refresh-browsable`: Force rebuild all browsable directories (skip check gate).
+* `--refresh-jpeg`: Force rebuild all JPEG directories (skip check gate).
+* `--refresh-exif-cache`: Force re-read all EXIF timestamps.
 * `--redetect-faces`: Re-run face detection on all images (reuses cached thumbnails).
 * `--refresh-face-thumbs`: Refresh face detection thumbnails from originals.
 * `--help`: Show this message and exit.
@@ -472,8 +435,7 @@ $ photree albums [OPTIONS] COMMAND [ARGS]...
 * `init`: Initialize album metadata...
 * `list`: List all discovered albums with their...
 * `list-media`: List all media items across multiple albums.
-* `optimize`: Optimize all albums with archives under a...
-* `refresh`: Refresh media metadata and face detection...
+* `refresh`: Refresh all derived album data for...
 * `rename-from-csv`: Rename albums from a CSV file (from list...
 * `stats`: Show aggregated disk usage and content...
 
@@ -562,8 +524,6 @@ $ photree albums fix [OPTIONS]
 * `--id`: Generate missing album IDs (.photree/album.yaml).
 * `--new-id`: Regenerate album IDs (replaces existing IDs).
 * `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink, symlink, or copy.  [default: hardlink]
-* `--refresh-browsable`: Rebuild main-img/ and main-vid/ from orig/edit, then regenerate main-jpg/.
-* `--refresh-jpeg`: Refresh main-jpg/ from main-img/ (re-convert all HEIC→JPEG).
 * `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
 * `--rm-orphan`: Delete edited and main files that have no corresponding orig file.
 * `-n, --dry-run`: Print what would happen without modifying files.
@@ -681,29 +641,9 @@ $ photree albums list-media [OPTIONS]
 * `-o, --output FILE`: Write output to a file instead of stdout.
 * `--help`: Show this message and exit.
 
-### `photree albums optimize`
-
-Optimize all albums with archives under a directory or from an explicit list.
-
-**Usage**:
-
-```console
-$ photree albums optimize [OPTIONS]
-```
-
-**Options**:
-
-* `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
-* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
-* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink, symlink, or copy.  [default: hardlink]
-* `--check / --no-check`: Run integrity checks before optimizing (default: enabled).  [default: check]
-* `--checksum / --no-checksum`: Enable/disable SHA-256 checksum verification (default: enabled).  [default: checksum]
-* `-n, --dry-run`: Print what would happen without modifying files.
-* `--help`: Show this message and exit.
-
 ### `photree albums refresh`
 
-Refresh media metadata and face detection data for multiple albums.
+Refresh all derived album data for multiple albums.
 
 **Usage**:
 
@@ -716,6 +656,9 @@ $ photree albums refresh [OPTIONS]
 * `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
 * `-a, --album-dir DIRECTORY`: Album directory (repeatable).
 * `-n, --dry-run`: Print what would happen without modifying files.
+* `--refresh-browsable`: Force rebuild all browsable directories (skip check gate).
+* `--refresh-jpeg`: Force rebuild all JPEG directories (skip check gate).
+* `--refresh-exif-cache`: Force re-read all EXIF timestamps.
 * `--redetect-faces`: Re-run face detection on all images (reuses cached thumbnails).
 * `--refresh-face-thumbs`: Refresh face detection thumbnails from originals.
 * `--help`: Show this message and exit.
@@ -1046,8 +989,7 @@ $ photree gallery [OPTIONS] COMMAND [ARGS]...
 * `list-albums`: List all albums in the gallery.
 * `list-collections`: List all collections in the gallery.
 * `list-media`: List all media items across all albums in...
-* `optimize`: Optimize all iOS albums in the gallery.
-* `refresh`: Refresh media metadata, face data, and...
+* `refresh`: Refresh all derived data, face clusters,...
 * `rename-from-csv`: Rename albums from a CSV file (from...
 * `show`: Display gallery metadata.
 * `stats`: Show aggregated disk usage and content...
@@ -1136,8 +1078,6 @@ $ photree gallery fix [OPTIONS]
 * `--id`: Generate missing album IDs (.photree/album.yaml).
 * `--new-id`: Regenerate album IDs (replaces existing IDs).
 * `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.
-* `--refresh-browsable`: Rebuild main-img/ and main-vid/ from orig/edit, then regenerate main-jpg/.
-* `--refresh-jpeg`: Refresh main-jpg/ from main-img/ (re-convert all HEIC→JPEG).
 * `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
 * `--rm-orphan`: Delete edited and main files that have no corresponding orig file.
 * `-n, --dry-run`: Print what would happen without modifying files.
@@ -1171,7 +1111,7 @@ Batch import album directories into the gallery.
 Either scan --dir for immediate subdirectories, or provide explicit
 album directories via --album-dir (repeatable). Copies each album to
 &lt;gallery&gt;/albums/YYYY/&lt;album-name&gt;/, generates missing IDs, refreshes
-JPEGs, optimizes links, and runs gallery-wide checks.
+JPEGs, and runs gallery-wide checks.
 
 **Usage**:
 
@@ -1219,7 +1159,7 @@ $ photree gallery init [OPTIONS]
 **Options**:
 
 * `-d, --dir DIRECTORY`: Gallery root directory.  [default: .]
-* `--link-mode [copy|hardlink|symlink]`: Default link mode for optimize and other link-mode operations.  [default: hardlink]
+* `--link-mode [copy|hardlink|symlink]`: Default link mode for refresh and other link-mode operations.  [default: hardlink]
 * `--help`: Show this message and exit.
 
 ### `photree gallery list-albums`
@@ -1275,28 +1215,9 @@ $ photree gallery list-media [OPTIONS]
 * `-o, --output FILE`: Write output to a file instead of stdout.
 * `--help`: Show this message and exit.
 
-### `photree gallery optimize`
-
-Optimize all iOS albums in the gallery.
-
-**Usage**:
-
-```console
-$ photree gallery optimize [OPTIONS]
-```
-
-**Options**:
-
-* `-d, --gallery-dir DIRECTORY`: Gallery root directory.
-* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.
-* `--check / --no-check`: Run integrity checks before optimizing (default: enabled).  [default: check]
-* `--checksum / --no-checksum`: Enable/disable SHA-256 checksum verification (default: enabled).  [default: checksum]
-* `-n, --dry-run`: Print what would happen without modifying files.
-* `--help`: Show this message and exit.
-
 ### `photree gallery refresh`
 
-Refresh media metadata, face data, and collections for all albums in the gallery.
+Refresh all derived data, face clusters, and collections for the gallery.
 
 **Usage**:
 
@@ -1308,6 +1229,9 @@ $ photree gallery refresh [OPTIONS]
 
 * `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `-n, --dry-run`: Print what would happen without modifying files.
+* `--refresh-browsable`: Force rebuild all browsable directories (skip check gate).
+* `--refresh-jpeg`: Force rebuild all JPEG directories (skip check gate).
+* `--refresh-exif-cache`: Force re-read all EXIF timestamps.
 * `--redetect-faces`: Re-run face detection on all images (reuses cached thumbnails).
 * `--refresh-face-thumbs`: Refresh face detection thumbnails from originals.
 * `--help`: Show this message and exit.
@@ -1398,7 +1322,7 @@ $ photree gallery metadata set [OPTIONS]
 **Options**:
 
 * `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
-* `--link-mode [copy|hardlink|symlink]`: Default link mode for optimize and other link-mode operations.
+* `--link-mode [copy|hardlink|symlink]`: Default link mode for refresh and other link-mode operations.
 * `--faces-enabled`: Enable face detection and clustering during gallery refresh.
 * `--face-cluster-threshold FLOAT`: Cosine distance threshold for face clustering (0.0-1.0).
 * `--help`: Show this message and exit.

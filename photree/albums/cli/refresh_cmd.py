@@ -17,6 +17,27 @@ def refresh_cmd(
     base_dir: DirOption = None,
     album_dirs: AlbumDirOption = None,
     dry_run: DRY_RUN_OPTION = False,
+    refresh_browsable: Annotated[
+        bool,
+        typer.Option(
+            "--refresh-browsable",
+            help="Force rebuild all browsable directories (skip check gate).",
+        ),
+    ] = False,
+    refresh_jpeg: Annotated[
+        bool,
+        typer.Option(
+            "--refresh-jpeg",
+            help="Force rebuild all JPEG directories (skip check gate).",
+        ),
+    ] = False,
+    refresh_exif_cache: Annotated[
+        bool,
+        typer.Option(
+            "--refresh-exif-cache",
+            help="Force re-read all EXIF timestamps.",
+        ),
+    ] = False,
     redetect_faces: Annotated[
         bool,
         typer.Option(
@@ -32,12 +53,15 @@ def refresh_cmd(
         ),
     ] = False,
 ) -> None:
-    """Refresh media metadata and face detection data for multiple albums."""
+    """Refresh all derived album data for multiple albums."""
     albums, display_base = resolve_check_batch_albums(base_dir, album_dirs)
     run_batch_refresh(
         albums,
         display_base,
         dry_run=dry_run,
+        force_browsable=refresh_browsable,
+        force_jpeg=refresh_jpeg,
+        force_exif_cache=refresh_exif_cache,
         redetect_faces=redetect_faces,
         refresh_face_thumbs=refresh_face_thumbs,
     )

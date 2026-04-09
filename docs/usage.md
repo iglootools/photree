@@ -37,7 +37,7 @@ link-mode = "hardlink"
 
 ## Gallery
 
-Most operations (check, optimize, fix, stats, export) are available in three flavours:
+Most operations (check, fix, stats, export) are available in three flavours:
 
 - **`photree gallery <op>`** — operates on all albums within an initialized gallery
   (resolved from cwd or `--gallery-dir`). This is the recommended way to manage albums.
@@ -64,7 +64,7 @@ photree gallery init --link-mode symlink
 photree gallery init -d ~/Pictures/albums
 ```
 
-The `link-mode` setting in `gallery.yaml` is used as the default for `optimize`,
+The `link-mode` setting in `gallery.yaml` is used as the default for `refresh`,
 `fix-ios`, and other commands that accept `--link-mode`. An explicit `--link-mode`
 CLI flag always overrides the gallery default.
 
@@ -121,8 +121,8 @@ The source directory (where Image Capture saved the files) is resolved in this o
 ### Import Albums into Gallery
 
 Imports an existing album directory into the gallery's `albums/YYYY/` structure.
-Automatically generates a missing album ID, refreshes stale JPEGs, optimizes
-links, and runs integrity checks.
+Automatically generates a missing album ID, refreshes browsable directories
+and JPEGs, and runs integrity checks.
 
 ```bash
 # Import a single album into the gallery (resolved from cwd)
@@ -276,24 +276,6 @@ When you convert an implicit collection to explicit (or vice versa),
 
 See [internals.md — Collection Lifecycle](./internals.md#collection-lifecycle)
 for details.
-
-### Optimize Albums
-
-Reduces disk usage by replacing file copies with links for all iOS albums in the gallery.
-
-```bash
-# Optimize all gallery albums (uses gallery link-mode default)
-photree gallery optimize
-
-# Optimize with symlinks
-photree gallery optimize --link-mode symlink
-
-# Skip integrity checks before optimizing
-photree gallery optimize --no-check
-
-# Dry run
-photree gallery optimize -n
-```
 
 ### Export Albums
 

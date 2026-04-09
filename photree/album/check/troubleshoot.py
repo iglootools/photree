@@ -44,7 +44,7 @@ def suggest_fixes(
         *(
             [
                 dedent(f"""\
-                    photree album fix {album_dir_flag} --refresh-browsable --dry-run
+                    photree album refresh {album_dir_flag} --refresh-browsable --dry-run
                       Rebuild {media_source.img_dir}/ and {media_source.vid_dir}/ from orig/edited sources,
                       then regenerate {media_source.jpg_dir}/. Use when files are missing,
                       corrupted, or out of sync with their sources.""")
@@ -55,7 +55,7 @@ def suggest_fixes(
         *(
             [
                 dedent(f"""\
-                    photree album fix {album_dir_flag} --refresh-jpeg --dry-run
+                    photree album refresh {album_dir_flag} --refresh-jpeg --dry-run
                       Regenerate {media_source.jpg_dir}/ from {media_source.img_dir}/. Use when JPEG files
                       are missing but {media_source.img_dir}/ is correct.
 
@@ -164,9 +164,8 @@ def suggest_exif_fixes(
         )
 
         rebuild_lines = [
-            "# rebuild: recreate main dirs from archival + regenerate JPEGs",
-            f"photree album optimize --album-dir {_sh(album_dir)}",
-            f"photree album fix --album-dir {_sh(album_dir)} --refresh-jpeg",
+            "# rebuild: recreate browsable dirs from archival + regenerate JPEGs",
+            f"photree album refresh --album-dir {_sh(album_dir)} --refresh-browsable",
         ]
 
         move_rm_lines = [

@@ -13,6 +13,7 @@ from pathlib import Path
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ...common.exif import try_start_exiftool
+from ...fsprotocol import LinkMode
 from ..naming import (
     AlbumNamingResult,
     check_album_naming,
@@ -285,6 +286,7 @@ class AlbumPreflightResult:
 def check_album_integrity(
     album_dir: Path,
     *,
+    link_mode: LinkMode,
     checksum: bool = True,
     on_file_checked: Callable[[str, bool], None] | None = None,
     media_sources: list[MediaSource],
@@ -304,6 +306,7 @@ def check_album_integrity(
                     check_ios_media_source_integrity(
                         album_dir,
                         ms,
+                        link_mode=link_mode,
                         checksum=checksum,
                         on_file_checked=on_file_checked,
                     ),
@@ -316,6 +319,7 @@ def check_album_integrity(
                     check_std_media_source_integrity(
                         album_dir,
                         ms,
+                        link_mode=link_mode,
                         checksum=checksum,
                         on_file_checked=on_file_checked,
                     ),
@@ -335,6 +339,7 @@ def run_album_check(
     *,
     sips_available: bool,
     exiftool: ExifToolHelper | None,
+    link_mode: LinkMode,
     checksum: bool = True,
     check_naming_flag: bool = True,
     on_file_checked: Callable[[str, bool], None] | None = None,
@@ -353,7 +358,11 @@ def run_album_check(
 
     # Media: file integrity, JPEG completeness
     integrity, jpeg_check = _check_media(
-        album_dir, media_sources, checksum=checksum, on_file_checked=on_file_checked
+        album_dir,
+        media_sources,
+        link_mode=link_mode,
+        checksum=checksum,
+        on_file_checked=on_file_checked,
     )
 
     # Naming: convention + EXIF timestamp match
@@ -408,6 +417,7 @@ def _check_media(
     album_dir: Path,
     media_sources: list[MediaSource],
     *,
+    link_mode: LinkMode,
     checksum: bool,
     on_file_checked: Callable[[str, bool], None] | None,
 ) -> tuple[AlbumIntegrityResult | None, AlbumJpegIntegrityResult | None]:
@@ -415,6 +425,7 @@ def _check_media(
     integrity = (
         check_album_integrity(
             album_dir,
+            link_mode=link_mode,
             checksum=checksum,
             on_file_checked=on_file_checked,
             media_sources=media_sources,
@@ -463,18 +474,23 @@ def _check_cache(
 def run_album_preflight(
     album_dir: Path,
     *,
+    link_mode: LinkMode | None = None,
     checksum: bool = True,
     check_naming_flag: bool = True,
     check_exif_date_match: bool = True,
     on_file_checked: Callable[[str, bool], None] | None = None,
 ) -> AlbumPreflightResult:
     """Run all album preflight checks including system checks."""
+    from ...fsprotocol import resolve_link_mode
+
+    resolved_link_mode = link_mode or resolve_link_mode(None, album_dir)
     exiftool = try_start_exiftool() if check_exif_date_match else None
     try:
         return run_album_check(
             album_dir,
             sips_available=check_sips_available(),
             exiftool=exiftool,
+            link_mode=resolved_link_mode,
             checksum=checksum,
             check_naming_flag=check_naming_flag,
             on_file_checked=on_file_checked,

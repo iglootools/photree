@@ -11,8 +11,6 @@ from rich.console import Console
 from rich.panel import Panel
 
 from ...album.fix.output import (
-    refresh_browsable_summary,
-    refresh_jpeg_summary,
     rm_upstream_summary,
 )
 from ...album.check import output as preflight_output
@@ -119,22 +117,6 @@ def output_cmd() -> None:
         preflight_output.album_dir_check(
             present=(),
             missing=("to-import",),
-        ),
-    )
-
-    _panel(
-        "album_output.refresh_jpeg_summary()",
-        refresh_jpeg_summary(converted=12, copied=3, skipped=1),
-    )
-
-    _panel(
-        "album_output.refresh_browsable_summary()",
-        refresh_browsable_summary(
-            heic_copied=15,
-            mov_copied=3,
-            jpeg_converted=12,
-            jpeg_copied=3,
-            jpeg_skipped=1,
         ),
     )
 
@@ -406,9 +388,6 @@ def seed_cmd(
 
         # Check album integrity
         photree album check
-
-        # Optimize (replace copies with symlinks)
-        photree album optimize --link-mode symlink
 
         # Export to a shared directory
         mkdir -p "$SHARE" && touch "$SHARE/.photree-share"

@@ -5,6 +5,7 @@ from pathlib import Path
 
 from photree.album.check.browsable import check_browsable_dir
 from photree.album.check import check_album_integrity
+from photree.fsprotocol import LinkMode
 from photree.album.store.media_sources_discovery import discover_media_sources
 from photree.album.check.ios import check_miscategorized_files
 from photree.album.check.jpeg import check_jpeg_dir
@@ -56,6 +57,7 @@ class TestCheckBrowsableDir:
             album / MAIN_MEDIA_SOURCE.img_dir,
             media_extensions=IMG_EXTENSIONS,
             key_fn=ios_img_number,
+            link_mode=LinkMode.COPY,
             checksum=True,
         )
         assert result.success
@@ -74,6 +76,7 @@ class TestCheckBrowsableDir:
             album / MAIN_MEDIA_SOURCE.img_dir,
             media_extensions=IMG_EXTENSIONS,
             key_fn=ios_img_number,
+            link_mode=LinkMode.COPY,
         )
         assert not result.success
         assert any(m.filename == "IMG_E0001.HEIC" for m in result.missing)
@@ -90,6 +93,7 @@ class TestCheckBrowsableDir:
             album / MAIN_MEDIA_SOURCE.img_dir,
             media_extensions=IMG_EXTENSIONS,
             key_fn=ios_img_number,
+            link_mode=LinkMode.COPY,
         )
         assert not result.success
         assert "EXTRA.HEIC" in result.extra
@@ -107,6 +111,7 @@ class TestCheckBrowsableDir:
             album / MAIN_MEDIA_SOURCE.img_dir,
             media_extensions=IMG_EXTENSIONS,
             key_fn=ios_img_number,
+            link_mode=LinkMode.COPY,
         )
         assert not result.success
         assert any("IMG_0001.HEIC" in w for w in result.wrong_source)
@@ -125,6 +130,7 @@ class TestCheckBrowsableDir:
             album / MAIN_MEDIA_SOURCE.img_dir,
             media_extensions=IMG_EXTENSIONS,
             key_fn=ios_img_number,
+            link_mode=LinkMode.COPY,
         )
         assert not result.success
         assert len(result.size_mismatches) == 1
@@ -141,6 +147,7 @@ class TestCheckBrowsableDir:
             album / MAIN_MEDIA_SOURCE.img_dir,
             media_extensions=IMG_EXTENSIONS,
             key_fn=ios_img_number,
+            link_mode=LinkMode.COPY,
             checksum=True,
         )
         assert not result.success
@@ -381,6 +388,7 @@ class TestCheckBrowsableDirLinkAware:
             album / MAIN_MEDIA_SOURCE.img_dir,
             media_extensions=IMG_EXTENSIONS,
             key_fn=ios_img_number,
+            link_mode=LinkMode.HARDLINK,
             checksum=True,
         )
         assert result.success
@@ -397,6 +405,7 @@ class TestCheckBrowsableDirLinkAware:
             album / MAIN_MEDIA_SOURCE.img_dir,
             media_extensions=IMG_EXTENSIONS,
             key_fn=ios_img_number,
+            link_mode=LinkMode.SYMLINK,
             checksum=True,
         )
         assert result.success
@@ -415,6 +424,7 @@ class TestCheckBrowsableDirLinkAware:
             album / MAIN_MEDIA_SOURCE.img_dir,
             media_extensions=IMG_EXTENSIONS,
             key_fn=ios_img_number,
+            link_mode=LinkMode.SYMLINK,
         )
         # The browsable file points to rendered, but rendered no longer has it,
         # so the expected source is now orig. The broken symlink won't match.
@@ -427,7 +437,10 @@ class TestCheckIosAlbumIntegrity:
         _setup_ios_album(album)
 
         result = check_album_integrity(
-            album, checksum=True, media_sources=discover_media_sources(album)
+            album,
+            link_mode=LinkMode.COPY,
+            checksum=True,
+            media_sources=discover_media_sources(album),
         )
         assert result.success
 
@@ -438,6 +451,7 @@ class TestCheckIosAlbumIntegrity:
         checked: list[tuple[str, bool]] = []
         check_album_integrity(
             album,
+            link_mode=LinkMode.COPY,
             checksum=False,
             on_file_checked=lambda f, ok: checked.append((f, ok)),
             media_sources=discover_media_sources(album),

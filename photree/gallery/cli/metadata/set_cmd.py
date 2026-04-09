@@ -38,7 +38,7 @@ def set_cmd(
         Optional[LinkMode],
         typer.Option(
             "--link-mode",
-            help="Default link mode for optimize and other link-mode operations.",
+            help="Default link mode for refresh and other link-mode operations.",
         ),
     ] = None,
     faces_enabled: Annotated[

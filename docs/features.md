@@ -64,8 +64,6 @@ Reduce disk usage by replacing file copies with links.
 
 Repair and maintain iOS album consistency with targeted fix commands.
 
-- **`--refresh-browsable`**: Rebuild all main directories from orig/edit sources
-- **`--refresh-jpeg`**: Re-convert `main-jpg/` from `main-img/`
 - **`--rm-upstream`**: Propagate deletions from browsable dirs to upstream dirs (useful after curating photos in `main-jpg/`)
 - **`--rm-orphan`**: Remove edited and main files with no corresponding original
 - **`--rm-orphan-sidecar`**: Remove AAE sidecar files with no matching media file
@@ -81,7 +79,6 @@ Batch operations across multiple albums under a directory.
 - **`gallery check`**: Check all albums (integrity, naming conventions, EXIF timestamps, cross-album date collisions)
 - **`gallery fix`**: Apply fixes to all albums
 - **`gallery fix-ios`**: Apply iOS-specific fixes to all iOS albums
-- **`gallery optimize`**: Optimize all iOS albums (replace copies with links)
 - **`gallery rename-from-csv`**: Rename albums by diffing current vs desired CSV files (exported from `list-albums --format csv`); only title and location may be changed
 - **`gallery export`**: Batch export to a shared directory
 - All gallery commands accept `--dir` (scan recursively) or `--album-dir` (explicit list)

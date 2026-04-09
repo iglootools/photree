@@ -5,10 +5,10 @@ from pathlib import Path
 import pytest
 
 from photree.album.fix import (
-    refresh_browsable,
     rm_orphan,
     rm_upstream,
 )
+from photree.album.fix.refresh_browsable import refresh_browsable
 from photree.album.store.protocol import std_media_source
 
 STD = std_media_source("nelu")

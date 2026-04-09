@@ -154,7 +154,7 @@ def import_cmd(
             "refresh-main-img": "Refreshing main-img",
             "refresh-main-vid": "Refreshing main-vid",
             "refresh-main-jpg": "Refreshing main-jpg",
-            "refresh-media-ids": "Refreshing media IDs",
+            "refresh-derived": "Refreshing derived data",
         },
     ) as progress:
         try:

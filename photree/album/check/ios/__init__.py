@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ....common.fs import file_ext, list_files
+from ....fsprotocol import LinkMode
 from ...store.media_sources import ios_file_prefix, ios_img_number, ios_is_media
 from ...store.protocol import (
     IOS_IMG_EXTENSIONS,
@@ -131,6 +132,7 @@ def check_ios_media_source_integrity(
     album_dir: Path,
     ms: MediaSource,
     *,
+    link_mode: LinkMode,
     checksum: bool = True,
     on_file_checked: Callable[[str, bool], None] | None = None,
 ) -> IosMediaSourceIntegrityResult:
@@ -142,6 +144,7 @@ def check_ios_media_source_integrity(
         album_dir / ms.img_dir,
         media_extensions=IOS_IMG_EXTENSIONS,
         key_fn=ms.key_fn,
+        link_mode=link_mode,
         checksum=checksum,
         on_file_checked=on_file_checked,
     )
@@ -152,6 +155,7 @@ def check_ios_media_source_integrity(
         album_dir / ms.vid_dir,
         media_extensions=IOS_VID_EXTENSIONS,
         key_fn=ms.key_fn,
+        link_mode=link_mode,
         checksum=checksum,
         on_file_checked=on_file_checked,
     )

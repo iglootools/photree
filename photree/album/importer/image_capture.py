@@ -12,6 +12,9 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
+from exiftool import ExifToolHelper  # type: ignore[import-untyped]
+from insightface.app import FaceAnalysis
+
 from ...common.fs import file_ext, list_files
 from ...fsprotocol import PHOTREE_DIR, LinkMode
 from .. import browsable
@@ -36,7 +39,7 @@ STAGE_IMPORT_IC = "import-ic"
 STAGE_REFRESH_MAIN_IMG = "refresh-main-img"
 STAGE_REFRESH_MAIN_VID = "refresh-main-vid"
 STAGE_REFRESH_MAIN_JPG = "refresh-main-jpg"
-STAGE_REFRESH_MEDIA_IDS = "refresh-media-ids"
+STAGE_REFRESH_DERIVED = "refresh-derived"
 
 
 class MediaType(StrEnum):
@@ -447,6 +450,8 @@ def run_import(
     on_stage_end: Callable[[str], None] | None = None,
     convert_file: Callable[..., Path | None] = convert_single_file,
     max_workers: int | None = None,
+    exiftool: ExifToolHelper | None = None,
+    face_analyzer: FaceAnalysis | None = None,
 ) -> ImportResult:
     """Organize Image Capture files into an album directory.
 
@@ -457,7 +462,7 @@ def run_import(
     2. ``refresh-main-img`` — build main-img from orig-img + edit-img
     3. ``refresh-main-vid`` — build main-vid from orig-vid + edit-vid
     4. ``refresh-main-jpg`` — build main-jpg from main-img
-    5. ``refresh-media-ids`` — assign media IDs to new files in .photree/media-ids/
+    5. ``refresh-derived`` — refresh media IDs, EXIF cache, face detection
 
     Callbacks:
     - ``on_stage_start(stage)`` — called before each stage
@@ -465,6 +470,8 @@ def run_import(
 
     Parameters:
     - ``convert_file(src, dst_dir, dry_run=)`` — per-file HEIC→JPEG converter (default: sips via album.jpeg)
+    - ``exiftool`` — shared ExifToolHelper instance (optional, for EXIF cache)
+    - ``face_analyzer`` — shared FaceAnalysis instance (optional, for face detection)
     """
     from .selection import read_selection
 
@@ -609,13 +616,23 @@ def run_import(
     )
     _notify(on_stage_end, STAGE_REFRESH_MAIN_JPG)
 
-    # ── Stage 5: refresh-media-ids ──
-    # Assign media IDs to new files in .photree/media-ids/
-    _notify(on_stage_start, STAGE_REFRESH_MEDIA_IDS)
-    from ..refresh import refresh_media_metadata
+    # ── Stage 5: refresh-derived ──
+    # Refresh media IDs, EXIF cache, face detection.
+    # Browsable and JPEG dirs were just built (stages 2-4), so the unified
+    # pipeline will see them as fresh and skip those steps.
+    _notify(on_stage_start, STAGE_REFRESH_DERIVED)
+    from ..refresh import refresh_album_derived_data
 
-    refresh_media_metadata(album_dir, dry_run=dry_run)
-    _notify(on_stage_end, STAGE_REFRESH_MEDIA_IDS)
+    refresh_album_derived_data(
+        album_dir,
+        link_mode=link_mode,
+        max_workers=max_workers,
+        convert_file=convert_file,
+        exiftool=exiftool,
+        face_analyzer=face_analyzer,
+        dry_run=dry_run,
+    )
+    _notify(on_stage_end, STAGE_REFRESH_DERIVED)
 
     # Sanity check: all matched selection files should have been processed
     all_matched = {m.selection_file for m in plan.matches}

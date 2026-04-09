@@ -7,6 +7,7 @@ from pathlib import Path
 
 from ...album import check as album_check
 from ...common.exif import try_start_exiftool
+from ...fsprotocol import resolve_link_mode
 
 
 def run_batch_post_import_check(
@@ -32,6 +33,7 @@ def run_batch_post_import_check(
                 target_dir,
                 sips_available=sips_available,
                 exiftool=exiftool,
+                link_mode=resolve_link_mode(None, target_dir),
             )
             if check_result.success:
                 if on_end:

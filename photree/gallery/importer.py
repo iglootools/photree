@@ -17,11 +17,6 @@ import itertools
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 from insightface.app import FaceAnalysis
 
-from ..album import fix as album_fixes
-from ..album import optimize as album_optimize
-from ..album.check import check_album_integrity, check_album_jpeg_integrity
-from ..album.jpeg import convert_single_file
-from ..album.store.media_sources_discovery import discover_media_sources
 from ..album.store.metadata import load_album_metadata, save_album_metadata
 from ..album.id import generate_album_id
 from ..album.store.protocol import AlbumMetadata, parse_album_year
@@ -32,8 +27,6 @@ from . import AlbumIndex
 # Import stages
 STAGE_COPY = "copy"
 STAGE_ID = "id"
-STAGE_JPEG = "jpeg"
-STAGE_OPTIMIZE = "optimize"
 STAGE_REFRESH_DERIVED = "refresh-derived"
 
 
@@ -44,8 +37,6 @@ class AlbumImportResult:
     album_name: str
     target_dir: Path
     id_generated: bool
-    jpeg_refreshed: bool
-    optimized: bool
 
 
 def _notify(callback: Callable[[str], None] | None, stage: str) -> None:
@@ -57,13 +48,6 @@ def compute_target_dir(gallery_dir: Path, album_name: str) -> Path:
     """Compute the target path: ``<gallery_dir>/albums/YYYY/<album_name>``."""
     year = parse_album_year(album_name)
     return gallery_dir / ALBUMS_DIR / year / album_name
-
-
-def _jpeg_is_stale(album_dir: Path) -> bool:
-    """Check if any media source has missing JPEGs."""
-    media_sources = discover_media_sources(album_dir)
-    result = check_album_jpeg_integrity(album_dir, media_sources=media_sources)
-    return any(not check.success for _, check in result.by_media_source)
 
 
 class BatchImportValidationError(ValueError):
@@ -194,54 +178,6 @@ def _stage_generate_id(work_dir: Path, *, dry_run: bool) -> bool:
     return True
 
 
-def _stage_refresh_jpeg(
-    work_dir: Path,
-    *,
-    dry_run: bool,
-    convert_file: Callable[..., Path | None],
-    max_workers: int | None = None,
-) -> bool:
-    """Stage 3: refresh JPEGs if stale. Returns whether a refresh was needed."""
-    if not _jpeg_is_stale(work_dir):
-        return False
-    if not dry_run:
-        for ms in discover_media_sources(work_dir):
-            if (work_dir / ms.img_dir).is_dir():
-                album_fixes.refresh_jpeg(
-                    work_dir,
-                    ms,
-                    dry_run=False,
-                    convert_file=convert_file,
-                    max_workers=max_workers,
-                )
-    return True
-
-
-def _stage_optimize(work_dir: Path, *, link_mode: LinkMode, dry_run: bool) -> bool:
-    """Stage 4: optimize links. Returns whether the album had iOS sources."""
-    ios_sources = [ms for ms in discover_media_sources(work_dir) if ms.is_ios]
-    if not ios_sources:
-        return False
-    if not dry_run:
-        integrity = check_album_integrity(
-            work_dir, checksum=True, media_sources=ios_sources
-        )
-        mismatched = [
-            ms.name
-            for ms, result in integrity.by_media_source
-            if not result.browsable_img.files_match_sources
-            or not result.browsable_vid.files_match_sources
-        ]
-        if mismatched:
-            raise ValueError(
-                f"Pre-optimize integrity check failed for media source(s): "
-                f"{', '.join(mismatched)}. "
-                "Browsable files do not match their archival sources."
-            )
-        album_optimize.optimize_album(work_dir, link_mode=link_mode)
-    return True
-
-
 def import_album(
     *,
     source_dir: Path,
@@ -250,7 +186,7 @@ def import_album(
     dry_run: bool = False,
     on_stage_start: Callable[[str], None] | None = None,
     on_stage_end: Callable[[str], None] | None = None,
-    convert_file: Callable[..., Path | None] = convert_single_file,
+    convert_file: Callable[..., Path | None] | None = None,
     max_workers: int | None = None,
     exiftool: ExifToolHelper | None = None,
     face_analyzer: FaceAnalysis | None = None,
@@ -259,9 +195,10 @@ def import_album(
 
     1. Copy the album to ``<gallery_dir>/albums/YYYY/<album_name>/``
     2. Generate album ID if missing
-    3. Refresh JPEGs if stale
-    4. Optimize (replace copies with links)
-    5. Refresh derived data (media IDs, EXIF cache, face detection)
+    3. Refresh derived data (browsable, JPEG, media IDs, EXIF cache, faces)
+
+    The browsable refresh in step 3 detects that copied files use the
+    wrong link mode and rebuilds them as hardlinks/symlinks.
 
     Raises :class:`ValueError` if the target directory already exists or
     the album name cannot be parsed.
@@ -281,24 +218,14 @@ def import_album(
     id_generated = _stage_generate_id(work_dir, dry_run=dry_run)
     _notify(on_stage_end, STAGE_ID)
 
-    _notify(on_stage_start, STAGE_JPEG)
-    jpeg_refreshed = _stage_refresh_jpeg(
-        work_dir,
-        dry_run=dry_run,
-        convert_file=convert_file,
-        max_workers=max_workers,
-    )
-    _notify(on_stage_end, STAGE_JPEG)
-
-    _notify(on_stage_start, STAGE_OPTIMIZE)
-    optimized = _stage_optimize(work_dir, link_mode=link_mode, dry_run=dry_run)
-    _notify(on_stage_end, STAGE_OPTIMIZE)
-
     _notify(on_stage_start, STAGE_REFRESH_DERIVED)
     from ..album.refresh import refresh_album_derived_data
 
     refresh_album_derived_data(
         work_dir,
+        link_mode=link_mode,
+        max_workers=max_workers,
+        convert_file=convert_file,
         exiftool=exiftool,
         face_analyzer=face_analyzer,
         dry_run=dry_run,
@@ -309,6 +236,4 @@ def import_album(
         album_name=album_name,
         target_dir=target_dir,
         id_generated=id_generated,
-        jpeg_refreshed=jpeg_refreshed,
-        optimized=optimized,
     )

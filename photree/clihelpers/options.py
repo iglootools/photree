@@ -91,22 +91,6 @@ LINK_MODE_REQUIRED_OPTION = Annotated[
     ),
 ]
 
-REFRESH_BROWSABLE_OPTION = Annotated[
-    bool,
-    typer.Option(
-        "--refresh-browsable",
-        help="Rebuild main-img/ and main-vid/ from orig/edit, then regenerate main-jpg/.",
-    ),
-]
-
-REFRESH_JPEG_OPTION = Annotated[
-    bool,
-    typer.Option(
-        "--refresh-jpeg",
-        help="Refresh main-jpg/ from main-img/ (re-convert all HEIC→JPEG).",
-    ),
-]
-
 RM_UPSTREAM_OPTION = Annotated[
     bool,
     typer.Option(
@@ -171,14 +155,6 @@ DRY_RUN_OPTION = Annotated[
     bool,
     typer.Option(
         "--dry-run", "-n", help="Print what would happen without modifying files."
-    ),
-]
-
-CHECK_BEFORE_OPTION = Annotated[
-    bool,
-    typer.Option(
-        "--check/--no-check",
-        help="Run integrity checks before optimizing (default: enabled).",
     ),
 ]
 

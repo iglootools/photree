@@ -11,23 +11,17 @@ import typer
 from ...clihelpers.options import (
     DRY_RUN_OPTION,
     LINK_MODE_OPTION,
-    REFRESH_BROWSABLE_OPTION,
-    REFRESH_JPEG_OPTION,
     RM_ORPHAN_OPTION,
     RM_UPSTREAM_OPTION,
 )
-from ...clihelpers.progress import FileProgressBar, StageProgressBar
-from ...common.fs import list_files
 from ...fsprotocol import resolve_link_mode
 from .. import fix as album_fixes
 from ..fix import FixValidationError
 from ..fix.output import format_fix_result
-from ..store.media_sources_discovery import discover_media_sources
 from ..store.metadata import load_album_metadata, save_album_metadata
 from ..id import format_album_external_id, generate_album_id
 from ..store.protocol import AlbumMetadata
 from . import album_app
-from .helpers import _check_sips_or_exit
 
 
 @album_app.command("fix")
@@ -58,8 +52,6 @@ def fix_cmd(
         ),
     ] = False,
     link_mode: LINK_MODE_OPTION = None,
-    refresh_browsable: REFRESH_BROWSABLE_OPTION = False,
-    refresh_jpeg: REFRESH_JPEG_OPTION = False,
     rm_upstream: RM_UPSTREAM_OPTION = False,
     rm_orphan: RM_ORPHAN_OPTION = False,
     dry_run: DRY_RUN_OPTION = False,
@@ -71,15 +63,6 @@ def fix_cmd(
 
     --new-id: Regenerates the album ID, replacing any existing one.
 
-    --refresh-browsable: Deletes {name}-img/, {name}-vid/, and
-    {name}-jpg/, then rebuilds {name}-img and {name}-vid from
-    orig/edit sources. If {name}-img/ is created, also regenerates
-    {name}-jpg/ via HEIC->JPEG conversion.
-
-    --refresh-jpeg: Deletes all files in {name}-jpg/ and re-converts
-    every file from {name}-img/. HEIC/HEIF/DNG files are converted
-    via sips; JPEG/PNG files are copied as-is.
-
     --rm-upstream: Propagates deletions from browsing directories to
     upstream directories.
 
@@ -90,8 +73,6 @@ def fix_cmd(
         album_fixes.validate_fix_flags(
             fix_id=fix_id,
             new_id=new_id,
-            refresh_browsable=refresh_browsable,
-            refresh_jpeg=refresh_jpeg,
             rm_upstream=rm_upstream,
             rm_orphan=rm_orphan,
         )
@@ -113,75 +94,18 @@ def fix_cmd(
                     f"Generated album ID: {format_album_external_id(generated_id)}"
                 )
 
-    any_archive_op = refresh_browsable or refresh_jpeg or rm_upstream or rm_orphan
+    any_archive_op = rm_upstream or rm_orphan
     if not any_archive_op:
         return
 
-    if refresh_browsable or refresh_jpeg:
-        _check_sips_or_exit()
-
-    stage_progress_cm = (
-        StageProgressBar(
-            total=4,
-            labels={
-                "delete": "Deleting main directories",
-                "refresh-heic": "Rebuilding main-img",
-                "refresh-mov": "Rebuilding main-vid",
-                "refresh-jpeg": "Converting HEIC to JPEG",
-            },
-        )
-        if refresh_browsable
-        else None
+    result = album_fixes.run_fix(
+        album_dir,
+        link_mode=resolve_link_mode(link_mode, album_dir),
+        dry_run=dry_run,
+        rm_upstream_flag=rm_upstream,
+        rm_orphan_flag=rm_orphan,
+        max_workers=os.cpu_count(),
     )
-
-    file_count = 0
-    if refresh_jpeg:
-        media_sources = discover_media_sources(album_dir)
-        file_count = sum(
-            len(list_files(album_dir / c.img_dir))
-            for c in media_sources
-            if (album_dir / c.img_dir).is_dir()
-        )
-    file_progress_cm = (
-        FileProgressBar(
-            total=file_count,
-            description="Converting JPEG",
-            done_description="convert-jpeg",
-        )
-        if refresh_jpeg
-        else None
-    )
-
-    import contextlib
-
-    with contextlib.ExitStack() as stack:
-        stage_progress = (
-            stack.enter_context(stage_progress_cm) if stage_progress_cm else None
-        )
-        file_progress = (
-            stack.enter_context(file_progress_cm) if file_progress_cm else None
-        )
-
-        result = album_fixes.run_fix(
-            album_dir,
-            link_mode=resolve_link_mode(link_mode, album_dir),
-            dry_run=dry_run,
-            refresh_browsable_flag=refresh_browsable,
-            refresh_jpeg_flag=refresh_jpeg,
-            rm_upstream_flag=rm_upstream,
-            rm_orphan_flag=rm_orphan,
-            on_refresh_browsable_stage_start=stage_progress.on_start
-            if stage_progress
-            else None,
-            on_refresh_browsable_stage_end=stage_progress.on_end
-            if stage_progress
-            else None,
-            on_refresh_jpeg_file_start=file_progress.on_start
-            if file_progress
-            else None,
-            on_refresh_jpeg_file_end=file_progress.on_end if file_progress else None,
-            max_workers=os.cpu_count(),
-        )
 
     for line in format_fix_result(result):
         typer.echo(line)

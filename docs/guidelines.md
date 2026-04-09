@@ -148,7 +148,7 @@ Batch operations follow a three-layer pattern:
 Album resolution helpers live in `albums/cli/ops.py` (mirroring
 `gallery/cli/ops.py`):
 - `resolve_check_batch_albums` — for check/list/refresh commands
-- `resolve_batch_albums` — for archive-based commands (optimize, fix-ios)
+- `resolve_batch_albums` — for archive-based commands (fix-ios)
 - `resolve_init_batch_albums` — for init commands
 
 ### Validation Levels

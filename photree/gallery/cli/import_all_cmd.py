@@ -84,7 +84,7 @@ def import_all_cmd(
     Either scan --dir for immediate subdirectories, or provide explicit
     album directories via --album-dir (repeatable). Copies each album to
     <gallery>/albums/YYYY/<album-name>/, generates missing IDs, refreshes
-    JPEGs, optimizes links, and runs gallery-wide checks.
+    JPEGs, and runs gallery-wide checks.
     """
     if base_dir is not None and album_dirs is not None:
         typer.echo("--dir and --album-dir are mutually exclusive.", err=True)

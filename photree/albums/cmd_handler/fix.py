@@ -29,8 +29,6 @@ def batch_fix(
     fix_id: bool = False,
     new_id: bool = False,
     link_mode: LinkMode = LinkMode.HARDLINK,
-    refresh_browsable: bool = False,
-    refresh_jpeg: bool = False,
     rm_upstream: bool = False,
     rm_orphan: bool = False,
     dry_run: bool = False,
@@ -44,7 +42,7 @@ def batch_fix(
     Calls ``on_start(name)`` before and ``on_end(name, success)`` after
     each album.
     """
-    any_archive_op = refresh_browsable or refresh_jpeg or rm_upstream or rm_orphan
+    any_archive_op = rm_upstream or rm_orphan
 
     fixed = 0
     failed_albums: list[Path] = []
@@ -65,8 +63,6 @@ def batch_fix(
                     album_dir,
                     link_mode=link_mode,
                     dry_run=dry_run,
-                    refresh_browsable_flag=refresh_browsable,
-                    refresh_jpeg_flag=refresh_jpeg,
                     rm_upstream_flag=rm_upstream,
                     rm_orphan_flag=rm_orphan,
                     max_workers=max_workers,
