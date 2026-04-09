@@ -17,7 +17,8 @@ from functools import partial
 from pathlib import Path
 
 from ..common.fs import file_ext, list_files
-from ..common.sips import convert_to_jpeg, run_parallel
+from ..common.parallelism import run_parallel
+from ..common.sips import convert_to_jpeg
 from .store.protocol import CONVERT_TO_JPEG_EXTENSIONS, COPY_AS_IS_TO_JPEG_EXTENSIONS
 
 

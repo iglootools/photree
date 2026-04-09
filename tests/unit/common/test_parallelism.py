@@ -1,6 +1,6 @@
-"""Tests for photree.common.sips module — parallel execution."""
+"""Tests for photree.common.parallelism module."""
 
-from photree.common.sips import run_parallel
+from photree.common.parallelism import run_parallel
 
 
 class TestRunParallel:
