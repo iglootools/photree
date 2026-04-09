@@ -10,6 +10,7 @@ from ...common.formatting import CHECK, CROSS, WARNING
 from ..naming import AlbumNamingResult, BatchNamingResult
 from ..id import format_album_external_id
 from . import AlbumIntegrityResult, AlbumMediaSourceSummary, AlbumPreflightResult
+from .exif_cache_state import ExifCacheStateCheck
 from .face_state import FaceStateCheck
 from .media_metadata import MediaMetadataCheck
 from .unexpected_dirs import UnexpectedDirsCheck
@@ -390,6 +391,31 @@ def _format_issue_group(
 
 
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# EXIF cache state output
+# ---------------------------------------------------------------------------
+
+
+def format_exif_cache_check(check: ExifCacheStateCheck, indent: str = "    ") -> str:
+    """Format EXIF cache state check results."""
+    if check.success:
+        return f"{CHECK} exif cache"
+
+    return "\n".join(
+        [
+            f"{CROSS} exif cache ({check.issue_count} issue(s))",
+            *_format_issue_group("uncached files", check.uncached, indent),
+            *_format_issue_group("stale entries", check.stale_entries, indent),
+            *_format_issue_group("stale mtimes", check.stale_mtimes, indent),
+            (
+                f"{indent}Run 'photree album refresh' or"
+                " 'photree album check --refresh-exif-cache' to fix."
+            ),
+        ]
+    )
+
+
+# ---------------------------------------------------------------------------
 # Preflight orchestration output
 # ---------------------------------------------------------------------------
 
@@ -459,6 +485,11 @@ def format_album_preflight_checks(
             *(
                 format_face_state_check(result.face_state_check).splitlines()
                 if result.face_state_check is not None
+                else []
+            ),
+            *(
+                format_exif_cache_check(result.exif_cache_check).splitlines()
+                if result.exif_cache_check is not None
                 else []
             ),
         ]

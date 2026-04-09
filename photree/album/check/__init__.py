@@ -26,6 +26,7 @@ from ..store.media_sources_discovery import discover_media_sources
 from ..store.metadata import load_album_metadata
 from ..store.protocol import MediaSource
 from .dir_structure import AlbumDirCheck, check_album_dir_structure
+from .exif_cache_state import ExifCacheStateCheck, check_exif_cache_state
 from .face_state import FaceStateCheck, check_face_state
 from .ios import IosMediaSourceIntegrityResult, check_ios_media_source_integrity
 from .jpeg import AlbumJpegIntegrityResult, check_album_jpeg_integrity
@@ -138,6 +139,7 @@ class AlbumPreflightResult:
     jpeg_check: AlbumJpegIntegrityResult | None = None
     naming: AlbumNamingResult | None = None
     face_state_check: FaceStateCheck | None = None
+    exif_cache_check: ExifCacheStateCheck | None = None
 
     @property
     def success(self) -> bool:
@@ -153,6 +155,7 @@ class AlbumPreflightResult:
             and (self.jpeg_check is None or self.jpeg_check.success)
             and (self.naming is None or self.naming.success)
             and (self.face_state_check is None or self.face_state_check.success)
+            and (self.exif_cache_check is None or self.exif_cache_check.success)
         )
 
     @property
@@ -219,6 +222,12 @@ class AlbumPreflightResult:
                     ["face state stale"]
                     if self.face_state_check is not None
                     and not self.face_state_check.success
+                    else []
+                ),
+                *(
+                    ["exif cache stale"]
+                    if self.exif_cache_check is not None
+                    and not self.exif_cache_check.success
                     else []
                 ),
             ]
@@ -377,6 +386,7 @@ def run_album_check(
         )
 
     face_state = check_face_state(album_dir)
+    exif_cache_state = check_exif_cache_state(album_dir)
 
     return AlbumPreflightResult(
         sips_available=sips_available,
@@ -390,6 +400,7 @@ def run_album_check(
         jpeg_check=jpeg_check,
         naming=naming,
         face_state_check=face_state,
+        exif_cache_check=exif_cache_state,
     )
 
 
