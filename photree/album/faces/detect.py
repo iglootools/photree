@@ -7,7 +7,6 @@ Macs for Neural Engine acceleration.
 
 from __future__ import annotations
 
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -15,7 +14,7 @@ import cv2
 import numpy as np
 from insightface.app import FaceAnalysis
 
-from ...common.fs import file_ext
+from ...common.sips import get_dimensions, resize_to_jpeg
 from .protocol import DEFAULT_MODEL_NAME, THUMB_MAX_DIMENSION
 
 
@@ -73,27 +72,13 @@ def generate_thumbnail(
     dst.parent.mkdir(parents=True, exist_ok=True)
 
     # Read original dimensions before resize
-    orig_width, orig_height = _sips_get_dimensions(src)
+    orig_width, orig_height = get_dimensions(src)
 
     # Convert + resize to JPEG thumbnail
-    subprocess.run(
-        [
-            "sips",
-            "-s",
-            "format",
-            "jpeg",
-            "--resampleHeightWidthMax",
-            str(max_dimension),
-            str(src),
-            "--out",
-            str(dst),
-        ],
-        check=True,
-        capture_output=True,
-    )
+    resize_to_jpeg(src, dst, max_dimension=max_dimension)
 
     # Read actual thumbnail dimensions (may differ due to aspect ratio)
-    thumb_width, thumb_height = _sips_get_dimensions(dst)
+    thumb_width, thumb_height = get_dimensions(dst)
 
     return ThumbnailResult(
         key=key,
@@ -104,24 +89,6 @@ def generate_thumbnail(
         thumb_width=thumb_width,
         thumb_height=thumb_height,
     )
-
-
-def _sips_get_dimensions(path: Path) -> tuple[int, int]:
-    """Return ``(width, height)`` of an image via ``sips``."""
-    result = subprocess.run(
-        ["sips", "-g", "pixelWidth", "-g", "pixelHeight", str(path)],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    width = height = 0
-    for line in result.stdout.splitlines():
-        line = line.strip()
-        if line.startswith("pixelWidth:"):
-            width = int(line.split(":")[1].strip())
-        elif line.startswith("pixelHeight:"):
-            height = int(line.split(":")[1].strip())
-    return (width, height)
 
 
 # ---------------------------------------------------------------------------
@@ -184,12 +151,3 @@ def detect_faces(
 def thumb_filename(key: str) -> str:
     """Return the thumbnail filename for a media key (e.g. ``"0410.jpg"``)."""
     return f"{key}.jpg"
-
-
-def needs_opencv_fallback(filename: str) -> bool:
-    """Return True when the original format is not directly readable by OpenCV.
-
-    HEIC and DNG require sips conversion; JPEG and PNG can be read directly
-    but we still use thumbnails for consistency and speed.
-    """
-    return file_ext(filename) not in {".jpg", ".jpeg", ".png"}

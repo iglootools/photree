@@ -205,25 +205,19 @@ def _refresh_source(
     )
 
     # Run face detection on each thumbnail
-    new_faces: list[DetectedFace] = []
-    new_state_keys: dict[str, FaceProcessedKey] = {}
-    failed = 0
-
-    for tr in thumb_results:
-        try:
-            detected = detect_faces(tr.key, tr.thumb_path, analyzer)
-            new_faces.extend(detected)
-            new_state_keys[tr.key] = FaceProcessedKey(
-                mtime=(album_dir / ms.orig_img_dir / tr.file_name).stat().st_mtime,
-                file_name=tr.file_name,
-                face_count=len(detected),
-                orig_width=tr.orig_width,
-                orig_height=tr.orig_height,
-                thumb_width=tr.thumb_width,
-                thumb_height=tr.thumb_height,
-            )
-        except Exception:
-            failed += 1
+    detection_results = [
+        _detect_single(tr, album_dir / ms.orig_img_dir, analyzer)
+        for tr in thumb_results
+    ]
+    new_faces = [
+        face for faces, _ in detection_results if faces is not None for face in faces
+    ]
+    new_state_keys = {
+        tr.key: state_key
+        for tr, (_, state_key) in zip(thumb_results, detection_results)
+        if state_key is not None
+    }
+    failed = sum(1 for faces, _ in detection_results if faces is None)
 
     # Remove stale thumbnails
     for key in stale_keys:
@@ -354,6 +348,28 @@ def _generate_thumbnails(
         *(generated[key] for key in needs_thumb if key in generated),
         *reused,
     ]
+
+
+def _detect_single(
+    tr: ThumbnailResult,
+    orig_dir: Path,
+    analyzer: FaceAnalysis,
+) -> tuple[list[DetectedFace] | None, FaceProcessedKey | None]:
+    """Run face detection on one thumbnail. Returns ``(None, None)`` on failure."""
+    try:
+        detected = detect_faces(tr.key, tr.thumb_path, analyzer)
+        state_key = FaceProcessedKey(
+            mtime=(orig_dir / tr.file_name).stat().st_mtime,
+            file_name=tr.file_name,
+            face_count=len(detected),
+            orig_width=tr.orig_width,
+            orig_height=tr.orig_height,
+            thumb_width=tr.thumb_width,
+            thumb_height=tr.thumb_height,
+        )
+        return (detected, state_key)
+    except Exception:
+        return (None, None)
 
 
 def _reuse_thumbnail(key: str, file_name: str, thumb_path: Path) -> ThumbnailResult:
