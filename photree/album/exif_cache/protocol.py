@@ -10,7 +10,7 @@ from ...fsprotocol import _BaseModel
 # Constants
 # ---------------------------------------------------------------------------
 
-EXIF_CACHE_DIR = "exif-cache"
+EXIF_CACHE_DIR = "cache/exif"
 """Subdirectory under ``.photree/`` for EXIF timestamp cache."""
 
 
