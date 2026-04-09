@@ -8,10 +8,17 @@ Validates:
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
+from ..album.id import (
+    format_album_external_id,
+    format_image_external_id,
+    format_video_external_id,
+)
+from .id import format_collection_external_id
 from ..album.naming import _album_date_range, parse_album_name
 from ..album.store.album_discovery import discover_albums
 from ..album.store.media_metadata import load_media_metadata
@@ -133,12 +140,45 @@ def build_gallery_lookup(gallery_dir: Path) -> _GalleryLookup:
 # ---------------------------------------------------------------------------
 
 
+def _fmt_album(aid: str) -> str:
+    try:
+        return format_album_external_id(aid)
+    except ValueError:
+        return aid
+
+
+def _fmt_collection(cid: str) -> str:
+    try:
+        return format_collection_external_id(cid)
+    except ValueError:
+        return cid
+
+
+def _safe_fmt(fmt: Callable[[str], str]) -> Callable[[str], str]:
+    def _inner(mid: str) -> str:
+        try:
+            return fmt(mid)
+        except ValueError:
+            return mid
+
+    return _inner
+
+
+_MEDIA_FORMATTERS: dict[str, Callable[[str], str]] = {
+    "album": _safe_fmt(format_album_external_id),
+    "collection": _safe_fmt(format_collection_external_id),
+    "image": _safe_fmt(format_image_external_id),
+    "video": _safe_fmt(format_video_external_id),
+}
+
+
 def _check_missing_ids(
     ids: list[str], known: frozenset[str], code: str, label: str
 ) -> list[CollectionCheckIssue]:
     """Check that all IDs in *ids* exist in *known*."""
+    fmt = _MEDIA_FORMATTERS.get(label, str)
     return [
-        CollectionCheckIssue(code, f"{label} {mid} not found in gallery")
+        CollectionCheckIssue(code, f"{label} {fmt(mid)} not found in gallery")
         for mid in ids
         if mid not in known
     ]
@@ -197,7 +237,7 @@ def _check_date_coverage(
         *[
             CollectionCheckIssue(
                 "date-not-covered",
-                f"album {aid} date {lookup.album_dates[aid]} "
+                f"album {_fmt_album(aid)} date {lookup.album_dates[aid]} "
                 f"outside collection range {parsed.date}",
             )
             for aid in metadata.albums
@@ -208,7 +248,7 @@ def _check_date_coverage(
         *[
             CollectionCheckIssue(
                 "date-not-covered",
-                f"collection {cid} date {sub_date} "
+                f"collection {_fmt_collection(cid)} date {sub_date} "
                 f"outside collection range {parsed.date}",
             )
             for cid in metadata.collections
@@ -337,7 +377,7 @@ def _check_private_viral(
             *[
                 CollectionCheckIssue(
                     "private-smart-has-non-private-album",
-                    f"private smart collection contains non-private album {aid}",
+                    f"private smart collection contains non-private album {_fmt_album(aid)}",
                 )
                 for aid in metadata.albums
                 if aid in lookup.album_private and not lookup.album_private[aid]
@@ -345,7 +385,7 @@ def _check_private_viral(
             *[
                 CollectionCheckIssue(
                     "private-smart-has-non-private-collection",
-                    f"private smart collection contains non-private collection {cid}",
+                    f"private smart collection contains non-private collection {_fmt_collection(cid)}",
                 )
                 for cid in metadata.collections
                 if cid in lookup.collection_private
@@ -358,7 +398,7 @@ def _check_private_viral(
             *[
                 CollectionCheckIssue(
                     "non-private-has-private-album",
-                    f"non-private collection contains private album {aid}",
+                    f"non-private collection contains private album {_fmt_album(aid)}",
                 )
                 for aid in metadata.albums
                 if lookup.album_private.get(aid, False)
@@ -366,7 +406,7 @@ def _check_private_viral(
             *[
                 CollectionCheckIssue(
                     "non-private-has-private-collection",
-                    f"non-private collection contains private collection {cid}",
+                    f"non-private collection contains private collection {_fmt_collection(cid)}",
                 )
                 for cid in metadata.collections
                 if lookup.collection_private.get(cid, False)
@@ -374,8 +414,8 @@ def _check_private_viral(
             *[
                 CollectionCheckIssue(
                     "non-private-has-private-media",
-                    f"non-private collection contains {media_type} {mid} "
-                    f"from private album",
+                    f"non-private collection contains {media_type} "
+                    f"{_MEDIA_FORMATTERS.get(media_type, str)(mid)} from private album",
                 )
                 for media_type, media_ids in [
                     ("image", metadata.images),
