@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Annotated, Optional
 
@@ -71,5 +72,7 @@ def import_cmd(
     index = build_index_or_exit(resolved_gallery, cwd)
 
     validate_single_import_or_exit(album_dir, index, resolved_gallery, cwd)
-    result = run_single_import(album_dir, resolved_gallery, resolved_lm, dry_run)
+    result = run_single_import(
+        album_dir, resolved_gallery, resolved_lm, dry_run, max_workers=os.cpu_count()
+    )
     print_single_import_result(result, cwd, dry_run)

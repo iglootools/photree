@@ -120,6 +120,7 @@ def run_batch_import(
     on_error: Callable[[str, str], None] | None = None,
     on_validation_error: Callable[[str, list[ValidationError]], None] | None = None,
     convert_file: Callable[..., Path | None] = convert_single_file,
+    max_workers: int | None = None,
 ) -> BatchResult:
     """Run import for all albums with a non-empty selection directory.
 
@@ -176,6 +177,7 @@ def run_batch_import(
                 link_mode=link_mode,
                 dry_run=dry_run,
                 convert_file=convert_file,
+                max_workers=max_workers,
             )
             if import_result.unprocessed:
                 msg = f"unprocessed selection files: {', '.join(import_result.unprocessed)}"

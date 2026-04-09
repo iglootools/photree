@@ -446,6 +446,7 @@ def run_import(
     on_stage_start: Callable[[str], None] | None = None,
     on_stage_end: Callable[[str], None] | None = None,
     convert_file: Callable[..., Path | None] = convert_single_file,
+    max_workers: int | None = None,
 ) -> ImportResult:
     """Organize Image Capture files into an album directory.
 
@@ -604,6 +605,7 @@ def run_import(
         album_main_jpg,
         dry_run=dry_run,
         convert_file=convert_file,
+        max_workers=max_workers,
     )
     _notify(on_stage_end, STAGE_REFRESH_MAIN_JPG)
 

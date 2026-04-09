@@ -121,6 +121,8 @@ def run_single_import(
     gallery_dir: Path,
     link_mode: LinkMode,
     dry_run: bool,
+    *,
+    max_workers: int | None = None,
 ) -> AlbumImportResult:
     """Execute a single album import with stage progress bar."""
     typer.echo("Import:")
@@ -142,6 +144,7 @@ def run_single_import(
                 dry_run,
                 on_stage_start=progress.on_start,
                 on_stage_end=progress.on_end,
+                max_workers=max_workers,
             )
         except ValueError as exc:
             err_console.print(str(exc))
@@ -198,6 +201,8 @@ def run_batch_import(
     gallery_dir: Path,
     link_mode: LinkMode,
     dry_run: bool,
+    *,
+    max_workers: int | None = None,
 ) -> tuple[int, list[Path]]:
     """Execute batch import with progress bar.
 
@@ -211,6 +216,7 @@ def run_batch_import(
             gallery_dir,
             link_mode,
             dry_run,
+            max_workers=max_workers,
             on_start=progress.on_start,
             on_end=lambda name, success, errors: progress.on_end(
                 name, success=success, error_labels=errors

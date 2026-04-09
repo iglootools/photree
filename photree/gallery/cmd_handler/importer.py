@@ -19,6 +19,7 @@ def run_single_import(
     *,
     on_stage_start: Callable[[str], None] | None = None,
     on_stage_end: Callable[[str], None] | None = None,
+    max_workers: int | None = None,
 ) -> AlbumImportResult:
     """Execute a single album import with optional stage callbacks.
 
@@ -31,6 +32,7 @@ def run_single_import(
         dry_run=dry_run,
         on_stage_start=on_stage_start,
         on_stage_end=on_stage_end,
+        max_workers=max_workers,
     )
 
 
@@ -50,6 +52,7 @@ def run_batch_import(
     *,
     on_start: Callable[[str], None] | None = None,
     on_end: Callable[[str, bool, tuple[str, ...]], None] | None = None,
+    max_workers: int | None = None,
 ) -> BatchImportResult:
     """Import multiple albums into a gallery.
 
@@ -69,6 +72,7 @@ def run_batch_import(
                 gallery_dir=gallery_dir,
                 link_mode=link_mode,
                 dry_run=dry_run,
+                max_workers=max_workers,
             )
             if on_end:
                 on_end(album_name, True, ())

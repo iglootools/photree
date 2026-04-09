@@ -18,6 +18,7 @@ def refresh_jpeg(
     convert_file: Callable[..., Path | None] = convert_single_file,
     on_file_start: Callable[[str], None] | None = None,
     on_file_end: Callable[[str, bool], None] | None = None,
+    max_workers: int | None = None,
 ) -> RefreshResult:
     """Refresh ``{name}-jpg/`` from ``{name}-img/``.
 
@@ -35,4 +36,5 @@ def refresh_jpeg(
         convert_file=convert_file,
         on_file_start=on_file_start,
         on_file_end=on_file_end,
+        max_workers=max_workers,
     )

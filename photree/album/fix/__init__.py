@@ -133,6 +133,7 @@ def run_fix(
     on_refresh_browsable_stage_end: Callable[[str], None] | None = None,
     on_refresh_jpeg_file_start: Callable[[str], None] | None = None,
     on_refresh_jpeg_file_end: Callable[[str, bool], None] | None = None,
+    max_workers: int | None = None,
 ) -> FixResult:
     """Run selected fix operations on a single album.
 
@@ -171,6 +172,7 @@ def run_fix(
                 dry_run=dry_run,
                 on_stage_start=on_refresh_browsable_stage_start,
                 on_stage_end=on_refresh_browsable_stage_end,
+                max_workers=max_workers,
             )
             total_heic += result.heic.copied
             total_mov += result.mov.copied
@@ -197,6 +199,7 @@ def run_fix(
                 dry_run=dry_run,
                 on_file_start=on_refresh_jpeg_file_start,
                 on_file_end=on_refresh_jpeg_file_end,
+                max_workers=max_workers,
             )
             total_converted += result_jpeg.converted
             total_copied += result_jpeg.copied

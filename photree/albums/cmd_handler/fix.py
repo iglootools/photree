@@ -37,6 +37,7 @@ def batch_fix(
     display_fn: Callable[[Path], str] = lambda p: p.name,
     on_start: Callable[[str], None] | None = None,
     on_end: Callable[[str, bool], None] | None = None,
+    max_workers: int | None = None,
 ) -> BatchFixResult:
     """Fix multiple albums and return aggregated results.
 
@@ -68,6 +69,7 @@ def batch_fix(
                     refresh_jpeg_flag=refresh_jpeg,
                     rm_upstream_flag=rm_upstream,
                     rm_orphan_flag=rm_orphan,
+                    max_workers=max_workers,
                 )
                 lines = format_fix_result(result)
                 if lines:
