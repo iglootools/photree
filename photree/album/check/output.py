@@ -400,9 +400,7 @@ def format_exif_cache_check(check: ExifCacheStateCheck, indent: str = "    ") ->
     return "\n".join(
         [
             f"{CROSS} exif cache ({check.issue_count} issue(s))",
-            *_format_issue_group("uncached files", check.uncached, indent),
-            *_format_issue_group("stale entries", check.stale_entries, indent),
-            *_format_issue_group("stale mtimes", check.stale_mtimes, indent),
+            *_format_issue_group("missing cache", check.missing_sources, indent),
             (
                 f"{indent}Run 'photree album refresh' or"
                 " 'photree album check --refresh-exif-cache' to fix."
