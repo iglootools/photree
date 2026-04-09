@@ -23,6 +23,7 @@ from pathlib import Path
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from .exif import read_exif_timestamps_by_file
+from .exif_cache.store import load_exif_cache
 from .store.media_sources_discovery import (
     discover_browsable_media_files,
     discover_media_sources,
@@ -517,14 +518,14 @@ def check_exif_date_match(
 ) -> ExifTimestampCheck | None:
     """Check EXIF timestamps of all media files against the album date.
 
-    Returns ``None`` if no media files found or no timestamps could be read.
-    When *exiftool* is provided, the persistent process is reused.
-    """
-    files = discover_browsable_media_files(album_dir)
-    if not files:
-        return None
+    Reads from the EXIF cache when available and fresh. Falls back to
+    exiftool when the cache is missing or stale.
 
-    file_timestamps = read_exif_timestamps_by_file(files, exiftool=exiftool)
+    Returns ``None`` if no media files found or no timestamps could be read.
+    """
+    file_timestamps = _read_timestamps_from_cache_or_exiftool(
+        album_dir, exiftool=exiftool
+    )
     if not file_timestamps:
         return None
 
@@ -561,6 +562,67 @@ def check_exif_date_match(
         mismatches=mismatches,
         no_exact_album_date_match=no_exact_match,
     )
+
+
+# ---------------------------------------------------------------------------
+# EXIF cache integration
+# ---------------------------------------------------------------------------
+
+
+def _read_timestamps_from_cache_or_exiftool(
+    album_dir: Path,
+    *,
+    exiftool: ExifToolHelper | None,
+) -> list[tuple[Path, datetime]]:
+    """Read timestamps from EXIF cache if fresh, else fall back to exiftool."""
+    cached = _try_read_from_cache(album_dir)
+    if cached is not None:
+        return cached
+
+    files = discover_browsable_media_files(album_dir)
+    if not files:
+        return []
+    return read_exif_timestamps_by_file(files, exiftool=exiftool)
+
+
+def _try_read_from_cache(album_dir: Path) -> list[tuple[Path, datetime]] | None:
+    """Try to read all timestamps from the EXIF cache.
+
+    Returns ``None`` if the cache is missing, incomplete, or stale
+    (any file's mtime differs from the cached value).
+    """
+    media_sources = discover_media_sources(album_dir)
+    if not media_sources:
+        return None
+
+    all_timestamps: list[tuple[Path, datetime]] = []
+
+    for ms in media_sources:
+        cache = load_exif_cache(album_dir, ms.name)
+        if cache is None:
+            return None  # no cache for this source → fall back
+
+        for key, entry in cache.files.items():
+            # Verify mtime is still fresh
+            file_path = album_dir / entry.file_name
+            # entry.file_name may be relative (e.g. "main-jpg/IMG_0410.jpg")
+            # but the cache stores just the basename — resolve from browsable dirs
+            for subdir in (ms.jpg_dir, ms.vid_dir):
+                candidate = album_dir / subdir / entry.file_name
+                if candidate.is_file():
+                    file_path = candidate
+                    break
+
+            if not file_path.is_file():
+                return None  # file missing → cache stale
+            if file_path.stat().st_mtime != entry.mtime:
+                return None  # mtime changed → cache stale
+
+            if entry.timestamp is not None:
+                ts = datetime.fromisoformat(entry.timestamp)
+                all_timestamps.append((file_path, ts))
+
+    return all_timestamps
 
 
 # ---------------------------------------------------------------------------
