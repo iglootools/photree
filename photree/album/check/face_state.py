@@ -15,7 +15,7 @@ from ..faces.store import (
 )
 from ..store.media_sources import dedup_media_dict
 from ..store.media_sources_discovery import discover_media_sources
-from ..store.protocol import IMG_EXTENSIONS, IOS_IMG_EXTENSIONS
+from ..store.protocol import IMG_EXTENSIONS, IOS_IMG_EXTENSIONS, MediaSource
 from ...common.fs import list_files
 
 
@@ -68,7 +68,6 @@ def check_face_state(
     if not media_sources:
         return None
 
-    # Check if any face data exists at all
     has_any_face_data = any(
         state_path(album_dir, ms.name).is_file()
         or data_path(album_dir, ms.name).is_file()
@@ -77,82 +76,132 @@ def check_face_state(
     if not has_any_face_data:
         return None
 
-    all_unprocessed: list[str] = []
-    all_stale_entries: list[str] = []
-    all_missing_thumbs: list[str] = []
-    all_stale_thumbs: list[str] = []
-    all_npz_yaml_errors: list[str] = []
-    any_model_mismatch = False
-
-    for ms in media_sources:
-        state = load_face_state(album_dir, ms.name)
-        if state is None:
-            # No state file but data exists for other sources — skip
-            continue
-
-        # Check model version
-        if state.model_name != model_name or state.model_version != model_version:
-            any_model_mismatch = True
-
-        # Scan current images on disk
-        img_ext = IOS_IMG_EXTENSIONS if ms.is_ios else IMG_EXTENSIONS
-        current_files = dedup_media_dict(
-            list_files(album_dir / ms.orig_img_dir), img_ext, ms.key_fn
-        )
-        current_keys = set(current_files.keys())
-        processed_keys = set(state.processed_keys.keys())
-
-        # Unprocessed images
-        unprocessed = sorted(current_keys - processed_keys)
-        all_unprocessed.extend(f"{ms.name}:{k}" for k in unprocessed)
-
-        # Stale entries (in state but not on disk)
-        stale = sorted(processed_keys - current_keys)
-        all_stale_entries.extend(f"{ms.name}:{k}" for k in stale)
-
-        # Thumbnail checks
-        thumb_dir = thumbs_dir(album_dir, ms.name)
-        for key, entry in state.processed_keys.items():
-            if key not in current_keys:
-                continue  # already caught as stale
-            thumb = thumb_dir / f"{key}.jpg"
-            if not thumb.is_file():
-                all_missing_thumbs.append(f"{ms.name}:{key}")
-            else:
-                orig = album_dir / ms.orig_img_dir / entry.file_name
-                if orig.is_file() and orig.stat().st_mtime != entry.mtime:
-                    all_stale_thumbs.append(f"{ms.name}:{key}")
-
-        # .npz / .yaml sync check
-        face_data = load_face_data(album_dir, ms.name)
-        if face_data is not None:
-            npz_keys = set(face_data.keys)
-            state_keys_with_faces = {
-                k for k, v in state.processed_keys.items() if v.face_count > 0
-            }
-            if npz_keys != state_keys_with_faces:
-                all_npz_yaml_errors.append(
-                    f"{ms.name}: .npz keys don't match .yaml processed-keys"
-                )
-
-            # Array length consistency
-            if not (
-                len(face_data.keys)
-                == len(face_data.face_indices)
-                == len(face_data.det_scores)
-                == face_data.bboxes.shape[0]
-                == face_data.landmarks.shape[0]
-                == face_data.embeddings.shape[0]
-            ):
-                all_npz_yaml_errors.append(
-                    f"{ms.name}: .npz array lengths inconsistent"
-                )
+    per_source = [
+        _check_source(album_dir, ms, model_name=model_name, model_version=model_version)
+        for ms in media_sources
+    ]
 
     return FaceStateCheck(
-        unprocessed=tuple(all_unprocessed),
-        stale_entries=tuple(all_stale_entries),
-        missing_thumbs=tuple(all_missing_thumbs),
-        stale_thumbs=tuple(all_stale_thumbs),
-        model_mismatch=any_model_mismatch,
-        npz_yaml_sync_errors=tuple(all_npz_yaml_errors),
+        unprocessed=tuple(s for r in per_source for s in r.unprocessed),
+        stale_entries=tuple(s for r in per_source for s in r.stale_entries),
+        missing_thumbs=tuple(s for r in per_source for s in r.missing_thumbs),
+        stale_thumbs=tuple(s for r in per_source for s in r.stale_thumbs),
+        model_mismatch=any(r.model_mismatch for r in per_source),
+        npz_yaml_sync_errors=tuple(
+            s for r in per_source for s in r.npz_yaml_sync_errors
+        ),
+    )
+
+
+@dataclass(frozen=True)
+class _SourceCheck:
+    """Per-media-source face state check result."""
+
+    unprocessed: tuple[str, ...]
+    stale_entries: tuple[str, ...]
+    missing_thumbs: tuple[str, ...]
+    stale_thumbs: tuple[str, ...]
+    model_mismatch: bool
+    npz_yaml_sync_errors: tuple[str, ...]
+
+
+_EMPTY_SOURCE_CHECK = _SourceCheck(
+    unprocessed=(),
+    stale_entries=(),
+    missing_thumbs=(),
+    stale_thumbs=(),
+    model_mismatch=False,
+    npz_yaml_sync_errors=(),
+)
+
+
+def _check_source(
+    album_dir: Path,
+    ms: MediaSource,
+    *,
+    model_name: str,
+    model_version: str,
+) -> _SourceCheck:
+    """Validate face state for a single media source."""
+    state = load_face_state(album_dir, ms.name)
+    if state is None:
+        return _EMPTY_SOURCE_CHECK
+
+    img_ext = IOS_IMG_EXTENSIONS if ms.is_ios else IMG_EXTENSIONS
+    current_files = dedup_media_dict(
+        list_files(album_dir / ms.orig_img_dir), img_ext, ms.key_fn
+    )
+    current_keys = set(current_files.keys())
+    processed_keys = set(state.processed_keys.keys())
+
+    thumb_dir_path = thumbs_dir(album_dir, ms.name)
+
+    return _SourceCheck(
+        unprocessed=tuple(
+            f"{ms.name}:{k}" for k in sorted(current_keys - processed_keys)
+        ),
+        stale_entries=tuple(
+            f"{ms.name}:{k}" for k in sorted(processed_keys - current_keys)
+        ),
+        missing_thumbs=tuple(
+            f"{ms.name}:{key}"
+            for key in state.processed_keys
+            if key in current_keys and not (thumb_dir_path / f"{key}.jpg").is_file()
+        ),
+        stale_thumbs=tuple(
+            f"{ms.name}:{key}"
+            for key, entry in state.processed_keys.items()
+            if key in current_keys
+            and (thumb_dir_path / f"{key}.jpg").is_file()
+            and (album_dir / ms.orig_img_dir / entry.file_name).is_file()
+            and (album_dir / ms.orig_img_dir / entry.file_name).stat().st_mtime
+            != entry.mtime
+        ),
+        model_mismatch=(
+            state.model_name != model_name or state.model_version != model_version
+        ),
+        npz_yaml_sync_errors=_check_npz_yaml_sync(album_dir, ms.name, state),
+    )
+
+
+def _check_npz_yaml_sync(
+    album_dir: Path,
+    ms_name: str,
+    state: object,
+) -> tuple[str, ...]:
+    """Check .npz/.yaml consistency for a media source."""
+    from ..faces.protocol import FaceProcessingState
+
+    if not isinstance(state, FaceProcessingState):
+        return ()
+
+    face_data = load_face_data(album_dir, ms_name)
+    if face_data is None:
+        return ()
+
+    npz_keys = set(face_data.keys)
+    state_keys_with_faces = {
+        k for k, v in state.processed_keys.items() if v.face_count > 0
+    }
+
+    return tuple(
+        [
+            *(
+                [f"{ms_name}: .npz keys don't match .yaml processed-keys"]
+                if npz_keys != state_keys_with_faces
+                else []
+            ),
+            *(
+                [f"{ms_name}: .npz array lengths inconsistent"]
+                if not (
+                    len(face_data.keys)
+                    == len(face_data.face_indices)
+                    == len(face_data.det_scores)
+                    == face_data.bboxes.shape[0]
+                    == face_data.landmarks.shape[0]
+                    == face_data.embeddings.shape[0]
+                )
+                else []
+            ),
+        ]
     )

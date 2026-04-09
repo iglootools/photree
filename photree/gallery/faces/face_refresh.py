@@ -7,11 +7,14 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
+from uuid6 import uuid7
 
+from ...album.faces.protocol import FACES_DIR
 from ...album.faces.store import load_face_data
 from ...album.store.album_discovery import discover_albums
 from ...album.store.metadata import load_album_metadata
 from ...albums.index import AlbumIndex, build_album_index
+from ...fsprotocol import ALBUMS_DIR, PHOTREE_DIR
 from .clustering import (
     assign_to_nearest_cluster,
     build_faiss_index,
@@ -38,8 +41,6 @@ from .protocol import (
     FaceManifest,
     FaceReference,
 )
-
-from uuid6 import uuid7
 
 # ---------------------------------------------------------------------------
 # Stage constants
@@ -127,7 +128,7 @@ def refresh_face_clusters(
 
     # ── Stage 1: scan-face-data ──
     _notify(on_stage_start, STAGE_SCAN_FACE_DATA)
-    albums_dir = gallery_dir / "albums"
+    albums_dir = gallery_dir / ALBUMS_DIR
     album_dirs = discover_albums(albums_dir)
     album_index = build_album_index(album_dirs)
 
@@ -495,7 +496,7 @@ def _compute_changes(
         album_id = metadata.id
 
         # Find all .npz files for this album
-        faces_dir = album_dir / ".photree" / "faces"
+        faces_dir = album_dir / PHOTREE_DIR / FACES_DIR
         if not faces_dir.is_dir():
             continue
 
