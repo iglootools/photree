@@ -8,6 +8,14 @@ from typing import Annotated, Optional
 import typer
 
 from . import gallery_app
+from ...album.faces.protocol import FACES_DIR
+from ...album.store.album_discovery import discover_albums
+from ...album.store.metadata import load_album_metadata
+from ...albums.cli.batch_ops import run_batch_check
+from ...albums.cli.ops import resolve_check_batch_albums
+from ...collection.check import check_all_collections
+from ...common.formatting import CHECK, CROSS
+from ...common.fs import display_path
 from ...clihelpers.options import (
     CHECK_DATE_PART_COLLISION_OPTION,
     CHECK_EXIF_DATE_MATCH_OPTION,
@@ -17,18 +25,14 @@ from ...clihelpers.options import (
     FATAL_SIDECAR_OPTION,
     FATAL_WARNINGS_OPTION,
 )
-from ...albums.cli.batch_ops import run_batch_check
-from ...albums.cli.ops import resolve_check_batch_albums
-from ...collection.check import check_all_collections
-from ...common.formatting import CHECK, CROSS
-from ...album.store.album_discovery import discover_albums
-from ...album.store.metadata import load_album_metadata
+from ...fsprotocol import ALBUMS_DIR, PHOTREE_DIR
 from ..faces.manifest import (
     compute_npz_checksum,
     load_checksums,
     load_clusters,
     load_manifest,
 )
+from ..faces.protocol import FaceClusteringResult
 from .ops import resolve_gallery_or_exit
 
 
@@ -68,86 +72,149 @@ def check_cmd(
         check_exif_date_match=check_exif_date_match,
     )
 
-    # Collection checks
+    _check_collections(resolved)
+    _check_face_clusters(resolved)
+
+
+# ---------------------------------------------------------------------------
+# Collection checks
+# ---------------------------------------------------------------------------
+
+
+def _check_collections(gallery_dir: Path) -> None:
+    """Run collection checks and print results."""
     cwd = Path.cwd()
-    col_results = check_all_collections(resolved)
-    if col_results:
-        typer.echo("\nCollections:")
-        col_failed = 0
-        for result in col_results:
-            from ...common.fs import display_path
+    col_results = check_all_collections(gallery_dir)
+    if not col_results:
+        return
 
-            name = display_path(result.collection_dir, cwd)
-            if result.success:
-                typer.echo(f"  {CHECK} {name}")
-            else:
-                col_failed += 1
-                typer.echo(f"  {CROSS} {name}")
-                for issue in result.issues:
-                    typer.echo(f"      {issue.message}")
-        if col_failed:
-            raise typer.Exit(code=1)
+    typer.echo("\nCollections:")
+    col_failed = sum(1 for r in col_results if not r.success)
 
-    # Face cluster checks
-    manifest = load_manifest(resolved)
-    clusters = load_clusters(resolved)
-    if manifest is not None and clusters is not None:
-        typer.echo("\nFace clusters:")
-        face_issues: list[str] = []
-
-        # Check face indices within bounds
-        manifest_size = len(manifest.faces)
-        for cluster in clusters.clusters:
-            out_of_bounds = [
-                idx for idx in cluster.face_indices if idx < 0 or idx >= manifest_size
-            ]
-            if out_of_bounds:
-                face_issues.append(
-                    f"cluster {cluster.id[:12]}...: "
-                    f"{len(out_of_bounds)} face index(es) out of bounds"
-                )
-
-        # Check face count consistency
-        if clusters.face_count != manifest_size:
-            face_issues.append(
-                f"face count mismatch: clusters.yaml says {clusters.face_count}, "
-                f"manifest has {manifest_size}"
-            )
-
-        # Check album face data checksums match gallery index
-        stored_checksums = load_checksums(resolved)
-        if stored_checksums is not None:
-            albums_dir = resolved / "albums"
-            for album_dir in discover_albums(albums_dir):
-                meta = load_album_metadata(album_dir)
-                if meta is None:
-                    continue
-                album_checksums = stored_checksums.albums.get(meta.id, {})
-                faces_dir = album_dir / ".photree" / "faces"
-                if not faces_dir.is_dir():
-                    continue
-                for npz_file in sorted(faces_dir.glob("*.npz")):
-                    ms_name = npz_file.stem
-                    stored = album_checksums.get(ms_name)
-                    if stored is None:
-                        face_issues.append(
-                            f"album {meta.id[:12]}.../{ms_name}: "
-                            "face data not in gallery index"
-                        )
-                    elif stored != compute_npz_checksum(npz_file):
-                        face_issues.append(
-                            f"album {meta.id[:12]}.../{ms_name}: "
-                            "checksum mismatch (album face data changed)"
-                        )
-
-        if face_issues:
-            typer.echo(f"  {CROSS} face clusters ({len(face_issues)} issue(s))")
-            for issue in face_issues:
-                typer.echo(f"      {issue}")
-            typer.echo("    Run 'photree gallery cluster-faces --redetect' to rebuild.")
-            raise typer.Exit(code=1)
+    for result in col_results:
+        name = display_path(result.collection_dir, cwd)
+        if result.success:
+            typer.echo(f"  {CHECK} {name}")
         else:
-            typer.echo(
-                f"  {CHECK} face clusters "
-                f"({clusters.face_count} face(s), {clusters.cluster_count} cluster(s))"
-            )
+            typer.echo(f"  {CROSS} {name}")
+            for issue in result.issues:
+                typer.echo(f"      {issue.message}")
+
+    if col_failed:
+        raise typer.Exit(code=1)
+
+
+# ---------------------------------------------------------------------------
+# Face cluster checks
+# ---------------------------------------------------------------------------
+
+
+def _check_face_clusters(gallery_dir: Path) -> None:
+    """Validate face cluster manifest consistency."""
+    manifest = load_manifest(gallery_dir)
+    clusters = load_clusters(gallery_dir)
+    if manifest is None or clusters is None:
+        return
+
+    typer.echo("\nFace clusters:")
+    issues = [
+        *_check_face_index_bounds(clusters, len(manifest.faces)),
+        *_check_face_count_consistency(clusters, len(manifest.faces)),
+        *_check_album_checksums(gallery_dir),
+    ]
+
+    if issues:
+        typer.echo(f"  {CROSS} face clusters ({len(issues)} issue(s))")
+        for issue in issues:
+            typer.echo(f"      {issue}")
+        typer.echo("    Run 'photree gallery cluster-faces --redetect' to rebuild.")
+        raise typer.Exit(code=1)
+    else:
+        typer.echo(
+            f"  {CHECK} face clusters "
+            f"({clusters.face_count} face(s),"
+            f" {clusters.cluster_count} cluster(s))"
+        )
+
+
+def _check_face_index_bounds(
+    clusters: FaceClusteringResult, manifest_size: int
+) -> list[str]:
+    """Check that all face indices in clusters are within manifest bounds."""
+    return [
+        f"cluster {cluster.id[:12]}...: {len(oob)} face index(es) out of bounds"
+        for cluster in clusters.clusters
+        for oob in [
+            [idx for idx in cluster.face_indices if idx < 0 or idx >= manifest_size]
+        ]
+        if oob
+    ]
+
+
+def _check_face_count_consistency(
+    clusters: FaceClusteringResult, manifest_size: int
+) -> list[str]:
+    """Check that clusters.face_count matches manifest size."""
+    return (
+        [
+            f"face count mismatch: clusters.yaml says {clusters.face_count}, "
+            f"manifest has {manifest_size}"
+        ]
+        if clusters.face_count != manifest_size
+        else []
+    )
+
+
+def _check_album_checksums(gallery_dir: Path) -> list[str]:
+    """Check that album face data checksums match the gallery index."""
+    stored_checksums = load_checksums(gallery_dir)
+    if stored_checksums is None:
+        return []
+
+    albums_dir = gallery_dir / ALBUMS_DIR
+    return [
+        issue
+        for album_dir in discover_albums(albums_dir)
+        for issue in _check_single_album_checksums(album_dir, stored_checksums.albums)
+    ]
+
+
+def _check_single_album_checksums(
+    album_dir: Path,
+    stored_albums: dict[str, dict[str, str]],
+) -> list[str]:
+    """Check face data checksums for a single album."""
+    meta = load_album_metadata(album_dir)
+    if meta is None:
+        return []
+
+    faces_dir = album_dir / PHOTREE_DIR / FACES_DIR
+    if not faces_dir.is_dir():
+        return []
+
+    album_checksums = stored_albums.get(meta.id, {})
+    return [
+        issue
+        for npz_file in sorted(faces_dir.glob("*.npz"))
+        for issue in [
+            _checksum_issue(meta.id, npz_file.stem, album_checksums, npz_file)
+        ]
+        if issue is not None
+    ]
+
+
+def _checksum_issue(
+    album_id: str,
+    ms_name: str,
+    album_checksums: dict[str, str],
+    npz_file: Path,
+) -> str | None:
+    """Return an issue string if a checksum is missing or mismatched."""
+    stored = album_checksums.get(ms_name)
+    prefix = f"album {album_id[:12]}.../{ms_name}"
+    if stored is None:
+        return f"{prefix}: face data not in gallery index"
+    elif stored != compute_npz_checksum(npz_file):
+        return f"{prefix}: checksum mismatch (album face data changed)"
+    else:
+        return None
