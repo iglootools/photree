@@ -36,7 +36,10 @@ def _has_any(album_dir: Path, group: tuple[str, ...]) -> bool:
     return any((album_dir / d).is_dir() for d in group)
 
 
-def check_album_dir_structure(album_dir: Path) -> AlbumDirCheck:
+def check_album_dir_structure(
+    album_dir: Path,
+    media_sources: list[MediaSource] | None = None,
+) -> AlbumDirCheck:
     """Check which expected album subdirectories are present in *album_dir*.
 
     Iterates over all media sources (iOS and std) and checks each media
@@ -54,7 +57,7 @@ def check_album_dir_structure(album_dir: Path) -> AlbumDirCheck:
     yet exist on disk, archive sub-directories will naturally be reported as
     missing or optional depending on which browsable directories are present.
     """
-    media_sources = discover_media_sources(album_dir)
+    media_sources = media_sources or discover_media_sources(album_dir)
     if not media_sources:
         # No media sources found — report missing for main media source
         return AlbumDirCheck(

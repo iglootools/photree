@@ -108,12 +108,13 @@ def check_jpeg_dir(
 
 def check_album_jpeg_integrity(
     album_dir: Path,
+    media_sources: list[MediaSource] | None = None,
 ) -> AlbumJpegIntegrityResult:
     """Check ``{name}-jpg/`` for every media source (iOS + std).
 
     Only checks media sources that have a ``{name}-img/`` directory.
     """
-    media_sources = discover_media_sources(album_dir)
+    media_sources = media_sources or discover_media_sources(album_dir)
     return AlbumJpegIntegrityResult(
         by_media_source=tuple(
             (

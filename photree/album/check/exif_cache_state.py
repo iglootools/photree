@@ -34,12 +34,15 @@ class ExifCacheStateCheck:
         return len(self.uncached) + len(self.stale_entries) + len(self.stale_mtimes)
 
 
-def check_exif_cache_state(album_dir: Path) -> ExifCacheStateCheck | None:
+def check_exif_cache_state(
+    album_dir: Path,
+    media_sources: list[MediaSource] | None = None,
+) -> ExifCacheStateCheck | None:
     """Validate EXIF cache state for an album.
 
     Returns ``None`` if no EXIF cache exists.
     """
-    media_sources = discover_media_sources(album_dir)
+    media_sources = media_sources or discover_media_sources(album_dir)
     if not media_sources:
         return None
 

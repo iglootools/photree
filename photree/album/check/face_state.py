@@ -63,13 +63,14 @@ def check_face_state(
     *,
     model_name: str = DEFAULT_MODEL_NAME,
     model_version: str = DEFAULT_MODEL_VERSION,
+    media_sources: list[MediaSource] | None = None,
 ) -> FaceStateCheck | None:
     """Validate face detection state for an album.
 
     Returns ``None`` if no face data exists (not an error — just means
     face detection hasn't been run yet).
     """
-    media_sources = discover_media_sources(album_dir)
+    media_sources = media_sources or discover_media_sources(album_dir)
     if not media_sources:
         return None
 

@@ -287,13 +287,14 @@ def check_album_integrity(
     *,
     checksum: bool = True,
     on_file_checked: Callable[[str, bool], None] | None = None,
+    media_sources: list[MediaSource] | None = None,
 ) -> AlbumIntegrityResult:
     """Run integrity checks for all media sources in an album.
 
     Dispatches to iOS or std checks based on each media source's type.
     Legacy std sources without archives are skipped.
     """
-    media_sources = discover_media_sources(album_dir)
+    media_sources = media_sources or discover_media_sources(album_dir)
     results: list[tuple[MediaSource, MediaSourceIntegrityResult]] = []
 
     for ms in media_sources:
@@ -354,21 +355,31 @@ def run_album_check(
         album_id=metadata.id if metadata is not None else None,
     )
 
-    dir_check = check_album_dir_structure(album_dir)
-    unexpected_dirs = check_unexpected_dirs(album_dir)
+    dir_check = check_album_dir_structure(album_dir, media_sources=media_sources)
+    unexpected_dirs = check_unexpected_dirs(album_dir, media_sources=media_sources)
 
-    media_metadata_check = check_media_metadata(album_dir) if media_sources else None
+    media_metadata_check = (
+        check_media_metadata(album_dir, media_sources=media_sources)
+        if media_sources
+        else None
+    )
 
     integrity = (
         check_album_integrity(
-            album_dir, checksum=checksum, on_file_checked=on_file_checked
+            album_dir,
+            checksum=checksum,
+            on_file_checked=on_file_checked,
+            media_sources=media_sources,
         )
         if media_sources
         else None
     )
 
-    # JPEG check runs for ALL media sources (iOS + std)
-    jpeg_check = check_album_jpeg_integrity(album_dir) if media_sources else None
+    jpeg_check = (
+        check_album_jpeg_integrity(album_dir, media_sources=media_sources)
+        if media_sources
+        else None
+    )
 
     naming = None
     if check_naming_flag:
@@ -385,8 +396,8 @@ def run_album_check(
             exif_check=exif_check,
         )
 
-    face_state = check_face_state(album_dir)
-    exif_cache_state = check_exif_cache_state(album_dir)
+    face_state = check_face_state(album_dir, media_sources=media_sources)
+    exif_cache_state = check_exif_cache_state(album_dir, media_sources=media_sources)
 
     return AlbumPreflightResult(
         sips_available=sips_available,
