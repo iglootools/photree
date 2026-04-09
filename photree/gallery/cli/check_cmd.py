@@ -21,6 +21,7 @@ from ...albums.cli.batch_ops import run_batch_check
 from ...albums.cli.ops import resolve_check_batch_albums
 from ...collection.check import check_all_collections
 from ...common.formatting import CHECK, CROSS
+from ..faces.manifest import load_clusters, load_manifest
 from .ops import resolve_gallery_or_exit
 
 
@@ -79,3 +80,41 @@ def check_cmd(
                     typer.echo(f"      {issue.message}")
         if col_failed:
             raise typer.Exit(code=1)
+
+    # Face cluster checks
+    manifest = load_manifest(resolved)
+    clusters = load_clusters(resolved)
+    if manifest is not None and clusters is not None:
+        typer.echo("\nFace clusters:")
+        face_issues: list[str] = []
+
+        # Check face indices within bounds
+        manifest_size = len(manifest.faces)
+        for cluster in clusters.clusters:
+            out_of_bounds = [
+                idx for idx in cluster.face_indices if idx < 0 or idx >= manifest_size
+            ]
+            if out_of_bounds:
+                face_issues.append(
+                    f"cluster {cluster.id[:12]}...: "
+                    f"{len(out_of_bounds)} face index(es) out of bounds"
+                )
+
+        # Check face count consistency
+        if clusters.face_count != manifest_size:
+            face_issues.append(
+                f"face count mismatch: clusters.yaml says {clusters.face_count}, "
+                f"manifest has {manifest_size}"
+            )
+
+        if face_issues:
+            typer.echo(f"  {CROSS} face clusters ({len(face_issues)} issue(s))")
+            for issue in face_issues:
+                typer.echo(f"      {issue}")
+            typer.echo("    Run 'photree gallery cluster-faces --redetect' to rebuild.")
+            raise typer.Exit(code=1)
+        else:
+            typer.echo(
+                f"  {CHECK} face clusters "
+                f"({clusters.face_count} face(s), {clusters.cluster_count} cluster(s))"
+            )
