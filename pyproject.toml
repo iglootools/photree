@@ -54,6 +54,9 @@ target-version = "py312"
 markers = [
     "integration_fs: filesystem integration tests (full workflow)",
 ]
+filterwarnings = [
+    "ignore::DeprecationWarning:importlib._bootstrap",  # FAISS SWIG bindings
+]
 
 [tool.pyright]
 pythonVersion = "3.12"
