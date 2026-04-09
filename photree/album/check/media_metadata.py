@@ -1,4 +1,4 @@
-"""Media metadata check — verify media.yaml is in sync with directory structure."""
+"""Media metadata check — verify media-ids is in sync with directory structure."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ class MediaType(StrEnum):
 
 @dataclass(frozen=True)
 class UnmatchedKey:
-    """A media key present on disk but not in media.yaml, or vice versa."""
+    """A media key present on disk but not in media-ids, or vice versa."""
 
     media_source: str
     media_type: MediaType
@@ -64,9 +64,9 @@ class MediaMetadataCheck:
     image_count: int = 0
     video_count: int = 0
     new_keys: tuple[UnmatchedKey, ...] = ()
-    """Keys on disk but not in media.yaml."""
+    """Keys on disk but not in media-ids."""
     stale_keys: tuple[UnmatchedKey, ...] = ()
-    """Keys in media.yaml but not on disk."""
+    """Keys in media-ids but not on disk."""
     duplicate_ids: tuple[DuplicateId, ...] = ()
     """UUIDs that appear more than once within the album."""
 
@@ -196,7 +196,7 @@ def _find_duplicate_ids(uuids: list[str]) -> tuple[DuplicateId, ...]:
 
 
 def check_media_metadata(album_dir: Path) -> MediaMetadataCheck:
-    """Compare ``.photree/media.yaml`` against actual files on disk."""
+    """Compare ``.photree/media-ids`` against actual files on disk."""
     metadata = load_media_metadata(album_dir)
     if metadata is None:
         return MediaMetadataCheck(has_media_metadata=False)

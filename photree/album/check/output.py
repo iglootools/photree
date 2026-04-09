@@ -562,7 +562,7 @@ def format_album_preflight_troubleshoot(
             [
                 dedent(f"""\
                     photree album refresh {album_dir_flag}
-                      Generate or update media IDs in .photree/media.yaml.""")
+                      Generate or update media IDs in .photree/media-ids/.""")
             ]
             if result.media_metadata_check is not None
             and not result.media_metadata_check.in_sync

@@ -19,7 +19,7 @@ from ...fsprotocol import _BaseModel
 # ---------------------------------------------------------------------------
 
 ALBUM_YAML = "album.yaml"
-MEDIA_YAML = "media.yaml"
+MEDIA_IDS_DIR = "media-ids"
 
 SELECTION_DIR = "to-import"
 SELECTION_CSV = "to-import.csv"
