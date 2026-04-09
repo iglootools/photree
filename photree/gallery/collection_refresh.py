@@ -444,6 +444,31 @@ def _delete_orphaned_implicit(
 # ---------------------------------------------------------------------------
 
 
+@dataclass
+class _ImplicitIndex:
+    """Lookup structures for matching series groups to existing implicit collections."""
+
+    by_name: dict[str, _ExistingCollection]
+    by_title: dict[str, list[_ExistingCollection]]
+    active_ids: set[str]
+
+    @staticmethod
+    def build(existing: list[_ExistingCollection]) -> _ImplicitIndex:
+        implicit_cols = [
+            col
+            for col in existing
+            if col.metadata.lifecycle == CollectionLifecycle.IMPLICIT
+        ]
+        by_title: dict[str, list[_ExistingCollection]] = {}
+        for col in implicit_cols:
+            by_title.setdefault(parse_collection_name(col.name).title, []).append(col)
+        return _ImplicitIndex(
+            by_name={col.name: col for col in implicit_cols},
+            by_title=by_title,
+            active_ids=set(),
+        )
+
+
 def _refresh_implicit_collections(
     gallery_dir: Path,
     albums: list[_AlbumInfo],
@@ -457,34 +482,15 @@ def _refresh_implicit_collections(
 
     Returns (created, updated, renamed, deleted, errors).
     """
+    series_groups = _group_contiguous_series(albums)
+    index = _ImplicitIndex.build(existing)
+
     created: list[str] = []
     updated: list[str] = []
     renamed: list[tuple[str, str]] = []
     errors: list[CollectionRefreshError] = []
 
-    # Group albums into contiguous series runs
-    series_groups = _group_contiguous_series(albums)
-
-    # Index existing implicit collections
-    implicit_cols = [
-        col
-        for col in existing
-        if col.metadata.lifecycle == CollectionLifecycle.IMPLICIT
-    ]
-    # By exact name (for fast match when date range is unchanged)
-    implicit_by_name = {col.name: col for col in implicit_cols}
-    # By title (for match when date range changed but series title is the same)
-    # Multiple collections may share a title (non-contiguous series), so
-    # we store lists and match by overlap with the group's album IDs.
-    implicit_by_title: dict[str, list[_ExistingCollection]] = {}
-    for col in implicit_cols:
-        title = parse_collection_name(col.name).title
-        implicit_by_title.setdefault(title, []).append(col)
-
-    active_implicit_ids: set[str] = set()
-
     for group in series_groups:
-        # Non-private implicit collections exclude private albums
         non_private_albums = [a for a in group.albums if not a.parsed.private]
         if not non_private_albums:
             continue
@@ -493,62 +499,71 @@ def _refresh_implicit_collections(
         collection_name = _build_collection_name(group.series_title, album_dates)
         album_ids = sorted(a.album_id for a in non_private_albums)
 
-        # 1. Exact name match (date range unchanged)
-        existing_col = implicit_by_name.get(collection_name)
+        c, u, r, e = _process_series_group(
+            gallery_dir,
+            index,
+            existing,
+            group.series_title,
+            collection_name,
+            album_ids,
+            dry_run=dry_run,
+        )
+        created.extend(c)
+        updated.extend(u)
+        renamed.extend(r)
+        errors.extend(e)
 
-        # 2. Title match with member overlap (date range changed due to
-        #    albums added/removed — find the collection for this series
-        #    that shares at least one album with the current group)
-        if existing_col is None:
-            existing_col = _find_by_title_overlap(
-                implicit_by_title.get(group.series_title, []),
-                active_implicit_ids,
-                album_ids,
-            )
-
-        if existing_col is not None:
-            # Update existing implicit collection (may rename if date changed)
-            active_implicit_ids.add(existing_col.metadata.id)
-            _, renamed_pair, updated_name = _update_existing_implicit(
-                gallery_dir,
-                existing_col,
-                collection_name,
-                album_ids,
-                dry_run=dry_run,
-            )
-            if renamed_pair is not None:
-                renamed.append((existing_col.name, renamed_pair))
-            if updated_name is not None:
-                updated.append(updated_name)
-        else:
-            # 3. Rename detection (all members match — series title changed)
-            renamed_from = _find_renamed_implicit(
-                existing, active_implicit_ids, album_ids
-            )
-            if renamed_from is not None:
-                active_implicit_ids.add(renamed_from.metadata.id)
-                renamed.append(
-                    _apply_rename(
-                        gallery_dir,
-                        renamed_from,
-                        collection_name,
-                        album_ids,
-                        dry_run=dry_run,
-                    )
-                )
-            else:
-                # 4. Create new
-                result = _create_implicit(
-                    gallery_dir, collection_name, album_ids, dry_run=dry_run
-                )
-                if isinstance(result, CollectionRefreshError):
-                    errors.append(result)
-                else:
-                    created.append(result)
-
-    deleted = _delete_orphaned_implicit(existing, active_implicit_ids, dry_run=dry_run)
-
+    deleted = _delete_orphaned_implicit(existing, index.active_ids, dry_run=dry_run)
     return created, updated, renamed, deleted, errors
+
+
+def _process_series_group(
+    gallery_dir: Path,
+    index: _ImplicitIndex,
+    all_existing: list[_ExistingCollection],
+    series_title: str,
+    collection_name: str,
+    album_ids: list[str],
+    *,
+    dry_run: bool,
+) -> tuple[list[str], list[str], list[tuple[str, str]], list[CollectionRefreshError]]:
+    """Match a series group to an existing collection or create a new one.
+
+    Returns (created, updated, renamed, errors).
+    """
+    # 1. Exact name match / 2. Title match with member overlap
+    existing_col = index.by_name.get(collection_name) or _find_by_title_overlap(
+        index.by_title.get(series_title, []), index.active_ids, album_ids
+    )
+
+    if existing_col is not None:
+        index.active_ids.add(existing_col.metadata.id)
+        _, renamed_pair, updated_name = _update_existing_implicit(
+            gallery_dir, existing_col, collection_name, album_ids, dry_run=dry_run
+        )
+        return (
+            [],
+            [updated_name] if updated_name else [],
+            [(existing_col.name, renamed_pair)] if renamed_pair else [],
+            [],
+        )
+
+    # 3. Rename detection
+    renamed_from = _find_renamed_implicit(all_existing, index.active_ids, album_ids)
+    if renamed_from is not None:
+        index.active_ids.add(renamed_from.metadata.id)
+        pair = _apply_rename(
+            gallery_dir, renamed_from, collection_name, album_ids, dry_run=dry_run
+        )
+        return ([], [], [pair], [])
+
+    # 4. Create new
+    result = _create_implicit(gallery_dir, collection_name, album_ids, dry_run=dry_run)
+    match result:
+        case CollectionRefreshError():
+            return ([], [], [], [result])
+        case _:
+            return ([result], [], [], [])
 
 
 # ---------------------------------------------------------------------------
