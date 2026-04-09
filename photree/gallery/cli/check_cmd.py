@@ -125,22 +125,24 @@ def _check_collections(gallery_dir: Path) -> None:
 
 def _check_face_clusters(gallery_dir: Path) -> None:
     """Validate face cluster manifest consistency."""
-    manifest = load_manifest(gallery_dir)
-    clusters = load_clusters(gallery_dir)
-    if manifest is None or clusters is None:
-        return
-
     from ...clihelpers.progress import run_with_spinner
 
-    typer.echo("\nFace clusters:")
-    issues = run_with_spinner(
-        "Checking face clusters...",
-        lambda: [
+    def _run_check() -> tuple[FaceClusteringResult | None, list[str]]:
+        manifest = load_manifest(gallery_dir)
+        clusters = load_clusters(gallery_dir)
+        if manifest is None or clusters is None:
+            return None, []
+        return clusters, [
             *_check_face_index_bounds(clusters, len(manifest.faces)),
             *_check_face_count_consistency(clusters, len(manifest.faces)),
             *_check_album_checksums(gallery_dir),
-        ],
-    )
+        ]
+
+    typer.echo("\nFace clusters:")
+    clusters, issues = run_with_spinner("Checking face clusters...", _run_check)
+
+    if clusters is None:
+        return
 
     if issues:
         console.print(f"{CROSS} face clusters ({len(issues)} issue(s))")
