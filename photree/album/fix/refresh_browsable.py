@@ -11,7 +11,13 @@ from .. import browsable as browsable_module
 from .. import jpeg
 from ..browsable import RefreshBrowsableDirResult
 from ..jpeg import RefreshResult, convert_single_file
-from ..store.protocol import IMG_EXTENSIONS, VID_EXTENSIONS, MediaSource
+from ..live_photo import augment_browsable_img_with_live_photo_videos
+from ..store.protocol import (
+    IMG_EXTENSIONS,
+    IOS_VID_EXTENSIONS,
+    VID_EXTENSIONS,
+    MediaSource,
+)
 from .helpers import _delete_dir, _require_archive
 
 
@@ -69,6 +75,17 @@ def refresh_browsable(
         link_mode=link_mode,
         dry_run=dry_run,
     )
+    # Augment with Live Photo companion videos (iOS only)
+    if ms.is_ios:
+        augment_browsable_img_with_live_photo_videos(
+            album_dir / ms.orig_img_dir,
+            album_dir / ms.edit_img_dir,
+            browsable_img,
+            vid_extensions=IOS_VID_EXTENSIONS,
+            key_fn=ms.key_fn,
+            link_mode=link_mode,
+            dry_run=dry_run,
+        )
     if on_stage_end:
         on_stage_end("refresh-heic")
 

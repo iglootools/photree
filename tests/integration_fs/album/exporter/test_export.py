@@ -132,7 +132,9 @@ class TestExportIosMainJpg:
         album_dir = _setup_ios_album(tmp_path / "trip")
         target = tmp_path / "share" / "trip"
 
-        result = export_album(album_dir, target, album_layout=AlbumShareLayout.BROWSABLE_JPG)
+        result = export_album(
+            album_dir, target, album_layout=AlbumShareLayout.BROWSABLE_JPG
+        )
 
         assert result.album_type == "ios"
         # main-jpg/ and main-vid/ exported
@@ -163,7 +165,9 @@ class TestExportIosMain:
         album_dir = _setup_ios_album(tmp_path / "trip")
         target = tmp_path / "share" / "trip"
 
-        result = export_album(album_dir, target, album_layout=AlbumShareLayout.BROWSABLE)
+        result = export_album(
+            album_dir, target, album_layout=AlbumShareLayout.BROWSABLE
+        )
 
         assert result.album_type == "ios"
         # main-img/ -> img/
@@ -188,7 +192,9 @@ class TestExportIosMain:
         _setup_dir(album_dir / MAIN_MEDIA_SOURCE.vid_dir, ["IMG_0010.MOV"])
         target = tmp_path / "share" / "minimal"
 
-        result = export_album(album_dir, target, album_layout=AlbumShareLayout.BROWSABLE)
+        result = export_album(
+            album_dir, target, album_layout=AlbumShareLayout.BROWSABLE
+        )
 
         assert (target / "main-img" / "IMG_0001.HEIC").exists()
         assert (target / "main-jpg" / "IMG_0001.JPEG").exists()

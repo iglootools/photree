@@ -33,6 +33,19 @@ macOS Image Capture exports files from iOS devices in the following structure:
 - `IMG_O0115.MOV` (optional, only if edits) — sidecar for the edited video file
 - ProRes videos use the same `.MOV` container but are much larger (~663 MB vs ~45 MB).
 
+**Live Photos** (image + companion video):
+- `IMG_0410.HEIC` — the image component
+- `IMG_0410.MOV` — the companion video (~2-3 second clip)
+- `IMG_0410.AAE` — sidecar for the image
+- `IMG_E0410.HEIC` (optional, only if edits) — edited image
+- `IMG_O0410.AAE` (optional, only if edits) — edited image sidecar
+- `IMG_E0410.MOV` (optional, only if edits) — edited companion video
+- A Live Photo is detected when Image Capture contains both an image
+  and a video with the same number (e.g., IMG_0410.HEIC + IMG_0410.MOV).
+- During import, selecting either the image or the video automatically
+  imports both. Both files are stored together in `orig-img/` as a unit.
+- Only applies to iOS media sources.
+
 ## Album Naming Conventions
 
 Album directory names follow a structured format that encodes date, optional
@@ -264,13 +277,13 @@ The default media source is named `main`.
 
   # iOS media source "main"
   ios-main/               archive (iOS)
-    orig-img/             originals + AAE sidecars
+    orig-img/             originals + AAE sidecars + Live Photo companion videos
     edit-img/             edited variants (IMG_E*) + sidecars (IMG_O*)
-    orig-vid/             original videos
-    edit-vid/             edited videos
-  main-img/               browsable: best variant (edit if available, else orig)
+    orig-vid/             original standalone videos
+    edit-vid/             edited standalone videos
+  main-img/               browsable: best variant images + Live Photo videos
   main-jpg/               browsable: JPEG for sharing/web/compatibility
-  main-vid/               browsable: best variant video
+  main-vid/               browsable: best variant standalone video
 
   # iOS media source "bruno" (additional iOS source)
   ios-bruno/              archive (iOS) from bruno
@@ -305,10 +318,14 @@ directories at the top level are the browsable/shareable versions:
 
 - **`{name}-img/`**: For iOS and std media sources with archives, built from
   the best available variant (edited if present, otherwise original). For
-  legacy std media sources (no archive), this is the source of truth.
-- **`{name}-vid/`**: Same logic as `{name}-img/` but for videos.
+  iOS sources, Live Photo companion videos (`.MOV` files with matching
+  image keys) are also included alongside their images. For legacy std
+  media sources (no archive), this is the source of truth.
+- **`{name}-vid/`**: Same logic as `{name}-img/` but for standalone videos
+  only. Live Photo companion videos live in `{name}-img/` instead.
 - **`{name}-jpg/`**: JPEG versions for sharing/web. Generated from `{name}-img/`
   via HEIC/HEIF/DNG→JPEG conversion (sips). JPG/PNG files are copied as-is.
+  Live Photo companion videos are excluded (not convertible to JPEG).
 
 ## Selection Mechanism
 

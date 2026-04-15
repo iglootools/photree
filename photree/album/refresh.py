@@ -284,6 +284,8 @@ def _refresh_browsable_dirs(
         VID_EXTENSIONS,
     )
 
+    from .live_photo import augment_browsable_img_with_live_photo_videos
+
     for ms in media_sources:
         if not (album_dir / ms.archive_dir).is_dir():
             continue  # legacy std source — no archive to rebuild from
@@ -292,14 +294,8 @@ def _refresh_browsable_dirs(
         vid_ext = IOS_VID_EXTENSIONS if ms.is_ios else VID_EXTENSIONS
 
         # main-img
-        if force or not _browsable_is_fresh(
-            album_dir,
-            ms.orig_img_dir,
-            ms.edit_img_dir,
-            ms.img_dir,
-            extensions=img_ext,
-            key_fn=ms.key_fn,
-            link_mode=link_mode,
+        if force or not _browsable_img_is_fresh(
+            album_dir, ms, img_ext=img_ext, vid_ext=vid_ext, link_mode=link_mode
         ):
             if not dry_run:
                 refresh_browsable_dir(
@@ -311,6 +307,17 @@ def _refresh_browsable_dirs(
                     link_mode=link_mode,
                     dry_run=dry_run,
                 )
+                # Augment with Live Photo companion videos (iOS only)
+                if ms.is_ios:
+                    augment_browsable_img_with_live_photo_videos(
+                        album_dir / ms.orig_img_dir,
+                        album_dir / ms.edit_img_dir,
+                        album_dir / ms.img_dir,
+                        vid_extensions=vid_ext,
+                        key_fn=ms.key_fn,
+                        link_mode=link_mode,
+                        dry_run=dry_run,
+                    )
 
         # main-vid
         if force or not _browsable_is_fresh(
@@ -361,6 +368,86 @@ def _browsable_is_fresh(
         checksum=False,  # fast: file listing only, no content hashing
     )
     return result.success
+
+
+def _browsable_img_is_fresh(
+    album_dir: Path,
+    ms: MediaSource,
+    *,
+    img_ext: frozenset[str],
+    vid_ext: frozenset[str],
+    link_mode: LinkMode,
+) -> bool:
+    """Return True if the browsable img dir is consistent with archive sources.
+
+    For iOS media sources, accounts for Live Photo companion videos that
+    are expected to be present in the browsable img dir alongside images.
+    """
+    from .check.browsable import check_browsable_dir
+    from .check.ios import _filter_live_photo_extras
+
+    orig = album_dir / ms.orig_img_dir
+    if not orig.is_dir():
+        return True
+
+    result = check_browsable_dir(
+        orig,
+        album_dir / ms.edit_img_dir,
+        album_dir / ms.img_dir,
+        media_extensions=img_ext,
+        key_fn=ms.key_fn,
+        link_mode=link_mode,
+        checksum=False,
+    )
+
+    if not ms.is_ios:
+        return result.success
+
+    # For iOS, filter Live Photo videos from the "extra" list and verify
+    # they are all present in the browsable dir.
+    filtered = _filter_live_photo_extras(
+        result,
+        _live_photo_vid_filenames(album_dir, ms, img_ext, vid_ext),
+    )
+    live_missing = _missing_live_photo_videos(album_dir, ms, img_ext, vid_ext)
+    return filtered.success and not live_missing
+
+
+def _live_photo_vid_filenames(
+    album_dir: Path,
+    ms: MediaSource,
+    img_ext: frozenset[str],
+    vid_ext: frozenset[str],
+) -> frozenset[str]:
+    """Return expected Live Photo video filenames for a media source."""
+    from .live_photo import compute_live_photo_videos, detect_live_photo_keys
+
+    orig = album_dir / ms.orig_img_dir
+    live_keys = detect_live_photo_keys(orig, img_ext, vid_ext, ms.key_fn)
+    if not live_keys:
+        return frozenset()
+    videos = compute_live_photo_videos(
+        orig, album_dir / ms.edit_img_dir, vid_ext, ms.key_fn
+    )
+    return frozenset(name for name, _ in videos)
+
+
+def _missing_live_photo_videos(
+    album_dir: Path,
+    ms: MediaSource,
+    img_ext: frozenset[str],
+    vid_ext: frozenset[str],
+) -> frozenset[str]:
+    """Return Live Photo video filenames expected but missing from browsable img."""
+    expected = _live_photo_vid_filenames(album_dir, ms, img_ext, vid_ext)
+    if not expected:
+        return frozenset()
+    browsable_files = (
+        set(list_files(album_dir / ms.img_dir))
+        if (album_dir / ms.img_dir).is_dir()
+        else set()
+    )
+    return frozenset(expected - browsable_files)
 
 
 def _refresh_jpeg_dirs(

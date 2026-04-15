@@ -475,11 +475,31 @@ def _seed_image_capture(ic_dir: Path) -> None:
     _write(ic_dir / "IMG_E0007.MOV", _MOV_PLACEHOLDER)
     _write(ic_dir / "IMG_O0007.AAE", _AAE_BYTES)
 
+    # 0008: Live Photo (HEIC + companion MOV, no edits)
+    _write(ic_dir / "IMG_0008.HEIC", _JPEG_BYTES)
+    _write(ic_dir / "IMG_0008.AAE", _AAE_BYTES)
+    _write(ic_dir / "IMG_0008.MOV", _MOV_PLACEHOLDER)
+
+    # 0009: Live Photo with edits (both image and video edited)
+    _write(ic_dir / "IMG_0009.HEIC", _JPEG_BYTES)
+    _write(ic_dir / "IMG_0009.AAE", _AAE_BYTES)
+    _write(ic_dir / "IMG_0009.MOV", _MOV_PLACEHOLDER)
+    _write(ic_dir / "IMG_E0009.HEIC", _JPEG_BYTES)
+    _write(ic_dir / "IMG_O0009.AAE", _AAE_BYTES)
+    _write(ic_dir / "IMG_E0009.MOV", _MOV_PLACEHOLDER)
+
     # Convert JPEG placeholders to valid HEIC files when sips is available
     # (macOS only). On Linux, HEIC files keep JPEG content — the import
     # workflow still works, but HEIC→JPEG conversion must use a noop converter.
     if shutil.which("sips") is not None:
-        for name in ("IMG_0001.HEIC", "IMG_E0001.HEIC", "IMG_0002.HEIC"):
+        for name in (
+            "IMG_0001.HEIC",
+            "IMG_E0001.HEIC",
+            "IMG_0002.HEIC",
+            "IMG_0008.HEIC",
+            "IMG_0009.HEIC",
+            "IMG_E0009.HEIC",
+        ):
             heic_path = ic_dir / name
             jpg_tmp = heic_path.with_suffix(".tmp.jpg")
             heic_path.rename(jpg_tmp)
@@ -498,7 +518,14 @@ def _seed_album(album_dir: Path) -> None:
     selection_dir.mkdir(parents=True, exist_ok=True)
 
     # JPEG selections (matching IC originals by number)
-    for name in ("IMG_0001.JPG", "IMG_0002.JPG", "IMG_0003.JPG", "IMG_0005.JPG"):
+    for name in (
+        "IMG_0001.JPG",
+        "IMG_0002.JPG",
+        "IMG_0003.JPG",
+        "IMG_0005.JPG",
+        "IMG_0008.JPG",
+        "IMG_0009.JPG",
+    ):
         _write(selection_dir / name, _JPEG_BYTES)
 
     # Video selections (same format as IC)

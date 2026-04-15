@@ -46,7 +46,7 @@ class TestDemoWorkflow:
         assert "IMG_0006.MOV" in ic_files
 
         sel_files = sorted(f.name for f in (album_dir / "to-import").iterdir())
-        assert len(sel_files) == 6
+        assert len(sel_files) == 8
         # IMG_0004 intentionally excluded from selection
         assert "IMG_0004.JPG" not in sel_files
 
@@ -64,7 +64,7 @@ class TestDemoWorkflow:
             convert_file=converter,
         )
 
-        assert len(import_result.plan.matches) == 6
+        assert len(import_result.plan.matches) == 8
         assert len(import_result.plan.unmatched) == 0
         assert len(import_result.unprocessed) == 0
 
@@ -83,12 +83,20 @@ class TestDemoWorkflow:
         assert "IMG_0001.AAE" in orig_img_files
         assert "IMG_0003.DNG" in orig_img_files
         assert "IMG_0005.PNG" in orig_img_files
+        # Live Photos: both image + companion video in orig-img
+        assert "IMG_0008.HEIC" in orig_img_files
+        assert "IMG_0008.MOV" in orig_img_files
+        assert "IMG_0009.HEIC" in orig_img_files
+        assert "IMG_0009.MOV" in orig_img_files
 
         # Edits imported
         assert (album_dir / MAIN_MEDIA_SOURCE.edit_img_dir).is_dir()
         edit_img_files = sorted(os.listdir(album_dir / MAIN_MEDIA_SOURCE.edit_img_dir))
         assert "IMG_E0001.HEIC" in edit_img_files
         assert "IMG_E0003.JPG" in edit_img_files
+        # Live Photo edits in edit-img
+        assert "IMG_E0009.HEIC" in edit_img_files
+        assert "IMG_E0009.MOV" in edit_img_files
 
         # Videos imported
         assert (album_dir / MAIN_MEDIA_SOURCE.orig_vid_dir).is_dir()
@@ -107,6 +115,11 @@ class TestDemoWorkflow:
         assert "IMG_E0001.HEIC" in main_img_files  # edit preferred
         assert "IMG_0002.HEIC" in main_img_files  # no edit, orig used
         assert "IMG_0005.PNG" in main_img_files  # screenshot
+        # Live Photo: both image and companion video in main-img
+        assert "IMG_0008.HEIC" in main_img_files
+        assert "IMG_0008.MOV" in main_img_files
+        assert "IMG_E0009.HEIC" in main_img_files  # edit preferred
+        assert "IMG_E0009.MOV" in main_img_files  # edit preferred
 
         # Main-vid picks edit when available
         main_vid_files = sorted(os.listdir(album_dir / MAIN_MEDIA_SOURCE.vid_dir))

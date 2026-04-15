@@ -95,6 +95,10 @@ class SelectionMatch:
     media_type: MediaType
     orig_files: tuple[str, ...]
     rendered_files: tuple[str, ...]
+    # Live Photo: companion files of the opposite media type
+    is_live_photo: bool = False
+    companion_orig_files: tuple[str, ...] = ()
+    companion_rendered_files: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -244,13 +248,26 @@ def _match_selection_file(
         if not has_orig_media:
             return None, dedup_warnings
         else:
+            # Detect Live Photo: check if companion media type also exists
+            match mt:
+                case MediaType.IMAGE:
+                    companion_mt = MediaType.VIDEO
+                case MediaType.VIDEO:
+                    companion_mt = MediaType.IMAGE
+            comp_orig, comp_rendered, comp_dedup = _classify_ic_files(
+                ic_files, companion_mt
+            )
+            has_companion = any(_is_media(f) for f in comp_orig)
             return SelectionMatch(
                 selection_file=sel_file,
                 img_number=_img_number(sel_file),
                 media_type=mt,
                 orig_files=orig,
                 rendered_files=rendered,
-            ), dedup_warnings
+                is_live_photo=has_companion,
+                companion_orig_files=comp_orig if has_companion else (),
+                companion_rendered_files=comp_rendered if has_companion else (),
+            ), (*dedup_warnings, *comp_dedup)
 
 
 def plan_import(
@@ -274,6 +291,39 @@ def plan_import(
         unmatched=tuple(sel_file for sel_file, m, _ in results if m is None),
         dedup_warnings=tuple(w for _, _, warnings in results for w in warnings),
     )
+
+
+def _validate_companion(match: SelectionMatch) -> list[ValidationError]:
+    """Validate Live Photo companion files. Returns errors."""
+    comp_media = [f for f in match.companion_orig_files if _is_media(f)]
+    comp_rendered_media = [f for f in match.companion_rendered_files if _is_media(f)]
+    return [
+        *(
+            [
+                ValidationError(
+                    match.selection_file,
+                    f"expected 1 Live Photo companion for number "
+                    f"{match.img_number} but found {len(comp_media)}: "
+                    f"{', '.join(comp_media)}.",
+                )
+            ]
+            if len(comp_media) > 1
+            else []
+        ),
+        *(
+            [
+                ValidationError(
+                    match.selection_file,
+                    f"expected at most 1 rendered Live Photo companion for "
+                    f"number {match.img_number} but found "
+                    f"{len(comp_rendered_media)}: "
+                    f"{', '.join(comp_rendered_media)}.",
+                )
+            ]
+            if len(comp_rendered_media) > 1
+            else []
+        ),
+    ]
 
 
 def _validate_match(
@@ -357,11 +407,15 @@ def _validate_match(
         ),
     ]
 
+    # Live Photo companion validation
+    companion_errors = _validate_companion(match) if match.is_live_photo else []
+
     errors = [
         *type_errors,
         *orig_count_errors,
         *rendered_count_errors,
         *rendered_pair_errors,
+        *companion_errors,
     ]
 
     # HEIC without AAE is normal for photos without edits — warn, don't block
@@ -511,15 +565,16 @@ def run_import(
     # ── Pre-copy collision check ──
     # Fail fast before copying anything if the target media source already
     # contains files with the same image number (even with a different extension).
+    # Live Photos always route to orig-img (both image and companion video).
     incoming_img_numbers = {
         match.img_number
         for match in plan.matches
-        if match.media_type == MediaType.IMAGE
+        if match.media_type == MediaType.IMAGE or match.is_live_photo
     }
     incoming_vid_numbers = {
         match.img_number
         for match in plan.matches
-        if match.media_type == MediaType.VIDEO
+        if match.media_type == MediaType.VIDEO and not match.is_live_photo
     }
     existing_img = {
         _img_number(f)
@@ -556,23 +611,33 @@ def run_import(
     processed: set[str] = set()
 
     for match in plan.matches:
-        orig_dir = _dir_for_type(
-            match.media_type, img_dir=album_orig_img, vid_dir=album_orig_vid
-        )
-        rendered_dir = _dir_for_type(
-            match.media_type,
-            img_dir=album_edit_img,
-            vid_dir=album_edit_vid,
-        )
+        # Live Photos always route to image dirs (both formats are a unit)
+        if match.is_live_photo:
+            orig_dir = album_orig_img
+            rendered_dir = album_edit_img
+        else:
+            orig_dir = _dir_for_type(
+                match.media_type,
+                img_dir=album_orig_img,
+                vid_dir=album_orig_vid,
+            )
+            rendered_dir = _dir_for_type(
+                match.media_type,
+                img_dir=album_edit_img,
+                vid_dir=album_edit_vid,
+            )
 
-        if not dry_run and match.orig_files:
+        all_orig = (*match.orig_files, *match.companion_orig_files)
+        all_rendered = (*match.rendered_files, *match.companion_rendered_files)
+
+        if not dry_run and all_orig:
             orig_dir.mkdir(parents=True, exist_ok=True)
-        for f in match.orig_files:
+        for f in all_orig:
             _copy_file(image_capture_dir, orig_dir, f, dry_run=dry_run)
 
-        if not dry_run and match.rendered_files:
+        if not dry_run and all_rendered:
             rendered_dir.mkdir(parents=True, exist_ok=True)
-        for f in match.rendered_files:
+        for f in all_rendered:
             _copy_file(image_capture_dir, rendered_dir, f, dry_run=dry_run)
 
         processed.add(match.selection_file)
@@ -586,6 +651,18 @@ def run_import(
         album_edit_img,
         album_main_img,
         media_extensions=IOS_IMG_EXTENSIONS,
+        key_fn=ms.key_fn,
+        link_mode=link_mode,
+        dry_run=dry_run,
+    )
+    # Augment with Live Photo companion videos from orig-img/edit-img
+    from ..live_photo import augment_browsable_img_with_live_photo_videos
+
+    augment_browsable_img_with_live_photo_videos(
+        album_orig_img,
+        album_edit_img,
+        album_main_img,
+        vid_extensions=IOS_VID_EXTENSIONS,
         key_fn=ms.key_fn,
         link_mode=link_mode,
         dry_run=dry_run,

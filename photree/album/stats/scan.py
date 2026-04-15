@@ -251,3 +251,25 @@ def count_unique_videos(album_dir: Path, ms: MediaSource, *, has_archive: bool) 
             list_files(album_dir / directory), VID_EXTENSIONS, ms.key_fn
         )
     )
+
+
+def count_live_photos(album_dir: Path, ms: MediaSource, *, has_archive: bool) -> int:
+    """Count Live Photos — keys with both image and video in ``orig-img/``.
+
+    Only meaningful for iOS media sources with archives. Returns 0 for
+    std sources and sources without an archive directory.
+    """
+    if not has_archive or not ms.is_ios:
+        return 0
+
+    from ..live_photo import detect_live_photo_keys
+    from ..store.protocol import IOS_IMG_EXTENSIONS, IOS_VID_EXTENSIONS
+
+    return len(
+        detect_live_photo_keys(
+            album_dir / ms.orig_img_dir,
+            IOS_IMG_EXTENSIONS,
+            IOS_VID_EXTENSIONS,
+            ms.key_fn,
+        )
+    )
