@@ -19,6 +19,7 @@ from ...store.protocol import (
     IOS_VID_EXTENSIONS,
     MediaSource,
 )
+
 from ..browsable import BrowsableDirCheck, check_browsable_dir
 from ..jpeg import JpegCheck, check_jpeg_dir
 from .sidecar import SidecarCheck, check_sidecars
@@ -67,25 +68,31 @@ class IosMediaSourceIntegrityResult:
 
 
 def check_duplicate_numbers(
-    directory: Path, media_extensions: frozenset[str]
+    directory: Path,
+    media_extensions: frozenset[str],
+    img_extensions: frozenset[str] = frozenset(),
 ) -> tuple[str, ...]:
     """Check for duplicate media file numbers within the same prefix category.
 
     IMG_7552.HEIC + IMG_E7552.HEIC sharing number 7552 is normal (original + edited).
     IMG_E7658.HEIC + IMG_E7658.JPG sharing number 7658 within the same 'E' prefix is a duplicate.
+    IMG_0410.HEIC + IMG_0410.MOV sharing number 0410 with different media types
+    is a Live Photo, not a duplicate.
     """
     files = list_files(directory)
-    # Group by (prefix, number) — only flag duplicates within the same prefix
-    by_prefix_number: dict[tuple[str, str], list[str]] = {}
+    # Group by (prefix, number, media_category) — image + video with the
+    # same prefix and number is a Live Photo, not a duplicate.
+    by_key: dict[tuple[str, str, str], list[str]] = {}
     for f in files:
         if file_ext(f) in media_extensions:
-            key = (ios_file_prefix(f), ios_img_number(f))
-            by_prefix_number.setdefault(key, []).append(f)
+            media_cat = "img" if file_ext(f) in img_extensions else "vid"
+            key = (ios_file_prefix(f), ios_img_number(f), media_cat)
+            by_key.setdefault(key, []).append(f)
 
     return tuple(
         f"{directory.name}/: number {num} has multiple media files "
         f"with same prefix: {', '.join(candidates)}"
-        for (prefix, num), candidates in sorted(by_prefix_number.items())
+        for (prefix, num, _cat), candidates in sorted(by_key.items())
         if len(candidates) > 1
     )
 
@@ -128,6 +135,49 @@ def check_miscategorized_files(
     )
 
 
+def _filter_live_photo_extras(
+    browsable_check: BrowsableDirCheck,
+    live_photo_vid_filenames: frozenset[str],
+) -> BrowsableDirCheck:
+    """Return a new BrowsableDirCheck with Live Photo videos removed from extra."""
+    if not live_photo_vid_filenames:
+        return browsable_check
+    return BrowsableDirCheck(
+        correct=browsable_check.correct,
+        missing=browsable_check.missing,
+        extra=tuple(
+            f for f in browsable_check.extra if f not in live_photo_vid_filenames
+        ),
+        wrong_source=browsable_check.wrong_source,
+        wrong_link_mode=browsable_check.wrong_link_mode,
+        size_mismatches=browsable_check.size_mismatches,
+        checksum_mismatches=browsable_check.checksum_mismatches,
+    )
+
+
+def _detect_live_photo_vid_filenames(
+    album_dir: Path, ms: MediaSource
+) -> frozenset[str]:
+    """Return expected Live Photo video filenames for an iOS media source."""
+    from ...live_photo import compute_live_photo_videos, detect_live_photo_keys
+
+    live_keys = detect_live_photo_keys(
+        album_dir / ms.orig_img_dir,
+        IOS_IMG_EXTENSIONS,
+        IOS_VID_EXTENSIONS,
+        ms.key_fn,
+    )
+    if not live_keys:
+        return frozenset()
+    videos = compute_live_photo_videos(
+        album_dir / ms.orig_img_dir,
+        album_dir / ms.edit_img_dir,
+        IOS_VID_EXTENSIONS,
+        ms.key_fn,
+    )
+    return frozenset(name for name, _ in videos)
+
+
 def check_ios_media_source_integrity(
     album_dir: Path,
     ms: MediaSource,
@@ -138,7 +188,7 @@ def check_ios_media_source_integrity(
 ) -> IosMediaSourceIntegrityResult:
     """Run all integrity checks for a single iOS media source."""
     assert ms.is_ios, "integrity checks require an iOS media source"
-    browsable_img = check_browsable_dir(
+    browsable_img_raw = check_browsable_dir(
         album_dir / ms.orig_img_dir,
         album_dir / ms.edit_img_dir,
         album_dir / ms.img_dir,
@@ -147,6 +197,12 @@ def check_ios_media_source_integrity(
         link_mode=link_mode,
         checksum=checksum,
         on_file_checked=on_file_checked,
+    )
+
+    # Filter Live Photo companion videos from the "extra" list — they are
+    # expected in the browsable img dir but not matched by IOS_IMG_EXTENSIONS.
+    browsable_img = _filter_live_photo_extras(
+        browsable_img_raw, _detect_live_photo_vid_filenames(album_dir, ms)
     )
 
     browsable_vid = check_browsable_dir(
@@ -189,7 +245,9 @@ def check_ios_media_source_integrity(
         w
         for subdir_name in ms.all_subdirs
         if (album_dir / subdir_name).is_dir()
-        for w in check_duplicate_numbers(album_dir / subdir_name, all_media)
+        for w in check_duplicate_numbers(
+            album_dir / subdir_name, all_media, IOS_IMG_EXTENSIONS
+        )
     )
 
     miscategorized = (

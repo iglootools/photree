@@ -46,6 +46,7 @@ _IOS_MAIN = MediaSourceStats(
     derived=SizeStats(file_count=372, apparent_bytes=_gb(3.6), on_disk_bytes=_gb(3.6)),
     unique_pictures=372,
     unique_videos=28,
+    unique_live_photos=0,
     images=_rb(
         total=SizeStats(
             file_count=1234, apparent_bytes=_gb(22.4), on_disk_bytes=_gb(14.8)
@@ -92,6 +93,7 @@ _PLAIN_NELU = MediaSourceStats(
     derived=SizeStats(file_count=62, apparent_bytes=_gb(1.1), on_disk_bytes=_gb(1.1)),
     unique_pictures=62,
     unique_videos=0,
+    unique_live_photos=0,
     images=_rb(
         total=SizeStats(
             file_count=186, apparent_bytes=_gb(6.2), on_disk_bytes=_gb(6.2)
@@ -124,6 +126,7 @@ _AGGREGATE_ALBUM = AggregateStats(
     derived=SizeStats(file_count=434, apparent_bytes=_gb(4.7), on_disk_bytes=_gb(4.7)),
     unique_pictures=434,
     unique_videos=28,
+    unique_live_photos=0,
     images=_rb(
         total=SizeStats(
             file_count=1420, apparent_bytes=_gb(28.6), on_disk_bytes=_gb(21.0)
@@ -195,6 +198,7 @@ _ALBUM_2024_A = AlbumStats(
         ),
         unique_pictures=372,
         unique_videos=28,
+        unique_live_photos=0,
         images=_IOS_MAIN.images,
         videos=_IOS_MAIN.videos,
         sidecars=_IOS_MAIN.sidecars,
@@ -228,6 +232,7 @@ _ALBUM_2025 = AlbumStats(
         ),
         unique_pictures=145,
         unique_videos=10,
+        unique_live_photos=0,
         images=_rb(
             total=SizeStats(
                 file_count=455, apparent_bytes=_gb(8.5), on_disk_bytes=_gb(5.6)
@@ -279,6 +284,7 @@ _GALLERY_AGGREGATE = AggregateStats(
     derived=SizeStats(file_count=961, apparent_bytes=_gb(9.6), on_disk_bytes=_gb(9.6)),
     unique_pictures=951,
     unique_videos=66,
+    unique_live_photos=0,
     images=_rb(
         total=SizeStats(
             file_count=3109, apparent_bytes=_gb(59.5), on_disk_bytes=_gb(41.4)
@@ -347,6 +353,7 @@ GALLERY_STATS = GalleryStats(
                 ),
                 unique_pictures=806,
                 unique_videos=56,
+                unique_live_photos=0,
                 images=_rb(
                     total=SizeStats(
                         file_count=2654,

@@ -50,6 +50,7 @@ class MediaSourceStats:
     derived: SizeStats  # {name}-jpg/
     unique_pictures: int  # unique keys in orig-img (archive) or img (browsable)
     unique_videos: int  # unique keys in orig-vid (archive) or vid (browsable)
+    unique_live_photos: int  # keys with both image and video in orig-img (iOS only)
     images: RoleBreakdown
     videos: RoleBreakdown
     sidecars: RoleBreakdown
@@ -70,6 +71,7 @@ class AggregateStats:
     derived: SizeStats
     unique_pictures: int
     unique_videos: int
+    unique_live_photos: int
     images: RoleBreakdown
     videos: RoleBreakdown
     sidecars: RoleBreakdown

@@ -32,6 +32,7 @@ from .models import (
 )
 from .scan import (
     categorize_size_stats,
+    count_live_photos,
     count_unique_pictures,
     count_unique_videos,
     scan_directory_size,
@@ -157,6 +158,7 @@ def compute_media_source_stats(
         derived=derived_total,
         unique_pictures=count_unique_pictures(album_dir, ms, has_archive=has_archive),
         unique_videos=count_unique_videos(album_dir, ms, has_archive=has_archive),
+        unique_live_photos=count_live_photos(album_dir, ms, has_archive=has_archive),
         images=merge_role_breakdowns([arch_img, browse_img, der_img]),
         videos=merge_role_breakdowns([arch_vid, browse_vid, der_vid]),
         sidecars=merge_role_breakdowns([arch_sc, browse_sc, der_sc]),

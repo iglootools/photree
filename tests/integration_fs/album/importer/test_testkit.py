@@ -24,6 +24,13 @@ class TestSeedDemo:
         assert "IMG_0006.MOV" in files
         assert "IMG_0007.MOV" in files
         assert "IMG_E0007.MOV" in files
+        # Live Photos
+        assert "IMG_0008.HEIC" in files
+        assert "IMG_0008.MOV" in files
+        assert "IMG_0009.HEIC" in files
+        assert "IMG_0009.MOV" in files
+        assert "IMG_E0009.HEIC" in files
+        assert "IMG_E0009.MOV" in files
 
     def test_creates_album_with_selection(self, tmp_path: Path) -> None:
         result = seed_demo(tmp_path)
@@ -38,6 +45,8 @@ class TestSeedDemo:
             "IMG_0005.JPG",
             "IMG_0006.MOV",
             "IMG_0007.MOV",
+            "IMG_0008.JPG",
+            "IMG_0009.JPG",
         ]
 
     def test_heic_files_are_valid_when_sips_available(self, tmp_path: Path) -> None:

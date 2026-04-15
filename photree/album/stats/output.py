@@ -159,6 +159,8 @@ def _overview_panel(
 
     table.add_row("Unique pictures", _format_count(agg.unique_pictures))
     table.add_row("Unique videos", _format_count(agg.unique_videos))
+    if agg.unique_live_photos > 0:
+        table.add_row("Live Photos", _format_count(agg.unique_live_photos))
 
     cb = _cache_bytes(cache_storage)
     cod = _cache_on_disk(cache_storage)
