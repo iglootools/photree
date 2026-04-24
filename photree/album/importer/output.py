@@ -216,7 +216,7 @@ def batch_summary(imported: int, skipped: int) -> str:
 
 
 def validation_errors(album_name: str, errors: list[ValidationError]) -> str:
-    bullet_list = "\n".join(f"  - [{e.selection_file}] {e.message}" for e in errors)
+    bullet_list = "\n".join(f"  - {e.selection_file}: {e.message}" for e in errors)
     return f"Validation failed for {album_name}:\n{bullet_list}"
 
 

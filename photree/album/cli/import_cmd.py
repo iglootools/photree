@@ -140,7 +140,7 @@ def import_cmd(
     if warnings:
         typer.echo("\nWarnings:")
         for w in warnings:
-            typer.echo(f"  [{w.selection_file}] {w.message}")
+            typer.echo(f"  - {w.selection_file}: {w.message}")
     if errors:
         err_console.print(importer_output.validation_errors(album_dir.name, errors))
         raise typer.Exit(code=1)
