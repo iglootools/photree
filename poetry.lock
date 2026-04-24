@@ -157,15 +157,15 @@ testing = ["coverage", "pytest", "pytest-benchmark"]
 
 [[package]]
 name = "pydeps"
-version = "3.0.2"
+version = "3.0.6"
 description = "Display module dependencies"
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.10"
 groups = ["dev"]
 markers = "python_version < \"4.0\""
 files = [
-    {file = "pydeps-3.0.2-py3-none-any.whl", hash = "sha256:890515899ffdb017255ba035704cfc711966469ad3aa3574c5b0b13f9f676e32"},
-    {file = "pydeps-3.0.2.tar.gz", hash = "sha256:9e73575ddd6b5614cb2463a4ee9392817cc51002a2e46184d4fb1ffef8d15832"},
+    {file = "pydeps-3.0.6-py3-none-any.whl", hash = "sha256:fc102c0ee2ad25a1596714c7175d8060fa138aaa87eafb308e820e88a709e5fc"},
+    {file = "pydeps-3.0.6.tar.gz", hash = "sha256:7f8b12c9db90f5a2e009fe0ef75f2945bf698d6cc5fb064423a525823d423085"},
 ]
 
 [package.dependencies]
@@ -370,4 +370,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12"
-content-hash = "c575b5b35c8462c989504d29057d8990eab3440878be749c94e5ee43881eb9f1"
+content-hash = "952103a98f45f56e12a2a75d2700b63b88065c3377a784686bbd43aebb7ce39d"
