@@ -621,27 +621,32 @@ def _try_read_from_cache(album_dir: Path) -> list[tuple[Path, datetime]] | None:
 def check_batch_date_collisions(
     albums: list[tuple[str, ParsedAlbumName]],
 ) -> BatchNamingResult:
-    """Check for date collisions across non-private albums without part numbers.
+    """Check for date collisions across non-private albums.
+
+    Flags groups of albums on the same single-day date whose part numbers
+    do not disambiguate them: either some album lacks a part, or two
+    albums share the same part value.
 
     *albums* is a list of ``(album_name, parsed)`` tuples.
     """
     from collections import defaultdict
 
-    by_date: defaultdict[str, list[str]] = defaultdict(list)
+    # Date ranges are excluded: parts are not valid for ranges, so
+    # collisions cannot be resolved by adding a part number.
+    by_date: defaultdict[str, list[ParsedAlbumName]] = defaultdict(list)
+    names_by_date: defaultdict[str, list[str]] = defaultdict(list)
     for name, parsed in albums:
-        # Date ranges are excluded: parts are not valid for ranges, so
-        # collisions cannot be resolved by adding a part number.
         if not parsed.private and _is_day_precision(parsed.date):
-            by_date[parsed.date].append(name)
+            by_date[parsed.date].append(parsed)
+            names_by_date[parsed.date].append(name)
 
     collisions = tuple(
-        (album_date, tuple(names))
-        for album_date, names in sorted(by_date.items())
-        if len(names) > 1
-        and any(
-            parsed.part is None
-            for name, parsed in albums
-            if not parsed.private and parsed.date == album_date
+        (album_date, tuple(names_by_date[album_date]))
+        for album_date, parsed_list in sorted(by_date.items())
+        if len(parsed_list) > 1
+        and (
+            any(p.part is None for p in parsed_list)
+            or len({p.part for p in parsed_list}) != len(parsed_list)
         )
     )
 
