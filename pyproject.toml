@@ -7,7 +7,7 @@ license = "Apache-2.0"
 license-files = ["LICENSE"]
 authors = [{ name = "Sami Dalouche", email = "sami.dalouche@gmail.com" }]
 dependencies = [
-  "typer (>=0.24.2,<1.0.0)",
+  "typer (>=0.25.1,<1.0.0)",
   "platformdirs (>=4.0,<5.0)",
   "mermaid-ascii-diagrams (>=0.1.1)",
   "pyexiftool (>=0.5.0,<1.0.0)",
