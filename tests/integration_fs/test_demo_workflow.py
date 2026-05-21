@@ -1,4 +1,4 @@
-"""Integration test: full demo workflow (seed → import → check → optimize → export).
+"""Integration test: full demo workflow (seed → import → check → export).
 
 Mirrors the demo.sh script with assertions at each stage.
 """
@@ -9,29 +9,26 @@ import os
 import shutil
 from pathlib import Path
 
-from photree.album.integrity import check_ios_album_integrity
+from photree.album.check import run_album_preflight
+from photree.album.store.media_sources_discovery import discover_media_sources
 from photree.album.jpeg import convert_single_file, copy_convert_single
-from photree.album.optimize import optimize_album
-from photree.album.preflight import (
-    AlbumType,
-    detect_album_type,
-    run_album_preflight,
-)
-from photree.exporter.export import AlbumShareLayout, compute_target_dir, export_album
+from photree.album.exporter.single import compute_target_dir, export_album
 from photree.fsprotocol import (
-    MAIN_MEDIA_SOURCE,
+    AlbumShareLayout,
+    LinkMode,
     PHOTREE_DIR,
     SHARE_SENTINEL,
-    LinkMode,
     ShareDirectoryLayout,
-    is_album,
 )
-from photree.importer.image_capture import run_import
-from photree.importer.testkit import seed_demo
+from photree.album.store.album_discovery import is_album
+from photree.album.store.metadata import load_album_metadata
+from photree.album.store.protocol import ALBUM_YAML, MAIN_MEDIA_SOURCE
+from photree.album.importer.image_capture import run_import
+from photree.album.importer.testkit import seed_demo
 
 
 class TestDemoWorkflow:
-    """Full end-to-end workflow: seed → import → check → optimize → export."""
+    """Full end-to-end workflow: seed → import → check → export."""
 
     def test_full_workflow(self, tmp_path: Path) -> None:
         # ── Seed ─────────────────────────────────────────────
@@ -49,7 +46,7 @@ class TestDemoWorkflow:
         assert "IMG_0006.MOV" in ic_files
 
         sel_files = sorted(f.name for f in (album_dir / "to-import").iterdir())
-        assert len(sel_files) == 6
+        assert len(sel_files) == 8
         # IMG_0004 intentionally excluded from selection
         assert "IMG_0004.JPG" not in sel_files
 
@@ -67,15 +64,17 @@ class TestDemoWorkflow:
             convert_file=converter,
         )
 
-        assert len(import_result.plan.matches) == 6
+        assert len(import_result.plan.matches) == 8
         assert len(import_result.plan.unmatched) == 0
         assert len(import_result.unprocessed) == 0
 
-        # Album marker and iOS directory structure created
+        # Album marker, metadata, and iOS directory structure created
         assert (album_dir / PHOTREE_DIR).is_dir()
+        assert (album_dir / PHOTREE_DIR / ALBUM_YAML).is_file()
+        assert load_album_metadata(album_dir) is not None
         assert is_album(album_dir)
-        assert (album_dir / MAIN_MEDIA_SOURCE.ios_dir).is_dir()
-        assert detect_album_type(album_dir) == AlbumType.IOS
+        assert (album_dir / MAIN_MEDIA_SOURCE.archive_dir).is_dir()
+        assert any(ms.is_ios for ms in discover_media_sources(album_dir))
 
         # Originals imported
         assert (album_dir / MAIN_MEDIA_SOURCE.orig_img_dir).is_dir()
@@ -84,12 +83,20 @@ class TestDemoWorkflow:
         assert "IMG_0001.AAE" in orig_img_files
         assert "IMG_0003.DNG" in orig_img_files
         assert "IMG_0005.PNG" in orig_img_files
+        # Live Photos: both image + companion video in orig-img
+        assert "IMG_0008.HEIC" in orig_img_files
+        assert "IMG_0008.MOV" in orig_img_files
+        assert "IMG_0009.HEIC" in orig_img_files
+        assert "IMG_0009.MOV" in orig_img_files
 
         # Edits imported
         assert (album_dir / MAIN_MEDIA_SOURCE.edit_img_dir).is_dir()
         edit_img_files = sorted(os.listdir(album_dir / MAIN_MEDIA_SOURCE.edit_img_dir))
         assert "IMG_E0001.HEIC" in edit_img_files
         assert "IMG_E0003.JPG" in edit_img_files
+        # Live Photo edits in edit-img
+        assert "IMG_E0009.HEIC" in edit_img_files
+        assert "IMG_E0009.MOV" in edit_img_files
 
         # Videos imported
         assert (album_dir / MAIN_MEDIA_SOURCE.orig_vid_dir).is_dir()
@@ -108,6 +115,11 @@ class TestDemoWorkflow:
         assert "IMG_E0001.HEIC" in main_img_files  # edit preferred
         assert "IMG_0002.HEIC" in main_img_files  # no edit, orig used
         assert "IMG_0005.PNG" in main_img_files  # screenshot
+        # Live Photo: both image and companion video in main-img
+        assert "IMG_0008.HEIC" in main_img_files
+        assert "IMG_0008.MOV" in main_img_files
+        assert "IMG_E0009.HEIC" in main_img_files  # edit preferred
+        assert "IMG_E0009.MOV" in main_img_files  # edit preferred
 
         # Main-vid picks edit when available
         main_vid_files = sorted(os.listdir(album_dir / MAIN_MEDIA_SOURCE.vid_dir))
@@ -121,34 +133,14 @@ class TestDemoWorkflow:
         )
 
         # ── Check ────────────────────────────────────────────
-        preflight = run_album_preflight(album_dir, checksum=True)
+        preflight = run_album_preflight(
+            album_dir, link_mode=LinkMode.COPY, checksum=True
+        )
 
-        assert preflight.album_type == AlbumType.IOS
+        assert preflight.media_source_summary.has_ios
         assert preflight.dir_check.success
         assert preflight.integrity is not None
         assert preflight.integrity.success
-
-        # ── Optimize (symlinks) ──────────────────────────────
-        optimize_album(album_dir, link_mode=LinkMode.SYMLINK)
-
-        # Main-img files should now be symlinks
-        for name in main_img_files:
-            p = album_dir / MAIN_MEDIA_SOURCE.img_dir / name
-            assert p.is_symlink(), f"{name} should be a symlink after optimize"
-
-        # Main-vid files should now be symlinks
-        for name in main_vid_files:
-            p = album_dir / MAIN_MEDIA_SOURCE.vid_dir / name
-            assert p.is_symlink(), f"{name} should be a symlink after optimize"
-
-        # Main-jpg should NOT be symlinks (JPEG conversions)
-        for name in os.listdir(album_dir / MAIN_MEDIA_SOURCE.jpg_dir):
-            p = album_dir / MAIN_MEDIA_SOURCE.jpg_dir / name
-            assert not p.is_symlink(), f"{name} in main-jpg should not be a symlink"
-
-        # Integrity still passes after optimization
-        integrity_after = check_ios_album_integrity(album_dir, checksum=True)
-        assert integrity_after.success
 
         # ── Export (main-jpg) ─────────────────────────────────
         share_dir = tmp_path / "share"
@@ -161,11 +153,11 @@ class TestDemoWorkflow:
         export_result = export_album(
             album_dir,
             target_dir,
-            album_layout=AlbumShareLayout.MAIN_JPG,
+            album_layout=AlbumShareLayout.BROWSABLE_JPG,
             link_mode=LinkMode.COPY,
         )
 
-        assert export_result.album_type == AlbumType.IOS
+        assert export_result.album_type == "ios"
         assert export_result.files_copied > 0
 
         # Exported structure: main-jpg/ and main-vid/ (main-jpg layout)
@@ -175,7 +167,7 @@ class TestDemoWorkflow:
         assert (exported / "main-vid").is_dir()
 
         # iOS internal dirs should NOT be exported
-        assert not (exported / MAIN_MEDIA_SOURCE.ios_dir).exists()
+        assert not (exported / MAIN_MEDIA_SOURCE.archive_dir).exists()
 
         # Exported vid/ matches main-vid content
         exported_vid = sorted(os.listdir(exported / "main-vid"))

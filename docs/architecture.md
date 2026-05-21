@@ -17,26 +17,58 @@ Dependencies between top-level modules (auto-generated via `mise run depgraph`):
 ```mermaid
 graph TD
     album["album/"]
+    albums["albums/"]
+    check["check/"]
     cli["cli/"]
-    config["config"]
-    exporter["exporter/"]
+    clihelpers["clihelpers/"]
+    collection["collection/"]
+    collections["collections/"]
+    common["common/"]
+    config["config/"]
+    demo["demo/"]
     fsprotocol["fsprotocol"]
-    importer["importer/"]
-    uiconventions["uiconventions"]
+    gallery["gallery/"]
 
+    album --> clihelpers
+    album --> collection
+    album --> common
+    album --> config
     album --> fsprotocol
-    album --> uiconventions
+    albums --> album
+    albums --> clihelpers
+    albums --> collection
+    albums --> common
+    albums --> config
+    albums --> fsprotocol
+    albums --> gallery
+    check --> album
+    check --> clihelpers
     cli --> album
-    cli --> config
-    cli --> exporter
-    cli --> fsprotocol
-    cli --> importer
-    cli --> uiconventions
+    cli --> albums
+    cli --> check
+    cli --> collection
+    cli --> collections
+    cli --> demo
+    cli --> gallery
+    clihelpers --> common
+    clihelpers --> fsprotocol
+    collection --> album
+    collection --> clihelpers
+    collection --> common
+    collection --> fsprotocol
+    collection --> gallery
+    collections --> clihelpers
+    collections --> collection
+    collections --> common
+    collections --> gallery
     config --> fsprotocol
-    exporter --> album
-    exporter --> fsprotocol
-    fsprotocol --> uiconventions
-    importer --> album
-    importer --> fsprotocol
+    demo --> album
+    gallery --> album
+    gallery --> albums
+    gallery --> clihelpers
+    gallery --> collection
+    gallery --> common
+    gallery --> config
+    gallery --> fsprotocol
 ```
 <!-- END MODULE OVERVIEW -->

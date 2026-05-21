@@ -20,17 +20,20 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from ..fsprotocol import (
-    ALBUM_DATE_RE,
-    MediaSource,
-    discover_media_sources,
-    find_files_by_number,
-    find_files_by_stem,
-    img_number,
-)
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
-from .exif import discover_media_files, read_exif_timestamps_by_file
+from .exif import read_exif_timestamps_by_file
+from .exif_cache.store import load_exif_cache
+from .store.media_sources_discovery import (
+    discover_browsable_media_files,
+    discover_media_sources,
+)
+from .store.media_sources import (
+    ios_find_files_by_number,
+    ios_img_number,
+    std_find_files_by_stem,
+)
+from .store.protocol import ALBUM_DATE_RE, MediaSource
 
 # ---------------------------------------------------------------------------
 # Regexes
@@ -459,7 +462,8 @@ def _resolve_upstream_files(
 
     Returns ``(upstream_relative_paths, is_ios)``.
     """
-    from ..fsprotocol import VID_EXTENSIONS, file_ext
+    from ..common.fs import file_ext
+    from .store.protocol import VID_EXTENSIONS
 
     rel = str(file_path.relative_to(album_dir))
     dir_part = str(Path(rel).parent)
@@ -476,7 +480,7 @@ def _resolve_upstream_files(
     is_video = file_ext(filename) in VID_EXTENSIONS
 
     if ms.is_ios:
-        number = img_number(filename)
+        number = ios_img_number(filename)
         if is_video:
             dirs = (ms.orig_vid_dir, ms.edit_vid_dir)
         else:
@@ -485,7 +489,7 @@ def _resolve_upstream_files(
             f"{d}/{uf}"
             for d in dirs
             if (album_dir / d).is_dir()
-            for uf in find_files_by_number({number}, album_dir / d)
+            for uf in ios_find_files_by_number({number}, album_dir / d)
         ]
     else:
         stem = Path(filename).stem
@@ -499,7 +503,7 @@ def _resolve_upstream_files(
             f"{d}/{uf}"
             for d in dirs
             if (album_dir / d).is_dir()
-            for uf in find_files_by_stem({stem}, album_dir / d)
+            for uf in std_find_files_by_stem({stem}, album_dir / d)
         ]
 
     return (tuple(upstream), ms.is_ios)
@@ -514,14 +518,14 @@ def check_exif_date_match(
 ) -> ExifTimestampCheck | None:
     """Check EXIF timestamps of all media files against the album date.
 
-    Returns ``None`` if no media files found or no timestamps could be read.
-    When *exiftool* is provided, the persistent process is reused.
-    """
-    files = discover_media_files(album_dir)
-    if not files:
-        return None
+    Reads from the EXIF cache when available and fresh. Falls back to
+    exiftool when the cache is missing or stale.
 
-    file_timestamps = read_exif_timestamps_by_file(files, exiftool=exiftool)
+    Returns ``None`` if no media files found or no timestamps could be read.
+    """
+    file_timestamps = _read_timestamps_from_cache_or_exiftool(
+        album_dir, exiftool=exiftool
+    )
     if not file_timestamps:
         return None
 
@@ -561,6 +565,55 @@ def check_exif_date_match(
 
 
 # ---------------------------------------------------------------------------
+# EXIF cache integration
+# ---------------------------------------------------------------------------
+
+
+def _read_timestamps_from_cache_or_exiftool(
+    album_dir: Path,
+    *,
+    exiftool: ExifToolHelper | None,
+) -> list[tuple[Path, datetime]]:
+    """Read timestamps from EXIF cache if fresh, else fall back to exiftool."""
+    cached = _try_read_from_cache(album_dir)
+    if cached is not None:
+        return cached
+
+    files = discover_browsable_media_files(album_dir)
+    if not files:
+        return []
+    return read_exif_timestamps_by_file(files, exiftool=exiftool)
+
+
+def _try_read_from_cache(album_dir: Path) -> list[tuple[Path, datetime]] | None:
+    """Try to read all timestamps from the EXIF cache.
+
+    Returns ``None`` if any media source has no cache file. An empty
+    cache file (written for sources with no browsable files) is valid.
+
+    Trusts cached entries without per-file mtime verification — the
+    cache is validated at write time during ``album refresh``. Use
+    ``--refresh-exif-cache`` on check commands to force a re-read.
+    """
+    media_sources = discover_media_sources(album_dir)
+    if not media_sources:
+        return None
+
+    caches = [(ms, load_exif_cache(album_dir, ms.name)) for ms in media_sources]
+    if any(cache is None for _, cache in caches):
+        return None
+
+    return [
+        (album_dir / ms.jpg_dir / entry.file_name, ts)
+        for ms, cache in caches
+        if cache is not None
+        for entry in cache.files.values()
+        if entry.timestamp is not None
+        for ts in [datetime.fromisoformat(entry.timestamp)]
+    ]
+
+
+# ---------------------------------------------------------------------------
 # Batch checks
 # ---------------------------------------------------------------------------
 
@@ -568,27 +621,32 @@ def check_exif_date_match(
 def check_batch_date_collisions(
     albums: list[tuple[str, ParsedAlbumName]],
 ) -> BatchNamingResult:
-    """Check for date collisions across non-private albums without part numbers.
+    """Check for date collisions across non-private albums.
+
+    Flags groups of albums on the same single-day date whose part numbers
+    do not disambiguate them: either some album lacks a part, or two
+    albums share the same part value.
 
     *albums* is a list of ``(album_name, parsed)`` tuples.
     """
     from collections import defaultdict
 
-    by_date: defaultdict[str, list[str]] = defaultdict(list)
+    # Date ranges are excluded: parts are not valid for ranges, so
+    # collisions cannot be resolved by adding a part number.
+    by_date: defaultdict[str, list[ParsedAlbumName]] = defaultdict(list)
+    names_by_date: defaultdict[str, list[str]] = defaultdict(list)
     for name, parsed in albums:
-        # Date ranges are excluded: parts are not valid for ranges, so
-        # collisions cannot be resolved by adding a part number.
         if not parsed.private and _is_day_precision(parsed.date):
-            by_date[parsed.date].append(name)
+            by_date[parsed.date].append(parsed)
+            names_by_date[parsed.date].append(name)
 
     collisions = tuple(
-        (album_date, tuple(names))
-        for album_date, names in sorted(by_date.items())
-        if len(names) > 1
-        and any(
-            parsed.part is None
-            for name, parsed in albums
-            if not parsed.private and parsed.date == album_date
+        (album_date, tuple(names_by_date[album_date]))
+        for album_date, parsed_list in sorted(by_date.items())
+        if len(parsed_list) > 1
+        and (
+            any(p.part is None for p in parsed_list)
+            or len({p.part for p in parsed_list}) != len(parsed_list)
         )
     )
 

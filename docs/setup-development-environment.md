@@ -39,3 +39,11 @@ Select the Python interpreter from the `.venv` created by Poetry:
 1. Open the Command Palette (`Cmd+Shift+P`)
 2. Run **Python: Select Interpreter**
 3. Choose the `.venv` entry (e.g., `./.venv/bin/python`)
+
+## Claude Code Setup
+
+Install the Pyright LSP plugin to enable IDE-like code intelligence (go-to-definition, find-references):
+
+```bash
+claude /plugin install pyright@claude-code-lsps
+```

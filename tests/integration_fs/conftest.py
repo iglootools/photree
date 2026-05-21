@@ -1,4 +1,4 @@
-"""Filesystem integration tests — full import/check/optimize/export workflow."""
+"""Filesystem integration tests — full import/check/export workflow."""
 
 from __future__ import annotations
 

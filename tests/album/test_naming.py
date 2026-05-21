@@ -821,3 +821,49 @@ class TestCheckBatchDateCollisions:
         ]
         result = check_batch_date_collisions(albums)
         assert result.success is True
+
+    def test_duplicate_parts_on_same_date(self) -> None:
+        albums = [
+            (
+                "2024-06-15 - 01 - Beach",
+                ParsedAlbumName(
+                    date="2024-06-15",
+                    part="01",
+                    private=False,
+                    series=None,
+                    title="Beach",
+                    location=None,
+                ),
+            ),
+            (
+                "2024-06-15 - 01 - Walk",
+                ParsedAlbumName(
+                    date="2024-06-15",
+                    part="01",
+                    private=False,
+                    series=None,
+                    title="Walk",
+                    location=None,
+                ),
+            ),
+            (
+                "2024-06-15 - 02 - Dinner",
+                ParsedAlbumName(
+                    date="2024-06-15",
+                    part="02",
+                    private=False,
+                    series=None,
+                    title="Dinner",
+                    location=None,
+                ),
+            ),
+        ]
+        result = check_batch_date_collisions(albums)
+        assert result.success is False
+        assert len(result.date_collisions) == 1
+        assert result.date_collisions[0][0] == "2024-06-15"
+        assert set(result.date_collisions[0][1]) == {
+            "2024-06-15 - 01 - Beach",
+            "2024-06-15 - 01 - Walk",
+            "2024-06-15 - 02 - Dinner",
+        }
