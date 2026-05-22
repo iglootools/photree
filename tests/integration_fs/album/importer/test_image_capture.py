@@ -154,13 +154,16 @@ class TestValidateImportPlan:
         assert len(errors) == 1
         assert "no matching original" in errors[0].message
 
-    def test_rendered_without_sidecar(self) -> None:
+    def test_rendered_without_sidecar_warns(self) -> None:
+        # Apple Photos sometimes omits IMG_O*.AAE for edited images
+        # (observed with PNG originals re-rendered to JPG). Warn, don't block.
         plan = plan_import(
             ["IMG_0410.HEIC"],
             ["IMG_0410.HEIC", "IMG_0410.AAE", "IMG_E0410.HEIC"],
         )
         errors, warnings = validate_import_plan(plan)
-        assert any("rendered sidecar" in e.message for e in errors)
+        assert not errors
+        assert any("no rendered sidecar" in w.message for w in warnings)
 
     def test_rendered_sidecar_without_rendered_media(self) -> None:
         plan = plan_import(

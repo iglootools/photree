@@ -383,29 +383,17 @@ def _validate_match(
         else []
     )
 
-    # Rendered pair completeness
-    rendered_pair_errors = [
-        *(
-            [
-                ValidationError(
-                    match.selection_file,
-                    f"rendered file exists ({rendered_media[0]}) but no rendered sidecar (IMG_O*.AAE)",
-                )
-            ]
-            if rendered_media and not rendered_sidecars
-            else []
-        ),
-        *(
-            [
-                ValidationError(
-                    match.selection_file,
-                    f"rendered sidecar exists ({rendered_sidecars[0]}) but no rendered media file",
-                )
-            ]
-            if rendered_sidecars and not rendered_media
-            else []
-        ),
-    ]
+    # Rendered sidecar without rendered media is a real error — orphaned edit data
+    rendered_pair_errors = (
+        [
+            ValidationError(
+                match.selection_file,
+                f"rendered sidecar exists ({rendered_sidecars[0]}) but no rendered media file",
+            )
+        ]
+        if rendered_sidecars and not rendered_media
+        else []
+    )
 
     # Live Photo companion validation
     companion_errors = _validate_companion(match) if match.is_live_photo else []
@@ -418,19 +406,31 @@ def _validate_match(
         *companion_errors,
     ]
 
-    # HEIC without AAE is normal for photos without edits — warn, don't block
+    # AAE sidecars are optional in Image Capture exports — warn, don't block.
     orig_heic = [f for f in orig_media if file_ext(f) == ".heic"]
     orig_aae = [f for f in match.orig_files if _is_sidecar(f)]
-    warnings = (
-        [
-            ValidationWarning(
-                match.selection_file,
-                f"original HEIC ({orig_heic[0]}) has no AAE sidecar",
-            )
-        ]
-        if orig_heic and not orig_aae
-        else []
-    )
+    warnings = [
+        *(
+            [
+                ValidationWarning(
+                    match.selection_file,
+                    f"original HEIC ({orig_heic[0]}) has no AAE sidecar",
+                )
+            ]
+            if orig_heic and not orig_aae
+            else []
+        ),
+        *(
+            [
+                ValidationWarning(
+                    match.selection_file,
+                    f"rendered file ({rendered_media[0]}) has no rendered sidecar (IMG_O*.AAE)",
+                )
+            ]
+            if rendered_media and not rendered_sidecars
+            else []
+        ),
+    ]
 
     return errors, warnings
 
