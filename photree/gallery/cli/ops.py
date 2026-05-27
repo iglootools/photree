@@ -16,6 +16,7 @@ from ...album import (
 )
 from ...album.check import output as preflight_output
 from ...album.check.output import format_naming_checks
+from ...album.store.album_discovery import discover_potential_albums
 from ...album.store.metadata import load_album_metadata
 from ...album.id import format_album_external_id
 from ...common.fs import display_path
@@ -182,17 +183,20 @@ def print_single_import_result(
 def resolve_import_all_albums(
     base_dir: Path | None,
     album_dirs: list[Path] | None,
-) -> list[Path]:
-    """Resolve album list for batch import from --dir or --album-dir."""
+) -> tuple[list[Path], list[Path]]:
+    """Resolve album list for batch import from --dir or --album-dir.
+
+    Returns ``(albums, skipped)``. When --dir is used, the scan is
+    recursive: *albums* are directories with at least one media source,
+    and *skipped* are non-album directories traversed during the walk.
+    When --album-dir is used, *skipped* is always empty — the user picked
+    those directories explicitly.
+    """
     if album_dirs is not None:
-        return album_dirs
+        return (album_dirs, [])
 
     scan_dir = base_dir if base_dir is not None else Path(".").resolve()
-    albums = sorted(p for p in scan_dir.iterdir() if p.is_dir())
-    if not albums:
-        typer.echo("No album directories found.")
-        raise typer.Exit(code=0)
-    return albums
+    return discover_potential_albums(scan_dir)
 
 
 def run_batch_import(

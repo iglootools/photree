@@ -358,18 +358,42 @@ class TestDiscoverPotentialAlbums:
         _setup_media_source(album)
         # No _mark_album — no album.yaml
 
-        result = discover_potential_albums(tmp_path)
-        assert result == [album]
+        albums, skipped = discover_potential_albums(tmp_path)
+        assert albums == [album]
+        assert skipped == []
 
     def test_finds_albums_with_metadata(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_media_source(album)
         _mark_album(album)
 
-        result = discover_potential_albums(tmp_path)
-        assert result == [album]
+        albums, skipped = discover_potential_albums(tmp_path)
+        assert albums == [album]
+        assert skipped == []
 
     def test_skips_empty_dirs(self, tmp_path: Path) -> None:
-        (tmp_path / "empty").mkdir()
-        result = discover_potential_albums(tmp_path)
-        assert result == []
+        empty = tmp_path / "empty"
+        empty.mkdir()
+        albums, skipped = discover_potential_albums(tmp_path)
+        assert albums == []
+        assert skipped == [empty]
+
+    def test_partitions_albums_and_non_albums(self, tmp_path: Path) -> None:
+        album = tmp_path / "album"
+        _setup_media_source(album)
+        non_album = tmp_path / "new"
+        non_album.mkdir()
+
+        albums, skipped = discover_potential_albums(tmp_path)
+        assert albums == [album]
+        assert skipped == [non_album]
+
+    def test_skipped_includes_intermediate_levels(self, tmp_path: Path) -> None:
+        container = tmp_path / "trip"
+        container.mkdir()
+        album = container / "album"
+        _setup_media_source(album)
+
+        albums, skipped = discover_potential_albums(tmp_path)
+        assert albums == [album]
+        assert skipped == [container]

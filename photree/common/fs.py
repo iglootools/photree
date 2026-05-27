@@ -88,6 +88,39 @@ def matching_subdirectories(
     return list(walk(base_dir))
 
 
+def partition_subdirectories(
+    base_dir: Path, predicate: Callable[[Path], bool]
+) -> tuple[list[Path], list[Path]]:
+    """Recursively partition subdirectories of *base_dir* into matched and skipped.
+
+    Walks the tree like :func:`matching_subdirectories`: when a directory
+    matches *predicate*, it is collected and its subtree is not descended
+    into. Non-matching directories that are traversed (every level above
+    a match, plus non-matching leaves) are collected as *skipped*.
+
+    *base_dir* itself is never returned in either list. Returns
+    ``([], [])`` when *base_dir* does not exist.
+    """
+    if not base_dir.is_dir():
+        return ([], [])
+
+    matched: list[Path] = []
+    skipped: list[Path] = []
+
+    def walk(directory: Path) -> None:
+        if predicate(directory):
+            matched.append(directory)
+            return
+        skipped.append(directory)
+        for child in _visible_subdirs(directory):
+            walk(child)
+
+    for child in _visible_subdirs(base_dir):
+        walk(child)
+
+    return (matched, skipped)
+
+
 def move_files(
     src_dir: Path,
     dst_dir: Path,
