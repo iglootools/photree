@@ -94,7 +94,18 @@ def import_all_cmd(
     resolved_lm = resolve_link_mode(link_mode, resolved_gallery)
     cwd = Path.cwd()
 
-    albums = resolve_import_all_albums(base_dir, album_dirs)
+    albums, skipped = resolve_import_all_albums(base_dir, album_dirs)
+
+    if skipped:
+        typer.echo(f"Skipped {len(skipped)} non-album director(ies):")
+        for s in skipped:
+            typer.echo(f"  {display_path(s, cwd)}")
+        typer.echo("")
+
+    if not albums:
+        typer.echo("No album directories found.")
+        raise typer.Exit(code=0)
+
     index = build_index_or_exit(resolved_gallery, cwd)
 
     try:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ...common.fs import matching_subdirectories
+from ...common.fs import matching_subdirectories, partition_subdirectories
 from ...fsprotocol import PHOTREE_DIR
 from .media_sources_discovery import discover_media_sources
 from .protocol import ALBUM_YAML
@@ -41,13 +41,21 @@ def discover_albums(base_dir: Path) -> list[Path]:
     return matching_subdirectories(base_dir, is_album)
 
 
-def discover_potential_albums(base_dir: Path) -> list[Path]:
-    """Recursively discover directories with media sources under *base_dir*.
+def discover_potential_albums(base_dir: Path) -> tuple[list[Path], list[Path]]:
+    """Recursively discover potential albums under *base_dir*.
+
+    Returns ``(albums, skipped)``:
+
+    - *albums*: subdirectories with at least one media source. Recursion
+      stops at each match.
+    - *skipped*: subdirectories traversed during the walk that are not
+      themselves albums (every level above a match plus non-matching
+      leaves).
 
     Unlike :func:`discover_albums`, this does **not** require
-    ``.photree/album.yaml`` — it finds any directory with at least one
-    media source. Useful for ``init`` commands that create ``album.yaml``.
+    ``.photree/album.yaml`` — useful for commands that may create
+    ``album.yaml`` themselves (init, import).
 
-    The *base_dir* itself is never returned.
+    The *base_dir* itself is never returned in either list.
     """
-    return matching_subdirectories(base_dir, has_media_sources)
+    return partition_subdirectories(base_dir, has_media_sources)

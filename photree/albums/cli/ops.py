@@ -68,8 +68,12 @@ def resolve_init_batch_albums(
 
     Uses :func:`discover_potential_albums` which finds directories with
     media sources regardless of whether ``.photree/album.yaml`` exists.
+    The skipped (non-album) directories are discarded — ``init`` is
+    indifferent to them.
     """
-    return _resolve_batch_albums_with(base_dir, album_dirs, discover_potential_albums)
+    return _resolve_batch_albums_with(
+        base_dir, album_dirs, lambda d: discover_potential_albums(d)[0]
+    )
 
 
 def _resolve_batch_albums_with(
