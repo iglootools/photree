@@ -11,7 +11,7 @@ VALIDATION_ERRORS = [
     ),
     ValidationError(
         "IMG_0410.HEIC",
-        "rendered file exists (IMG_E0410.HEIC) but no rendered sidecar (IMG_O*.AAE)",
+        "rendered sidecar exists (IMG_O0410.AAE) but no rendered media file",
     ),
     ValidationError(
         "IMG_0500.HEIC",
