@@ -18,7 +18,7 @@ dependencies = [
   "onnxruntime (>=1.16,<2.0)",
   "opencv-python-headless (>=4.8,<5.0)",
   "numpy (>=1.26,<3.0)",
-  "faiss-cpu (>=1.13,<2.0)",
+  "faiss-cpu (>=1.14.2,<2.0)",
   "scikit-learn (>=1.4,<2.0)",
 ]
 dynamic = ["version"]
