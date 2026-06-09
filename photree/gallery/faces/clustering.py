@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 import faiss  # type: ignore[import-untyped]
 import numpy as np
@@ -38,7 +39,7 @@ def load_faiss_index(path: Path) -> faiss.IndexFlatIP | None:
     """Load a FAISS index from disk, or ``None`` if the file is missing."""
     if not path.is_file():
         return None
-    return faiss.read_index(str(path))
+    return cast(faiss.IndexFlatIP, faiss.read_index(str(path)))
 
 
 # ---------------------------------------------------------------------------
