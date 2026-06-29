@@ -62,8 +62,8 @@ class TestRefreshBrowsableStd:
         assert result.mov.copied == 1
         assert "clip.mov" in _names(tmp_path / "nelu-vid")
 
-    def test_raises_for_legacy_std_without_archive(self, tmp_path: Path) -> None:
-        """Legacy std sources (no std-{name}/ archive) must raise FileNotFoundError."""
+    def test_raises_when_archive_missing(self, tmp_path: Path) -> None:
+        """A std source without its std-{name}/ archive must raise FileNotFoundError."""
         _setup_dir(tmp_path / "nelu-img", ["sunset.heic"])
 
         with pytest.raises(FileNotFoundError, match="Archive directory"):
@@ -129,7 +129,7 @@ class TestRmOrphanStd:
         assert result.heic.total == 0
         assert result.mov.total == 0
 
-    def test_raises_for_legacy_std(self, tmp_path: Path) -> None:
+    def test_raises_when_archive_missing(self, tmp_path: Path) -> None:
         _setup_dir(tmp_path / "nelu-img", ["sunset.heic"])
 
         with pytest.raises(FileNotFoundError, match="Archive directory"):
@@ -216,7 +216,7 @@ class TestRmUpstreamStd:
         assert result.heic.removed_rendered == ()
         assert result.heic.removed_orig == ()
 
-    def test_raises_for_legacy_std(self, tmp_path: Path) -> None:
+    def test_raises_when_archive_missing(self, tmp_path: Path) -> None:
         _setup_dir(tmp_path / "nelu-img", ["sunset.heic"])
 
         with pytest.raises(FileNotFoundError, match="Archive directory"):

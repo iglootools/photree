@@ -51,10 +51,6 @@ def check_album_dir_structure(
     Within present groups, all directories are required.
     Directories from absent groups are reported as optional.
     Optional directories (``edit-img``, ``edit-vid``) are always informational.
-
-    For legacy std sources whose ``std-{name}/`` archive directory does not
-    yet exist on disk, archive sub-directories will naturally be reported as
-    missing or optional depending on which browsable directories are present.
     """
     if not media_sources:
         # No media sources found — report missing for main media source

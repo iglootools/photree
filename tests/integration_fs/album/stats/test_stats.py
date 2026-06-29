@@ -345,8 +345,9 @@ class TestComputeAlbumStats:
     def test_mixed_ios_and_std(self, tmp_path: Path) -> None:
         album = tmp_path / "2024-07-14 - Party"
         _setup_ios_album(album)
-        # Add a std media source
+        # Add a std media source (archive + browsable dirs)
         ms = std_media_source("nelu")
+        _write(album / ms.orig_img_dir / "photo1.heic", "x" * 100)
         _write(album / ms.img_dir / "photo1.heic", "x" * 100)
         _write(album / ms.jpg_dir / "photo1.jpg", "y" * 60)
 
@@ -447,6 +448,7 @@ class TestGalleryStats:
         (album2 / ms_main.orig_vid_dir).mkdir(parents=True, exist_ok=True)
         (album2 / ms_main.jpg_dir).mkdir(parents=True, exist_ok=True)
         ms_nelu = std_media_source("nelu")
+        _write(album2 / ms_nelu.orig_img_dir / "photo1.heic", "n" * 30)
         _write(album2 / ms_nelu.img_dir / "photo1.heic", "n" * 30)
         (album2 / ms_nelu.jpg_dir).mkdir(parents=True, exist_ok=True)
         a2 = compute_album_stats(album2)

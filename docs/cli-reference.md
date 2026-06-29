@@ -104,10 +104,10 @@ Export a single album to a shared directory.
 
 Creates a subdirectory named after the album inside --share-dir.
 
-For albums without archives (legacy std sources), all files are copied
+Directories without a recognizable media source are copied in full
 regardless of --album-layout.
 
-For albums with archives (iOS or std):
+For albums with media sources (iOS or std):
 
 --album-layout=browsable-jpg (default): Copies {name}-jpg/ and {name}-vid/
 (most compatible formats).

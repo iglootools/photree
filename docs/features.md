@@ -135,7 +135,7 @@ Export albums to external volumes or cloud sync folders.
   - `browsable-jpg` (default): Export `{name}-jpg/` and `{name}-vid/` (most compatible formats)
   - `browsable`: Export `{name}-img/`, `{name}-jpg/`, `{name}-vid/`
   - `all`: Export archival directories (orig/edit) and `{name}-jpg`, recreate browsable dirs with links
-  - `archive`: Export only the archive (orig/edit) plus `.photree/` metadata (excluding derived `cache/`); browsable/JPEG dirs dropped (regenerable via `albums refresh`). Space-efficient for backups to destinations without hardlink/symlink support. Legacy std sources keep their source-of-truth browsable dirs.
+  - `archive`: Export only the archive (orig/edit) plus `.photree/` metadata (excluding derived `cache/`); browsable/JPEG dirs dropped (regenerable via `albums refresh`). Space-efficient for backups to destinations without hardlink/symlink support.
 - **Share directory layouts**:
   - `flat`: Albums exported directly under share directory
   - `albums`: Albums organized by year (`<YYYY>/<album-name>`), parsed from album name (`YYYY-MM-DD - Title`)

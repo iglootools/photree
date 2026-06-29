@@ -10,13 +10,11 @@ Supports four album layouts for albums with archives (iOS and std sources):
   metadata (excluding the derived ``cache/``). All browsable/JPEG dirs are
   dropped — they are regenerable via ``albums refresh``. Useful for
   space-efficient backups to destinations without hardlink/symlink support
-  (e.g. MEGA). Legacy std sources (no archive) keep their browsable
-  ``{name}-img/`` and ``{name}-vid/`` source-of-truth dirs.
+  (e.g. MEGA).
 
-Albums without archives (legacy std sources with browsable dirs only)
-are copied in their entirety regardless of album layout — except the
-``archive`` layout, which preserves only the source-of-truth dirs and
-``.photree/`` metadata.
+Directories that contain no recognizable media source are copied in their
+entirety regardless of album layout — except the ``archive`` layout, which
+copies only the archive dirs and ``.photree/`` metadata.
 """
 
 from __future__ import annotations
@@ -80,15 +78,6 @@ def _archive_dirs(ms: MediaSource) -> tuple[str, ...]:
         ms.edit_img_dir,
         ms.edit_vid_dir,
     )
-
-
-def _legacy_source_of_truth_dirs(ms: MediaSource) -> tuple[str, ...]:
-    """Source-of-truth browsable dirs for a legacy std source (no archive).
-
-    ``{name}-img/`` and ``{name}-vid/`` are the source of truth for legacy
-    sources; ``{name}-jpg/`` is derived from them and therefore omitted.
-    """
-    return (ms.img_dir, ms.vid_dir)
 
 
 @dataclass(frozen=True)
@@ -206,8 +195,6 @@ def _export_all(
     )
 
     # Rebuild browsable dirs for media sources whose archive dir exists on disk.
-    # Legacy std sources without archives have their browsable dirs already
-    # copied as-is above (via jpg_dir in _full_copy_dirs).
     for ms in (m for m in media_sources if (album_dir / m.archive_dir).is_dir()):
         heic_result = refresh_browsable_dir(
             target_dir / ms.orig_img_dir,
@@ -252,11 +239,9 @@ def _copy_photree_metadata(album_dir: Path, target_dir: Path) -> int:
 def _export_archive(album_dir: Path, target_dir: Path) -> int:
     """Export only the archive (originals + edits) plus ``.photree/`` metadata.
 
-    For media sources with an archive on disk (iOS or migrated std), copies
-    the ``orig-*``/``edit-*`` directories. For legacy std sources (no archive),
-    copies the source-of-truth browsable ``{name}-img/`` and ``{name}-vid/``
-    dirs. All derived dirs (``{name}-jpg/``, rebuilt ``{name}-img/``/``-vid/``)
-    are dropped — they are regenerable via ``albums refresh``.
+    Copies each media source's ``orig-*``/``edit-*`` directories. All derived
+    dirs (``{name}-jpg/``, ``{name}-img/``, ``{name}-vid/``) are dropped — they
+    are regenerable via ``albums refresh``.
     """
     media_sources = discover_media_sources(album_dir)
     if not media_sources:
@@ -266,14 +251,11 @@ def _export_archive(album_dir: Path, target_dir: Path) -> int:
 
     target_dir.mkdir(parents=True, exist_ok=True)
 
-    copied = 0
-    for ms in media_sources:
-        dirs = (
-            _archive_dirs(ms)
-            if (album_dir / ms.archive_dir).is_dir()
-            else _legacy_source_of_truth_dirs(ms)
-        )
-        copied += sum(_copy_dir(album_dir / d, target_dir / d) for d in dirs)
+    copied = sum(
+        _copy_dir(album_dir / d, target_dir / d)
+        for ms in media_sources
+        for d in _archive_dirs(ms)
+    )
 
     copied += _copy_photree_metadata(album_dir, target_dir)
     return copied
@@ -304,8 +286,8 @@ def export_album(
     media_sources = discover_media_sources(album_dir)
     album_type = "ios" if any(ms.is_ios for ms in media_sources) else "std"
 
-    # The archive layout has its own handling for legacy (archive-less) sources,
-    # so it does not fall through to the plain full-copy path.
+    # The archive layout copies archive dirs + .photree metadata, and falls
+    # back to a full copy only for directories without a media source.
     if album_layout == AlbumShareLayout.ARCHIVE:
         files_copied = _export_archive(album_dir, target_dir)
     elif not _has_archives(album_dir):

@@ -44,7 +44,7 @@ def refresh_browsable(
     """Delete browsable dirs, rebuild img/vid from archive, then jpeg.
 
     Works for both iOS and std media sources. Raises
-    :class:`FileNotFoundError` for legacy std sources without archives.
+    :class:`FileNotFoundError` if the source's archive directory is missing.
 
     Stage callbacks fire for: ``delete``, ``refresh-heic``, ``refresh-mov``,
     ``refresh-jpeg``.

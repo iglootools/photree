@@ -83,27 +83,19 @@ class TestDiscoverMediaSourcesStd:
         assert len(sources) == 1
         assert sources[0].media_source_type == MediaSourceType.STD
 
-    def test_detects_legacy_std_without_archive(self, tmp_path: Path) -> None:
-        """Legacy std: browsable dirs exist but no std-{name}/ archive."""
+    def test_browsable_only_dir_is_not_a_media_source(self, tmp_path: Path) -> None:
+        """Browsable dirs without a backing archive are not media sources."""
         _setup_dir(tmp_path / "nelu-img", ["sunset.heic"])
 
-        sources = discover_media_sources(tmp_path)
+        assert discover_media_sources(tmp_path) == []
 
-        assert len(sources) == 1
-        ms = sources[0]
-        assert ms.name == "nelu"
-        assert ms.media_source_type == MediaSourceType.STD
-
-    def test_legacy_std_from_vid(self, tmp_path: Path) -> None:
+    def test_browsable_only_vid_dir_is_not_a_media_source(self, tmp_path: Path) -> None:
         _setup_dir(tmp_path / "nelu-vid", ["clip.mov"])
 
-        sources = discover_media_sources(tmp_path)
+        assert discover_media_sources(tmp_path) == []
 
-        assert len(sources) == 1
-        assert sources[0].name == "nelu"
-
-    def test_legacy_std_not_detected_when_ios_exists(self, tmp_path: Path) -> None:
-        """If ios-{name}/ exists, browsable dirs are iOS, not legacy std."""
+    def test_browsable_dirs_alongside_ios_archive(self, tmp_path: Path) -> None:
+        """An ios-{name}/ archive plus its browsable dirs is one iOS source."""
         _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC"])
         _setup_dir(tmp_path / "main-img", ["IMG_0001.HEIC"])
 
@@ -112,16 +104,13 @@ class TestDiscoverMediaSourcesStd:
         assert len(sources) == 1
         assert sources[0].media_source_type == MediaSourceType.IOS
 
-    def test_legacy_std_not_detected_when_migrated_std_exists(
-        self, tmp_path: Path
-    ) -> None:
-        """If std-{name}/ exists, browsable dirs are not also legacy std."""
+    def test_browsable_dirs_alongside_std_archive(self, tmp_path: Path) -> None:
+        """A std-{name}/ archive plus its browsable dirs is one std source."""
         _setup_dir(tmp_path / "std-nelu/orig-img", ["sunset.heic"])
         _setup_dir(tmp_path / "nelu-img", ["sunset.heic"])
 
         sources = discover_media_sources(tmp_path)
 
-        # Should be exactly one source, not two
         assert len(sources) == 1
         assert sources[0].name == "nelu"
 
@@ -132,27 +121,26 @@ class TestDiscoverMediaSourcesStd:
 
 
 class TestDiscoverMediaSourcesMixed:
-    def test_ios_plus_migrated_std_plus_legacy_std(self, tmp_path: Path) -> None:
-        """Album with iOS main + migrated std (bruno) + legacy std (nelu)."""
+    def test_ios_plus_std_sources(self, tmp_path: Path) -> None:
+        """Album with iOS main + std (bruno); browsable-only dirs are ignored."""
         # iOS source: main
         _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC"])
         _setup_dir(tmp_path / "main-img", ["IMG_0001.HEIC"])
 
-        # Migrated std source: bruno
+        # Std source: bruno
         _setup_dir(tmp_path / "std-bruno/orig-img", ["sunset.heic"])
         _setup_dir(tmp_path / "bruno-img", ["sunset.heic"])
 
-        # Legacy std source: nelu (no std-nelu/ archive)
+        # Browsable-only dirs without an archive: not a media source
         _setup_dir(tmp_path / "nelu-img", ["beach.png"])
 
         sources = discover_media_sources(tmp_path)
 
         names_types = _ms_names_and_types(sources)
-        # main is first (sorted priority), then alphabetically
         assert ("main", MediaSourceType.IOS) in names_types
         assert ("bruno", MediaSourceType.STD) in names_types
-        assert ("nelu", MediaSourceType.STD) in names_types
-        assert len(sources) == 3
+        assert "nelu" not in {ms.name for ms in sources}
+        assert len(sources) == 2
 
     def test_main_sorted_first(self, tmp_path: Path) -> None:
         """The 'main' media source always sorts first regardless of type."""

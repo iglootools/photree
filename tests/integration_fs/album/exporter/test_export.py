@@ -356,47 +356,47 @@ class TestExportIosArchive:
         assert not (target / PHOTREE_DIR / "cache").exists()
 
 
-class TestExportLegacyArchive:
-    """Legacy std sources have no archive — their browsable dirs are the
-    source of truth and must be preserved by the archive layout."""
+def _setup_std_source(album_dir: Path, name: str = "dana") -> None:
+    """Create a std media source with a real std-{name}/ archive."""
+    ms = std_media_source(name)
+    _setup_dir(album_dir / ms.orig_img_dir, ["photo1.heic", "photo2.heic"])
+    _setup_dir(album_dir / ms.edit_img_dir, ["photo1.heic"])
+    _setup_dir(album_dir / ms.orig_vid_dir, ["clip.mov"])
+    _setup_dir(album_dir / ms.img_dir, ["photo1.heic", "photo2.heic"])
+    _setup_dir(album_dir / ms.jpg_dir, ["photo1.jpg", "photo2.jpg"])
 
-    def _setup_legacy_album(self, album_dir: Path) -> None:
-        dana = std_media_source("dana")
-        # No std-dana/ archive — browsable dirs only.
-        _setup_dir(album_dir / dana.img_dir, ["photo1.jpg", "photo2.jpg"])
-        _setup_dir(album_dir / dana.vid_dir, ["clip.mov"])
-        _setup_dir(album_dir / dana.jpg_dir, ["photo1.jpg", "photo2.jpg"])
 
-    def test_preserves_legacy_source_of_truth_dirs(self, tmp_path: Path) -> None:
-        album_dir = tmp_path / "legacy"
-        self._setup_legacy_album(album_dir)
+class TestExportStdArchive:
+    def test_copies_std_archive_and_drops_derived(self, tmp_path: Path) -> None:
+        album_dir = tmp_path / "std-album"
+        _setup_std_source(album_dir)
         _setup_photree_metadata(album_dir)
-        target = tmp_path / "share" / "legacy"
+        target = tmp_path / "share" / "std-album"
 
         result = export_album(album_dir, target, album_layout=AlbumShareLayout.ARCHIVE)
 
-        # img/ + vid/ are the source of truth — preserved
-        assert (target / "dana-img" / "photo1.jpg").exists()
-        assert (target / "dana-img" / "photo2.jpg").exists()
-        assert (target / "dana-vid" / "clip.mov").exists()
-        # jpg/ is derived from img/ — dropped
+        assert result.album_type == "std"
+        # archive (orig + edit) copied
+        assert (target / "std-dana" / "orig-img" / "photo1.heic").exists()
+        assert (target / "std-dana" / "edit-img" / "photo1.heic").exists()
+        assert (target / "std-dana" / "orig-vid" / "clip.mov").exists()
+        # derived browsable/JPEG dirs dropped
+        assert not (target / "dana-img").exists()
         assert not (target / "dana-jpg").exists()
         assert (target / PHOTREE_DIR / "album.yaml").exists()
-        # 3 media files + 2 .photree metadata files (album.yaml, media-ids/main.yaml)
-        assert result.files_copied == 5
 
-    def test_mixed_ios_and_legacy_sources(self, tmp_path: Path) -> None:
+    def test_mixed_ios_and_std_sources(self, tmp_path: Path) -> None:
         album_dir = _setup_ios_album(tmp_path / "mixed")
-        self._setup_legacy_album(album_dir)
+        _setup_std_source(album_dir)
         target = tmp_path / "share" / "mixed"
 
         export_album(album_dir, target, album_layout=AlbumShareLayout.ARCHIVE)
 
-        # iOS archive preserved
+        # iOS archive preserved, iOS browsable dropped
         assert (target / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.HEIC").exists()
         assert not (target / MAIN_MEDIA_SOURCE.jpg_dir).exists()
-        # legacy source-of-truth preserved
-        assert (target / "dana-img" / "photo1.jpg").exists()
+        # std archive preserved, std browsable dropped
+        assert (target / "std-dana" / "orig-img" / "photo1.heic").exists()
         assert not (target / "dana-jpg").exists()
 
 

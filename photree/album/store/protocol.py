@@ -144,10 +144,8 @@ class MediaSource:
     directories (under ``ios-{name}/`` or ``std-{name}/``) with identical
     internal structure (``orig-img/``, ``edit-img/``, ``orig-vid/``,
     ``edit-vid/``), plus browsable directories (``{name}-img/``,
-    ``{name}-vid/``, ``{name}-jpg/``).
-
-    Legacy std sources (pre-migration) may lack the ``std-{name}/``
-    archive on disk; code handles missing directories gracefully.
+    ``{name}-vid/``, ``{name}-jpg/``). The browsable directories are derived
+    from the archive and rebuilt by refresh.
     """
 
     name: str  # "main", "bruno"
@@ -240,8 +238,8 @@ def std_media_source(name: str) -> MediaSource:
 
     The archive directory structure is identical to iOS
     (``orig-img/``, ``edit-img/``, ``orig-vid/``, ``edit-vid/``).
-    For legacy (pre-migration) albums, the ``std-{name}/`` archive
-    directory may not exist on disk; code handles this gracefully.
+    Std sources match files by filename stem and skip iOS-specific
+    integrity checks and fixes.
     """
     archive = f"{STD_DIR_PREFIX}{name}"
     return MediaSource(

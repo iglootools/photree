@@ -306,8 +306,7 @@ photree gallery export -p mega -n
 - `archive`: exports only the archive (orig/edit) plus `.photree/` metadata
   (excluding the derived `cache/`). All browsable/JPEG dirs are dropped — they
   are regenerable via `photree albums refresh`. Space-efficient for backups to
-  destinations without hardlink/symlink support (e.g. MEGA). Legacy std sources
-  (no archive) keep their source-of-truth `{name}-img/` and `{name}-vid/` dirs.
+  destinations without hardlink/symlink support (e.g. MEGA).
 
 **Share directory layouts:**
 - `flat`: albums placed directly under the share directory
