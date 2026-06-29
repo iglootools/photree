@@ -31,8 +31,15 @@ image-capture-dir = "~/Pictures/Sami Dalouche\u2019s iPhone"
 [exporter.profiles.mega]
 share-dir = "~/MEGAsync/to-share"
 share-layout = "flat"
-album-layout = "main"
+album-layout = "browsable-jpg"
 link-mode = "hardlink"
+
+# Space-efficient archival backup (originals only, organized by day).
+# link-mode is unused by the archive layout (no browsable dirs are rebuilt).
+[exporter.profiles.mega-backup]
+share-dir = "~/MEGAsync/backup"
+share-layout = "by-month"
+album-layout = "archive"
 ```
 
 ## Gallery
@@ -293,14 +300,27 @@ photree gallery export -p mega -n
 ```
 
 **Album layouts:**
-- `main-jpg` (default): exports `main-jpg/` and `main-vid/` (most compatible formats)
-- `main`: exports `main-img/`, `main-jpg/`, `main-vid/`
-- `all`: exports archival directories (orig/edit) and main-jpg, recreates main dirs with links
+- `browsable-jpg` (default): exports `{name}-jpg/` and `{name}-vid/` (most compatible formats)
+- `browsable`: exports `{name}-img/`, `{name}-jpg/`, `{name}-vid/`
+- `all`: exports archival directories (orig/edit) and `{name}-jpg`, recreates browsable dirs with links
+- `archive`: exports only the archive (orig/edit) plus `.photree/` metadata
+  (excluding the derived `cache/`). All browsable/JPEG dirs are dropped — they
+  are regenerable via `photree albums refresh`. Space-efficient for backups to
+  destinations without hardlink/symlink support (e.g. MEGA). Legacy std sources
+  (no archive) keep their source-of-truth `{name}-img/` and `{name}-vid/` dirs.
 
 **Share directory layouts:**
 - `flat`: albums placed directly under the share directory
 - `albums`: albums organized by year (`2024/2024-06-15 - Summer Vacation/`)
+- `by-month`: albums organized by month (`2024-06/2024-06-15 - Summer Vacation/`);
+  for date ranges, the start month is used
 
 The share directory must contain a `.photree-share` sentinel file to prevent accidental exports.
+
+A typical MEGA backup profile combines `by-month` + `archive`:
+
+```bash
+photree gallery export --share-dir ~/MEGAsync/backup --share-layout by-month --album-layout archive
+```
 
 See [CLI Reference](./cli-reference.md) for full option details.

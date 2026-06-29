@@ -9,7 +9,12 @@ from photree.album.exporter.single import (
     export_album,
 )
 from photree.fsprotocol import AlbumShareLayout, ShareDirectoryLayout
-from photree.album.store.protocol import MAIN_MEDIA_SOURCE, parse_album_year
+from photree.album.store.protocol import (
+    MAIN_MEDIA_SOURCE,
+    parse_album_month,
+    parse_album_year,
+    std_media_source,
+)
 from photree.fsprotocol import LinkMode, PHOTREE_DIR
 
 
@@ -61,6 +66,28 @@ class TestParseAlbumYear:
             parse_album_year("2024-06")
 
 
+class TestParseAlbumMonth:
+    def test_standard_format(self) -> None:
+        assert parse_album_month("2024-06-15 - Summer Vacation") == "2024-06"
+
+    def test_date_only(self) -> None:
+        assert parse_album_month("2024-06-15") == "2024-06"
+
+    def test_month_precision(self) -> None:
+        assert parse_album_month("2024-06 - Summer") == "2024-06"
+
+    def test_range_uses_start_month(self) -> None:
+        assert parse_album_month("2024-06-15--2024-07-17 - Trip") == "2024-06"
+
+    def test_no_date_prefix_raises(self) -> None:
+        with pytest.raises(ValueError, match="does not start with YYYY-MM"):
+            parse_album_month("vacation-photos")
+
+    def test_year_only_raises(self) -> None:
+        with pytest.raises(ValueError, match="does not start with YYYY-MM"):
+            parse_album_month("2024 - Family")
+
+
 class TestComputeTargetDir:
     def test_flat_layout(self) -> None:
         result = compute_target_dir(
@@ -82,6 +109,23 @@ class TestComputeTargetDir:
     def test_albums_layout_invalid_name_raises(self) -> None:
         with pytest.raises(ValueError):
             compute_target_dir(Path("/share"), "no-date", ShareDirectoryLayout.ALBUMS)
+
+    def test_by_month_layout(self) -> None:
+        result = compute_target_dir(
+            Path("/share"), "2024-06-15 - Vacation", ShareDirectoryLayout.BY_MONTH
+        )
+        assert result == Path("/share/2024-06/2024-06-15 - Vacation")
+
+    def test_by_month_layout_range_uses_start_month(self) -> None:
+        assert compute_target_dir(
+            Path("/share"),
+            "2024-06-15--2024-07-17 - Trip",
+            ShareDirectoryLayout.BY_MONTH,
+        ) == Path("/share/2024-06/2024-06-15--2024-07-17 - Trip")
+
+    def test_by_month_layout_invalid_name_raises(self) -> None:
+        with pytest.raises(ValueError):
+            compute_target_dir(Path("/share"), "no-date", ShareDirectoryLayout.BY_MONTH)
 
 
 class TestExportOtherAlbum:
@@ -266,3 +310,104 @@ class TestExportIosAll:
 
         assert (target / PHOTREE_DIR).is_dir()
         assert not list((target / PHOTREE_DIR).iterdir())
+
+
+def _setup_photree_metadata(album_dir: Path) -> None:
+    """Create representative .photree metadata + a derived cache dir."""
+    photree = album_dir / PHOTREE_DIR
+    (photree).mkdir(parents=True, exist_ok=True)
+    (photree / "album.yaml").write_text("id: 0192d4e1-7c3f-7b4a-8c5e-f6a7b8c9d0e1\n")
+    _setup_dir(photree / "media-ids", ["main.yaml"])
+    # cache/ is derived and must be excluded from the archive layout.
+    _setup_dir(photree / "cache" / "exif", ["main.yaml"])
+    _setup_dir(photree / "cache" / "faces", ["main.npz"])
+
+
+class TestExportIosArchive:
+    def test_copies_only_archive_and_metadata(self, tmp_path: Path) -> None:
+        album_dir = _setup_ios_album(tmp_path / "trip")
+        _setup_photree_metadata(album_dir)
+        target = tmp_path / "share" / "trip"
+
+        result = export_album(album_dir, target, album_layout=AlbumShareLayout.ARCHIVE)
+
+        assert result.album_type == "ios"
+        # archive (orig + edit) copied
+        assert (target / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.HEIC").exists()
+        assert (target / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0002.HEIC").exists()
+        assert (target / MAIN_MEDIA_SOURCE.edit_img_dir / "IMG_E0001.HEIC").exists()
+        assert (target / MAIN_MEDIA_SOURCE.orig_vid_dir / "IMG_0010.MOV").exists()
+        assert (target / MAIN_MEDIA_SOURCE.edit_vid_dir / "IMG_E0010.MOV").exists()
+        # derived browsable/JPEG dirs dropped
+        assert not (target / MAIN_MEDIA_SOURCE.img_dir).exists()
+        assert not (target / MAIN_MEDIA_SOURCE.jpg_dir).exists()
+        assert not (target / MAIN_MEDIA_SOURCE.vid_dir).exists()
+
+    def test_copies_photree_metadata_excluding_cache(self, tmp_path: Path) -> None:
+        album_dir = _setup_ios_album(tmp_path / "trip")
+        _setup_photree_metadata(album_dir)
+        target = tmp_path / "share" / "trip"
+
+        export_album(album_dir, target, album_layout=AlbumShareLayout.ARCHIVE)
+
+        assert (target / PHOTREE_DIR / "album.yaml").exists()
+        assert (target / PHOTREE_DIR / "media-ids" / "main.yaml").exists()
+        # derived cache must NOT be copied
+        assert not (target / PHOTREE_DIR / "cache").exists()
+
+
+class TestExportLegacyArchive:
+    """Legacy std sources have no archive — their browsable dirs are the
+    source of truth and must be preserved by the archive layout."""
+
+    def _setup_legacy_album(self, album_dir: Path) -> None:
+        dana = std_media_source("dana")
+        # No std-dana/ archive — browsable dirs only.
+        _setup_dir(album_dir / dana.img_dir, ["photo1.jpg", "photo2.jpg"])
+        _setup_dir(album_dir / dana.vid_dir, ["clip.mov"])
+        _setup_dir(album_dir / dana.jpg_dir, ["photo1.jpg", "photo2.jpg"])
+
+    def test_preserves_legacy_source_of_truth_dirs(self, tmp_path: Path) -> None:
+        album_dir = tmp_path / "legacy"
+        self._setup_legacy_album(album_dir)
+        _setup_photree_metadata(album_dir)
+        target = tmp_path / "share" / "legacy"
+
+        result = export_album(album_dir, target, album_layout=AlbumShareLayout.ARCHIVE)
+
+        # img/ + vid/ are the source of truth — preserved
+        assert (target / "dana-img" / "photo1.jpg").exists()
+        assert (target / "dana-img" / "photo2.jpg").exists()
+        assert (target / "dana-vid" / "clip.mov").exists()
+        # jpg/ is derived from img/ — dropped
+        assert not (target / "dana-jpg").exists()
+        assert (target / PHOTREE_DIR / "album.yaml").exists()
+        # 3 media files + 2 .photree metadata files (album.yaml, media-ids/main.yaml)
+        assert result.files_copied == 5
+
+    def test_mixed_ios_and_legacy_sources(self, tmp_path: Path) -> None:
+        album_dir = _setup_ios_album(tmp_path / "mixed")
+        self._setup_legacy_album(album_dir)
+        target = tmp_path / "share" / "mixed"
+
+        export_album(album_dir, target, album_layout=AlbumShareLayout.ARCHIVE)
+
+        # iOS archive preserved
+        assert (target / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.HEIC").exists()
+        assert not (target / MAIN_MEDIA_SOURCE.jpg_dir).exists()
+        # legacy source-of-truth preserved
+        assert (target / "dana-img" / "photo1.jpg").exists()
+        assert not (target / "dana-jpg").exists()
+
+
+class TestExportPlainArchive:
+    def test_plain_dir_falls_back_to_full_copy(self, tmp_path: Path) -> None:
+        album_dir = tmp_path / "loose"
+        _setup_dir(album_dir, ["a.jpg", "b.jpg"])
+        target = tmp_path / "share" / "loose"
+
+        result = export_album(album_dir, target, album_layout=AlbumShareLayout.ARCHIVE)
+
+        assert (target / "a.jpg").exists()
+        assert (target / "b.jpg").exists()
+        assert result.files_copied == 2

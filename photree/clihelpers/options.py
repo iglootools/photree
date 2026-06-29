@@ -195,7 +195,7 @@ SHARE_LAYOUT_OPTION = Annotated[
     Optional[ShareDirectoryLayout],
     typer.Option(
         "--share-layout",
-        help="Share layout: flat (default) or albums.",
+        help="Share layout: flat (default), albums (by year), or by-month (by month).",
     ),
 ]
 
@@ -203,7 +203,10 @@ ALBUM_LAYOUT_OPTION = Annotated[
     Optional[AlbumShareLayout],
     typer.Option(
         "--album-layout",
-        help="Export layout: main-jpg (default), main, or all.",
+        help=(
+            "Export layout: browsable-jpg (default), browsable, all, or "
+            "archive (originals + edits + .photree metadata only)."
+        ),
     ),
 ]
 

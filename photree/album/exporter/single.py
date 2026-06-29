@@ -1,20 +1,29 @@
 """Export albums to a shared directory.
 
-Supports three album layouts for albums with archives (iOS and std sources):
+Supports four album layouts for albums with archives (iOS and std sources):
 
 - **browsable-jpg** (default): Copies {name}-jpg/ and {name}-vid/ (most compatible formats).
 - **browsable**: Copies {name}-img/, {name}-jpg/, and {name}-vid/.
 - **all**: Copies archival directories (orig-*, edit-*) and main-jpg/ as-is,
   then recreates main-img/ and main-vid/ using the specified link mode.
+- **archive**: Copies only the archive (orig-*, edit-*) plus ``.photree/``
+  metadata (excluding the derived ``cache/``). All browsable/JPEG dirs are
+  dropped — they are regenerable via ``albums refresh``. Useful for
+  space-efficient backups to destinations without hardlink/symlink support
+  (e.g. MEGA). Legacy std sources (no archive) keep their browsable
+  ``{name}-img/`` and ``{name}-vid/`` source-of-truth dirs.
 
 Albums without archives (legacy std sources with browsable dirs only)
-are copied in their entirety regardless of album layout.
+are copied in their entirety regardless of album layout — except the
+``archive`` layout, which preserves only the source-of-truth dirs and
+``.photree/`` metadata.
 """
 
 from __future__ import annotations
 
 import os
 import shutil
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -23,9 +32,11 @@ from ..browsable import refresh_browsable_dir
 from ..exporter.protocol import AlbumShareLayout, ShareDirectoryLayout
 from ..store.media_sources_discovery import discover_media_sources
 from ..store.protocol import (
+    CACHE_DIR,
     IMG_EXTENSIONS,
     VID_EXTENSIONS,
     MediaSource,
+    parse_album_month,
     parse_album_year,
 )
 
@@ -61,6 +72,25 @@ def _full_copy_dirs(ms: MediaSource) -> tuple[str, ...]:
     )
 
 
+def _archive_dirs(ms: MediaSource) -> tuple[str, ...]:
+    """Archive directories (originals + edits) for the ``archive`` layout."""
+    return (
+        ms.orig_img_dir,
+        ms.orig_vid_dir,
+        ms.edit_img_dir,
+        ms.edit_vid_dir,
+    )
+
+
+def _legacy_source_of_truth_dirs(ms: MediaSource) -> tuple[str, ...]:
+    """Source-of-truth browsable dirs for a legacy std source (no archive).
+
+    ``{name}-img/`` and ``{name}-vid/`` are the source of truth for legacy
+    sources; ``{name}-jpg/`` is derived from them and therefore omitted.
+    """
+    return (ms.img_dir, ms.vid_dir)
+
+
 @dataclass(frozen=True)
 class ExportResult:
     """Result of exporting a single album."""
@@ -82,6 +112,9 @@ def compute_target_dir(
         case ShareDirectoryLayout.ALBUMS:
             year = parse_album_year(album_name)
             return share_dir / year / album_name
+        case ShareDirectoryLayout.BY_MONTH:
+            month = parse_album_month(album_name)
+            return share_dir / month / album_name
 
 
 def _copy_dir(src: Path, dst: Path) -> int:
@@ -112,15 +145,20 @@ def _ignore_dotfiles(_directory: str, contents: list[str]) -> set[str]:
     return {name for name in contents if _is_dotfile(name)}
 
 
-def _copytree(src: Path, dst: Path) -> int:
-    """Recursively copy a directory tree, skipping dotfiles.
+def _copytree(
+    src: Path,
+    dst: Path,
+    *,
+    ignore: Callable[[str, list[str]], set[str]] = _ignore_dotfiles,
+) -> int:
+    """Recursively copy a directory tree, skipping dotfiles by default.
 
     Returns the number of files copied.
     """
     if not src.is_dir():
         return 0
 
-    shutil.copytree(src, dst, dirs_exist_ok=True, ignore=_ignore_dotfiles)
+    shutil.copytree(src, dst, dirs_exist_ok=True, ignore=ignore)
     return sum(1 for _ in dst.rglob("*") if _.is_file())
 
 
@@ -192,6 +230,55 @@ def _export_all(
     return copied
 
 
+def _copy_photree_metadata(album_dir: Path, target_dir: Path) -> int:
+    """Copy ``.photree/`` metadata, excluding the derived ``cache/`` subdir.
+
+    ``album.yaml`` (stable album ID) and ``media-ids/`` (stable image/video
+    UUIDs) are preserved; ``cache/`` (EXIF + face data) is omitted because it
+    is regenerable via ``albums refresh``. Returns the number of files copied.
+    """
+    src = album_dir / PHOTREE_DIR
+    if not src.is_dir():
+        return 0
+
+    dst = target_dir / PHOTREE_DIR
+    return _copytree(
+        src,
+        dst,
+        ignore=lambda _directory, _contents: {CACHE_DIR},
+    )
+
+
+def _export_archive(album_dir: Path, target_dir: Path) -> int:
+    """Export only the archive (originals + edits) plus ``.photree/`` metadata.
+
+    For media sources with an archive on disk (iOS or migrated std), copies
+    the ``orig-*``/``edit-*`` directories. For legacy std sources (no archive),
+    copies the source-of-truth browsable ``{name}-img/`` and ``{name}-vid/``
+    dirs. All derived dirs (``{name}-jpg/``, rebuilt ``{name}-img/``/``-vid/``)
+    are dropped — they are regenerable via ``albums refresh``.
+    """
+    media_sources = discover_media_sources(album_dir)
+    if not media_sources:
+        # No recognizable media-source structure: copy everything, since we
+        # cannot tell source-of-truth from derived data.
+        return _export_plain(album_dir, target_dir)
+
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    copied = 0
+    for ms in media_sources:
+        dirs = (
+            _archive_dirs(ms)
+            if (album_dir / ms.archive_dir).is_dir()
+            else _legacy_source_of_truth_dirs(ms)
+        )
+        copied += sum(_copy_dir(album_dir / d, target_dir / d) for d in dirs)
+
+    copied += _copy_photree_metadata(album_dir, target_dir)
+    return copied
+
+
 def _has_archives(album_dir: Path) -> bool:
     """Check whether the album has any media source with an archive directory on disk."""
     return any(
@@ -217,7 +304,11 @@ def export_album(
     media_sources = discover_media_sources(album_dir)
     album_type = "ios" if any(ms.is_ios for ms in media_sources) else "std"
 
-    if not _has_archives(album_dir):
+    # The archive layout has its own handling for legacy (archive-less) sources,
+    # so it does not fall through to the plain full-copy path.
+    if album_layout == AlbumShareLayout.ARCHIVE:
+        files_copied = _export_archive(album_dir, target_dir)
+    elif not _has_archives(album_dir):
         files_copied = _export_plain(album_dir, target_dir)
     else:
         match album_layout:

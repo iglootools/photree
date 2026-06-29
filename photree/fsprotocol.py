@@ -74,6 +74,7 @@ class AlbumShareLayout(StrEnum):
     BROWSABLE_JPG = "browsable-jpg"
     BROWSABLE = "browsable"
     ALL = "all"
+    ARCHIVE = "archive"
 
 
 class ShareDirectoryLayout(StrEnum):
@@ -81,6 +82,7 @@ class ShareDirectoryLayout(StrEnum):
 
     FLAT = "flat"
     ALBUMS = "albums"
+    BY_MONTH = "by-month"
 
 
 # ---------------------------------------------------------------------------

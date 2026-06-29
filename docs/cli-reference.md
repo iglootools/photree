@@ -104,17 +104,24 @@ Export a single album to a shared directory.
 
 Creates a subdirectory named after the album inside --share-dir.
 
-For non-iOS albums, all files are copied regardless of --album-layout.
+For albums without archives (legacy std sources), all files are copied
+regardless of --album-layout.
 
-For iOS albums:
+For albums with archives (iOS or std):
 
---album-layout=main-jpg (default): Copies main-jpg/ and main-vid/
+--album-layout=browsable-jpg (default): Copies {name}-jpg/ and {name}-vid/
 (most compatible formats).
 
---album-layout=main: Copies main-img/, main-jpg/, and main-vid/.
+--album-layout=browsable: Copies {name}-img/, {name}-jpg/, and {name}-vid/.
 
 --album-layout=all: Copies archival directories (orig-*, edit-*) and
-main-jpg/ as-is, then recreates main-img/ and main-vid/ using --link-mode.
+{name}-jpg/ as-is, then recreates {name}-img/ and {name}-vid/ using
+--link-mode.
+
+--album-layout=archive: Copies only the archive (orig-*, edit-*) plus
+.photree/ metadata (excluding the derived cache/). Browsable/JPEG dirs are
+dropped — regenerable via &#x27;photree albums refresh&#x27;. Space-efficient for
+backups to destinations without hardlink/symlink support (e.g. MEGA).
 
 **Usage**:
 
@@ -128,8 +135,8 @@ $ photree album export [OPTIONS]
 * `-s, --share-dir DIRECTORY`: Base directory to export into (subdirectories with album names are created).
 * `-p, --profile TEXT`: Exporter profile name from config.
 * `-c, --config TEXT`: Path to config file.
-* `--share-layout [flat|albums]`: Share layout: flat (default) or albums.
-* `--album-layout [browsable-jpg|browsable|all]`: Export layout: main-jpg (default), main, or all.
+* `--share-layout [flat|albums|by-month]`: Share layout: flat (default), albums (by year), or by-month (by month).
+* `--album-layout [browsable-jpg|browsable|all|archive]`: Export layout: browsable-jpg (default), browsable, all, or archive (originals + edits + .photree metadata only).
 * `--link-mode [copy|hardlink|symlink]`: How to create main files in all layout: hardlink (default), symlink, or copy.
 * `--help`: Show this message and exit.
 
@@ -502,8 +509,8 @@ $ photree albums export [OPTIONS]
 * `-s, --share-dir DIRECTORY`: Base directory to export into (subdirectories with album names are created).
 * `-p, --profile TEXT`: Exporter profile name from config.
 * `-c, --config TEXT`: Path to config file.
-* `--share-layout [flat|albums]`: Share layout: flat (default) or albums.
-* `--album-layout [browsable-jpg|browsable|all]`: Export layout: main-jpg (default), main, or all.
+* `--share-layout [flat|albums|by-month]`: Share layout: flat (default), albums (by year), or by-month (by month).
+* `--album-layout [browsable-jpg|browsable|all|archive]`: Export layout: browsable-jpg (default), browsable, all, or archive (originals + edits + .photree metadata only).
 * `--link-mode [copy|hardlink|symlink]`: How to create main files in all layout: hardlink (default), symlink, or copy.
 * `--help`: Show this message and exit.
 
@@ -1057,8 +1064,8 @@ $ photree gallery export [OPTIONS]
 * `-s, --share-dir DIRECTORY`: Base directory to export into (subdirectories with album names are created).
 * `-p, --profile TEXT`: Exporter profile name from config.
 * `-c, --config TEXT`: Path to config file.
-* `--share-layout [flat|albums]`: Share layout: flat (default) or albums.
-* `--album-layout [browsable-jpg|browsable|all]`: Export layout: main-jpg (default), main, or all.
+* `--share-layout [flat|albums|by-month]`: Share layout: flat (default), albums (by year), or by-month (by month).
+* `--album-layout [browsable-jpg|browsable|all|archive]`: Export layout: browsable-jpg (default), browsable, all, or archive (originals + edits + .photree metadata only).
 * `--link-mode [copy|hardlink|symlink]`: How to create main files in all layout: hardlink (default), symlink, or copy.
 * `--help`: Show this message and exit.
 

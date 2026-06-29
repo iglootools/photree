@@ -173,3 +173,24 @@ class TestBatchExport:
         assert result.exported == 0
         assert len(result.failed) == 1
         assert "YYYY-MM-DD" in result.failed[0][1]
+
+    def test_by_month_archive_layout(self, tmp_path: Path) -> None:
+        album = _setup_ios_album(tmp_path / "2024-06-15 - Vacation")
+        (album / ".photree").mkdir()
+        (album / ".photree" / "album.yaml").write_text("id: abc\n")
+        share_dir = tmp_path / "share"
+        share_dir.mkdir()
+
+        result = run_batch_export(
+            album_dirs=[album],
+            share_dir=share_dir,
+            share_layout=ShareDirectoryLayout.BY_MONTH,
+            album_layout=AlbumShareLayout.ARCHIVE,
+        )
+
+        assert result.exported == 1
+        target = share_dir / "2024-06" / "2024-06-15 - Vacation"
+        assert (target / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.HEIC").exists()
+        assert (target / ".photree" / "album.yaml").exists()
+        # derived dirs dropped
+        assert not (target / MAIN_MEDIA_SOURCE.jpg_dir).exists()

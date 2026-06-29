@@ -20,6 +20,7 @@ from ...fsprotocol import _BaseModel
 
 ALBUM_YAML = "album.yaml"
 MEDIA_IDS_DIR = "media-ids"
+CACHE_DIR = "cache"
 
 SELECTION_DIR = "to-import"
 SELECTION_CSV = "to-import.csv"
@@ -74,6 +75,7 @@ _DATE_PART = r"\d{4}(?:-\d{2}(?:-\d{2})?)?"
 ALBUM_DATE_RE = re.compile(rf"^({_DATE_PART}(?:--{_DATE_PART})?) - ")
 
 _ALBUM_DATE_RE = re.compile(r"^(\d{4})-\d{2}-\d{2}")
+_ALBUM_MONTH_RE = re.compile(r"^(\d{4}-\d{2})")
 
 
 def parse_album_year(album_name: str) -> str:
@@ -88,6 +90,26 @@ def parse_album_year(album_name: str) -> str:
             album name "{album_name}" does not start with YYYY-MM-DD.
 
             The "albums" share layout organizes exports by year, parsed from
+            the album directory name. Expected naming convention:
+            "YYYY-MM-DD - <Title>" (e.g. "2024-06-15 - Summer Vacation").""")
+        )
+    return m.group(1)
+
+
+def parse_album_month(album_name: str) -> str:
+    """Extract the ``YYYY-MM`` month from an album name.
+
+    For date ranges (``YYYY-MM-DD--YYYY-MM-DD``), the start month is returned
+    (the prefix is matched). Raises :class:`ValueError` when the name does
+    not start with at least a ``YYYY-MM`` date.
+    """
+    m = _ALBUM_MONTH_RE.match(album_name)
+    if m is None:
+        raise ValueError(
+            dedent(f"""\
+            album name "{album_name}" does not start with YYYY-MM.
+
+            The "by-month" share layout organizes exports by month, parsed from
             the album directory name. Expected naming convention:
             "YYYY-MM-DD - <Title>" (e.g. "2024-06-15 - Summer Vacation").""")
         )
