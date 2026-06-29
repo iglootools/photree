@@ -105,7 +105,15 @@ def refresh_face_data(
     if not sources:
         return FaceRefreshResult(by_media_source=())
 
-    analyzer = face_analyzer or create_face_analyzer(model_name)
+    # Load the model lazily, only once a source actually has work to do. A
+    # no-op refresh (nothing changed) should never pay the ~300 MB load cost.
+    analyzer: FaceAnalysis | None = face_analyzer
+
+    def get_analyzer() -> FaceAnalysis:
+        nonlocal analyzer
+        if analyzer is None:
+            analyzer = create_face_analyzer(model_name)
+        return analyzer
 
     results = [
         (
@@ -113,7 +121,7 @@ def refresh_face_data(
             _refresh_source(
                 album_dir,
                 ms,
-                analyzer=analyzer,
+                get_analyzer=get_analyzer,
                 model_name=model_name,
                 model_version=model_version,
                 redetect=redetect,
@@ -138,7 +146,7 @@ def _refresh_source(
     album_dir: Path,
     ms: MediaSource,
     *,
-    analyzer: FaceAnalysis,
+    get_analyzer: Callable[[], FaceAnalysis],
     model_name: str,
     model_version: str,
     redetect: bool,
@@ -187,7 +195,7 @@ def _refresh_source(
         keys_to_process,
         existing_state=existing_state,
         refresh_thumbs=refresh_thumbs or model_changed,
-        analyzer=analyzer,
+        get_analyzer=get_analyzer,
     )
 
     # Cleanup + persist
@@ -280,7 +288,7 @@ def _run_detection(
     *,
     existing_state: FaceProcessingState,
     refresh_thumbs: bool,
-    analyzer: FaceAnalysis,
+    get_analyzer: Callable[[], FaceAnalysis],
 ) -> tuple[list[DetectedFace], dict[str, FaceProcessedKey], int]:
     """Generate thumbnails and run face detection.
 
@@ -296,6 +304,12 @@ def _run_detection(
         regenerate=refresh_thumbs,
     )
 
+    # No thumbnails means nothing to detect (e.g. only stale keys to prune) —
+    # avoid loading the model in that case.
+    if not thumb_results:
+        return ([], {}, 0)
+
+    analyzer = get_analyzer()
     detection_results = [
         _detect_single(tr, album_dir / ms.orig_img_dir, analyzer)
         for tr in thumb_results
