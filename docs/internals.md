@@ -242,13 +242,9 @@ Both iOS and std media sources share the same two-tier structure:
   extension)
 - JPEG conversion applies, but iOS-specific checks and fixes do not
 
-**Legacy std media source** (backward compatibility):
-- Detected by: `{name}-img/` or `{name}-vid/` directory without a corresponding
-  `ios-{name}/` or `std-{name}/` directory
-- Has browsable directories only (no archive)
-- Browsable directories are the source of truth -- never rebuilt
-- Treated as a std media source in all other respects (stem-based matching,
-  JPEG conversion, no iOS-specific logic)
+Every media source is backed by an archive directory (`ios-{name}/` or
+`std-{name}/`). Browsable directories without a backing archive are not
+media sources.
 
 The default media source is named `main`.
 
@@ -304,11 +300,6 @@ The default media source is named `main`.
   nelu-img/               browsable: best variant from nelu
   nelu-jpg/               browsable: JPEG from nelu
   nelu-vid/               browsable: best variant video from nelu
-
-  # Legacy std media source "dana" (no archive, browsable only)
-  dana-img/               browsable: images from dana (source of truth)
-  dana-vid/               browsable: videos from dana (source of truth)
-  dana-jpg/               browsable: JPEG versions of dana's images
 ```
 
 ### Browsable Directories
@@ -316,11 +307,10 @@ The default media source is named `main`.
 For each media source, the `{name}-img/`, `{name}-vid/`, and `{name}-jpg/`
 directories at the top level are the browsable/shareable versions:
 
-- **`{name}-img/`**: For iOS and std media sources with archives, built from
-  the best available variant (edited if present, otherwise original). For
-  iOS sources, Live Photo companion videos (`.MOV` files with matching
-  image keys) are also included alongside their images. For legacy std
-  media sources (no archive), this is the source of truth.
+- **`{name}-img/`**: For iOS and std media sources, built from the best
+  available variant (edited if present, otherwise original). For iOS
+  sources, Live Photo companion videos (`.MOV` files with matching image
+  keys) are also included alongside their images.
 - **`{name}-vid/`**: Same logic as `{name}-img/` but for standalone videos
   only. Live Photo companion videos live in `{name}-img/` instead.
 - **`{name}-jpg/`**: JPEG versions for sharing/web. Generated from `{name}-img/`

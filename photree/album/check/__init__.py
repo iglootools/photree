@@ -294,7 +294,6 @@ def check_album_integrity(
     """Run integrity checks for all media sources in an album.
 
     Dispatches to iOS or std checks based on each media source's type.
-    Legacy std sources without archives are skipped.
     """
     results: list[tuple[MediaSource, MediaSourceIntegrityResult]] = []
 
@@ -312,7 +311,7 @@ def check_album_integrity(
                     ),
                 )
             )
-        elif ms.is_std and (album_dir / ms.archive_dir).is_dir():
+        elif ms.is_std:
             results.append(
                 (
                     ms,

@@ -51,17 +51,24 @@ def export_cmd(
 
     Creates a subdirectory named after the album inside --share-dir.
 
-    For non-iOS albums, all files are copied regardless of --album-layout.
+    Directories without a recognizable media source are copied in full
+    regardless of --album-layout.
 
-    For iOS albums:
+    For albums with media sources (iOS or std):
 
-    --album-layout=main-jpg (default): Copies main-jpg/ and main-vid/
+    --album-layout=browsable-jpg (default): Copies {name}-jpg/ and {name}-vid/
     (most compatible formats).
 
-    --album-layout=main: Copies main-img/, main-jpg/, and main-vid/.
+    --album-layout=browsable: Copies {name}-img/, {name}-jpg/, and {name}-vid/.
 
     --album-layout=all: Copies archival directories (orig-*, edit-*) and
-    main-jpg/ as-is, then recreates main-img/ and main-vid/ using --link-mode.
+    {name}-jpg/ as-is, then recreates {name}-img/ and {name}-vid/ using
+    --link-mode.
+
+    --album-layout=archive: Copies only the archive (orig-*, edit-*) plus
+    .photree/ metadata (excluding the derived cache/). Browsable/JPEG dirs are
+    dropped — regenerable via 'photree albums refresh'. Space-efficient for
+    backups to destinations without hardlink/symlink support (e.g. MEGA).
     """
     try:
         settings = resolve_export_settings(

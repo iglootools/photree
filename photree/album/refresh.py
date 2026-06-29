@@ -287,9 +287,6 @@ def _refresh_browsable_dirs(
     from .live_photo import augment_browsable_img_with_live_photo_videos
 
     for ms in media_sources:
-        if not (album_dir / ms.archive_dir).is_dir():
-            continue  # legacy std source — no archive to rebuild from
-
         img_ext = IOS_IMG_EXTENSIONS if ms.is_ios else IMG_EXTENSIONS
         vid_ext = IOS_VID_EXTENSIONS if ms.is_ios else VID_EXTENSIONS
 

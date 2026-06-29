@@ -1,4 +1,4 @@
-"""Media source discovery — detect iOS, std, and legacy media sources in an album."""
+"""Media source discovery — detect iOS and std media sources in an album."""
 
 from __future__ import annotations
 
@@ -32,24 +32,15 @@ def _is_std_source_dir(d: Path) -> bool:
     )
 
 
-_BROWSABLE_SUFFIXES = ("-img", "-vid", "-jpg")
-
-
-def _strip_browsable_suffix(name: str) -> str | None:
-    for suffix in _BROWSABLE_SUFFIXES:
-        if name.endswith(suffix):
-            return name.removesuffix(suffix) or None
-    return None
-
-
 def discover_media_sources(album_dir: Path) -> list[MediaSource]:
     """Discover all media sources in an album.
 
     Scans for:
     1. iOS media sources: ``ios-{name}/`` with ``orig-img/`` or ``orig-vid/``
     2. Std media sources: ``std-{name}/`` with ``orig-img/`` or ``orig-vid/``
-    3. Legacy std media sources: ``{name}-img/`` or ``{name}-vid/`` without
-       a corresponding ``ios-{name}/`` or ``std-{name}/`` directory
+
+    Every media source is backed by an archive directory on disk; browsable
+    directories without a backing archive are not media sources.
 
     Returns media sources sorted with ``main`` first, then alphabetically.
     """
@@ -58,29 +49,19 @@ def discover_media_sources(album_dir: Path) -> list[MediaSource]:
 
     subdirs = [d for d in album_dir.iterdir() if d.is_dir()]
 
-    # 1. iOS media sources
+    # iOS media sources
     ios_names = {
         d.name.removeprefix(IOS_DIR_PREFIX) for d in subdirs if _is_ios_source_dir(d)
     }
 
-    # 2. Std media sources (migrated — have std-{name}/ archive)
+    # Std media sources
     std_names = {
         d.name.removeprefix(STD_DIR_PREFIX) for d in subdirs if _is_std_source_dir(d)
-    }
-
-    # 3. Legacy std media sources: browsable dirs not backed by ios-{name}/ or std-{name}/
-    legacy_std_names = {
-        name
-        for d in subdirs
-        if not d.name.startswith(".")
-        for name in [_strip_browsable_suffix(d.name)]
-        if name and name not in ios_names and name not in std_names
     }
 
     sources = [
         *(ios_media_source(n) for n in ios_names),
         *(std_media_source(n) for n in std_names),
-        *(std_media_source(n) for n in legacy_std_names),
     ]
     return sorted(sources, key=lambda ms: (ms.name != DEFAULT_MEDIA_SOURCE, ms.name))
 

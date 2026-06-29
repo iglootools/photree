@@ -59,9 +59,12 @@ def _setup_ios_album_with_video(album: Path) -> None:
 
 
 def _setup_std_album(album: Path, media_source_name: str = "nelu") -> None:
-    """Create a minimal std contributor album."""
+    """Create a minimal std contributor album (archive + browsable dirs)."""
     _setup_dir(album / PHOTREE_DIR, [])
     _mark_album(album)
+    _setup_dir(
+        album / f"std-{media_source_name}/orig-img", ["sunset.heic", "beach.png"]
+    )
     _setup_dir(album / f"{media_source_name}-img", ["sunset.heic", "beach.png"])
     _setup_dir(album / f"{media_source_name}-jpg", ["sunset.jpg", "beach.png"])
 
