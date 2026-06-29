@@ -1118,7 +1118,8 @@ Batch import album directories into the gallery.
 Either scan --dir for immediate subdirectories, or provide explicit
 album directories via --album-dir (repeatable). Copies each album to
 &lt;gallery&gt;/albums/YYYY/&lt;album-name&gt;/, generates missing IDs, refreshes
-JPEGs, and runs gallery-wide checks.
+JPEGs, and runs gallery-wide checks. Already-imported albums are skipped
+unless --reimport is given.
 
 **Usage**:
 
@@ -1133,6 +1134,7 @@ $ photree gallery import-all [OPTIONS]
 * `-g, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.
 * `-n, --dry-run`: Print what would happen without modifying files.
+* `--reimport`: Replace media of already-imported albums, preserving .photree/ metadata (album ID + media-id UUIDs).
 * `--help`: Show this message and exit.
 
 ### `photree gallery import`
@@ -1151,6 +1153,7 @@ $ photree gallery import [OPTIONS]
 * `-g, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.
 * `-n, --dry-run`: Print what would happen without modifying files.
+* `--reimport`: Replace media of already-imported albums, preserving .photree/ metadata (album ID + media-id UUIDs).
 * `--help`: Show this message and exit.
 
 ### `photree gallery init`

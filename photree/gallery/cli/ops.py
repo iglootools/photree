@@ -15,7 +15,6 @@ from ...album import (
     check as album_check,
 )
 from ...album.check import output as preflight_output
-from ...album.check.output import format_naming_checks
 from ...album.store.album_discovery import discover_potential_albums
 from ...album.store.metadata import load_album_metadata
 from ...album.id import format_album_external_id
@@ -27,12 +26,13 @@ from .. import (
     MissingAlbumIdError,
     build_album_id_to_path_index,
 )
+from ..output import format_import_errors, format_skipped
 from ..importer import AlbumImportResult
-from ..cmd_handler.validate_import import (
-    DuplicateAlbumIdError,
-    NamingValidationError,
-    TargetExistsError,
-    validate_single_import,
+from ..import_plan import (
+    AlbumPlan,
+    GalleryImportPlan,
+    ImportAction,
+    plan_imports,
 )
 from ..cmd_handler.importer import run_single_import as _run_single_import
 from ..cmd_handler.importer import run_batch_import as _run_batch_import
@@ -85,60 +85,55 @@ def build_index_or_exit(gallery_dir: Path, cwd: Path) -> AlbumIndex:
 # ---------------------------------------------------------------------------
 
 
-def validate_single_import_or_exit(
-    album_dir: Path,
+def plan_imports_or_exit(
+    albums: list[Path],
     index: AlbumIndex,
     gallery_dir: Path,
     cwd: Path,
-) -> None:
-    """Validate a single album before import, or exit with an error."""
-    try:
-        validate_single_import(album_dir, index, gallery_dir)
-    except DuplicateAlbumIdError as exc:
-        err_console.print(
-            f"Cannot import — album ID already exists in gallery:\n"
-            f"  source: {display_path(exc.source, cwd)}\n"
-            f"  existing: {display_path(exc.existing, cwd)}\n"
-            f"  id: {format_album_external_id(exc.album_id)}"
-        )
-        raise typer.Exit(code=1) from exc
-    except NamingValidationError as exc:
-        typer.echo("Naming Convention Check:")
-        console.print(format_naming_checks(exc.naming_result))
-        err_console.print(
-            "\nAlbum name does not follow naming conventions. "
-            "Rename the album directory before importing."
-        )
-        raise typer.Exit(code=1) from exc
-    except TargetExistsError as exc:
-        err_console.print(
-            f"Target already exists: {display_path(exc.target, cwd)}\n"
-            "Cannot import — an album with the same name is already in the gallery."
-        )
-        raise typer.Exit(code=1) from exc
+    *,
+    reimport: bool,
+) -> GalleryImportPlan:
+    """Plan a gallery import; exit 1 if any album fails pre-import validation."""
+    plan = plan_imports(albums, index, gallery_dir, reimport=reimport)
+    if plan.has_errors:
+        err_console.print(format_import_errors(plan, cwd))
+        raise typer.Exit(code=1)
+    return plan
+
+
+def render_skipped(plans: list[AlbumPlan], cwd: Path) -> None:
+    """Print already-imported albums that were skipped."""
+    if not plans:
+        return
+    console.print(format_skipped(plans, cwd))
+    typer.echo("")
+
+
+def _stage_labels(plan: AlbumPlan) -> dict[str, str]:
+    copy_label = (
+        "Replacing media" if plan.action is ImportAction.REIMPORT else "Copying album"
+    )
+    return {
+        "copy": copy_label,
+        "id": "Checking album ID",
+        "refresh-derived": "Refreshing derived data",
+    }
 
 
 def run_single_import(
-    album_dir: Path,
+    plan: AlbumPlan,
     gallery_dir: Path,
     link_mode: LinkMode,
     dry_run: bool,
     *,
     max_workers: int | None = None,
 ) -> AlbumImportResult:
-    """Execute a single album import with stage progress bar."""
-    typer.echo("Import:")
-    with StageProgressBar(
-        total=3,
-        labels={
-            "copy": "Copying album",
-            "id": "Checking album ID",
-            "refresh-derived": "Refreshing derived data",
-        },
-    ) as progress:
+    """Execute a single album import/reimport with stage progress bar."""
+    typer.echo("Reimport:" if plan.action is ImportAction.REIMPORT else "Import:")
+    with StageProgressBar(total=3, labels=_stage_labels(plan)) as progress:
         try:
             result = _run_single_import(
-                album_dir,
+                plan,
                 gallery_dir,
                 link_mode,
                 dry_run,
@@ -200,22 +195,22 @@ def resolve_import_all_albums(
 
 
 def run_batch_import(
-    albums: list[Path],
+    plans: list[AlbumPlan],
     gallery_dir: Path,
     link_mode: LinkMode,
     dry_run: bool,
     *,
     max_workers: int | None = None,
 ) -> tuple[int, list[Path]]:
-    """Execute batch import with progress bar.
+    """Execute batch import/reimport with progress bar.
 
-    Returns ``(imported_count, failed_albums)``.
+    Returns ``(imported_count, failed_sources)``.
     """
     with BatchProgressBar(
-        total=len(albums), description="Importing", done_description="import"
+        total=len(plans), description="Importing", done_description="import"
     ) as progress:
         result = _run_batch_import(
-            albums,
+            plans,
             gallery_dir,
             link_mode,
             dry_run,

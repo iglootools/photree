@@ -191,6 +191,57 @@ photree.
 The `gallery import` and `gallery import-all` commands automate album
 placement into `albums/YYYY/`.
 
+### Gallery Import Behavior
+
+`gallery import` (single) and `gallery import-all` (batch) share one
+classification + validation pass, then copy each album to
+`albums/YYYY/<album-name>/`, generate a missing ID, and refresh derived data.
+
+**Validation gate (all-or-nothing).** Before any filesystem mutation, every
+source album is validated: name (`check_album_naming`), cross-album date
+collisions across the batch **and** the existing gallery
+(`check_batch_date_collisions`), and the presence of at least one media
+source (`has_media_sources`). Duplicate IDs within the batch are also
+rejected. If any album fails, the command reports all problems and imports
+nothing.
+
+**"Already imported" detection (hybrid).** Albums created by `album import`
+or `album init` already carry an ID in `.photree/album.yaml`, and gallery
+import preserves it on the copy — so the source and its gallery copy share
+the same ID. Detection matches on:
+
+1. **ID** — the source carries an ID already present in the gallery. This is
+   the normal path, and it also handles a renamed source: the gallery album
+   under its old name is matched and, on reimport, moved to the new name.
+2. **Target name** — fallback for an ID-less source (e.g. an album assembled
+   by hand without `album import`/`album init`): the target directory
+   `albums/YYYY/<name>/` already exists.
+
+**Default vs `--reimport`.** Without `--reimport`, already-imported albums are
+**skipped** with a warning; a run whose only non-imports are skips exits 0.
+With `--reimport`, the album's media is replaced:
+
+1. The existing gallery copy's `.photree/album.yaml` (ID) and
+   `.photree/media-ids/` (UUIDs) are preserved; `.photree/cache/` is dropped.
+2. The source media is staged into a hidden sibling directory, the preserved
+   metadata is restored over it, and derived data is rebuilt (browsable,
+   JPEG, EXIF cache, faces). Media IDs reconcile: surviving keys keep their
+   UUID, removed keys are pruned, new keys get fresh UUIDs.
+3. The staged copy is swapped into place with two renames (old aside → new
+   in place → delete old). If any step before the swap fails, the staging
+   directory is removed and the live copy is left untouched.
+
+`--reimport` on a not-yet-imported album is a normal import.
+
+**Clobber guard.** If the target name exists but is occupied by a *different*
+album (the source carries an ID differing from the existing copy's), the
+import is refused even with `--reimport`. An ID-less source cannot be
+distinguished, so `--reimport` proceeds in that case.
+
+**Caveat.** UUID preservation holds only when source keys (iOS image numbers,
+std filename stems) are stable; a re-export that renumbers files rotates the
+UUIDs and breaks collection references to those media items.
+
 ### Gallery Resolution
 
 Commands that need a gallery directory resolve it in this order:
