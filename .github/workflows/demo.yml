@@ -40,6 +40,12 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
       - uses: jdx/mise-action@v4
+        with:
+          # Avoid `mise install --locked`: the vfox-poetry backend has no
+          # lockfile URLs, so locked installs fail on a fresh runner. Install
+          # unlocked, matching test.yml.
+          install: false
+      - run: mise install
       - name: Install pv (required by demo-magic)
         run: sudo apt-get update && sudo apt-get install -y pv
       - name: Record demo
