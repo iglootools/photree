@@ -92,18 +92,12 @@ def run_fix(
 ) -> FixResult:
     """Run selected fix operations on a single album.
 
-    Iterates over all media sources with archives, runs the requested
-    operations, and returns aggregated results. Works for both iOS and
-    std media sources.
+    Iterates over all media sources, runs the requested operations, and
+    returns aggregated results. Works for both iOS and std media sources.
     """
     from ..store.media_sources_discovery import discover_media_sources
 
-    # Include media sources that have an archive dir on disk
-    media_sources = [
-        ms
-        for ms in discover_media_sources(album_dir)
-        if (album_dir / ms.archive_dir).is_dir()
-    ]
+    media_sources = discover_media_sources(album_dir)
 
     if not media_sources:
         return FixResult()

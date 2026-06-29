@@ -311,7 +311,7 @@ def check_album_integrity(
                     ),
                 )
             )
-        elif ms.is_std and (album_dir / ms.archive_dir).is_dir():
+        elif ms.is_std:
             results.append(
                 (
                     ms,

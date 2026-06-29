@@ -194,8 +194,8 @@ def _export_all(
         if (album_dir / d).is_dir()
     )
 
-    # Rebuild browsable dirs for media sources whose archive dir exists on disk.
-    for ms in (m for m in media_sources if (album_dir / m.archive_dir).is_dir()):
+    # Rebuild browsable dirs for all media sources.
+    for ms in media_sources:
         heic_result = refresh_browsable_dir(
             target_dir / ms.orig_img_dir,
             target_dir / ms.edit_img_dir,
@@ -261,12 +261,9 @@ def _export_archive(album_dir: Path, target_dir: Path) -> int:
     return copied
 
 
-def _has_archives(album_dir: Path) -> bool:
-    """Check whether the album has any media source with an archive directory on disk."""
-    return any(
-        (album_dir / ms.archive_dir).is_dir()
-        for ms in discover_media_sources(album_dir)
-    )
+def _has_media_sources(album_dir: Path) -> bool:
+    """Check whether the directory contains any media source."""
+    return bool(discover_media_sources(album_dir))
 
 
 def export_album(
@@ -290,7 +287,7 @@ def export_album(
     # back to a full copy only for directories without a media source.
     if album_layout == AlbumShareLayout.ARCHIVE:
         files_copied = _export_archive(album_dir, target_dir)
-    elif not _has_archives(album_dir):
+    elif not _has_media_sources(album_dir):
         files_copied = _export_plain(album_dir, target_dir)
     else:
         match album_layout:
