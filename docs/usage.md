@@ -150,7 +150,41 @@ The gallery directory is resolved in this order:
 1. `--gallery-dir` / `-g` flag (explicit)
 2. Walk up from cwd looking for `.photree/gallery.yaml`
 
-The command refuses to import if the target path already exists in the gallery.
+**Validation gate.** Before anything is copied, every album is validated
+(naming, cross-album date collisions, and the presence of a media source).
+If any album fails, nothing is imported.
+
+**Already imported albums are skipped.** An album is "already imported" when
+its ID is already in the gallery (the normal case — `album import` and
+`album init` assign an ID that import preserves), or, as a fallback for an
+ID-less source, when its target directory name already exists. Skipped albums
+print a warning pointing at `--reimport`; a run whose only non-imports are
+skips still exits 0.
+
+**Re-importing after the source changed.** Use `--reimport` to replace an
+already-imported album's media with the current source while preserving its
+`.photree/` metadata (the album ID and per-media-id UUIDs, so collection
+membership and identity survive):
+
+```bash
+# Replace media of already-imported albums, keeping their identity
+photree gallery import -a "2024-06-15 - Summer Vacation" --reimport
+photree gallery import-all -d ~/Pictures/incoming-albums --reimport
+```
+
+`--reimport` rebuilds derived data (browsable dirs, JPEGs, EXIF cache, faces),
+re-syncs media IDs (surviving keys keep their UUID, removed keys are pruned,
+new keys get fresh UUIDs), and swaps the result into place atomically — the
+existing copy is left untouched if anything fails. On a not-yet-imported
+album, `--reimport` behaves like a normal import.
+
+If the target name is already occupied by a *different* album (a different
+ID), the import is refused even with `--reimport`; rename the source first.
+
+> **Note:** media-id UUIDs are preserved only when the source's keys (iOS
+> image numbers, std filename stems) are stable. A re-export that renumbers
+> files produces new keys, so their UUIDs rotate and collection references to
+> those media items break.
 
 ### Check Albums
 

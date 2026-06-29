@@ -9,15 +9,18 @@ from typing import Annotated, Optional
 import typer
 
 from . import gallery_app
+from ...clihelpers.options import REIMPORT_OPTION
 from ...fsprotocol import GALLERY_YAML, LinkMode, PHOTREE_DIR, load_gallery_metadata
 from ...fsprotocol import resolve_link_mode
+from ..import_plan import ImportAction
 from .ops import (
     build_index_or_exit,
+    plan_imports_or_exit,
     print_single_import_result,
+    render_skipped,
     resolve_gallery_or_exit,
     run_face_clustering,
     run_single_import,
-    validate_single_import_or_exit,
 )
 
 
@@ -60,6 +63,7 @@ def import_cmd(
             help="Print what would happen without modifying files.",
         ),
     ] = False,
+    reimport: REIMPORT_OPTION = False,
 ) -> None:
     """Import an existing album directory into the gallery."""
     resolved_gallery = resolve_gallery_or_exit(gallery_dir)
@@ -67,9 +71,17 @@ def import_cmd(
     cwd = Path.cwd()
     index = build_index_or_exit(resolved_gallery, cwd)
 
-    validate_single_import_or_exit(album_dir, index, resolved_gallery, cwd)
+    import_plan = plan_imports_or_exit(
+        [album_dir], index, resolved_gallery, cwd, reimport=reimport
+    )
+    plan = import_plan.plans[0]
+
+    if plan.action is ImportAction.SKIP:
+        render_skipped([plan], cwd)
+        raise typer.Exit(code=0)
+
     result = run_single_import(
-        album_dir, resolved_gallery, resolved_lm, dry_run, max_workers=os.cpu_count()
+        plan, resolved_gallery, resolved_lm, dry_run, max_workers=os.cpu_count()
     )
     print_single_import_result(result, cwd, dry_run)
 

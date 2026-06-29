@@ -10,16 +10,14 @@ import typer
 
 from . import gallery_app
 from ...clihelpers.console import err_console
+from ...clihelpers.options import REIMPORT_OPTION
 from ...common.fs import display_path
 from ...fsprotocol import GALLERY_YAML, LinkMode, PHOTREE_DIR, load_gallery_metadata
 from ...fsprotocol import resolve_link_mode
-from ..importer import (
-    BatchImportValidationError,
-    compute_target_dir,
-    validate_batch_import,
-)
 from .ops import (
     build_index_or_exit,
+    plan_imports_or_exit,
+    render_skipped,
     resolve_gallery_or_exit,
     resolve_import_all_albums,
     run_batch_import,
@@ -78,13 +76,15 @@ def import_all_cmd(
             help="Print what would happen without modifying files.",
         ),
     ] = False,
+    reimport: REIMPORT_OPTION = False,
 ) -> None:
     """Batch import album directories into the gallery.
 
     Either scan --dir for immediate subdirectories, or provide explicit
     album directories via --album-dir (repeatable). Copies each album to
     <gallery>/albums/YYYY/<album-name>/, generates missing IDs, refreshes
-    JPEGs, and runs gallery-wide checks.
+    JPEGs, and runs gallery-wide checks. Already-imported albums are skipped
+    unless --reimport is given.
     """
     if base_dir is not None and album_dirs is not None:
         typer.echo("--dir and --album-dir are mutually exclusive.", err=True)
@@ -94,11 +94,11 @@ def import_all_cmd(
     resolved_lm = resolve_link_mode(link_mode, resolved_gallery)
     cwd = Path.cwd()
 
-    albums, skipped = resolve_import_all_albums(base_dir, album_dirs)
+    albums, non_albums = resolve_import_all_albums(base_dir, album_dirs)
 
-    if skipped:
-        typer.echo(f"Skipped {len(skipped)} non-album director(ies):")
-        for s in skipped:
+    if non_albums:
+        typer.echo(f"Skipped {len(non_albums)} non-album director(ies):")
+        for s in non_albums:
             typer.echo(f"  {display_path(s, cwd)}")
         typer.echo("")
 
@@ -108,24 +108,28 @@ def import_all_cmd(
 
     index = build_index_or_exit(resolved_gallery, cwd)
 
-    try:
-        validate_batch_import(albums, index, resolved_gallery)
-    except BatchImportValidationError as exc:
-        err_console.print(f"Cannot import — {exc}")
-        raise typer.Exit(code=1) from exc
+    import_plan = plan_imports_or_exit(
+        albums, index, resolved_gallery, cwd, reimport=reimport
+    )
 
-    typer.echo(f"Found {len(albums)} album(s).\n")
+    if import_plan.skipped:
+        render_skipped(import_plan.skipped, cwd)
+
+    to_import = import_plan.to_import
+    if not to_import:
+        typer.echo("Nothing to import.")
+        raise typer.Exit(code=0)
+
+    typer.echo(f"Found {len(to_import)} album(s).\n")
     typer.echo("Import:")
-    imported, failed_albums = run_batch_import(
-        albums, resolved_gallery, resolved_lm, dry_run, max_workers=os.cpu_count()
+    imported, failed_sources = run_batch_import(
+        to_import, resolved_gallery, resolved_lm, dry_run, max_workers=os.cpu_count()
     )
 
     if not dry_run and imported > 0:
         typer.echo("\nPost-Import Check:")
         imported_targets = [
-            compute_target_dir(resolved_gallery, a.name)
-            for a in albums
-            if a not in failed_albums
+            plan.target for plan in to_import if plan.source not in failed_sources
         ]
         check_failed = run_batch_post_import_check(imported_targets, cwd)
         if check_failed:
@@ -142,6 +146,12 @@ def import_all_cmd(
             distance_threshold=gallery_meta.face_cluster_threshold,
         )
 
-    typer.echo(f"\nDone. {imported} album(s) imported, {len(failed_albums)} failed.")
-    if failed_albums:
+    skipped_note = (
+        f", {len(import_plan.skipped)} skipped" if import_plan.skipped else ""
+    )
+    typer.echo(
+        f"\nDone. {imported} album(s) imported, "
+        f"{len(failed_sources)} failed{skipped_note}."
+    )
+    if failed_sources:
         raise typer.Exit(code=1)

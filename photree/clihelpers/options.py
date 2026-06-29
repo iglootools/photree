@@ -158,6 +158,17 @@ DRY_RUN_OPTION = Annotated[
     ),
 ]
 
+REIMPORT_OPTION = Annotated[
+    bool,
+    typer.Option(
+        "--reimport",
+        help=(
+            "Replace media of already-imported albums, preserving .photree/ "
+            "metadata (album ID + media-id UUIDs)."
+        ),
+    ),
+]
+
 # ---------------------------------------------------------------------------
 # Export options
 # ---------------------------------------------------------------------------
