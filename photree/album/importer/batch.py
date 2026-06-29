@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ...fsprotocol import LinkMode
 from ..jpeg import convert_single_file
@@ -17,6 +18,9 @@ from .image_capture import (
     plan_import,
     validate_import_plan,
 )
+
+if TYPE_CHECKING:
+    from ..faces.detect import FaceAnalyzerFactory
 
 
 @dataclass(frozen=True)
@@ -121,6 +125,7 @@ def run_batch_import(
     on_validation_error: Callable[[str, list[ValidationError]], None] | None = None,
     convert_file: Callable[..., Path | None] = convert_single_file,
     max_workers: int | None = None,
+    analyzer_factory: FaceAnalyzerFactory | None = None,
 ) -> BatchResult:
     """Run import for all albums with a non-empty selection directory.
 
@@ -178,6 +183,7 @@ def run_batch_import(
                 dry_run=dry_run,
                 convert_file=convert_file,
                 max_workers=max_workers,
+                analyzer_factory=analyzer_factory,
             )
             if import_result.unprocessed:
                 msg = f"unprocessed selection files: {', '.join(import_result.unprocessed)}"

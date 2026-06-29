@@ -7,10 +7,10 @@ from typing import Annotated
 
 import typer
 
-from ...album.faces.detect import create_face_analyzer
+from ...album.faces.detect import memoized_face_analyzer_factory
 from ...album.faces.refresh import refresh_face_data
 from ...clihelpers.console import err_console
-from ...clihelpers.progress import BatchProgressBar, run_with_spinner
+from ...clihelpers.progress import BatchProgressBar
 from ...common.fs import display_path
 from . import AlbumDirOption, DirOption, albums_app
 from .batch_ops import make_display_fn
@@ -51,9 +51,7 @@ def detect_faces_cmd(
     if display_base is not None:
         typer.echo(f"\nFound {len(albums)} album(s).\n")
 
-    face_analyzer = run_with_spinner(
-        "Loading face detection model...", create_face_analyzer
-    )
+    analyzer_factory = memoized_face_analyzer_factory()
     failed_albums: list[Path] = []
     display_fn = make_display_fn(display_base, cwd)
 
@@ -68,7 +66,7 @@ def detect_faces_cmd(
             try:
                 refresh_face_data(
                     album_dir,
-                    face_analyzer=face_analyzer,
+                    analyzer_factory=analyzer_factory,
                     redetect=redetect,
                     refresh_thumbs=refresh_thumbs,
                     dry_run=dry_run,

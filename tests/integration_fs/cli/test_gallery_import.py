@@ -113,11 +113,9 @@ class TestClobberGuard:
 
 
 class TestDryRun:
-    def test_dry_run_imports_nothing(self, tmp_path: Path, monkeypatch) -> None:
-        monkeypatch.setattr(
-            "photree.gallery.cmd_handler.importer.create_face_analyzer",
-            lambda: None,
-        )
+    def test_dry_run_imports_nothing(self, tmp_path: Path) -> None:
+        # No face-model stubbing needed: the analyzer factory is injected
+        # lazily and dry-run never reaches face detection.
         gallery = _setup_gallery(tmp_path)
         base = tmp_path / "incoming"
         _make_source(base, "2024-07-14 - Hiking")

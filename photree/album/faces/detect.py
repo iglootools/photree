@@ -10,6 +10,7 @@ from __future__ import annotations
 import contextlib
 import io
 import warnings
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -19,6 +20,12 @@ from insightface.app import FaceAnalysis
 
 from ...common.sips import get_dimensions, resize_to_jpeg
 from .protocol import DEFAULT_MODEL_NAME, THUMB_MAX_DIMENSION
+
+# A zero-argument factory that produces a prepared :class:`FaceAnalysis`. Face
+# detection is injected as a *factory* (not an instance) so the ~300 MB model
+# loads lazily — only once a refresh actually has images to process — and so a
+# single instance can be shared across albums in a batch.
+FaceAnalyzerFactory = Callable[[], FaceAnalysis]
 
 
 # ---------------------------------------------------------------------------
@@ -50,6 +57,27 @@ def create_face_analyzer(
         )
         app.prepare(ctx_id=0, det_size=(640, 640))
     return app
+
+
+def memoized_face_analyzer_factory(
+    model_name: str = DEFAULT_MODEL_NAME,
+) -> FaceAnalyzerFactory:
+    """Return a factory that builds the analyzer once and caches it.
+
+    The composition root (CLI) injects this into the import/refresh pipeline.
+    The model loads on the first call (i.e. when a source actually has images
+    to detect) and the same instance is reused on every subsequent call, so a
+    batch refresh shares one analyzer and a no-op refresh loads nothing.
+    """
+    cached: FaceAnalysis | None = None
+
+    def factory() -> FaceAnalysis:
+        nonlocal cached
+        if cached is None:
+            cached = create_face_analyzer(model_name)
+        return cached
+
+    return factory
 
 
 # ---------------------------------------------------------------------------

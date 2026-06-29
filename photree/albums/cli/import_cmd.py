@@ -9,6 +9,7 @@ from typing import Annotated, Optional
 import typer
 
 from . import albums_app
+from ...album.faces.detect import memoized_face_analyzer_factory
 from ...album.importer import batch, output as importer_output
 from ...album.jpeg import convert_single_file, noop_convert_single
 from ...album.store.protocol import SELECTION_DIR
@@ -155,6 +156,7 @@ def import_cmd(
             on_validation_error=_on_validation_error,
             convert_file=converter,
             max_workers=os.cpu_count(),
+            analyzer_factory=memoized_face_analyzer_factory(),
         )
 
     if has_validation_errors:

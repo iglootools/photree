@@ -11,15 +11,18 @@ import shutil
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
-from insightface.app import FaceAnalysis
 
 from ..album.store.metadata import load_album_metadata, save_album_metadata
 from ..album.store.media_metadata import load_media_metadata, save_media_metadata
 from ..album.id import generate_album_id
 from ..album.store.protocol import AlbumMetadata, parse_album_year
 from ..fsprotocol import ALBUMS_DIR, PHOTREE_DIR, LinkMode
+
+if TYPE_CHECKING:
+    from ..album.faces.detect import FaceAnalyzerFactory
 
 
 # Import stages
@@ -81,7 +84,7 @@ def _refresh_derived(
     max_workers: int | None,
     convert_file: Callable[..., Path | None] | None,
     exiftool: ExifToolHelper | None,
-    face_analyzer: FaceAnalysis | None,
+    analyzer_factory: FaceAnalyzerFactory | None,
     dry_run: bool,
     on_stage_start: Callable[[str], None] | None = None,
     on_stage_end: Callable[[str], None] | None = None,
@@ -96,7 +99,7 @@ def _refresh_derived(
         max_workers=max_workers,
         convert_file=convert_file,
         exiftool=exiftool,
-        face_analyzer=face_analyzer,
+        analyzer_factory=analyzer_factory,
         dry_run=dry_run,
     )
     _notify(on_stage_end, STAGE_REFRESH_DERIVED)
@@ -113,7 +116,7 @@ def import_album(
     convert_file: Callable[..., Path | None] | None = None,
     max_workers: int | None = None,
     exiftool: ExifToolHelper | None = None,
-    face_analyzer: FaceAnalysis | None = None,
+    analyzer_factory: FaceAnalyzerFactory | None = None,
 ) -> AlbumImportResult:
     """Import an album directory into a gallery.
 
@@ -148,7 +151,7 @@ def import_album(
         max_workers=max_workers,
         convert_file=convert_file,
         exiftool=exiftool,
-        face_analyzer=face_analyzer,
+        analyzer_factory=analyzer_factory,
         dry_run=dry_run,
         on_stage_start=on_stage_start,
         on_stage_end=on_stage_end,
@@ -206,7 +209,7 @@ def reimport_album(
     convert_file: Callable[..., Path | None] | None = None,
     max_workers: int | None = None,
     exiftool: ExifToolHelper | None = None,
-    face_analyzer: FaceAnalysis | None = None,
+    analyzer_factory: FaceAnalyzerFactory | None = None,
 ) -> AlbumImportResult:
     """Replace an already-imported album's media with the source's.
 
@@ -234,7 +237,7 @@ def reimport_album(
             max_workers=max_workers,
             convert_file=convert_file,
             exiftool=exiftool,
-            face_analyzer=face_analyzer,
+            analyzer_factory=analyzer_factory,
             dry_run=True,
             on_stage_start=on_stage_start,
             on_stage_end=on_stage_end,
@@ -263,7 +266,7 @@ def reimport_album(
             max_workers=max_workers,
             convert_file=convert_file,
             exiftool=exiftool,
-            face_analyzer=face_analyzer,
+            analyzer_factory=analyzer_factory,
             dry_run=False,
             on_stage_start=on_stage_start,
             on_stage_end=on_stage_end,

@@ -10,7 +10,7 @@ import typer
 from ...clihelpers.console import console
 from ...clihelpers.progress import run_with_spinner
 from ...common.formatting import CHECK
-from ..faces.detect import create_face_analyzer
+from ..faces.detect import memoized_face_analyzer_factory
 from ...common.exif import try_start_exiftool
 from . import album_app
 
@@ -72,9 +72,6 @@ def refresh_cmd(
     from ..refresh import refresh_album_derived_data
 
     exiftool = try_start_exiftool()
-    face_analyzer = run_with_spinner(
-        "Loading face detection model...", create_face_analyzer
-    )
 
     try:
         run_with_spinner(
@@ -82,7 +79,7 @@ def refresh_cmd(
             lambda: refresh_album_derived_data(
                 album_dir,
                 exiftool=exiftool,
-                face_analyzer=face_analyzer,
+                analyzer_factory=memoized_face_analyzer_factory(),
                 force_browsable=refresh_browsable,
                 force_jpeg=refresh_jpeg,
                 force_exif_cache=refresh_exif_cache,

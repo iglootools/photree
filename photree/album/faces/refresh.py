@@ -17,8 +17,8 @@ from ..store.media_sources_discovery import discover_media_sources
 from ..store.protocol import IMG_EXTENSIONS, IOS_IMG_EXTENSIONS, MediaSource
 from .detect import (
     DetectedFace,
+    FaceAnalyzerFactory,
     ThumbnailResult,
-    create_face_analyzer,
     detect_faces,
     generate_thumbnail,
     thumb_filename,
@@ -87,7 +87,7 @@ class FaceRefreshResult:
 def refresh_face_data(
     album_dir: Path,
     *,
-    face_analyzer: FaceAnalysis | None = None,
+    analyzer_factory: FaceAnalyzerFactory | None = None,
     model_name: str = DEFAULT_MODEL_NAME,
     model_version: str = DEFAULT_MODEL_VERSION,
     redetect: bool = False,
@@ -98,14 +98,15 @@ def refresh_face_data(
 ) -> FaceRefreshResult:
     """Scan album media sources and run face detection on new/changed images.
 
-    *face_analyzer* can be shared across albums in batch operations to
-    avoid reloading the model (~500 MB) for each album.
+    Face detection is an injected capability. When *analyzer_factory* is
+    ``None`` no detector is available and face detection is skipped entirely;
+    the composition root (CLI) is responsible for injecting one. The factory
+    is invoked lazily — only once a source actually has images to process —
+    and may memoize its result to share one analyzer across albums.
     """
     sources = discover_media_sources(album_dir)
-    if not sources:
+    if not sources or analyzer_factory is None:
         return FaceRefreshResult(by_media_source=())
-
-    analyzer = face_analyzer or create_face_analyzer(model_name)
 
     results = [
         (
@@ -113,7 +114,7 @@ def refresh_face_data(
             _refresh_source(
                 album_dir,
                 ms,
-                analyzer=analyzer,
+                get_analyzer=analyzer_factory,
                 model_name=model_name,
                 model_version=model_version,
                 redetect=redetect,
@@ -138,7 +139,7 @@ def _refresh_source(
     album_dir: Path,
     ms: MediaSource,
     *,
-    analyzer: FaceAnalysis,
+    get_analyzer: Callable[[], FaceAnalysis],
     model_name: str,
     model_version: str,
     redetect: bool,
@@ -187,7 +188,7 @@ def _refresh_source(
         keys_to_process,
         existing_state=existing_state,
         refresh_thumbs=refresh_thumbs or model_changed,
-        analyzer=analyzer,
+        get_analyzer=get_analyzer,
     )
 
     # Cleanup + persist
@@ -280,7 +281,7 @@ def _run_detection(
     *,
     existing_state: FaceProcessingState,
     refresh_thumbs: bool,
-    analyzer: FaceAnalysis,
+    get_analyzer: Callable[[], FaceAnalysis],
 ) -> tuple[list[DetectedFace], dict[str, FaceProcessedKey], int]:
     """Generate thumbnails and run face detection.
 
@@ -296,6 +297,12 @@ def _run_detection(
         regenerate=refresh_thumbs,
     )
 
+    # No thumbnails means nothing to detect (e.g. only stale keys to prune) —
+    # avoid loading the model in that case.
+    if not thumb_results:
+        return ([], {}, 0)
+
+    analyzer = get_analyzer()
     detection_results = [
         _detect_single(tr, album_dir / ms.orig_img_dir, analyzer)
         for tr in thumb_results

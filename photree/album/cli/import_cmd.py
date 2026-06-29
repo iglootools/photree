@@ -12,6 +12,7 @@ from ...clihelpers.console import console, err_console
 from ...clihelpers.options import CONFIG_OPTION
 from ...clihelpers.progress import StageProgressBar
 from ...fsprotocol import LinkMode
+from ..faces.detect import memoized_face_analyzer_factory
 from ..importer import image_capture
 from ..importer import output as importer_output
 from ..importer.image_capture import plan_import_from_album, validate_import_plan
@@ -168,6 +169,7 @@ def import_cmd(
                 on_stage_end=progress.on_end,
                 convert_file=converter,
                 max_workers=os.cpu_count(),
+                analyzer_factory=memoized_face_analyzer_factory(),
             )
         except FileNotFoundError as exc:
             err_console.print(str(exc))
