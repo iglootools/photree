@@ -93,7 +93,7 @@ run = "poetry run pytest tests/ --ignore=tests/integration_fs/ -v"
 
 [tasks.test-integration-fs]
 description = "Run filesystem integration tests"
-run = "poetry run pytest tests/integration_fs/ -v"
+run = "poetry run pytest tests/integration_fs/ -n auto"
 
 [tasks.test-all]
 description = "Run all tests"
