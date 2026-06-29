@@ -9,12 +9,43 @@ from photree.album.faces.protocol import (
 from photree.album.faces.refresh import (
     _keys_needing_processing,
     _needs_processing,
+    refresh_face_data,
 )
 
 
 def _make_file(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("data")
+
+
+def _make_ios_source(album_dir: Path) -> None:
+    """Create a minimal iOS media source so it is discovered."""
+    _make_file(album_dir / "ios-main" / "orig-img" / "IMG_0410.HEIC")
+
+
+class TestAnalyzerInjection:
+    def test_no_factory_skips_detection(self, tmp_path: Path) -> None:
+        """With no injected factory, face detection is skipped entirely."""
+        _make_ios_source(tmp_path)
+
+        result = refresh_face_data(tmp_path, analyzer_factory=None)
+
+        assert result.by_media_source == ()
+        assert not (tmp_path / ".photree" / "cache" / "faces").exists()
+
+    def test_factory_not_invoked_without_processable_images(
+        self, tmp_path: Path
+    ) -> None:
+        """The factory is lazy: placeholder files yield no thumbnails, so the
+        model is never built."""
+        _make_ios_source(tmp_path)
+
+        def _factory():
+            raise AssertionError("analyzer factory should not be invoked")
+
+        # Placeholder bytes can't be converted to a thumbnail, so detection is
+        # skipped before the factory is ever called.
+        refresh_face_data(tmp_path, analyzer_factory=_factory)
 
 
 class TestNeedsProcessing:

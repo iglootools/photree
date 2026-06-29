@@ -6,8 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ...album.faces.detect import create_face_analyzer
-from ...clihelpers.progress import run_with_spinner
+from ...album.faces.detect import memoized_face_analyzer_factory
 from ...common.exif import try_start_exiftool
 from ...fsprotocol import LinkMode
 from .. import importer as gallery_importer
@@ -22,7 +21,7 @@ def _execute_plan(
     dry_run: bool,
     *,
     exiftool=None,
-    face_analyzer=None,
+    analyzer_factory=None,
     max_workers: int | None = None,
     on_stage_start: Callable[[str], None] | None = None,
     on_stage_end: Callable[[str], None] | None = None,
@@ -40,7 +39,7 @@ def _execute_plan(
             on_stage_end=on_stage_end,
             max_workers=max_workers,
             exiftool=exiftool,
-            face_analyzer=face_analyzer,
+            analyzer_factory=analyzer_factory,
         )
     return gallery_importer.import_album(
         source_dir=plan.source,
@@ -51,7 +50,7 @@ def _execute_plan(
         on_stage_end=on_stage_end,
         max_workers=max_workers,
         exiftool=exiftool,
-        face_analyzer=face_analyzer,
+        analyzer_factory=analyzer_factory,
     )
 
 
@@ -67,13 +66,11 @@ def run_single_import(
 ) -> AlbumImportResult:
     """Execute a single album import/reimport with optional stage callbacks.
 
-    Creates shared exiftool + face analyzer for the operation.
+    Creates a shared exiftool and injects a memoized face analyzer factory
+    (loaded lazily, only if a source has images to detect).
     Raises :class:`ValueError` on import errors.
     """
     exiftool = try_start_exiftool()
-    face_analyzer = run_with_spinner(
-        "Loading face detection model...", create_face_analyzer
-    )
 
     try:
         return _execute_plan(
@@ -82,7 +79,7 @@ def run_single_import(
             link_mode,
             dry_run,
             exiftool=exiftool,
-            face_analyzer=face_analyzer,
+            analyzer_factory=memoized_face_analyzer_factory(),
             max_workers=max_workers,
             on_stage_start=on_stage_start,
             on_stage_end=on_stage_end,
@@ -112,7 +109,8 @@ def run_batch_import(
 ) -> BatchImportResult:
     """Import/reimport multiple albums into a gallery.
 
-    Shared exiftool + face analyzer instances are reused across albums.
+    A shared exiftool and a memoized face analyzer factory are reused across
+    albums (the model loads once, on the first album with images to detect).
     Calls ``on_start(name)`` before and
     ``on_end(name, success, error_labels)`` after each album. A single
     album's failure is reported and the batch continues.
@@ -121,9 +119,7 @@ def run_batch_import(
     failed: list[Path] = []
 
     exiftool = try_start_exiftool()
-    face_analyzer = run_with_spinner(
-        "Loading face detection model...", create_face_analyzer
-    )
+    analyzer_factory = memoized_face_analyzer_factory()
 
     try:
         for plan in plans:
@@ -137,7 +133,7 @@ def run_batch_import(
                     link_mode,
                     dry_run,
                     exiftool=exiftool,
-                    face_analyzer=face_analyzer,
+                    analyzer_factory=analyzer_factory,
                     max_workers=max_workers,
                 )
                 if on_end:

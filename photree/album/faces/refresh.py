@@ -17,8 +17,8 @@ from ..store.media_sources_discovery import discover_media_sources
 from ..store.protocol import IMG_EXTENSIONS, IOS_IMG_EXTENSIONS, MediaSource
 from .detect import (
     DetectedFace,
+    FaceAnalyzerFactory,
     ThumbnailResult,
-    create_face_analyzer,
     detect_faces,
     generate_thumbnail,
     thumb_filename,
@@ -87,7 +87,7 @@ class FaceRefreshResult:
 def refresh_face_data(
     album_dir: Path,
     *,
-    face_analyzer: FaceAnalysis | None = None,
+    analyzer_factory: FaceAnalyzerFactory | None = None,
     model_name: str = DEFAULT_MODEL_NAME,
     model_version: str = DEFAULT_MODEL_VERSION,
     redetect: bool = False,
@@ -98,22 +98,15 @@ def refresh_face_data(
 ) -> FaceRefreshResult:
     """Scan album media sources and run face detection on new/changed images.
 
-    *face_analyzer* can be shared across albums in batch operations to
-    avoid reloading the model (~500 MB) for each album.
+    Face detection is an injected capability. When *analyzer_factory* is
+    ``None`` no detector is available and face detection is skipped entirely;
+    the composition root (CLI) is responsible for injecting one. The factory
+    is invoked lazily — only once a source actually has images to process —
+    and may memoize its result to share one analyzer across albums.
     """
     sources = discover_media_sources(album_dir)
-    if not sources:
+    if not sources or analyzer_factory is None:
         return FaceRefreshResult(by_media_source=())
-
-    # Load the model lazily, only once a source actually has work to do. A
-    # no-op refresh (nothing changed) should never pay the ~300 MB load cost.
-    analyzer: FaceAnalysis | None = face_analyzer
-
-    def get_analyzer() -> FaceAnalysis:
-        nonlocal analyzer
-        if analyzer is None:
-            analyzer = create_face_analyzer(model_name)
-        return analyzer
 
     results = [
         (
@@ -121,7 +114,7 @@ def refresh_face_data(
             _refresh_source(
                 album_dir,
                 ms,
-                get_analyzer=get_analyzer,
+                get_analyzer=analyzer_factory,
                 model_name=model_name,
                 model_version=model_version,
                 redetect=redetect,

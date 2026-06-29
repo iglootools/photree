@@ -5,13 +5,16 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
-from insightface.app import FaceAnalysis
 
 from ..fsprotocol import LinkMode
 
 from ..common.fs import list_files
+
+if TYPE_CHECKING:
+    from .faces.detect import FaceAnalyzerFactory
 from .id import generate_media_id
 from .store.media_metadata import (
     MediaMetadata,
@@ -187,7 +190,7 @@ def refresh_album_derived_data(
     link_mode: LinkMode | None = None,
     max_workers: int | None = None,
     exiftool: ExifToolHelper | None = None,
-    face_analyzer: FaceAnalysis | None = None,
+    analyzer_factory: FaceAnalyzerFactory | None = None,
     force_browsable: bool = False,
     force_jpeg: bool = False,
     force_exif_cache: bool = False,
@@ -213,8 +216,9 @@ def refresh_album_derived_data(
 
     The ``force_*`` flags bypass the check gate for the corresponding step.
 
-    Shared instances (*exiftool*, *face_analyzer*) can be passed to
-    amortize startup cost across albums in batch operations.
+    A shared *exiftool* instance and a memoized *analyzer_factory* can be
+    passed to amortize startup cost across albums in batch operations. When
+    *analyzer_factory* is ``None``, face detection is skipped.
     """
     from .check.media_metadata import check_media_metadata
     from .exif_cache.refresh import refresh_exif_cache
@@ -260,7 +264,7 @@ def refresh_album_derived_data(
     # 5. Face detection — built-in per-file mtime gate
     refresh_face_data(
         album_dir,
-        face_analyzer=face_analyzer,
+        analyzer_factory=analyzer_factory,
         redetect=redetect_faces,
         refresh_thumbs=refresh_face_thumbs,
         dry_run=dry_run,

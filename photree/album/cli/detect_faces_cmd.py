@@ -7,6 +7,7 @@ from typing import Annotated
 
 import typer
 
+from ..faces.detect import memoized_face_analyzer_factory
 from ..faces.refresh import refresh_face_data
 from . import album_app
 
@@ -46,6 +47,7 @@ def detect_faces_cmd(
     """Run face detection on album images."""
     result = refresh_face_data(
         album_dir,
+        analyzer_factory=memoized_face_analyzer_factory(),
         redetect=redetect,
         refresh_thumbs=refresh_thumbs,
         dry_run=dry_run,

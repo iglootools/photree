@@ -11,9 +11,9 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
-from insightface.app import FaceAnalysis
 
 from ...common.fs import file_ext, list_files
 from ...fsprotocol import PHOTREE_DIR, LinkMode
@@ -33,6 +33,9 @@ from ..store.protocol import (
     AlbumMetadata,
     ios_media_source,
 )
+
+if TYPE_CHECKING:
+    from ..faces.detect import FaceAnalyzerFactory
 
 # Import stages
 STAGE_IMPORT_IC = "import-ic"
@@ -505,7 +508,7 @@ def run_import(
     convert_file: Callable[..., Path | None] = convert_single_file,
     max_workers: int | None = None,
     exiftool: ExifToolHelper | None = None,
-    face_analyzer: FaceAnalysis | None = None,
+    analyzer_factory: FaceAnalyzerFactory | None = None,
 ) -> ImportResult:
     """Organize Image Capture files into an album directory.
 
@@ -525,7 +528,8 @@ def run_import(
     Parameters:
     - ``convert_file(src, dst_dir, dry_run=)`` — per-file HEIC→JPEG converter (default: sips via album.jpeg)
     - ``exiftool`` — shared ExifToolHelper instance (optional, for EXIF cache)
-    - ``face_analyzer`` — shared FaceAnalysis instance (optional, for face detection)
+    - ``analyzer_factory`` — face analyzer factory (optional). When ``None``,
+      face detection is skipped.
     """
     from .selection import read_selection
 
@@ -706,7 +710,7 @@ def run_import(
         max_workers=max_workers,
         convert_file=convert_file,
         exiftool=exiftool,
-        face_analyzer=face_analyzer,
+        analyzer_factory=analyzer_factory,
         dry_run=dry_run,
     )
     _notify(on_stage_end, STAGE_REFRESH_DERIVED)
