@@ -48,6 +48,22 @@ jobs:
         fetch-tags: true
         ref: ${{ github.event.workflow_run.head_sha || github.sha }}
     - uses: jdx/mise-action@v4
+      with:
+        # Install unlocked (`install: false` + a plain `mise install`) rather
+        # than the action's default `mise install --locked`.
+        #
+        # This is NOT ideal: locked installs pin an exact per-platform URL +
+        # checksum from mise.lock, giving reproducible, tamper-evident tool
+        # installs. We would prefer to keep that.
+        #
+        # However, poetry is installed via the vfox-poetry backend, which does
+        # not record per-platform lockfile URLs in mise.lock (and `mise lock`
+        # cannot generate them). So `--locked` fails on a fresh runner with:
+        #   No lockfile URL found for poetry@<ver> on platform linux-x64
+        # Until that backend supports lockfile URLs, unlocked is the only
+        # option here. test.yml uses the same pattern.
+        install: false
+    - run: mise install
     - run: mise run ci-build
     - name: Publish package distributions to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
