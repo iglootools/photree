@@ -69,7 +69,7 @@ $ photree album check [OPTIONS]
 
 **Options**:
 
-* `-a, --album-dir DIRECTORY`: Album directory to check.  [default: .]
+* `-a, --album-dir <directory>`: Album directory to check.  [default: .]
 * `--checksum / --no-checksum`: Enable/disable SHA-256 checksum verification (default: enabled).  [default: checksum]
 * `-W, --fatal-warnings`: Treat all warnings as errors (implies --fatal-sidecar).
 * `--fatal-sidecar`: Treat missing-sidecar warnings as errors.
@@ -92,7 +92,7 @@ $ photree album detect-faces [OPTIONS]
 
 **Options**:
 
-* `-a, --album-dir DIRECTORY`: Album directory.  [default: .]
+* `-a, --album-dir <directory>`: Album directory.  [default: .]
 * `--dry-run`: Show what would change without writing.
 * `--redetect`: Re-run face detection on all images (reuses cached thumbnails).
 * `--refresh-thumbs`: Refresh face detection thumbnails from originals.
@@ -131,13 +131,13 @@ $ photree album export [OPTIONS]
 
 **Options**:
 
-* `-a, --album-dir DIRECTORY`: Album directory to export.  [default: .]
-* `-s, --share-dir DIRECTORY`: Base directory to export into (subdirectories with album names are created).
-* `-p, --profile TEXT`: Exporter profile name from config.
-* `-c, --config TEXT`: Path to config file.
-* `--share-layout [flat|albums|by-month]`: Share layout: flat (default), albums (by year), or by-month (by month).
-* `--album-layout [browsable-jpg|browsable|all|archive]`: Export layout: browsable-jpg (default), browsable, all, or archive (originals + edits + .photree metadata only).
-* `--link-mode [copy|hardlink|symlink]`: How to create main files in all layout: hardlink (default), symlink, or copy.
+* `-a, --album-dir <directory>`: Album directory to export.  [default: .]
+* `-s, --share-dir <directory>`: Base directory to export into (subdirectories with album names are created).
+* `-p, --profile <str>`: Exporter profile name from config.
+* `-c, --config <str>`: Path to config file.
+* `--share-layout <flat|albums|by-month>`: Share layout: flat (default), albums (by year), or by-month (by month).
+* `--album-layout <browsable-jpg|browsable|all|archive>`: Export layout: browsable-jpg (default), browsable, all, or archive (originals + edits + .photree metadata only).
+* `--link-mode <copy|hardlink|symlink>`: How to create main files in all layout: hardlink (default), symlink, or copy.
 * `--help`: Show this message and exit.
 
 ### `photree album fix`
@@ -163,10 +163,10 @@ $ photree album fix [OPTIONS]
 
 **Options**:
 
-* `-a, --album-dir DIRECTORY`: Album directory to fix.  [default: .]
+* `-a, --album-dir <directory>`: Album directory to fix.  [default: .]
 * `--id`: Generate missing album ID (.photree/album.yaml).
 * `--new-id`: Regenerate album ID (replaces existing ID).
-* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.
+* `--link-mode <copy|hardlink|symlink>`: How to create main files: hardlink (default), symlink, or copy.
 * `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
 * `--rm-orphan`: Delete edited and main files that have no corresponding orig file.
 * `-n, --dry-run`: Print what would happen without modifying files.
@@ -191,19 +191,19 @@ timestamp, only replacing the date.
 **Usage**:
 
 ```console
-$ photree album fix-exif [OPTIONS] [FILES]...
+$ photree album fix-exif [OPTIONS] [files]...
 ```
 
 **Arguments**:
 
-* `[FILES]...`: File paths to fix (relative from cwd).
+* `files...`: File paths to fix (relative from cwd).
 
 **Options**:
 
-* `--set-date TEXT`: Set EXIF date to YYYY-MM-DD (preserves original time).
-* `--set-date-time TEXT`: Set EXIF date+time to an ISO timestamp (e.g. 2024-07-20T13:55:20).
-* `--shift-date INTEGER`: Shift EXIF date by N days (e.g. -1, +2).
-* `--shift-time INTEGER`: Shift EXIF time by N hours (e.g. -6, +3).
+* `--set-date <str>`: Set EXIF date to YYYY-MM-DD (preserves original time).
+* `--set-date-time <str>`: Set EXIF date+time to an ISO timestamp (e.g. 2024-07-20T13:55:20).
+* `--shift-date <int>`: Shift EXIF date by N days (e.g. -1, +2).
+* `--shift-time <int>`: Shift EXIF time by N hours (e.g. -6, +3).
 * `--help`: Show this message and exit.
 
 ### `photree album fix-ios`
@@ -238,7 +238,7 @@ $ photree album fix-ios [OPTIONS]
 
 **Options**:
 
-* `-a, --album-dir DIRECTORY`: iOS album directory to fix.  [default: .]
+* `-a, --album-dir <directory>`: iOS album directory to fix.  [default: .]
 * `--prefer-higher-quality-when-dups`: Delete lower-quality duplicates.
 * `--rm-orphan-sidecar`: Delete AAE sidecar files that have no matching media file.
 * `--rm-miscategorized`: Delete files in the wrong directory.
@@ -259,9 +259,9 @@ $ photree album import-check [OPTIONS]
 
 **Options**:
 
-* `-a, --album-dir DIRECTORY`: Album directory (with to-import/ and/or to-import.csv).  [default: .]
-* `-s, --source DIRECTORY`: Image Capture output directory. Overrides config and default.
-* `-c, --config TEXT`: Path to config file.
+* `-a, --album-dir <directory>`: Album directory (with to-import/ and/or to-import.csv).  [default: .]
+* `-s, --source <directory>`: Image Capture output directory. Overrides config and default.
+* `-c, --config <str>`: Path to config file.
 * `--help`: Show this message and exit.
 
 ### `photree album import`
@@ -274,14 +274,14 @@ $ photree album import [OPTIONS]
 
 **Options**:
 
-* `-a, --album-dir DIRECTORY`: Album directory (with to-import/ and/or to-import.csv).  [default: .]
-* `-s, --source DIRECTORY`: Image Capture output directory. Overrides config and default.
-* `-c, --config TEXT`: Path to config file.
-* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.  [default: hardlink]
+* `-a, --album-dir <directory>`: Album directory (with to-import/ and/or to-import.csv).  [default: .]
+* `-s, --source <directory>`: Image Capture output directory. Overrides config and default.
+* `-c, --config <str>`: Path to config file.
+* `--link-mode <copy|hardlink|symlink>`: How to create main files: hardlink (default), symlink, or copy.  [default: hardlink]
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `-f, --force`: Skip preflight checks on the source directory.
 * `--skip-heic-to-jpeg`: Skip HEIC-to-JPEG conversion (and the sips availability check).
-* `--media-source TEXT`: Target media source within the album (default: main).  [default: main]
+* `--media-source <str>`: Target media source within the album (default: main).  [default: main]
 * `--help`: Show this message and exit.
 
 ### `photree album list-media`
@@ -296,9 +296,9 @@ $ photree album list-media [OPTIONS]
 
 **Options**:
 
-* `-a, --album-dir DIRECTORY`: Album directory.  [default: .]
-* `--format TEXT`: Output format: text (default) or csv.  [default: text]
-* `-o, --output FILE`: Write output to a file instead of stdout.
+* `-a, --album-dir <directory>`: Album directory.  [default: .]
+* `--format <str>`: Output format: text (default) or csv.  [default: text]
+* `-o, --output <file>`: Write output to a file instead of stdout.
 * `--help`: Show this message and exit.
 
 ### `photree album init`
@@ -313,7 +313,7 @@ $ photree album init [OPTIONS]
 
 **Options**:
 
-* `-a, --album-dir DIRECTORY`: Album directory.  [default: .]
+* `-a, --album-dir <directory>`: Album directory.  [default: .]
 * `--help`: Show this message and exit.
 
 ### `photree album mv-media`
@@ -327,17 +327,17 @@ and moves them all. Any variant file can be used to identify the media.
 **Usage**:
 
 ```console
-$ photree album mv-media [OPTIONS] FILES...
+$ photree album mv-media [OPTIONS] {files}...
 ```
 
 **Arguments**:
 
-* `FILES...`: Relative file paths to move (e.g. main-jpg/IMG_E3219.jpg).  [required]
+* `files...`: Relative file paths to move (e.g. main-jpg/IMG_E3219.jpg).  [required]
 
 **Options**:
 
-* `-s, --source-album DIRECTORY`: Source album directory.  [required]
-* `-d, --dest-album DIRECTORY`: Destination album directory.  [required]
+* `-s, --source-album <directory>`: Source album directory.  [required]
+* `-d, --dest-album <directory>`: Destination album directory.  [required]
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
@@ -353,7 +353,7 @@ $ photree album refresh [OPTIONS]
 
 **Options**:
 
-* `-a, --album-dir DIRECTORY`: Album directory.  [default: .]
+* `-a, --album-dir <directory>`: Album directory.  [default: .]
 * `--dry-run`: Show what would change without writing.
 * `--refresh-browsable`: Force rebuild all browsable directories (skip check gate).
 * `--refresh-jpeg`: Force rebuild all JPEG directories (skip check gate).
@@ -373,16 +373,16 @@ and removes them all. Any variant file can be used to identify the media.
 **Usage**:
 
 ```console
-$ photree album rm-media [OPTIONS] [FILES]...
+$ photree album rm-media [OPTIONS] [files]...
 ```
 
 **Arguments**:
 
-* `[FILES]...`: Relative file paths to remove (e.g. main-jpg/IMG_E3219.jpg).
+* `files...`: Relative file paths to remove (e.g. main-jpg/IMG_E3219.jpg).
 
 **Options**:
 
-* `-a, --album-dir DIRECTORY`: Album directory.  [default: .]
+* `-a, --album-dir <directory>`: Album directory.  [default: .]
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
@@ -398,7 +398,7 @@ $ photree album show [OPTIONS]
 
 **Options**:
 
-* `-a, --album-dir DIRECTORY`: Album directory.  [default: .]
+* `-a, --album-dir <directory>`: Album directory.  [default: .]
 * `--help`: Show this message and exit.
 
 ### `photree album stats`
@@ -413,7 +413,7 @@ $ photree album stats [OPTIONS]
 
 **Options**:
 
-* `-a, --album-dir DIRECTORY`: Album directory to analyze.  [default: .]
+* `-a, --album-dir <directory>`: Album directory to analyze.  [default: .]
 * `--help`: Show this message and exit.
 
 ## `photree albums`
@@ -458,8 +458,8 @@ $ photree albums check [OPTIONS]
 
 **Options**:
 
-* `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
-* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
+* `-d, --dir <directory>`: Base directory to recursively scan for albums.
+* `-a, --album-dir <directory>`: Album directory (repeatable).
 * `--checksum / --no-checksum`: Enable/disable SHA-256 checksum verification (default: enabled).  [default: checksum]
 * `-W, --fatal-warnings`: Treat all warnings as errors (implies --fatal-sidecar).
 * `--fatal-sidecar`: Treat missing-sidecar warnings as errors.
@@ -482,8 +482,8 @@ $ photree albums detect-faces [OPTIONS]
 
 **Options**:
 
-* `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
-* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
+* `-d, --dir <directory>`: Base directory to recursively scan for albums.
+* `-a, --album-dir <directory>`: Album directory (repeatable).
 * `--dry-run`: Show what would change without writing.
 * `--redetect`: Re-run face detection on all images (reuses cached thumbnails).
 * `--refresh-thumbs`: Refresh face detection thumbnails from originals.
@@ -504,14 +504,14 @@ $ photree albums export [OPTIONS]
 
 **Options**:
 
-* `-d, --dir DIRECTORY`: Base directory to scan for albums.
-* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
-* `-s, --share-dir DIRECTORY`: Base directory to export into (subdirectories with album names are created).
-* `-p, --profile TEXT`: Exporter profile name from config.
-* `-c, --config TEXT`: Path to config file.
-* `--share-layout [flat|albums|by-month]`: Share layout: flat (default), albums (by year), or by-month (by month).
-* `--album-layout [browsable-jpg|browsable|all|archive]`: Export layout: browsable-jpg (default), browsable, all, or archive (originals + edits + .photree metadata only).
-* `--link-mode [copy|hardlink|symlink]`: How to create main files in all layout: hardlink (default), symlink, or copy.
+* `-d, --dir <directory>`: Base directory to scan for albums.
+* `-a, --album-dir <directory>`: Album directory (repeatable).
+* `-s, --share-dir <directory>`: Base directory to export into (subdirectories with album names are created).
+* `-p, --profile <str>`: Exporter profile name from config.
+* `-c, --config <str>`: Path to config file.
+* `--share-layout <flat|albums|by-month>`: Share layout: flat (default), albums (by year), or by-month (by month).
+* `--album-layout <browsable-jpg|browsable|all|archive>`: Export layout: browsable-jpg (default), browsable, all, or archive (originals + edits + .photree metadata only).
+* `--link-mode <copy|hardlink|symlink>`: How to create main files in all layout: hardlink (default), symlink, or copy.
 * `--help`: Show this message and exit.
 
 ### `photree albums fix`
@@ -526,11 +526,11 @@ $ photree albums fix [OPTIONS]
 
 **Options**:
 
-* `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
-* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
+* `-d, --dir <directory>`: Base directory to recursively scan for albums.
+* `-a, --album-dir <directory>`: Album directory (repeatable).
 * `--id`: Generate missing album IDs (.photree/album.yaml).
 * `--new-id`: Regenerate album IDs (replaces existing IDs).
-* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink, symlink, or copy.  [default: hardlink]
+* `--link-mode <copy|hardlink|symlink>`: How to create main files: hardlink, symlink, or copy.  [default: hardlink]
 * `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
 * `--rm-orphan`: Delete edited and main files that have no corresponding orig file.
 * `-n, --dry-run`: Print what would happen without modifying files.
@@ -548,8 +548,8 @@ $ photree albums fix-ios [OPTIONS]
 
 **Options**:
 
-* `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
-* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
+* `-d, --dir <directory>`: Base directory to recursively scan for albums.
+* `-a, --album-dir <directory>`: Album directory (repeatable).
 * `--prefer-higher-quality-when-dups`: Delete lower-quality duplicates.
 * `--rm-orphan-sidecar`: Delete AAE sidecar files that have no matching media file.
 * `--rm-miscategorized`: Delete files in the wrong directory.
@@ -568,10 +568,10 @@ $ photree albums import-check [OPTIONS]
 
 **Options**:
 
-* `-d, --dir DIRECTORY`: Parent directory containing album subdirectories.
-* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
-* `-s, --source DIRECTORY`: Image Capture output directory. Overrides config and default.
-* `-c, --config TEXT`: Path to config file.
+* `-d, --dir <directory>`: Parent directory containing album subdirectories.
+* `-a, --album-dir <directory>`: Album directory (repeatable).
+* `-s, --source <directory>`: Image Capture output directory. Overrides config and default.
+* `-c, --config <str>`: Path to config file.
 * `--help`: Show this message and exit.
 
 ### `photree albums import`
@@ -584,11 +584,11 @@ $ photree albums import [OPTIONS]
 
 **Options**:
 
-* `-d, --dir DIRECTORY`: Parent directory containing album subdirectories.
-* `-a, --album-dir DIRECTORY`: Album directory to import (repeatable).
-* `-s, --source DIRECTORY`: Image Capture output directory. Overrides config and default.
-* `-c, --config TEXT`: Path to config file.
-* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.  [default: hardlink]
+* `-d, --dir <directory>`: Parent directory containing album subdirectories.
+* `-a, --album-dir <directory>`: Album directory to import (repeatable).
+* `-s, --source <directory>`: Image Capture output directory. Overrides config and default.
+* `-c, --config <str>`: Path to config file.
+* `--link-mode <copy|hardlink|symlink>`: How to create main files: hardlink (default), symlink, or copy.  [default: hardlink]
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `-f, --force`: Skip preflight checks on the source directory.
 * `--skip-heic-to-jpeg`: Skip HEIC-to-JPEG conversion (and the sips availability check).
@@ -606,8 +606,8 @@ $ photree albums init [OPTIONS]
 
 **Options**:
 
-* `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
-* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
+* `-d, --dir <directory>`: Base directory to recursively scan for albums.
+* `-a, --album-dir <directory>`: Album directory (repeatable).
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
@@ -623,11 +623,11 @@ $ photree albums list [OPTIONS]
 
 **Options**:
 
-* `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
-* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
+* `-d, --dir <directory>`: Base directory to recursively scan for albums.
+* `-a, --album-dir <directory>`: Album directory (repeatable).
 * `--metadata / --no-metadata`: Show parsed album metadata and media sources (default: enabled).  [default: metadata]
-* `--format TEXT`: Output format: text (default) or csv.  [default: text]
-* `-o, --output FILE`: Write output to a file instead of stdout.
+* `--format <str>`: Output format: text (default) or csv.  [default: text]
+* `-o, --output <file>`: Write output to a file instead of stdout.
 * `--help`: Show this message and exit.
 
 ### `photree albums list-media`
@@ -642,10 +642,10 @@ $ photree albums list-media [OPTIONS]
 
 **Options**:
 
-* `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
-* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
-* `--format TEXT`: Output format: text (default) or csv.  [default: text]
-* `-o, --output FILE`: Write output to a file instead of stdout.
+* `-d, --dir <directory>`: Base directory to recursively scan for albums.
+* `-a, --album-dir <directory>`: Album directory (repeatable).
+* `--format <str>`: Output format: text (default) or csv.  [default: text]
+* `-o, --output <file>`: Write output to a file instead of stdout.
 * `--help`: Show this message and exit.
 
 ### `photree albums refresh`
@@ -660,8 +660,8 @@ $ photree albums refresh [OPTIONS]
 
 **Options**:
 
-* `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
-* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
+* `-d, --dir <directory>`: Base directory to recursively scan for albums.
+* `-a, --album-dir <directory>`: Album directory (repeatable).
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--refresh-browsable`: Force rebuild all browsable directories (skip check gate).
 * `--refresh-jpeg`: Force rebuild all JPEG directories (skip check gate).
@@ -682,17 +682,17 @@ tags) are preserved from the current on-disk album name.
 **Usage**:
 
 ```console
-$ photree albums rename-from-csv [OPTIONS] CSV_FILE
+$ photree albums rename-from-csv [OPTIONS] {csv_file}
 ```
 
 **Arguments**:
 
-* `CSV_FILE`: CSV with desired album state (from list --format csv, edited).  [required]
+* `csv_file`: CSV with desired album state (from list --format csv, edited).  [required]
 
 **Options**:
 
-* `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
-* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
+* `-d, --dir <directory>`: Base directory to recursively scan for albums.
+* `-a, --album-dir <directory>`: Album directory (repeatable).
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
@@ -708,8 +708,8 @@ $ photree albums stats [OPTIONS]
 
 **Options**:
 
-* `-d, --dir DIRECTORY`: Base directory to recursively scan for albums.
-* `-a, --album-dir DIRECTORY`: Album directory (repeatable).
+* `-d, --dir <directory>`: Base directory to recursively scan for albums.
+* `-a, --album-dir <directory>`: Album directory (repeatable).
 * `--help`: Show this message and exit.
 
 ## `photree check`
@@ -778,8 +778,8 @@ $ photree collection check [OPTIONS]
 
 **Options**:
 
-* `-d, --dir DIRECTORY`: Collection directory.  [default: .]
-* `-g, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `-d, --dir <directory>`: Collection directory.  [default: .]
+* `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--help`: Show this message and exit.
 
 ### `photree collection import`
@@ -794,8 +794,8 @@ $ photree collection import [OPTIONS]
 
 **Options**:
 
-* `-c, --collection-dir DIRECTORY`: Collection directory (must be initialized).  [default: .]
-* `-g, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `-c, --collection-dir <directory>`: Collection directory (must be initialized).  [default: .]
+* `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `-n, --dry-run`: Show what would be imported without modifying files.
 * `--help`: Show this message and exit.
 
@@ -811,10 +811,10 @@ $ photree collection init [OPTIONS]
 
 **Options**:
 
-* `-d, --dir DIRECTORY`: Collection directory.  [default: .]
-* `--members [smart|manual]`: How members are determined: smart (auto by date range) or manual.  [default: manual]
-* `--lifecycle [implicit|explicit]`: How the collection is managed: explicit (user) or implicit (from album series).  [default: explicit]
-* `--strategy [import|date-range|album-series|chapter]`: Rule for member selection: import, date-range, album-series, or chapter.  [default: import]
+* `-d, --dir <directory>`: Collection directory.  [default: .]
+* `--members <smart|manual>`: How members are determined: smart (auto by date range) or manual.  [default: manual]
+* `--lifecycle <implicit|explicit>`: How the collection is managed: explicit (user) or implicit (from album series).  [default: explicit]
+* `--strategy <import|date-range|album-series|chapter>`: Rule for member selection: import, date-range, album-series, or chapter.  [default: import]
 * `--help`: Show this message and exit.
 
 ### `photree collection show`
@@ -829,7 +829,7 @@ $ photree collection show [OPTIONS]
 
 **Options**:
 
-* `-d, --dir DIRECTORY`: Collection directory.  [default: .]
+* `-d, --dir <directory>`: Collection directory.  [default: .]
 * `--help`: Show this message and exit.
 
 ### `photree collection metadata`
@@ -862,10 +862,10 @@ $ photree collection metadata set [OPTIONS]
 
 **Options**:
 
-* `-d, --dir DIRECTORY`: Collection directory.  [default: .]
-* `--members [smart|manual]`: How members are determined: smart (auto by date range) or manual.
-* `--lifecycle [implicit|explicit]`: How the collection is managed: explicit (user) or implicit (from album series).
-* `--strategy [import|date-range|album-series|chapter]`: Rule for member selection: import, date-range, album-series, or chapter.
+* `-d, --dir <directory>`: Collection directory.  [default: .]
+* `--members <smart|manual>`: How members are determined: smart (auto by date range) or manual.
+* `--lifecycle <implicit|explicit>`: How the collection is managed: explicit (user) or implicit (from album series).
+* `--strategy <import|date-range|album-series|chapter>`: Rule for member selection: import, date-range, album-series, or chapter.
 * `--help`: Show this message and exit.
 
 ## `photree collections`
@@ -899,7 +899,7 @@ $ photree collections check [OPTIONS]
 
 **Options**:
 
-* `-g, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--help`: Show this message and exit.
 
 ### `photree collections import`
@@ -914,9 +914,9 @@ $ photree collections import [OPTIONS]
 
 **Options**:
 
-* `-d, --dir DIRECTORY`: Parent directory to scan for collections with selections.
-* `-c, --collection-dir DIRECTORY`: Collection directory to import (repeatable).
-* `-g, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `-d, --dir <directory>`: Parent directory to scan for collections with selections.
+* `-c, --collection-dir <directory>`: Collection directory to import (repeatable).
+* `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `-n, --dry-run`: Show what would be imported without modifying files.
 * `--help`: Show this message and exit.
 
@@ -965,8 +965,8 @@ $ photree demo seed [OPTIONS]
 
 **Options**:
 
-* `-d, --base-dir DIRECTORY`: Directory to create the demo in. Default: creates a temp directory.
-* `--album-name TEXT`: Album name.  [default: 2024-06-15 - Demo Album]
+* `-d, --base-dir <directory>`: Directory to create the demo in. Default: creates a temp directory.
+* `--album-name <str>`: Album name.  [default: 2024-06-15 - Demo Album]
 * `--help`: Show this message and exit.
 
 ## `photree gallery`
@@ -1014,7 +1014,7 @@ $ photree gallery check [OPTIONS]
 
 **Options**:
 
-* `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `-d, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--checksum / --no-checksum`: Enable/disable SHA-256 checksum verification (default: enabled).  [default: checksum]
 * `-W, --fatal-warnings`: Treat all warnings as errors (implies --fatal-sidecar).
 * `--fatal-sidecar`: Treat missing-sidecar warnings as errors.
@@ -1037,11 +1037,11 @@ $ photree gallery cluster-faces [OPTIONS]
 
 **Options**:
 
-* `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `-d, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--redetect`: Re-run face detection on all images (reuses cached thumbnails).
 * `--refresh-thumbs`: Refresh face detection thumbnails from originals.
-* `--threshold FLOAT`: Cosine distance threshold for clustering (0.0-1.0). Overrides gallery.yaml.
+* `--threshold <float>`: Cosine distance threshold for clustering (0.0-1.0). Overrides gallery.yaml.
 * `--help`: Show this message and exit.
 
 ### `photree gallery export`
@@ -1059,14 +1059,14 @@ $ photree gallery export [OPTIONS]
 
 **Options**:
 
-* `-d, --dir DIRECTORY`: Base directory to scan for albums.
-* `-a, --album-dir DIRECTORY`: Album directory to export (repeatable).
-* `-s, --share-dir DIRECTORY`: Base directory to export into (subdirectories with album names are created).
-* `-p, --profile TEXT`: Exporter profile name from config.
-* `-c, --config TEXT`: Path to config file.
-* `--share-layout [flat|albums|by-month]`: Share layout: flat (default), albums (by year), or by-month (by month).
-* `--album-layout [browsable-jpg|browsable|all|archive]`: Export layout: browsable-jpg (default), browsable, all, or archive (originals + edits + .photree metadata only).
-* `--link-mode [copy|hardlink|symlink]`: How to create main files in all layout: hardlink (default), symlink, or copy.
+* `-d, --dir <directory>`: Base directory to scan for albums.
+* `-a, --album-dir <directory>`: Album directory to export (repeatable).
+* `-s, --share-dir <directory>`: Base directory to export into (subdirectories with album names are created).
+* `-p, --profile <str>`: Exporter profile name from config.
+* `-c, --config <str>`: Path to config file.
+* `--share-layout <flat|albums|by-month>`: Share layout: flat (default), albums (by year), or by-month (by month).
+* `--album-layout <browsable-jpg|browsable|all|archive>`: Export layout: browsable-jpg (default), browsable, all, or archive (originals + edits + .photree metadata only).
+* `--link-mode <copy|hardlink|symlink>`: How to create main files in all layout: hardlink (default), symlink, or copy.
 * `--help`: Show this message and exit.
 
 ### `photree gallery fix`
@@ -1081,10 +1081,10 @@ $ photree gallery fix [OPTIONS]
 
 **Options**:
 
-* `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `-d, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--id`: Generate missing album IDs (.photree/album.yaml).
 * `--new-id`: Regenerate album IDs (replaces existing IDs).
-* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.
+* `--link-mode <copy|hardlink|symlink>`: How to create main files: hardlink (default), symlink, or copy.
 * `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
 * `--rm-orphan`: Delete edited and main files that have no corresponding orig file.
 * `-n, --dry-run`: Print what would happen without modifying files.
@@ -1102,7 +1102,7 @@ $ photree gallery fix-ios [OPTIONS]
 
 **Options**:
 
-* `-d, --gallery-dir DIRECTORY`: Gallery root directory.
+* `-d, --gallery-dir <directory>`: Gallery root directory.
 * `--prefer-higher-quality-when-dups`: Delete lower-quality duplicates.
 * `--rm-orphan-sidecar`: Delete AAE sidecar files that have no matching media file.
 * `--rm-miscategorized`: Delete files in the wrong directory.
@@ -1129,10 +1129,10 @@ $ photree gallery import-all [OPTIONS]
 
 **Options**:
 
-* `-d, --dir DIRECTORY`: Base directory to scan for album subdirectories.
-* `-a, --album-dir DIRECTORY`: Album directory to import (repeatable).
-* `-g, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
-* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.
+* `-d, --dir <directory>`: Base directory to scan for album subdirectories.
+* `-a, --album-dir <directory>`: Album directory to import (repeatable).
+* `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `--link-mode <copy|hardlink|symlink>`: How to create main files: hardlink (default), symlink, or copy.
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--reimport`: Replace media of already-imported albums, preserving .photree/ metadata (album ID + media-id UUIDs).
 * `--help`: Show this message and exit.
@@ -1149,9 +1149,9 @@ $ photree gallery import [OPTIONS]
 
 **Options**:
 
-* `-a, --album-dir DIRECTORY`: Album directory to import into the gallery.  [required]
-* `-g, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
-* `--link-mode [copy|hardlink|symlink]`: How to create main files: hardlink (default), symlink, or copy.
+* `-a, --album-dir <directory>`: Album directory to import into the gallery.  [required]
+* `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `--link-mode <copy|hardlink|symlink>`: How to create main files: hardlink (default), symlink, or copy.
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--reimport`: Replace media of already-imported albums, preserving .photree/ metadata (album ID + media-id UUIDs).
 * `--help`: Show this message and exit.
@@ -1168,8 +1168,8 @@ $ photree gallery init [OPTIONS]
 
 **Options**:
 
-* `-d, --dir DIRECTORY`: Gallery root directory.  [default: .]
-* `--link-mode [copy|hardlink|symlink]`: Default link mode for refresh and other link-mode operations.  [default: hardlink]
+* `-d, --dir <directory>`: Gallery root directory.  [default: .]
+* `--link-mode <copy|hardlink|symlink>`: Default link mode for refresh and other link-mode operations.  [default: hardlink]
 * `--help`: Show this message and exit.
 
 ### `photree gallery list-albums`
@@ -1184,10 +1184,10 @@ $ photree gallery list-albums [OPTIONS]
 
 **Options**:
 
-* `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `-d, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--metadata / --no-metadata`: Show parsed album metadata and media sources (default: enabled).  [default: metadata]
-* `--format TEXT`: Output format: text (default) or csv.  [default: text]
-* `-o, --output FILE`: Write output to a file instead of stdout.
+* `--format <str>`: Output format: text (default) or csv.  [default: text]
+* `-o, --output <file>`: Write output to a file instead of stdout.
 * `--help`: Show this message and exit.
 
 ### `photree gallery list-collections`
@@ -1202,10 +1202,10 @@ $ photree gallery list-collections [OPTIONS]
 
 **Options**:
 
-* `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `-d, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--metadata / --no-metadata`: Show parsed collection metadata (default: enabled).  [default: metadata]
-* `--format TEXT`: Output format: text (default) or csv.  [default: text]
-* `-o, --output FILE`: Write output to a file instead of stdout.
+* `--format <str>`: Output format: text (default) or csv.  [default: text]
+* `-o, --output <file>`: Write output to a file instead of stdout.
 * `--help`: Show this message and exit.
 
 ### `photree gallery list-media`
@@ -1220,9 +1220,9 @@ $ photree gallery list-media [OPTIONS]
 
 **Options**:
 
-* `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
-* `--format TEXT`: Output format: text (default) or csv.  [default: text]
-* `-o, --output FILE`: Write output to a file instead of stdout.
+* `-d, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `--format <str>`: Output format: text (default) or csv.  [default: text]
+* `-o, --output <file>`: Write output to a file instead of stdout.
 * `--help`: Show this message and exit.
 
 ### `photree gallery refresh`
@@ -1237,7 +1237,7 @@ $ photree gallery refresh [OPTIONS]
 
 **Options**:
 
-* `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `-d, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--refresh-browsable`: Force rebuild all browsable directories (skip check gate).
 * `--refresh-jpeg`: Force rebuild all JPEG directories (skip check gate).
@@ -1258,16 +1258,16 @@ tags) are preserved from the current on-disk album name.
 **Usage**:
 
 ```console
-$ photree gallery rename-from-csv [OPTIONS] CSV_FILE
+$ photree gallery rename-from-csv [OPTIONS] {csv_file}
 ```
 
 **Arguments**:
 
-* `CSV_FILE`: CSV with desired album state (from list-albums --format csv, edited).  [required]
+* `csv_file`: CSV with desired album state (from list-albums --format csv, edited).  [required]
 
 **Options**:
 
-* `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `-d, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `-n, --dry-run`: Show what would be renamed without making changes.
 * `--help`: Show this message and exit.
 
@@ -1283,7 +1283,7 @@ $ photree gallery show [OPTIONS]
 
 **Options**:
 
-* `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `-d, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--help`: Show this message and exit.
 
 ### `photree gallery stats`
@@ -1298,7 +1298,7 @@ $ photree gallery stats [OPTIONS]
 
 **Options**:
 
-* `-d, --gallery-dir DIRECTORY`: Gallery root directory.
+* `-d, --gallery-dir <directory>`: Gallery root directory.
 * `--help`: Show this message and exit.
 
 ### `photree gallery metadata`
@@ -1331,8 +1331,8 @@ $ photree gallery metadata set [OPTIONS]
 
 **Options**:
 
-* `-d, --gallery-dir DIRECTORY`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
-* `--link-mode [copy|hardlink|symlink]`: Default link mode for refresh and other link-mode operations.
+* `-d, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `--link-mode <copy|hardlink|symlink>`: Default link mode for refresh and other link-mode operations.
 * `--faces-enabled`: Enable face detection and clustering during gallery refresh.
-* `--face-cluster-threshold FLOAT`: Cosine distance threshold for face clustering (0.0-1.0).
+* `--face-cluster-threshold <float>`: Cosine distance threshold for face clustering (0.0-1.0).
 * `--help`: Show this message and exit.
