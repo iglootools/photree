@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 from ...common.fs import list_files
 from ...fsprotocol import LinkMode
 from ..jpeg import convert_single_file
+from ..store.protocol import ios_import_dir, std_import_dir
 from . import album_import
 from .album_import import task_has_content, validate_album_import
 from .tasks import discover_import_tasks, has_import_tasks
@@ -69,6 +70,24 @@ def _album_has_content(album_dir: Path) -> bool:
     return any(task_has_content(t) for t in discover_import_tasks(album_dir))
 
 
+def _empty_task_reason(album_dir: Path) -> str:
+    """Describe why an album with ``to-import-*`` entries has nothing to import.
+
+    Names each empty staging dir so a likely user mistake (e.g. std files placed
+    directly in the dir instead of under ``orig/``) is easy to spot.
+    """
+    parts = [
+        (
+            f"{ios_import_dir(t.name)} (empty selection)"
+            if t.is_ios
+            else f"{std_import_dir(t.name)} (no media in orig/ or edit/)"
+        )
+        for t in discover_import_tasks(album_dir)
+        if not task_has_content(t)
+    ]
+    return "; ".join(parts) if parts else "nothing to import"
+
+
 def categorize_albums(album_dirs: Sequence[Path]) -> AlbumScan:
     """Categorize album directories by their ``to-import-*`` state.
 
@@ -112,7 +131,7 @@ def run_batch_import(
     dry_run: bool = False,
     on_importing: Callable[[str], None] | None = None,
     on_imported: Callable[[str], None] | None = None,
-    on_skipped: Callable[[str, str], None] | None = None,
+    on_skipped: Callable[..., None] | None = None,
     on_error: Callable[[str, str], None] | None = None,
     on_validation_error: Callable[[str, list[str]], None] | None = None,
     convert_file: Callable[..., Path | None] = convert_single_file,
@@ -149,9 +168,12 @@ def run_batch_import(
         if on_skipped:
             on_skipped(album_dir.name, "no to-import-{ios,std}-<name> directory")
 
+    # A to-import-* dir that yields nothing is most likely a user mistake
+    # (e.g. std files placed directly instead of under orig/) — warn, don't
+    # skip silently like an album with no staging dir at all.
     for album_dir in scan.empty_selection:
         if on_skipped:
-            on_skipped(album_dir.name, "nothing to import")
+            on_skipped(album_dir.name, _empty_task_reason(album_dir), warn=True)
 
     # Validate all albums before importing any
     ic_files = list_files(image_capture_dir) if scan.to_import else []

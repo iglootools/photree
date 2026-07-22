@@ -2,7 +2,11 @@
 
 from pathlib import Path
 
-from photree.album.store.protocol import ios_import_csv, ios_import_dir
+from photree.album.store.protocol import (
+    ios_import_csv,
+    ios_import_dir,
+    std_import_dir,
+)
 from photree.album.importer.batch import (
     categorize_albums,
     run_batch_import,
@@ -187,6 +191,35 @@ class TestBatchImport:
         assert "invalid" in validation_errors
         # valid album should NOT have been processed either
         assert not (albums_dir / "valid" / "ios-main/orig-img").exists()
+
+    def test_empty_task_warns_with_descriptive_reason(self, tmp_path: Path) -> None:
+        albums_dir = tmp_path / "albums"
+        albums_dir.mkdir()
+        ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0001.HEIC"])
+        # std staging dir with files placed directly (not under orig/ or edit/)
+        stray = albums_dir / "trip" / std_import_dir("gabriela")
+        stray.mkdir(parents=True)
+        (stray / "photo.jpg").write_text("data")
+        # album with no staging dir at all
+        (albums_dir / "no-tasks").mkdir()
+
+        skips: list[tuple[str, str, bool]] = []
+        result = run_batch_import(
+            albums_dir=albums_dir,
+            image_capture_dir=ic_dir,
+            on_skipped=lambda name, reason, warn=False: skips.append(
+                (name, reason, warn)
+            ),
+            convert_file=_noop_convert,
+        )
+
+        assert result.imported == 0
+        by_name = {name: (reason, warn) for name, reason, warn in skips}
+        # Empty staging dir → warning, with the offending dir named
+        assert by_name["trip"][1] is True
+        assert "to-import-std-gabriela" in by_name["trip"][0]
+        # No staging dir at all → plain skip, not a warning
+        assert by_name["no-tasks"][1] is False
 
 
 # ---------------------------------------------------------------------------
