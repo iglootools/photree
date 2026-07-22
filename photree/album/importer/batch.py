@@ -1,4 +1,4 @@
-"""Batch import from Image Capture across multiple album directories."""
+"""Batch import across multiple album directories."""
 
 from __future__ import annotations
 
@@ -7,17 +7,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ...common.fs import list_files
 from ...fsprotocol import LinkMode
 from ..jpeg import convert_single_file
-from ..store.protocol import SELECTION_CSV, SELECTION_DIR
-from . import image_capture
-from ...common.fs import list_files
-from .image_capture import (
-    ImportPlan,
-    ValidationError,
-    plan_import,
-    validate_import_plan,
-)
+from ..store.protocol import ios_import_dir, std_import_dir
+from . import album_import
+from .album_import import task_has_content, validate_album_import
+from .tasks import discover_import_tasks, has_import_tasks
 
 if TYPE_CHECKING:
     from ..faces.detect import FaceAnalyzerFactory
@@ -34,11 +30,10 @@ class AlbumScan:
 
 @dataclass(frozen=True)
 class AlbumValidation:
-    """Validation result for a single album."""
+    """Validation result for a single album (aggregated across its tasks)."""
 
     album_dir: Path
-    plan: ImportPlan
-    errors: tuple[ValidationError, ...] = ()
+    errors: tuple[str, ...] = ()
 
     @property
     def success(self) -> bool:
@@ -71,44 +66,60 @@ def scan_albums(albums_dir: Path) -> AlbumScan:
     return categorize_albums(subdirs)
 
 
-def categorize_albums(album_dirs: Sequence[Path]) -> AlbumScan:
-    """Categorize album directories by their selection state.
+def _album_has_content(album_dir: Path) -> bool:
+    return any(task_has_content(t) for t in discover_import_tasks(album_dir))
 
-    Selection can come from ``to-import/`` directory, ``to-import.csv``, or both.
+
+def _empty_task_reason(album_dir: Path) -> str:
+    """Describe why an album with ``to-import-*`` entries has nothing to import.
+
+    Names each empty staging dir so a likely user mistake (e.g. std files placed
+    directly in the dir instead of under ``orig/``) is easy to spot.
     """
-    from .selection import has_selection
+    parts = [
+        (
+            f"{ios_import_dir(t.name)} (empty selection)"
+            if t.is_ios
+            else f"{std_import_dir(t.name)} (no media in orig/ or edit/)"
+        )
+        for t in discover_import_tasks(album_dir)
+        if not task_has_content(t)
+    ]
+    return "; ".join(parts) if parts else "nothing to import"
 
-    has_dir = {d for d in album_dirs if (d / SELECTION_DIR).is_dir()}
-    has_csv = {d for d in album_dirs if (d / SELECTION_CSV).is_file()}
-    has_any_source = has_dir | has_csv
+
+def categorize_albums(album_dirs: Sequence[Path]) -> AlbumScan:
+    """Categorize album directories by their ``to-import-*`` state.
+
+    - ``no_selection``: no ``to-import-*`` entry at all.
+    - ``empty_selection``: has ``to-import-*`` entries but nothing to import.
+    - ``to_import``: has at least one non-empty task.
+    """
+    with_tasks = {d for d in album_dirs if has_import_tasks(d)}
 
     return AlbumScan(
-        no_selection=tuple(d for d in album_dirs if d not in has_any_source),
+        no_selection=tuple(d for d in album_dirs if d not in with_tasks),
         empty_selection=tuple(
-            d for d in album_dirs if d in has_any_source and not has_selection(d)
+            d for d in album_dirs if d in with_tasks and not _album_has_content(d)
         ),
         to_import=tuple(
-            d for d in album_dirs if d in has_any_source and has_selection(d)
+            d for d in album_dirs if d in with_tasks and _album_has_content(d)
         ),
     )
-
-
-def _validate_album(album_dir: Path, image_capture_files: list[str]) -> AlbumValidation:
-    """Validate a single album against the IC file list."""
-    from .selection import read_selection
-
-    selection_files = list(read_selection(album_dir).merged)
-    plan = plan_import(selection_files, image_capture_files)
-    errors, _warnings = validate_import_plan(plan)
-    return AlbumValidation(album_dir=album_dir, plan=plan, errors=tuple(errors))
 
 
 def validate_albums(
     albums: list[Path] | tuple[Path, ...],
     image_capture_files: list[str],
 ) -> list[AlbumValidation]:
-    """Validate all albums against the IC directory."""
-    return [_validate_album(album_dir, image_capture_files) for album_dir in albums]
+    """Validate all albums' import tasks against the IC file list."""
+    return [
+        AlbumValidation(
+            album_dir=album_dir,
+            errors=validate_album_import(album_dir, image_capture_files).errors,
+        )
+        for album_dir in albums
+    ]
 
 
 def run_batch_import(
@@ -120,14 +131,14 @@ def run_batch_import(
     dry_run: bool = False,
     on_importing: Callable[[str], None] | None = None,
     on_imported: Callable[[str], None] | None = None,
-    on_skipped: Callable[[str, str], None] | None = None,
+    on_skipped: Callable[..., None] | None = None,
     on_error: Callable[[str, str], None] | None = None,
-    on_validation_error: Callable[[str, list[ValidationError]], None] | None = None,
+    on_validation_error: Callable[[str, list[str]], None] | None = None,
     convert_file: Callable[..., Path | None] = convert_single_file,
     max_workers: int | None = None,
     analyzer_factory: FaceAnalyzerFactory | None = None,
 ) -> BatchResult:
-    """Run import for all albums with a non-empty selection directory.
+    """Run import for all albums with at least one non-empty import task.
 
     Provide exactly one of *albums_dir* (scan immediate subdirectories) or
     *album_dirs* (explicit list of album directories).
@@ -155,11 +166,14 @@ def run_batch_import(
 
     for album_dir in scan.no_selection:
         if on_skipped:
-            on_skipped(album_dir.name, f"no {SELECTION_DIR}/ or {SELECTION_CSV}")
+            on_skipped(album_dir.name, "no to-import-{ios,std}-<name> directory")
 
+    # A to-import-* dir that yields nothing is most likely a user mistake
+    # (e.g. std files placed directly instead of under orig/) — warn, don't
+    # skip silently like an album with no staging dir at all.
     for album_dir in scan.empty_selection:
         if on_skipped:
-            on_skipped(album_dir.name, "selection is empty")
+            on_skipped(album_dir.name, _empty_task_reason(album_dir), warn=True)
 
     # Validate all albums before importing any
     ic_files = list_files(image_capture_dir) if scan.to_import else []
@@ -176,7 +190,7 @@ def run_batch_import(
         if on_importing:
             on_importing(album_dir.name)
         try:
-            import_result = image_capture.run_import(
+            import_result = album_import.run_import(
                 album_dir=album_dir,
                 image_capture_dir=image_capture_dir,
                 link_mode=link_mode,
@@ -194,7 +208,7 @@ def run_batch_import(
                 result.imported += 1
                 if on_imported:
                     on_imported(album_dir.name)
-        except FileNotFoundError as exc:
+        except (FileNotFoundError, ValueError) as exc:
             result.failed.append((album_dir, str(exc)))
             if on_error:
                 on_error(album_dir.name, str(exc))

@@ -27,19 +27,21 @@ IC_CHECK_WARNINGS = ImageCaptureDirCheck(
 PREFLIGHT_OK = ImportPreflightResult(
     sips_available=True,
     selection_status=SelectionStatus.OK,
-    selection_path=Path("/albums/trip-paris/to-import"),
+    selection_path=Path("/albums/trip-paris"),
     image_capture_dir=Path("~/Pictures/iPhone"),
     image_capture_dir_found=True,
     image_capture_dir_check=IC_CHECK_OK,
     image_capture_dir_preflight_skipped=False,
+    ios_import_required=True,
 )
 
 PREFLIGHT_FAILURES = ImportPreflightResult(
     sips_available=False,
     selection_status=SelectionStatus.NOT_FOUND,
-    selection_path=Path("/albums/trip-paris/to-import"),
+    selection_path=Path("/albums/trip-paris"),
     image_capture_dir=Path("~/Pictures/iPhone"),
     image_capture_dir_found=True,
     image_capture_dir_check=IC_CHECK_WARNINGS,
     image_capture_dir_preflight_skipped=False,
+    ios_import_required=True,
 )

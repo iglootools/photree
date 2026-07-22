@@ -5,7 +5,6 @@ See docs/internals.md for the Image Capture file structure and album layout.
 
 from __future__ import annotations
 
-import os
 import shutil
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -13,36 +12,16 @@ from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from exiftool import ExifToolHelper  # type: ignore[import-untyped]
-
 from ...common.fs import file_ext, list_files
-from ...fsprotocol import PHOTREE_DIR, LinkMode
-from .. import browsable
-from ..jpeg import convert_single_file, refresh_jpeg_dir
-from ..store.metadata import save_album_metadata
 from ..store.media_sources import pick_media_priority
-from ..id import generate_album_id
 from ..store.protocol import (
-    ALBUM_YAML,
-    DEFAULT_MEDIA_SOURCE,
     IOS_IMG_EXTENSIONS,
     IOS_VID_EXTENSIONS,
-    SELECTION_CSV,
-    SELECTION_DIR,
     IOS_SIDECAR_EXTENSIONS,
-    AlbumMetadata,
-    ios_media_source,
 )
 
 if TYPE_CHECKING:
-    from ..faces.detect import FaceAnalyzerFactory
-
-# Import stages
-STAGE_IMPORT_IC = "import-ic"
-STAGE_REFRESH_MAIN_IMG = "refresh-main-img"
-STAGE_REFRESH_MAIN_VID = "refresh-main-vid"
-STAGE_REFRESH_MAIN_JPG = "refresh-main-jpg"
-STAGE_REFRESH_DERIVED = "refresh-derived"
+    from .tasks import ImportTask
 
 
 class MediaType(StrEnum):
@@ -130,23 +109,13 @@ class ValidationWarning:
 
 
 @dataclass(frozen=True)
-class ImportResult:
-    """Result of running an import."""
+class IosSourceImportResult:
+    """Result of importing a single iOS media source."""
 
+    media_source_name: str
     plan: ImportPlan
     processed: frozenset[str]
     unprocessed: tuple[str, ...]
-
-
-def plan_import_from_album(
-    album_dir: Path,
-    image_capture_dir: Path,
-) -> ImportPlan:
-    """Build an import plan using merged selection (dir + CSV)."""
-    from .selection import read_selection
-
-    sources = read_selection(album_dir)
-    return plan_import(list(sources.merged), list_files(image_capture_dir))
 
 
 def _build_ic_index(image_capture_files: list[str]) -> dict[str, list[str]]:
@@ -464,15 +433,6 @@ def _copy_file(src_dir: Path, dst_dir: Path, filename: str, *, dry_run: bool) ->
         shutil.copy(src_dir / filename, dst_dir)
 
 
-def _remove_empty_folders(root: Path) -> None:
-    for dirpath, _dirnames, _filenames in list(os.walk(root))[::-1]:
-        p = Path(dirpath)
-        if p == root or p.name.startswith("."):
-            continue
-        if not os.listdir(dirpath):
-            os.rmdir(dirpath)
-
-
 def _dir_for_type(
     media_type: MediaType,
     *,
@@ -491,80 +451,36 @@ def _dir_for_type(
 # ---------------------------------------------------------------------------
 
 
-def _notify(callback: Callable[[str], None] | None, value: str) -> None:
-    if callback:
-        callback(value)
-
-
-def run_import(
-    *,
+def import_ios_source(
     album_dir: Path,
+    task: ImportTask,
     image_capture_dir: Path,
-    media_source_name: str = DEFAULT_MEDIA_SOURCE,
-    link_mode: LinkMode = LinkMode.HARDLINK,
+    image_capture_files: list[str],
+    *,
     dry_run: bool = False,
-    on_stage_start: Callable[[str], None] | None = None,
-    on_stage_end: Callable[[str], None] | None = None,
-    convert_file: Callable[..., Path | None] = convert_single_file,
-    max_workers: int | None = None,
-    exiftool: ExifToolHelper | None = None,
-    analyzer_factory: FaceAnalyzerFactory | None = None,
-) -> ImportResult:
-    """Organize Image Capture files into an album directory.
+) -> IosSourceImportResult:
+    """Copy an iOS source's selected files from Image Capture into its archive.
 
-    Returns an :class:`ImportResult` with the plan and processed/unprocessed tracking.
+    Runs the pre-copy collision check, copies matched originals and edits into
+    the ``ios-<name>/`` archive, then removes processed selection entries from
+    the staging dir (and the CSV when fully consumed).
 
-    The import runs in five stages:
-    1. ``import-ic`` — copy files from Image Capture to orig/edited dirs
-    2. ``refresh-main-img`` — build main-img from orig-img + edit-img
-    3. ``refresh-main-vid`` — build main-vid from orig-vid + edit-vid
-    4. ``refresh-main-jpg`` — build main-jpg from main-img
-    5. ``refresh-derived`` — refresh media IDs, EXIF cache, face detection
-
-    Callbacks:
-    - ``on_stage_start(stage)`` — called before each stage
-    - ``on_stage_end(stage)`` — called after each stage
-
-    Parameters:
-    - ``convert_file(src, dst_dir, dry_run=)`` — per-file HEIC→JPEG converter (default: sips via album.jpeg)
-    - ``exiftool`` — shared ExifToolHelper instance (optional, for EXIF cache)
-    - ``analyzer_factory`` — face analyzer factory (optional). When ``None``,
-      face detection is skipped.
+    Browsable, JPEG, and other derived data are refreshed once by the
+    orchestrator (:func:`photree.album.importer.album_import.run_import`) after
+    all sources have been imported.
     """
     from .selection import read_selection
 
-    # Read input files from both to-import/ and to-import.csv
-    sources = read_selection(album_dir)
+    ms = task.media_source
+    sources = read_selection(task.selection_dir, task.selection_csv)
     selection_files = list(sources.merged)
-    image_capture_files = list_files(image_capture_dir)
 
-    if not selection_files:
-        raise FileNotFoundError(
-            f"Could not find any selection files in "
-            f"{album_dir / SELECTION_DIR} or {album_dir / SELECTION_CSV}"
-        )
-    if not image_capture_files:
-        raise FileNotFoundError(
-            f"Could not find any image capture files in {image_capture_dir}"
-        )
-
-    # Plan
     plan = plan_import(selection_files, image_capture_files)
 
-    # Output directories — derived from media source (always iOS for Image Capture)
-    ms = ios_media_source(media_source_name)
     album_orig_img = album_dir / ms.orig_img_dir
     album_orig_vid = album_dir / ms.orig_vid_dir
     album_edit_img = album_dir / ms.edit_img_dir
     album_edit_vid = album_dir / ms.edit_vid_dir
-    album_main_img = album_dir / ms.img_dir
-    album_main_jpg = album_dir / ms.jpg_dir
-
-    # Create album marker and metadata so gallery commands can discover this album
-    if not dry_run:
-        (album_dir / PHOTREE_DIR).mkdir(exist_ok=True)
-        if not (album_dir / PHOTREE_DIR / ALBUM_YAML).is_file():
-            save_album_metadata(album_dir, AlbumMetadata(id=generate_album_id()))
 
     # ── Pre-copy collision check ──
     # Fail fast before copying anything if the target media source already
@@ -603,15 +519,13 @@ def run_import(
                 if len(collision_numbers) > 10
                 else ""
             )
-            + f"Use --media-source to import into a different media source (current: {ms.name})."
+            + f"Import into a different media source by renaming the staging "
+            f"directory (current: to-import-ios-{ms.name})."
         )
 
-    # ── Stage 1: import-ic ──
-    # Copy files from Image Capture to orig/edited dirs.
+    # ── Copy files from Image Capture to orig/edited dirs ──
     # Directories are created on demand to avoid empty leftover dirs
     # (e.g. orig-img/ in a video-only album).
-    _notify(on_stage_start, STAGE_IMPORT_IC)
-
     processed: set[str] = set()
 
     for match in plan.matches:
@@ -646,92 +560,23 @@ def run_import(
 
         processed.add(match.selection_file)
 
-    _notify(on_stage_end, STAGE_IMPORT_IC)
-
-    # ── Stage 2: refresh-main-img ──
-    _notify(on_stage_start, STAGE_REFRESH_MAIN_IMG)
-    browsable.refresh_browsable_dir(
-        album_orig_img,
-        album_edit_img,
-        album_main_img,
-        media_extensions=IOS_IMG_EXTENSIONS,
-        key_fn=ms.key_fn,
-        link_mode=link_mode,
-        dry_run=dry_run,
-    )
-    # Augment with Live Photo companion videos from orig-img/edit-img
-    from ..live_photo import augment_browsable_img_with_live_photo_videos
-
-    augment_browsable_img_with_live_photo_videos(
-        album_orig_img,
-        album_edit_img,
-        album_main_img,
-        vid_extensions=IOS_VID_EXTENSIONS,
-        key_fn=ms.key_fn,
-        link_mode=link_mode,
-        dry_run=dry_run,
-    )
-    _notify(on_stage_end, STAGE_REFRESH_MAIN_IMG)
-
-    # ── Stage 3: refresh-main-vid ──
-    _notify(on_stage_start, STAGE_REFRESH_MAIN_VID)
-    browsable.refresh_browsable_dir(
-        album_orig_vid,
-        album_edit_vid,
-        album_dir / ms.vid_dir,
-        media_extensions=IOS_VID_EXTENSIONS,
-        key_fn=ms.key_fn,
-        link_mode=link_mode,
-        dry_run=dry_run,
-    )
-    _notify(on_stage_end, STAGE_REFRESH_MAIN_VID)
-
-    # ── Stage 4: refresh-main-jpg ──
-    _notify(on_stage_start, STAGE_REFRESH_MAIN_JPG)
-    refresh_jpeg_dir(
-        album_main_img,
-        album_main_jpg,
-        dry_run=dry_run,
-        convert_file=convert_file,
-        max_workers=max_workers,
-    )
-    _notify(on_stage_end, STAGE_REFRESH_MAIN_JPG)
-
-    # ── Stage 5: refresh-derived ──
-    # Refresh media IDs, EXIF cache, face detection.
-    # Browsable and JPEG dirs were just built (stages 2-4), so the unified
-    # pipeline will see them as fresh and skip those steps.
-    _notify(on_stage_start, STAGE_REFRESH_DERIVED)
-    from ..refresh import refresh_album_derived_data
-
-    refresh_album_derived_data(
-        album_dir,
-        link_mode=link_mode,
-        max_workers=max_workers,
-        convert_file=convert_file,
-        exiftool=exiftool,
-        analyzer_factory=analyzer_factory,
-        dry_run=dry_run,
-    )
-    _notify(on_stage_end, STAGE_REFRESH_DERIVED)
+    # Cleanup: only delete processed selection files, keep unmatched ones
+    if not dry_run:
+        if task.selection_dir is not None:
+            for sel_file in processed:
+                (task.selection_dir / sel_file).unlink(missing_ok=True)
+        # Delete the CSV if all its entries were processed
+        if sources.csv_files and task.selection_csv is not None:
+            csv_unprocessed = set(sources.csv_files) - processed
+            if not csv_unprocessed:
+                task.selection_csv.unlink(missing_ok=True)
 
     # Sanity check: all matched selection files should have been processed
     all_matched = {m.selection_file for m in plan.matches}
     unprocessed = sorted(all_matched - processed)
 
-    # Cleanup: only delete processed selection files, keep unmatched ones
-    if not dry_run:
-        album_selection = album_dir / SELECTION_DIR
-        for sel_file in processed:
-            (album_selection / sel_file).unlink(missing_ok=True)
-        # Delete to-import.csv if all its entries were processed
-        if sources.csv_files:
-            csv_unprocessed = set(sources.csv_files) - processed
-            if not csv_unprocessed:
-                (album_dir / SELECTION_CSV).unlink(missing_ok=True)
-        _remove_empty_folders(album_dir)
-
-    return ImportResult(
+    return IosSourceImportResult(
+        media_source_name=ms.name,
         plan=plan,
         processed=frozenset(processed),
         unprocessed=tuple(unprocessed),

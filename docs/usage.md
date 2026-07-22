@@ -77,53 +77,60 @@ CLI flag always overrides the gallery default.
 
 See [internals.md](./internals.md) for the gallery metadata format and resolution rules.
 
-### Import Images from Image Capture
+### Import Media into an Album
 
-Organizes files imported by macOS Image Capture into an album directory structure.
-See [internals.md](./internals.md) for the Image Capture file structure and album layout.
+Imports media into an album's media sources from per-source staging
+directories named `to-import-{ios,std}-<media-source>`. A single album can
+carry several — one per media source, iOS or std — and one `album import` run
+processes them all. See [internals.md](./internals.md) for the Image Capture
+file structure and album layout.
 
 **Workflow:**
 
 1. Create the album directory
-2. Import all pictures using macOS Image Capture (output: `~/Pictures/<Device Name>/`)
-3. Tell photree which photos to import (your "selection")
-4. Run `photree album import` from the album directory
+2. Stage the media to import (see the two source types below)
+3. Run `photree album import` from the album directory
 
-**Specifying the selection:**
+**iOS sources — `to-import-ios-<name>/` (+ optional `.csv`):**
 
-The selection is just a list of filenames — photree matches them by image
-number against the Image Capture directory. The file contents don't matter,
-only the names. Two mechanisms are available:
+An iOS source is a *selection*: a list of filenames photree matches by image
+number against the macOS Image Capture directory. The file contents don't
+matter, only the names. Two forms, which may be combined:
 
-- **`to-import/` directory** — export from Apple Photos into this subfolder.
-  This is the most common workflow: Photos is convenient for reviewing and
-  curating a selection, and the exported files provide the filename list.
-- **`to-import.csv`** — a one-column file (no header) with one filename per
-  row (e.g. `IMG_0410.HEIC`). Useful when the selection is generated
-  programmatically (a script, AppleScript, an LLM, a phone app, etc.).
+- **`to-import-ios-<name>/` directory** — export from Apple Photos into this
+  subfolder. The most common workflow: Photos is convenient for curating a
+  selection, and the exported files provide the filename list.
+- **`to-import-ios-<name>.csv`** — a one-column file (no header) with one
+  filename per row (e.g. `IMG_0410.HEIC`). Useful when the selection is
+  generated programmatically (a script, AppleScript, an LLM, a phone app).
 
-In practice you'd use one or the other. Both are supported simultaneously
-(entries are merged and deduplicated), but there's rarely a reason to mix them.
+**std sources — `to-import-std-<name>/`:**
 
-See [internals.md — Selection Mechanism](./internals.md#selection-mechanism)
-for the full details.
+A std (non-iOS) source imports the files themselves — no selection list, no
+Image Capture directory. Place your files under `orig/` (and optionally
+`edit/`); they are copied into `std-<name>/` split by extension. The staging
+directory is removed on success.
 
 ```bash
-# Import image capture pictures for a single album
+# Import all staged media for a single album
 photree album import -a "2024-06-15 - Summer Vacation"
 
-# Import image capture pictures for all albums under a directory
+# Import staged media for all albums under a directory
 photree albums import -d ~/Pictures/albums
 
 # Dry run to preview what would happen
 photree album import -n
 ```
 
-The source directory (where Image Capture saved the files) is resolved in this order:
+The Image Capture source directory (needed only when an iOS source is present)
+is resolved in this order:
 
 1. `--source` / `-s` flag (explicit)
 2. `importer.image-capture-dir` from the config file
 3. Default: `~/Pictures/iPhone`
+
+See [internals.md — Import Staging Directories](./internals.md#import-staging-directories)
+for the full details.
 
 ### Import Albums into Gallery
 

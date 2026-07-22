@@ -22,8 +22,11 @@ ALBUM_YAML = "album.yaml"
 MEDIA_IDS_DIR = "media-ids"
 CACHE_DIR = "cache"
 
-SELECTION_DIR = "to-import"
-SELECTION_CSV = "to-import.csv"
+# Import staging directories are named ``to-import-{ios,std}-<media-source>``.
+# Each targets a specific media source: iOS sources use the directory (and an
+# optional sibling ``.csv``) as a selection list matched against Image Capture;
+# std sources place their files directly under ``orig/`` and ``edit/``.
+TO_IMPORT_PREFIX = "to-import-"
 
 IOS_DIR_PREFIX = "ios-"
 STD_DIR_PREFIX = "std-"
@@ -257,3 +260,23 @@ def std_media_source(name: str) -> MediaSource:
 
 
 MAIN_MEDIA_SOURCE = ios_media_source(DEFAULT_MEDIA_SOURCE)
+
+
+# ---------------------------------------------------------------------------
+# Import staging directory names
+# ---------------------------------------------------------------------------
+
+
+def ios_import_dir(name: str) -> str:
+    """Return the iOS import staging dir name (e.g. ``to-import-ios-main``)."""
+    return f"{TO_IMPORT_PREFIX}{MediaSourceType.IOS}-{name}"
+
+
+def ios_import_csv(name: str) -> str:
+    """Return the iOS import CSV name (e.g. ``to-import-ios-main.csv``)."""
+    return f"{ios_import_dir(name)}.csv"
+
+
+def std_import_dir(name: str) -> str:
+    """Return the std import staging dir name (e.g. ``to-import-std-nelu``)."""
+    return f"{TO_IMPORT_PREFIX}{MediaSourceType.STD}-{name}"

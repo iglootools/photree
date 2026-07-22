@@ -26,7 +26,7 @@ from rich.progress import (
     TextColumn,
 )
 
-from ..common.formatting import CHECK, CROSS, WARNING, rich_warning_text
+from ..common.formatting import CHECK, CROSS, WARN_SIGN, WARNING, rich_warning_text
 
 
 def _result_icon(success: bool) -> str:
@@ -248,11 +248,12 @@ class BatchProgressBar(_ProgressContextMixin):
             )
             self._progress.advance(self._task_id)
 
-    def on_skipped(self, album_name: str, reason: str) -> None:
+    def on_skipped(self, album_name: str, reason: str, *, warn: bool = False) -> None:
         self._ensure_started(f"Skipping {album_name}...")
         if self._progress is not None:
             assert self._task_id is not None
-            self._progress.console.print(f"{CROSS} {album_name} ({reason})")
+            icon = WARN_SIGN if warn else CROSS
+            self._progress.console.print(f"{icon} {album_name} ({reason})")
             self._progress.advance(self._task_id)
 
     def stop(self) -> None:

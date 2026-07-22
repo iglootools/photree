@@ -6,7 +6,8 @@ from photree.album.check.unexpected_dirs import check_unexpected_dirs
 from photree.album.store.media_sources_discovery import discover_media_sources
 from photree.album.store.protocol import (
     MAIN_MEDIA_SOURCE,
-    SELECTION_DIR,
+    ios_import_dir,
+    std_import_dir,
     std_media_source,
 )
 
@@ -78,10 +79,11 @@ class TestCheckUnexpectedDirs:
         assert not result.success
         assert result.unexpected == ("aaa-stray", "zzz-extra")
 
-    def test_selection_dir_not_flagged(self, tmp_path: Path) -> None:
+    def test_import_staging_dirs_not_flagged(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_ios_album(album)
-        (album / SELECTION_DIR).mkdir()
+        (album / ios_import_dir("main")).mkdir()
+        (album / std_import_dir("nelu")).mkdir()
 
         result = check_unexpected_dirs(
             album, media_sources=discover_media_sources(album)
@@ -123,7 +125,7 @@ class TestCheckUnexpectedDirs:
     def test_no_media_sources_only_expected(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         (album / ".photree").mkdir(parents=True)
-        (album / SELECTION_DIR).mkdir()
+        (album / ios_import_dir("main")).mkdir()
 
         result = check_unexpected_dirs(
             album, media_sources=discover_media_sources(album)

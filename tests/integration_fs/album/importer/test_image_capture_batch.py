@@ -2,13 +2,20 @@
 
 from pathlib import Path
 
-from photree.album.store.protocol import SELECTION_CSV, SELECTION_DIR
+from photree.album.store.protocol import (
+    ios_import_csv,
+    ios_import_dir,
+    std_import_dir,
+)
 from photree.album.importer.batch import (
     categorize_albums,
     run_batch_import,
     scan_albums,
     validate_albums,
 )
+
+SEL_DIR = ios_import_dir("main")  # to-import-ios-main
+SEL_CSV = ios_import_csv("main")  # to-import-ios-main.csv
 
 
 def _noop_convert(_src: Path, _dst_dir: Path, *, dry_run: bool) -> Path | None:
@@ -28,7 +35,7 @@ def _setup_image_capture_dir(tmp_path: Path, filenames: list[str]) -> Path:
 def _setup_album(parent: Path, album_name: str, selection_files: list[str]) -> Path:
     """Create an album with a to-import/ subfolder under parent."""
     album = parent / album_name
-    selection = album / SELECTION_DIR
+    selection = album / SEL_DIR
     selection.mkdir(parents=True)
     for name in selection_files:
         (selection / name).write_text("data")
@@ -41,7 +48,7 @@ class TestScanAlbums:
         albums_dir.mkdir()
         _setup_album(albums_dir, "has-files", ["IMG_0001.HEIC"])
         (albums_dir / "no-selection").mkdir()
-        (albums_dir / "empty-selection" / SELECTION_DIR).mkdir(parents=True)
+        (albums_dir / "empty-selection" / SEL_DIR).mkdir(parents=True)
 
         scan = scan_albums(albums_dir)
         assert len(scan.to_import) == 1
@@ -55,7 +62,7 @@ class TestCategorizeAlbums:
         no_sel = tmp_path / "no-selection"
         no_sel.mkdir()
         empty_sel = tmp_path / "empty-selection"
-        (empty_sel / SELECTION_DIR).mkdir(parents=True)
+        (empty_sel / SEL_DIR).mkdir(parents=True)
 
         scan = categorize_albums([has_files, no_sel, empty_sel])
         assert len(scan.to_import) == 1
@@ -100,7 +107,7 @@ class TestBatchImport:
         _setup_album(albums_dir, "trip-paris", ["IMG_0001.HEIC"])
         _setup_album(albums_dir, "trip-london", ["IMG_0002.HEIC"])
         (albums_dir / "empty-album").mkdir()
-        (albums_dir / "no-photos" / SELECTION_DIR).mkdir(parents=True)
+        (albums_dir / "no-photos" / SEL_DIR).mkdir(parents=True)
 
         result = run_batch_import(
             albums_dir=albums_dir, image_capture_dir=ic_dir, convert_file=_noop_convert
@@ -130,7 +137,7 @@ class TestBatchImport:
         )
 
         assert result.imported == 1
-        assert (albums_dir / "trip" / SELECTION_DIR).exists()
+        assert (albums_dir / "trip" / SEL_DIR).exists()
         assert not (albums_dir / "trip" / "ios-main/orig-img").exists()
 
     def test_empty_parent_dir(self, tmp_path: Path) -> None:
@@ -185,6 +192,35 @@ class TestBatchImport:
         # valid album should NOT have been processed either
         assert not (albums_dir / "valid" / "ios-main/orig-img").exists()
 
+    def test_empty_task_warns_with_descriptive_reason(self, tmp_path: Path) -> None:
+        albums_dir = tmp_path / "albums"
+        albums_dir.mkdir()
+        ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0001.HEIC"])
+        # std staging dir with files placed directly (not under orig/ or edit/)
+        stray = albums_dir / "trip" / std_import_dir("gabriela")
+        stray.mkdir(parents=True)
+        (stray / "photo.jpg").write_text("data")
+        # album with no staging dir at all
+        (albums_dir / "no-tasks").mkdir()
+
+        skips: list[tuple[str, str, bool]] = []
+        result = run_batch_import(
+            albums_dir=albums_dir,
+            image_capture_dir=ic_dir,
+            on_skipped=lambda name, reason, warn=False: skips.append(
+                (name, reason, warn)
+            ),
+            convert_file=_noop_convert,
+        )
+
+        assert result.imported == 0
+        by_name = {name: (reason, warn) for name, reason, warn in skips}
+        # Empty staging dir → warning, with the offending dir named
+        assert by_name["trip"][1] is True
+        assert "to-import-std-gabriela" in by_name["trip"][0]
+        # No staging dir at all → plain skip, not a warning
+        assert by_name["no-tasks"][1] is False
+
 
 # ---------------------------------------------------------------------------
 # CSV-based album categorization and batch import
@@ -195,7 +231,7 @@ def _setup_album_csv(parent: Path, album_name: str, csv_entries: list[str]) -> P
     """Create an album with a to-import.csv file (no to-import/ dir)."""
     album = parent / album_name
     album.mkdir(parents=True)
-    (album / SELECTION_CSV).write_text("\n".join(csv_entries) + "\n")
+    (album / SEL_CSV).write_text("\n".join(csv_entries) + "\n")
     return album
 
 
@@ -209,7 +245,7 @@ class TestCategorizeAlbumsCsv:
 
     def test_csv_and_dir_album_is_to_import(self, tmp_path: Path) -> None:
         album = _setup_album(tmp_path, "both-album", ["IMG_0001.HEIC"])
-        (album / SELECTION_CSV).write_text("IMG_0002.HEIC\n")
+        (album / SEL_CSV).write_text("IMG_0002.HEIC\n")
         scan = categorize_albums([album])
         assert len(scan.to_import) == 1
 
@@ -230,4 +266,4 @@ class TestBatchImportCsv:
             albums_dir / "csv-trip" / "ios-main/orig-img" / "IMG_0001.HEIC"
         ).exists()
         # CSV should be cleaned up
-        assert not (albums_dir / "csv-trip" / SELECTION_CSV).exists()
+        assert not (albums_dir / "csv-trip" / SEL_CSV).exists()

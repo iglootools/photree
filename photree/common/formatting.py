@@ -8,6 +8,9 @@ from __future__ import annotations
 CHECK = "[green]\u2713[/green]"
 WARNING = "[dark_orange]\u2713[/dark_orange]"
 CROSS = "[red]\u2717[/red]"
+# Distinct warning sign (\u26a0) for outcomes that are neither success nor failure,
+# e.g. an album skipped because a to-import-* dir has nothing to import.
+WARN_SIGN = "[dark_orange]\u26a0[/dark_orange]"
 
 
 def rich_warning_text(text: str) -> str:

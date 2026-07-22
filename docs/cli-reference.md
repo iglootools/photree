@@ -48,7 +48,7 @@ $ photree album [OPTIONS] COMMAND [ARGS]...
 * `fix-exif`: Fix EXIF dates on media files.
 * `fix-ios`: Fix iOS-specific album issues.
 * `import-check`: Check that system prerequisites for import...
-* `import`
+* `import`: Import an album&#x27;s staged media into its...
 * `list-media`: List all media items in an album.
 * `init`: Initialize album metadata...
 * `mv-media`: Move media files and all their variants...
@@ -259,12 +259,27 @@ $ photree album import-check [OPTIONS]
 
 **Options**:
 
-* `-a, --album-dir <directory>`: Album directory (with to-import/ and/or to-import.csv).  [default: .]
+* `-a, --album-dir <directory>`: Album directory (with to-import-{ios,std}-&lt;name&gt; staging dirs).  [default: .]
 * `-s, --source <directory>`: Image Capture output directory. Overrides config and default.
 * `-c, --config <str>`: Path to config file.
 * `--help`: Show this message and exit.
 
 ### `photree album import`
+
+Import an album&#x27;s staged media into its media sources.
+
+Discovers all ``to-import-{ios,std}-&lt;name&gt;`` staging entries in ALBUM_DIR
+and imports each into its target media source:
+
+- ``to-import-ios-&lt;name&gt;/`` (and/or ``to-import-ios-&lt;name&gt;.csv``) is a
+  selection list matched by image number against the Image Capture source.
+- ``to-import-std-&lt;name&gt;/`` holds ``orig/`` and ``edit/`` files that are
+  imported directly (no Image Capture source needed).
+
+The Image Capture source directory is resolved in this order:
+1. --source flag (explicit)
+2. image-capture-dir from config file
+3. Default: ~/Pictures/iPhone
 
 **Usage**:
 
@@ -274,14 +289,13 @@ $ photree album import [OPTIONS]
 
 **Options**:
 
-* `-a, --album-dir <directory>`: Album directory (with to-import/ and/or to-import.csv).  [default: .]
+* `-a, --album-dir <directory>`: Album directory (with to-import-{ios,std}-&lt;name&gt; staging dirs).  [default: .]
 * `-s, --source <directory>`: Image Capture output directory. Overrides config and default.
 * `-c, --config <str>`: Path to config file.
 * `--link-mode <copy|hardlink|symlink>`: How to create main files: hardlink (default), symlink, or copy.  [default: hardlink]
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `-f, --force`: Skip preflight checks on the source directory.
 * `--skip-heic-to-jpeg`: Skip HEIC-to-JPEG conversion (and the sips availability check).
-* `--media-source <str>`: Target media source within the album (default: main).  [default: main]
 * `--help`: Show this message and exit.
 
 ### `photree album list-media`
@@ -437,8 +451,8 @@ $ photree albums [OPTIONS] COMMAND [ARGS]...
 * `export`: Batch export multiple albums to a shared...
 * `fix`: Fix all albums under a directory or from...
 * `fix-ios`: Apply fix-ios to all iOS albums under a...
-* `import-check`
-* `import`
+* `import-check`: Check system prerequisites and import...
+* `import`: Batch import staged media for multiple...
 * `init`: Initialize album metadata...
 * `list`: List all discovered albums with their...
 * `list-media`: List all media items across multiple albums.
@@ -560,6 +574,11 @@ $ photree albums fix-ios [OPTIONS]
 
 ### `photree albums import-check`
 
+Check system prerequisites and import tasks for batch import.
+
+Runs shared preflight checks (sips, Image Capture directory) once, then
+checks each album for non-empty to-import-{ios,std}-&lt;name&gt; staging entries.
+
 **Usage**:
 
 ```console
@@ -575,6 +594,14 @@ $ photree albums import-check [OPTIONS]
 * `--help`: Show this message and exit.
 
 ### `photree albums import`
+
+Batch import staged media for multiple albums.
+
+Either scan immediate subdirectories of --dir for a non-empty
+to-import-{ios,std}-&lt;name&gt; staging entry, or provide explicit album
+directories via --album-dir (repeatable). The two options are mutually
+exclusive. Albums without any staging entry (or with only empty ones)
+are skipped.
 
 **Usage**:
 

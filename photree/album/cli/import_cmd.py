@@ -11,11 +11,12 @@ import typer
 from ...clihelpers.console import console, err_console
 from ...clihelpers.options import CONFIG_OPTION
 from ...clihelpers.progress import StageProgressBar
+from ...common.fs import list_files
 from ...fsprotocol import LinkMode
 from ..faces.detect import memoized_face_analyzer_factory
-from ..importer import image_capture
+from ..importer import album_import
 from ..importer import output as importer_output
-from ..importer.image_capture import plan_import_from_album, validate_import_plan
+from ..importer.album_import import import_stage_labels, validate_album_import
 from ..jpeg import convert_single_file, noop_convert_single
 from ..naming import (
     AlbumNamingResult,
@@ -25,7 +26,6 @@ from ..naming import (
 )
 from ..check import check_exiftool_available
 from ..check.output import format_naming_checks
-from ..store.protocol import SELECTION_CSV, SELECTION_DIR
 from . import album_app
 from .helpers import _run_preflight_checks
 
@@ -37,7 +37,7 @@ def import_cmd(
         typer.Option(
             "--album-dir",
             "-a",
-            help=f"Album directory (with {SELECTION_DIR}/ and/or {SELECTION_CSV}).",
+            help="Album directory (with to-import-{ios,std}-<name> staging dirs).",
             exists=True,
             file_okay=False,
             resolve_path=True,
@@ -84,21 +84,18 @@ def import_cmd(
             help="Skip HEIC-to-JPEG conversion (and the sips availability check).",
         ),
     ] = False,
-    album_media_source: Annotated[
-        str,
-        typer.Option(
-            "--media-source",
-            help="Target media source within the album (default: main).",
-        ),
-    ] = "main",
 ) -> None:
-    f"""Organize files imported by macOS Image Capture into an album directory.
+    """Import an album's staged media into its media sources.
 
-    Reads the selection from {SELECTION_DIR}/ and/or {SELECTION_CSV} inside
-    ALBUM_DIR, matches files from the Image Capture source directory, and sorts
-    them into the media source's archival and browsable subdirectories.
+    Discovers all ``to-import-{ios,std}-<name>`` staging entries in ALBUM_DIR
+    and imports each into its target media source:
 
-    The source directory is resolved in this order:
+    - ``to-import-ios-<name>/`` (and/or ``to-import-ios-<name>.csv``) is a
+      selection list matched by image number against the Image Capture source.
+    - ``to-import-std-<name>/`` holds ``orig/`` and ``edit/`` files that are
+      imported directly (no Image Capture source needed).
+
+    The Image Capture source directory is resolved in this order:
     1. --source flag (explicit)
     2. image-capture-dir from config file
     3. Default: ~/Pictures/iPhone
@@ -128,41 +125,36 @@ def import_cmd(
         )
         raise typer.Exit(code=1)
 
-    # Pre-validate the import plan
-    plan = plan_import_from_album(album_dir, image_capture_dir)
+    # Pre-validate all import tasks
+    image_capture_files = list_files(image_capture_dir)
+    validation = validate_album_import(album_dir, image_capture_files)
 
     # Show dedup warnings (informational, doesn't block import)
-    if plan.dedup_warnings:
+    if validation.dedup_warnings:
         typer.echo("\nDedup Warnings:")
-        for w in plan.dedup_warnings:
+        for w in validation.dedup_warnings:
             typer.echo(f"  {w}")
 
-    errors, warnings = validate_import_plan(plan)
-    if warnings:
+    if validation.warnings:
         typer.echo("\nWarnings:")
-        for w in warnings:
-            typer.echo(f"  - {w.selection_file}: {w.message}")
-    if errors:
-        err_console.print(importer_output.validation_errors(album_dir.name, errors))
+        for w in validation.warnings:
+            typer.echo(f"  - {w}")
+    if validation.errors:
+        err_console.print(
+            importer_output.validation_errors(album_dir.name, list(validation.errors))
+        )
         raise typer.Exit(code=1)
 
     typer.echo("\nImport:")
     converter = noop_convert_single if skip_heic_to_jpeg else convert_single_file
-    with StageProgressBar(
-        total=5,
-        labels={
-            "import-ic": "Importing from Image Capture",
-            "refresh-main-img": "Refreshing main-img",
-            "refresh-main-vid": "Refreshing main-vid",
-            "refresh-main-jpg": "Refreshing main-jpg",
-            "refresh-derived": "Refreshing derived data",
-        },
-    ) as progress:
+    from ..importer.tasks import discover_import_tasks
+
+    labels = import_stage_labels(discover_import_tasks(album_dir))
+    with StageProgressBar(total=len(labels), labels=labels) as progress:
         try:
-            result = image_capture.run_import(
+            result = album_import.run_import(
                 album_dir=album_dir,
                 image_capture_dir=image_capture_dir,
-                media_source_name=album_media_source,
                 link_mode=link_mode,
                 dry_run=dry_run,
                 on_stage_start=progress.on_start,

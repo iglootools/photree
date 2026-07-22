@@ -5,9 +5,9 @@ from pathlib import Path
 from photree.album.importer.image_capture import (
     MediaType,
     plan_import,
-    run_import,
     validate_import_plan,
 )
+from photree.album.importer.album_import import run_import
 from photree.album.jpeg import noop_convert_single
 from photree.album.live_photo import (
     compute_live_photo_videos,
@@ -16,11 +16,13 @@ from photree.album.live_photo import (
 from photree.album.store.protocol import (
     IOS_IMG_EXTENSIONS,
     IOS_VID_EXTENSIONS,
-    SELECTION_DIR,
+    ios_import_dir,
     ios_media_source,
 )
 from photree.album.store.media_sources import ios_img_number
 from photree.common.fs import list_files
+
+SEL_DIR = ios_import_dir("main")  # to-import-ios-main
 
 
 # ---------------------------------------------------------------------------
@@ -43,7 +45,7 @@ def _setup_ic(tmp_path: Path, filenames: list[str]) -> Path:
 
 def _setup_album(tmp_path: Path, selection: list[str]) -> Path:
     album = tmp_path / "album"
-    sel_dir = album / SELECTION_DIR
+    sel_dir = album / SEL_DIR
     sel_dir.mkdir(parents=True)
     for f in selection:
         (sel_dir / f).write_text("data")
