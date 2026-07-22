@@ -23,7 +23,7 @@ from photree.fsprotocol import (
 from photree.album.store.album_discovery import is_album
 from photree.album.store.metadata import load_album_metadata
 from photree.album.store.protocol import ALBUM_YAML, MAIN_MEDIA_SOURCE
-from photree.album.importer.image_capture import run_import
+from photree.album.importer.album_import import run_import
 from photree.album.importer.testkit import seed_demo
 
 
@@ -38,14 +38,14 @@ class TestDemoWorkflow:
 
         assert ic_dir.is_dir()
         assert album_dir.is_dir()
-        assert (album_dir / "to-import").is_dir()
+        assert (album_dir / "to-import-ios-main").is_dir()
 
         ic_files = sorted(f.name for f in ic_dir.iterdir())
         assert "IMG_0001.HEIC" in ic_files
         assert "IMG_0003.DNG" in ic_files
         assert "IMG_0006.MOV" in ic_files
 
-        sel_files = sorted(f.name for f in (album_dir / "to-import").iterdir())
+        sel_files = sorted(f.name for f in (album_dir / "to-import-ios-main").iterdir())
         assert len(sel_files) == 8
         # IMG_0004 intentionally excluded from selection
         assert "IMG_0004.JPG" not in sel_files
@@ -64,8 +64,10 @@ class TestDemoWorkflow:
             convert_file=converter,
         )
 
-        assert len(import_result.plan.matches) == 8
-        assert len(import_result.plan.unmatched) == 0
+        assert len(import_result.ios_results) == 1
+        main_plan = import_result.ios_results[0].plan
+        assert len(main_plan.matches) == 8
+        assert len(main_plan.unmatched) == 0
         assert len(import_result.unprocessed) == 0
 
         # Album marker, metadata, and iOS directory structure created
@@ -128,8 +130,8 @@ class TestDemoWorkflow:
 
         # Selection files cleaned up
         assert (
-            not (album_dir / "to-import").exists()
-            or len(os.listdir(album_dir / "to-import")) == 0
+            not (album_dir / "to-import-ios-main").exists()
+            or len(os.listdir(album_dir / "to-import-ios-main")) == 0
         )
 
         # ── Check ────────────────────────────────────────────

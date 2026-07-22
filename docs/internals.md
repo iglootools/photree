@@ -319,8 +319,11 @@ The default media source is named `main`.
         bruno.npz
         bruno.yaml
         bruno-thumbs/
-  to-import/              selection files exported from Photos (workflow input)
-  to-import.csv           alternative selection list (one filename per row)
+  to-import-ios-main/     iOS selection list for source "main" (workflow input)
+  to-import-ios-main.csv  alternative iOS selection list (one filename per row)
+  to-import-std-nelu/     std import staging for source "nelu"
+    orig/                 originals to import into std-nelu/orig-{img,vid}
+    edit/                 edited variants to import into std-nelu/edit-{img,vid}
 
   # iOS media source "main"
   ios-main/               archive (iOS)
@@ -368,30 +371,45 @@ directories at the top level are the browsable/shareable versions:
   via HEIC/HEIF/DNG→JPEG conversion (sips). JPG/PNG files are copied as-is.
   Live Photo companion videos are excluded (not convertible to JPEG).
 
-## Selection Mechanism
+## Import Staging Directories
 
-The selection tells photree which photos to import from Image Capture.
-Conceptually, a selection is a **list of filenames** — the actual file
-contents are irrelevant. Only the filenames matter because matching against
-Image Capture files is done by image number (digits extracted from the
-filename, e.g. `0410` from `IMG_0410.HEIC`).
+An album is fed by one or more per-media-source staging entries, named
+`to-import-{ios,std}-<media-source>`. `album import` / `albums import`
+discover every staging entry in the album, validate them all, import each into
+its target media source, then refresh derived data once. A single album can
+carry several (e.g. `to-import-ios-main/` plus `to-import-std-nelu/`).
 
-Two sources are supported:
+### iOS staging (`to-import-ios-<name>/`, `to-import-ios-<name>.csv`)
 
-- **`to-import/` directory** — files exported from Apple Photos. The files
-  themselves are not used; only their names serve as the selection list.
-- **`to-import.csv`** — a one-column CSV file (no header) where each row is
-  a filename (e.g. `IMG_0410.HEIC`).
+For iOS sources the staging entry is a **selection** — a list of filenames
+that photree matches, by image number, against a macOS Image Capture source
+directory. The actual file contents are irrelevant; only the filenames matter
+(the image number is the digits extracted from the filename, e.g. `0410` from
+`IMG_0410.HEIC`). Two forms are supported and may be combined:
 
-When both sources exist, their entries are merged (union). If the same image
-number appears in both sources, it is deduplicated silently. After a
-successful import, processed files are deleted from `to-import/` and
-`to-import.csv` is deleted if all its entries were processed.
+- **`to-import-ios-<name>/` directory** — files exported from Apple Photos.
+  The files themselves are not used; only their names serve as the selection.
+- **`to-import-ios-<name>.csv`** — a one-column CSV file (no header) where
+  each row is a filename (e.g. `IMG_0410.HEIC`).
 
-This design decouples the selection from any specific tool. Exporting from
-Apple Photos into `to-import/` is the most common workflow, but the
-selection can equally be generated from a phone, a custom CLI, an LLM,
-AppleScript, or any other workflow that can produce a list of filenames.
+When both forms exist, their entries are merged (union), deduplicated by image
+number. After a successful import, processed files are deleted from the
+directory and the CSV is deleted if all its entries were processed. This
+decouples the selection from any specific tool: exporting from Apple Photos is
+the most common workflow, but the list can equally come from a phone, a custom
+CLI, an LLM, AppleScript, or anything that produces filenames.
+
+### Std staging (`to-import-std-<name>/`)
+
+For std (non-iOS) sources there is no selection list and no Image Capture
+source — the files themselves are imported. The staging directory contains
+`orig/` and (optionally) `edit/` subfolders; their files are copied into the
+std archive (`std-<name>/orig-{img,vid}` and `edit-{img,vid}`), split by
+extension. Files are matched across `orig`/`edit` by filename stem. On a
+successful import the whole `to-import-std-<name>/` directory is consumed
+(removed). Duplicate stems within a folder are rejected; an `edit/` file with
+no matching `orig/` stem is allowed (it is imported but, as with existing std
+sources, omitted from the browsable directory).
 
 ## Collections
 

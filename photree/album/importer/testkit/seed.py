@@ -508,13 +508,13 @@ def _seed_image_capture(ic_dir: Path) -> None:
 
 
 def _seed_album(album_dir: Path) -> None:
-    """Generate an album with selection files in to-import/.
+    """Generate an album with selection files in to-import-ios-main/.
 
     The selection files are JPEG exports from Apple Photos, matching a subset
     of the Image Capture files. IMG_0004 is intentionally excluded to
     demonstrate unselected photos.
     """
-    selection_dir = album_dir / "to-import"
+    selection_dir = album_dir / "to-import-ios-main"
     selection_dir.mkdir(parents=True, exist_ok=True)
 
     # JPEG selections (matching IC originals by number)
@@ -542,7 +542,7 @@ def seed_demo(
 
     Creates:
     - ``base_dir/image-capture/`` — realistic Image Capture directory
-    - ``base_dir/<album_name>/to-import/`` — album with selection files
+    - ``base_dir/<album_name>/to-import-ios-main/`` — album with selection files
     """
     base_dir.mkdir(parents=True, exist_ok=True)
 
@@ -557,5 +557,5 @@ def seed_demo(
         base_dir=base_dir,
         image_capture_dir=ic_dir,
         album_dir=album_dir,
-        selection_dir=album_dir / "to-import",
+        selection_dir=album_dir / "to-import-ios-main",
     )

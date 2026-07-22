@@ -12,7 +12,6 @@ from . import albums_app
 from ...album.faces.detect import memoized_face_analyzer_factory
 from ...album.importer import batch, output as importer_output
 from ...album.jpeg import convert_single_file, noop_convert_single
-from ...album.store.protocol import SELECTION_DIR
 from ...fsprotocol import LinkMode
 from ...album.cli.helpers import _run_preflight_checks
 
@@ -90,12 +89,13 @@ def import_cmd(
         ),
     ] = False,
 ) -> None:
-    f"""Batch import from Image Capture for multiple albums.
+    """Batch import staged media for multiple albums.
 
     Either scan immediate subdirectories of --dir for a non-empty
-    {SELECTION_DIR}/ folder, or provide explicit album directories via
-    --album-dir (repeatable). The two options are mutually exclusive.
-    Albums without {SELECTION_DIR}/ (or with an empty one) are skipped.
+    to-import-{ios,std}-<name> staging entry, or provide explicit album
+    directories via --album-dir (repeatable). The two options are mutually
+    exclusive. Albums without any staging entry (or with only empty ones)
+    are skipped.
     """
     if albums_dir is not None and album_dirs is not None:
         typer.echo("--dir and --album-dir are mutually exclusive.", err=True)

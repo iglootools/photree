@@ -6,8 +6,6 @@ from pathlib import Path
 from textwrap import dedent
 
 from ...common.formatting import CHECK, CROSS
-from ..store.protocol import SELECTION_CSV, SELECTION_DIR
-from .image_capture import ValidationError
 from .preflight import (
     _IMG_PREFIX_THRESHOLD,
     ImageCaptureDirCheck,
@@ -16,48 +14,41 @@ from .preflight import (
 )
 
 
-def selection_dir_check(
-    selection_path: Path,
+def import_tasks_check(
+    album_dir: Path,
     *,
     found: bool,
     empty: bool = False,
 ) -> str:
-    """Format the selection check line."""
+    """Format the import-tasks check line."""
     match (found, empty):
         case (False, _):
             return (
-                f"{CROSS} selection: {selection_path.parent} "
-                f"(no {SELECTION_DIR}/ or {SELECTION_CSV})"
+                f"{CROSS} import tasks: {album_dir} "
+                f"(no to-import-{{ios,std}}-<name> directory)"
             )
         case (True, True):
-            return f"{CROSS} selection: {selection_path.parent} (empty)"
+            return f"{CROSS} import tasks: {album_dir} (nothing to import)"
         case _:
-            return f"{CHECK} selection: {selection_path.parent}"
+            return f"{CHECK} import tasks: {album_dir}"
 
 
-def selection_dir_troubleshoot(selection_path: Path, *, found: bool) -> str:
-    """Troubleshooting info for the selection."""
-    csv_path = selection_path.parent / SELECTION_CSV
-    if found:
-        return dedent(f"""\
-            {SELECTION_DIR}/: Export your photo selection from the Photos app into this folder:
+def import_tasks_troubleshoot(album_dir: Path) -> str:
+    """Troubleshooting info when no importable tasks are found."""
+    return dedent(f"""\
+        Create an import staging directory inside your album directory.
 
-              Photos > File > Export > Export Originals… into {selection_path}
+        iOS (Image Capture selection — filenames matched by image number):
 
-            Or create a {SELECTION_CSV} file with one filename per row (no header):
+          mkdir -p "{album_dir}/to-import-ios-main"
+          # Then: Photos > File > Export > Export Originals… into it,
+          # or create {album_dir}/to-import-ios-main.csv (one filename per row).
 
-              {csv_path}""")
-    else:
-        return dedent(f"""\
-            {SELECTION_DIR}/: Create the folder inside your album directory and export
-            your photo selection from the Photos app into it:
+        std (import the files directly):
 
-              mkdir -p "{selection_path}"
-              # Then: Photos > File > Export > Export Originals… into {selection_path}
-
-            Or create a {SELECTION_CSV} file with one filename per row (no header):
-
-              {csv_path}""")
+          mkdir -p "{album_dir}/to-import-std-<name>/orig"
+          # (optional) mkdir -p "{album_dir}/to-import-std-<name>/edit"
+          # Then place the source files into orig/ (and edit/).""")
 
 
 def _format_ic_dir_warnings(check: ImageCaptureDirCheck) -> list[str]:
@@ -129,17 +120,17 @@ def format_preflight_checks(result: ImportPreflightResult) -> str:
                 if result.sips_available is not None
                 else []
             ),
-            # selection dir
+            # import tasks
             *(
                 [
                     {
-                        SelectionStatus.OK: selection_dir_check(
+                        SelectionStatus.OK: import_tasks_check(
                             result.selection_path, found=True
                         ),
-                        SelectionStatus.NOT_FOUND: selection_dir_check(
+                        SelectionStatus.NOT_FOUND: import_tasks_check(
                             result.selection_path, found=False
                         ),
-                        SelectionStatus.EMPTY: selection_dir_check(
+                        SelectionStatus.EMPTY: import_tasks_check(
                             result.selection_path, found=True, empty=True
                         ),
                     }[result.selection_status]
@@ -148,12 +139,18 @@ def format_preflight_checks(result: ImportPreflightResult) -> str:
                 and result.selection_path is not None
                 else []
             ),
-            # image capture dir
-            image_capture_dir_check_output(
-                result.image_capture_dir,
-                found=result.image_capture_dir_found,
-                check=result.image_capture_dir_check,
-                preflight_skipped=result.image_capture_dir_preflight_skipped,
+            # image capture dir (only meaningful when an iOS task is present)
+            *(
+                [
+                    image_capture_dir_check_output(
+                        result.image_capture_dir,
+                        found=result.image_capture_dir_found,
+                        check=result.image_capture_dir_check,
+                        preflight_skipped=result.image_capture_dir_preflight_skipped,
+                    )
+                ]
+                if result.ios_import_required
+                else []
             ),
         ]
     )
@@ -166,12 +163,7 @@ def format_preflight_troubleshoot(result: ImportPreflightResult) -> str | None:
     lines = [
         *([sips_troubleshoot()] if result.sips_available is False else []),
         *(
-            [
-                selection_dir_troubleshoot(
-                    result.selection_path,
-                    found=result.selection_status != SelectionStatus.NOT_FOUND,
-                )
-            ]
+            [import_tasks_troubleshoot(result.selection_path)]
             if result.selection_status
             in (SelectionStatus.NOT_FOUND, SelectionStatus.EMPTY)
             and result.selection_path is not None
@@ -194,7 +186,7 @@ def image_capture_dir_troubleshoot(check: ImageCaptureDirCheck) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Batch (image-capture-all)
+# Batch
 # ---------------------------------------------------------------------------
 
 
@@ -215,8 +207,8 @@ def batch_summary(imported: int, skipped: int) -> str:
 # ---------------------------------------------------------------------------
 
 
-def validation_errors(album_name: str, errors: list[ValidationError]) -> str:
-    bullet_list = "\n".join(f"  - {e.selection_file}: {e.message}" for e in errors)
+def validation_errors(album_name: str, errors: list[str]) -> str:
+    bullet_list = "\n".join(f"  - {e}" for e in errors)
     return f"Validation failed for {album_name}:\n{bullet_list}"
 
 

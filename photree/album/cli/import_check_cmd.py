@@ -8,7 +8,6 @@ from typing import Annotated, Optional
 import typer
 
 from ...clihelpers.options import CONFIG_OPTION
-from ..store.protocol import SELECTION_CSV, SELECTION_DIR
 from . import album_app
 from .helpers import _run_preflight_checks
 
@@ -20,7 +19,7 @@ def import_check_cmd(
         typer.Option(
             "--album-dir",
             "-a",
-            help=f"Album directory (with {SELECTION_DIR}/ and/or {SELECTION_CSV}).",
+            help="Album directory (with to-import-{ios,std}-<name> staging dirs).",
             exists=True,
             file_okay=False,
             resolve_path=True,

@@ -105,18 +105,18 @@ def output_cmd() -> None:
     )
 
     _panel(
-        "album_output.album_dir_check — import (to-import present)",
+        "album_output.album_dir_check — import (to-import-ios-main present)",
         preflight_output.album_dir_check(
-            present=("to-import",),
+            present=("to-import-ios-main",),
             missing=(),
         ),
     )
 
     _panel(
-        "album_output.album_dir_check — import (to-import missing)",
+        "album_output.album_dir_check — import (to-import-ios-main missing)",
         preflight_output.album_dir_check(
             present=(),
-            missing=("to-import",),
+            missing=("to-import-ios-main",),
         ),
     )
 
@@ -178,38 +178,25 @@ def output_cmd() -> None:
     # ── importer.output ──────────────────────────────────────────
 
     _panel(
-        "importer_output.selection_dir_check (ok)",
-        importer_output.selection_dir_check(
-            Path("/albums/trip-paris/to-import"), found=True
+        "importer_output.import_tasks_check (ok)",
+        importer_output.import_tasks_check(Path("/albums/trip-paris"), found=True),
+    )
+
+    _panel(
+        "importer_output.import_tasks_check (not found)",
+        importer_output.import_tasks_check(Path("/albums/trip-paris"), found=False),
+    )
+
+    _panel(
+        "importer_output.import_tasks_check (empty)",
+        importer_output.import_tasks_check(
+            Path("/albums/trip-paris"), found=True, empty=True
         ),
     )
 
     _panel(
-        "importer_output.selection_dir_check (not found)",
-        importer_output.selection_dir_check(
-            Path("/albums/trip-paris/to-import"), found=False
-        ),
-    )
-
-    _panel(
-        "importer_output.selection_dir_check (empty)",
-        importer_output.selection_dir_check(
-            Path("/albums/trip-paris/to-import"), found=True, empty=True
-        ),
-    )
-
-    _panel(
-        "importer_output.selection_dir_troubleshoot (not found)",
-        importer_output.selection_dir_troubleshoot(
-            Path("/albums/trip-paris/to-import"), found=False
-        ),
-    )
-
-    _panel(
-        "importer_output.selection_dir_troubleshoot (empty)",
-        importer_output.selection_dir_troubleshoot(
-            Path("/albums/trip-paris/to-import"), found=True
-        ),
+        "importer_output.import_tasks_troubleshoot",
+        importer_output.import_tasks_troubleshoot(Path("/albums/trip-paris")),
     )
 
     _panel(
@@ -275,7 +262,9 @@ def output_cmd() -> None:
 
     _panel(
         "importer_output.batch_album_skipped()",
-        importer_output.batch_album_skipped("empty-album", "no to-import/ folder"),
+        importer_output.batch_album_skipped(
+            "empty-album", "no to-import-{ios,std}-<name> directory"
+        ),
     )
 
     _panel(
@@ -350,7 +339,7 @@ def seed_cmd(
         ("Seed directory", str(result.base_dir)),
         ("Image Capture", f"image-capture/ ({ic_count} files)"),
         ("Album", f"{album_name}/"),
-        ("Selection", f"to-import/ ({sel_count} files)"),
+        ("Selection", f"to-import-ios-main/ ({sel_count} files)"),
     ]
     label_w = max(len(label) for label, _ in rows)
     summary = Text("\n").join(
@@ -376,7 +365,7 @@ def seed_cmd(
         ls "$IC"
 
         # Browse the album selection
-        ls "$ALBUM/to-import"
+        ls "$ALBUM/to-import-ios-main"
 
         cd "$ALBUM"
 

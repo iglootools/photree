@@ -9,7 +9,6 @@ from pathlib import Path
 
 from ...config import load_config
 from ..check import check_sips_available
-from ..store.protocol import SELECTION_CSV, SELECTION_DIR
 
 DEFAULT_IMAGE_CAPTURE_DIR = Path.home() / "Pictures" / "iPhone"
 
@@ -48,11 +47,12 @@ class ImportPreflightResult:
 
     sips_available: bool | None  # None if skipped
     selection_status: SelectionStatus | None  # None if no album_dir provided
-    selection_path: Path | None
+    selection_path: Path | None  # album dir (holds the to-import-* entries)
     image_capture_dir: Path
     image_capture_dir_found: bool
     image_capture_dir_check: ImageCaptureDirCheck | None  # None if not found or force
     image_capture_dir_preflight_skipped: bool
+    ios_import_required: bool  # whether an Image Capture source is needed
 
     @property
     def success(self) -> bool:
@@ -61,7 +61,8 @@ class ImportPreflightResult:
         ic_ok = self.image_capture_dir_found and (
             self.image_capture_dir_check is None or self.image_capture_dir_check.success
         )
-        return sips_ok and selection_ok and ic_ok
+        # The Image Capture directory only matters when an iOS task is present.
+        return sips_ok and selection_ok and (ic_ok or not self.ios_import_required)
 
 
 @dataclass(frozen=True)
@@ -112,23 +113,21 @@ def check_image_capture_dir(path: Path) -> ImageCaptureDirCheck:
     )
 
 
-def _check_selection(
-    album_dir: Path,
-) -> tuple[SelectionStatus, Path]:
-    """Check the selection status (``to-import/`` and ``to-import.csv``)."""
-    from .selection import has_selection
+def _check_import_tasks(album_dir: Path) -> tuple[SelectionStatus, bool]:
+    """Check import-task status for *album_dir*.
 
-    selection_path = album_dir / SELECTION_DIR
-    csv_path = album_dir / SELECTION_CSV
-    has_dir = selection_path.is_dir()
-    has_csv = csv_path.is_file()
+    Returns ``(status, ios_import_required)``.
+    """
+    from .album_import import task_has_content
+    from .tasks import discover_import_tasks
 
-    if not has_dir and not has_csv:
-        return SelectionStatus.NOT_FOUND, selection_path
-    elif has_selection(album_dir):
-        return SelectionStatus.OK, selection_path
-    else:
-        return SelectionStatus.EMPTY, selection_path
+    tasks = discover_import_tasks(album_dir)
+    ios_required = any(t.is_ios for t in tasks)
+    if not tasks:
+        return SelectionStatus.NOT_FOUND, ios_required
+    if any(task_has_content(t) for t in tasks):
+        return SelectionStatus.OK, ios_required
+    return SelectionStatus.EMPTY, ios_required
 
 
 def run_preflight(
@@ -142,9 +141,12 @@ def run_preflight(
     sips_available = None if skip_heic_to_jpeg else check_sips_available()
 
     if album_dir is not None:
-        selection_status, selection_path = _check_selection(album_dir)
+        selection_status, ios_import_required = _check_import_tasks(album_dir)
+        selection_path: Path | None = album_dir
     else:
+        # No specific album — assume an iOS source may be needed (batch scan).
         selection_status, selection_path = None, None
+        ios_import_required = True
 
     ic_found = image_capture_dir.is_dir()
     ic_check = (
@@ -159,4 +161,5 @@ def run_preflight(
         image_capture_dir_found=ic_found,
         image_capture_dir_check=ic_check,
         image_capture_dir_preflight_skipped=force,
+        ios_import_required=ios_import_required,
     )

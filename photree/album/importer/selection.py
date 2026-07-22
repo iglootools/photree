@@ -1,4 +1,9 @@
-"""Read and merge photo selection from ``to-import/`` directory and ``to-import.csv``."""
+"""Read and merge an iOS photo selection from a staging dir and/or a CSV.
+
+The staging dir is ``to-import-ios-<name>/`` and the CSV is
+``to-import-ios-<name>.csv``. Both are optional; when both are present their
+entries are merged and deduplicated by image number.
+"""
 
 from __future__ import annotations
 
@@ -7,7 +12,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ...common.fs import list_files
-from ..store.protocol import SELECTION_CSV, SELECTION_DIR
 from .image_capture import _img_number
 
 
@@ -52,13 +56,17 @@ def _merge_selections(dir_files: list[str], csv_files: list[str]) -> tuple[str, 
     return tuple(sorted(seen.values()))
 
 
-def read_selection(album_dir: Path) -> SelectionSources:
-    """Read selection filenames from ``to-import/`` and ``to-import.csv``.
+def read_selection(
+    selection_dir: Path | None,
+    csv_path: Path | None,
+) -> SelectionSources:
+    """Read selection filenames from a staging dir and/or a CSV.
 
-    Merges both sources with silent deduplication by image number.
+    Either source may be ``None`` (absent). Merges both with silent
+    deduplication by image number.
     """
-    dir_files = list_files(album_dir / SELECTION_DIR)
-    csv_files = read_selection_csv(album_dir / SELECTION_CSV)
+    dir_files = list_files(selection_dir) if selection_dir is not None else []
+    csv_files = read_selection_csv(csv_path) if csv_path is not None else []
     merged = _merge_selections(dir_files, csv_files)
     return SelectionSources(
         dir_files=tuple(dir_files),
@@ -67,7 +75,9 @@ def read_selection(album_dir: Path) -> SelectionSources:
     )
 
 
-def has_selection(album_dir: Path) -> bool:
-    """Return True if the album has selection entries from either source."""
-    sources = read_selection(album_dir)
-    return len(sources.merged) > 0
+def has_selection(
+    selection_dir: Path | None,
+    csv_path: Path | None,
+) -> bool:
+    """Return True if the sources yield at least one selection entry."""
+    return len(read_selection(selection_dir, csv_path).merged) > 0
