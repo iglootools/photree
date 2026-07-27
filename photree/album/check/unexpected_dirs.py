@@ -22,9 +22,7 @@ class UnexpectedDirsCheck:
 
 def _is_import_staging_dir(name: str) -> bool:
     """Return True for a ``to-import-{ios,std}-<name>`` staging directory."""
-    return name.startswith(f"{TO_IMPORT_PREFIX}ios-") or name.startswith(
-        f"{TO_IMPORT_PREFIX}std-"
-    )
+    return name.startswith((f"{TO_IMPORT_PREFIX}ios-", f"{TO_IMPORT_PREFIX}std-"))
 
 
 def check_unexpected_dirs(

@@ -3,21 +3,21 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
-from . import albums_app
+from ...album.cli.helpers import _run_preflight_checks
 from ...album.importer.album_import import task_has_content
 from ...album.importer.tasks import discover_import_tasks
-from ...album.cli.helpers import _run_preflight_checks
 from ...clihelpers.progress import BatchProgressBar
+from . import albums_app
 
 
 @albums_app.command("import-check")
 def import_check_cmd(
     albums_dir: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--dir",
             "-d",
@@ -28,7 +28,7 @@ def import_check_cmd(
         ),
     ] = None,
     album_dirs: Annotated[
-        Optional[list[Path]],
+        list[Path] | None,
         typer.Option(
             "--album-dir",
             "-a",
@@ -39,7 +39,7 @@ def import_check_cmd(
         ),
     ] = None,
     source: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--source",
             "-s",
@@ -49,7 +49,7 @@ def import_check_cmd(
         ),
     ] = None,
     config: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(
             "--config",
             "-c",
@@ -73,7 +73,7 @@ def import_check_cmd(
     if album_dirs is not None:
         albums = album_dirs
     else:
-        scan_dir = albums_dir if albums_dir is not None else Path(".").resolve()
+        scan_dir = albums_dir if albums_dir is not None else Path.cwd()
         albums = sorted(p for p in scan_dir.iterdir() if p.is_dir())
 
     if not albums:

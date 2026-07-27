@@ -11,7 +11,6 @@ from sklearn.cluster import AgglomerativeClustering  # type: ignore[import-untyp
 
 from .protocol import DEFAULT_CLUSTER_THRESHOLD
 
-
 # ---------------------------------------------------------------------------
 # FAISS index management
 # ---------------------------------------------------------------------------

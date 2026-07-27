@@ -15,13 +15,13 @@ from ...clihelpers.options import (
     RM_MISCATEGORIZED_SAFE_OPTION,
     RM_ORPHAN_SIDECAR_OPTION,
 )
-from ..store.media_sources_discovery import discover_media_sources
 from ..fix.ios import (
     FixIosValidationError,
     run_fix_ios,
     validate_fix_flags,
 )
 from ..fix.ios.output import format_fix_ios_result
+from ..store.media_sources_discovery import discover_media_sources
 from . import album_app
 
 

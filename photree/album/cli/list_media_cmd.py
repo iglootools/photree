@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import csv
-import sys
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
+from ...clihelpers.csvout import csv_output
 from ...common.fs import display_path
 from ..id import (
     format_album_external_id,
@@ -41,7 +41,7 @@ def list_media_cmd(
         ),
     ] = "text",
     output_file: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--output",
             "-o",
@@ -79,12 +79,7 @@ def _list_csv(
     from ..store.media_metadata import MediaMetadata
 
     assert isinstance(media_meta, MediaMetadata)
-    out = (
-        open(output_file, "w", encoding="utf-8", newline="")
-        if output_file
-        else sys.stdout
-    )
-    try:
+    with csv_output(output_file) as out:
         writer = csv.writer(out)
         writer.writerow(["album_id", "media_source", "type", "id", "key"])
         for source_name, source in media_meta.media_sources.items():
@@ -108,9 +103,6 @@ def _list_csv(
                         key,
                     ]
                 )
-    finally:
-        if output_file:
-            out.close()
 
 
 def _list_text(

@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..store.protocol import MAIN_MEDIA_SOURCE, MediaSource  # noqa: F401 — re-exported
+from ..store.protocol import MAIN_MEDIA_SOURCE, MediaSource
 
 
 @dataclass(frozen=True)

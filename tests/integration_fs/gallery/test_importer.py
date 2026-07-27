@@ -6,13 +6,11 @@ from pathlib import Path
 
 import pytest
 
+from photree.album.id import generate_album_id
 from photree.album.jpeg import copy_convert_single, noop_convert_single
 from photree.album.store.metadata import load_album_metadata, save_album_metadata
-from photree.album.id import generate_album_id
 from photree.album.store.protocol import AlbumMetadata
-from photree.fsprotocol import LinkMode
-from photree.fsprotocol import save_gallery_metadata
-from photree.fsprotocol import GalleryMetadata
+from photree.fsprotocol import GalleryMetadata, LinkMode, save_gallery_metadata
 from photree.gallery.importer import (
     compute_target_dir,
     import_album,

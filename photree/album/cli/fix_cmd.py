@@ -18,8 +18,8 @@ from ...fsprotocol import resolve_link_mode
 from .. import fix as album_fixes
 from ..fix import FixValidationError
 from ..fix.output import format_fix_result
-from ..store.metadata import load_album_metadata, save_album_metadata
 from ..id import format_album_external_id, generate_album_id
+from ..store.metadata import load_album_metadata, save_album_metadata
 from ..store.protocol import AlbumMetadata
 from . import album_app
 

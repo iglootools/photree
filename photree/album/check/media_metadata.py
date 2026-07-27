@@ -17,11 +17,10 @@ from ..store.protocol import (
     IMG_EXTENSIONS,
     IOS_IMG_EXTENSIONS,
     IOS_VID_EXTENSIONS,
-    MediaSource,
     VID_EXTENSIONS,
+    MediaSource,
     _KeyFn,
 )
-
 
 # ---------------------------------------------------------------------------
 # Intermediate types
@@ -161,17 +160,15 @@ def _stale_source_result(
     """Build a check result for a media source that no longer exists on disk."""
     return _SourceCheckResult(
         new=(),
-        stale=tuple(
-            [
-                *(
-                    UnmatchedKey(ms_name, MediaType.IMAGE, k)
-                    for k in sorted(ms_meta.images.values())
-                ),
-                *(
-                    UnmatchedKey(ms_name, MediaType.VIDEO, k)
-                    for k in sorted(ms_meta.videos.values())
-                ),
-            ]
+        stale=(
+            *(
+                UnmatchedKey(ms_name, MediaType.IMAGE, k)
+                for k in sorted(ms_meta.images.values())
+            ),
+            *(
+                UnmatchedKey(ms_name, MediaType.VIDEO, k)
+                for k in sorted(ms_meta.videos.values())
+            ),
         ),
         uuids=(*ms_meta.images.keys(), *ms_meta.videos.keys()),
         image_count=len(ms_meta.images),

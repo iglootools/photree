@@ -10,11 +10,11 @@ gallery_app = typer.Typer(
     no_args_is_help=True,
 )
 
-from .metadata import gallery_metadata_app  # noqa: E402
+from .metadata import gallery_metadata_app
 
 gallery_app.add_typer(gallery_metadata_app)
 
-from . import (  # noqa: E402, F401 — imported for command registration side effects
+from . import (  # noqa: F401 — imported for command registration side effects
     check_cmd,
     cluster_faces_cmd,
     export_cmd,

@@ -8,14 +8,6 @@ from pathlib import Path
 import pytest
 import yaml
 
-from photree.common.base58 import base58_decode, base58_encode
-from photree.album.store.album_discovery import (
-    discover_albums,
-    discover_potential_albums,
-    has_media_sources,
-    is_album,
-)
-from photree.album.store.metadata import load_album_metadata, save_album_metadata
 from photree.album.id import (
     format_album_external_id,
     format_external_id,
@@ -27,15 +19,25 @@ from photree.album.id import (
     parse_image_external_id,
     parse_video_external_id,
 )
+from photree.album.store.album_discovery import (
+    discover_albums,
+    discover_potential_albums,
+    has_media_sources,
+    is_album,
+)
+from photree.album.store.metadata import load_album_metadata, save_album_metadata
 from photree.album.store.protocol import ALBUM_YAML, AlbumMetadata
-from photree.fsprotocol import LinkMode, PHOTREE_DIR
-from photree.fsprotocol import load_gallery_metadata, save_gallery_metadata
+from photree.common.base58 import base58_decode, base58_encode
 from photree.fsprotocol import (
+    PHOTREE_DIR,
+    GalleryMetadata,
+    LinkMode,
+    load_gallery_metadata,
     resolve_gallery_dir,
     resolve_gallery_metadata,
     resolve_link_mode,
+    save_gallery_metadata,
 )
-from photree.fsprotocol import GalleryMetadata
 
 
 def _write(path: Path, content: str = "data") -> None:

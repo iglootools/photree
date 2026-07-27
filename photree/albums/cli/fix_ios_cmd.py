@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import typer
 
-from . import AlbumDirOption, DirOption, albums_app
 from ...album.fix.ios import FixIosValidationError, validate_fix_flags
 from ...clihelpers.options import (
     DRY_RUN_OPTION,
@@ -14,6 +13,7 @@ from ...clihelpers.options import (
     RM_MISCATEGORIZED_SAFE_OPTION,
     RM_ORPHAN_SIDECAR_OPTION,
 )
+from . import AlbumDirOption, DirOption, albums_app
 from .batch_ops import run_batch_fix_ios
 from .ops import resolve_batch_albums
 

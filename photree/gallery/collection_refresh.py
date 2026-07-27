@@ -43,7 +43,6 @@ from ..collection.store.protocol import (
 )
 from ..fsprotocol import ALBUMS_DIR, COLLECTIONS_DIR
 
-
 # ---------------------------------------------------------------------------
 # Result types
 # ---------------------------------------------------------------------------
@@ -855,7 +854,7 @@ def refresh_collections(
 
     return CollectionRefreshResult(
         created=tuple(created),
-        updated=tuple([*updated, *smart_updated]),
+        updated=(*updated, *smart_updated),
         renamed=tuple(renamed),
         deleted=tuple(deleted),
         album_renames=tuple(album_renames),

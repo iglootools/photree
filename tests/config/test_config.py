@@ -11,8 +11,7 @@ from photree.config import (
     find_config_file,
     load_config,
 )
-from photree.fsprotocol import AlbumShareLayout, ShareDirectoryLayout
-from photree.fsprotocol import LinkMode
+from photree.fsprotocol import AlbumShareLayout, LinkMode, ShareDirectoryLayout
 
 
 class TestConfigSearchPaths:

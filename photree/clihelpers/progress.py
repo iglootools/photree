@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from types import TracebackType
-from typing import TypeVar
+from typing import Self
 
 from rich.progress import (
     BarColumn,
@@ -36,10 +36,9 @@ def _result_icon(success: bool) -> str:
 class _ProgressContextMixin:
     """Mixin adding context manager support to progress bars."""
 
-    def stop(self) -> None:  # noqa: B027 — overridden by subclasses
-        ...
+    def stop(self) -> None: ...
 
-    def __enter__(self: _T) -> _T:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(
@@ -49,9 +48,6 @@ class _ProgressContextMixin:
         exc_tb: TracebackType | None,
     ) -> None:
         self.stop()
-
-
-_T = TypeVar("_T")
 
 
 class SilentProgressBar(_ProgressContextMixin):
@@ -265,10 +261,8 @@ class BatchProgressBar(_ProgressContextMixin):
 # Transient spinner for slow one-off operations
 # ---------------------------------------------------------------------------
 
-T = TypeVar("T")
 
-
-def run_with_spinner(description: str, fn: "Callable[[], T]") -> "T":
+def run_with_spinner[T](description: str, fn: Callable[[], T]) -> T:
     """Run *fn* with a transient spinner showing *description*."""
     with Progress(
         SpinnerColumn(),

@@ -6,10 +6,10 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from photree.cli import app
-from photree.album.store.metadata import load_album_metadata, save_album_metadata
 from photree.album.id import generate_album_id
+from photree.album.store.metadata import load_album_metadata, save_album_metadata
 from photree.album.store.protocol import ALBUM_YAML, AlbumMetadata
+from photree.cli import app
 from photree.fsprotocol import PHOTREE_DIR
 
 runner = CliRunner()

@@ -5,10 +5,10 @@ from __future__ import annotations
 from collections import Counter
 from pathlib import Path
 
+from ...fsprotocol import COLLECTIONS_DIR
 from ..store.collection_discovery import discover_collections
 from ..store.metadata import load_collection_metadata
 from ..store.protocol import CollectionLifecycle, CollectionMembers, CollectionStrategy
-from ...fsprotocol import COLLECTIONS_DIR
 from .models import CollectionStatsEntry, GalleryCollectionStats
 
 

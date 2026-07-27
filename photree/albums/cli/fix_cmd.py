@@ -7,7 +7,6 @@ from typing import Annotated
 
 import typer
 
-from . import AlbumDirOption, DirOption, albums_app
 from ...album.fix import FixValidationError
 from ...clihelpers.options import (
     DRY_RUN_OPTION,
@@ -16,6 +15,7 @@ from ...clihelpers.options import (
     RM_UPSTREAM_OPTION,
 )
 from ...fsprotocol import LinkMode
+from . import AlbumDirOption, DirOption, albums_app
 from .batch_ops import run_batch_fix
 from .ops import resolve_check_batch_albums
 

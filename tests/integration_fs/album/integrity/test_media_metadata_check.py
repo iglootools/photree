@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from photree.album.store.media_sources_discovery import discover_media_sources
 from photree.album.check.media_metadata import (
     MediaType,
     UnmatchedKey,
@@ -17,6 +16,7 @@ from photree.album.store.media_metadata import (
     MediaSourceMediaMetadata,
     save_media_metadata,
 )
+from photree.album.store.media_sources_discovery import discover_media_sources
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 

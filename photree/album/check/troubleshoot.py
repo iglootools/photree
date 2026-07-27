@@ -170,8 +170,10 @@ def suggest_exif_fixes(
 
         move_rm_lines = [
             "# move: move files to another album (remove --dry-run to apply)",
-            f"photree album mv-media --dry-run -s {_sh(album_dir)}"
-            f" -d DEST_ALBUM {escaped_files}",
+            (
+                f"photree album mv-media --dry-run -s {_sh(album_dir)}"
+                f" -d DEST_ALBUM {escaped_files}"
+            ),
             "# rm: remove files from this album (remove --dry-run to apply)",
             f"photree album rm-media --dry-run -a {_sh(album_dir)} {escaped_files}",
         ]

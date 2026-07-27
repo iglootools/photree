@@ -3,18 +3,18 @@
 from __future__ import annotations
 
 import csv
-import sys
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
-from . import gallery_app
+from ...clihelpers.csvout import csv_output
 from ...collection.id import format_collection_external_id
 from ...collection.naming import parse_collection_name
 from ...collection.store.collection_discovery import discover_collections
 from ...collection.store.metadata import load_collection_metadata
 from ...fsprotocol import COLLECTIONS_DIR
+from . import gallery_app
 from .ops import resolve_gallery_or_exit
 
 
@@ -25,7 +25,7 @@ def _display_name(col_dir: Path, gallery_dir: Path, cwd: Path) -> str:
 @gallery_app.command("list-collections")
 def list_collections_cmd(
     gallery_dir: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--gallery-dir",
             "-d",
@@ -50,7 +50,7 @@ def list_collections_cmd(
         ),
     ] = "text",
     output_file: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--output",
             "-o",
@@ -81,12 +81,7 @@ def _list_csv(
     cwd: Path,
     output_file: Path | None,
 ) -> None:
-    out = (
-        open(output_file, "w", encoding="utf-8", newline="")
-        if output_file
-        else sys.stdout
-    )
-    try:
+    with csv_output(output_file) as out:
         writer = csv.writer(out)
         writer.writerow(
             [
@@ -132,9 +127,6 @@ def _list_csv(
                     len(col_meta.videos) if col_meta is not None else 0,
                 ]
             )
-    finally:
-        if output_file:
-            out.close()
 
 
 def _list_text(

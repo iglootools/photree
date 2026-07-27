@@ -4,15 +4,12 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 from rich.console import Console
 from rich.panel import Panel
 
-from ...album.fix.output import (
-    rm_upstream_summary,
-)
 from ...album.check import output as preflight_output
 from ...album.check.output import format_integrity_checks
 from ...album.check.testkit import (
@@ -22,11 +19,18 @@ from ...album.check.testkit import (
     PREFLIGHT_OK,
     PREFLIGHT_STD,
 )
+from ...album.fix.output import (
+    rm_upstream_summary,
+)
 from ...album.importer import output as importer_output
 from ...album.importer.testkit.preflight import (
     IC_CHECK_OK,
     IC_CHECK_WARNINGS,
+)
+from ...album.importer.testkit.preflight import (
     PREFLIGHT_FAILURES as IMPORT_PREFLIGHT_FAILURES,
+)
+from ...album.importer.testkit.preflight import (
     PREFLIGHT_OK as IMPORT_PREFLIGHT_OK,
 )
 from ...album.importer.testkit.validation import VALIDATION_ERRORS
@@ -299,7 +303,7 @@ def output_cmd() -> None:
 @demo_app.command("seed")
 def seed_cmd(
     base_dir: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--base-dir",
             "-d",

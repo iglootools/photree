@@ -16,7 +16,6 @@ from ..store.protocol import MediaSource
 from .protocol import ExifCache, ExifCacheEntry
 from .store import load_exif_cache, save_exif_cache
 
-
 # ---------------------------------------------------------------------------
 # Result types
 # ---------------------------------------------------------------------------

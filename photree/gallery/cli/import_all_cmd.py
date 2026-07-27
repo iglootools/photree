@@ -4,16 +4,21 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
-from . import gallery_app
 from ...clihelpers.console import err_console
 from ...clihelpers.options import REIMPORT_OPTION
 from ...common.fs import display_path
-from ...fsprotocol import GALLERY_YAML, LinkMode, PHOTREE_DIR, load_gallery_metadata
-from ...fsprotocol import resolve_link_mode
+from ...fsprotocol import (
+    GALLERY_YAML,
+    PHOTREE_DIR,
+    LinkMode,
+    load_gallery_metadata,
+    resolve_link_mode,
+)
+from . import gallery_app
 from .ops import (
     build_index_or_exit,
     plan_imports_or_exit,
@@ -29,7 +34,7 @@ from .ops import (
 @gallery_app.command("import-all")
 def import_all_cmd(
     base_dir: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--dir",
             "-d",
@@ -40,7 +45,7 @@ def import_all_cmd(
         ),
     ] = None,
     album_dirs: Annotated[
-        Optional[list[Path]],
+        list[Path] | None,
         typer.Option(
             "--album-dir",
             "-a",
@@ -51,7 +56,7 @@ def import_all_cmd(
         ),
     ] = None,
     gallery_dir: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--gallery-dir",
             "-g",

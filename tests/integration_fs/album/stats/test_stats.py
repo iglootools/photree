@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from photree.album.id import generate_album_id
 from photree.album.stats import (
     _extract_year,
     compute_album_stats,
@@ -19,15 +20,13 @@ from photree.album.stats.scan import (
     count_unique_videos,
 )
 from photree.album.store.metadata import save_album_metadata
-from photree.album.id import generate_album_id
 from photree.album.store.protocol import (
-    AlbumMetadata,
     MAIN_MEDIA_SOURCE,
+    AlbumMetadata,
     MediaSourceType,
     std_media_source,
 )
 from photree.fsprotocol import PHOTREE_DIR
-
 
 # ---------------------------------------------------------------------------
 # Helpers

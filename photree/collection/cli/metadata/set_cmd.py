@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
@@ -36,21 +36,21 @@ def set_cmd(
         ),
     ] = Path("."),
     members: Annotated[
-        Optional[CollectionMembers],
+        CollectionMembers | None,
         typer.Option(
             "--members",
             help="How members are determined: smart (auto by date range) or manual.",
         ),
     ] = None,
     lifecycle: Annotated[
-        Optional[CollectionLifecycle],
+        CollectionLifecycle | None,
         typer.Option(
             "--lifecycle",
             help="How the collection is managed: explicit (user) or implicit (from album series).",
         ),
     ] = None,
     strategy: Annotated[
-        Optional[CollectionStrategy],
+        CollectionStrategy | None,
         typer.Option(
             "--strategy",
             help="Rule for member selection: import, date-range, album-series, or chapter.",

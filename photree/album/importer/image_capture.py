@@ -16,8 +16,8 @@ from ...common.fs import file_ext, list_files
 from ..store.media_sources import pick_media_priority
 from ..store.protocol import (
     IOS_IMG_EXTENSIONS,
-    IOS_VID_EXTENSIONS,
     IOS_SIDECAR_EXTENSIONS,
+    IOS_VID_EXTENSIONS,
 )
 
 if TYPE_CHECKING:
@@ -163,7 +163,7 @@ def _dedup_media_by_number(
                     f"{d} dropped in favor of {winner} (duplicate number {num})"
                 )
 
-    return tuple([*deduped, *non_media]), tuple(warnings)
+    return (*deduped, *non_media), tuple(warnings)
 
 
 def _classify_ic_files(

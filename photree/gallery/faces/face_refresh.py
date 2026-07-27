@@ -541,7 +541,7 @@ def _assign_cluster_uuids(
     existing_map: dict[int, str],
 ) -> dict[int, str]:
     """Assign UUIDs to cluster labels, reusing existing UUIDs where matched."""
-    unique_labels = sorted(set(int(label) for label in labels))
+    unique_labels = sorted({int(label) for label in labels})
     return {label: existing_map.get(label, str(uuid7())) for label in unique_labels}
 
 

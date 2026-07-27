@@ -7,20 +7,19 @@ from textwrap import dedent
 from rich.markup import escape
 
 from ...common.formatting import CHECK, CROSS, WARNING, format_check_line
-from ..naming import AlbumNamingResult, BatchNamingResult
 from ..id import format_album_external_id
+from ..naming import AlbumNamingResult, BatchNamingResult
 from . import AlbumIntegrityResult, AlbumMediaSourceSummary, AlbumPreflightResult
+from .browsable import BrowsableDirCheck
 from .dir_structure import AlbumDirCheck
 from .exif_cache_state import ExifCacheStateCheck
 from .face_state import FaceStateCheck
-from .media_metadata import MediaMetadataCheck
-from .unexpected_dirs import UnexpectedDirsCheck
-from .browsable import BrowsableDirCheck
 from .ios import IosMediaSourceIntegrityResult
-from .jpeg import AlbumJpegIntegrityResult, JpegCheck
 from .ios.sidecar import SidecarCheck
+from .jpeg import AlbumJpegIntegrityResult, JpegCheck
+from .media_metadata import MediaMetadataCheck
 from .troubleshoot import suggest_exif_fixes, suggest_fixes
-
+from .unexpected_dirs import UnexpectedDirsCheck
 
 # ---------------------------------------------------------------------------
 # System check output
@@ -161,8 +160,10 @@ def _format_exif_line(
         *_format_exif_mismatches(result.exif_check, icon, album_dir),
         *(
             [
-                f"{icon} exif: no file matches the album date"
-                f" ({result.exif_check.album_date}) exactly"
+                (
+                    f"{icon} exif: no file matches the album date"
+                    f" ({result.exif_check.album_date}) exactly"
+                )
             ]
             if result.exif_check.no_exact_album_date_match
             else []
@@ -509,15 +510,9 @@ def _directory_structure_line(check: AlbumDirCheck) -> str:
             "directory structure",
             success=False,
             summary=f"{missing} missing",
-            details=tuple(
-                [
-                    f"missing: {', '.join(check.missing)}",
-                    *(
-                        [f"present: {', '.join(check.present)}"]
-                        if check.present
-                        else []
-                    ),
-                ]
+            details=(
+                f"missing: {', '.join(check.missing)}",
+                *([f"present: {', '.join(check.present)}"] if check.present else []),
             ),
         )
 

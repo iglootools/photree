@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
 from ...clihelpers.console import console
-from ...common.fs import display_path
-from ...common.formatting import CHECK, CROSS
 from ...collection.check import check_all_collections
+from ...common.formatting import CHECK, CROSS
+from ...common.fs import display_path
 from ...gallery.cli.ops import resolve_gallery_or_exit
 from . import collections_app
 
@@ -18,7 +18,7 @@ from . import collections_app
 @collections_app.command("check")
 def check_cmd(
     gallery_dir: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--gallery-dir",
             "-g",

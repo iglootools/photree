@@ -15,7 +15,6 @@ from ...store.protocol import (
     IOS_SIDECAR_EXTENSIONS,
 )
 
-
 # ---------------------------------------------------------------------------
 # Data classes
 # ---------------------------------------------------------------------------
@@ -49,44 +48,40 @@ def check_sidecars(
         if ios_is_media(f) and f.upper().startswith("IMG_E")
     }
 
-    missing_sidecars = tuple(
-        [
-            # Each HEIC in orig should have an AAE sidecar
-            *[
-                f"{f} has no AAE sidecar in {orig_dir.name}/"
-                for f in sorted(orig_files)
-                if file_ext(f) == ".heic"
-                and f"IMG_{ios_img_number(f)}.AAE" not in orig_files
-            ],
-            # Each edited media file should have an O-prefixed AAE sidecar
-            *[
-                f"{f} has no O-prefixed AAE sidecar in {edit_dir.name}/"
-                for f in sorted(edit_files)
-                if ios_is_media(f)
-                and f.upper().startswith("IMG_E")
-                and f"IMG_O{ios_img_number(f)}.AAE" not in edit_files
-            ],
-        ]
+    missing_sidecars = (
+        # Each HEIC in orig should have an AAE sidecar
+        *[
+            f"{f} has no AAE sidecar in {orig_dir.name}/"
+            for f in sorted(orig_files)
+            if file_ext(f) == ".heic"
+            and f"IMG_{ios_img_number(f)}.AAE" not in orig_files
+        ],
+        # Each edited media file should have an O-prefixed AAE sidecar
+        *[
+            f"{f} has no O-prefixed AAE sidecar in {edit_dir.name}/"
+            for f in sorted(edit_files)
+            if ios_is_media(f)
+            and f.upper().startswith("IMG_E")
+            and f"IMG_O{ios_img_number(f)}.AAE" not in edit_files
+        ],
     )
 
-    orphan_sidecars = tuple(
-        [
-            # Orphan AAE sidecars in orig (no matching media file)
-            *[
-                f"{f} has no matching media file in {orig_dir.name}/"
-                for f in sorted(orig_files)
-                if file_ext(f) in IOS_SIDECAR_EXTENSIONS
-                and ios_img_number(f) not in orig_media_numbers
-            ],
-            # Orphan O-prefixed AAE sidecars in edit (no matching edited media)
-            *[
-                f"{f} has no matching edited media file in {edit_dir.name}/"
-                for f in sorted(edit_files)
-                if file_ext(f) in IOS_SIDECAR_EXTENSIONS
-                and f.upper().startswith("IMG_O")
-                and ios_img_number(f) not in edit_media_numbers
-            ],
-        ]
+    orphan_sidecars = (
+        # Orphan AAE sidecars in orig (no matching media file)
+        *[
+            f"{f} has no matching media file in {orig_dir.name}/"
+            for f in sorted(orig_files)
+            if file_ext(f) in IOS_SIDECAR_EXTENSIONS
+            and ios_img_number(f) not in orig_media_numbers
+        ],
+        # Orphan O-prefixed AAE sidecars in edit (no matching edited media)
+        *[
+            f"{f} has no matching edited media file in {edit_dir.name}/"
+            for f in sorted(edit_files)
+            if file_ext(f) in IOS_SIDECAR_EXTENSIONS
+            and f.upper().startswith("IMG_O")
+            and ios_img_number(f) not in edit_media_numbers
+        ],
     )
 
     return SidecarCheck(

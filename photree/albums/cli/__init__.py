@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
@@ -37,10 +37,10 @@ ALBUM_DIR_OPTION = typer.Option(
 )
 
 # Type aliases for annotated option types
-DirOption = Annotated[Optional[Path], DIR_OPTION]
-AlbumDirOption = Annotated[Optional[list[Path]], ALBUM_DIR_OPTION]
+DirOption = Annotated[Path | None, DIR_OPTION]
+AlbumDirOption = Annotated[list[Path] | None, ALBUM_DIR_OPTION]
 
-from . import (  # noqa: E402, F401 — imported for command registration side effects
+from . import (  # noqa: F401 — imported for command registration side effects
     check_cmd,
     detect_faces_cmd,
     export_cmd,

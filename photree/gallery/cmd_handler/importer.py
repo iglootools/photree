@@ -10,8 +10,8 @@ from ...album.faces.detect import memoized_face_analyzer_factory
 from ...common.exif import try_start_exiftool
 from ...fsprotocol import LinkMode
 from .. import importer as gallery_importer
-from ..importer import AlbumImportResult
 from ..import_plan import AlbumPlan, ImportAction
+from ..importer import AlbumImportResult
 
 
 def _execute_plan(

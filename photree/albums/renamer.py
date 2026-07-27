@@ -6,8 +6,8 @@ import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..album.naming import ParsedAlbumName, parse_album_name, reconstruct_name
 from ..album.id import ALBUM_ID_PREFIX, parse_external_id
+from ..album.naming import ParsedAlbumName, parse_album_name, reconstruct_name
 
 
 @dataclass(frozen=True)

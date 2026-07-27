@@ -8,10 +8,10 @@ from typing import Annotated
 import typer
 
 from ...common.fs import display_path
+from ..id import format_album_external_id
 from ..naming import parse_album_name
 from ..store.media_sources_discovery import discover_media_sources
 from ..store.metadata import load_album_metadata
-from ..id import format_album_external_id
 from . import album_app
 
 

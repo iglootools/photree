@@ -16,7 +16,6 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
 
-
 # ---------------------------------------------------------------------------
 # Pydantic base model (kebab-case YAML aliases, frozen)
 # ---------------------------------------------------------------------------
@@ -136,8 +135,10 @@ def load_gallery_metadata(gallery_yaml_path: Path) -> GalleryMetadata:
     """Read a ``gallery.yaml`` file and return :class:`GalleryMetadata`."""
     with open(gallery_yaml_path) as f:
         raw = yaml.safe_load(f)
+    # ValueError, not TypeError (TRY004): this validates the *content* of a file the
+    # user owns, not an argument passed by a caller, so it is a malformed-input error.
     if not isinstance(raw, dict):
-        raise ValueError(f"Expected YAML mapping in {gallery_yaml_path}")
+        raise ValueError(f"Expected YAML mapping in {gallery_yaml_path}")  # noqa: TRY004
     return GalleryMetadata.model_validate(raw)
 
 

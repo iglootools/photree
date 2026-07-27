@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
-from . import gallery_app
+from ...album.fix.ios import FixIosValidationError, validate_fix_flags
+from ...albums.cli.batch_ops import run_batch_fix_ios
+from ...albums.cli.ops import resolve_batch_albums
 from ...clihelpers.options import (
     DRY_RUN_OPTION,
     MV_MISCATEGORIZED_OPTION,
@@ -16,16 +18,14 @@ from ...clihelpers.options import (
     RM_MISCATEGORIZED_SAFE_OPTION,
     RM_ORPHAN_SIDECAR_OPTION,
 )
-from ...album.fix.ios import FixIosValidationError, validate_fix_flags
-from ...albums.cli.batch_ops import run_batch_fix_ios
-from ...albums.cli.ops import resolve_batch_albums
+from . import gallery_app
 from .ops import resolve_gallery_or_exit
 
 
 @gallery_app.command("fix-ios")
 def fix_ios_cmd(
     gallery_dir: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--gallery-dir",
             "-d",

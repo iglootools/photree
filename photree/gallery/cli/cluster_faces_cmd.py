@@ -3,20 +3,20 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
-from . import gallery_app
 from ...clihelpers.options import DRY_RUN_OPTION
 from ...fsprotocol import GALLERY_YAML, PHOTREE_DIR, load_gallery_metadata
+from . import gallery_app
 from .ops import resolve_gallery_or_exit, run_face_clustering
 
 
 @gallery_app.command("cluster-faces")
 def cluster_faces_cmd(
     gallery_dir: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--gallery-dir",
             "-d",
@@ -42,7 +42,7 @@ def cluster_faces_cmd(
         ),
     ] = False,
     threshold: Annotated[
-        Optional[float],
+        float | None,
         typer.Option(
             "--threshold",
             help="Cosine distance threshold for clustering (0.0-1.0). Overrides gallery.yaml.",

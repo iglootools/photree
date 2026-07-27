@@ -131,24 +131,22 @@ def _check_npz_yaml_sync(
         k for k, v in state.processed_keys.items() if v.face_count > 0
     }
 
-    return tuple(
-        [
-            *(
-                [f"{ms_name}: .npz keys don't match .yaml processed-keys"]
-                if npz_keys != state_keys_with_faces
-                else []
-            ),
-            *(
-                [f"{ms_name}: .npz array lengths inconsistent"]
-                if not (
-                    len(face_data.keys)
-                    == len(face_data.face_indices)
-                    == len(face_data.det_scores)
-                    == face_data.bboxes.shape[0]
-                    == face_data.landmarks.shape[0]
-                    == face_data.embeddings.shape[0]
-                )
-                else []
-            ),
-        ]
+    return (
+        *(
+            [f"{ms_name}: .npz keys don't match .yaml processed-keys"]
+            if npz_keys != state_keys_with_faces
+            else []
+        ),
+        *(
+            [f"{ms_name}: .npz array lengths inconsistent"]
+            if not (
+                len(face_data.keys)
+                == len(face_data.face_indices)
+                == len(face_data.det_scores)
+                == face_data.bboxes.shape[0]
+                == face_data.landmarks.shape[0]
+                == face_data.embeddings.shape[0]
+            )
+            else []
+        ),
     )

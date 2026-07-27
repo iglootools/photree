@@ -25,6 +25,7 @@ def _generate_cli_docs() -> str:
     """Run typer utils docs and return the markdown output."""
     result = subprocess.run(
         ["typer", "photree.cli", "utils", "docs", "--name", "photree"],
+        check=False,  # returncode is inspected below
         capture_output=True,
         text=True,
     )

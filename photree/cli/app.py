@@ -1,7 +1,7 @@
 """CLI app and sub-app definitions."""
 
 import importlib.metadata
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
@@ -30,7 +30,7 @@ app = typer.Typer(
 @app.callback(invoke_without_command=True)
 def _main(
     version: Annotated[
-        Optional[bool],
+        bool | None,
         typer.Option(
             "--version",
             "-V",

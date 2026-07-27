@@ -13,6 +13,8 @@ from ...clihelpers.options import CONFIG_OPTION
 from ...clihelpers.progress import StageProgressBar
 from ...common.fs import list_files
 from ...fsprotocol import LinkMode
+from ..check import check_exiftool_available
+from ..check.output import format_naming_checks
 from ..faces.detect import memoized_face_analyzer_factory
 from ..importer import album_import
 from ..importer import output as importer_output
@@ -24,8 +26,6 @@ from ..naming import (
     check_exif_date_match,
     parse_album_name,
 )
-from ..check import check_exiftool_available
-from ..check.output import format_naming_checks
 from . import album_app
 from .helpers import _run_preflight_checks
 

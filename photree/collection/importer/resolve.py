@@ -35,7 +35,6 @@ from ...common.fs import file_ext
 from ...fsprotocol import ALBUMS_DIR, COLLECTIONS_DIR
 from .selection import SelectionEntry
 
-
 # ---------------------------------------------------------------------------
 # Result types
 # ---------------------------------------------------------------------------

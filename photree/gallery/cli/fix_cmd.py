@@ -4,28 +4,28 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
-from . import gallery_app
+from ...album.fix import FixValidationError
+from ...albums.cli.batch_ops import run_batch_fix
+from ...albums.cli.ops import resolve_check_batch_albums
 from ...clihelpers.options import (
     DRY_RUN_OPTION,
     LINK_MODE_OPTION,
     RM_ORPHAN_OPTION,
     RM_UPSTREAM_OPTION,
 )
-from ...album.fix import FixValidationError
-from ...albums.cli.batch_ops import run_batch_fix
-from ...albums.cli.ops import resolve_check_batch_albums
 from ...fsprotocol import resolve_link_mode
+from . import gallery_app
 from .ops import resolve_gallery_or_exit
 
 
 @gallery_app.command("fix")
 def fix_cmd(
     gallery_dir: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--gallery-dir",
             "-d",

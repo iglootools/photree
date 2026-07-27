@@ -23,10 +23,13 @@ def _mb(n: float) -> int:
     return int(n * 1024 * 1024)
 
 
+_ZERO_SIZE = SizeStats(0, 0, 0)
+
+
 def _rb(
     total: SizeStats,
-    archive: SizeStats = SizeStats(0, 0, 0),
-    derived: SizeStats = SizeStats(0, 0, 0),
+    archive: SizeStats = _ZERO_SIZE,
+    derived: SizeStats = _ZERO_SIZE,
 ) -> RoleBreakdown:
     return RoleBreakdown(total=total, archive=archive, derived=derived)
 

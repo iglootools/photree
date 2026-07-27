@@ -3,23 +3,21 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
-from . import gallery_app
 from ...album.store.album_discovery import discover_albums
 from ...common.fs import display_path
-from ...fsprotocol import ALBUMS_DIR, PHOTREE_DIR
-from ...fsprotocol import load_gallery_metadata
-from ...fsprotocol import GALLERY_YAML
+from ...fsprotocol import ALBUMS_DIR, GALLERY_YAML, PHOTREE_DIR, load_gallery_metadata
+from . import gallery_app
 from .ops import resolve_gallery_or_exit
 
 
 @gallery_app.command("show")
 def show_cmd(
     gallery_dir: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--gallery-dir",
             "-d",

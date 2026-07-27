@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from ..store.protocol import MAIN_MEDIA_SOURCE, std_media_source
 from . import (
     AlbumDirCheck,
     AlbumIdCheck,
@@ -9,13 +10,12 @@ from . import (
     AlbumMediaSourceSummary,
     AlbumPreflightResult,
 )
-from ..store.protocol import MAIN_MEDIA_SOURCE, std_media_source
 from .browsable import BrowsableDirCheck, FileComparison, MissingFile
 from .ios import IosMediaSourceIntegrityResult
-from .unexpected_dirs import UnexpectedDirsCheck
 from .ios.sidecar import SidecarCheck
 from .jpeg import AlbumJpegIntegrityResult, JpegCheck
 from .std import StdMediaSourceIntegrityResult
+from .unexpected_dirs import UnexpectedDirsCheck
 
 _STD_MEDIA_SOURCE = std_media_source("nelu")
 

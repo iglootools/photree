@@ -20,8 +20,10 @@ def rm_upstream_summary(
         [
             *(
                 [
-                    f"heic: {heic_jpeg} jpeg, {heic_browsable} main, "
-                    f"{heic_rendered} edit, {heic_orig} orig"
+                    (
+                        f"heic: {heic_jpeg} jpeg, {heic_browsable} main, "
+                        f"{heic_rendered} edit, {heic_orig} orig"
+                    )
                 ]
                 if heic_jpeg or heic_browsable or heic_rendered or heic_orig
                 else []
