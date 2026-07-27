@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
-from . import gallery_app
-from ...clihelpers.console import err_console
 from ...album.id import format_album_external_id
-from ...common.fs import display_path
 from ...albums.cli.batch_ops import run_batch_rename_from_csv
+from ...clihelpers.console import err_console
+from ...common.fs import display_path
+from . import gallery_app
 from .ops import build_index_or_exit, resolve_gallery_or_exit
 
 
@@ -27,7 +27,7 @@ def rename_from_csv_cmd(
         ),
     ],
     gallery_dir: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--gallery-dir",
             "-d",

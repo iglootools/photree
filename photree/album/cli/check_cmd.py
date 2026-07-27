@@ -21,6 +21,8 @@ from ...clihelpers.progress import SilentProgressBar
 from ...common.fs import count_unique_media_numbers, display_path
 from .. import (
     check as album_check,
+)
+from .. import (
     naming as album_naming,
 )
 from ..check import output as preflight_output

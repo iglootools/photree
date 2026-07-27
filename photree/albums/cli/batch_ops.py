@@ -19,32 +19,32 @@ from ...album import (
     check as album_check,
 )
 from ...album.check import output as preflight_output
-from ...album.naming import BatchNamingResult
 from ...album.check.output import batch_check_summary
-from ...album.fix.output import batch_fix_summary
 from ...album.fix.ios.output import batch_fix_ios_summary
-from ...album.stats import models as stats_models
-from ...album.stats import output as stats_output
-from ...common.exif import try_start_exiftool
-from ...common.formatting import CHECK, CROSS
-from ...album.store.media_sources_discovery import discover_media_sources
-from ...album.store.metadata import load_album_metadata
+from ...album.fix.output import batch_fix_summary
 from ...album.id import (
     format_album_external_id,
     format_image_external_id,
     format_video_external_id,
 )
-from ...common.fs import display_path
-from ...fsprotocol import LinkMode, resolve_link_mode
+from ...album.naming import BatchNamingResult
+from ...album.stats import models as stats_models
+from ...album.stats import output as stats_output
+from ...album.store.media_sources_discovery import discover_media_sources
+from ...album.store.metadata import load_album_metadata
 from ...clihelpers.console import console, err_console
 from ...clihelpers.progress import BatchProgressBar
-from ..cmd_handler.init import batch_init
+from ...common.exif import try_start_exiftool
+from ...common.formatting import CHECK, CROSS
+from ...common.fs import display_path
+from ...fsprotocol import LinkMode, resolve_link_mode
 from ..cmd_handler.check import batch_check
 from ..cmd_handler.fix import batch_fix
 from ..cmd_handler.fix_ios import batch_fix_ios
-from ..cmd_handler.stats import batch_stats
+from ..cmd_handler.init import batch_init
 from ..cmd_handler.refresh import batch_refresh
 from ..cmd_handler.rename import batch_rename_from_csv
+from ..cmd_handler.stats import batch_stats
 from .ops import display_name, make_display_fn
 
 
@@ -153,9 +153,9 @@ def run_batch_list_albums(
 ) -> None:
     """Shared implementation for list-albums / albums list."""
     import csv
-    import sys
 
     from ...album.naming import parse_album_name
+    from ...clihelpers.csvout import csv_output
 
     cwd = Path.cwd()
 
@@ -175,12 +175,7 @@ def run_batch_list_albums(
         raise typer.Exit(code=1)
 
     if output_format == "csv":
-        out = (
-            open(output_file, "w", encoding="utf-8", newline="")
-            if output_file
-            else sys.stdout
-        )
-        try:
+        with csv_output(output_file) as out:
             writer = csv.writer(out)
             writer.writerow(
                 [
@@ -237,9 +232,6 @@ def run_batch_list_albums(
                             ms_desc,
                         ]
                     )
-        finally:
-            if output_file:
-                out.close()
         return
 
     typer.echo(f"Found {len(albums)} album(s).\n")
@@ -704,9 +696,9 @@ def run_batch_list_media(
 ) -> None:
     """Shared implementation for albums list-media / gallery list-media."""
     import csv
-    import sys
 
     from ...album.store.media_metadata import load_media_metadata
+    from ...clihelpers.csvout import csv_output
 
     cwd = Path.cwd()
 
@@ -715,12 +707,7 @@ def run_batch_list_media(
         raise typer.Exit(code=0)
 
     if output_format == "csv":
-        out = (
-            open(output_file, "w", encoding="utf-8", newline="")
-            if output_file
-            else sys.stdout
-        )
-        try:
+        with csv_output(output_file) as out:
             writer = csv.writer(out)
             writer.writerow(["album_id", "media_source", "type", "id", "key"])
             for album_dir in albums:
@@ -754,9 +741,6 @@ def run_batch_list_media(
                                 key,
                             ]
                         )
-        finally:
-            if output_file:
-                out.close()
         return
 
     for album_dir in albums:

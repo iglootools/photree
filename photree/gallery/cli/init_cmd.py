@@ -7,11 +7,15 @@ from typing import Annotated
 
 import typer
 
-from . import gallery_app
 from ...common.fs import display_path
-from ...fsprotocol import LinkMode, PHOTREE_DIR
-from ...fsprotocol import save_gallery_metadata
-from ...fsprotocol import GALLERY_YAML, GalleryMetadata
+from ...fsprotocol import (
+    GALLERY_YAML,
+    PHOTREE_DIR,
+    GalleryMetadata,
+    LinkMode,
+    save_gallery_metadata,
+)
+from . import gallery_app
 
 
 @gallery_app.command("init")

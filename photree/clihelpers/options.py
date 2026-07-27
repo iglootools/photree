@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
-from ..fsprotocol import AlbumShareLayout, ShareDirectoryLayout
-from ..fsprotocol import LinkMode
+from ..fsprotocol import AlbumShareLayout, LinkMode, ShareDirectoryLayout
 
 # ---------------------------------------------------------------------------
 # Check options
@@ -174,7 +173,7 @@ REIMPORT_OPTION = Annotated[
 # ---------------------------------------------------------------------------
 
 SHARE_DIR_OPTION = Annotated[
-    Optional[Path],
+    Path | None,
     typer.Option(
         "--share-dir",
         "-s",
@@ -185,7 +184,7 @@ SHARE_DIR_OPTION = Annotated[
 ]
 
 PROFILE_OPTION = Annotated[
-    Optional[str],
+    str | None,
     typer.Option(
         "--profile",
         "-p",
@@ -194,7 +193,7 @@ PROFILE_OPTION = Annotated[
 ]
 
 CONFIG_OPTION = Annotated[
-    Optional[str],
+    str | None,
     typer.Option(
         "--config",
         "-c",
@@ -203,7 +202,7 @@ CONFIG_OPTION = Annotated[
 ]
 
 SHARE_LAYOUT_OPTION = Annotated[
-    Optional[ShareDirectoryLayout],
+    ShareDirectoryLayout | None,
     typer.Option(
         "--share-layout",
         help="Share layout: flat (default), albums (by year), or by-month (by month).",
@@ -211,7 +210,7 @@ SHARE_LAYOUT_OPTION = Annotated[
 ]
 
 ALBUM_LAYOUT_OPTION = Annotated[
-    Optional[AlbumShareLayout],
+    AlbumShareLayout | None,
     typer.Option(
         "--album-layout",
         help=(
@@ -222,7 +221,7 @@ ALBUM_LAYOUT_OPTION = Annotated[
 ]
 
 EXPORT_LINK_MODE_OPTION = Annotated[
-    Optional[LinkMode],
+    LinkMode | None,
     typer.Option(
         "--link-mode",
         help="How to create main files in all layout: hardlink (default), symlink, or copy.",

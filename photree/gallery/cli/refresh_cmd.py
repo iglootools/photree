@@ -3,17 +3,16 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
-from . import gallery_app
+from ...albums.cli.batch_ops import run_batch_refresh
+from ...albums.cli.ops import resolve_check_batch_albums
 from ...clihelpers.console import err_console
 from ...clihelpers.options import DRY_RUN_OPTION
 from ...clihelpers.progress import StageProgressBar, run_with_spinner
 from ...common.formatting import CHECK
-from ...albums.cli.batch_ops import run_batch_refresh
-from ...albums.cli.ops import resolve_check_batch_albums
 from ...fsprotocol import GALLERY_YAML, PHOTREE_DIR, load_gallery_metadata
 from ..browsable_refresh import refresh_browsable as refresh_gallery_browsable
 from ..collection_refresh import (
@@ -23,13 +22,14 @@ from ..collection_refresh import (
     STAGE_TITLE_SYNC,
     refresh_collections,
 )
+from . import gallery_app
 from .ops import resolve_gallery_or_exit, run_face_clustering
 
 
 @gallery_app.command("refresh")
 def refresh_cmd(
     gallery_dir: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--gallery-dir",
             "-d",

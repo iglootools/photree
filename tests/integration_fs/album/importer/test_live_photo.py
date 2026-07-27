@@ -2,24 +2,24 @@
 
 from pathlib import Path
 
+from photree.album.importer.album_import import run_import
 from photree.album.importer.image_capture import (
     MediaType,
     plan_import,
     validate_import_plan,
 )
-from photree.album.importer.album_import import run_import
 from photree.album.jpeg import noop_convert_single
 from photree.album.live_photo import (
     compute_live_photo_videos,
     detect_live_photo_keys,
 )
+from photree.album.store.media_sources import ios_img_number
 from photree.album.store.protocol import (
     IOS_IMG_EXTENSIONS,
     IOS_VID_EXTENSIONS,
     ios_import_dir,
     ios_media_source,
 )
-from photree.album.store.media_sources import ios_img_number
 from photree.common.fs import list_files
 
 SEL_DIR = ios_import_dir("main")  # to-import-ios-main
@@ -200,7 +200,7 @@ class TestPlanImportLivePhoto:
             ["IMG_0001.HEIC"],
             ["IMG_0001.HEIC", "IMG_0001.AAE", "IMG_0001.MOV"],
         )
-        errors, warnings = validate_import_plan(plan)
+        errors, _warnings = validate_import_plan(plan)
         assert errors == []
 
     def test_image_only_ic_not_matched_by_video_selection(self) -> None:

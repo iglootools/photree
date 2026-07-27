@@ -10,4 +10,6 @@ collection_metadata_app = typer.Typer(
     no_args_is_help=True,
 )
 
-from . import set_cmd  # noqa: E402, F401 — imported for command registration side effects
+from . import (
+    set_cmd,  # noqa: F401 — imported for command registration side effects
+)

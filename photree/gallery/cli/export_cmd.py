@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
-from . import gallery_app
 from ...album.exporter import batch as _batch
 from ...album.exporter import output as _export_output
 from ...clihelpers.options import (
@@ -19,12 +18,13 @@ from ...clihelpers.options import (
     SHARE_LAYOUT_OPTION,
 )
 from ...common.fs import display_path
+from . import gallery_app
 
 
 @gallery_app.command("export")
 def export_cmd(
     base_dir: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--dir",
             "-d",
@@ -35,7 +35,7 @@ def export_cmd(
         ),
     ] = None,
     album_dirs: Annotated[
-        Optional[list[Path]],
+        list[Path] | None,
         typer.Option(
             "--album-dir",
             "-a",
@@ -62,8 +62,8 @@ def export_cmd(
         resolve_export_settings,
         validate_export_settings,
     )
-    from ...config import ConfigError
     from ...clihelpers.progress import BatchProgressBar
+    from ...config import ConfigError
 
     cwd = Path.cwd()
 
@@ -88,7 +88,7 @@ def export_cmd(
     resolved_base = (
         None
         if album_dirs is not None
-        else (base_dir if base_dir is not None else Path(".").resolve())
+        else (base_dir if base_dir is not None else Path.cwd())
     )
 
     albums = (

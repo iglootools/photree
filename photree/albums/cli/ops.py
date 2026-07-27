@@ -100,7 +100,7 @@ def _resolve_batch_albums_with(
         return (album_dirs, None)
 
     # --dir mode (explicit or default)
-    resolved_base = base_dir if base_dir is not None else Path(".").resolve()
+    resolved_base = base_dir if base_dir is not None else Path.cwd()
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),

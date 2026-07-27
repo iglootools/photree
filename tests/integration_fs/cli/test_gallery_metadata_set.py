@@ -9,9 +9,9 @@ from typer.testing import CliRunner
 from photree.cli import app
 from photree.fsprotocol import (
     GALLERY_YAML,
+    PHOTREE_DIR,
     GalleryMetadata,
     LinkMode,
-    PHOTREE_DIR,
     load_gallery_metadata,
     save_gallery_metadata,
 )

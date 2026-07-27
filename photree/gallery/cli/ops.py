@@ -15,34 +15,32 @@ from ...album import (
     check as album_check,
 )
 from ...album.check import output as preflight_output
+from ...album.id import format_album_external_id
 from ...album.store.album_discovery import discover_potential_albums
 from ...album.store.metadata import load_album_metadata
-from ...album.id import format_album_external_id
+from ...clihelpers.console import console, err_console
+from ...clihelpers.progress import BatchProgressBar, StageProgressBar
+from ...common.formatting import CHECK
 from ...common.fs import display_path
-from ...fsprotocol import LinkMode
-from ...fsprotocol import resolve_gallery_dir
+from ...fsprotocol import LinkMode, resolve_gallery_dir
 from .. import (
     AlbumIndex,
     MissingAlbumIdError,
     build_album_id_to_path_index,
 )
-from ..output import format_import_errors, format_skipped
-from ..importer import AlbumImportResult
+from ..cmd_handler.importer import run_batch_import as _run_batch_import
+from ..cmd_handler.importer import run_single_import as _run_single_import
+from ..cmd_handler.post_import_check import (
+    run_batch_post_import_check as _run_batch_post_import_check,
+)
 from ..import_plan import (
     AlbumPlan,
     GalleryImportPlan,
     ImportAction,
     plan_imports,
 )
-from ..cmd_handler.importer import run_single_import as _run_single_import
-from ..cmd_handler.importer import run_batch_import as _run_batch_import
-from ..cmd_handler.post_import_check import (
-    run_batch_post_import_check as _run_batch_post_import_check,
-)
-from ...clihelpers.console import console, err_console
-from ...common.formatting import CHECK
-from ...clihelpers.progress import BatchProgressBar, StageProgressBar
-
+from ..importer import AlbumImportResult
+from ..output import format_import_errors, format_skipped
 
 # ---------------------------------------------------------------------------
 # Gallery resolution
@@ -190,7 +188,7 @@ def resolve_import_all_albums(
     if album_dirs is not None:
         return (album_dirs, [])
 
-    scan_dir = base_dir if base_dir is not None else Path(".").resolve()
+    scan_dir = base_dir if base_dir is not None else Path.cwd()
     return discover_potential_albums(scan_dir)
 
 

@@ -26,7 +26,6 @@ from ..collection.store.metadata import load_collection_metadata
 from ..collection.store.protocol import CollectionStrategy
 from ..fsprotocol import ALBUMS_DIR, BROWSABLE_DIR, COLLECTIONS_DIR
 
-
 # ---------------------------------------------------------------------------
 # Result types
 # ---------------------------------------------------------------------------

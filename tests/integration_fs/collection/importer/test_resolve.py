@@ -191,8 +191,8 @@ class TestResolveByMediaFilename:
     def test_ambiguous_without_date_hint(self, tmp_path: Path) -> None:
         """Same image number in two albums, no date hint → ambiguous error."""
         gallery = _setup_gallery(tmp_path)
-        album1, aid1 = _setup_album(gallery, "2024-07-14 - Trip A")
-        album2, aid2 = _setup_album(gallery, "2024-08-01 - Trip B")
+        album1, _aid1 = _setup_album(gallery, "2024-07-14 - Trip A")
+        album2, _aid2 = _setup_album(gallery, "2024-08-01 - Trip B")
         img_id1 = generate_media_id()
         img_id2 = generate_media_id()
         save_media_metadata(
@@ -219,8 +219,8 @@ class TestResolveByMediaFilename:
     def test_disambiguate_with_date_hint(self, tmp_path: Path) -> None:
         """Same image number in two albums, date hint narrows to one."""
         gallery = _setup_gallery(tmp_path)
-        album1, aid1 = _setup_album(gallery, "2024-07-14 - Trip A")
-        album2, aid2 = _setup_album(gallery, "2024-08-01 - Trip B")
+        album1, _aid1 = _setup_album(gallery, "2024-07-14 - Trip A")
+        album2, _aid2 = _setup_album(gallery, "2024-08-01 - Trip B")
         img_id1 = generate_media_id()
         img_id2 = generate_media_id()
         save_media_metadata(
@@ -259,7 +259,7 @@ class TestResolveByMediaFilename:
     def test_resolve_std_stem_based_file(self, tmp_path: Path) -> None:
         """Non-IMG_ prefixed file uses stem for matching."""
         gallery = _setup_gallery(tmp_path)
-        album_dir, album_id = _setup_album(gallery, "2024-07-14 - Trip")
+        album_dir, _album_id = _setup_album(gallery, "2024-07-14 - Trip")
         img_id = generate_media_id()
         save_media_metadata(
             album_dir,

@@ -3,15 +3,15 @@
 import os
 from pathlib import Path
 
-from photree.album.check.browsable import check_browsable_dir
 from photree.album.check import check_album_integrity
-from photree.fsprotocol import LinkMode
-from photree.album.store.media_sources_discovery import discover_media_sources
+from photree.album.check.browsable import check_browsable_dir
 from photree.album.check.ios import check_miscategorized_files
-from photree.album.check.jpeg import check_jpeg_dir
 from photree.album.check.ios.sidecar import check_sidecars
+from photree.album.check.jpeg import check_jpeg_dir
 from photree.album.store.media_sources import ios_img_number
+from photree.album.store.media_sources_discovery import discover_media_sources
 from photree.album.store.protocol import IMG_EXTENSIONS, MAIN_MEDIA_SOURCE
+from photree.fsprotocol import LinkMode
 
 
 def _write(path: Path, content: str = "data") -> None:

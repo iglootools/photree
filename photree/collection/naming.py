@@ -20,7 +20,6 @@ from dataclasses import dataclass
 
 from ..album.store.protocol import ALBUM_DATE_RE
 
-
 # ---------------------------------------------------------------------------
 # Regexes
 # ---------------------------------------------------------------------------

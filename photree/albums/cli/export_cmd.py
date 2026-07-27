@@ -3,19 +3,17 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
-from . import AlbumDirOption, albums_app
-from ...album.exporter import batch, output as export_output
+from ...album.exporter import batch
+from ...album.exporter import output as export_output
 from ...album.exporter.settings import (
     ExportSettingsError,
     resolve_export_settings,
     validate_export_settings,
 )
-from ...config import ConfigError
-from ...common.fs import display_path
 from ...clihelpers.options import (
     ALBUM_LAYOUT_OPTION,
     CONFIG_OPTION,
@@ -24,12 +22,15 @@ from ...clihelpers.options import (
     SHARE_DIR_OPTION,
     SHARE_LAYOUT_OPTION,
 )
+from ...common.fs import display_path
+from ...config import ConfigError
+from . import AlbumDirOption, albums_app
 
 
 @albums_app.command("export")
 def export_cmd(
     base_dir: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--dir",
             "-d",
@@ -77,7 +78,7 @@ def export_cmd(
     resolved_base = (
         None
         if album_dirs is not None
-        else (base_dir if base_dir is not None else Path(".").resolve())
+        else (base_dir if base_dir is not None else Path.cwd())
     )
 
     # Determine album count for progress bar

@@ -63,21 +63,25 @@ def _format_ic_dir_warnings(check: ImageCaptureDirCheck) -> list[str]:
         ),
         *(
             [
-                f"Only {check.img_prefixed_count}/{check.total_file_count} "
-                f"files ({check.img_prefix_ratio:.0%}) have the IMG_ prefix "
-                f"(expected at least {_IMG_PREFIX_THRESHOLD:.0%}). "
-                f"This may not be an Image Capture directory."
+                (
+                    f"Only {check.img_prefixed_count}/{check.total_file_count} "
+                    f"files ({check.img_prefix_ratio:.0%}) have the IMG_ prefix "
+                    f"(expected at least {_IMG_PREFIX_THRESHOLD:.0%}). "
+                    f"This may not be an Image Capture directory."
+                )
             ]
             if check.has_media_files and check.has_low_img_prefix_ratio
             else []
         ),
         *(
             [
-                f"Found {len(check.subdirectory_names)} subdirectory(ies): "
-                f"{', '.join(check.subdirectory_names)}. "
-                f"Image Capture exports to a flat directory without subdirectories. "
-                f"You may be pointing at the wrong level "
-                f"(e.g. ~/Pictures instead of ~/Pictures/<Device>)."
+                (
+                    f"Found {len(check.subdirectory_names)} subdirectory(ies): "
+                    f"{', '.join(check.subdirectory_names)}. "
+                    f"Image Capture exports to a flat directory without subdirectories. "
+                    f"You may be pointing at the wrong level "
+                    f"(e.g. ~/Pictures instead of ~/Pictures/<Device>)."
+                )
             ]
             if check.has_subdirectories
             else []

@@ -18,12 +18,12 @@ from ..album.id import (
     format_image_external_id,
     format_video_external_id,
 )
-from .id import format_collection_external_id
 from ..album.naming import _album_date_range, parse_album_name
 from ..album.store.album_discovery import discover_albums
 from ..album.store.media_metadata import load_media_metadata
 from ..album.store.metadata import load_album_metadata
 from ..fsprotocol import ALBUMS_DIR, COLLECTIONS_DIR
+from .id import format_collection_external_id
 from .naming import parse_collection_name
 from .store.collection_discovery import discover_collections
 from .store.metadata import load_collection_metadata
@@ -33,7 +33,6 @@ from .store.protocol import (
     CollectionStrategy,
     validate_collection_config,
 )
-
 
 # ---------------------------------------------------------------------------
 # Result types
@@ -446,15 +445,13 @@ def check_collection(
 
     return CollectionCheckResult(
         collection_dir=collection_dir,
-        issues=tuple(
-            [
-                *_check_collection_config(metadata),
-                *_check_member_existence(metadata, lookup),
-                *_check_date_coverage(collection_dir, metadata, lookup),
-                *_check_smart_no_media(metadata),
-                *_check_chapter_no_overlap(collection_dir, metadata, lookup),
-                *_check_private_viral(collection_dir, metadata, lookup),
-            ]
+        issues=(
+            *_check_collection_config(metadata),
+            *_check_member_existence(metadata, lookup),
+            *_check_date_coverage(collection_dir, metadata, lookup),
+            *_check_smart_no_media(metadata),
+            *_check_chapter_no_overlap(collection_dir, metadata, lookup),
+            *_check_private_viral(collection_dir, metadata, lookup),
         ),
     )
 

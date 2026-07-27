@@ -2,16 +2,16 @@
 
 from pathlib import Path
 
-from photree.album.store.protocol import (
-    ios_import_csv,
-    ios_import_dir,
-    std_import_dir,
-)
 from photree.album.importer.batch import (
     categorize_albums,
     run_batch_import,
     scan_albums,
     validate_albums,
+)
+from photree.album.store.protocol import (
+    ios_import_csv,
+    ios_import_dir,
+    std_import_dir,
 )
 
 SEL_DIR = ios_import_dir("main")  # to-import-ios-main

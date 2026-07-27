@@ -49,8 +49,8 @@ $ photree album [OPTIONS] COMMAND [ARGS]...
 * `fix-ios`: Fix iOS-specific album issues.
 * `import-check`: Check that system prerequisites for import...
 * `import`: Import an album&#x27;s staged media into its...
-* `list-media`: List all media items in an album.
 * `init`: Initialize album metadata...
+* `list-media`: List all media items in an album.
 * `mv-media`: Move media files and all their variants...
 * `refresh`: Refresh all derived album data (browsable,...
 * `rm-media`: Remove media files and all their variants...
@@ -298,6 +298,21 @@ $ photree album import [OPTIONS]
 * `--skip-heic-to-jpeg`: Skip HEIC-to-JPEG conversion (and the sips availability check).
 * `--help`: Show this message and exit.
 
+### `photree album init`
+
+Initialize album metadata (.photree/album.yaml) with a new album ID.
+
+**Usage**:
+
+```console
+$ photree album init [OPTIONS]
+```
+
+**Options**:
+
+* `-a, --album-dir <directory>`: Album directory.  [default: .]
+* `--help`: Show this message and exit.
+
 ### `photree album list-media`
 
 List all media items in an album.
@@ -313,21 +328,6 @@ $ photree album list-media [OPTIONS]
 * `-a, --album-dir <directory>`: Album directory.  [default: .]
 * `--format <str>`: Output format: text (default) or csv.  [default: text]
 * `-o, --output <file>`: Write output to a file instead of stdout.
-* `--help`: Show this message and exit.
-
-### `photree album init`
-
-Initialize album metadata (.photree/album.yaml) with a new album ID.
-
-**Usage**:
-
-```console
-$ photree album init [OPTIONS]
-```
-
-**Options**:
-
-* `-a, --album-dir <directory>`: Album directory.  [default: .]
 * `--help`: Show this message and exit.
 
 ### `photree album mv-media`

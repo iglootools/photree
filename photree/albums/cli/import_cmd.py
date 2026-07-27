@@ -4,22 +4,23 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
-from . import albums_app
+from ...album.cli.helpers import _run_preflight_checks
 from ...album.faces.detect import memoized_face_analyzer_factory
-from ...album.importer import batch, output as importer_output
+from ...album.importer import batch
+from ...album.importer import output as importer_output
 from ...album.jpeg import convert_single_file, noop_convert_single
 from ...fsprotocol import LinkMode
-from ...album.cli.helpers import _run_preflight_checks
+from . import albums_app
 
 
 @albums_app.command("import")
 def import_cmd(
     albums_dir: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--dir",
             "-d",
@@ -30,7 +31,7 @@ def import_cmd(
         ),
     ] = None,
     album_dirs: Annotated[
-        Optional[list[Path]],
+        list[Path] | None,
         typer.Option(
             "--album-dir",
             "-a",
@@ -41,7 +42,7 @@ def import_cmd(
         ),
     ] = None,
     source: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--source",
             "-s",
@@ -51,7 +52,7 @@ def import_cmd(
         ),
     ] = None,
     config: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(
             "--config",
             "-c",
@@ -118,7 +119,7 @@ def import_cmd(
             [
                 p
                 for p in (
-                    albums_dir if albums_dir is not None else Path(".").resolve()
+                    albums_dir if albums_dir is not None else Path.cwd()
                 ).iterdir()
                 if p.is_dir()
             ]
@@ -130,7 +131,7 @@ def import_cmd(
     resolved_albums_dir = (
         None
         if album_dirs is not None
-        else (albums_dir if albums_dir is not None else Path(".").resolve())
+        else (albums_dir if albums_dir is not None else Path.cwd())
     )
 
     with BatchProgressBar(

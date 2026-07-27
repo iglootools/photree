@@ -6,7 +6,6 @@ from typing import Annotated
 
 import typer
 
-from . import AlbumDirOption, DirOption, albums_app
 from ...clihelpers.options import (
     CHECK_DATE_PART_COLLISION_OPTION,
     CHECK_EXIF_DATE_MATCH_OPTION,
@@ -16,6 +15,7 @@ from ...clihelpers.options import (
     FATAL_SIDECAR_OPTION,
     FATAL_WARNINGS_OPTION,
 )
+from . import AlbumDirOption, DirOption, albums_app
 from .batch_ops import run_batch_check
 from .ops import resolve_check_batch_albums
 

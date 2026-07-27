@@ -21,8 +21,8 @@ from .aggregate import (
     merge_size_stats,
 )
 from .models import (
-    AlbumStats,
     AggregateStats,
+    AlbumStats,
     FormatStats,
     GalleryStats,
     MediaSourceStats,

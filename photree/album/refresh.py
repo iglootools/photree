@@ -9,9 +9,8 @@ from typing import TYPE_CHECKING
 
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
-from ..fsprotocol import LinkMode
-
 from ..common.fs import list_files
+from ..fsprotocol import LinkMode
 
 if TYPE_CHECKING:
     from .faces.detect import FaceAnalyzerFactory
@@ -28,8 +27,8 @@ from .store.protocol import (
     IMG_EXTENSIONS,
     IOS_IMG_EXTENSIONS,
     IOS_VID_EXTENSIONS,
-    MediaSource,
     VID_EXTENSIONS,
+    MediaSource,
     _KeyFn,
 )
 
@@ -220,11 +219,11 @@ def refresh_album_derived_data(
     passed to amortize startup cost across albums in batch operations. When
     *analyzer_factory* is ``None``, face detection is skipped.
     """
+    from ..fsprotocol import resolve_link_mode
     from .check.media_metadata import check_media_metadata
     from .exif_cache.refresh import refresh_exif_cache
     from .faces.refresh import refresh_face_data
     from .store.media_sources_discovery import discover_media_sources
-    from ..fsprotocol import resolve_link_mode
 
     media_sources = discover_media_sources(album_dir)
     resolved_link_mode = link_mode or resolve_link_mode(None, album_dir)
@@ -281,6 +280,7 @@ def _refresh_browsable_dirs(
 ) -> None:
     """Conditionally refresh browsable dirs for all media sources."""
     from .browsable import refresh_browsable_dir
+    from .live_photo import augment_browsable_img_with_live_photo_videos
     from .store.protocol import (
         IMG_EXTENSIONS,
         IOS_IMG_EXTENSIONS,
@@ -288,14 +288,15 @@ def _refresh_browsable_dirs(
         VID_EXTENSIONS,
     )
 
-    from .live_photo import augment_browsable_img_with_live_photo_videos
-
     for ms in media_sources:
         img_ext = IOS_IMG_EXTENSIONS if ms.is_ios else IMG_EXTENSIONS
         vid_ext = IOS_VID_EXTENSIONS if ms.is_ios else VID_EXTENSIONS
 
         # main-img
-        if force or not _browsable_img_is_fresh(
+        # SIM102 is suppressed below: staleness and the dry-run guard are separate
+        # concerns, and nesting them reads better than collapsing the two into a
+        # single boolean expression wrapped around a multi-line call.
+        if force or not _browsable_img_is_fresh(  # noqa: SIM102
             album_dir, ms, img_ext=img_ext, vid_ext=vid_ext, link_mode=link_mode
         ):
             if not dry_run:
@@ -321,7 +322,7 @@ def _refresh_browsable_dirs(
                     )
 
         # main-vid
-        if force or not _browsable_is_fresh(
+        if force or not _browsable_is_fresh(  # noqa: SIM102
             album_dir,
             ms.orig_vid_dir,
             ms.edit_vid_dir,

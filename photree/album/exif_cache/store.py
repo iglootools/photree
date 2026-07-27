@@ -9,7 +9,6 @@ import yaml
 from ...fsprotocol import PHOTREE_DIR
 from .protocol import EXIF_CACHE_DIR, ExifCache
 
-
 # ---------------------------------------------------------------------------
 # Path helpers
 # ---------------------------------------------------------------------------

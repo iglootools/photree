@@ -8,10 +8,9 @@ layout or naming convention.
 from __future__ import annotations
 
 import shutil
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-
-from dataclasses import dataclass
 
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
@@ -161,6 +160,7 @@ def set_exif_date(
             *[f"-{t}" for t in tags],
             *[str(f) for f in files],
         ],
+        check=False,  # returncode is inspected below
         capture_output=True,
         text=True,
     )
@@ -193,6 +193,7 @@ def set_exif_date(
                 "-overwrite_original",
                 path,
             ],
+            check=False,
             capture_output=True,
         )
         changes.append(
@@ -226,6 +227,7 @@ def set_exif_date_time(
             "-overwrite_original",
             *[str(f) for f in files],
         ],
+        check=False,  # returncode is inspected below
     )
     return len(files) if result.returncode == 0 else 0
 
@@ -257,6 +259,7 @@ def shift_exif_date(
             "-overwrite_original",
             *[str(f) for f in files],
         ],
+        check=False,  # returncode is inspected below
     )
     return len(files) if result.returncode == 0 else 0
 
@@ -288,5 +291,6 @@ def shift_exif_time(
             "-overwrite_original",
             *[str(f) for f in files],
         ],
+        check=False,  # returncode is inspected below
     )
     return len(files) if result.returncode == 0 else 0

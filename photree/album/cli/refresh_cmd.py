@@ -9,9 +9,9 @@ import typer
 
 from ...clihelpers.console import console
 from ...clihelpers.progress import run_with_spinner
+from ...common.exif import try_start_exiftool
 from ...common.formatting import CHECK
 from ..faces.detect import memoized_face_analyzer_factory
-from ...common.exif import try_start_exiftool
 from . import album_app
 
 

@@ -31,7 +31,7 @@ def _names(directory: Path) -> set[str]:
 
 def _noop_convert(*args: object, **kwargs: object) -> None:
     """Stub for convert_file that does nothing (avoids calling sips)."""
-    return None
+    return
 
 
 # ---------------------------------------------------------------------------

@@ -51,6 +51,22 @@ build-backend = "poetry_dynamic_versioning.backend"
 [tool.ruff]
 target-version = "py312"
 
+# Ruff 0.16 turned on a much larger default rule set (413 rules, up from 59). We take
+# the new defaults; the exceptions below are rules that conflict with a deliberate
+# design decision in this codebase rather than rules we have not gotten around to.
+[tool.ruff.lint]
+ignore = [
+  # Photo capture times are naive wall-clock instants: EXIF DateTimeOriginal carries
+  # no offset, so attaching a tzinfo would invent information we do not have. DTZ005
+  # (datetime.now() without tz) stays enabled — that one is a real bug.
+  "DTZ001",
+  "DTZ007",
+  # Batch commands deliberately isolate per-item failures: one album that fails to
+  # export/fix/refresh must not abort the whole run, so the exception is captured into
+  # the batch result and reported to the user instead of propagating.
+  "BLE001",
+]
+
 [tool.pytest.ini_options]
 markers = [
     "integration_fs: filesystem integration tests (full workflow)",

@@ -11,8 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..common.fs import delete_files, file_ext, move_files
-from .store.media_sources_discovery import discover_media_sources
 from .store.media_sources import find_files_by_key
+from .store.media_sources_discovery import discover_media_sources
 from .store.protocol import VID_EXTENSIONS, MediaSource
 
 # ---------------------------------------------------------------------------
@@ -140,17 +140,12 @@ def _remove_empty_dirs(
     """Remove subdirectories that are now empty after a move/rm operation."""
     for subdir in subdirs:
         directory = album_dir / subdir
-        if directory.is_dir() and not any(directory.iterdir()):
-            if not dry_run:
-                directory.rmdir()
-                # Also remove parent if it's a nested archive dir (e.g. ios-main/orig-img)
-                parent = directory.parent
-                if (
-                    parent != album_dir
-                    and parent.is_dir()
-                    and not any(parent.iterdir())
-                ):
-                    parent.rmdir()
+        if directory.is_dir() and not any(directory.iterdir()) and not dry_run:
+            directory.rmdir()
+            # Also remove parent if it's a nested archive dir (e.g. ios-main/orig-img)
+            parent = directory.parent
+            if parent != album_dir and parent.is_dir() and not any(parent.iterdir()):
+                parent.rmdir()
 
 
 def _check_move_conflicts(

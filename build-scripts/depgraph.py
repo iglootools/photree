@@ -21,7 +21,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
@@ -61,6 +61,7 @@ def _run_pydeps(package: str = PACKAGE) -> str:
             "--rmprefix",
             f"{package}.",
         ],
+        check=False,  # returncode is inspected below
         capture_output=True,
         text=True,
     )
@@ -160,7 +161,7 @@ app = typer.Typer(add_completion=False)
 @app.command()
 def main(
     fmt: Annotated[
-        Optional[GraphFormat],
+        GraphFormat | None,
         typer.Option("--format", "-f", help="Print to stdout in this format"),
     ] = None,
     check: Annotated[

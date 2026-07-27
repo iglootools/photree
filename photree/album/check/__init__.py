@@ -21,7 +21,7 @@ from ..naming import (
     parse_album_name,
 )
 from ..store.album_discovery import (
-    discover_albums,  # noqa: F401 — re-exported for backward compat
+    discover_albums,
 )
 from ..store.media_sources_discovery import discover_media_sources
 from ..store.metadata import load_album_metadata
@@ -35,6 +35,8 @@ from .media_metadata import MediaMetadataCheck, check_media_metadata
 from .std import StdMediaSourceIntegrityResult, check_std_media_source_integrity
 from .system import (
     check_exiftool_available as check_exiftool_available,
+)
+from .system import (
     check_sips_available,
 )
 from .unexpected_dirs import UnexpectedDirsCheck, check_unexpected_dirs
@@ -173,65 +175,60 @@ class AlbumPreflightResult:
 
     @property
     def warning_labels(self) -> tuple[str, ...]:
-        return tuple(
-            [
-                *(["missing sidecars"] if self.has_sidecar_warnings else []),
-                *(["exif date mismatch"] if self.has_exif_warnings else []),
-            ]
+        return (
+            *(["missing sidecars"] if self.has_sidecar_warnings else []),
+            *(["exif date mismatch"] if self.has_exif_warnings else []),
         )
 
     @property
     def error_labels(self) -> tuple[str, ...]:
-        return tuple(
-            [
-                *(["sips not found"] if not self.sips_available else []),
-                *(["missing dirs"] if not self.dir_check.success else []),
-                *(
-                    ["missing album id"]
-                    if self.album_id_check is not None
-                    and not self.album_id_check.has_id
-                    else []
-                ),
-                *(
-                    ["unexpected dirs"]
-                    if self.unexpected_dirs_check is not None
-                    and not self.unexpected_dirs_check.success
-                    else []
-                ),
-                *(
-                    ["media metadata stale"]
-                    if self.media_metadata_check is not None
-                    and not self.media_metadata_check.in_sync
-                    else []
-                ),
-                *(
-                    ["integrity errors"]
-                    if self.integrity is not None and not self.integrity.success
-                    else []
-                ),
-                *(
-                    ["jpeg errors"]
-                    if self.jpeg_check is not None and not self.jpeg_check.success
-                    else []
-                ),
-                *(
-                    ["naming errors"]
-                    if self.naming is not None and not self.naming.success
-                    else []
-                ),
-                *(
-                    ["face state stale"]
-                    if self.face_state_check is not None
-                    and not self.face_state_check.success
-                    else []
-                ),
-                *(
-                    ["exif cache stale"]
-                    if self.exif_cache_check is not None
-                    and not self.exif_cache_check.success
-                    else []
-                ),
-            ]
+        return (
+            *(["sips not found"] if not self.sips_available else []),
+            *(["missing dirs"] if not self.dir_check.success else []),
+            *(
+                ["missing album id"]
+                if self.album_id_check is not None and not self.album_id_check.has_id
+                else []
+            ),
+            *(
+                ["unexpected dirs"]
+                if self.unexpected_dirs_check is not None
+                and not self.unexpected_dirs_check.success
+                else []
+            ),
+            *(
+                ["media metadata stale"]
+                if self.media_metadata_check is not None
+                and not self.media_metadata_check.in_sync
+                else []
+            ),
+            *(
+                ["integrity errors"]
+                if self.integrity is not None and not self.integrity.success
+                else []
+            ),
+            *(
+                ["jpeg errors"]
+                if self.jpeg_check is not None and not self.jpeg_check.success
+                else []
+            ),
+            *(
+                ["naming errors"]
+                if self.naming is not None and not self.naming.success
+                else []
+            ),
+            *(
+                ["face state stale"]
+                if self.face_state_check is not None
+                and not self.face_state_check.success
+                else []
+            ),
+            *(
+                ["exif cache stale"]
+                if self.exif_cache_check is not None
+                and not self.exif_cache_check.success
+                else []
+            ),
         )
 
     def has_fatal_warnings(self, *, fatal_sidecar: bool, fatal_exif: bool) -> bool:
@@ -243,38 +240,30 @@ class AlbumPreflightResult:
         self, *, fatal_sidecar: bool, fatal_exif: bool
     ) -> tuple[str, ...]:
         """Warning labels that are promoted to errors by fatal flags."""
-        return tuple(
-            [
-                *(
-                    ["missing sidecars"]
-                    if fatal_sidecar and self.has_sidecar_warnings
-                    else []
-                ),
-                *(
-                    ["exif date mismatch"]
-                    if fatal_exif and self.has_exif_warnings
-                    else []
-                ),
-            ]
+        return (
+            *(
+                ["missing sidecars"]
+                if fatal_sidecar and self.has_sidecar_warnings
+                else []
+            ),
+            *(["exif date mismatch"] if fatal_exif and self.has_exif_warnings else []),
         )
 
     def non_fatal_warning_labels(
         self, *, fatal_sidecar: bool, fatal_exif: bool
     ) -> tuple[str, ...]:
         """Warning labels that remain warnings (not promoted by fatal flags)."""
-        return tuple(
-            [
-                *(
-                    ["missing sidecars"]
-                    if not fatal_sidecar and self.has_sidecar_warnings
-                    else []
-                ),
-                *(
-                    ["exif date mismatch"]
-                    if not fatal_exif and self.has_exif_warnings
-                    else []
-                ),
-            ]
+        return (
+            *(
+                ["missing sidecars"]
+                if not fatal_sidecar and self.has_sidecar_warnings
+                else []
+            ),
+            *(
+                ["exif date mismatch"]
+                if not fatal_exif and self.has_exif_warnings
+                else []
+            ),
         )
 
 

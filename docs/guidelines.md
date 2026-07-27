@@ -78,7 +78,9 @@ managers (`with` syntax). Choose based on the operation:
 
 Usage pattern:
 ```python
-with BatchProgressBar(total=len(items), description="Checking", done_description="check") as progress:
+with BatchProgressBar(
+    total=len(items), description="Checking", done_description="check"
+) as progress:
     for item in items:
         progress.on_start(item.name)
         progress.on_end(item.name, success=True)

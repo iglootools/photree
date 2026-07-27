@@ -3,20 +3,20 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
-from . import gallery_app
 from ...albums.cli.batch_ops import run_batch_stats
 from ...albums.cli.ops import resolve_check_batch_albums
+from . import gallery_app
 from .ops import resolve_gallery_or_exit
 
 
 @gallery_app.command("stats")
 def stats_cmd(
     gallery_dir: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--gallery-dir",
             "-d",

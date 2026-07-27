@@ -19,11 +19,9 @@ from ...store.protocol import (
     IOS_VID_EXTENSIONS,
     MediaSource,
 )
-
 from ..browsable import BrowsableDirCheck, check_browsable_dir
 from ..jpeg import JpegCheck, check_jpeg_dir
 from .sidecar import SidecarCheck, check_sidecars
-
 
 # ---------------------------------------------------------------------------
 # Data classes
@@ -109,29 +107,27 @@ def check_miscategorized_files(
     orig_files = list_files(orig_dir)
     edit_files = list_files(edit_dir)
 
-    return tuple(
-        [
-            *[
-                f"{f} in {orig_dir.name}/ looks like an edited file (IMG_E prefix)"
-                for f in sorted(orig_files)
-                if ios_is_media(f) and ios_file_prefix(f) == "E"
-            ],
-            *[
-                f"{f} in {orig_dir.name}/ looks like an edited sidecar (IMG_O prefix)"
-                for f in sorted(orig_files)
-                if ios_file_prefix(f) == "O"
-            ],
-            *[
-                f"{f} in {edit_dir.name}/ looks like an original file (no E/O prefix)"
-                for f in sorted(edit_files)
-                if ios_is_media(f) and ios_file_prefix(f) == ""
-            ],
-            *[
-                f"{f} in {edit_dir.name}/ looks like an original sidecar (no E/O prefix)"
-                for f in sorted(edit_files)
-                if not ios_is_media(f) and ios_file_prefix(f) == ""
-            ],
-        ]
+    return (
+        *[
+            f"{f} in {orig_dir.name}/ looks like an edited file (IMG_E prefix)"
+            for f in sorted(orig_files)
+            if ios_is_media(f) and ios_file_prefix(f) == "E"
+        ],
+        *[
+            f"{f} in {orig_dir.name}/ looks like an edited sidecar (IMG_O prefix)"
+            for f in sorted(orig_files)
+            if ios_file_prefix(f) == "O"
+        ],
+        *[
+            f"{f} in {edit_dir.name}/ looks like an original file (no E/O prefix)"
+            for f in sorted(edit_files)
+            if ios_is_media(f) and ios_file_prefix(f) == ""
+        ],
+        *[
+            f"{f} in {edit_dir.name}/ looks like an original sidecar (no E/O prefix)"
+            for f in sorted(edit_files)
+            if not ios_is_media(f) and ios_file_prefix(f) == ""
+        ],
     )
 
 

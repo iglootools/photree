@@ -10,7 +10,7 @@ album_app = typer.Typer(
     no_args_is_help=True,
 )
 
-from . import (  # noqa: E402, F401 — imported for command registration side effects
+from . import (  # noqa: F401 — imported for command registration side effects
     check_cmd,
     detect_faces_cmd,
     export_cmd,
@@ -19,8 +19,8 @@ from . import (  # noqa: E402, F401 — imported for command registration side e
     fix_ios_cmd,
     import_check_cmd,
     import_cmd,
-    list_media_cmd,
     init_cmd,
+    list_media_cmd,
     mv_media_cmd,
     refresh_cmd,
     rm_media_cmd,

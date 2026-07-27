@@ -15,9 +15,9 @@ from typing import TYPE_CHECKING
 
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
-from ..album.store.metadata import load_album_metadata, save_album_metadata
-from ..album.store.media_metadata import load_media_metadata, save_media_metadata
 from ..album.id import generate_album_id
+from ..album.store.media_metadata import load_media_metadata, save_media_metadata
+from ..album.store.metadata import load_album_metadata, save_album_metadata
 from ..album.store.protocol import AlbumMetadata, parse_album_year
 from ..fsprotocol import ALBUMS_DIR, PHOTREE_DIR, LinkMode
 

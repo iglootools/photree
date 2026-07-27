@@ -193,7 +193,7 @@ class TestImplicitCollectionDetection:
     def test_removing_album_preserves_collection_id(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
         _, aid1 = _setup_album(gallery, "2024-07-14 - 01 - Trip - Day 1")
-        album2, aid2 = _setup_album(gallery, "2024-07-15 - 02 - Trip - Day 2")
+        album2, _aid2 = _setup_album(gallery, "2024-07-15 - 02 - Trip - Day 2")
 
         # First refresh creates the collection with both albums
         refresh_collections(gallery)
@@ -221,8 +221,8 @@ class TestImplicitCollectionDetection:
 class TestImplicitCollectionRename:
     def test_renames_when_all_albums_change_series(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
-        _, aid1 = _setup_album(gallery, "2024-07-14 - 01 - Old Name - Day 1")
-        _, aid2 = _setup_album(gallery, "2024-07-15 - 02 - Old Name - Day 2")
+        _, _aid1 = _setup_album(gallery, "2024-07-14 - 01 - Old Name - Day 1")
+        _, _aid2 = _setup_album(gallery, "2024-07-15 - 02 - Old Name - Day 2")
 
         # Create implicit collection
         refresh_collections(gallery)

@@ -3,16 +3,16 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
 from ...clihelpers.progress import BatchProgressBar
-from ...common.exif import try_start_exiftool
-from ...common.fs import display_path
 from ...collection.importer.import_members import import_collection_members
 from ...collection.importer.selection import has_selection
 from ...collection.store.collection_discovery import discover_collections
+from ...common.exif import try_start_exiftool
+from ...common.fs import display_path
 from ...gallery.cli.ops import resolve_gallery_or_exit
 from . import collections_app
 
@@ -20,7 +20,7 @@ from . import collections_app
 @collections_app.command("import")
 def import_cmd(
     collections_dir: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--dir",
             "-d",
@@ -31,7 +31,7 @@ def import_cmd(
         ),
     ] = None,
     collection_dirs: Annotated[
-        Optional[list[Path]],
+        list[Path] | None,
         typer.Option(
             "--collection-dir",
             "-c",
@@ -42,7 +42,7 @@ def import_cmd(
         ),
     ] = None,
     gallery_dir: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--gallery-dir",
             "-g",

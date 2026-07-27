@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ..store.protocol import MediaSourceType
 from ...collection.stats.models import GalleryCollectionStats
+from ..store.protocol import MediaSourceType
 
 
 @dataclass(frozen=True)

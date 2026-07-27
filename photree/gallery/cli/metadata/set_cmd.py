@@ -3,28 +3,28 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
-from . import gallery_metadata_app
-from ....common.fs import display_path
 from ....clihelpers.console import err_console
+from ....common.fs import display_path
 from ....fsprotocol import (
     GALLERY_YAML,
+    PHOTREE_DIR,
     GalleryMetadata,
     LinkMode,
-    PHOTREE_DIR,
     load_gallery_metadata,
     save_gallery_metadata,
 )
 from ..ops import resolve_gallery_or_exit
+from . import gallery_metadata_app
 
 
 @gallery_metadata_app.command("set")
 def set_cmd(
     gallery_dir: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--gallery-dir",
             "-d",
@@ -35,21 +35,21 @@ def set_cmd(
         ),
     ] = None,
     link_mode: Annotated[
-        Optional[LinkMode],
+        LinkMode | None,
         typer.Option(
             "--link-mode",
             help="Default link mode for refresh and other link-mode operations.",
         ),
     ] = None,
     faces_enabled: Annotated[
-        Optional[bool],
+        bool | None,
         typer.Option(
             "--faces-enabled",
             help="Enable face detection and clustering during gallery refresh.",
         ),
     ] = None,
     face_cluster_threshold: Annotated[
-        Optional[float],
+        float | None,
         typer.Option(
             "--face-cluster-threshold",
             help="Cosine distance threshold for face clustering (0.0-1.0).",

@@ -17,7 +17,6 @@ from ...fsprotocol import LinkMode
 from ..store.media_sources import dedup_media_dict
 from ..store.protocol import _KeyFn
 
-
 # ---------------------------------------------------------------------------
 # Data classes
 # ---------------------------------------------------------------------------

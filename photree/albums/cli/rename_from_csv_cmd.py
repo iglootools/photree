@@ -7,10 +7,10 @@ from typing import Annotated
 
 import typer
 
-from . import AlbumDirOption, DirOption, albums_app
 from ...album.id import format_album_external_id
-from ...common.fs import display_path
 from ...clihelpers.options import DRY_RUN_OPTION
+from ...common.fs import display_path
+from . import AlbumDirOption, DirOption, albums_app
 from .batch_ops import run_batch_rename_from_csv
 from .ops import resolve_check_batch_albums
 
@@ -37,8 +37,8 @@ def rename_from_csv_cmd(
     where a mutable field changed are renamed. Immutable fields (date, part,
     tags) are preserved from the current on-disk album name.
     """
-    from ..index import MissingAlbumIdError, build_album_index
     from ...clihelpers.console import err_console
+    from ..index import MissingAlbumIdError, build_album_index
 
     cwd = Path.cwd()
     albums, _ = resolve_check_batch_albums(base_dir, album_dirs)

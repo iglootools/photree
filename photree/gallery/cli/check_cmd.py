@@ -3,20 +3,16 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
-from . import gallery_app
 from ...album.faces.protocol import FACES_DIR
 from ...album.store.album_discovery import discover_albums
 from ...album.store.metadata import load_album_metadata
 from ...albums.cli.batch_ops import run_batch_check
 from ...albums.cli.ops import resolve_check_batch_albums
 from ...clihelpers.console import console
-from ...collection.check import check_all_collections
-from ...common.formatting import CHECK, CROSS
-from ...common.fs import display_path
 from ...clihelpers.options import (
     CHECK_DATE_PART_COLLISION_OPTION,
     CHECK_EXIF_DATE_MATCH_OPTION,
@@ -26,6 +22,9 @@ from ...clihelpers.options import (
     FATAL_SIDECAR_OPTION,
     FATAL_WARNINGS_OPTION,
 )
+from ...collection.check import check_all_collections
+from ...common.formatting import CHECK, CROSS
+from ...common.fs import display_path
 from ...fsprotocol import ALBUMS_DIR, PHOTREE_DIR
 from ..faces.manifest import (
     compute_npz_checksum,
@@ -34,13 +33,14 @@ from ..faces.manifest import (
     load_manifest,
 )
 from ..faces.protocol import FaceClusteringResult
+from . import gallery_app
 from .ops import resolve_gallery_or_exit
 
 
 @gallery_app.command("check")
 def check_cmd(
     gallery_dir: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--gallery-dir",
             "-d",
@@ -178,8 +178,10 @@ def _check_face_count_consistency(
     """Check that clusters.face_count matches manifest size."""
     return (
         [
-            f"face count mismatch: clusters.yaml says {clusters.face_count}, "
-            f"manifest has {manifest_size}"
+            (
+                f"face count mismatch: clusters.yaml says {clusters.face_count}, "
+                f"manifest has {manifest_size}"
+            )
         ]
         if clusters.face_count != manifest_size
         else []

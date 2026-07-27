@@ -10,11 +10,11 @@ collection_app = typer.Typer(
     no_args_is_help=True,
 )
 
-from .metadata import collection_metadata_app  # noqa: E402
+from .metadata import collection_metadata_app
 
 collection_app.add_typer(collection_metadata_app)
 
-from . import (  # noqa: E402, F401 — imported for command registration side effects
+from . import (  # noqa: F401 — imported for command registration side effects
     check_cmd,
     import_cmd,
     init_cmd,

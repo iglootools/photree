@@ -24,8 +24,10 @@ def _naming_block(album: Path, issues: tuple[NamingIssue, ...], cwd: Path) -> li
 
 def _structure_block(album: Path, cwd: Path) -> list[str]:
     return [
-        f"{CROSS} {display_path(album, cwd)} — no media source found "
-        "(expected an ios-* or std-* archive directory)"
+        (
+            f"{CROSS} {display_path(album, cwd)} — no media source found "
+            "(expected an ios-* or std-* archive directory)"
+        )
     ]
 
 
@@ -38,16 +40,20 @@ def _collision_block(date_str: str, names: tuple[str, ...]) -> list[str]:
 
 def _duplicate_id_block(dup: SourceDuplicate, cwd: Path) -> list[str]:
     return [
-        f"{CROSS} duplicate album ID {format_album_external_id(dup.album_id)} "
-        "among source albums:",
+        (
+            f"{CROSS} duplicate album ID {format_album_external_id(dup.album_id)} "
+            "among source albums:"
+        ),
         *(f"    {display_path(p, cwd)}" for p in dup.paths),
     ]
 
 
 def _clobber_block(conflict: ClobberConflict, cwd: Path) -> list[str]:
     return [
-        f"{CROSS} {display_path(conflict.source, cwd)} — a different album "
-        f"already occupies {display_path(conflict.existing, cwd)}",
+        (
+            f"{CROSS} {display_path(conflict.source, cwd)} — a different album "
+            f"already occupies {display_path(conflict.existing, cwd)}"
+        ),
         f"    source id:   {format_album_external_id(conflict.source_id)}",
         f"    existing id: {format_album_external_id(conflict.existing_id)}",
         "    Rename the source album before importing.",

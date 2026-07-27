@@ -5,8 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ..fsprotocol import AlbumShareLayout, ShareDirectoryLayout
-from ..fsprotocol import LinkMode
+from ..fsprotocol import AlbumShareLayout, LinkMode, ShareDirectoryLayout
 
 
 class ConfigError(Exception):
