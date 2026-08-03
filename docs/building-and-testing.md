@@ -13,7 +13,7 @@ mise run test-integration-fs # Filesystem integration tests (full workflow)
 mise run format             # ruff format
 mise run lint               # ruff check
 mise run type-check         # pyright
-mise run compat-check       # vermin (enforce Python >=3.12 compatibility)
+mise run compat-check       # vermin (enforce Python >=3.12 compatibility — see Python versions below)
 
 mise run clidocs            # Regenerate CLI reference in docs/cli-reference.md
 mise run clidocs-check      # Check that CLI reference is up to date
@@ -28,6 +28,26 @@ poetry run pyright photree/                          # type-checking
 poetry run vermin --target=3.12- --no-tips --no-parse-comments photree/ tests/  # compat check
 poetry run pytest tests/test_cli.py::TestVersionCommand::test_version_flag -v   # run a single test
 ```
+
+## Python versions
+
+Local development runs Python 3.14 (pinned in `mise.toml`), while the supported floor
+is 3.12 — the system `python3` on Ubuntu 24.04 LTS. Code must therefore not use any
+feature newer than 3.12, even though you are running 3.14. `mise run compat-check`
+(vermin) is what catches violations; ruff's and pyright's 3.12 targets catch some but
+not all of them.
+
+photree itself is macOS-only today (see [Installation](installation.md)), so the Ubuntu
+floor is about keeping the codebase portable rather than a platform we ship to — it
+matters if Linux support is added later, and it keeps the policy consistent across
+iglootools projects.
+
+CI currently tests only the 3.12 floor — the 3.14 matrix entry in
+`.github/workflows/test.yml` is commented out to save CI minutes.
+
+Raising the floor to 3.14 (Ubuntu 26.04 LTS) is under consideration; see the
+[Python Version Policy](https://github.com/iglootools/common-guidelines/blob/main/python.md#python-version-policy)
+for the full rationale and the list of knobs that must move together.
 
 The `check-links` workflow runs a link checker against the documentation to catch broken links.
 It is scheduled to run weekly, but can also be triggered manually using `gh workflow run check-links.yml`.
