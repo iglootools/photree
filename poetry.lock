@@ -1556,14 +1556,14 @@ typing-extensions = ">=4.14.1"
 
 [[package]]
 name = "pydeps"
-version = "3.0.6"
+version = "3.0.7"
 description = "Display module dependencies"
 optional = false
 python-versions = ">=3.10"
 groups = ["dev"]
 files = [
-    {file = "pydeps-3.0.6-py3-none-any.whl", hash = "sha256:fc102c0ee2ad25a1596714c7175d8060fa138aaa87eafb308e820e88a709e5fc"},
-    {file = "pydeps-3.0.6.tar.gz", hash = "sha256:7f8b12c9db90f5a2e009fe0ef75f2945bf698d6cc5fb064423a525823d423085"},
+    {file = "pydeps-3.0.7-py3-none-any.whl", hash = "sha256:39e8a484788a054defaefba7f127f975389de0c609dbfb66014203a65ba86d16"},
+    {file = "pydeps-3.0.7.tar.gz", hash = "sha256:69903a434bb0b9d8ba179545159d067ac6281a63229191b3fd1327e3e6c145da"},
 ]
 
 [package.dependencies]
@@ -2458,4 +2458,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.15"
-content-hash = "57f1509c95d18ba2969d4d68c8e107c10604cdef59c3457b28e56553dbbea9ca"
+content-hash = "9ce5d612444460798fddb1f1e1cd621e7f4f51e92a40dc7eea51e8e4550ecbb6"
