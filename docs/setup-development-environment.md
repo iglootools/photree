@@ -34,16 +34,16 @@ Install the following extensions:
 - [Pylance](https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-pylance) — type checking (uses pyright, configured via `[tool.pyright]` in `pyproject.toml`)
 - [Tombi](https://marketplace.visualstudio.com/items?itemName=tombi-toml.tombi) — TOML formatting and validation
 
-Select the Python interpreter from the `.venv` created by Poetry:
-
-1. Open the Command Palette (`Cmd+Shift+P`)
-2. Run **Python: Select Interpreter**
-3. Choose the `.venv` entry (e.g., `./.venv/bin/python`)
+No interpreter selection is needed: `.vscode/settings.json` and `[tool.pyright]` in `pyproject.toml`
+already point the editor at the `.venv` created by Poetry. See
+[Pyright environment resolution](https://github.com/iglootools/common-guidelines/blob/main/tooling.md#pyright-environment-resolution)
+and [VSCode setup](https://github.com/iglootools/common-guidelines/blob/main/tooling.md#vscode)
+in the shared guidelines for what those settings do, how to verify them, and why a window reload is
+required after changing them.
 
 ## Claude Code Setup
 
-Install the Pyright LSP plugin to enable IDE-like code intelligence (go-to-definition, find-references):
-
-```bash
-claude /plugin install pyright@claude-code-lsps
-```
+Install the Pyright LSP plugin so Claude resolves symbols instead of grepping for them. Follow
+[Claude Code setup in the shared guidelines](https://github.com/iglootools/common-guidelines/blob/main/tooling.md#claude-code)
+once the virtualenv step above is done — it covers the install command, why `pyright-langserver` has
+to come from this project's `.venv`, and how to verify that it does.
