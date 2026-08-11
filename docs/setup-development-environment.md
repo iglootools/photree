@@ -28,16 +28,15 @@
 
 ## VSCode Setup
 
-Install the following extensions:
-
-- [Ruff](https://marketplace.visualstudio.com/items?itemName=charliermarsh.ruff) — formatting and linting (format-on-save is enabled in `.vscode/settings.json`)
-- [Pylance](https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-pylance) — type checking (uses pyright, configured via `[tool.pyright]` in `pyproject.toml`)
-- [Tombi](https://marketplace.visualstudio.com/items?itemName=tombi-toml.tombi) — TOML formatting and validation
+Accept the recommended extensions when VSCode prompts on first open — the set is committed in
+`.vscode/extensions.json`. See
+[VSCode setup](https://github.com/iglootools/common-guidelines/blob/main/tooling.md#vscode) in the
+shared guidelines for what each one is for, and which committed settings silently stop working
+without it.
 
 No interpreter selection is needed: `.vscode/settings.json` and `[tool.pyright]` in `pyproject.toml`
 already point the editor at the `.venv` created by Poetry. See
 [Pyright environment resolution](https://github.com/iglootools/common-guidelines/blob/main/tooling.md#pyright-environment-resolution)
-and [VSCode setup](https://github.com/iglootools/common-guidelines/blob/main/tooling.md#vscode)
 in the shared guidelines for what those settings do, how to verify them, and why a window reload is
 required after changing them.
 
