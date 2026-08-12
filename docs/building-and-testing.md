@@ -3,7 +3,7 @@
 Run automated tests and checks:
 ```bash
 # mise tasks
-mise run check              # Run all checks: format + lint + type-check + compat-check + clidocs-check + depgraph-check
+mise run check              # Run all checks: format + lint + type-check + compat-check + lock-check + lock-check-uv + clidocs-check + depgraph-check
 mise run check-all          # Run all checks: regular checks + all tests
 
 mise run test-all           # All tests (unit + integration)
@@ -20,14 +20,29 @@ mise run clidocs-check      # Check that CLI reference is up to date
 mise run depgraph           # Regenerate Module Overview in docs/architecture.md
 mise run depgraph-check     # Check that Module Overview is up to date
 
-# Using Poetry syntax directly
-poetry run pytest tests/ -v                         # All tests
-poetry run ruff format .                            # formatting
-poetry run ruff check photree/ tests/               # linting
-poetry run pyright photree/                          # type-checking
-poetry run vermin --target=3.12- --no-tips --no-parse-comments photree/ tests/  # compat check
-poetry run pytest tests/test_cli.py::TestVersionCommand::test_version_flag -v   # run a single test
+mise run install            # Sync .venv with uv.lock (rarely needed by hand — see below)
+mise run reinstall          # Delete .venv and sync from scratch
+mise run lock-check-uv      # Check uv.lock is consistent with pyproject.toml
+
+# Running tools directly
+uv run pytest tests/ -v                         # All tests
+uv run ruff format .                            # formatting
+uv run ruff check photree/ tests/               # linting
+uv run pyright photree/                         # type-checking
+uv run vermin --target=3.12- --no-tips --no-parse-comments photree/ tests/  # compat check
+uv run pytest tests/test_cli.py::TestVersionCommand::test_version_flag -v   # run a single test
 ```
+
+`uv run` is the prefix to use rather than a bare `pytest`/`ruff`. It resolves the
+environment from the project root, so it is correct regardless of what is on `PATH` — a bare
+command in a shell that has *another* project's `.venv` active silently runs that project's
+copy of the tool. The mise tasks above use `uv run --no-sync` for the same reason.
+
+Dependencies install themselves: `[deps.uv]` in `mise.toml` runs `uv sync` before any
+`mise run` whenever `uv.lock` or `pyproject.toml` has changed, or `.venv` has gone missing.
+So `mise run install` is seldom needed explicitly, and `mise run reinstall` is for the case
+that automatic check cannot see — a `.venv` that is *dirty* rather than *stale*, e.g. after
+a manual `uv pip install`. Add or remove dependencies with `uv add` / `uv remove`.
 
 ## Python versions
 

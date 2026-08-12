@@ -9,7 +9,7 @@
 #   agg demo/demo.cast demo/demo.gif
 #
 # Requirements:
-#   pip install photree  # or: poetry install (dev)
+#   uv tool install photree  # or: mise run install (dev)
 #   brew install pv tree # for simulated typing + directory trees
 
 set -euo pipefail
