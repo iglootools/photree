@@ -30,17 +30,27 @@ Verify the installation:
 exiftool -ver
 ```
 
-## Install with pipx
+## Install with uv
 
-[pipx](https://pipx.pypa.io/) installs CLI tools in isolated environments, keeping your system Python clean:
+[uv](https://docs.astral.sh/uv/) installs CLI tools in isolated environments, keeping your system
+Python clean:
 
 ```bash
-pipx install photree
+uv tool install photree
 ```
 
 To upgrade to the latest version:
 
 ```bash
+uv tool upgrade photree
+```
+
+## Install with pipx
+
+[pipx](https://pipx.pypa.io/) does the same thing, and is a fine alternative if you already have it:
+
+```bash
+pipx install photree
 pipx upgrade photree
 ```
 
