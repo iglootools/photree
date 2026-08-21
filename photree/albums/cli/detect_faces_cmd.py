@@ -55,7 +55,7 @@ def detect_faces_cmd(
         typer.echo(f"\nFound {len(albums)} album(s).\n")
 
     analyzer_factory = memoized_face_analyzer_factory()
-    failed_albums: list[Path] = []
+    failures: list[tuple[Path, str]] = []
     display_fn = make_display_fn(display_base, cwd)
 
     with BatchProgressBar(
@@ -67,21 +67,30 @@ def detect_faces_cmd(
             album_name = display_fn(album_dir)
             progress.on_start(album_name)
             try:
-                refresh_face_data(
+                result = refresh_face_data(
                     album_dir,
                     analyzer_factory=analyzer_factory,
                     redetect=redetect,
                     refresh_thumbs=refresh_thumbs,
                     dry_run=dry_run,
                 )
-                progress.on_end(album_name, success=True)
-            except Exception:
-                progress.on_end(album_name, success=False)
-                failed_albums.append(album_dir)
+            except Exception as exc:
+                progress.on_end(album_name, success=False, error_labels=(str(exc),))
+                failures.append((album_dir, str(exc)))
+            else:
+                labels = tuple(
+                    f"{ms}/{f.key} ({f.stage}): {f.reason}" for ms, f in result.failures
+                )
+                progress.on_end(album_name, success=not labels, error_labels=labels)
+                if labels:
+                    failures.append((album_dir, "; ".join(labels)))
 
-    if failed_albums:
+    if failures:
         err_console.print("\nFailed albums:")
-        for album_dir in failed_albums:
+        for album_dir, reason in failures:
+            err_console.print(f"  {display_path(album_dir, cwd)}\n    {reason}")
+        err_console.print("\nTo investigate failures:")
+        for album_dir, _ in failures:
             err_console.print(
                 f'  photree album detect-faces --album-dir "{display_path(album_dir, cwd)}"'
             )

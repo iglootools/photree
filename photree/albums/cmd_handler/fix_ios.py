@@ -8,6 +8,7 @@ from pathlib import Path
 
 from ...album.fix.ios import run_fix_ios
 from ...album.fix.ios.output import format_fix_ios_result
+from . import BatchFailure
 
 
 @dataclass(frozen=True)
@@ -15,7 +16,12 @@ class BatchFixIosResult:
     """Result of batch iOS album fixing."""
 
     fixed: int
-    failed_albums: list[Path] = field(default_factory=list)
+    failures: list[BatchFailure] = field(default_factory=list)
+
+    @property
+    def failed_albums(self) -> list[Path]:
+        return [f.album_dir for f in self.failures]
+
     album_reports: list[tuple[str, str]] = field(default_factory=list)
 
 
@@ -30,15 +36,15 @@ def batch_fix_ios(
     mv_miscategorized: bool = False,
     display_fn: Callable[[Path], str] = lambda p: p.name,
     on_start: Callable[[str], None] | None = None,
-    on_end: Callable[[str, bool], None] | None = None,
+    on_end: Callable[[str, bool, tuple[str, ...]], None] | None = None,
 ) -> BatchFixIosResult:
     """Fix iOS-specific issues on multiple albums.
 
-    Calls ``on_start(name)`` before and ``on_end(name, success)`` after
+    Calls ``on_start(name)`` before and ``on_end(name, success, error_labels)`` after
     each album.
     """
     fixed = 0
-    failed_albums: list[Path] = []
+    failures: list[BatchFailure] = []
     album_reports: list[tuple[str, str]] = []
 
     for album_dir in albums:
@@ -57,18 +63,18 @@ def batch_fix_ios(
                 mv_miscategorized=mv_miscategorized,
             )
             if on_end:
-                on_end(album_name, True)
+                on_end(album_name, True, ())
             fixed += 1
             lines = format_fix_ios_result(result)
             if lines:
                 album_reports.append((album_name, "\n".join(lines)))
-        except Exception:
+        except Exception as exc:
             if on_end:
-                on_end(album_name, False)
-            failed_albums.append(album_dir)
+                on_end(album_name, False, (str(exc),))
+            failures.append(BatchFailure(album_dir=album_dir, reason=str(exc)))
 
     return BatchFixIosResult(
         fixed=fixed,
-        failed_albums=failed_albums,
+        failures=failures,
         album_reports=album_reports,
     )

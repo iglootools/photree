@@ -9,6 +9,7 @@ from pathlib import Path
 from ...album.faces.detect import memoized_face_analyzer_factory
 from ...album.refresh import refresh_album_derived_data
 from ...common.exif import try_start_exiftool
+from . import BatchFailure
 
 
 @dataclass(frozen=True)
@@ -16,7 +17,11 @@ class BatchRefreshResult:
     """Result of batch media metadata refresh."""
 
     refreshed: int
-    failed_albums: list[Path] = field(default_factory=list)
+    failures: list[BatchFailure] = field(default_factory=list)
+
+    @property
+    def failed_albums(self) -> list[Path]:
+        return [f.album_dir for f in self.failures]
 
 
 def batch_refresh(
@@ -41,7 +46,7 @@ def batch_refresh(
     albums (the model loads once, on the first album with images to detect).
     """
     refreshed = 0
-    failed_albums: list[Path] = []
+    failures: list[BatchFailure] = []
 
     exiftool = try_start_exiftool()
     analyzer_factory = memoized_face_analyzer_factory()
@@ -75,17 +80,22 @@ def batch_refresh(
                     )
                     if on_end:
                         on_end(album_name, False, labels)
-                    failed_albums.append(album_dir)
+                    failures.append(
+                        BatchFailure(
+                            album_dir=album_dir,
+                            reason=f"jpeg conversion failed: {'; '.join(labels)}",
+                        )
+                    )
                 else:
                     if on_end:
                         on_end(album_name, True, ())
                     refreshed += 1
-            except Exception:
+            except Exception as exc:
                 if on_end:
-                    on_end(album_name, False, ())
-                failed_albums.append(album_dir)
+                    on_end(album_name, False, (str(exc),))
+                failures.append(BatchFailure(album_dir=album_dir, reason=str(exc)))
     finally:
         if exiftool is not None:
             exiftool.__exit__(None, None, None)
 
-    return BatchRefreshResult(refreshed=refreshed, failed_albums=failed_albums)
+    return BatchRefreshResult(refreshed=refreshed, failures=failures)

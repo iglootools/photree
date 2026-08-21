@@ -38,6 +38,7 @@ from ...common.exif import try_start_exiftool
 from ...common.formatting import CHECK, CROSS
 from ...common.fs import display_path
 from ...fsprotocol import LinkMode, resolve_link_mode
+from ..cmd_handler import BatchFailure
 from ..cmd_handler.check import batch_check
 from ..cmd_handler.fix import batch_fix
 from ..cmd_handler.fix_ios import batch_fix_ios
@@ -46,6 +47,16 @@ from ..cmd_handler.refresh import batch_refresh
 from ..cmd_handler.rename import batch_rename_from_csv
 from ..cmd_handler.stats import batch_stats
 from .ops import display_name, make_display_fn
+
+
+def batch_failures_report(failures: list[BatchFailure], base: Path) -> str:
+    """Format each failed album with the reason it failed."""
+    return "\n".join(
+        [
+            "\nFailed albums:",
+            *(f"  {display_path(f.album_dir, base)}\n    {f.reason}" for f in failures),
+        ]
+    )
 
 
 def run_batch_init(
@@ -82,7 +93,8 @@ def run_batch_init(
     )
 
     if result.failed_albums:
-        err_console.print("\nFailed albums:")
+        err_console.print(batch_failures_report(result.failures, cwd))
+        err_console.print("\nTo investigate failures:")
         for album_dir in result.failed_albums:
             err_console.print(
                 f'  photree album init --album-dir "{display_path(album_dir, cwd)}"'
@@ -135,7 +147,8 @@ def run_batch_refresh(
     )
 
     if result.failed_albums:
-        err_console.print("\nFailed albums:")
+        err_console.print(batch_failures_report(result.failures, cwd))
+        err_console.print("\nTo investigate failures:")
         for album_dir in result.failed_albums:
             err_console.print(
                 f'  photree album refresh --album-dir "{display_path(album_dir, cwd)}"'
@@ -496,7 +509,9 @@ def run_batch_fix(
             dry_run=dry_run,
             display_fn=make_display_fn(display_base, cwd),
             on_start=progress.on_start,
-            on_end=lambda name, success: progress.on_end(name, success=success),
+            on_end=lambda name, success, errors: progress.on_end(
+                name, success=success, error_labels=errors
+            ),
             max_workers=max_workers,
         )
 
@@ -509,7 +524,8 @@ def run_batch_fix(
     console.print(batch_fix_summary(result.fixed, len(result.failed_albums)))
 
     if result.failed_albums:
-        err_console.print("\nFailed albums:")
+        err_console.print(batch_failures_report(result.failures, cwd))
+        err_console.print("\nTo investigate failures:")
         for album_dir in result.failed_albums:
             err_console.print(
                 f'  photree album fix --album-dir "{display_path(album_dir, cwd)}"'
@@ -551,7 +567,9 @@ def run_batch_fix_ios(
             mv_miscategorized=mv_miscategorized,
             display_fn=make_display_fn(display_base, cwd),
             on_start=progress.on_start,
-            on_end=lambda name, success: progress.on_end(name, success=success),
+            on_end=lambda name, success, errors: progress.on_end(
+                name, success=success, error_labels=errors
+            ),
         )
 
     if result.album_reports:
@@ -563,7 +581,8 @@ def run_batch_fix_ios(
     console.print(batch_fix_ios_summary(result.fixed, len(result.failed_albums)))
 
     if result.failed_albums:
-        err_console.print("\nFailed albums:")
+        err_console.print(batch_failures_report(result.failures, cwd))
+        err_console.print("\nTo investigate failures:")
         for album_dir in result.failed_albums:
             err_console.print(
                 f'  photree album fix-ios --album-dir "{display_path(album_dir, cwd)}"'
