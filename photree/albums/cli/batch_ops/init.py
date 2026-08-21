@@ -8,10 +8,9 @@ import typer
 
 from ....clihelpers.console import err_console
 from ....clihelpers.progress import BatchProgressBar
-from ....common.fs import display_path
 from ...cmd_handler.init import batch_init
 from ..ops import make_display_fn
-from .failures import batch_failures_report
+from .failures import batch_failures_report, investigate_commands
 
 
 def run_batch_init(
@@ -49,9 +48,5 @@ def run_batch_init(
 
     if result.failed_albums:
         err_console.print(batch_failures_report(result.failures, cwd))
-        err_console.print("\nTo investigate failures:")
-        for album_dir in result.failed_albums:
-            err_console.print(
-                f'  photree album init --album-dir "{display_path(album_dir, cwd)}"'
-            )
+        err_console.print(investigate_commands("init", result.failed_albums, cwd))
         raise typer.Exit(code=1)

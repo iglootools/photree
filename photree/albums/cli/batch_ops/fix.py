@@ -10,12 +10,15 @@ from ....album.fix.ios.output import batch_fix_ios_summary
 from ....album.fix.output import batch_fix_summary
 from ....clihelpers.console import console, err_console
 from ....clihelpers.progress import BatchProgressBar
-from ....common.fs import display_path
 from ....fsprotocol import LinkMode
 from ...cmd_handler.fix import batch_fix
 from ...cmd_handler.fix_ios import batch_fix_ios
 from ..ops import make_display_fn
-from .failures import batch_failures_report
+from .failures import (
+    album_reports_block,
+    batch_failures_report,
+    investigate_commands,
+)
 
 
 def run_batch_fix(
@@ -61,19 +64,13 @@ def run_batch_fix(
 
     if result.album_reports:
         typer.echo("")
-        for album_name, report in result.album_reports:
-            typer.echo(f"{album_name}:")
-            typer.echo(report, color=True)
+        typer.echo(album_reports_block(result.album_reports), color=True)
 
     console.print(batch_fix_summary(result.fixed, len(result.failed_albums)))
 
     if result.failed_albums:
         err_console.print(batch_failures_report(result.failures, cwd))
-        err_console.print("\nTo investigate failures:")
-        for album_dir in result.failed_albums:
-            err_console.print(
-                f'  photree album fix --album-dir "{display_path(album_dir, cwd)}"'
-            )
+        err_console.print(investigate_commands("fix", result.failed_albums, cwd))
         raise typer.Exit(code=1)
 
 
@@ -118,17 +115,11 @@ def run_batch_fix_ios(
 
     if result.album_reports:
         typer.echo("")
-        for album_name, report in result.album_reports:
-            typer.echo(f"{album_name}:")
-            typer.echo(report, color=True)
+        typer.echo(album_reports_block(result.album_reports), color=True)
 
     console.print(batch_fix_ios_summary(result.fixed, len(result.failed_albums)))
 
     if result.failed_albums:
         err_console.print(batch_failures_report(result.failures, cwd))
-        err_console.print("\nTo investigate failures:")
-        for album_dir in result.failed_albums:
-            err_console.print(
-                f'  photree album fix-ios --album-dir "{display_path(album_dir, cwd)}"'
-            )
+        err_console.print(investigate_commands("fix-ios", result.failed_albums, cwd))
         raise typer.Exit(code=1)

@@ -15,11 +15,10 @@ from ....album.naming import BatchNamingResult
 from ....clihelpers.console import console, err_console
 from ....clihelpers.progress import BatchProgressBar
 from ....common.exif import try_start_exiftool
-from ....common.formatting import CHECK, CROSS
-from ....common.fs import display_path
 from ....fsprotocol import LinkMode, resolve_link_mode
 from ...cmd_handler.check import batch_check
 from ..ops import make_display_fn
+from .failures import investigate_commands
 
 
 def run_batch_check(
@@ -43,8 +42,11 @@ def run_batch_check(
     exiftool = try_start_exiftool() if check_exif_date_match else None
     exiftool_available = exiftool is not None
     typer.echo("System Checks:")
-    console.print(preflight_output.sips_check(sips_available))
-    console.print(preflight_output.exiftool_check(exiftool_available))
+    console.print(
+        preflight_output.batch_system_checks(
+            sips_available=sips_available, exiftool_available=exiftool_available
+        )
+    )
     if not sips_available:
         typer.echo("")
         err_console.print(preflight_output.sips_troubleshoot())
@@ -118,22 +120,22 @@ def run_batch_check(
         )
 
     if cross_album.duplicate_ids:
-        for aid, paths in cross_album.duplicate_ids.items():
-            ext_id = format_album_external_id(aid)
-            err_console.print(f"{CROSS} duplicate album id: {ext_id}")
-            for p in paths:
-                err_console.print(f"    {display_path(p, cwd)}")
+        err_console.print(
+            preflight_output.duplicate_ids_report(
+                "album", cross_album.duplicate_ids, cwd, format_album_external_id
+            )
+        )
     else:
-        console.print(f"{CHECK} no duplicate album ids")
+        console.print(preflight_output.no_duplicate_ids_line("album"))
 
     if cross_album.duplicate_media_ids:
-        for mid, paths in cross_album.duplicate_media_ids.items():
-            ext_id = format_image_external_id(mid)
-            err_console.print(f"{CROSS} duplicate media id: {ext_id}")
-            for p in paths:
-                err_console.print(f"    {display_path(p, cwd)}")
+        err_console.print(
+            preflight_output.duplicate_ids_report(
+                "media", cross_album.duplicate_media_ids, cwd, format_image_external_id
+            )
+        )
     else:
-        console.print(f"{CHECK} no duplicate media ids")
+        console.print(preflight_output.no_duplicate_ids_line("media"))
 
     # Merge cross-album failures into result
     if cross_album.failed_albums:
@@ -145,18 +147,18 @@ def run_batch_check(
     )
 
     if result.failed_albums:
-        extra_flags = "".join(
-            [
-                " --fatal-warnings" if fatal_warnings else "",
-                " --fatal-sidecar" if fatal_sidecar_arg else "",
-                " --no-fatal-exif-date-match" if not fatal_exif_date_match else "",
-            ]
-        )
-        err_console.print("\nTo investigate failures:")
-        for album_dir in sorted(set(result.failed_albums)):
-            err_console.print(
-                f'  photree album check --album-dir "{display_path(album_dir, cwd)}"{extra_flags}'
+        err_console.print(
+            investigate_commands(
+                "check",
+                sorted(set(result.failed_albums)),
+                cwd,
+                extra_flags=preflight_output.batch_check_retry_flags(
+                    fatal_warnings=fatal_warnings,
+                    fatal_sidecar=fatal_sidecar_arg,
+                    fatal_exif_date_match=fatal_exif_date_match,
+                ),
             )
+        )
         raise typer.Exit(code=1)
 
 
