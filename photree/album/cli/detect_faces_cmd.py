@@ -7,6 +7,7 @@ from typing import Annotated
 
 import typer
 
+from ...clihelpers.console import err_console
 from ...clihelpers.sysdeps import FACE_DETECTION_DEPS, require_system_deps
 from ..faces.detect import memoized_face_analyzer_factory
 from ..faces.refresh import refresh_face_data
@@ -70,3 +71,11 @@ def detect_faces_cmd(
         if ms_result.failed:
             parts.append(f"{ms_result.failed} failed")
         typer.echo(f"  {ms_name}: {', '.join(parts)}")
+
+    if result.failures:
+        err_console.print("\nFailed images:")
+        for ms_name, failure in result.failures:
+            err_console.print(
+                f"  {ms_name}/{failure.key} ({failure.stage}): {failure.reason}"
+            )
+        raise typer.Exit(code=1)
