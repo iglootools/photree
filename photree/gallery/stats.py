@@ -41,8 +41,14 @@ class GalleryStats:
 def compute_gallery_stats(albums: AlbumsStats, gallery_dir: Path) -> GalleryStats:
     """Wrap *albums* with the collection and cache totals for *gallery_dir*."""
     gallery_face_size = scan_directory_size(gallery_faces_dir(gallery_dir))
+    # albums.cache_storage is None when no album has a .photree/cache/ yet —
+    # the filter has to survive that, not just an empty one.
     cache_storage = merge_size_stats(
-        [s for s in [albums.cache_storage, gallery_face_size] if s.file_count > 0]
+        [
+            s
+            for s in [albums.cache_storage, gallery_face_size]
+            if s is not None and s.file_count > 0
+        ]
     )
 
     return GalleryStats(
