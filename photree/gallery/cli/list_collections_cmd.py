@@ -9,13 +9,13 @@ from typing import Annotated
 import typer
 
 from ...clihelpers.csvout import csv_output
+from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...collection.id import format_collection_external_id
 from ...collection.naming import parse_collection_name
 from ...collection.store.collection_discovery import discover_collections
 from ...collection.store.metadata import load_collection_metadata
 from ...fsprotocol import COLLECTIONS_DIR
 from . import gallery_app
-from .ops import resolve_gallery_or_exit
 
 
 def _display_name(col_dir: Path, gallery_dir: Path, cwd: Path) -> str:

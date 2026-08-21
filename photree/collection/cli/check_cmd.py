@@ -8,9 +8,9 @@ from typing import Annotated
 import typer
 
 from ...clihelpers.console import console, err_console
+from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...common.formatting import CHECK, CROSS
 from ...common.fs import display_path
-from ...gallery.cli.ops import resolve_gallery_or_exit
 from ..check import build_gallery_lookup, check_collection
 from . import collection_app
 

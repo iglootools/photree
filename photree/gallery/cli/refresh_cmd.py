@@ -12,6 +12,7 @@ from ...albums.cli.ops import resolve_check_batch_albums
 from ...clihelpers.console import err_console
 from ...clihelpers.options import DRY_RUN_OPTION
 from ...clihelpers.progress import StageProgressBar, run_with_spinner
+from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...clihelpers.sysdeps import refresh_deps, require_system_deps
 from ...common.formatting import CHECK
 from ...fsprotocol import GALLERY_YAML, PHOTREE_DIR, load_gallery_metadata
@@ -24,7 +25,7 @@ from ..collection_refresh import (
     refresh_collections,
 )
 from . import gallery_app
-from .ops import resolve_gallery_or_exit, run_face_clustering
+from .ops import run_face_clustering
 
 
 @gallery_app.command("refresh")

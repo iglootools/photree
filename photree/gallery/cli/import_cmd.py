@@ -9,6 +9,7 @@ from typing import Annotated
 import typer
 
 from ...clihelpers.options import REIMPORT_OPTION
+from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...clihelpers.sysdeps import import_deps, require_system_deps
 from ...fsprotocol import (
     GALLERY_YAML,
@@ -24,7 +25,6 @@ from .ops import (
     plan_imports_or_exit,
     print_single_import_result,
     render_skipped,
-    resolve_gallery_or_exit,
     run_face_clustering,
     run_single_import,
 )

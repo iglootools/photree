@@ -8,10 +8,10 @@ from typing import Annotated
 import typer
 
 from ...album.store.album_discovery import discover_albums
+from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...common.fs import display_path
 from ...fsprotocol import ALBUMS_DIR, GALLERY_YAML, PHOTREE_DIR, load_gallery_metadata
 from . import gallery_app
-from .ops import resolve_gallery_or_exit
 
 
 @gallery_app.command("show")

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 import typer
@@ -19,9 +20,14 @@ def run_batch_stats(
     albums: list[Path],
     display_base: Path | None,
     *,
-    gallery_dir: Path | None = None,
+    enrich: Callable[[stats_models.GalleryStats], stats_models.GalleryStats]
+    | None = None,
 ) -> None:
-    """Shared implementation for gallery stats / albums stats."""
+    """Shared implementation for gallery stats / albums stats.
+
+    *enrich* lets the gallery add its own totals without this module knowing
+    what a gallery is — the dependency runs gallery -> albums, never back.
+    """
     from ....album.naming import parse_album_name
 
     cwd = Path.cwd()
@@ -53,36 +59,8 @@ def run_batch_stats(
             on_end=lambda name, success: progress.on_end(name, success=success),
         )
 
-    if gallery_dir is not None:
-        result = _enrich_gallery_stats(result, gallery_dir)
+    if enrich is not None:
+        result = enrich(result)
 
     typer.echo("")
     console.print(stats_output.format_gallery_stats(result))
-
-
-def _enrich_gallery_stats(
-    result: stats_models.GalleryStats, gallery_dir: Path
-) -> stats_models.GalleryStats:
-    """Add collection stats and gallery-level cache storage from gallery context."""
-    from ....album.stats.aggregate import merge_size_stats
-    from ....album.stats.scan import scan_directory_size
-    from ....collection.stats import compute_gallery_collection_stats
-    from ....gallery.faces.manifest import gallery_faces_dir
-
-    col_stats = compute_gallery_collection_stats(gallery_dir)
-
-    # Gallery-level face index storage (clusters, FAISS index, manifest)
-    gallery_face_size = scan_directory_size(gallery_faces_dir(gallery_dir))
-    cache_storage = merge_size_stats(
-        [s for s in [result.cache_storage, gallery_face_size] if s.file_count > 0]
-    )
-
-    return stats_models.GalleryStats(
-        album_count=result.album_count,
-        by_album=result.by_album,
-        aggregate=result.aggregate,
-        unique_media_source_names=result.unique_media_source_names,
-        by_year=result.by_year,
-        collection_stats=col_stats,
-        cache_storage=cache_storage if cache_storage.file_count > 0 else None,
-    )

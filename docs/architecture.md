@@ -36,11 +36,9 @@ graph TD
     album --> fsprotocol
     albums --> album
     albums --> clihelpers
-    albums --> collection
     albums --> common
     albums --> config
     albums --> fsprotocol
-    albums --> gallery
     check --> clihelpers
     check --> common
     cli --> album
@@ -58,11 +56,9 @@ graph TD
     collection --> clihelpers
     collection --> common
     collection --> fsprotocol
-    collection --> gallery
     collections --> clihelpers
     collections --> collection
     collections --> common
-    collections --> gallery
     config --> fsprotocol
     demo --> album
     gallery --> album

@@ -9,8 +9,9 @@ import typer
 
 from ...albums.cli.batch_ops.stats import run_batch_stats
 from ...albums.cli.ops import resolve_check_batch_albums
+from ...clihelpers.resolution import resolve_gallery_or_exit
+from ..stats import enrich_gallery_stats
 from . import gallery_app
-from .ops import resolve_gallery_or_exit
 
 
 @gallery_app.command("stats")
@@ -30,4 +31,8 @@ def stats_cmd(
     """Show aggregated disk usage and content statistics for all albums in the gallery."""
     resolved = resolve_gallery_or_exit(gallery_dir)
     albums, display_base = resolve_check_batch_albums(resolved, None)
-    run_batch_stats(albums, display_base, gallery_dir=resolved)
+    run_batch_stats(
+        albums,
+        display_base,
+        enrich=lambda result: enrich_gallery_stats(result, resolved),
+    )

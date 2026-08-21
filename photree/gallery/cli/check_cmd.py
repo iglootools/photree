@@ -22,6 +22,7 @@ from ...clihelpers.options import (
     FATAL_SIDECAR_OPTION,
     FATAL_WARNINGS_OPTION,
 )
+from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...collection.check import check_all_collections
 from ...common.formatting import CHECK, CROSS
 from ...common.fs import display_path
@@ -34,7 +35,6 @@ from ..faces.manifest import (
 )
 from ..faces.protocol import FaceClusteringResult
 from . import gallery_app
-from .ops import resolve_gallery_or_exit
 
 
 @gallery_app.command("check")

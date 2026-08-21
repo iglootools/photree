@@ -8,10 +8,10 @@ from typing import Annotated
 import typer
 
 from ...clihelpers.console import err_console
+from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...clihelpers.sysdeps import EXIF_DEPS, require_system_deps
 from ...common.exif import try_start_exiftool
 from ...common.fs import display_path
-from ...gallery.cli.ops import resolve_gallery_or_exit
 from ..id import format_collection_external_id
 from ..importer.import_members import import_collection_members
 from ..store.metadata import load_collection_metadata
