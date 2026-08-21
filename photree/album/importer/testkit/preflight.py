@@ -4,11 +4,20 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ....common.sysdeps import SystemDependency, SystemDependencyStatus
 from ..preflight import (
     ImageCaptureDirCheck,
     ImportPreflightResult,
     SelectionStatus,
 )
+
+
+def _deps(*, available: bool) -> tuple[SystemDependencyStatus, ...]:
+    return tuple(
+        SystemDependencyStatus(dependency=dependency, available=available)
+        for dependency in (SystemDependency.SIPS, SystemDependency.EXIFTOOL)
+    )
+
 
 IC_CHECK_OK = ImageCaptureDirCheck(
     has_media_files=True,
@@ -25,7 +34,7 @@ IC_CHECK_WARNINGS = ImageCaptureDirCheck(
 )
 
 PREFLIGHT_OK = ImportPreflightResult(
-    sips_available=True,
+    system_deps=_deps(available=True),
     selection_status=SelectionStatus.OK,
     selection_path=Path("/albums/trip-paris"),
     image_capture_dir=Path("~/Pictures/iPhone"),
@@ -36,7 +45,7 @@ PREFLIGHT_OK = ImportPreflightResult(
 )
 
 PREFLIGHT_FAILURES = ImportPreflightResult(
-    sips_available=False,
+    system_deps=_deps(available=False),
     selection_status=SelectionStatus.NOT_FOUND,
     selection_path=Path("/albums/trip-paris"),
     image_capture_dir=Path("~/Pictures/iPhone"),

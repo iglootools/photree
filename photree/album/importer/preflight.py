@@ -7,8 +7,12 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
+from ...common.sysdeps import (
+    SystemDependency,
+    SystemDependencyStatus,
+    missing_dependencies,
+)
 from ...config import load_config
-from ..check import check_sips_available
 
 DEFAULT_IMAGE_CAPTURE_DIR = Path.home() / "Pictures" / "iPhone"
 
@@ -45,7 +49,7 @@ class SelectionStatus(StrEnum):
 class ImportPreflightResult:
     """Structured result of all import preflight checks."""
 
-    sips_available: bool | None  # None if skipped
+    system_deps: tuple[SystemDependencyStatus, ...]
     selection_status: SelectionStatus | None  # None if no album_dir provided
     selection_path: Path | None  # album dir (holds the to-import-* entries)
     image_capture_dir: Path
@@ -55,14 +59,20 @@ class ImportPreflightResult:
     ios_import_required: bool  # whether an Image Capture source is needed
 
     @property
+    def missing_system_deps(self) -> tuple[SystemDependency, ...]:
+        return missing_dependencies(self.system_deps)
+
+    @property
     def success(self) -> bool:
-        sips_ok = self.sips_available is not False
+        system_deps_ok = not self.missing_system_deps
         selection_ok = self.selection_status in (SelectionStatus.OK, None)
         ic_ok = self.image_capture_dir_found and (
             self.image_capture_dir_check is None or self.image_capture_dir_check.success
         )
         # The Image Capture directory only matters when an iOS task is present.
-        return sips_ok and selection_ok and (ic_ok or not self.ios_import_required)
+        return (
+            system_deps_ok and selection_ok and (ic_ok or not self.ios_import_required)
+        )
 
 
 @dataclass(frozen=True)
@@ -133,13 +143,16 @@ def _check_import_tasks(album_dir: Path) -> tuple[SelectionStatus, bool]:
 def run_preflight(
     image_capture_dir: Path,
     *,
+    system_deps: tuple[SystemDependencyStatus, ...] = (),
     album_dir: Path | None = None,
     force: bool = False,
-    skip_heic_to_jpeg: bool = False,
 ) -> ImportPreflightResult:
-    """Run all import preflight checks and return structured results."""
-    sips_available = None if skip_heic_to_jpeg else check_sips_available()
+    """Run all import preflight checks and return structured results.
 
+    *system_deps* is probed by the caller rather than here, so this stays a
+    pure function of the filesystem it is handed — PATH is the CLI layer's
+    business, and tests can drive every branch without touching it.
+    """
     if album_dir is not None:
         selection_status, ios_import_required = _check_import_tasks(album_dir)
         selection_path: Path | None = album_dir
@@ -154,7 +167,7 @@ def run_preflight(
     )
 
     return ImportPreflightResult(
-        sips_available=sips_available,
+        system_deps=system_deps,
         selection_status=selection_status,
         selection_path=selection_path,
         image_capture_dir=image_capture_dir,

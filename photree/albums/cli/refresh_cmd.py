@@ -7,6 +7,7 @@ from typing import Annotated
 import typer
 
 from ...clihelpers.options import DRY_RUN_OPTION
+from ...clihelpers.sysdeps import refresh_deps, require_system_deps
 from . import AlbumDirOption, DirOption, albums_app
 from .batch_ops import run_batch_refresh
 from .ops import resolve_check_batch_albums
@@ -54,6 +55,8 @@ def refresh_cmd(
     ] = False,
 ) -> None:
     """Refresh all derived album data for multiple albums."""
+    require_system_deps(refresh_deps())
+
     albums, display_base = resolve_check_batch_albums(base_dir, album_dirs)
     run_batch_refresh(
         albums,

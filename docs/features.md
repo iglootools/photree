@@ -12,6 +12,7 @@ Import photos and videos from an iOS device via macOS Image Capture into an orga
 - Deduplicates format variants with quality priority: DNG > HEIC > JPG/PNG
 - Batch import across multiple albums (`image-capture-all`)
 - Dry-run mode for all operations
+- System dependencies (`sips`, `exiftool`) are probed before a batch starts, so a missing binary aborts the whole run up front rather than failing album by album
 
 ## Media Sources
 
@@ -35,7 +36,7 @@ Enforce and validate a structured naming convention for album directories.
 - Optional `@ Location` suffix
 - Validates canonical spacing, allowed tags, and name length
 - Cross-album date collision detection (warns when unrelated albums share the same date)
-- EXIF timestamp validation: checks that media file timestamps match the album date (optional, requires exiftool). Timestamps are cached in `.photree/cache/exif/` during `album refresh` to speed up subsequent checks. Use `--refresh-exif-cache` to force a cache rebuild.
+- EXIF timestamp validation: checks that media file timestamps match the album date. Timestamps are cached in `.photree/cache/exif/` during `album refresh` to speed up subsequent checks. Use `--refresh-exif-cache` to force a cache rebuild. `check` commands skip this step gracefully when exiftool is absent; import and refresh require it.
 
 ## Album Integrity Checks
 

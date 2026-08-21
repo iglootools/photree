@@ -14,6 +14,8 @@ from pathlib import Path
 
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
+from .sysdeps import SystemDependency, require
+
 _EXIF_DATE_FORMAT = "%Y:%m:%d %H:%M:%S"
 _EXIF_DATE_TZ_FORMAT = "%Y:%m:%d %H:%M:%S%z"
 
@@ -80,13 +82,20 @@ def get_metadata(
     *,
     exiftool: ExifToolHelper | None = None,
 ) -> list[dict[str, object]]:
-    """Fetch *tags* for *files* via exiftool."""
+    """Fetch *tags* for *files* via exiftool.
+
+    Raises :class:`~photree.common.sysdeps.MissingSystemDependencyError` when no
+    helper is supplied and the binary is absent — ``ExifToolHelper()`` would
+    otherwise surface a bare ``FileNotFoundError`` that reads like a missing
+    media file rather than a missing tool.
+    """
     if not files:
         return []
     str_files = [str(f) for f in files]
     if exiftool is not None:
         return exiftool.get_tags(str_files, tags)  # type: ignore[no-any-return]
     else:
+        require((SystemDependency.EXIFTOOL,))
         with ExifToolHelper() as et:
             return et.get_tags(str_files, tags)  # type: ignore[no-any-return]
 

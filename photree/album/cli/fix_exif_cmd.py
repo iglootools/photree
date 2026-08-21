@@ -8,6 +8,7 @@ from typing import Annotated
 import typer
 
 from ...clihelpers.console import err_console
+from ...clihelpers.sysdeps import EXIF_DEPS, require_system_deps
 from ...common import exif as common_exif
 from .. import exif as album_exif
 from . import album_app
@@ -88,6 +89,8 @@ def fix_exif_cmd(
         if len(parts) != 3 or not all(p.isdigit() for p in parts):
             err_console.print(f'Invalid date "{set_date}", expected YYYY-MM-DD.')
             raise typer.Exit(code=1)
+
+    require_system_deps(EXIF_DEPS)
 
     cwd = Path.cwd()
     file_paths = [Path(f) for f in files]

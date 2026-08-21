@@ -9,6 +9,7 @@ import typer
 
 from ...clihelpers.console import console
 from ...clihelpers.progress import run_with_spinner
+from ...clihelpers.sysdeps import refresh_deps, require_system_deps
 from ...common.exif import try_start_exiftool
 from ...common.formatting import CHECK
 from ..faces.detect import memoized_face_analyzer_factory
@@ -70,6 +71,8 @@ def refresh_cmd(
 ) -> None:
     """Refresh all derived album data (browsable, JPEG, media IDs, EXIF cache, faces)."""
     from ..refresh import refresh_album_derived_data
+
+    require_system_deps(refresh_deps())
 
     exiftool = try_start_exiftool()
 

@@ -6,7 +6,9 @@ from textwrap import dedent
 
 from rich.markup import escape
 
+from ...clihelpers.sysdeps import format_missing_troubleshoot
 from ...common.formatting import CHECK, CROSS, WARNING, format_check_line
+from ...common.sysdeps import SystemDependency
 from ..id import format_album_external_id
 from ..naming import AlbumNamingResult, BatchNamingResult
 from . import AlbumIntegrityResult, AlbumMediaSourceSummary, AlbumPreflightResult
@@ -34,10 +36,7 @@ def sips_check(available: bool) -> str:
 
 
 def sips_troubleshoot() -> str:
-    return dedent("""\
-        sips: The macOS 'sips' tool is required for HEIC-to-JPEG conversion.
-        sips is included with macOS. If you are running on a non-macOS system,
-        HEIC-to-JPEG conversion is not supported.""")
+    return format_missing_troubleshoot([SystemDependency.SIPS])
 
 
 def exiftool_check(available: bool) -> str:
@@ -48,9 +47,7 @@ def exiftool_check(available: bool) -> str:
 
 
 def exiftool_troubleshoot() -> str:
-    return dedent("""\
-        exiftool: Install via: brew install exiftool (macOS)
-        or apt install libimage-exiftool-perl (Linux).""")
+    return format_missing_troubleshoot([SystemDependency.EXIFTOOL])
 
 
 # ---------------------------------------------------------------------------

@@ -41,13 +41,15 @@ graph TD
     albums --> config
     albums --> fsprotocol
     albums --> gallery
-    check --> album
     check --> clihelpers
+    check --> common
     cli --> album
     cli --> albums
     cli --> check
+    cli --> clihelpers
     cli --> collection
     cli --> collections
+    cli --> common
     cli --> demo
     cli --> gallery
     clihelpers --> common

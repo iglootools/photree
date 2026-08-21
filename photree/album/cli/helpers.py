@@ -7,18 +7,11 @@ from pathlib import Path
 import typer
 
 from ...clihelpers.console import console, err_console
+from ...clihelpers.sysdeps import import_deps
+from ...common.sysdeps import check_system_dependencies
 from ...config import ConfigError
-from .. import check as album_check
-from ..check import output as preflight_output
 from ..importer import output as importer_output
 from ..importer.preflight import resolve_image_capture_dir, run_preflight
-
-
-def _check_sips_or_exit() -> None:
-    if not album_check.check_sips_available():
-        err_console.print(preflight_output.sips_check(False))
-        err_console.print(preflight_output.sips_troubleshoot())
-        raise typer.Exit(code=1)
 
 
 def _run_preflight_checks(
@@ -39,11 +32,16 @@ def _run_preflight_checks(
         err_console.print(str(exc))
         raise typer.Exit(code=2) from exc
 
+    # Probing PATH is the CLI layer's job; run_preflight stays pure. The
+    # statuses are folded into the preflight result rather than gated
+    # separately so a broken setup reports every problem in one pass.
     result = run_preflight(
         image_capture_dir,
+        system_deps=check_system_dependencies(
+            import_deps(skip_heic_to_jpeg=skip_heic_to_jpeg)
+        ),
         album_dir=album_dir,
         force=force,
-        skip_heic_to_jpeg=skip_heic_to_jpeg,
     )
 
     typer.echo("Preflight Checks:")
@@ -54,6 +52,12 @@ def _run_preflight_checks(
         if troubleshoot:
             typer.echo("")
             err_console.print(troubleshoot)
+        # Preflight runs before any filesystem mutation, so an all-or-nothing
+        # abort here is what keeps a missing binary from failing every album
+        # individually, halfway through a batch.
+        err_console.print(
+            "\nAborted before starting: preflight checks failed. Nothing was imported."
+        )
         raise typer.Exit(code=1)
 
     return image_capture_dir

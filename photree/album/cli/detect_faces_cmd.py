@@ -7,6 +7,7 @@ from typing import Annotated
 
 import typer
 
+from ...clihelpers.sysdeps import FACE_DETECTION_DEPS, require_system_deps
 from ..faces.detect import memoized_face_analyzer_factory
 from ..faces.refresh import refresh_face_data
 from . import album_app
@@ -45,6 +46,8 @@ def detect_faces_cmd(
     ] = False,
 ) -> None:
     """Run face detection on album images."""
+    require_system_deps(FACE_DETECTION_DEPS)
+
     result = refresh_face_data(
         album_dir,
         analyzer_factory=memoized_face_analyzer_factory(),
