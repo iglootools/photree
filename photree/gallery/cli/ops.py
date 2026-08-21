@@ -157,6 +157,16 @@ def print_single_import_result(
             typer.echo(f"Album ID: {format_album_external_id(meta.id)}")
     typer.echo(f"Target: {display_path(result.target_dir, cwd)}")
 
+    if result.jpeg_failures:
+        from ...album.check.output import jpeg_failures_report
+
+        err_console.print(jpeg_failures_report(result.jpeg_failures))
+        err_console.print(
+            "\nThe album imported, but those JPEGs are missing. Run "
+            f"'photree album refresh --refresh-jpeg --album-dir \"{display_path(result.target_dir, cwd)}\"'"
+        )
+        raise typer.Exit(code=1)
+
     if not dry_run:
         typer.echo("\nPost-Import Check:")
         check_result = album_check.run_album_preflight(result.target_dir)

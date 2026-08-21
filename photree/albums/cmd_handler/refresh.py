@@ -53,7 +53,7 @@ def batch_refresh(
                 on_start(album_name)
 
             try:
-                refresh_album_derived_data(
+                result = refresh_album_derived_data(
                     album_dir,
                     exiftool=exiftool,
                     analyzer_factory=analyzer_factory,
@@ -65,9 +65,21 @@ def batch_refresh(
                     dry_run=dry_run,
                 )
 
-                if on_end:
-                    on_end(album_name, True, ())
-                refreshed += 1
+                # A JPEG that failed to convert leaves a gap in {name}-jpg/.
+                # The album refreshed, but not completely — report it as failed
+                # so the run does not exit 0 on a partial result.
+                if result.jpeg_failures:
+                    labels = tuple(
+                        f"{source}/{failure.filename}: {failure.reason}"
+                        for source, failure in result.jpeg_failures
+                    )
+                    if on_end:
+                        on_end(album_name, False, labels)
+                    failed_albums.append(album_dir)
+                else:
+                    if on_end:
+                        on_end(album_name, True, ())
+                    refreshed += 1
             except Exception:
                 if on_end:
                     on_end(album_name, False, ())

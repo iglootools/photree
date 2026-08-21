@@ -127,7 +127,7 @@ def run_batch_import(
             if on_start:
                 on_start(album_name)
             try:
-                _execute_plan(
+                result = _execute_plan(
                     plan,
                     gallery_dir,
                     link_mode,
@@ -136,12 +136,24 @@ def run_batch_import(
                     analyzer_factory=analyzer_factory,
                     max_workers=max_workers,
                 )
-                if on_end:
-                    on_end(album_name, True, ())
-                imported += 1
+                if result.jpeg_failures:
+                    if on_end:
+                        on_end(
+                            album_name,
+                            False,
+                            tuple(
+                                f"{source}/{failure.filename}: {failure.reason}"
+                                for source, failure in result.jpeg_failures
+                            ),
+                        )
+                    failed.append(plan.source)
+                else:
+                    if on_end:
+                        on_end(album_name, True, ())
+                    imported += 1
             except (ValueError, OSError) as exc:
                 if on_end:
-                    on_end(album_name, False, (str(exc)[:60],))
+                    on_end(album_name, False, (str(exc),))
                 failed.append(plan.source)
     finally:
         if exiftool is not None:

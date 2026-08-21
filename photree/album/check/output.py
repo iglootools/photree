@@ -10,6 +10,7 @@ from ...clihelpers.sysdeps import format_missing_troubleshoot
 from ...common.formatting import CHECK, CROSS, WARNING, format_check_line
 from ...common.sysdeps import SystemDependency
 from ..id import format_album_external_id
+from ..jpeg import JpegConversionFailure
 from ..naming import AlbumNamingResult, BatchNamingResult
 from . import AlbumIntegrityResult, AlbumMediaSourceSummary, AlbumPreflightResult
 from .browsable import BrowsableDirCheck
@@ -26,6 +27,21 @@ from .unexpected_dirs import UnexpectedDirsCheck
 # ---------------------------------------------------------------------------
 # System check output
 # ---------------------------------------------------------------------------
+
+
+def jpeg_failures_report(
+    failures: tuple[tuple[str, JpegConversionFailure], ...],
+) -> str:
+    """Format per-file JPEG conversion failures for a single album."""
+    return "\n".join(
+        [
+            f"{CROSS} jpeg: {len(failures)} file(s) could not be converted",
+            *(
+                f"    {source}/{failure.filename}: {failure.reason}"
+                for source, failure in failures
+            ),
+        ]
+    )
 
 
 def sips_check(available: bool) -> str:

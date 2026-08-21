@@ -73,12 +73,29 @@ def copy_convert_single(src: Path, dst_dir: Path, *, dry_run: bool) -> Path | No
 
 
 @dataclass(frozen=True)
+class JpegConversionFailure:
+    """A single file that could not be converted or copied."""
+
+    filename: str
+    reason: str
+
+
+@dataclass(frozen=True)
 class RefreshResult:
-    """Result of a batch JPEG refresh."""
+    """Result of a batch JPEG refresh.
+
+    *converted* and *copied* count files that actually landed in the
+    destination; a file that raised is counted in *failed* instead.
+    """
 
     converted: int
     copied: int
     skipped: int
+    failed: tuple[JpegConversionFailure, ...] = ()
+
+    @property
+    def success(self) -> bool:
+        return not self.failed
 
 
 def _classify_file(
@@ -169,6 +186,7 @@ def _refresh_sequential(
     converted = 0
     copied = 0
     skipped = 0
+    failed: list[JpegConversionFailure] = []
 
     for filename in src_files:
         src = src_dir / filename
@@ -179,7 +197,16 @@ def _refresh_sequential(
         if on_file_start:
             on_file_start(filename)
 
-        result = convert_file(src, dst_dir, dry_run=dry_run)
+        try:
+            result = convert_file(src, dst_dir, dry_run=dry_run)
+        except OSError as exc:
+            # Recorded rather than raised so one bad file does not abandon the
+            # rest of the directory — and so this path behaves identically to
+            # the parallel one below.
+            failed.append(JpegConversionFailure(filename=filename, reason=str(exc)))
+            if on_file_end:
+                on_file_end(filename, False)
+            continue
 
         if result is None:
             skipped += 1
@@ -194,7 +221,9 @@ def _refresh_sequential(
             if on_file_end:
                 on_file_end(filename, True)
 
-    return RefreshResult(converted=converted, copied=copied, skipped=skipped)
+    return RefreshResult(
+        converted=converted, copied=copied, skipped=skipped, failed=tuple(failed)
+    )
 
 
 def _refresh_parallel(
@@ -209,8 +238,7 @@ def _refresh_parallel(
 ) -> RefreshResult:
     """Process files in parallel using :func:`run_parallel`."""
     tasks: list[tuple[str, Callable[[], object]]] = []
-    converted = 0
-    copied = 0
+    categories: dict[str, str] = {}
     skipped = 0
 
     for filename in src_files:
@@ -229,27 +257,39 @@ def _refresh_parallel(
                         partial(convert_to_jpeg, src, dst) if not dry_run else _noop,
                     )
                 )
-                converted += 1
+                categories[filename] = category
             case "copy":
-                dst = dst_dir / filename
                 tasks.append(
                     (
                         filename,
                         partial(shutil.copy, src, dst_dir) if not dry_run else _noop,
                     )
                 )
-                copied += 1
+                categories[filename] = category
             case _:
                 skipped += 1
 
-    run_parallel(
+    # Counted from the results, not from the plan: tallying before the work runs
+    # reports every file as converted even when sips failed on half of them.
+    results = run_parallel(
         tasks,
         max_workers=max_workers,
         on_start=on_file_start,
         on_end=on_file_end,
     )
 
-    return RefreshResult(converted=converted, copied=copied, skipped=skipped)
+    return RefreshResult(
+        converted=sum(
+            1 for r in results if r.success and categories[r.key] == "convert"
+        ),
+        copied=sum(1 for r in results if r.success and categories[r.key] == "copy"),
+        skipped=skipped,
+        failed=tuple(
+            JpegConversionFailure(filename=r.key, reason=r.error or "unknown error")
+            for r in results
+            if not r.success
+        ),
+    )
 
 
 def _noop() -> None:
