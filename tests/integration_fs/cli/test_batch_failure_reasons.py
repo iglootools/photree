@@ -67,7 +67,7 @@ class TestBatchFailureReport:
     """The shared formatter pairs each album with its reason."""
 
     def test_formats_path_and_reason(self, tmp_path: Path) -> None:
-        from photree.albums.cli.batch_ops import batch_failures_report
+        from photree.albums.cli.batch_ops.failures import batch_failures_report
         from photree.albums.cmd_handler import BatchFailure
 
         report = batch_failures_report(

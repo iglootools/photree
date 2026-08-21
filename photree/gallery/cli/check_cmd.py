@@ -10,7 +10,7 @@ import typer
 from ...album.faces.protocol import FACES_DIR
 from ...album.store.album_discovery import discover_albums
 from ...album.store.metadata import load_album_metadata
-from ...albums.cli.batch_ops import run_batch_check
+from ...albums.cli.batch_ops.check import run_batch_check
 from ...albums.cli.ops import resolve_check_batch_albums
 from ...clihelpers.console import console
 from ...clihelpers.options import (

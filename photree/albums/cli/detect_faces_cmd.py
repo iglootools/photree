@@ -14,8 +14,7 @@ from ...clihelpers.progress import BatchProgressBar
 from ...clihelpers.sysdeps import FACE_DETECTION_DEPS, require_system_deps
 from ...common.fs import display_path
 from . import AlbumDirOption, DirOption, albums_app
-from .batch_ops import make_display_fn
-from .ops import resolve_check_batch_albums
+from .ops import make_display_fn, resolve_check_batch_albums
 
 
 @albums_app.command("detect-faces")

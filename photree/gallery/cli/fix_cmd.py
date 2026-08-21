@@ -9,7 +9,7 @@ from typing import Annotated
 import typer
 
 from ...album.fix import FixValidationError
-from ...albums.cli.batch_ops import run_batch_fix
+from ...albums.cli.batch_ops.fix import run_batch_fix
 from ...albums.cli.ops import resolve_check_batch_albums
 from ...clihelpers.options import (
     DRY_RUN_OPTION,

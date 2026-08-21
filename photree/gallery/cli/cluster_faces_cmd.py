@@ -64,7 +64,7 @@ def cluster_faces_cmd(
     resolved = resolve_gallery_or_exit(gallery_dir)
 
     if redetect or refresh_thumbs:
-        from ...albums.cli.batch_ops import run_batch_refresh
+        from ...albums.cli.batch_ops.refresh import run_batch_refresh
         from ...albums.cli.ops import resolve_check_batch_albums
 
         albums, display_base = resolve_check_batch_albums(resolved, None)
