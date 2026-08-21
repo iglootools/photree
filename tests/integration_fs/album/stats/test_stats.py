@@ -8,9 +8,9 @@ import pytest
 from photree.album.id import generate_album_id
 from photree.album.stats import (
     _extract_year,
+    albums_stats_from_album_stats,
     compute_album_stats,
     compute_media_source_stats,
-    gallery_stats_from_album_stats,
 )
 from photree.album.stats.aggregate import merge_format_stats, merge_size_stats
 from photree.album.stats.models import AlbumStats, FormatStats, SizeStats
@@ -383,7 +383,7 @@ class TestComputeAlbumStats:
 
 
 # ---------------------------------------------------------------------------
-# gallery_stats_from_album_stats
+# albums_stats_from_album_stats
 # ---------------------------------------------------------------------------
 
 
@@ -411,7 +411,7 @@ class TestGalleryStats:
     def test_aggregation(self, tmp_path: Path) -> None:
         a1 = self._make_simple_album(tmp_path, "2024-07-14 - Album One")
         a2 = self._make_simple_album(tmp_path, "2024-08-01 - Album Two", img_size=200)
-        result = gallery_stats_from_album_stats([a1, a2])
+        result = albums_stats_from_album_stats([a1, a2])
 
         assert result.album_count == 2
         assert result.aggregate.unique_pictures == 2  # 1 per album
@@ -421,7 +421,7 @@ class TestGalleryStats:
         a1 = self._make_simple_album(tmp_path, "2024-07-14 - Summer")
         a2 = self._make_simple_album(tmp_path, "2024-08-01 - Late Summer")
         a3 = self._make_simple_album(tmp_path, "2025-01-10 - Winter")
-        result = gallery_stats_from_album_stats([a1, a2, a3])
+        result = albums_stats_from_album_stats([a1, a2, a3])
 
         assert len(result.by_year) == 2
         year_dict = {ys.year: ys for ys in result.by_year}
@@ -452,11 +452,11 @@ class TestGalleryStats:
         (album2 / ms_nelu.jpg_dir).mkdir(parents=True, exist_ok=True)
         a2 = compute_album_stats(album2)
 
-        result = gallery_stats_from_album_stats([a1, a2])
+        result = albums_stats_from_album_stats([a1, a2])
         assert set(result.unique_media_source_names) == {"main", "nelu"}
 
     def test_empty_gallery(self) -> None:
-        result = gallery_stats_from_album_stats([])
+        result = albums_stats_from_album_stats([])
         assert result.album_count == 0
         assert result.aggregate.total.file_count == 0
         assert result.by_year == ()

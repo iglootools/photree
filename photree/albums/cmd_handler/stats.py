@@ -14,7 +14,7 @@ def batch_stats(
     display_fn: Callable[[Path], str] = lambda p: p.name,
     on_start: Callable[[str], None] | None = None,
     on_end: Callable[[str, bool], None] | None = None,
-) -> album_stats.GalleryStats:
+) -> album_stats.AlbumsStats:
     """Compute aggregated stats for multiple albums.
 
     Calls ``on_start(name)`` before and ``on_end(name, success)`` after
@@ -30,4 +30,4 @@ def batch_stats(
         if on_end:
             on_end(album_name, True)
 
-    return album_stats.gallery_stats_from_album_stats(album_stats_list)
+    return album_stats.albums_stats_from_album_stats(album_stats_list)

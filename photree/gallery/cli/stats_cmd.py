@@ -10,7 +10,7 @@ import typer
 from ...albums.cli.batch_ops.stats import run_batch_stats
 from ...albums.cli.ops import resolve_check_batch_albums
 from ...clihelpers.resolution import resolve_gallery_or_exit
-from ..stats import enrich_gallery_stats
+from ..stats import compute_gallery_stats, format_gallery_stats
 from . import gallery_app
 
 
@@ -34,5 +34,7 @@ def stats_cmd(
     run_batch_stats(
         albums,
         display_base,
-        enrich=lambda result: enrich_gallery_stats(result, resolved),
+        render=lambda albums_stats: format_gallery_stats(
+            compute_gallery_stats(albums_stats, resolved)
+        ),
     )

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 import rich.box
-from rich.console import Group
+from rich.console import Group, RenderableType
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
@@ -11,8 +13,8 @@ from rich.text import Text
 from ..store.protocol import MediaSourceType
 from .models import (
     AggregateStats,
+    AlbumsStats,
     AlbumStats,
-    GalleryStats,
     MediaSourceStats,
     SizeStats,
     YearStats,
@@ -107,7 +109,7 @@ def _bold_size_cells(
 # Legend
 # ---------------------------------------------------------------------------
 
-_LEGEND = Text.from_markup(
+LEGEND = Text.from_markup(
     "[bold]Legend[/bold]\n"
     "  [bold]On-Disk[/bold]      Actual disk usage (inode-deduplicated; hardlinks and symlinks counted once)\n"
     "  [bold]Size[/bold]         Apparent size (naive sum of all file sizes)\n"
@@ -465,26 +467,39 @@ def format_album_stats(stats: AlbumStats) -> Group:
         cache_storage=stats.cache_storage,
     )
     renderables.append(Text(""))
-    renderables.append(_LEGEND)
+    renderables.append(LEGEND)
     return Group(*renderables)
 
 
-def format_gallery_stats(stats: GalleryStats) -> Group:
-    """Format gallery-level statistics as a Rich renderable."""
-    from ...collection.stats.output import format_collections_overview
+def albums_stats_renderables(
+    stats: AlbumsStats, *, cache_storage: SizeStats | None = None
+) -> Sequence[RenderableType]:
+    """Everything in an albums-stats report except the trailing legend.
 
+    Exposed so the gallery report can insert its collection section between
+    the year table and the legend without duplicating the tables above it.
+    *cache_storage* overrides the value on *stats*, which is how the gallery
+    folds its own face-index storage into the same row.
+    """
     renderables = _format_aggregate_tables(
         stats.aggregate,
         album_count=stats.album_count,
         unique_media_source_names=stats.unique_media_source_names,
-        cache_storage=stats.cache_storage,
+        cache_storage=cache_storage
+        if cache_storage is not None
+        else stats.cache_storage,
     )
     if stats.by_year:
         renderables.append(Text(""))
         renderables.append(_year_table(stats.by_year))
-    if stats.collection_stats is not None and stats.collection_stats.total > 0:
-        renderables.append(Text(""))
-        renderables.append(format_collections_overview(stats.collection_stats))
-    renderables.append(Text(""))
-    renderables.append(_LEGEND)
-    return Group(*renderables)
+    return renderables
+
+
+def with_legend(renderables: Sequence[RenderableType]) -> Group:
+    """Close a stats report with the shared legend."""
+    return Group(*renderables, Text(""), LEGEND)
+
+
+def format_albums_stats(stats: AlbumsStats) -> Group:
+    """Format statistics for a set of albums as a Rich renderable."""
+    return with_legend(albums_stats_renderables(stats))

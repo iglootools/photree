@@ -30,7 +30,6 @@ graph TD
     gallery["gallery/"]
 
     album --> clihelpers
-    album --> collection
     album --> common
     album --> config
     album --> fsprotocol

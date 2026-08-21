@@ -6,6 +6,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import typer
+from rich.console import RenderableType
 
 from ....album.stats import models as stats_models
 from ....album.stats import output as stats_output
@@ -20,13 +21,13 @@ def run_batch_stats(
     albums: list[Path],
     display_base: Path | None,
     *,
-    enrich: Callable[[stats_models.GalleryStats], stats_models.GalleryStats]
-    | None = None,
+    render: Callable[[stats_models.AlbumsStats], RenderableType] | None = None,
 ) -> None:
     """Shared implementation for gallery stats / albums stats.
 
-    *enrich* lets the gallery add its own totals without this module knowing
-    what a gallery is — the dependency runs gallery -> albums, never back.
+    *render* lets the gallery substitute its own report — one that adds the
+    collection table — without this module knowing what a gallery is. The
+    dependency runs gallery -> albums, never back.
     """
     from ....album.naming import parse_album_name
 
@@ -59,8 +60,9 @@ def run_batch_stats(
             on_end=lambda name, success: progress.on_end(name, success=success),
         )
 
-    if enrich is not None:
-        result = enrich(result)
-
     typer.echo("")
-    console.print(stats_output.format_gallery_stats(result))
+    console.print(
+        render(result)
+        if render is not None
+        else stats_output.format_albums_stats(result)
+    )
