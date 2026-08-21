@@ -16,7 +16,7 @@ from ...clihelpers.options import (
 )
 from ...fsprotocol import LinkMode
 from . import AlbumDirOption, DirOption, albums_app
-from .batch_ops import run_batch_fix
+from .batch_ops.fix import run_batch_fix
 from .ops import resolve_check_batch_albums
 
 

@@ -7,7 +7,7 @@ from typing import Annotated
 
 import typer
 
-from ...clihelpers.console import console
+from ...clihelpers.console import console, err_console
 from ...clihelpers.progress import run_with_spinner
 from ...clihelpers.sysdeps import refresh_deps, require_system_deps
 from ...common.exif import try_start_exiftool
@@ -77,7 +77,7 @@ def refresh_cmd(
     exiftool = try_start_exiftool()
 
     try:
-        run_with_spinner(
+        result = run_with_spinner(
             "Refreshing album...",
             lambda: refresh_album_derived_data(
                 album_dir,
@@ -94,5 +94,14 @@ def refresh_cmd(
     finally:
         if exiftool is not None:
             exiftool.__exit__(None, None, None)
+
+    if result.jpeg_failures:
+        from ..check.output import jpeg_failures_report
+
+        err_console.print(jpeg_failures_report(result.jpeg_failures))
+        err_console.print(
+            "\nRun 'photree album refresh --refresh-jpeg' to retry the conversions."
+        )
+        raise typer.Exit(code=1)
 
     console.print(f"{CHECK} album refresh complete")

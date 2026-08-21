@@ -291,3 +291,29 @@ class TestPlanRenamesFromCsv:
         actions, errors = plan_renames_from_csv(rows, index)
         assert len(actions) == 1  # only first row changed
         assert len(errors) == 1  # bad_id error
+
+
+class TestGalleryStatsWithoutCache:
+    """``gallery stats`` must work before anything has populated a cache.
+
+    Regression: the cache-merge filter tested ``s.file_count > 0`` on a value
+    that is ``None`` until some album has a ``.photree/cache/`` directory, so
+    the command crashed with an AttributeError on a freshly imported gallery —
+    exactly when a user is most likely to run it.
+    """
+
+    def test_no_album_cache_does_not_crash(self, tmp_path: Path) -> None:
+        from dataclasses import replace
+
+        from photree.album.stats.testkit import ALBUMS_STATS
+        from photree.gallery.stats import compute_gallery_stats
+
+        gallery = tmp_path / "gallery"
+        (gallery / ".photree").mkdir(parents=True)
+
+        albums = replace(ALBUMS_STATS, cache_storage=None)
+
+        result = compute_gallery_stats(albums, gallery)
+
+        assert result.albums == albums
+        assert result.cache_storage is None

@@ -8,11 +8,12 @@ from typing import Annotated
 import typer
 
 from ...album.id import format_album_external_id
-from ...albums.cli.batch_ops import run_batch_rename_from_csv
+from ...albums.cli.batch_ops.rename import run_batch_rename_from_csv
 from ...clihelpers.console import err_console
+from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...common.fs import display_path
 from . import gallery_app
-from .ops import build_index_or_exit, resolve_gallery_or_exit
+from .ops import build_index_or_exit
 
 
 @gallery_app.command("rename-from-csv")

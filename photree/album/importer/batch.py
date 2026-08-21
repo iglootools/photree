@@ -209,6 +209,14 @@ def run_batch_import(
                 result.failed.append((album_dir, msg))
                 if on_error:
                     on_error(album_dir.name, msg)
+            elif import_result.jpeg_failures:
+                msg = "; ".join(
+                    f"{source}/{failure.filename}: {failure.reason}"
+                    for source, failure in import_result.jpeg_failures
+                )
+                result.failed.append((album_dir, f"jpeg conversion failed: {msg}"))
+                if on_error:
+                    on_error(album_dir.name, f"jpeg conversion failed: {msg}")
             else:
                 result.imported += 1
                 if on_imported:

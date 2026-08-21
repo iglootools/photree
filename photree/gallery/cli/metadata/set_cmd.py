@@ -8,6 +8,7 @@ from typing import Annotated
 import typer
 
 from ....clihelpers.console import err_console
+from ....clihelpers.resolution import resolve_gallery_or_exit
 from ....common.fs import display_path
 from ....fsprotocol import (
     GALLERY_YAML,
@@ -17,7 +18,6 @@ from ....fsprotocol import (
     load_gallery_metadata,
     save_gallery_metadata,
 )
-from ..ops import resolve_gallery_or_exit
 from . import gallery_metadata_app
 
 

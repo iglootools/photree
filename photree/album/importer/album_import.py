@@ -18,7 +18,7 @@ from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 from ...common.fs import list_files
 from ...fsprotocol import PHOTREE_DIR, LinkMode
 from ..id import generate_album_id
-from ..jpeg import convert_single_file
+from ..jpeg import JpegConversionFailure, convert_single_file
 from ..store.metadata import save_album_metadata
 from ..store.protocol import ALBUM_YAML, AlbumMetadata
 from . import image_capture, std
@@ -131,6 +131,7 @@ class AlbumImportResult:
 
     ios_results: tuple[IosSourceImportResult, ...] = ()
     std_results: tuple[StdImportResult, ...] = ()
+    jpeg_failures: tuple[tuple[str, JpegConversionFailure], ...] = ()
 
     @property
     def unprocessed(self) -> tuple[str, ...]:
@@ -223,7 +224,7 @@ def run_import(
     _notify(on_stage_start, STAGE_REFRESH_DERIVED)
     from ..refresh import refresh_album_derived_data
 
-    refresh_album_derived_data(
+    refresh_result = refresh_album_derived_data(
         album_dir,
         link_mode=link_mode,
         max_workers=max_workers,
@@ -240,4 +241,5 @@ def run_import(
     return AlbumImportResult(
         ios_results=tuple(ios_results),
         std_results=tuple(std_results),
+        jpeg_failures=refresh_result.jpeg_failures,
     )

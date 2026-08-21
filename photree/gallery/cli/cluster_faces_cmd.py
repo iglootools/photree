@@ -8,6 +8,7 @@ from typing import Annotated
 import typer
 
 from ...clihelpers.options import DRY_RUN_OPTION
+from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...clihelpers.sysdeps import (
     FACE_DETECTION_DEPS,
     refresh_deps,
@@ -15,7 +16,7 @@ from ...clihelpers.sysdeps import (
 )
 from ...fsprotocol import GALLERY_YAML, PHOTREE_DIR, load_gallery_metadata
 from . import gallery_app
-from .ops import resolve_gallery_or_exit, run_face_clustering
+from .ops import run_face_clustering
 
 
 @gallery_app.command("cluster-faces")
@@ -64,7 +65,7 @@ def cluster_faces_cmd(
     resolved = resolve_gallery_or_exit(gallery_dir)
 
     if redetect or refresh_thumbs:
-        from ...albums.cli.batch_ops import run_batch_refresh
+        from ...albums.cli.batch_ops.refresh import run_batch_refresh
         from ...albums.cli.ops import resolve_check_batch_albums
 
         albums, display_base = resolve_check_batch_albums(resolved, None)

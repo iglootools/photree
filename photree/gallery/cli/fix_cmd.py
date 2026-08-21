@@ -9,7 +9,7 @@ from typing import Annotated
 import typer
 
 from ...album.fix import FixValidationError
-from ...albums.cli.batch_ops import run_batch_fix
+from ...albums.cli.batch_ops.fix import run_batch_fix
 from ...albums.cli.ops import resolve_check_batch_albums
 from ...clihelpers.options import (
     DRY_RUN_OPTION,
@@ -17,9 +17,9 @@ from ...clihelpers.options import (
     RM_ORPHAN_OPTION,
     RM_UPSTREAM_OPTION,
 )
+from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...fsprotocol import resolve_link_mode
 from . import gallery_app
-from .ops import resolve_gallery_or_exit
 
 
 @gallery_app.command("fix")

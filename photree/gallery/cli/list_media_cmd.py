@@ -7,10 +7,10 @@ from typing import Annotated
 
 import typer
 
-from ...albums.cli.batch_ops import run_batch_list_media
+from ...albums.cli.batch_ops.listmedia import run_batch_list_media
 from ...albums.cli.ops import resolve_check_batch_albums
+from ...clihelpers.resolution import resolve_gallery_or_exit
 from . import gallery_app
-from .ops import resolve_gallery_or_exit
 
 
 @gallery_app.command("list-media")

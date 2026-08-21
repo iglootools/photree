@@ -8,7 +8,6 @@ from photree.album.fix import (
     rm_orphan,
     rm_upstream,
 )
-from photree.album.fix.refresh_browsable import refresh_browsable
 from photree.album.store.protocol import std_media_source
 
 STD = std_media_source("nelu")
@@ -34,53 +33,6 @@ def _noop_convert(*args: object, **kwargs: object) -> None:
     return
 
 
-# ---------------------------------------------------------------------------
-# refresh_browsable — std sources
-# ---------------------------------------------------------------------------
-
-
-class TestRefreshBrowsableStd:
-    def test_rebuilds_img_from_archive(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "std-nelu/orig-img", ["sunset.heic", "beach.png"])
-        _setup_dir(tmp_path / "std-nelu/edit-img", ["sunset.jpg"])
-
-        result = refresh_browsable(tmp_path, STD, convert_file=_noop_convert)
-
-        assert result.heic.copied == 2
-        # Edit wins for sunset
-        assert "sunset.jpg" in _names(tmp_path / "nelu-img")
-        assert "sunset.heic" not in _names(tmp_path / "nelu-img")
-        # Orig used for beach
-        assert "beach.png" in _names(tmp_path / "nelu-img")
-
-    def test_rebuilds_vid_from_archive(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "std-nelu/orig-vid", ["clip.mov"])
-        _setup_dir(tmp_path / "std-nelu/edit-vid", ["clip.mov"])
-
-        result = refresh_browsable(tmp_path, STD, convert_file=_noop_convert)
-
-        assert result.mov.copied == 1
-        assert "clip.mov" in _names(tmp_path / "nelu-vid")
-
-    def test_raises_when_archive_missing(self, tmp_path: Path) -> None:
-        """A std source without its std-{name}/ archive must raise FileNotFoundError."""
-        _setup_dir(tmp_path / "nelu-img", ["sunset.heic"])
-
-        with pytest.raises(FileNotFoundError, match="Archive directory"):
-            refresh_browsable(tmp_path, STD)
-
-    def test_deletes_existing_browsable_before_rebuild(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "std-nelu/orig-img", ["sunset.heic"])
-        _setup_dir(tmp_path / "nelu-img", ["stale.heic"])
-
-        refresh_browsable(tmp_path, STD, convert_file=_noop_convert)
-
-        assert "sunset.heic" in _names(tmp_path / "nelu-img")
-        assert "stale.heic" not in _names(tmp_path / "nelu-img")
-
-
-# ---------------------------------------------------------------------------
-# rm_orphan — std sources
 # ---------------------------------------------------------------------------
 
 

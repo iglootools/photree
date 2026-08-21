@@ -10,6 +10,33 @@ For general coding, Python, and tooling guidelines, see the [common guidelines](
 - **Printing/Logging**
   - Print/Log relative paths when paths relative to the current working directory, using `display_path`
 
+### Documented exception: mutable accumulators in scan/group loops
+
+The [common Python guidelines](https://github.com/iglootools/common-guidelines/blob/main/python.md)
+ask for lists built as a single expression rather than `errors = []` plus
+`append`, and for `continue` to be replaced by filtering. photree keeps the
+accumulator form in two specific shapes, because the comprehension is harder
+to read, not easier:
+
+- **Loop-carried state.** Grouping a sorted sequence into contiguous runs
+  (`gallery/collection_refresh.py::_group_by_series`) needs the previous
+  element to decide where the current group ends. Expressed as a
+  comprehension it requires `itertools.groupby` plus a key function that
+  closes over mutable state — strictly more machinery for the same result.
+- **Per-item try/except in a batch.** A loop that must record a failure and
+  carry on cannot be a comprehension, because a comprehension has nowhere to
+  put the `except`. These loops are exactly the ones that must not swallow
+  errors, so clarity there matters more than form.
+
+Everywhere else, prefer the single-expression form: building a result from
+independent branches, filtering, mapping, and conditional inclusion all read
+better as `[*(...), *(...)]` and comprehensions, and that is the majority of
+list construction in this codebase.
+
+**This exception retires** if a case appears where the accumulator hides a
+bug the comprehension would have prevented — the reason it is written down is
+so that trade-off can be re-examined rather than assumed.
+
 ## CLI UX
 
 ### Framework

@@ -9,6 +9,7 @@ from pathlib import Path
 from ...album.id import format_album_external_id, generate_album_id
 from ...album.store.metadata import load_album_metadata, save_album_metadata
 from ...album.store.protocol import AlbumMetadata
+from . import BatchFailure
 
 
 @dataclass(frozen=True)
@@ -16,7 +17,11 @@ class BatchInitResult:
     """Result of batch album initialization."""
 
     initialized: int
-    failed_albums: list[Path] = field(default_factory=list)
+    failures: list[BatchFailure] = field(default_factory=list)
+
+    @property
+    def failed_albums(self) -> list[Path]:
+        return [f.album_dir for f in self.failures]
 
 
 def batch_init(
@@ -33,7 +38,7 @@ def batch_init(
     ``on_end(name, success, error_labels)`` after each album.
     """
     initialized = 0
-    failed_albums: list[Path] = []
+    failures: list[BatchFailure] = []
 
     for album_dir in albums:
         album_name = display_fn(album_dir)
@@ -43,15 +48,10 @@ def batch_init(
         try:
             metadata = load_album_metadata(album_dir)
             if metadata is not None:
+                reason = f"already initialized: {format_album_external_id(metadata.id)}"
                 if on_end:
-                    on_end(
-                        album_name,
-                        False,
-                        (
-                            f"already initialized: {format_album_external_id(metadata.id)}",
-                        ),
-                    )
-                failed_albums.append(album_dir)
+                    on_end(album_name, False, (reason,))
+                failures.append(BatchFailure(album_dir=album_dir, reason=reason))
                 continue
 
             if not dry_run:
@@ -61,9 +61,9 @@ def batch_init(
             if on_end:
                 on_end(album_name, True, ())
             initialized += 1
-        except Exception:
+        except Exception as exc:
             if on_end:
-                on_end(album_name, False, ())
-            failed_albums.append(album_dir)
+                on_end(album_name, False, (str(exc),))
+            failures.append(BatchFailure(album_dir=album_dir, reason=str(exc)))
 
-    return BatchInitResult(initialized=initialized, failed_albums=failed_albums)
+    return BatchInitResult(initialized=initialized, failures=failures)

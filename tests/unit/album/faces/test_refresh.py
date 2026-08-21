@@ -151,3 +151,67 @@ class TestKeysNeedingProcessing:
             redetect=False,
         )
         assert result == ["0411"]
+
+
+class TestFailureReporting:
+    """Per-image failures must carry a reason, not just a count.
+
+    Detection is best-effort — one unreadable file must not abandon the album —
+    but the reason used to be discarded by a bare ``except Exception``, and a
+    thumbnail that failed made its key vanish entirely: never analysed, never
+    counted, indistinguishable from an image with no faces.
+    """
+
+    def test_detection_failure_carries_key_stage_and_reason(self) -> None:
+        from photree.album.faces.detect import ThumbnailResult
+        from photree.album.faces.refresh import _detect_single
+
+        class _Boom:
+            def get(self, *_args, **_kwargs):
+                raise RuntimeError("model exploded")
+
+        tr = ThumbnailResult(
+            key="0410",
+            file_name="IMG_0410.HEIC",
+            thumb_path=Path("/nonexistent/0410.jpg"),
+            orig_width=4032,
+            orig_height=3024,
+            thumb_width=640,
+            thumb_height=480,
+        )
+
+        faces, state_key, failure = _detect_single(tr, Path("/nonexistent"), _Boom())
+
+        assert faces is None
+        assert state_key is None
+        assert failure is not None
+        assert failure.key == "0410"
+        assert failure.stage == "detection"
+        assert failure.reason
+
+    def test_result_exposes_failures_per_media_source(self) -> None:
+        from photree.album.faces.refresh import (
+            FaceFailure,
+            FaceRefreshResult,
+            FaceSourceRefreshResult,
+        )
+
+        failure = FaceFailure(key="0410", stage="thumbnail", reason="sips said no")
+        result = FaceRefreshResult(
+            by_media_source=(
+                (
+                    "main",
+                    FaceSourceRefreshResult(
+                        processed=1, skipped=0, faces_detected=0, failures=(failure,)
+                    ),
+                ),
+                (
+                    "bruno",
+                    FaceSourceRefreshResult(processed=2, skipped=0, faces_detected=3),
+                ),
+            )
+        )
+
+        assert result.failures == (("main", failure),)
+        assert result.by_media_source[0][1].failed == 1
+        assert result.by_media_source[1][1].failed == 0

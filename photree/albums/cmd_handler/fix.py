@@ -12,6 +12,7 @@ from ...album.id import generate_album_id
 from ...album.store.metadata import load_album_metadata, save_album_metadata
 from ...album.store.protocol import AlbumMetadata
 from ...fsprotocol import LinkMode
+from . import BatchFailure
 
 
 @dataclass(frozen=True)
@@ -19,7 +20,12 @@ class BatchFixResult:
     """Result of batch album fixing."""
 
     fixed: int
-    failed_albums: list[Path] = field(default_factory=list)
+    failures: list[BatchFailure] = field(default_factory=list)
+
+    @property
+    def failed_albums(self) -> list[Path]:
+        return [f.album_dir for f in self.failures]
+
     album_reports: list[tuple[str, str]] = field(default_factory=list)
 
 
@@ -34,18 +40,18 @@ def batch_fix(
     dry_run: bool = False,
     display_fn: Callable[[Path], str] = lambda p: p.name,
     on_start: Callable[[str], None] | None = None,
-    on_end: Callable[[str, bool], None] | None = None,
+    on_end: Callable[[str, bool, tuple[str, ...]], None] | None = None,
     max_workers: int | None = None,
 ) -> BatchFixResult:
     """Fix multiple albums and return aggregated results.
 
-    Calls ``on_start(name)`` before and ``on_end(name, success)`` after
+    Calls ``on_start(name)`` before and ``on_end(name, success, error_labels)`` after
     each album.
     """
     any_archive_op = rm_upstream or rm_orphan
 
     fixed = 0
-    failed_albums: list[Path] = []
+    failures: list[BatchFailure] = []
     album_reports: list[tuple[str, str]] = []
 
     for album_dir in albums:
@@ -72,15 +78,15 @@ def batch_fix(
                     album_reports.append((album_name, "\n".join(lines)))
 
             if on_end:
-                on_end(album_name, True)
+                on_end(album_name, True, ())
             fixed += 1
-        except Exception:
+        except Exception as exc:
             if on_end:
-                on_end(album_name, False)
-            failed_albums.append(album_dir)
+                on_end(album_name, False, (str(exc),))
+            failures.append(BatchFailure(album_dir=album_dir, reason=str(exc)))
 
     return BatchFixResult(
         fixed=fixed,
-        failed_albums=failed_albums,
+        failures=failures,
         album_reports=album_reports,
     )

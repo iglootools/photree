@@ -14,7 +14,7 @@ from ...clihelpers.options import (
     RM_ORPHAN_SIDECAR_OPTION,
 )
 from . import AlbumDirOption, DirOption, albums_app
-from .batch_ops import run_batch_fix_ios
+from .batch_ops.fix import run_batch_fix_ios
 from .ops import resolve_batch_albums
 
 

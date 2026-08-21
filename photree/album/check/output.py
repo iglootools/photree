@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from pathlib import Path
 from textwrap import dedent
 
 from rich.markup import escape
 
 from ...clihelpers.sysdeps import format_missing_troubleshoot
 from ...common.formatting import CHECK, CROSS, WARNING, format_check_line
+from ...common.fs import display_path
 from ...common.sysdeps import SystemDependency
 from ..id import format_album_external_id
+from ..jpeg import JpegConversionFailure
 from ..naming import AlbumNamingResult, BatchNamingResult
 from . import AlbumIntegrityResult, AlbumMediaSourceSummary, AlbumPreflightResult
 from .browsable import BrowsableDirCheck
@@ -26,6 +30,21 @@ from .unexpected_dirs import UnexpectedDirsCheck
 # ---------------------------------------------------------------------------
 # System check output
 # ---------------------------------------------------------------------------
+
+
+def jpeg_failures_report(
+    failures: tuple[tuple[str, JpegConversionFailure], ...],
+) -> str:
+    """Format per-file JPEG conversion failures for a single album."""
+    return "\n".join(
+        [
+            f"{CROSS} jpeg: {len(failures)} file(s) could not be converted",
+            *(
+                f"    {source}/{failure.filename}: {failure.reason}"
+                for source, failure in failures
+            ),
+        ]
+    )
 
 
 def sips_check(available: bool) -> str:
@@ -666,3 +685,60 @@ def batch_check_summary(passed: int, failed: int, warned: int = 0) -> str:
         parts.append(f"{warned} with warnings")
     parts.append(f"{failed} failed")
     return f"\nDone. {', '.join(parts)}."
+
+
+# ---------------------------------------------------------------------------
+# Batch check output
+#
+# Rendering for a check lives here whatever its scope, next to the single-album
+# formatters above — the batch CLI wrapper composes these rather than building
+# its own strings, so there is one place to change how a check result reads.
+# ---------------------------------------------------------------------------
+
+
+def batch_system_checks(*, sips_available: bool, exiftool_available: bool) -> str:
+    """The system-dependency block printed once before a batch check.
+
+    Unlike the import/refresh gate, a check degrades rather than aborts when
+    exiftool is absent, so this reports both rather than failing on either.
+    """
+    return "\n".join([sips_check(sips_available), exiftool_check(exiftool_available)])
+
+
+def duplicate_ids_report(
+    kind: str,
+    duplicates: dict[str, list[Path]],
+    base: Path,
+    format_id: Callable[[str], str],
+) -> str:
+    """Format duplicate-ID findings. *kind* is ``"album"`` or ``"media"``."""
+    return "\n".join(
+        f"{CROSS} duplicate {kind} id: {format_id(dup_id)}\n"
+        + "\n".join(f"    {display_path(p, base)}" for p in paths)
+        for dup_id, paths in duplicates.items()
+    )
+
+
+def no_duplicate_ids_line(kind: str) -> str:
+    """The success counterpart of :func:`duplicate_ids_report`."""
+    return f"{CHECK} no duplicate {kind} ids"
+
+
+def batch_check_retry_flags(
+    *,
+    fatal_warnings: bool,
+    fatal_sidecar: bool,
+    fatal_exif_date_match: bool,
+) -> str:
+    """Reconstruct the flags needed to reproduce a batch check on one album.
+
+    A suggested command that silently drops the caller's flags would not
+    reproduce the failure it is suggested for.
+    """
+    return "".join(
+        [
+            " --fatal-warnings" if fatal_warnings else "",
+            " --fatal-sidecar" if fatal_sidecar else "",
+            " --no-fatal-exif-date-match" if not fatal_exif_date_match else "",
+        ]
+    )

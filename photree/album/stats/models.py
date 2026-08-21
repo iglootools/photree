@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ...collection.stats.models import GalleryCollectionStats
 from ..store.protocol import MediaSourceType
 
 
@@ -102,13 +101,18 @@ class YearStats:
 
 
 @dataclass(frozen=True)
-class GalleryStats:
-    """Aggregated statistics for an entire gallery."""
+class AlbumsStats:
+    """Aggregated statistics across a set of albums.
+
+    Deliberately knows nothing about galleries or collections: `albums stats
+    -d <dir>` produces this for a bare directory of albums with no gallery
+    anywhere. The gallery-only additions live on
+    :class:`photree.gallery.stats.GalleryStats`, which wraps this.
+    """
 
     album_count: int
     by_album: tuple[AlbumStats, ...]
     aggregate: AggregateStats
     unique_media_source_names: tuple[str, ...]
     by_year: tuple[YearStats, ...]
-    collection_stats: GalleryCollectionStats | None = None
     cache_storage: SizeStats | None = None

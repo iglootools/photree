@@ -11,7 +11,7 @@ from ...album.id import format_album_external_id
 from ...clihelpers.options import DRY_RUN_OPTION
 from ...common.fs import display_path
 from . import AlbumDirOption, DirOption, albums_app
-from .batch_ops import run_batch_rename_from_csv
+from .batch_ops.rename import run_batch_rename_from_csv
 from .ops import resolve_check_batch_albums
 
 

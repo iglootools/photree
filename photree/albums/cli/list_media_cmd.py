@@ -8,7 +8,7 @@ from typing import Annotated
 import typer
 
 from . import AlbumDirOption, DirOption, albums_app
-from .batch_ops import run_batch_list_media
+from .batch_ops.listmedia import run_batch_list_media
 from .ops import resolve_check_batch_albums
 
 

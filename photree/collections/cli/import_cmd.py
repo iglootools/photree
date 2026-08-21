@@ -8,13 +8,13 @@ from typing import Annotated
 import typer
 
 from ...clihelpers.progress import BatchProgressBar
+from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...clihelpers.sysdeps import EXIF_DEPS, require_system_deps
 from ...collection.importer.import_members import import_collection_members
 from ...collection.importer.selection import has_selection
 from ...collection.store.collection_discovery import discover_collections
 from ...common.exif import try_start_exiftool
 from ...common.fs import display_path
-from ...gallery.cli.ops import resolve_gallery_or_exit
 from . import collections_app
 
 

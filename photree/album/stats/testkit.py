@@ -5,9 +5,9 @@ from __future__ import annotations
 from ..store.protocol import MediaSourceType
 from .models import (
     AggregateStats,
+    AlbumsStats,
     AlbumStats,
     FormatStats,
-    GalleryStats,
     MediaSourceStats,
     RoleBreakdown,
     SizeStats,
@@ -330,7 +330,7 @@ _GALLERY_AGGREGATE = AggregateStats(
     ),
 )
 
-GALLERY_STATS = GalleryStats(
+ALBUMS_STATS = AlbumsStats(
     album_count=3,
     by_album=(_ALBUM_2024_A, _ALBUM_2024_B, _ALBUM_2025),
     aggregate=_GALLERY_AGGREGATE,

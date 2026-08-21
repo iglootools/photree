@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from . import AlbumDirOption, DirOption, albums_app
-from .batch_ops import run_batch_stats
+from .batch_ops.stats import run_batch_stats
 from .ops import resolve_check_batch_albums
 
 

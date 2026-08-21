@@ -11,6 +11,7 @@ from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ..common.fs import list_files
 from ..fsprotocol import LinkMode
+from .jpeg import JpegConversionFailure
 
 if TYPE_CHECKING:
     from .faces.detect import FaceAnalyzerFactory
@@ -31,6 +32,22 @@ from .store.protocol import (
     MediaSource,
     _KeyFn,
 )
+
+
+@dataclass(frozen=True)
+class AlbumRefreshResult:
+    """Outcome of :func:`refresh_album_derived_data`.
+
+    Carries the per-file failures the refresh survived, so a caller can report
+    them. A JPEG that failed to convert leaves a gap in ``{name}-jpg/`` that is
+    otherwise invisible until the next ``album check``.
+    """
+
+    jpeg_failures: tuple[tuple[str, JpegConversionFailure], ...] = ()
+
+    @property
+    def success(self) -> bool:
+        return not self.jpeg_failures
 
 
 @dataclass(frozen=True)
@@ -197,7 +214,7 @@ def refresh_album_derived_data(
     redetect_faces: bool = False,
     refresh_face_thumbs: bool = False,
     dry_run: bool = False,
-) -> None:
+) -> AlbumRefreshResult:
     """Refresh all derived album data in a single pipeline.
 
     Runs 5 steps in order, each gated by a check to skip when up-to-date:
@@ -238,7 +255,7 @@ def refresh_album_derived_data(
     )
 
     # 2. JPEG dirs (main-jpg)
-    _refresh_jpeg_dirs(
+    jpeg_failures = _refresh_jpeg_dirs(
         album_dir,
         media_sources,
         max_workers=max_workers,
@@ -268,6 +285,8 @@ def refresh_album_derived_data(
         refresh_thumbs=refresh_face_thumbs,
         dry_run=dry_run,
     )
+
+    return AlbumRefreshResult(jpeg_failures=jpeg_failures)
 
 
 def _refresh_browsable_dirs(
@@ -460,25 +479,37 @@ def _refresh_jpeg_dirs(
     convert_file: Callable[..., Path | None] | None,
     force: bool,
     dry_run: bool,
-) -> None:
-    """Conditionally refresh JPEG dirs for all media sources."""
+) -> tuple[tuple[str, JpegConversionFailure], ...]:
+    """Conditionally refresh JPEG dirs for all media sources.
+
+    Returns ``(media_source_name, failure)`` pairs for files that could not be
+    converted, so the caller can report which source they belong to.
+    """
     from .check.jpeg import check_jpeg_dir
     from .jpeg import convert_single_file, refresh_jpeg_dir
 
     converter = convert_file if convert_file is not None else convert_single_file
 
-    for ms in media_sources:
-        img_dir = album_dir / ms.img_dir
-        jpg_dir = album_dir / ms.jpg_dir
+    stale = [
+        ms
+        for ms in media_sources
+        if (album_dir / ms.img_dir).is_dir()
+        and (
+            force
+            or not check_jpeg_dir(
+                album_dir / ms.img_dir, album_dir / ms.jpg_dir
+            ).success
+        )
+    ]
 
-        if not img_dir.is_dir():
-            continue
-
-        if force or not check_jpeg_dir(img_dir, jpg_dir).success:
-            refresh_jpeg_dir(
-                img_dir,
-                jpg_dir,
-                dry_run=dry_run,
-                convert_file=converter,
-                max_workers=max_workers,
-            )
+    return tuple(
+        (ms.name, failure)
+        for ms in stale
+        for failure in refresh_jpeg_dir(
+            album_dir / ms.img_dir,
+            album_dir / ms.jpg_dir,
+            dry_run=dry_run,
+            convert_file=converter,
+            max_workers=max_workers,
+        ).failed
+    )

@@ -22,7 +22,7 @@ from ...clihelpers.console import console, err_console
 from ...clihelpers.progress import BatchProgressBar, StageProgressBar
 from ...common.formatting import CHECK
 from ...common.fs import display_path
-from ...fsprotocol import LinkMode, resolve_gallery_dir
+from ...fsprotocol import LinkMode
 from .. import (
     AlbumIndex,
     MissingAlbumIdError,
@@ -41,19 +41,6 @@ from ..import_plan import (
 )
 from ..importer import AlbumImportResult
 from ..output import format_import_errors, format_skipped
-
-# ---------------------------------------------------------------------------
-# Gallery resolution
-# ---------------------------------------------------------------------------
-
-
-def resolve_gallery_or_exit(gallery_dir: Path | None) -> Path:
-    """Resolve gallery directory or exit with a clear error."""
-    try:
-        return resolve_gallery_dir(gallery_dir)
-    except ValueError as exc:
-        err_console.print(str(exc))
-        raise typer.Exit(code=1) from exc
 
 
 def build_index_or_exit(gallery_dir: Path, cwd: Path) -> AlbumIndex:
@@ -156,6 +143,16 @@ def print_single_import_result(
         if meta is not None:
             typer.echo(f"Album ID: {format_album_external_id(meta.id)}")
     typer.echo(f"Target: {display_path(result.target_dir, cwd)}")
+
+    if result.jpeg_failures:
+        from ...album.check.output import jpeg_failures_report
+
+        err_console.print(jpeg_failures_report(result.jpeg_failures))
+        err_console.print(
+            "\nThe album imported, but those JPEGs are missing. Run "
+            f"'photree album refresh --refresh-jpeg --album-dir \"{display_path(result.target_dir, cwd)}\"'"
+        )
+        raise typer.Exit(code=1)
 
     if not dry_run:
         typer.echo("\nPost-Import Check:")

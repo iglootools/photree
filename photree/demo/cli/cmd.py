@@ -288,16 +288,16 @@ def output_cmd() -> None:
 
     # ── album stats ─────────────────────────────────────────────
 
-    from ...album.stats.output import format_album_stats, format_gallery_stats
-    from ...album.stats.testkit import ALBUM_STATS, GALLERY_STATS
+    from ...album.stats.output import format_album_stats, format_albums_stats
+    from ...album.stats.testkit import ALBUM_STATS, ALBUMS_STATS
 
     console.print("\n[bold cyan]── format_album_stats ──[/bold cyan]\n")
     console.print(format_album_stats(ALBUM_STATS))
 
     # ── gallery stats ───────────────────────────────────────────
 
-    console.print("\n[bold cyan]── format_gallery_stats ──[/bold cyan]\n")
-    console.print(format_gallery_stats(GALLERY_STATS))
+    console.print("\n[bold cyan]── format_albums_stats ──[/bold cyan]\n")
+    console.print(format_albums_stats(ALBUMS_STATS))
 
 
 @demo_app.command("seed")

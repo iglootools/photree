@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ..album.id import generate_album_id
+from ..album.jpeg import JpegConversionFailure
 from ..album.store.media_metadata import load_media_metadata, save_media_metadata
 from ..album.store.metadata import load_album_metadata, save_album_metadata
 from ..album.store.protocol import AlbumMetadata, parse_album_year
@@ -38,6 +39,7 @@ class AlbumImportResult:
     album_name: str
     target_dir: Path
     id_generated: bool
+    jpeg_failures: tuple[tuple[str, JpegConversionFailure], ...] = ()
 
 
 def _notify(callback: Callable[[str], None] | None, stage: str) -> None:
@@ -88,12 +90,15 @@ def _refresh_derived(
     dry_run: bool,
     on_stage_start: Callable[[str], None] | None = None,
     on_stage_end: Callable[[str], None] | None = None,
-) -> None:
-    """Stage 3: rebuild derived data (browsable, JPEG, media IDs, EXIF, faces)."""
+) -> tuple[tuple[str, JpegConversionFailure], ...]:
+    """Stage 3: rebuild derived data (browsable, JPEG, media IDs, EXIF, faces).
+
+    Returns the per-file JPEG conversion failures the refresh survived.
+    """
     from ..album.refresh import refresh_album_derived_data
 
     _notify(on_stage_start, STAGE_REFRESH_DERIVED)
-    refresh_album_derived_data(
+    result = refresh_album_derived_data(
         work_dir,
         link_mode=link_mode,
         max_workers=max_workers,
@@ -103,6 +108,7 @@ def _refresh_derived(
         dry_run=dry_run,
     )
     _notify(on_stage_end, STAGE_REFRESH_DERIVED)
+    return result.jpeg_failures
 
 
 def import_album(
@@ -145,7 +151,7 @@ def import_album(
     id_generated = _stage_generate_id(work_dir, dry_run=dry_run)
     _notify(on_stage_end, STAGE_ID)
 
-    _refresh_derived(
+    jpeg_failures = _refresh_derived(
         work_dir,
         link_mode=link_mode,
         max_workers=max_workers,
@@ -161,6 +167,7 @@ def import_album(
         album_name=album_name,
         target_dir=target_dir,
         id_generated=id_generated,
+        jpeg_failures=jpeg_failures,
     )
 
 
@@ -231,7 +238,7 @@ def reimport_album(
         _notify(on_stage_end, STAGE_COPY)
         _notify(on_stage_start, STAGE_ID)
         _notify(on_stage_end, STAGE_ID)
-        _refresh_derived(
+        jpeg_failures = _refresh_derived(
             source_dir,
             link_mode=link_mode,
             max_workers=max_workers,
@@ -243,7 +250,10 @@ def reimport_album(
             on_stage_end=on_stage_end,
         )
         return AlbumImportResult(
-            album_name=album_name, target_dir=target_dir, id_generated=False
+            album_name=album_name,
+            target_dir=target_dir,
+            id_generated=False,
+            jpeg_failures=jpeg_failures,
         )
 
     staging = target_dir.parent / f".{album_name}.reimport"
@@ -260,7 +270,7 @@ def reimport_album(
         id_generated = _stage_generate_id(staging, dry_run=False)
         _notify(on_stage_end, STAGE_ID)
 
-        _refresh_derived(
+        jpeg_failures = _refresh_derived(
             staging,
             link_mode=link_mode,
             max_workers=max_workers,
@@ -281,4 +291,5 @@ def reimport_album(
         album_name=album_name,
         target_dir=target_dir,
         id_generated=id_generated,
+        jpeg_failures=jpeg_failures,
     )

@@ -16,7 +16,7 @@ from ...clihelpers.options import (
     FATAL_WARNINGS_OPTION,
 )
 from . import AlbumDirOption, DirOption, albums_app
-from .batch_ops import run_batch_check
+from .batch_ops.check import run_batch_check
 from .ops import resolve_check_batch_albums
 
 

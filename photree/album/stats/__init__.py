@@ -22,9 +22,9 @@ from .aggregate import (
 )
 from .models import (
     AggregateStats,
+    AlbumsStats,
     AlbumStats,
     FormatStats,
-    GalleryStats,
     MediaSourceStats,
     RoleBreakdown,
     SizeStats,
@@ -42,16 +42,16 @@ from .scan import (
 __all__ = [
     "AggregateStats",
     "AlbumStats",
+    "AlbumsStats",
     "FormatStats",
-    "GalleryStats",
     "MediaSourceStats",
     "RoleBreakdown",
     "SizeStats",
     "YearStats",
+    "albums_stats_from_album_stats",
     "compute_album_stats",
-    "compute_gallery_stats",
+    "compute_albums_stats",
     "compute_media_source_stats",
-    "gallery_stats_from_album_stats",
 ]
 
 _ZERO = SizeStats(file_count=0, apparent_bytes=0, on_disk_bytes=0)
@@ -215,10 +215,10 @@ def compute_album_stats(album_dir: Path) -> AlbumStats:
 # ---------------------------------------------------------------------------
 
 
-def gallery_stats_from_album_stats(
+def albums_stats_from_album_stats(
     album_stats_list: list[AlbumStats],
-) -> GalleryStats:
-    """Build ``GalleryStats`` from pre-computed per-album stats."""
+) -> AlbumsStats:
+    """Build ``AlbumsStats`` from pre-computed per-album stats."""
     all_ms_names = sorted(
         {ms.name for a in album_stats_list for ms in a.by_media_source}
     )
@@ -241,7 +241,7 @@ def gallery_stats_from_album_stats(
     album_cache_sizes = [a.cache_storage for a in album_stats_list if a.cache_storage]
     cache_storage = merge_size_stats(album_cache_sizes) if album_cache_sizes else None
 
-    return GalleryStats(
+    return AlbumsStats(
         album_count=len(album_stats_list),
         by_album=tuple(album_stats_list),
         aggregate=merge_aggregates(a.aggregate for a in album_stats_list),
@@ -251,11 +251,11 @@ def gallery_stats_from_album_stats(
     )
 
 
-def compute_gallery_stats(
+def compute_albums_stats(
     albums: list[Path],
     *,
     on_album_done: Callable[[str], None] | None = None,
-) -> GalleryStats:
+) -> AlbumsStats:
     """Compute aggregated stats for a set of albums.
 
     Raises :class:`ValueError` when any album name cannot be parsed.
@@ -263,7 +263,7 @@ def compute_gallery_stats(
     album_stats_list = [
         _compute_and_notify(album_dir, on_album_done) for album_dir in albums
     ]
-    return gallery_stats_from_album_stats(album_stats_list)
+    return albums_stats_from_album_stats(album_stats_list)
 
 
 def _compute_and_notify(

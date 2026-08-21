@@ -10,6 +10,7 @@ import typer
 
 from ...clihelpers.console import err_console
 from ...clihelpers.options import REIMPORT_OPTION
+from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...clihelpers.sysdeps import import_deps, require_system_deps
 from ...common.fs import display_path
 from ...fsprotocol import (
@@ -24,7 +25,6 @@ from .ops import (
     build_index_or_exit,
     plan_imports_or_exit,
     render_skipped,
-    resolve_gallery_or_exit,
     resolve_import_all_albums,
     run_batch_import,
     run_batch_post_import_check,

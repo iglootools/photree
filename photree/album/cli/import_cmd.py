@@ -167,6 +167,16 @@ def import_cmd(
             err_console.print(str(exc))
             raise typer.Exit(code=1) from exc
 
+    if result.jpeg_failures:
+        from ..check.output import jpeg_failures_report
+
+        err_console.print(jpeg_failures_report(result.jpeg_failures))
+        err_console.print(
+            "\nThe media imported, but those JPEGs are missing. "
+            "Run 'photree album refresh --refresh-jpeg' to retry."
+        )
+        raise typer.Exit(code=1)
+
     if result.unprocessed:
         err_console.print(
             importer_output.unprocessed_selection_files(result.unprocessed)
