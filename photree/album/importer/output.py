@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 from textwrap import dedent
 
 from ...common.formatting import CHECK, CROSS
+from ...common.fs import display_path
 from .preflight import (
     _IMG_PREFIX_THRESHOLD,
     ImageCaptureDirCheck,
@@ -114,16 +116,12 @@ def image_capture_dir_check_output(
 
 def format_preflight_checks(result: ImportPreflightResult) -> str:
     """Format all preflight check lines from a result."""
-    from ..check.output import sips_check
+    from ...clihelpers.sysdeps import format_statuses
 
     return "\n".join(
         [
-            # sips
-            *(
-                [sips_check(result.sips_available)]
-                if result.sips_available is not None
-                else []
-            ),
+            # system dependencies (sips, exiftool)
+            *([format_statuses(result.system_deps)] if result.system_deps else []),
             # import tasks
             *(
                 [
@@ -162,10 +160,11 @@ def format_preflight_checks(result: ImportPreflightResult) -> str:
 
 def format_preflight_troubleshoot(result: ImportPreflightResult) -> str | None:
     """Format troubleshooting info for failed checks. Returns None if no failures."""
-    from ..check.output import sips_troubleshoot
+    from ...clihelpers.sysdeps import format_missing_troubleshoot
 
+    missing_deps = result.missing_system_deps
     lines = [
-        *([sips_troubleshoot()] if result.sips_available is False else []),
+        *([format_missing_troubleshoot(missing_deps)] if missing_deps else []),
         *(
             [import_tasks_troubleshoot(result.selection_path)]
             if result.selection_status
@@ -202,8 +201,26 @@ def batch_album_skipped(album_name: str, reason: str) -> str:
     return f"Skipping:  {album_name} ({reason})"
 
 
-def batch_summary(imported: int, skipped: int) -> str:
-    return f"\nDone. {imported} album(s) imported, {skipped} skipped."
+def batch_summary(imported: int, skipped: int, failed: int = 0) -> str:
+    return f"\nDone. {imported} album(s) imported, {failed} failed, {skipped} skipped."
+
+
+def batch_failures(failures: Sequence[tuple[Path, str]], base: Path) -> str:
+    """Format the per-album failure reasons of a batch import.
+
+    The reason is what the batch loop swallowed previously; without it a run
+    where every album failed was indistinguishable from one where every album
+    was skipped.
+    """
+    return "\n".join(
+        [
+            "\nFailed albums:",
+            *(
+                f"  {display_path(album_dir, base)}\n    {reason}"
+                for album_dir, reason in failures
+            ),
+        ]
+    )
 
 
 # ---------------------------------------------------------------------------

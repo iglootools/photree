@@ -8,6 +8,7 @@ from typing import Annotated
 import typer
 
 from ...clihelpers.console import err_console
+from ...clihelpers.sysdeps import EXIF_DEPS, require_system_deps
 from ...common.exif import try_start_exiftool
 from ...common.fs import display_path
 from ...gallery.cli.ops import resolve_gallery_or_exit
@@ -51,6 +52,9 @@ def import_cmd(
     ] = False,
 ) -> None:
     """Import members into a collection from to-import/ or to-import.csv."""
+    # Selection entries are resolved to media items by EXIF timestamp.
+    require_system_deps(EXIF_DEPS)
+
     cwd = Path.cwd()
     resolved_gallery = resolve_gallery_or_exit(gallery_dir)
 

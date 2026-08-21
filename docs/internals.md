@@ -848,6 +848,54 @@ operations.
 - Videos: `.mov`
 - Sidecars: `.aae`
 
+## System Dependencies
+
+photree shells out to two external binaries:
+
+| Binary | Used for |
+|---|---|
+| `sips` | HEIC/DNG-to-JPEG conversion, face detection thumbnails |
+| `exiftool` | reading and writing EXIF timestamps |
+
+`photree/common/sysdeps.py` owns the list, each entry's purpose, and its
+install hint. `photree/clihelpers/sysdeps.py` turns that into the CLI gate.
+
+### Fail-fast gate
+
+Commands that need a binary call `require_system_deps` **before** any
+filesystem mutation. A missing binary is a property of the machine, not of the
+album being processed, so retrying per album can only reproduce the same
+failure N times — worse, it does so after some albums have already been
+written. The gate prints a check line per dependency, then install
+instructions for whatever is missing, and exits 1 having modified nothing.
+
+| Command | Requires |
+|---|---|
+| `album import`, `albums import` | `sips` + `exiftool` (`sips` dropped by `--skip-heic-to-jpeg`) |
+| `gallery import`, `gallery import-all` | `sips` + `exiftool` |
+| `album refresh`, `albums refresh`, `gallery refresh` | `sips` + `exiftool` |
+| `collection import`, `collections import` | `exiftool` |
+| `album detect-faces`, `albums detect-faces` | `sips` |
+| `gallery cluster-faces` | `sips`; also `exiftool` with `--redetect` / `--refresh-thumbs` |
+| `album fix-exif` | `exiftool` |
+| `check system` | reports both, exits 1 if any is missing |
+
+For `album import` / `albums import` the gate is folded into the existing
+import preflight block, so all preflight failures are reported together.
+
+The `check` commands are deliberately **not** gated on `exiftool`: EXIF
+validation is optional there and degrades to a "checks skipped" line. They are
+still gated on `sips`, which the browsable/JPEG consistency checks need.
+
+### Defense in depth
+
+`common.exif.get_metadata` raises `MissingSystemDependencyError` when asked to
+start its own exiftool process on a machine that has none — otherwise
+PyExifTool surfaces a bare `FileNotFoundError` that reads like a missing media
+file. The CLI entry point catches that error and prints the same install
+instructions, so a code path not fronted by the gate still fails legibly
+instead of with a traceback.
+
 ## Album Validation Levels
 
 photree has two levels of album validation, used in different contexts:

@@ -114,6 +114,38 @@ Progress bar labels during operation:
 2. Suggest a fix: `"Run 'photree <command>' to <fix>."`
 3. `raise typer.Exit(code=1)`
 
+**A batch never swallows a per-item failure.** Report the reason, not just the
+count: print each failed item with its error, count failures separately from
+skips, and exit 1. A summary that folds failures into "skipped" and exits 0
+makes a wholly-failed run look like a successful one.
+
+### System Dependencies
+
+Anything that shells out to `sips` or `exiftool` resolves its requirement
+through `clihelpers/sysdeps.py` (`import_deps()`, `refresh_deps()`,
+`EXIF_DEPS`, `FACE_DETECTION_DEPS`) and checks it **before** any filesystem
+mutation. A missing binary is a property of the machine, so a batch must fail
+once up front rather than once per item, halfway through.
+
+Every requirement is declared in that one module — never inline at the call
+site — so adding a binary cannot leave a caller behind. Add the binary itself
+to `common/sysdeps.py`, with its purpose and install hint, never as a bare
+`shutil.which`. Keep the command/requirement table in
+[internals.md](./internals.md#system-dependencies) in sync.
+
+Two call styles, matching what the command does:
+
+- **Gate** — `require_system_deps(...)` prints the check lines and exits on a
+  miss. The default.
+- **Fold into a wider report** — the import family probes with
+  `check_system_dependencies(...)` and passes the statuses into
+  `run_preflight`, so a broken setup reports the missing binary *and* the
+  staging/Image Capture problems in one pass. `import-check` is a pure
+  diagnostic and depends on this.
+
+Probing PATH is the CLI layer's job. Library functions take the resolved
+statuses as a parameter and stay pure.
+
 ### Discoverability
 
 Commands reference each other in error messages so the user can navigate

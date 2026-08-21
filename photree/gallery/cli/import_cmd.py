@@ -9,6 +9,7 @@ from typing import Annotated
 import typer
 
 from ...clihelpers.options import REIMPORT_OPTION
+from ...clihelpers.sysdeps import import_deps, require_system_deps
 from ...fsprotocol import (
     GALLERY_YAML,
     PHOTREE_DIR,
@@ -71,6 +72,7 @@ def import_cmd(
     reimport: REIMPORT_OPTION = False,
 ) -> None:
     """Import an existing album directory into the gallery."""
+    require_system_deps(import_deps())
     resolved_gallery = resolve_gallery_or_exit(gallery_dir)
     resolved_lm = resolve_link_mode(link_mode, resolved_gallery)
     cwd = Path.cwd()

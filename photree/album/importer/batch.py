@@ -53,11 +53,16 @@ class BatchResult:
 
     @property
     def skipped(self) -> int:
-        return (
-            len(self.scan.no_selection)
-            + len(self.scan.empty_selection)
-            + len(self.failed)
-        )
+        """Albums that were never attempted (no staging entry, or an empty one).
+
+        Failures are counted separately: an album whose import raised was
+        attempted and needs reporting, not quiet lumping in with the skips.
+        """
+        return len(self.scan.no_selection) + len(self.scan.empty_selection)
+
+    @property
+    def failed_count(self) -> int:
+        return len(self.failed)
 
 
 def scan_albums(albums_dir: Path) -> AlbumScan:
@@ -208,7 +213,11 @@ def run_batch_import(
                 result.imported += 1
                 if on_imported:
                     on_imported(album_dir.name)
-        except (FileNotFoundError, ValueError) as exc:
+        # OSError rather than FileNotFoundError alone: a batch should report
+        # any per-album filesystem failure and carry on, matching the gallery
+        # batch importer. A missing system dependency is deliberately not
+        # caught here — it is machine-wide, so it aborts the whole run.
+        except (OSError, ValueError) as exc:
             result.failed.append((album_dir, str(exc)))
             if on_error:
                 on_error(album_dir.name, str(exc))

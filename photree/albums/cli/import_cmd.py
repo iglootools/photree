@@ -13,6 +13,7 @@ from ...album.faces.detect import memoized_face_analyzer_factory
 from ...album.importer import batch
 from ...album.importer import output as importer_output
 from ...album.jpeg import convert_single_file, noop_convert_single
+from ...common.fs import display_path
 from ...fsprotocol import LinkMode
 from . import albums_app
 
@@ -153,7 +154,9 @@ def import_cmd(
             on_importing=progress.on_start,
             on_imported=lambda name: progress.on_end(name, success=True),
             on_skipped=progress.on_skipped,
-            on_error=lambda name, error: progress.on_end(name, success=False),
+            on_error=lambda name, error: progress.on_end(
+                name, success=False, error_labels=(error,)
+            ),
             on_validation_error=_on_validation_error,
             convert_file=converter,
             max_workers=os.cpu_count(),
@@ -164,4 +167,18 @@ def import_cmd(
         err_console.print("\nAborted: validation failed. No imports were performed.")
         raise typer.Exit(code=1)
 
-    typer.echo(importer_output.batch_summary(result.imported, result.skipped))
+    typer.echo(
+        importer_output.batch_summary(
+            result.imported, result.skipped, result.failed_count
+        )
+    )
+
+    if result.failed:
+        base = resolved_albums_dir if resolved_albums_dir is not None else Path.cwd()
+        err_console.print(importer_output.batch_failures(result.failed, base))
+        err_console.print("\nTo investigate failures:")
+        for album_dir, _ in result.failed:
+            err_console.print(
+                f'  photree album import --album-dir "{display_path(album_dir, Path.cwd())}"'
+            )
+        raise typer.Exit(code=1)

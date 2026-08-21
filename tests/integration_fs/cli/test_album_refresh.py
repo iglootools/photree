@@ -38,7 +38,7 @@ def _setup_album(album_dir: Path) -> None:
 
 
 class TestAlbumRefresh:
-    def test_creates_media_ids(self, tmp_path: Path) -> None:
+    def test_creates_media_ids(self, tmp_path: Path, stub_sips_on_path: Path) -> None:
         album = tmp_path / "album"
         _setup_album(album)
 
@@ -47,7 +47,7 @@ class TestAlbumRefresh:
         assert result.exit_code == 0
         assert load_media_metadata(album) is not None
 
-    def test_dry_run(self, tmp_path: Path) -> None:
+    def test_dry_run(self, tmp_path: Path, stub_sips_on_path: Path) -> None:
         album = tmp_path / "album"
         _setup_album(album)
 
@@ -56,7 +56,7 @@ class TestAlbumRefresh:
         assert result.exit_code == 0
         assert load_media_metadata(album) is None
 
-    def test_idempotent(self, tmp_path: Path) -> None:
+    def test_idempotent(self, tmp_path: Path, stub_sips_on_path: Path) -> None:
         album = tmp_path / "album"
         _setup_album(album)
 

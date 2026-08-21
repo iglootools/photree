@@ -11,12 +11,14 @@ imports that do not rely on these macOS-specific tools.
 
 - macOS
 - Python 3.12+
-- [exiftool](https://exiftool.org/) (optional, for EXIF timestamp validation)
+- `sips` (ships with macOS)
+- [exiftool](https://exiftool.org/)
 
 ### exiftool
 
-photree uses exiftool to validate that media file timestamps match album dates.
-If exiftool is not installed, EXIF checks are skipped gracefully.
+photree uses exiftool to read and write EXIF timestamps: validating that media
+file timestamps match album dates, populating the EXIF timestamp cache during
+a refresh, and resolving collection selections.
 
 **macOS** (Homebrew):
 
@@ -29,6 +31,26 @@ Verify the installation:
 ```bash
 exiftool -ver
 ```
+
+### Verifying prerequisites
+
+```bash
+photree check system
+```
+
+It prints one line per external binary and exits 1 if any is missing.
+
+### When a dependency is missing
+
+Commands that need an external binary probe for it **before** doing any work
+and abort the whole run if it is absent — a missing binary is a property of the
+machine, not of the album being processed, so a batch fails up front rather
+than once per album, halfway through. See
+[Internals — System Dependencies](internals.md#system-dependencies) for which
+command requires what.
+
+The `check` commands are the exception: they degrade gracefully, reporting that
+EXIF checks were skipped rather than failing.
 
 ## Install with uv
 

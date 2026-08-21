@@ -8,6 +8,7 @@ from typing import Annotated
 import typer
 
 from ...clihelpers.progress import BatchProgressBar
+from ...clihelpers.sysdeps import EXIF_DEPS, require_system_deps
 from ...collection.importer.import_members import import_collection_members
 from ...collection.importer.selection import has_selection
 from ...collection.store.collection_discovery import discover_collections
@@ -65,6 +66,9 @@ def import_cmd(
     if collections_dir is not None and collection_dirs is not None:
         typer.echo("--dir and --collection-dir are mutually exclusive.", err=True)
         raise typer.Exit(code=1)
+
+    # Selection entries are resolved to media items by EXIF timestamp.
+    require_system_deps(EXIF_DEPS)
 
     cwd = Path.cwd()
     resolved_gallery = resolve_gallery_or_exit(gallery_dir)

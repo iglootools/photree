@@ -11,6 +11,7 @@ from ...album.faces.detect import memoized_face_analyzer_factory
 from ...album.faces.refresh import refresh_face_data
 from ...clihelpers.console import err_console
 from ...clihelpers.progress import BatchProgressBar
+from ...clihelpers.sysdeps import FACE_DETECTION_DEPS, require_system_deps
 from ...common.fs import display_path
 from . import AlbumDirOption, DirOption, albums_app
 from .batch_ops import make_display_fn
@@ -41,6 +42,8 @@ def detect_faces_cmd(
     ] = False,
 ) -> None:
     """Run face detection on images in multiple albums."""
+    require_system_deps(FACE_DETECTION_DEPS)
+
     albums, display_base = resolve_check_batch_albums(base_dir, album_dirs)
     cwd = Path.cwd()
 

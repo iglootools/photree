@@ -8,6 +8,11 @@ from typing import Annotated
 import typer
 
 from ...clihelpers.options import DRY_RUN_OPTION
+from ...clihelpers.sysdeps import (
+    FACE_DETECTION_DEPS,
+    refresh_deps,
+    require_system_deps,
+)
 from ...fsprotocol import GALLERY_YAML, PHOTREE_DIR, load_gallery_metadata
 from . import gallery_app
 from .ops import resolve_gallery_or_exit, run_face_clustering
@@ -50,6 +55,12 @@ def cluster_faces_cmd(
     ] = None,
 ) -> None:
     """Run face detection and clustering on all albums in the gallery."""
+    # --redetect / --refresh-thumbs run a full album refresh first, which also
+    # rebuilds the EXIF cache — so those flags widen the requirement set.
+    require_system_deps(
+        refresh_deps() if (redetect or refresh_thumbs) else FACE_DETECTION_DEPS
+    )
+
     resolved = resolve_gallery_or_exit(gallery_dir)
 
     if redetect or refresh_thumbs:

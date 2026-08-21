@@ -10,6 +10,7 @@ import typer
 
 from ...clihelpers.console import err_console
 from ...clihelpers.options import REIMPORT_OPTION
+from ...clihelpers.sysdeps import import_deps, require_system_deps
 from ...common.fs import display_path
 from ...fsprotocol import (
     GALLERY_YAML,
@@ -94,6 +95,8 @@ def import_all_cmd(
     if base_dir is not None and album_dirs is not None:
         typer.echo("--dir and --album-dir are mutually exclusive.", err=True)
         raise typer.Exit(code=1)
+
+    require_system_deps(import_deps())
 
     resolved_gallery = resolve_gallery_or_exit(gallery_dir)
     resolved_lm = resolve_link_mode(link_mode, resolved_gallery)

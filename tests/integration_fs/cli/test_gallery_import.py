@@ -78,7 +78,9 @@ class TestValidationGate:
 
 
 class TestSkip:
-    def test_already_imported_is_skipped(self, tmp_path: Path) -> None:
+    def test_already_imported_is_skipped(
+        self, tmp_path: Path, stub_sips_on_path: Path
+    ) -> None:
         gallery = _setup_gallery(tmp_path)
         _place_gallery_album(
             gallery, "2024-07-14 - Hiking", album_id=generate_album_id()
@@ -113,7 +115,9 @@ class TestClobberGuard:
 
 
 class TestDryRun:
-    def test_dry_run_imports_nothing(self, tmp_path: Path) -> None:
+    def test_dry_run_imports_nothing(
+        self, tmp_path: Path, stub_sips_on_path: Path
+    ) -> None:
         # No face-model stubbing needed: the analyzer factory is injected
         # lazily and dry-run never reaches face detection.
         gallery = _setup_gallery(tmp_path)

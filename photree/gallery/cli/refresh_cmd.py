@@ -12,6 +12,7 @@ from ...albums.cli.ops import resolve_check_batch_albums
 from ...clihelpers.console import err_console
 from ...clihelpers.options import DRY_RUN_OPTION
 from ...clihelpers.progress import StageProgressBar, run_with_spinner
+from ...clihelpers.sysdeps import refresh_deps, require_system_deps
 from ...common.formatting import CHECK
 from ...fsprotocol import GALLERY_YAML, PHOTREE_DIR, load_gallery_metadata
 from ..browsable_refresh import refresh_browsable as refresh_gallery_browsable
@@ -77,6 +78,8 @@ def refresh_cmd(
     ] = False,
 ) -> None:
     """Refresh all derived data, face clusters, and collections for the gallery."""
+    require_system_deps(refresh_deps())
+
     resolved = resolve_gallery_or_exit(gallery_dir)
     albums, display_base = resolve_check_batch_albums(resolved, None)
     run_batch_refresh(
