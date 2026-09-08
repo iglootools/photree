@@ -1,9 +1,9 @@
 [tools]
-python = "3.14.3"
-uv = "0.12.3"
-github-cli = "2.88.1"
-"aqua:asciinema/asciinema" = "3.2.0"
-"aqua:asciinema/agg" = "1.7.0"
+python = "3.14.7"
+uv = "0.12.5"
+github-cli = "2.98.0"
+"aqua:asciinema/asciinema" = "3.2.1"
+"aqua:asciinema/agg" = "1.9.0"
 
 [env]
 # Pin uv to the interpreter mise installed, by absolute path. mise's own docs are explicit
