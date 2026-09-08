@@ -9,10 +9,6 @@ checksum = "sha256:4b22399a4a0882f8ac9585a27c5bda1dfd755e04a7a989505bc434d49f254
 url = "https://github.com/asciinema/agg/releases/download/v1.7.0/agg-aarch64-unknown-linux-gnu"
 url_api = "https://api.github.com/repos/asciinema/agg/releases/assets/307370712"
 
-[tools."aqua:asciinema/agg"."platforms.linux-arm64-musl"]
-checksum = "sha256:4b22399a4a0882f8ac9585a27c5bda1dfd755e04a7a989505bc434d49f25434a"
-url = "https://github.com/asciinema/agg/releases/download/v1.7.0/agg-aarch64-unknown-linux-gnu"
-
 [tools."aqua:asciinema/agg"."platforms.linux-x64"]
 checksum = "sha256:b72c773c22ef73149540f5728b37290dffe88418f0a16ceab29bc8e43699abf7"
 url = "https://github.com/asciinema/agg/releases/download/v1.7.0/agg-x86_64-unknown-linux-gnu"
@@ -46,10 +42,6 @@ backend = "aqua:asciinema/asciinema"
 checksum = "sha256:f7f92769f7b4150df2835ddd4eda067b0786d0d734284a0f9c2aaa2514e8beb6"
 url = "https://github.com/asciinema/asciinema/releases/download/v3.2.0/asciinema-aarch64-unknown-linux-gnu"
 url_api = "https://api.github.com/repos/asciinema/asciinema/releases/assets/364694558"
-
-[tools."aqua:asciinema/asciinema"."platforms.linux-arm64-musl"]
-checksum = "sha256:f7f92769f7b4150df2835ddd4eda067b0786d0d734284a0f9c2aaa2514e8beb6"
-url = "https://github.com/asciinema/asciinema/releases/download/v3.2.0/asciinema-aarch64-unknown-linux-gnu"
 
 [tools."aqua:asciinema/asciinema"."platforms.linux-x64"]
 checksum = "sha256:89f431ea3a31f9a108f38050a242aa63f8d368975330212281675c4fb1399633"
