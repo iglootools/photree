@@ -66,7 +66,7 @@ jobs:
     - uses: jdx/mise-action@3c2e0cf82a5b2e5249f0d3635a4d83d0ae861518 # v4
       with:
         # renovate: datasource=github-releases depName=jdx/mise
-        version: 2026.8.10
+        version: 2026.9.2
     - run: mise run ci-build
     - name: Publish package distributions to PyPI
       uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
