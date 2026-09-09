@@ -68,7 +68,7 @@ Practical information:
 - [docs/building-and-testing.md](https://github.com/iglootools/photree/blob/main/docs/building-and-testing.md) — running tests and checks
 - [docs/releasing-and-publishing.md](https://github.com/iglootools/photree/blob/main/docs/releasing-and-publishing.md) — releases and PyPI publishing
 - [docs/guidelines.md](https://github.com/iglootools/photree/blob/main/docs/guidelines.md) — project-specific guidelines
-- [common-guidelines](https://github.com/iglootools/common-guidelines) — shared coding guidelines
+- [common](https://github.com/iglootools/common) — shared coding guidelines
 
 Conceptual information:
 - [docs/internals.md](https://github.com/iglootools/photree/blob/main/docs/internals.md) — runtime behavior, design decisions, and external commands

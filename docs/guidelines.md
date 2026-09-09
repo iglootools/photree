@@ -2,7 +2,7 @@
 
 A set of [implementation checklists](./implementation-checklists.md) serve as a reminder for things to check when implementing new features or making changes to the codebase.
 
-For general coding, Python, and tooling guidelines, see the [common guidelines](https://github.com/iglootools/common-guidelines).
+For general coding, Python, and tooling guidelines, see the [common guidelines](https://github.com/iglootools/common).
 
 ## Coding
 - **Naming Conventions**
@@ -12,7 +12,7 @@ For general coding, Python, and tooling guidelines, see the [common guidelines](
 
 ### Documented exception: mutable accumulators in scan/group loops
 
-The [common Python guidelines](https://github.com/iglootools/common-guidelines/blob/main/guidelines/coding/python.md)
+The [common Python guidelines](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md)
 ask for lists built as a single expression rather than `errors = []` plus
 `append`, and for `continue` to be replaced by filtering. photree keeps the
 accumulator form in two specific shapes, because the comprehension is harder
