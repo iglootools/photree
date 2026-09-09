@@ -3,14 +3,15 @@
 Run automated tests and checks:
 ```bash
 # mise tasks
-mise run check              # Run all checks: format + lint + type-check + compat-check + lock-check + lock-check-uv + clidocs-check + depgraph-check
+mise run check              # Run all checks: format-check + lint + type-check + compat-check + lock-check + lock-check-uv + clidocs-check + depgraph-check
 mise run check-all          # Run all checks: regular checks + all tests
 
 mise run test-all           # All tests (unit + integration)
 mise run test-unit          # Unit tests
 mise run test-integration-fs # Filesystem integration tests (full workflow)
 
-mise run format             # ruff format
+mise run format             # ruff format (rewrites files)
+mise run format-check       # ruff format --check (verifies only; what check runs)
 mise run lint               # ruff check
 mise run type-check         # pyright
 mise run compat-check       # vermin (enforce Python >=3.12 compatibility — see Python versions below)
