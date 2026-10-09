@@ -56,21 +56,7 @@ See [docs/installation.md](https://github.com/iglootools/photree/blob/main/docs/
 
 See [docs/usage.md](https://github.com/iglootools/photree/blob/main/docs/usage.md).
 
-## Development
-
-See [docs/project-setup.md](https://github.com/iglootools/photree/blob/main/docs/project-setup.md).
-
-
 ## Contribute
 
-Practical information:
-- [docs/project-setup.md](https://github.com/iglootools/photree/blob/main/docs/project-setup.md) — development setup
-- [docs/build-test.md](https://github.com/iglootools/photree/blob/main/docs/build-test.md) — running tests and checks
-- [docs/release-publish.md](https://github.com/iglootools/photree/blob/main/docs/release-publish.md) — releases and PyPI publishing
-- [docs/guidelines.md](https://github.com/iglootools/photree/blob/main/docs/guidelines.md) — project-specific guidelines
-- [common](https://github.com/iglootools/common) — shared coding guidelines
-
-Conceptual information:
-- [docs/domain.md](https://github.com/iglootools/photree/blob/main/docs/domain.md) — domain concepts: galleries, albums, media sources, collections, naming, IDs
-- [docs/internals.md](https://github.com/iglootools/photree/blob/main/docs/internals.md) — runtime behavior, design decisions, and external commands
-- [docs/architecture.md](https://github.com/iglootools/photree/blob/main/docs/architecture.md) — module dependency graph
+See [CONTRIBUTING.md](https://github.com/iglootools/photree/blob/main/CONTRIBUTING.md) for development setup, guidelines, and the
+documentation of the code.
