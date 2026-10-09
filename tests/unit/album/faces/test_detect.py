@@ -30,3 +30,21 @@ class TestMemoizedFaceAnalyzerFactory:
         assert first is sentinel
         assert second is sentinel
         assert calls == 1  # loaded once, shared across calls
+
+
+class TestSelectProviders:
+    def test_keeps_preferred_order_when_all_available(self) -> None:
+        available = [
+            "CoreMLExecutionProvider",
+            "AzureExecutionProvider",
+            "CPUExecutionProvider",
+        ]
+        assert detect.select_providers(available) == [
+            "CoreMLExecutionProvider",
+            "CPUExecutionProvider",
+        ]
+
+    def test_drops_coreml_when_unavailable(self) -> None:
+        """On Linux, requesting CoreML makes onnxruntime warn once per model."""
+        available = ["AzureExecutionProvider", "CPUExecutionProvider"]
+        assert detect.select_providers(available) == ["CPUExecutionProvider"]

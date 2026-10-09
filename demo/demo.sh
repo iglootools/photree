@@ -79,7 +79,7 @@ pe "ls \"$IC\""
 pause 3
 
 p "# Browse the album selection"
-pe "ls \"$ALBUM/to-import\""
+pe "ls \"$ALBUM/to-import-ios-main\""
 pause 3
 
 p "# Go to the album directory"
@@ -97,16 +97,6 @@ pause 3
 # ── Check ────────────────────────────────────────────────
 
 p "# Check album integrity"
-pe "photree album check"
-pause 3
-
-# ── Optimize ─────────────────────────────────────────────
-
-p "# Optimize (replace copies with symlinks)"
-pe "photree album optimize --link-mode symlink"
-pause 3
-
-p "# Verify integrity after optimization"
 pe "photree album check"
 pause 3
 
@@ -144,8 +134,8 @@ p "# Create a share directory with sentinel file"
 pe "mkdir -p \"$SHARE\" && touch \"$SHARE/.photree-share\""
 pause
 
-p "# Export all gallery albums (main-only layout)"
-pe "photree gallery export --share-dir \"$SHARE\" --album-layout main"
+p "# Export all gallery albums (JPEGs and videos only)"
+pe "photree gallery export --share-dir \"$SHARE\" --album-layout browsable-jpg"
 pause 3
 
 p "# Show the exported albums"

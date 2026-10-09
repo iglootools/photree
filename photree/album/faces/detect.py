@@ -16,6 +16,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+import onnxruntime
 from insightface.app import FaceAnalysis
 
 from ...common.sips import get_dimensions, resize_to_jpeg
@@ -31,6 +32,19 @@ FaceAnalyzerFactory = Callable[[], FaceAnalysis]
 # ---------------------------------------------------------------------------
 # InsightFace model management
 # ---------------------------------------------------------------------------
+
+
+_PREFERRED_PROVIDERS = ("CoreMLExecutionProvider", "CPUExecutionProvider")
+
+
+def select_providers(available: list[str]) -> list[str]:
+    """Return the preferred execution providers that are actually available.
+
+    onnxruntime warns once per model (five for ``buffalo_l``) when asked for a
+    provider it does not have, e.g. CoreML on Linux. Requesting only available
+    providers keeps that noise out of the output.
+    """
+    return [p for p in _PREFERRED_PROVIDERS if p in available]
 
 
 def create_face_analyzer(
@@ -53,7 +67,7 @@ def create_face_analyzer(
         warnings.filterwarnings("ignore", category=FutureWarning, module="insightface")
         app = FaceAnalysis(
             name=model_name,
-            providers=["CoreMLExecutionProvider", "CPUExecutionProvider"],
+            providers=select_providers(onnxruntime.get_available_providers()),
         )
         app.prepare(ctx_id=0, det_size=(640, 640))
     return app
