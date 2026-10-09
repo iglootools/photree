@@ -2,7 +2,9 @@
 
 [README.md](../README.md) documents the main use cases and philosophy that guide the design of photree.
 
-For the Image Capture file structure and iOS album on-disk layout, see [internals.md](./internals.md).
+For the domain concepts (albums, media sources, collections, naming conventions), see
+[domain.md](./domain.md). For the on-disk layout and metadata formats, see
+[internals.md](./internals.md).
 
 ## Package Layout
 

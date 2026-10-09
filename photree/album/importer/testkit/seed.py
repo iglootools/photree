@@ -1,7 +1,7 @@
 """Test data generation for demo and testing purposes.
 
 Generates realistic Image Capture directories and album selection folders
-following the conventions documented in docs/internals.md.
+following the conventions documented in docs/domain.md.
 """
 
 from __future__ import annotations
@@ -437,7 +437,7 @@ class SeedResult:
 def _seed_image_capture(ic_dir: Path) -> None:
     """Generate a realistic Image Capture directory.
 
-    Creates files matching the conventions documented in docs/internals.md:
+    Creates files matching the conventions documented in docs/domain.md:
     - HEIC photos with and without edits
     - ProRAW (DNG) with JPG edit
     - JPEG original (Most Compatible mode)
