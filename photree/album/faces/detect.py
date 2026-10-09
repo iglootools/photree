@@ -16,10 +16,27 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-from insightface.app import FaceAnalysis
 
+from ...common.native_stderr import filter_native_stderr
 from ...common.sips import get_dimensions, resize_to_jpeg
 from .protocol import DEFAULT_MODEL_NAME, THUMB_MAX_DIMENSION
+
+
+def is_ort_device_discovery_noise(line: str) -> bool:
+    """Match onnxruntime's ``GetPciBusId`` warning.
+
+    onnxruntime creates its native environment, at WARNING severity, when the
+    module is imported — before ``set_default_logger_severity`` can be called.
+    Device discovery then warns about PCI paths it does not recognize, such as
+    the Hyper-V ones on GitHub-hosted runners. Harmless, but printed once per
+    photree invocation since the CLI imports this module at startup.
+    """
+    return "device_discovery" in line and "GetPciBusId" in line
+
+
+with filter_native_stderr(is_ort_device_discovery_noise):
+    import onnxruntime
+    from insightface.app import FaceAnalysis
 
 # A zero-argument factory that produces a prepared :class:`FaceAnalysis`. Face
 # detection is injected as a *factory* (not an instance) so the ~300 MB model
@@ -31,6 +48,19 @@ FaceAnalyzerFactory = Callable[[], FaceAnalysis]
 # ---------------------------------------------------------------------------
 # InsightFace model management
 # ---------------------------------------------------------------------------
+
+
+_PREFERRED_PROVIDERS = ("CoreMLExecutionProvider", "CPUExecutionProvider")
+
+
+def select_providers(available: list[str]) -> list[str]:
+    """Return the preferred execution providers that are actually available.
+
+    onnxruntime warns once per model (five for ``buffalo_l``) when asked for a
+    provider it does not have, e.g. CoreML on Linux. Requesting only available
+    providers keeps that noise out of the output.
+    """
+    return [p for p in _PREFERRED_PROVIDERS if p in available]
 
 
 def create_face_analyzer(
@@ -53,7 +83,7 @@ def create_face_analyzer(
         warnings.filterwarnings("ignore", category=FutureWarning, module="insightface")
         app = FaceAnalysis(
             name=model_name,
-            providers=["CoreMLExecutionProvider", "CPUExecutionProvider"],
+            providers=select_providers(onnxruntime.get_available_providers()),
         )
         app.prepare(ctx_id=0, det_size=(640, 640))
     return app

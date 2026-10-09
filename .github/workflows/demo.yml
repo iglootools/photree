@@ -52,12 +52,17 @@ jobs:
         with:
           # renovate: datasource=github-releases depName=jdx/mise
           version: 2026.9.14
-      - name: Install pv (required by demo-magic)
-        run: sudo apt-get update && sudo apt-get install -y pv
+      # pv: simulated typing (demo-magic). tree: directory listings shown in the demo.
+      # exiftool: required by the import/refresh preflight gate (sips is shimmed in demo.sh).
+      - name: Install demo dependencies
+        run: sudo apt-get update && sudo apt-get install -y pv tree libimage-exiftool-perl
       - name: Record demo
         run: mise run ci-demo-record
       # Keep the recording downloadable: publishing from CI is disabled below.
+      # Also on failure: the cast is the only record of what went wrong inside the
+      # recorded session. demo-upload-latest only publishes from successful runs.
       - name: Upload demo artifacts
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: demo-recording
