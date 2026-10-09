@@ -16,11 +16,27 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-import onnxruntime
-from insightface.app import FaceAnalysis
 
+from ...common.native_stderr import filter_native_stderr
 from ...common.sips import get_dimensions, resize_to_jpeg
 from .protocol import DEFAULT_MODEL_NAME, THUMB_MAX_DIMENSION
+
+
+def is_ort_device_discovery_noise(line: str) -> bool:
+    """Match onnxruntime's ``GetPciBusId`` warning.
+
+    onnxruntime creates its native environment, at WARNING severity, when the
+    module is imported — before ``set_default_logger_severity`` can be called.
+    Device discovery then warns about PCI paths it does not recognize, such as
+    the Hyper-V ones on GitHub-hosted runners. Harmless, but printed once per
+    photree invocation since the CLI imports this module at startup.
+    """
+    return "device_discovery" in line and "GetPciBusId" in line
+
+
+with filter_native_stderr(is_ort_device_discovery_noise):
+    import onnxruntime
+    from insightface.app import FaceAnalysis
 
 # A zero-argument factory that produces a prepared :class:`FaceAnalysis`. Face
 # detection is injected as a *factory* (not an instance) so the ~300 MB model

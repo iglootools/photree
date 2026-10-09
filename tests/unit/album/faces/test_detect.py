@@ -48,3 +48,16 @@ class TestSelectProviders:
         """On Linux, requesting CoreML makes onnxruntime warn once per model."""
         available = ["AzureExecutionProvider", "CPUExecutionProvider"]
         assert detect.select_providers(available) == ["CPUExecutionProvider"]
+
+
+class TestIsOrtDeviceDiscoveryNoise:
+    def test_matches_pci_bus_id_warning(self) -> None:
+        line = (
+            "2026-10-09 23:37:02.762 [W:onnxruntime:Default, device_discovery.cc:134"
+            ' GetPciBusId] Skipping pci_bus_id for PCI path at "/sys/devices/x"\n'
+        )
+        assert detect.is_ort_device_discovery_noise(line)
+
+    def test_keeps_other_onnxruntime_output(self) -> None:
+        line = "[E:onnxruntime:Default, inference_session.cc:1] model load failed\n"
+        assert not detect.is_ort_device_discovery_noise(line)
