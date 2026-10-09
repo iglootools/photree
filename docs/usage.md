@@ -82,8 +82,9 @@ See [internals.md](./internals.md) for the gallery metadata format and resolutio
 Imports media into an album's media sources from per-source staging
 directories named `to-import-{ios,std}-<media-source>`. A single album can
 carry several — one per media source, iOS or std — and one `album import` run
-processes them all. See [internals.md](./internals.md) for the Image Capture
-file structure and album layout.
+processes them all. See [domain.md](./domain.md#importing) for the concepts
+(media sources, selections, Image Capture variants) and
+[internals.md](./internals.md) for the album layout.
 
 **Workflow:**
 
@@ -223,42 +224,14 @@ photree gallery check -W
 
 ### Collections
 
-Collections group albums, media items, and other collections.
-
-**Members** determines how members are selected:
-
-- **`manual`** — members added explicitly via `collection import`.
-  Can contain albums, collections, images, and videos.
-- **`smart`** — members managed automatically by `gallery refresh`.
-  Cannot contain images or videos. Cannot be imported into.
-
-**Lifecycle** determines how the collection itself is managed:
-
-- **`explicit`** (default) — created and managed by the user.
-- **`implicit`** — derived automatically from album series by
-  `gallery refresh`. Created, renamed, and deleted as albums change.
-
-**Strategy** determines the rule for member selection:
-
-- **`import`** — members added manually (default for manual collections)
-- **`date-range`** — auto-populated by date range containment (default for
-  smart explicit)
-- **`album-series`** — auto-populated from contiguous album series
-  (used by implicit collections)
-- **`chapter`** — like date-range, but chapters must not overlap in time
-  with other chapters
-
-**Valid combinations**:
-
-| Members | Lifecycle | Strategy | Description |
-|---------|-----------|----------|-------------|
-| manual | explicit | import | User-managed via `collection import` |
-| smart | explicit | date-range | Auto by date range containment |
-| smart | explicit | chapter | Auto by date range, no overlap with other chapters |
-| smart | implicit | album-series | Auto from contiguous album series |
-
-See [internals.md — Collections](./internals.md#collections) for the full
-design details.
+Collections group albums, media items, and other collections. Each collection
+is classified by its **members** (`manual` or `smart`), **lifecycle**
+(`explicit` or `implicit`), and **strategy** (`import`, `date-range`,
+`album-series`, or `chapter`). See
+[domain.md — Collection](./domain.md#collection) for what each means and which
+combinations are valid, and
+[internals.md — Collections](./internals.md#collections) for how
+`gallery refresh` maintains them.
 
 **Initialize a collection:**
 
@@ -322,7 +295,7 @@ When you convert an implicit collection to explicit (or vice versa),
 - **Explicit → implicit**: adds the collection title as series to the
   contained albums' names
 
-See [internals.md — Collection Lifecycle](./internals.md#collection-lifecycle)
+See [domain.md — Lifecycle](./domain.md#lifecycle)
 for details.
 
 ### Export Albums

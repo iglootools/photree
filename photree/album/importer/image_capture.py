@@ -1,6 +1,7 @@
 """Import photos from macOS Image Capture into an organized album directory that preserves the different variants.
 
-See docs/internals.md for the Image Capture file structure and album layout.
+See docs/domain.md for the Image Capture file structure and docs/internals.md
+for the album layout.
 """
 
 from __future__ import annotations

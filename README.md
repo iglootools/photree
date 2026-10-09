@@ -71,5 +71,6 @@ Practical information:
 - [common](https://github.com/iglootools/common) — shared coding guidelines
 
 Conceptual information:
+- [docs/domain.md](https://github.com/iglootools/photree/blob/main/docs/domain.md) — domain concepts: galleries, albums, media sources, collections, naming, IDs
 - [docs/internals.md](https://github.com/iglootools/photree/blob/main/docs/internals.md) — runtime behavior, design decisions, and external commands
 - [docs/architecture.md](https://github.com/iglootools/photree/blob/main/docs/architecture.md) — module dependency graph

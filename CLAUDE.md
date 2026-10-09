@@ -6,7 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Detailed overview of the architecture, design patterns, and execution flow: @docs/architecture.md
 
-Internals (Image Capture file structure, album on-disk layout): @docs/internals.md
+Domain concepts (gallery, album, media source, collection, naming conventions, IDs, Image Capture variants): @docs/domain.md
+
+Internals (on-disk layout, metadata formats, refresh/import algorithms): @docs/internals.md
 
 ## Guidelines
 

@@ -251,4 +251,4 @@ When introducing a new concept that is managed by photree:
 - [ ] **Gallery integration**: gallery check includes the new entity, gallery refresh manages derived state
 - [ ] **Progress indicators**: spinners for single operations, BatchProgressBar for batch, StageProgressBar for multi-stage
 - [ ] **Validation**: light check (naming) as gate for refresh/import, full check for check commands
-- [ ] **Documentation**: internals.md (design), usage.md (workflow), cli-reference.md (regenerate), architecture.md (depgraph)
+- [ ] **Documentation**: domain.md (concepts), internals.md (design), usage.md (workflow), cli-reference.md (regenerate), architecture.md (depgraph)

@@ -1,153 +1,11 @@
 # Internals
 
-This document describes the internal structures and conventions that photree uses under the hood.
-It is useful for understanding how files are organized on disk, how iOS Image Capture exports work,
-and how photree maps those conventions into its album layout.
+This document describes how photree implements its domain: the on-disk layout,
+metadata file formats, and the algorithms behind import, refresh, validation,
+and face clustering.
 
-## Image Capture File Structure
-
-macOS Image Capture exports files from iOS devices in the following structure:
-
-**HEIC photos** (Camera Capture set to "High Efficiency"):
-- `IMG_0410.HEIC` — original file with depth of field metadata, etc
-- `IMG_0410.AAE` — Apple Adjustments and Edits sidecar (background defocus, filters, etc). Generally provided, but not guaranteed (e.g. no edits applied, older iOS versions).
-- `IMG_E0410.HEIC` (optional, only if edits) — edited file that lacks the depth of field metadata
-- `IMG_O0410.AAE` (optional, only if edits) — sidecar for the edited file
-
-**JPEG photos** (Camera Capture set to "Most Compatible"):
-- `IMG_0410.JPG` — original file (same structure as HEIC, just a different format)
-- `IMG_0410.AAE` — sidecar
-- `IMG_E0410.JPG` (optional, only if edits) — edited file
-- `IMG_O0410.AAE` (optional, only if edits) — sidecar for the edited file
-- Even with "High Efficiency", some files may be JPEG (suspected: front camera selfies).
-
-**ProRAW photos** (Apple DNG, Photo Capture set to Apple "ProRAW"):
-- `IMG_0235.DNG` — original ProRAW file (~30 MB)
-- `IMG_0235.AAE` — sidecar
-- `IMG_E0235.JPG` (optional, only if edits) — edited file (note: JPG, not DNG)
-- `IMG_O0235.AAE` (optional, only if edits) — sidecar for the edited file
-
-**Videos** (standard and ProRes):
-- `IMG_0115.MOV` — original video file
-- `IMG_E0115.MOV` (optional, only if edits) — the edited video file
-- `IMG_O0115.MOV` (optional, only if edits) — sidecar for the edited video file
-- ProRes videos use the same `.MOV` container but are much larger (~663 MB vs ~45 MB).
-
-**Live Photos** (image + companion video):
-- `IMG_0410.HEIC` — the image component
-- `IMG_0410.MOV` — the companion video (~2-3 second clip)
-- `IMG_0410.AAE` — sidecar for the image
-- `IMG_E0410.HEIC` (optional, only if edits) — edited image
-- `IMG_O0410.AAE` (optional, only if edits) — edited image sidecar
-- `IMG_E0410.MOV` (optional, only if edits) — edited companion video
-- A Live Photo is detected when Image Capture contains both an image
-  and a video with the same number (e.g., IMG_0410.HEIC + IMG_0410.MOV).
-- During import, selecting either the image or the video automatically
-  imports both. Both files are stored together in `orig-img/` as a unit.
-- Only applies to iOS media sources.
-
-## Album Naming Conventions
-
-Album directory names follow a structured format that encodes date, optional
-part number, optional series, title, optional location, and optional tags.
-
-### Format
-
-```
-DATE - [PART - ] [Series - ] Title [@ Location] [tags]
-```
-
-### Fields
-
-**DATE** (required) — one of the following precisions, or a range of any two:
-
-| Precision | Example |
-|-----------|---------|
-| Year | `2024` |
-| Month | `2024-07` |
-| Day | `2024-07-14` |
-| Year range | `2024--2025` |
-| Month range | `2024-07--2024-08` |
-| Day range | `2024-07-14--2024-07-16` |
-| Mixed-precision range | `2024-07--2024-08-03` or `2024--2024-07` |
-
-Any start–end combination of precisions is valid (e.g. `YYYY-MM--YYYY-MM-DD`
-or `YYYY--YYYY-MM`).
-
-**PART** (optional) — zero-padded two-digit number: `01`, `02`, ...
-Only valid for single-day dates (`YYYY-MM-DD`). Albums with date ranges
-or lower precisions (`YYYY`, `YYYY-MM`) must not have a part number.
-
-**Series** (optional) — free text, must not contain ` - ` (the three-character
-separator with surrounding spaces).
-
-**Title** (required) — free text, must not contain ` - `.
-
-**Location** (optional) — free text after `@`. May contain commas
-(e.g. `Banff NP, AB, CA`).
-
-**Tags** (optional) — `[kebab-case-slug, ...]` at the end. Only `private` is
-currently allowed.
-
-### Constraints
-
-- 255 bytes maximum for the full directory name.
-- ` - ` (space-dash-space) is reserved as the field separator and must not
-  appear inside Title or Series (it is fine as part of a hyphenated word
-  without surrounding spaces).
-- `@` is reserved for the location separator.
-- All fields except DATE and Title are optional.
-- PART is only allowed when DATE is a single day (`YYYY-MM-DD`). Date ranges
-  and lower precisions (`YYYY`, `YYYY-MM`) do not support part numbers.
-- Tags are valid with any combination of fields.
-
-### Examples
-
-```
-2024-07-14 - Hiking the Rockies
-2024-07-14 - 01 - Hiking the Rockies
-2024-07-14 - 01 - Canada Trip - Hiking the Rockies
-2024-07-14 - Hiking the Rockies @ Banff NP, AB, CA
-2024-07-14 - 01 - Canada Trip - Hiking the Rockies @ Banff NP, AB, CA
-2024-07--2024-08 - Summer Road Trip
-2024 - Family Photos
-2024-07-14 - Hiking the Rockies [private]
-2024-07-14 - 01 - Canada Trip - Hiking the Rockies @ Banff NP, AB, CA [private]
-```
-
-### Private Albums
-
-Private albums are tagged with `[private]` like any other tag. Additional
-rules apply when an album set uses part numbering:
-
-- Part numbering is independent from public albums.
-- When numbered, part numbers correspond to the matching public part
-  (e.g. `01 [private]` is the private counterpart of public `01`).
-- Gaps in private part numbers are expected — only parts with private content
-  get a private album.
-- Private albums may be unnumbered even when public albums are numbered
-  (catch-all private content for the day).
-
-## ID Convention
-
-All identifiable objects in photree use a dual-ID system:
-
-- **Internal ID** — a UUID v7 string stored in YAML files (e.g.
-  `0192d4e1-7c3f-7b4a-8c5e-f6a7b8c9d0e1`). Used for storage,
-  deduplication, and programmatic comparison. Time-ordered by creation.
-- **External ID** — a user-friendly format: `{type_prefix}_{base58(uuid_bytes)}`
-  (e.g. `album_3K8vJxNm2cYpR7qWz5FhG`). Used for CLI display and user input.
-
-Base58 encoding uses the Bitcoin alphabet
-(`123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz`). A 16-byte
-UUID encodes to ~22 characters, making the full external ID ~28 characters.
-
-| Object     | Type prefix  | Example external ID |
-|------------|--------------|---------------------|
-| Album      | `album`      | `album_3K8vJxNm2cYpR7qWz5FhG` |
-| Collection | `collection` | `collection_6N1yMAPq5fBsU0tZC8IkJ` |
-| Image      | `image`      | `image_4L9wKyOo3dZqS8rXA6GiH` |
-| Video      | `video`      | `video_5M0xLzPp4eArT9sYB7HjI` |
+For the concepts themselves — galleries, albums, media sources, media items,
+collections, naming conventions, identifiers — see [domain.md](./domain.md).
 
 ## Gallery Directory Layout
 
@@ -265,39 +123,11 @@ The `.photree/` directory stores album metadata and configuration.
 
 ### Media Sources
 
-An album can have multiple **media sources** — named sources of photos. Each
-media source is either **iOS** (imported via Image Capture) or **std** (standard
--- photos from other sources like other people's cameras).
-
-Both iOS and std media sources share the same two-tier structure:
-
-- **Archive directories** (`ios-{name}/` or `std-{name}/`) store the original
-  and edited variants in a fixed internal layout (`orig-img/`, `edit-img/`,
-  `orig-vid/`, `edit-vid/`).
-- **Browsable directories** (`{name}-img/`, `{name}-vid/`, `{name}-jpg/`)
-  are the derived, shareable versions built from the archive.
-
-**iOS media source** (`ios-{name}/`):
-- Detected by: `ios-{name}/` directory containing `orig-img/` or `orig-vid/`
-- Archive holds originals, edits, and AAE sidecars
-- Files are matched across directories by **image number** (digits extracted
-  from the `IMG_NNNN` filename)
-- Integrity checks, optimization, and iOS-specific fixes apply
-
-**Std media source** (`std-{name}/`):
-- Detected by: `std-{name}/` directory containing `orig-img/` or `orig-vid/`
-- Archive structure is identical to iOS (`orig-img/`, `edit-img/`, `orig-vid/`,
-  `edit-vid/`)
-- No filename naming requirements (no `IMG_` prefix convention)
-- Files are matched across directories by **filename stem** (base name without
-  extension)
-- JPEG conversion applies, but iOS-specific checks and fixes do not
-
-Every media source is backed by an archive directory (`ios-{name}/` or
-`std-{name}/`). Browsable directories without a backing archive are not
-media sources.
-
-The default media source is named `main`.
+See [domain.md — Media Source](./domain.md#media-source) for what a media
+source is and how iOS and std sources differ. A media source is detected by its
+archive directory — `ios-{name}/` or `std-{name}/` — containing `orig-img/` or
+`orig-vid/`. Browsable directories without a backing archive are not media
+sources.
 
 ### Directory Structure
 
@@ -413,101 +243,9 @@ sources, omitted from the browsable directory).
 
 ## Collections
 
-Collections group albums, media items, and other collections. They enable
-organizing content beyond the flat album structure — e.g., a "Canada Trip"
-series spanning multiple album days, or a curated "Best of 2024" selection.
-
-### Collection Naming Convention
-
-```
-[DATE - ] Title [@ Location] [tags]
-```
-
-The date prefix is optional (unlike albums where it is required). Some
-collections are atemporal and have no date. The date format follows the
-same spec as albums: `YYYY`, `YYYY-MM`, `YYYY-MM-DD`, or ranges with `--`.
-Location and tags follow the same rules as albums: `@` separates the
-location, `[private]` is the only currently allowed tag.
-
-### Private Tag Virality
-
-The `[private]` tag is viral: private content can only live inside
-private collections.
-
-- **Non-private collections** cannot contain private members (private
-  albums, private sub-collections, or media from private albums).
-- **Non-private smart collections** exclude private members during
-  `gallery refresh` member materialization.
-- **Private smart collections** only include private members — non-private
-  albums/collections in the date range are excluded during
-  `gallery refresh`.
-- **Private manual collections** may contain non-private members (the
-  private tag protects the collection, not its contents).
-
-These rules are enforced by `collection check` (validation) and by
-`gallery refresh` (materialization for smart collections).
-
-### Collection Members
-
-Determines how members are selected:
-
-- **`smart`** — members are managed automatically by `gallery refresh`.
-  Smart collections cannot contain image or video members — they only
-  group albums and sub-collections. `collection import` is not allowed
-  on smart collections.
-- **`manual`** — members are listed explicitly via `collection import`.
-  Can contain all member types (albums, collections, images, videos).
-
-### Collection Lifecycle
-
-- **`explicit`** — created and deleted by the user (via `collection init`,
-  `collection import`). Not affected by album title changes.
-- **`implicit`** — derived from album series (the series component parsed
-  from album titles). Created, renamed, and deleted automatically by
-  `gallery refresh`. Only **contiguous**
-  albums with the same series form a single collection; if the same series
-  is interrupted by other albums, each contiguous run produces a separate
-  collection (disambiguated by date range in the collection name).
-
-A collection can be converted between lifecycles using
-`collection metadata set --lifecycle <lifecycle>`. On the next
-`gallery refresh`, album titles are synced with the new lifecycle:
-
-- **Implicit → explicit**: The explicit collection now owns the grouping,
-  so the series component in album names is redundant. `gallery refresh`
-  strips the series from album names (e.g.
-  `2024-07-14 - 01 - Canada Trip - Hiking` becomes
-  `2024-07-14 - 01 - Hiking`).
-- **Explicit → implicit**: The collection title is added as a series
-  component to the contained albums' names (e.g.
-  `2024-07-14 - 01 - Hiking` becomes
-  `2024-07-14 - 01 - Canada Trip - Hiking`).
-
-### Collection Strategy
-
-Determines the rule for member selection:
-
-- **`import`** — members added manually via `collection import`. Default
-  for manual collections.
-- **`date-range`** — members auto-populated by date range containment.
-  Default for smart explicit collections.
-- **`album-series`** — members auto-populated from contiguous album
-  series. Used by implicit collections.
-- **`chapter`** — like `date-range`, but with an additional constraint:
-  chapter collections must not overlap in date range with other chapter
-  collections. Enforced at both `collection check` and `gallery refresh`.
-
-### Valid Combinations
-
-| members | lifecycle | strategy | Description |
-|---------|-----------|----------|-------------|
-| manual | explicit | import | User-managed via `collection import` |
-| smart | explicit | date-range | Auto-populated by date range containment |
-| smart | explicit | chapter | Auto-populated by date range, no overlap with other chapters |
-| smart | implicit | album-series | Auto-populated from contiguous album series |
-
-Other combinations are rejected at `collection init`, `collection metadata
-set`, and `collection check`.
+See [domain.md — Collection](./domain.md#collection) for collection naming,
+the members/lifecycle/strategy axes, their valid combinations, and private tag
+virality.
 
 ### Collection Refresh
 
@@ -532,7 +270,7 @@ album names.
 - **Album has no series + implicit collection contains it** → add the
   collection title as series to the album name.
 
-See [Collection Lifecycle](#collection-lifecycle) for examples.
+See [domain.md — Lifecycle](./domain.md#lifecycle) for examples.
 
 #### Phase 3: Implicit Collection Refresh
 
@@ -839,14 +577,7 @@ operations.
 
 ### Supported File Formats
 
-**Images**: `.dng`, `.heic`, `.heif`, `.jpeg`, `.jpg`, `.png`
-
-**Videos**: `.avi`, `.mov`, `.mp4`, `.wmv`
-
-**iOS-specific subsets** (used by import, iOS fixes, integrity checks):
-- Images: `.dng`, `.heic`, `.jpeg`, `.jpg`, `.png`
-- Videos: `.mov`
-- Sidecars: `.aae`
+See [domain.md — iOS Variants](./domain.md#ios-variants-image-capture).
 
 ## System Dependencies
 
