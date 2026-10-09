@@ -20,7 +20,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # the installed distribution rather than asking the build tool, since the version is
 # VCS-derived and only materializes in .dist-info at install time.
 VERSION="${1:-$(uv run --no-sync python -c 'import photree; print(photree.__version__)' 2>/dev/null || echo "")}"
-TITLE="photree ${VERSION:+ v$VERSION} demo"
+TITLE="photree${VERSION:+ v$VERSION} demo"
 CAST="$SCRIPT_DIR/demo.cast"
 GIF="$SCRIPT_DIR/demo.gif"
 
