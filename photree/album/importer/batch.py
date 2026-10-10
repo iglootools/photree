@@ -6,11 +6,12 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import TYPE_CHECKING, NamedTuple, Protocol
+from typing import NamedTuple, Protocol
 
 from ...common.fs import list_files
 from ...fsprotocol import LinkMode
-from ..faces.refresh import format_face_failures
+from ..faces.detect import FaceAnalyzerFactory
+from ..faces.failures import format_face_failures
 from ..jpeg import ConvertFile, convert_single_file
 from ..store.protocol import ios_import_dir, std_import_dir
 from . import album_import
@@ -21,9 +22,6 @@ from .album_import import (
     validate_album_import,
 )
 from .tasks import discover_import_tasks, has_import_tasks
-
-if TYPE_CHECKING:
-    from ..faces.detect import FaceAnalyzerFactory
 
 
 class OnSkipped(Protocol):

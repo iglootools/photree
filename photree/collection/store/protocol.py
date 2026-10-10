@@ -6,7 +6,7 @@ from enum import StrEnum
 
 from pydantic import Field
 
-from ...fsprotocol import _BaseModel
+from ...fsprotocol import PhotreeModel
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -86,7 +86,7 @@ def validate_collection_config(
 # ---------------------------------------------------------------------------
 
 
-class CollectionMetadata(_BaseModel):
+class CollectionMetadata(PhotreeModel):
     """Per-collection metadata stored in ``.photree/collection.yaml``."""
 
     id: str = Field(description="UUID v7 identifying the collection.")

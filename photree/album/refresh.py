@@ -5,18 +5,32 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ..common.fs import list_files
-from ..fsprotocol import LinkMode
+from ..fsprotocol import LinkMode, resolve_link_mode
+from .browsable import refresh_browsable_dir
+from .check.browsable import check_browsable_dir
+from .check.jpeg import check_jpeg_dir
+from .check.media_metadata import check_media_metadata
+from .exif_cache.refresh import refresh_exif_cache
+from .faces.detect import FaceAnalyzerFactory
+from .faces.failures import FaceFailure
+from .faces.refresh import refresh_face_data
 from .id import generate_media_id
-from .jpeg import ConvertFile, JpegConversionFailure, convert_single_file
-
-if TYPE_CHECKING:
-    from .faces.detect import FaceAnalyzerFactory
-    from .faces.refresh import FaceFailure
+from .jpeg import (
+    ConvertFile,
+    JpegConversionFailure,
+    convert_single_file,
+    refresh_jpeg_dir,
+)
+from .live_photo import (
+    augment_browsable_img_with_live_photo_videos,
+    compute_live_photo_videos,
+    detect_live_photo_keys,
+    filter_live_photo_extras,
+)
 from .store.media_metadata import (
     MediaMetadata,
     MediaSourceMediaMetadata,
@@ -30,8 +44,8 @@ from .store.protocol import (
     IOS_IMG_EXTENSIONS,
     IOS_VID_EXTENSIONS,
     VID_EXTENSIONS,
+    KeyFn,
     MediaSource,
-    _KeyFn,
 )
 
 
@@ -129,7 +143,7 @@ def _scan_keys(
     album_dir: Path,
     directory: str,
     extensions: frozenset[str],
-    key_fn: _KeyFn,
+    key_fn: KeyFn,
 ) -> set[str]:
     """Scan a directory and return the set of deduped media keys."""
     return set(
@@ -257,10 +271,6 @@ def refresh_album_derived_data(
     passed to amortize startup cost across albums in batch operations. When
     *analyzer_factory* is ``None``, face detection is skipped.
     """
-    from ..fsprotocol import resolve_link_mode
-    from .exif_cache.refresh import refresh_exif_cache
-    from .faces.refresh import refresh_face_data
-
     media_sources = discover_media_sources(album_dir)
 
     _refresh_browsable_dirs(
@@ -296,7 +306,6 @@ def refresh_album_derived_data(
 def _refresh_media_ids_if_stale(
     album_dir: Path, media_sources: list[MediaSource], *, dry_run: bool
 ) -> None:
-    from .check.media_metadata import check_media_metadata
 
     meta_check = check_media_metadata(album_dir, media_sources=media_sources)
     if meta_check is None or not meta_check.in_sync:
@@ -343,9 +352,6 @@ def _rebuild_browsable_img(
     link_mode: LinkMode,
 ) -> None:
     """Rebuild ``{name}-img/``, plus Live Photo companion videos for iOS."""
-    from .browsable import refresh_browsable_dir
-    from .live_photo import augment_browsable_img_with_live_photo_videos
-
     refresh_browsable_dir(
         album_dir / ms.orig_img_dir,
         album_dir / ms.edit_img_dir,
@@ -369,7 +375,6 @@ def _rebuild_browsable_img(
 def _rebuild_browsable_vid(
     album_dir: Path, ms: MediaSource, vid_ext: frozenset[str], link_mode: LinkMode
 ) -> None:
-    from .browsable import refresh_browsable_dir
 
     refresh_browsable_dir(
         album_dir / ms.orig_vid_dir,
@@ -388,12 +393,10 @@ def _browsable_is_fresh(
     browsable_subdir: str,
     *,
     extensions: frozenset[str],
-    key_fn: _KeyFn,
+    key_fn: KeyFn,
     link_mode: LinkMode,
 ) -> bool:
     """Return True if a browsable directory is consistent with its archive sources."""
-    from .check.browsable import check_browsable_dir
-
     orig = album_dir / orig_subdir
     return not orig.is_dir() or (  # no archive → nothing to refresh
         check_browsable_dir(
@@ -421,9 +424,6 @@ def _browsable_img_is_fresh(
     For iOS media sources, accounts for Live Photo companion videos that
     are expected to be present in the browsable img dir alongside images.
     """
-    from .check.browsable import check_browsable_dir
-    from .check.ios import _filter_live_photo_extras
-
     orig = album_dir / ms.orig_img_dir
     if not orig.is_dir():
         return True
@@ -445,7 +445,7 @@ def _browsable_img_is_fresh(
     live_videos = _live_photo_vid_filenames(album_dir, ms, img_ext, vid_ext)
     browsable_files = frozenset(list_files(album_dir / ms.img_dir))
     return (
-        _filter_live_photo_extras(result, live_videos).success
+        filter_live_photo_extras(result, live_videos).success
         and live_videos <= browsable_files
     )
 
@@ -457,8 +457,6 @@ def _live_photo_vid_filenames(
     vid_ext: frozenset[str],
 ) -> frozenset[str]:
     """Return expected Live Photo video filenames for a media source."""
-    from .live_photo import compute_live_photo_videos, detect_live_photo_keys
-
     orig = album_dir / ms.orig_img_dir
     live_keys = detect_live_photo_keys(orig, img_ext, vid_ext, ms.key_fn)
     if not live_keys:
@@ -483,9 +481,6 @@ def _refresh_jpeg_dirs(
     Returns ``(media_source_name, failure)`` pairs for files that could not be
     converted, so the caller can report which source they belong to.
     """
-    from .check.jpeg import check_jpeg_dir
-    from .jpeg import refresh_jpeg_dir
-
     stale = [
         ms
         for ms in media_sources

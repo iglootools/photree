@@ -17,10 +17,11 @@ from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
+from ..album.faces.detect import FaceAnalyzerFactory
+from ..album.faces.failures import FaceFailure
 from ..album.id import generate_album_id
 from ..album.jpeg import ConvertFile, JpegConversionFailure
 from ..album.refresh import AlbumRefreshResult, refresh_album_derived_data
@@ -28,11 +29,6 @@ from ..album.store.media_metadata import load_media_metadata, save_media_metadat
 from ..album.store.metadata import load_album_metadata, save_album_metadata
 from ..album.store.protocol import AlbumMetadata, parse_album_year
 from ..fsprotocol import ALBUMS_DIR, PHOTREE_DIR, LinkMode
-
-if TYPE_CHECKING:
-    from ..album.faces.detect import FaceAnalyzerFactory
-    from ..album.faces.refresh import FaceFailure
-
 
 # Import stages
 STAGE_COPY = "copy"

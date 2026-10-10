@@ -9,7 +9,7 @@ import typer
 
 from ...clihelpers.options import CONFIG_OPTION
 from . import album_app
-from .helpers import _run_preflight_checks
+from .helpers import run_import_preflight
 
 
 @album_app.command("import-check")
@@ -38,4 +38,4 @@ def import_check_cmd(
     config: CONFIG_OPTION = None,
 ) -> None:
     """Check that system prerequisites for import commands are met."""
-    _run_preflight_checks(source, config, album_dir=album_dir)
+    run_import_preflight(source, config, album_dir=album_dir)

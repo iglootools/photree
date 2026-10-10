@@ -9,6 +9,15 @@ For general coding, Python, and tooling guidelines, see the [common guidelines](
   - `kebab-case` for CLI commands
 - **Printing/Logging**
   - Print/Log relative paths when paths relative to the current working directory, using `display_path`
+- **Imports**
+  - Import at module level. A function-level import is reserved for two cases,
+    each with a comment saying which: breaking an import cycle, or deferring a
+    heavy ML dependency.
+  - The face ML stack (`insightface`, `onnxruntime`, `cv2`, `faiss`, `sklearn`,
+    `scipy`) is imported only inside the functions that use it, or under
+    `TYPE_CHECKING` for annotations: loading it at module level adds most of a
+    second to every CLI invocation. `tests/unit/test_cli_startup_imports.py`
+    fails if `import photree.cli` loads any of them.
 
 ### Documented exception: mutable accumulators in scan/group loops
 

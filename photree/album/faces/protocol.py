@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pydantic import Field
 
-from ...fsprotocol import _BaseModel
+from ...fsprotocol import PhotreeModel
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -37,7 +37,7 @@ EMBEDDING_DIM = 512
 # ---------------------------------------------------------------------------
 
 
-class FaceProcessedKey(_BaseModel):
+class FaceProcessedKey(PhotreeModel):
     """Processing state for a single media key."""
 
     mtime: float = Field(description="File modification time at processing time.")
@@ -49,7 +49,7 @@ class FaceProcessedKey(_BaseModel):
     thumb_height: int = Field(description="Thumbnail height after aspect-ratio resize.")
 
 
-class FaceProcessingState(_BaseModel):
+class FaceProcessingState(PhotreeModel):
     """Per-media-source face detection state in ``.photree/cache/faces/{name}.yaml``."""
 
     model_name: str = Field(default=DEFAULT_MODEL_NAME)

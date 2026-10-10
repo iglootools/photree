@@ -15,10 +15,13 @@ from enum import StrEnum
 from pathlib import Path
 
 from ...common.fs import file_ext, list_files
+from ..live_photo import detect_live_photo_keys
 from ..store.media_sources import dedup_media_dict as generic_dedup_media_dict
 from ..store.protocol import (
     IMG_EXTENSIONS,
+    IOS_IMG_EXTENSIONS,
     IOS_SIDECAR_EXTENSIONS,
+    IOS_VID_EXTENSIONS,
     VID_EXTENSIONS,
     MediaSource,
 )
@@ -253,9 +256,6 @@ def count_live_photos(album_dir: Path, ms: MediaSource, *, has_archive: bool) ->
     """
     if not has_archive or not ms.is_ios:
         return 0
-
-    from ..live_photo import detect_live_photo_keys
-    from ..store.protocol import IOS_IMG_EXTENSIONS, IOS_VID_EXTENSIONS
 
     return len(
         detect_live_photo_keys(

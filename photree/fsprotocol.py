@@ -25,7 +25,9 @@ def _to_kebab(name: str) -> str:
     return name.replace("_", "-")
 
 
-class _BaseModel(BaseModel):
+class PhotreeModel(BaseModel):
+    """Base for photree's YAML metadata models: frozen, kebab-case keys."""
+
     model_config = ConfigDict(
         alias_generator=_to_kebab,
         populate_by_name=True,
@@ -157,7 +159,7 @@ class ShareDirectoryLayout(StrEnum):
 GALLERY_YAML = "gallery.yaml"
 
 
-class GalleryMetadata(_BaseModel):
+class GalleryMetadata(PhotreeModel):
     """Gallery-wide metadata stored in ``.photree/gallery.yaml``."""
 
     link_mode: LinkMode = Field(

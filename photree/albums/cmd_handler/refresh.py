@@ -10,7 +10,7 @@ from pathlib import Path
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ...album.faces.detect import FaceAnalyzerFactory, memoized_face_analyzer_factory
-from ...album.faces.refresh import format_face_failures
+from ...album.faces.failures import format_face_failures
 from ...album.refresh import AlbumRefreshResult, refresh_album_derived_data
 from ...common.exif import exiftool_session
 from . import (

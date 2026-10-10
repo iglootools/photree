@@ -12,7 +12,7 @@ from pathlib import Path
 
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
-from ...fsprotocol import LinkMode
+from ...fsprotocol import LinkMode, resolve_link_mode
 from ..naming import (
     AlbumNamingResult,
     check_album_naming,
@@ -541,8 +541,6 @@ def run_album_preflight(
     job, so both arrive as parameters; pass ``exiftool=None`` to skip the
     EXIF date match.
     """
-    from ...fsprotocol import resolve_link_mode
-
     return run_album_check(
         album_dir,
         sips_available=sips_available,

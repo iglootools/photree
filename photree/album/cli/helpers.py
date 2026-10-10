@@ -50,7 +50,7 @@ def exit_on_media_source_conflict(cwd: Path) -> Iterator[None]:
         raise typer.Exit(code=1) from exc
 
 
-def _run_preflight_checks(
+def run_import_preflight(
     source: Path | None,
     config_path: str | None,
     *,

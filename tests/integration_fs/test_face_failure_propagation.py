@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from photree.album.faces.refresh import FaceFailure, FaceFailureStage
+from photree.album.faces.failures import FaceFailure, FaceFailureStage
 from photree.album.importer import album_import
 from photree.album.importer.album_import import AlbumImportResult
 from photree.album.refresh import AlbumRefreshResult

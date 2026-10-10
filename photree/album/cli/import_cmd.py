@@ -35,7 +35,7 @@ from ..naming import (
     parse_album_name,
 )
 from . import album_app
-from .helpers import _run_preflight_checks, exit_on_media_source_conflict
+from .helpers import exit_on_media_source_conflict, run_import_preflight
 
 
 @album_app.command("import")
@@ -108,7 +108,7 @@ def import_cmd(
     2. image-capture-dir from config file
     3. Default: ~/Pictures/iPhone
     """
-    image_capture_dir = _run_preflight_checks(
+    image_capture_dir = run_import_preflight(
         source,
         config,
         album_dir=album_dir,

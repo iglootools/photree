@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pydantic import Field
 
-from ...fsprotocol import _BaseModel
+from ...fsprotocol import PhotreeModel
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -30,7 +30,7 @@ refresh.
 # ---------------------------------------------------------------------------
 
 
-class ExifCacheEntry(_BaseModel):
+class ExifCacheEntry(PhotreeModel):
     """Cached EXIF timestamp for a single media file."""
 
     mtime: float = Field(description="File modification time at cache time.")
@@ -45,7 +45,7 @@ class ExifCacheEntry(_BaseModel):
     )
 
 
-class ExifCache(_BaseModel):
+class ExifCache(PhotreeModel):
     """Per-media-source EXIF timestamp cache in ``.photree/cache/exif/{name}.yaml``.
 
     ``files`` is keyed by ``{subdir}/{stem}`` (e.g. ``main-jpg/IMG_0410``).

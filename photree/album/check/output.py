@@ -27,7 +27,7 @@ from ...common.formatting import (
 )
 from ...common.fs import display_path
 from ...common.sysdeps import SystemDependency
-from ..faces.refresh import FaceFailure, format_face_failures
+from ..faces.failures import FaceFailure, format_face_failures
 from ..id import format_album_external_id
 from ..jpeg import JpegConversionFailure
 from ..naming import AlbumNamingResult, BatchNamingResult, ExifTimestampCheck

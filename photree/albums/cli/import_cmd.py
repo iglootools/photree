@@ -8,7 +8,7 @@ from typing import Annotated
 
 import typer
 
-from ...album.cli.helpers import _run_preflight_checks
+from ...album.cli.helpers import run_import_preflight
 from ...album.faces.detect import memoized_face_analyzer_factory
 from ...album.importer import batch
 from ...album.importer import output as importer_output
@@ -211,7 +211,7 @@ def import_cmd(
         )
         raise typer.Exit(code=1)
 
-    ic_dir = _run_preflight_checks(
+    ic_dir = run_import_preflight(
         source, config, force=force, skip_heic_to_jpeg=skip_heic_to_jpeg
     )
     typer.echo("\nImport:")

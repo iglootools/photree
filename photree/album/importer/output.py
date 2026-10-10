@@ -13,6 +13,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from textwrap import dedent
 
+from ...clihelpers.sysdeps import format_missing_troubleshoot, format_statuses
 from ...common.formatting import CHECK, CROSS, indent, markup_escape
 from ...common.fs import display_path
 from ..check.output import format_duplicate_stem
@@ -170,8 +171,6 @@ def format_preflight_checks(
     result: ImportPreflightResult, *, cwd: Path | None = None
 ) -> str:
     """Format all preflight check lines from a result."""
-    from ...clihelpers.sysdeps import format_statuses
-
     return "\n".join(
         [
             # system dependencies (sips, exiftool)
@@ -199,8 +198,6 @@ def format_preflight_troubleshoot(
     result: ImportPreflightResult, *, cwd: Path | None = None
 ) -> str | None:
     """Format troubleshooting info for failed checks. Returns None if no failures."""
-    from ...clihelpers.sysdeps import format_missing_troubleshoot
-
     missing_deps = result.missing_system_deps
     lines = [
         *([format_missing_troubleshoot(missing_deps)] if missing_deps else []),

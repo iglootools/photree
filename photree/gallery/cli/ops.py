@@ -8,7 +8,6 @@ argument parsing and orchestration.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import typer
 
@@ -36,6 +35,14 @@ from ..cmd_handler.importer import run_single_import as _run_single_import
 from ..cmd_handler.post_import_check import (
     run_batch_post_import_check as _run_batch_post_import_check,
 )
+from ..faces.face_refresh import (
+    STAGE_BUILD_INDEX,
+    STAGE_CLUSTER,
+    STAGE_SAVE,
+    STAGE_SCAN_FACE_DATA,
+    GalleryFaceRefreshResult,
+    refresh_face_clusters,
+)
 from ..import_plan import (
     AlbumPlan,
     GalleryImportPlan,
@@ -43,10 +50,6 @@ from ..import_plan import (
     plan_imports,
 )
 from ..importer import AlbumImportResult
-
-if TYPE_CHECKING:
-    from ..faces.face_refresh import GalleryFaceRefreshResult
-
 from ..output import (
     format_import_error,
     format_import_errors,
@@ -301,14 +304,6 @@ def run_face_clustering(
     force_full: bool = False,
 ) -> None:
     """Run gallery-wide face clustering with progress bar and output."""
-    from ..faces.face_refresh import (
-        STAGE_BUILD_INDEX,
-        STAGE_CLUSTER,
-        STAGE_SAVE,
-        STAGE_SCAN_FACE_DATA,
-        refresh_face_clusters,
-    )
-
     typer.echo("\nFace clustering:")
     with StageProgressBar(
         total=4,

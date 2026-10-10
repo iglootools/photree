@@ -18,8 +18,8 @@ from ..store.protocol import (
     IOS_IMG_EXTENSIONS,
     IOS_VID_EXTENSIONS,
     VID_EXTENSIONS,
+    KeyFn,
     MediaSource,
-    _KeyFn,
 )
 
 # ---------------------------------------------------------------------------
@@ -87,7 +87,7 @@ def _scan_keys(
     album_dir: Path,
     directory: str,
     extensions: frozenset[str],
-    key_fn: _KeyFn,
+    key_fn: KeyFn,
 ) -> set[str]:
     """Scan a directory and return the set of deduped media keys."""
     return set(

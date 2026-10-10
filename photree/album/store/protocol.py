@@ -10,7 +10,7 @@ from pathlib import Path
 
 from pydantic import Field
 
-from ...fsprotocol import _BaseModel
+from ...fsprotocol import PhotreeModel
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -59,7 +59,7 @@ PICTURE_PRIORITY_EXTENSIONS = (".dng", ".heic")
 # ---------------------------------------------------------------------------
 
 
-class AlbumMetadata(_BaseModel):
+class AlbumMetadata(PhotreeModel):
     """Per-album metadata stored in ``.photree/album.yaml``."""
 
     id: str = Field(description="UUID v7 identifying the album.")
@@ -134,7 +134,7 @@ def parse_album_month(album_name: str) -> str:
 # MediaSource — a named source of photos within an album
 # ---------------------------------------------------------------------------
 
-_KeyFn = Callable[[str], str]
+KeyFn = Callable[[str], str]
 """Key-extraction function: maps a filename to a matching key."""
 
 
@@ -182,7 +182,7 @@ class MediaSource:
         return self.media_source_type == MediaSourceType.STD
 
     @property
-    def key_fn(self) -> _KeyFn:
+    def key_fn(self) -> KeyFn:
         """Key-extraction function for matching files across directories.
 
         iOS sources match by image number (digits extracted from filename).
@@ -190,7 +190,8 @@ class MediaSource:
         """
         match self.media_source_type:
             case MediaSourceType.IOS:
-                from ..store.media_sources import ios_img_number
+                # Lazy: media_sources imports this module's constants (cycle).
+                from .media_sources import ios_img_number
 
                 return ios_img_number
             case MediaSourceType.STD:

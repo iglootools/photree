@@ -15,7 +15,7 @@ from ...common.formatting import CHECK
 from ...common.fs import display_path
 from ..check.output import derived_failures_report
 from ..faces.detect import memoized_face_analyzer_factory
-from ..refresh import AlbumRefreshResult
+from ..refresh import AlbumRefreshResult, refresh_album_derived_data
 from . import album_app
 from .helpers import exit_on_media_source_conflict
 
@@ -74,8 +74,6 @@ def refresh_cmd(
     ] = False,
 ) -> None:
     """Refresh all derived album data (browsable, JPEG, media IDs, EXIF cache, faces)."""
-    from ..refresh import refresh_album_derived_data
-
     require_system_deps(refresh_deps())
 
     cwd = Path.cwd()

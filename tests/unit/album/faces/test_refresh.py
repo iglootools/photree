@@ -5,12 +5,12 @@ from pathlib import Path
 
 import pytest
 
+from photree.album.faces.failures import FaceFailureStage
 from photree.album.faces.protocol import (
     FaceProcessedKey,
     FaceProcessingState,
 )
 from photree.album.faces.refresh import (
-    FaceFailureStage,
     _keys_needing_processing,
     _needs_processing,
     refresh_face_data,
@@ -194,8 +194,8 @@ class TestFailureReporting:
         assert failure.reason
 
     def test_result_exposes_failures_per_media_source(self) -> None:
+        from photree.album.faces.failures import FaceFailure
         from photree.album.faces.refresh import (
-            FaceFailure,
             FaceRefreshResult,
             FaceSourceRefreshResult,
         )
@@ -270,7 +270,8 @@ class TestFailureAccounting:
 
 class TestReuseThumbnail:
     def test_without_previous_state_is_a_failure(self, tmp_path: Path) -> None:
-        from photree.album.faces.refresh import FaceFailure, _reuse_thumbnail
+        from photree.album.faces.failures import FaceFailure
+        from photree.album.faces.refresh import _reuse_thumbnail
 
         result = _reuse_thumbnail("0410", "IMG_0410.HEIC", tmp_path / "x.jpg", None)
 
@@ -280,7 +281,8 @@ class TestReuseThumbnail:
     def test_unreadable_thumbnail_is_a_failure_not_a_crash(
         self, tmp_path: Path
     ) -> None:
-        from photree.album.faces.refresh import FaceFailure, _reuse_thumbnail
+        from photree.album.faces.failures import FaceFailure
+        from photree.album.faces.refresh import _reuse_thumbnail
 
         thumb = tmp_path / "0410.jpg"
         thumb.write_text("not a jpeg", encoding="utf-8")

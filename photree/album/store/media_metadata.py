@@ -18,7 +18,7 @@ from pydantic import Field
 from ...fsprotocol import (
     PHOTREE_DIR,
     InvalidMetadataError,
-    _BaseModel,
+    PhotreeModel,
     load_yaml_mapping,
     validate_metadata,
     write_yaml,
@@ -26,7 +26,7 @@ from ...fsprotocol import (
 from .protocol import MEDIA_IDS_DIR
 
 
-class MediaSourceMediaMetadata(_BaseModel):
+class MediaSourceMediaMetadata(PhotreeModel):
     """ID mappings for a single media source (images and videos)."""
 
     images: dict[str, str] = Field(
@@ -39,7 +39,7 @@ class MediaSourceMediaMetadata(_BaseModel):
     )
 
 
-class MediaMetadata(_BaseModel):
+class MediaMetadata(PhotreeModel):
     """Per-album media metadata — aggregation of all media sources."""
 
     media_sources: dict[str, MediaSourceMediaMetadata] = Field(

@@ -24,6 +24,7 @@ from pathlib import Path
 
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
+from ..common.fs import file_ext
 from .exif import read_exif_timestamps_by_file
 from .exif_cache.store import load_exif_cache
 from .store.media_sources import (
@@ -35,7 +36,7 @@ from .store.media_sources_discovery import (
     discover_browsable_media_files,
     discover_media_sources,
 )
-from .store.protocol import ALBUM_DATE_RE, MediaSource
+from .store.protocol import ALBUM_DATE_RE, VID_EXTENSIONS, MediaSource
 
 # ---------------------------------------------------------------------------
 # Regexes
@@ -501,9 +502,6 @@ def _resolve_upstream_files(
 
     Returns ``(upstream_relative_paths, is_ios)``.
     """
-    from ..common.fs import file_ext
-    from .store.protocol import VID_EXTENSIONS
-
     dir_part = str(file_path.relative_to(album_dir).parent)
     filename = file_path.name
 
