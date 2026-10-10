@@ -160,7 +160,9 @@ class TestAlbumCheck:
 
 
 class TestGalleryImport:
-    def test_naming_error_keeps_bracketed_tag(self, tmp_path: Path) -> None:
+    def test_naming_error_keeps_bracketed_tag(
+        self, tmp_path: Path, stub_sips_on_path: Path
+    ) -> None:
         gallery = _gallery(tmp_path)
         source = _album(tmp_path / "src", "2024-07-14 - Hiking [secret]")
 
