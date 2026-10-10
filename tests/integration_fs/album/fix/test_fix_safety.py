@@ -28,7 +28,6 @@ from photree.album.fix.ios.output import format_fix_ios_result
 from photree.album.fix.output import format_fix_result
 from photree.album.fix.rm_upstream import MediaKind
 from photree.album.store.protocol import MAIN_MEDIA_SOURCE, std_media_source
-from photree.fsprotocol import LinkMode
 
 MC = MAIN_MEDIA_SOURCE
 STD = std_media_source("nelu")
@@ -104,7 +103,6 @@ class TestRmUpstreamSignals:
         lines = format_fix_result(
             run_fix(
                 tmp_path,
-                link_mode=LinkMode.HARDLINK,
                 dry_run=False,
                 rm_upstream_flag=True,
             )
@@ -164,7 +162,6 @@ class TestRmUpstreamAllKeysRefusal:
         with pytest.raises(RmUpstreamRefusedError):
             run_fix(
                 tmp_path,
-                link_mode=LinkMode.HARDLINK,
                 dry_run=False,
                 rm_upstream_flag=True,
             )
@@ -181,17 +178,13 @@ class TestFixReporting:
     def test_no_orphans_found_is_reported(self, tmp_path: Path) -> None:
         _setup_dir(tmp_path / "std-nelu/orig-img", ["sunset.heic"])
 
-        result = run_fix(
-            tmp_path, link_mode=LinkMode.HARDLINK, dry_run=False, rm_orphan_flag=True
-        )
+        result = run_fix(tmp_path, dry_run=False, rm_orphan_flag=True)
 
         assert result.rm_orphan_removed_by_dir == ()
         assert format_fix_result(result) == ["Done. No orphans found."]
 
     def test_no_media_sources_is_reported(self, tmp_path: Path) -> None:
-        result = run_fix(
-            tmp_path, link_mode=LinkMode.HARDLINK, dry_run=False, rm_orphan_flag=True
-        )
+        result = run_fix(tmp_path, dry_run=False, rm_orphan_flag=True)
 
         assert result.no_media_sources
         assert format_fix_result(result) == ["No media sources found; nothing to fix."]

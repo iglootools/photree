@@ -12,7 +12,6 @@ from ...album.fix.output import format_fix_result
 from ...album.id import generate_album_id
 from ...album.store.metadata import load_album_metadata, save_album_metadata
 from ...album.store.protocol import AlbumMetadata
-from ...fsprotocol import LinkMode
 from . import BatchFailure, OnEnd, OnStart, failures_of, run_album_step
 
 
@@ -34,7 +33,6 @@ class BatchFixResult:
 class _FixOptions:
     fix_id: bool
     new_id: bool
-    link_mode: LinkMode
     rm_upstream: bool
     rm_orphan: bool
     dry_run: bool
@@ -52,7 +50,6 @@ def _fix_one(album_dir: Path, opts: _FixOptions) -> str:
         return ""
     result = album_fixes.run_fix(
         album_dir,
-        link_mode=opts.link_mode,
         dry_run=opts.dry_run,
         rm_upstream_flag=opts.rm_upstream,
         rm_orphan_flag=opts.rm_orphan,
@@ -66,7 +63,6 @@ def batch_fix(
     *,
     fix_id: bool = False,
     new_id: bool = False,
-    link_mode: LinkMode = LinkMode.HARDLINK,
     rm_upstream: bool = False,
     rm_orphan: bool = False,
     dry_run: bool = False,
@@ -84,7 +80,6 @@ def batch_fix(
     opts = _FixOptions(
         fix_id,
         new_id,
-        link_mode,
         rm_upstream,
         rm_orphan,
         dry_run,

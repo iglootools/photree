@@ -32,6 +32,7 @@ __all__ = [
     "FixRmUpstreamResult",
     "FixValidationError",
     "FixValidationErrorKind",
+    "LinkMode",
     "MissingArchiveError",
     "RmOrphanDirResult",
     "RmOrphanResult",
@@ -152,7 +153,6 @@ def _run_rm_orphan(
 def run_fix(
     album_dir: Path,
     *,
-    link_mode: LinkMode,
     dry_run: bool,
     rm_upstream_flag: bool = False,
     rm_orphan_flag: bool = False,
@@ -165,9 +165,6 @@ def run_fix(
 
     *force* lets rm-upstream use empty browsable dirs as deletion signals and
     delete every item of an archive (see :mod:`.rm_upstream`).
-
-    *link_mode* is accepted for caller compatibility but unused: no fix
-    rebuilds browsable files.
     """
     from ..store.media_sources_discovery import discover_media_sources
 

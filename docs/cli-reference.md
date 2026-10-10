@@ -168,7 +168,6 @@ $ photree album fix [OPTIONS]
 * `-a, --album-dir <directory>`: Album directory to fix.  [default: .]
 * `--id`: Generate missing album ID (.photree/album.yaml).
 * `--new-id`: Regenerate album ID (replaces existing ID).
-* `--link-mode <copy|hardlink|symlink>`: How to create main files: hardlink (default), symlink, or copy.
 * `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
 * `--rm-orphan`: Delete edited and main files that have no corresponding orig file.
 * `--force`: With --rm-upstream: also trust an empty {name}-jpg/ as a deletion signal, and allow deleting every item of an archive.
@@ -547,7 +546,6 @@ $ photree albums fix [OPTIONS]
 * `-a, --album-dir <directory>`: Album directory (repeatable).
 * `--id`: Generate missing album IDs (.photree/album.yaml).
 * `--new-id`: Regenerate album IDs (replaces existing IDs).
-* `--link-mode <copy|hardlink|symlink>`: How to create main files: hardlink, symlink, or copy.  [default: hardlink]
 * `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
 * `--rm-orphan`: Delete edited and main files that have no corresponding orig file.
 * `--force`: With --rm-upstream: also trust an empty {name}-jpg/ as a deletion signal, and allow deleting every item of an archive.
@@ -1122,7 +1120,6 @@ $ photree gallery fix [OPTIONS]
 * `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--id`: Generate missing album IDs (.photree/album.yaml).
 * `--new-id`: Regenerate album IDs (replaces existing IDs).
-* `--link-mode <copy|hardlink|symlink>`: How to create main files: hardlink (default), symlink, or copy.
 * `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
 * `--rm-orphan`: Delete edited and main files that have no corresponding orig file.
 * `--force`: With --rm-upstream: also trust an empty {name}-jpg/ as a deletion signal, and allow deleting every item of an archive.

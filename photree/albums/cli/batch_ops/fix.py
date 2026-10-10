@@ -10,7 +10,6 @@ from ....album.fix.ios.output import batch_fix_ios_summary
 from ....album.fix.output import batch_fix_summary
 from ....clihelpers.console import console
 from ....clihelpers.progress import BatchProgressBar
-from ....fsprotocol import LinkMode
 from ...cmd_handler.fix import batch_fix
 from ...cmd_handler.fix_ios import batch_fix_ios
 from ..ops import make_display_fn
@@ -29,7 +28,6 @@ def run_batch_fix(
     *,
     fix_id: bool = False,
     new_id: bool = False,
-    link_mode: LinkMode = LinkMode.HARDLINK,
     rm_upstream: bool = False,
     rm_orphan: bool = False,
     dry_run: bool = False,
@@ -46,7 +44,6 @@ def run_batch_fix(
             albums,
             fix_id=fix_id,
             new_id=new_id,
-            link_mode=link_mode,
             rm_upstream=rm_upstream,
             rm_orphan=rm_orphan,
             dry_run=dry_run,

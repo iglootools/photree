@@ -72,7 +72,7 @@ photree gallery init -g ~/Pictures/albums
 ```
 
 The `link-mode` setting in `gallery.yaml` is used as the default for `refresh`,
-`fix-ios`, and other commands that accept `--link-mode`. An explicit `--link-mode`
+`import`, `export`, and other commands that accept `--link-mode`. An explicit `--link-mode`
 CLI flag always overrides the gallery default.
 
 See [internals.md](./internals.md) for the gallery metadata format and resolution rules.

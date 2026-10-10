@@ -11,12 +11,10 @@ from ...clihelpers.console import err_console
 from ...clihelpers.options import (
     DRY_RUN_OPTION,
     FORCE_OPTION,
-    LINK_MODE_OPTION,
     RM_ORPHAN_OPTION,
     RM_UPSTREAM_OPTION,
 )
 from ...common.fs import display_path
-from ...fsprotocol import LinkMode, resolve_link_mode
 from .. import fix as album_fixes
 from ..fix import FixValidationError, MissingArchiveError, RmUpstreamRefusedError
 from ..fix.output import format_fix_result
@@ -54,7 +52,6 @@ def fix_cmd(
             help="Regenerate album ID (replaces existing ID).",
         ),
     ] = False,
-    link_mode: LINK_MODE_OPTION = None,
     rm_upstream: RM_UPSTREAM_OPTION = False,
     rm_orphan: RM_ORPHAN_OPTION = False,
     force: FORCE_OPTION = False,
@@ -93,7 +90,6 @@ def fix_cmd(
     if rm_upstream or rm_orphan:
         _run_archive_fixes(
             album_dir,
-            link_mode=link_mode,
             rm_upstream=rm_upstream,
             rm_orphan=rm_orphan,
             force=force,
@@ -120,7 +116,6 @@ def _fix_album_id(album_dir: Path, *, new_id: bool, dry_run: bool) -> None:
 def _run_archive_fixes(
     album_dir: Path,
     *,
-    link_mode: LinkMode | None,
     rm_upstream: bool,
     rm_orphan: bool,
     force: bool,
@@ -131,7 +126,6 @@ def _run_archive_fixes(
         try:
             result = album_fixes.run_fix(
                 album_dir,
-                link_mode=resolve_link_mode(link_mode, album_dir),
                 dry_run=dry_run,
                 rm_upstream_flag=rm_upstream,
                 rm_orphan_flag=rm_orphan,
