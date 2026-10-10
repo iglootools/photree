@@ -19,15 +19,15 @@ from pathlib import Path
 from ..album.naming import parse_album_name
 from ..album.store.album_discovery import discover_albums
 from ..album.store.media_metadata import load_media_metadata
+from ..album.store.media_source import MediaSource
 from ..album.store.media_sources_discovery import discover_media_sources
 from ..album.store.metadata import load_album_metadata
-from ..album.store.protocol import MediaSource
 from ..collection.naming import parse_collection_name, parse_collection_year
 from ..collection.store.collection_discovery import discover_collections
 from ..collection.store.metadata import load_collection_metadata
 from ..collection.store.protocol import CollectionMetadata, CollectionStrategy
-from ..fsprotocol import ALBUMS_DIR, BROWSABLE_DIR, COLLECTIONS_DIR
-from .metadata_scan import read_or_none
+from ..foundation.layout import ALBUMS_DIR, BROWSABLE_DIR, COLLECTIONS_DIR
+from ..foundation.metadata_io import read_or_none
 
 # ---------------------------------------------------------------------------
 # Result types

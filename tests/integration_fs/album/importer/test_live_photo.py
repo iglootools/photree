@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from photree.album.formats import IOS_IMG_EXTENSIONS, IOS_VID_EXTENSIONS
 from photree.album.importer.album_import import run_import
 from photree.album.importer.image_capture import (
     MediaType,
@@ -13,13 +14,8 @@ from photree.album.live_photo import (
     compute_live_photo_videos,
     detect_live_photo_keys,
 )
-from photree.album.store.media_sources import ios_img_number
-from photree.album.store.protocol import (
-    IOS_IMG_EXTENSIONS,
-    IOS_VID_EXTENSIONS,
-    ios_import_dir,
-    ios_media_source,
-)
+from photree.album.staging import ios_import_dir
+from photree.album.store.media_source import ios_img_number, ios_media_source
 from photree.common.fs import list_files
 
 SEL_DIR = ios_import_dir("main")  # to-import-ios-main

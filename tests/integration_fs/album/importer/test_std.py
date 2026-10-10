@@ -16,11 +16,8 @@ from photree.album.importer.std import (
     validate_std_task,
 )
 from photree.album.importer.tasks import discover_import_tasks
-from photree.album.store.protocol import (
-    ios_import_dir,
-    std_import_dir,
-    std_media_source,
-)
+from photree.album.staging import ios_import_dir, std_import_dir
+from photree.album.store.media_source import std_media_source
 from photree.common.fs import list_files
 
 

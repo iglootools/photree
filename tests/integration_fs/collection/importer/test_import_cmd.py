@@ -34,7 +34,7 @@ from photree.collection.store.protocol import (
     CollectionMetadata,
     CollectionStrategy,
 )
-from photree.fsprotocol import GalleryMetadata, save_gallery_metadata
+from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 
 runner = CliRunner()
 

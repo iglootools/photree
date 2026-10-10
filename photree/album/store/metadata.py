@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ...fsprotocol import PHOTREE_DIR, load_yaml_mapping, validate_metadata, write_yaml
+from ...foundation.layout import PHOTREE_DIR
+from ...foundation.metadata_io import load_yaml_mapping, validate_metadata, write_yaml
 from .protocol import ALBUM_YAML, AlbumMetadata
 
 
@@ -16,7 +17,7 @@ def album_metadata_path(album_dir: Path) -> Path:
 def load_album_metadata(album_dir: Path) -> AlbumMetadata | None:
     """Read ``.photree/album.yaml``, or ``None`` if missing.
 
-    Raises :class:`~photree.fsprotocol.InvalidMetadataError` when the file
+    Raises :class:`~photree.foundation.metadata_io.InvalidMetadataError` when the file
     exists but cannot be read: treating a corrupt file as absent is how
     ``album init`` / ``album fix --id`` would mint a new ID over the old one.
     """

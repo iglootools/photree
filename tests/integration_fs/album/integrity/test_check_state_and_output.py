@@ -31,8 +31,8 @@ from photree.album.faces.protocol import (
     FaceProcessingState,
 )
 from photree.album.faces.store import FaceData, save_face_data, save_face_state
-from photree.album.store.protocol import ios_media_source, std_media_source
-from photree.fsprotocol import PHOTREE_DIR
+from photree.album.store.media_source import ios_media_source, std_media_source
+from photree.foundation.layout import PHOTREE_DIR
 
 MAIN = ios_media_source("main")
 

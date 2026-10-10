@@ -11,7 +11,8 @@ from ...album.store.album_discovery import discover_albums
 from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...common.formatting import indent
 from ...common.fs import display_path
-from ...fsprotocol import ALBUMS_DIR, GALLERY_YAML, PHOTREE_DIR, load_gallery_metadata
+from ...foundation.gallery_metadata import GALLERY_YAML, load_gallery_metadata
+from ...foundation.layout import ALBUMS_DIR, PHOTREE_DIR
 from . import gallery_app
 
 

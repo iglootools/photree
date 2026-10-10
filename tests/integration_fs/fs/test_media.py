@@ -1,15 +1,15 @@
-"""Tests for photree.fs.media module (generic key-function-based matching)."""
+"""Tests for photree.album.store.file_matching (generic key-function-based matching)."""
 
 from pathlib import Path
 
-from photree.album.store.media_sources import (
+from photree.album.formats import IMG_EXTENSIONS, VID_EXTENSIONS
+from photree.album.store.file_matching import (
     dedup_media_dict,
     find_files_by_key,
     group_by_key,
-    ios_img_number,
     pick_media_priority,
 )
-from photree.album.store.protocol import IMG_EXTENSIONS, VID_EXTENSIONS, _stem_key
+from photree.album.store.media_source import ios_img_number, stem_key
 
 
 def _setup_dir(path: Path, filenames: list[str]) -> Path:
@@ -36,7 +36,7 @@ class TestGroupByKey:
 
     def test_groups_by_stem(self) -> None:
         files = ["sunset.heic", "sunset.jpg", "beach.png"]
-        result = group_by_key(files, IMG_EXTENSIONS, _stem_key)
+        result = group_by_key(files, IMG_EXTENSIONS, stem_key)
         assert result == {
             "sunset": ["sunset.heic", "sunset.jpg"],
             "beach": ["beach.png"],
@@ -44,16 +44,16 @@ class TestGroupByKey:
 
     def test_filters_by_media_extensions(self) -> None:
         files = ["sunset.heic", "sunset.aae", "notes.txt"]
-        result = group_by_key(files, IMG_EXTENSIONS, _stem_key)
+        result = group_by_key(files, IMG_EXTENSIONS, stem_key)
         assert result == {"sunset": ["sunset.heic"]}
 
     def test_empty_input(self) -> None:
-        result = group_by_key([], IMG_EXTENSIONS, _stem_key)
+        result = group_by_key([], IMG_EXTENSIONS, stem_key)
         assert result == {}
 
     def test_video_extensions(self) -> None:
         files = ["clip.mov", "clip.mp4", "clip.txt"]
-        result = group_by_key(files, VID_EXTENSIONS, _stem_key)
+        result = group_by_key(files, VID_EXTENSIONS, stem_key)
         assert result == {"clip": ["clip.mov", "clip.mp4"]}
 
 
@@ -75,22 +75,22 @@ class TestDedupMediaDict:
 
     def test_dedup_by_stem_prefers_heic(self) -> None:
         files = ["sunset.heic", "sunset.jpg"]
-        result = dedup_media_dict(files, IMG_EXTENSIONS, _stem_key)
+        result = dedup_media_dict(files, IMG_EXTENSIONS, stem_key)
         assert result == {"sunset": "sunset.heic"}
 
     def test_dedup_by_stem_prefers_dng_over_heic(self) -> None:
         files = ["sunset.dng", "sunset.heic"]
-        result = dedup_media_dict(files, IMG_EXTENSIONS, _stem_key)
+        result = dedup_media_dict(files, IMG_EXTENSIONS, stem_key)
         assert result == {"sunset": "sunset.dng"}
 
     def test_single_file_per_key(self) -> None:
         files = ["sunset.heic", "beach.png"]
-        result = dedup_media_dict(files, IMG_EXTENSIONS, _stem_key)
+        result = dedup_media_dict(files, IMG_EXTENSIONS, stem_key)
         assert result == {"sunset": "sunset.heic", "beach": "beach.png"}
 
     def test_filters_non_media(self) -> None:
         files = ["sunset.heic", "sunset.aae"]
-        result = dedup_media_dict(files, IMG_EXTENSIONS, _stem_key)
+        result = dedup_media_dict(files, IMG_EXTENSIONS, stem_key)
         assert result == {"sunset": "sunset.heic"}
 
 
@@ -113,7 +113,7 @@ class TestFindFilesByKey:
             tmp_path,
             ["sunset.heic", "sunset.jpg", "beach.png"],
         )
-        result = find_files_by_key({"sunset"}, tmp_path, _stem_key)
+        result = find_files_by_key({"sunset"}, tmp_path, stem_key)
         assert result == ["sunset.heic", "sunset.jpg"]
 
     def test_multiple_keys(self, tmp_path: Path) -> None:
@@ -121,16 +121,16 @@ class TestFindFilesByKey:
             tmp_path,
             ["sunset.heic", "beach.png", "mountains.jpg"],
         )
-        result = find_files_by_key({"sunset", "beach"}, tmp_path, _stem_key)
+        result = find_files_by_key({"sunset", "beach"}, tmp_path, stem_key)
         assert result == ["beach.png", "sunset.heic"]
 
     def test_no_matches(self, tmp_path: Path) -> None:
         _setup_dir(tmp_path, ["sunset.heic"])
-        result = find_files_by_key({"unknown"}, tmp_path, _stem_key)
+        result = find_files_by_key({"unknown"}, tmp_path, stem_key)
         assert result == []
 
     def test_missing_directory(self, tmp_path: Path) -> None:
-        result = find_files_by_key({"sunset"}, tmp_path / "nonexistent", _stem_key)
+        result = find_files_by_key({"sunset"}, tmp_path / "nonexistent", stem_key)
         assert result == []
 
 

@@ -9,6 +9,30 @@ For general coding, Python, and tooling guidelines, see the [common guidelines](
   - `kebab-case` for CLI commands
 - **Printing/Logging**
   - Print/Log relative paths when paths relative to the current working directory, using `display_path`
+- **Imports**
+  - Import at module level. A function-level import is reserved for two cases,
+    each with a comment saying which: breaking an import cycle, or deferring a
+    heavy ML dependency.
+  - The face ML stack (`insightface`, `onnxruntime`, `cv2`, `faiss`, `sklearn`,
+    `scipy`) is imported only inside the functions that use it, or under
+    `TYPE_CHECKING` for annotations: loading it at module level adds most of a
+    second to every CLI invocation. `tests/unit/test_cli_startup_imports.py`
+    fails if `import photree.cli` loads any of them.
+- **Module boundaries**
+  - The import-linter contracts in `pyproject.toml` (`[tool.importlinter]`) are
+    the source of truth for which package may import which;
+    [architecture.md — Module Boundaries](./architecture.md#module-boundaries)
+    explains them, and `mise run boundaries-check` (part of `mise run check`)
+    enforces them.
+  - When a change needs a new edge, decide whether it belongs: move the code
+    to the layer that may own it rather than bending the contract. If the
+    architecture itself changes, update the contracts deliberately, in the
+    same commit as the restructuring, together with the Module Boundaries
+    section. Do not add an `ignore_imports` entry to make an edge pass; if one
+    is truly unavoidable, comment why next to it.
+  - A new subpackage of `album/`, `albums/`, `collection/` or `gallery/` that
+    is not CLI code must be added to the source list of the "Domain code does
+    not depend on the CLI layer" contract.
 
 ### Documented exception: mutable accumulators in scan/group loops
 
@@ -19,7 +43,7 @@ accumulator form in two specific shapes, because the comprehension is harder
 to read, not easier:
 
 - **Loop-carried state.** Grouping a sorted sequence into contiguous runs
-  (`gallery/collection_refresh.py::_group_by_series`) needs the previous
+  (`collection/refresh/series.py::_group_contiguous_series`) needs the previous
   element to decide where the current group ends. Expressed as a
   comprehension it requires `itertools.groupby` plus a key function that
   closes over mutable state — strictly more machinery for the same result.
@@ -114,7 +138,7 @@ with BatchProgressBar(
 ```
 
 For gallery-scoped scanning (resolving album list), use a transient
-Rich spinner via `resolve_check_batch_albums` in `albums/cli/ops.py`.
+Rich spinner via `resolve_check_batch_albums` in `albums/batchcli/resolution.py`.
 
 ### Icons and Result Formatting
 
@@ -171,7 +195,10 @@ Two call styles, matching what the command does:
   diagnostic and depends on this.
 
 Probing PATH is the CLI layer's job. Library functions take the resolved
-statuses as a parameter and stay pure.
+statuses as a parameter and stay pure; output layers render them with
+`common/sysdeps_output.py`, never by importing `clihelpers` (only CLI modules
+— `*/cli/`, `albums/batchcli/`, `clihelpers/` — may import `clihelpers`; an
+import-linter contract enforces this).
 
 ### Discoverability
 
@@ -200,6 +227,16 @@ Commands with `--format csv` follow this pattern:
 - When `--format csv`, suppress non-CSV output (e.g., "No albums found"
   goes to stderr)
 
+### Ambient Gallery Lookups
+
+Finding the gallery (walking up to `.photree/gallery.yaml`) is ambient state,
+like probing PATH, so it is the CLI layer's job too. Core functions take the
+resolved value — e.g. `link_mode: LinkMode` on `refresh_album_derived_data`
+and `run_album_check` — and the CLI (or `albums/batchcli/`) calls
+`foundation.gallery_metadata.resolve_link_mode`. A batch handler whose albums
+may live in different galleries takes a resolver instead
+(`batch_refresh(link_mode_for=...)`), still supplied by the CLI.
+
 ### Errors and Output
 
 - **Structured errors.** Errors are data: a frozen dataclass with a `kind`
@@ -218,7 +255,7 @@ Commands with `--format csv` follow this pattern:
   `markup=False`, because Rich silently drops bracketed text such as
   `[private]`.
 - **Corrupt metadata is never "absent".** Read `.photree/*.yaml` through
-  `fsprotocol.load_yaml_mapping` / `validate_metadata`: `None` means the file
+  `foundation.metadata_io.load_yaml_mapping` / `validate_metadata`: `None` means the file
   does not exist, and anything present but unusable raises
   `InvalidMetadataError`. Treating corruption as absence is how a truncated
   `album.yaml` used to get a fresh ID and orphan every reference to the old
@@ -228,13 +265,19 @@ Commands with `--format csv` follow this pattern:
 
 Batch operations follow a three-layer pattern:
 
-1. **CLI command** (`*_cmd.py`) — argument parsing, delegates to shared wrapper
-2. **Batch wrapper** (`batch_ops.py`) — progress bars, output formatting,
-   `typer.Exit`. Shared between `albums` and `gallery` commands
-3. **Command handler** (`cmd_handler/*.py`) — pure business logic with callbacks
+1. **CLI command** (`albums/cli/*_cmd.py`, `gallery/cli/*_cmd.py`) — argument
+   parsing, delegates to the shared wrapper
+2. **Batch wrapper** (`albums/batchcli/<operation>.py`) — progress bars,
+   output formatting, `typer.Exit`. Shared between `albums` and `gallery`
+   commands, so it is a sibling of `albums/cli/` rather than part of it: the
+   `gallery` CLI never imports the `albums` command group
+3. **Command handler** (`albums/cmd_handler/*.py`) — pure business logic with
+   callbacks, no `typer`/`rich`/`clihelpers`. It stays in `albums/` because
+   it is the domain of "a set of albums" (alongside `albums/index.py` and
+   `albums/renamer.py`); the batch wrappers and `gallery` depend on it, not
+   the other way round
 
-Album resolution helpers live in `albums/cli/ops.py` (mirroring
-`gallery/cli/ops.py`):
+Album resolution helpers live in `albums/batchcli/resolution.py`:
 - `resolve_check_batch_albums` — for check/list/refresh commands
 - `resolve_batch_albums` — for archive-based commands (fix-ios)
 - `resolve_init_batch_albums` — for init commands
@@ -270,7 +313,8 @@ When introducing a new concept that is managed by photree:
 
 - [ ] **Metadata model**: `.photree/<entity>.yaml` with Pydantic model, load/save I/O
 - [ ] **ID system**: generate/format/parse functions with `<type>_<base58>` external form
-- [ ] **Naming convention**: parser, reconstructor, validation
+- [ ] **Naming convention**: parser, reconstructor, validation (reuse
+  `photree/dates.py` for any date component rather than re-deriving ranges)
 - [ ] **Discovery**: `is_<entity>`, `discover_<entities>` functions
 - [ ] **CLI commands at all three levels**: single (`<entity> <op>`), batch (`<entities> <op>`), gallery (`gallery <op>`)
 - [ ] **Standard operations**: init, show, check, import, metadata set, list (with CSV output), stats

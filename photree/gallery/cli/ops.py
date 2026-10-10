@@ -8,7 +8,6 @@ argument parsing and orchestration.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import typer
 
@@ -24,7 +23,8 @@ from ...clihelpers.progress import BatchProgressBar, StageProgressBar
 from ...common.exif import exiftool_session
 from ...common.formatting import CHECK, indent
 from ...common.fs import display_path
-from ...fsprotocol import LinkMode
+from ...foundation.gallery_metadata import resolve_link_mode
+from ...foundation.linking import LinkMode
 from .. import (
     AlbumIndex,
     MissingAlbumIdError,
@@ -36,6 +36,14 @@ from ..cmd_handler.importer import run_single_import as _run_single_import
 from ..cmd_handler.post_import_check import (
     run_batch_post_import_check as _run_batch_post_import_check,
 )
+from ..faces.face_refresh import (
+    STAGE_BUILD_INDEX,
+    STAGE_CLUSTER,
+    STAGE_SAVE,
+    STAGE_SCAN_FACE_DATA,
+    GalleryFaceRefreshResult,
+    refresh_face_clusters,
+)
 from ..import_plan import (
     AlbumPlan,
     GalleryImportPlan,
@@ -43,10 +51,6 @@ from ..import_plan import (
     plan_imports,
 )
 from ..importer import AlbumImportResult
-
-if TYPE_CHECKING:
-    from ..faces.face_refresh import GalleryFaceRefreshResult
-
 from ..output import (
     format_import_error,
     format_import_errors,
@@ -181,10 +185,11 @@ def _post_import_check(target_dir: Path, cwd: Path) -> None:
     """Run the preflight check on a freshly imported album; exit 1 on failure."""
     typer.echo("\nPost-Import Check:")
     with exiftool_session() as exiftool:
-        check_result = album_check.run_album_preflight(
+        check_result = album_check.run_album_check(
             target_dir,
             sips_available=album_check.check_sips_available(),
             exiftool=exiftool,
+            link_mode=resolve_link_mode(None, target_dir),
         )
     console.print(preflight_output.format_album_preflight_checks(check_result))
     if not check_result.success:
@@ -252,11 +257,14 @@ def run_batch_import(
 
 def run_batch_post_import_check(
     imported_targets: list[Path],
+    gallery_dir: Path,
     cwd: Path,
 ) -> list[Path]:
     """Run post-import checks on all imported albums.
 
-    Returns the list of albums that failed checking.
+    The albums are checked against the gallery's configured link mode (not a
+    ``--link-mode`` override given to the import). Returns the list of albums
+    that failed checking.
     """
     with BatchProgressBar(
         total=len(imported_targets),
@@ -265,6 +273,7 @@ def run_batch_post_import_check(
     ) as check_progress:
         check_failed = _run_batch_post_import_check(
             imported_targets,
+            link_mode=resolve_link_mode(None, gallery_dir),
             sips_available=album_check.check_sips_available(),
             display_fn=lambda p: str(display_path(p, cwd)),
             on_start=check_progress.on_start,
@@ -301,14 +310,6 @@ def run_face_clustering(
     force_full: bool = False,
 ) -> None:
     """Run gallery-wide face clustering with progress bar and output."""
-    from ..faces.face_refresh import (
-        STAGE_BUILD_INDEX,
-        STAGE_CLUSTER,
-        STAGE_SAVE,
-        STAGE_SCAN_FACE_DATA,
-        refresh_face_clusters,
-    )
-
     typer.echo("\nFace clustering:")
     with StageProgressBar(
         total=4,

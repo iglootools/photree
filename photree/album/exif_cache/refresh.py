@@ -10,11 +10,11 @@ from pathlib import Path
 
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
-from ...common.exif import exiftool_session
+from ...common.exif import exiftool_session, extract_timestamp, get_metadata
 from ...common.fs import list_files
-from ..exif import _TIMESTAMP_TAGS
+from ..exif import TIMESTAMP_TAGS
+from ..store.media_source import MediaSource
 from ..store.media_sources_discovery import discover_media_sources
-from ..store.protocol import MediaSource
 from .protocol import EXIF_CACHE_VERSION, ExifCache, ExifCacheEntry
 from .store import load_exif_cache, save_exif_cache
 
@@ -274,7 +274,5 @@ def _batch_read_timestamps(
     if not files:
         return []
 
-    from ...common.exif import extract_timestamp, get_metadata
-
-    metadata_list = get_metadata(files, _TIMESTAMP_TAGS, exiftool=exiftool)
-    return [extract_timestamp(m, _TIMESTAMP_TAGS) for m in metadata_list]
+    metadata_list = get_metadata(files, TIMESTAMP_TAGS, exiftool=exiftool)
+    return [extract_timestamp(m, TIMESTAMP_TAGS) for m in metadata_list]

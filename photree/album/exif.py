@@ -35,11 +35,11 @@ from ..common.exif import (
 #
 # For photos, CreationDate is simply absent (QuickTime-only tag), so the
 # priority naturally falls through to DateTimeOriginal.
-_TIMESTAMP_TAGS = ["CreationDate", "DateTimeOriginal", "CreateDate"]
+TIMESTAMP_TAGS = ["CreationDate", "DateTimeOriginal", "CreateDate"]
 
 
 # ---------------------------------------------------------------------------
-# Wrappers that bind _TIMESTAMP_TAGS
+# Wrappers that bind TIMESTAMP_TAGS
 # ---------------------------------------------------------------------------
 
 
@@ -49,7 +49,7 @@ def read_exif_timestamps_by_file(
     exiftool: ExifToolHelper | None = None,
 ) -> list[tuple[Path, datetime]]:
     """Read ``(file, timestamp)`` pairs using the project's tag priority."""
-    return _generic_read_by_file(files, _TIMESTAMP_TAGS, exiftool=exiftool)
+    return _generic_read_by_file(files, TIMESTAMP_TAGS, exiftool=exiftool)
 
 
 def set_exif_date(
@@ -61,4 +61,4 @@ def set_exif_date(
     Returns one change per file actually rewritten (see
     :func:`common.exif.write_exif_date`).
     """
-    return write_exif_date(files, date, _TIMESTAMP_TAGS)
+    return write_exif_date(files, date, TIMESTAMP_TAGS)

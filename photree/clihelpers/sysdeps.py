@@ -14,16 +14,14 @@ from textwrap import dedent
 
 import typer
 
-from ..common.formatting import CHECK, CROSS
 from ..common.sysdeps import (
     SystemDependency,
     SystemDependencyStatus,
     WhichFn,
     check_system_dependencies,
-    install_hint,
     missing_dependencies,
-    purpose,
 )
+from ..common.sysdeps_output import format_missing_troubleshoot, format_statuses
 from .console import console, err_console
 
 # Requirement sets, named so commands declare intent rather than a binary list.
@@ -55,28 +53,6 @@ def import_deps(*, skip_heic_to_jpeg: bool = False) -> tuple[SystemDependency, .
 def refresh_deps() -> tuple[SystemDependency, ...]:
     """External binaries a derived-data refresh needs."""
     return import_deps()
-
-
-def format_status(status: SystemDependencyStatus) -> str:
-    """Format one dependency as a check line (Rich markup)."""
-    return (
-        f"{CHECK} {status.dependency}"
-        if status.available
-        else f"{CROSS} {status.dependency} (not found)"
-    )
-
-
-def format_statuses(statuses: Iterable[SystemDependencyStatus]) -> str:
-    """Format all dependency check lines, one per line."""
-    return "\n".join(format_status(s) for s in statuses)
-
-
-def format_missing_troubleshoot(missing: Iterable[SystemDependency]) -> str:
-    """Format install instructions for each missing dependency."""
-    return "\n\n".join(
-        f"{dependency}: required for {purpose(dependency)}.\n{install_hint(dependency)}"
-        for dependency in missing
-    )
 
 
 _ABORT_MESSAGE = dedent("""\

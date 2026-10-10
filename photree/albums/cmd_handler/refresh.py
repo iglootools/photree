@@ -10,9 +10,10 @@ from pathlib import Path
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ...album.faces.detect import FaceAnalyzerFactory, memoized_face_analyzer_factory
-from ...album.faces.refresh import format_face_failures
+from ...album.faces.failures import format_face_failures
 from ...album.refresh import AlbumRefreshResult, refresh_album_derived_data
 from ...common.exif import exiftool_session
+from ...foundation.linking import LinkMode
 from . import (
     AlbumStepError,
     BatchFailure,
@@ -47,12 +48,14 @@ class _RefreshOptions:
 
 def _refresh_one(
     album_dir: Path,
+    link_mode_for: Callable[[Path], LinkMode],
     opts: _RefreshOptions,
     exiftool: ExifToolHelper | None,
     analyzer_factory: FaceAnalyzerFactory,
 ) -> None:
     result = refresh_album_derived_data(
         album_dir,
+        link_mode=link_mode_for(album_dir),
         exiftool=exiftool,
         analyzer_factory=analyzer_factory,
         force_browsable=opts.force_browsable,
@@ -89,6 +92,7 @@ def _partial_refresh_error(result: AlbumRefreshResult) -> AlbumStepError:
 def batch_refresh(
     albums: list[Path],
     *,
+    link_mode_for: Callable[[Path], LinkMode],
     dry_run: bool = False,
     force_browsable: bool = False,
     force_jpeg: bool = False,
@@ -106,6 +110,11 @@ def batch_refresh(
 
     A shared exiftool and a memoized face analyzer factory are reused across
     albums (the model loads once, on the first album with images to detect).
+
+    *link_mode_for* gives each album's link mode; the CLI layer resolves it
+    (from ``gallery.yaml``), since albums of one batch need not share a
+    gallery. It is called inside the album's step, so a corrupt
+    ``gallery.yaml`` fails that album rather than the batch.
     """
     opts = _RefreshOptions(
         dry_run,
@@ -120,7 +129,14 @@ def batch_refresh(
         outcomes = [
             run_album_step(
                 album_dir,
-                partial(_refresh_one, album_dir, opts, exiftool, analyzer_factory),
+                partial(
+                    _refresh_one,
+                    album_dir,
+                    link_mode_for,
+                    opts,
+                    exiftool,
+                    analyzer_factory,
+                ),
                 name=display_fn(album_dir),
                 on_start=on_start,
                 on_end=on_end,

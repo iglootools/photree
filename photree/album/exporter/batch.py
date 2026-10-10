@@ -8,8 +8,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import NamedTuple
 
-from ...fsprotocol import LinkMode
-from ..exporter.protocol import AlbumShareLayout, ShareDirectoryLayout
+from ...foundation.linking import LinkMode
+from ...foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 from ..store.album_discovery import discover_albums as discover_photree_albums
 from .single import compute_target_dir, export_album
 

@@ -7,14 +7,14 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from photree.cli import app
-from photree.fsprotocol import (
+from photree.foundation.gallery_metadata import (
     GALLERY_YAML,
-    PHOTREE_DIR,
     GalleryMetadata,
-    LinkMode,
     load_gallery_metadata,
     save_gallery_metadata,
 )
+from photree.foundation.layout import PHOTREE_DIR
+from photree.foundation.linking import LinkMode
 
 runner = CliRunner()
 

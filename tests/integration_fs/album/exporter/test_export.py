@@ -10,21 +10,11 @@ from photree.album.exporter.single import (
     compute_target_dir,
     export_album,
 )
-from photree.album.store.protocol import (
-    MAIN_MEDIA_SOURCE,
-    AlbumDatePrefixError,
-    AlbumDatePrefixKind,
-    parse_album_month,
-    parse_album_year,
-    std_media_source,
-)
+from photree.album.store.media_source import MAIN_MEDIA_SOURCE, std_media_source
 from photree.config import ConfigError, ConfigErrorKind
-from photree.fsprotocol import (
-    PHOTREE_DIR,
-    AlbumShareLayout,
-    LinkMode,
-    ShareDirectoryLayout,
-)
+from photree.foundation.layout import PHOTREE_DIR
+from photree.foundation.linking import LinkMode
+from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 
 
 def _setup_dir(path: Path, filenames: list[str]) -> Path:
@@ -50,63 +40,6 @@ def _setup_ios_album(album_dir: Path) -> Path:
     _setup_dir(album_dir / MAIN_MEDIA_SOURCE.edit_vid_dir, ["IMG_E0010.MOV"])
     _setup_dir(album_dir / MAIN_MEDIA_SOURCE.vid_dir, ["IMG_E0010.MOV"])
     return album_dir
-
-
-class TestParseAlbumYear:
-    def test_standard_format(self) -> None:
-        assert parse_album_year("2024-06-15 - Summer Vacation") == "2024"
-
-    def test_date_only(self) -> None:
-        assert parse_album_year("2024-06-15") == "2024"
-
-    def test_date_with_underscore_suffix(self) -> None:
-        assert parse_album_year("2024-01-01_New_Year") == "2024"
-
-    def test_various_years(self) -> None:
-        assert parse_album_year("2020-12-25 - Christmas") == "2020"
-        assert parse_album_year("1999-01-01 - Millenium") == "1999"
-
-    def test_no_date_prefix_raises(self) -> None:
-        with pytest.raises(AlbumDatePrefixError) as exc_info:
-            parse_album_year("vacation-photos")
-        assert exc_info.value.album_name == "vacation-photos"
-        assert exc_info.value.kind == AlbumDatePrefixKind.YEAR
-
-    def test_lower_precisions_use_their_year(self) -> None:
-        # Year- and month-precision albums are valid names and must be
-        # placeable under albums/YYYY/ (gallery import, "albums" share layout).
-        assert parse_album_year("2024-06") == "2024"
-        assert parse_album_year("2024 - Family") == "2024"
-        assert parse_album_year("2024--2025 - Abroad") == "2024"
-
-    def test_five_digit_year_raises(self) -> None:
-        with pytest.raises(AlbumDatePrefixError):
-            parse_album_year("20245 - Typo")
-
-
-class TestParseAlbumMonth:
-    def test_standard_format(self) -> None:
-        assert parse_album_month("2024-06-15 - Summer Vacation") == "2024-06"
-
-    def test_date_only(self) -> None:
-        assert parse_album_month("2024-06-15") == "2024-06"
-
-    def test_month_precision(self) -> None:
-        assert parse_album_month("2024-06 - Summer") == "2024-06"
-
-    def test_range_uses_start_month(self) -> None:
-        assert parse_album_month("2024-06-15--2024-07-17 - Trip") == "2024-06"
-
-    def test_no_date_prefix_raises(self) -> None:
-        with pytest.raises(AlbumDatePrefixError) as exc_info:
-            parse_album_month("vacation-photos")
-        assert exc_info.value.album_name == "vacation-photos"
-        assert exc_info.value.kind == AlbumDatePrefixKind.MONTH
-
-    def test_year_only_raises(self) -> None:
-        with pytest.raises(AlbumDatePrefixError) as exc_info:
-            parse_album_month("2024 - Family")
-        assert exc_info.value.kind == AlbumDatePrefixKind.MONTH
 
 
 class TestComputeTargetDir:

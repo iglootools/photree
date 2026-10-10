@@ -133,12 +133,15 @@ class TestRefreshPropagation:
         from photree.album.refresh import refresh_album_derived_data
         from photree.album.store.metadata import save_album_metadata
         from photree.album.store.protocol import AlbumMetadata
+        from photree.foundation.linking import LinkMode
 
         album = tmp_path / "2024-07-14 - Hiking"
         _write(album / "ios-main" / "orig-img" / "IMG_0001.HEIC", "not really heic")
         save_album_metadata(album, AlbumMetadata(id=generate_album_id()))
 
-        result = refresh_album_derived_data(album, max_workers=4)
+        result = refresh_album_derived_data(
+            album, link_mode=LinkMode.HARDLINK, max_workers=4
+        )
 
         assert not result.success
         sources = {source for source, _ in result.jpeg_failures}

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ..album.faces.refresh import format_face_failures
+from ..album.faces.failures import format_face_failures
 from ..album.id import format_album_external_id
 from ..album.naming import NamingIssue
 from ..common.formatting import CROSS, WARNING, indent, markup_escape

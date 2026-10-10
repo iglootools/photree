@@ -15,13 +15,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ...common.fs import file_ext, list_files
-from ..store.media_sources import ios_img_number, pick_media_priority
-from ..store.protocol import (
-    IOS_IMG_EXTENSIONS,
-    IOS_SIDECAR_EXTENSIONS,
-    IOS_VID_EXTENSIONS,
-    MediaSource,
-)
+from ..formats import IOS_IMG_EXTENSIONS, IOS_SIDECAR_EXTENSIONS, IOS_VID_EXTENSIONS
+from ..store.file_matching import pick_media_priority
+from ..store.media_source import MediaSource, ios_img_number
 from .collision import ArchiveCollision
 from .selection import SelectionSources, read_selection, write_selection_csv
 

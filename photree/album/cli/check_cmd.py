@@ -21,6 +21,7 @@ from ...clihelpers.options import (
 from ...clihelpers.progress import SilentProgressBar
 from ...common.exif import exiftool_session
 from ...common.fs import count_unique_media_numbers, display_path
+from ...foundation.gallery_metadata import resolve_link_mode
 from .. import (
     check as album_check,
 )
@@ -29,15 +30,15 @@ from .. import (
 )
 from ..check import output as preflight_output
 from ..exif_cache.refresh import refresh_exif_cache as refresh_album_exif_cache
+from ..formats import IMG_EXTENSIONS, VID_EXTENSIONS
 from ..store.album_discovery import discover_albums
 from ..store.media_sources_discovery import (
     MediaSourceConflictError,
     discover_media_sources,
     find_media_source_conflicts,
 )
-from ..store.protocol import IMG_EXTENSIONS, VID_EXTENSIONS
 from . import album_app
-from .helpers import format_media_source_conflict
+from .media_source_conflict import format_media_source_conflict
 
 
 @album_app.command("check")
@@ -151,10 +152,11 @@ def _run_check(
         exiftool_session(enabled=check_exif_date_match) as exiftool,
         progress_cm as progress,
     ):
-        return album_check.run_album_preflight(
+        return album_check.run_album_check(
             album_dir,
             sips_available=album_check.check_sips_available(),
             exiftool=exiftool,
+            link_mode=resolve_link_mode(None, album_dir),
             checksum=checksum,
             check_naming_flag=check_naming,
             on_file_checked=progress.advance if progress is not None else None,

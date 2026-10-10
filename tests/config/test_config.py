@@ -17,7 +17,8 @@ from photree.config import (
     find_config_file,
     load_config,
 )
-from photree.fsprotocol import AlbumShareLayout, LinkMode, ShareDirectoryLayout
+from photree.foundation.linking import LinkMode
+from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 
 
 def _isolated_find(tmp_path: Path, xdg: Path | None = None) -> Path | None:

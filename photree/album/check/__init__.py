@@ -12,22 +12,18 @@ from pathlib import Path
 
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
-from ...fsprotocol import LinkMode
-from ..naming import (
-    AlbumNamingResult,
-    check_album_naming,
-    check_exif_date_match,
-    parse_album_name,
-)
+from ...foundation.linking import LinkMode
+from ..exif_date_check import AlbumNamingResult, check_exif_date_match
+from ..naming import check_album_naming, parse_album_name
 from ..store.album_discovery import (
     discover_albums,
 )
+from ..store.media_source import MediaSource, MediaSourceType
 from ..store.media_sources_discovery import (
     discover_media_sources,
     find_media_source_conflicts,
 )
 from ..store.metadata import load_album_metadata
-from ..store.protocol import MediaSource, MediaSourceType
 from .dir_structure import AlbumDirCheck, check_album_dir_structure
 from .exif_cache_state import ExifCacheStateCheck, check_exif_cache_state
 from .face_state import FaceStateCheck, check_face_state
@@ -522,35 +518,6 @@ def _check_cache(
     return (
         check_face_state(album_dir, media_sources=media_sources),
         check_exif_cache_state(album_dir, media_sources=media_sources),
-    )
-
-
-def run_album_preflight(
-    album_dir: Path,
-    *,
-    sips_available: bool,
-    exiftool: ExifToolHelper | None,
-    link_mode: LinkMode | None = None,
-    checksum: bool = True,
-    check_naming_flag: bool = True,
-    on_file_checked: Callable[[str, bool], None] | None = None,
-) -> AlbumPreflightResult:
-    """Run all album preflight checks, resolving the link mode from the gallery.
-
-    System probing (``sips`` on PATH, starting exiftool) is the CLI layer's
-    job, so both arrive as parameters; pass ``exiftool=None`` to skip the
-    EXIF date match.
-    """
-    from ...fsprotocol import resolve_link_mode
-
-    return run_album_check(
-        album_dir,
-        sips_available=sips_available,
-        exiftool=exiftool,
-        link_mode=link_mode or resolve_link_mode(None, album_dir),
-        checksum=checksum,
-        check_naming_flag=check_naming_flag,
-        on_file_checked=on_file_checked,
     )
 
 

@@ -10,20 +10,27 @@ iOS media sources.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ..common.fs import list_files
-from ..fsprotocol import LinkMode
-from .browsable import _place_file
-from .store.media_sources import dedup_media_dict
-from .store.protocol import _KeyFn
+from ..foundation.linking import LinkMode
+from .browsable import place_file
+from .store.file_matching import dedup_media_dict
+from .store.media_source import KeyFn
+
+if TYPE_CHECKING:
+    # Annotation only: a runtime import would cycle back through album.check,
+    # whose iOS checks import this module.
+    from .check.browsable import BrowsableDirCheck
 
 
 def detect_live_photo_keys(
     directory: Path,
     img_extensions: frozenset[str],
     vid_extensions: frozenset[str],
-    key_fn: _KeyFn,
+    key_fn: KeyFn,
 ) -> frozenset[str]:
     """Return keys that have both an image and a video file in *directory*."""
     if not directory.is_dir():
@@ -38,7 +45,7 @@ def compute_live_photo_videos(
     orig_dir: Path,
     edit_dir: Path,
     vid_extensions: frozenset[str],
-    key_fn: _KeyFn,
+    key_fn: KeyFn,
 ) -> list[tuple[str, Path]]:
     """Compute Live Photo video files for the browsable img directory.
 
@@ -76,7 +83,7 @@ def augment_browsable_img_with_live_photo_videos(
     browsable_img_dir: Path,
     *,
     vid_extensions: frozenset[str],
-    key_fn: _KeyFn,
+    key_fn: KeyFn,
     link_mode: LinkMode,
     dry_run: bool,
 ) -> int:
@@ -92,6 +99,24 @@ def augment_browsable_img_with_live_photo_videos(
 
     for filename, source_dir in videos:
         if not dry_run:
-            _place_file(source_dir / filename, browsable_img_dir / filename, link_mode)
+            place_file(source_dir / filename, browsable_img_dir / filename, link_mode)
 
     return len(videos)
+
+
+def filter_live_photo_extras(
+    browsable_check: BrowsableDirCheck,
+    live_photo_vid_filenames: frozenset[str],
+) -> BrowsableDirCheck:
+    """Return a new BrowsableDirCheck with Live Photo videos removed from extra.
+
+    Live Photo companion videos are expected in the browsable img dir even
+    though their extension is not an image extension, so a plain browsable
+    check reports them as extra files.
+    """
+    return replace(
+        browsable_check,
+        extra=tuple(
+            f for f in browsable_check.extra if f not in live_photo_vid_filenames
+        ),
+    )

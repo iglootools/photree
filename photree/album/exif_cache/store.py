@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ...fsprotocol import PHOTREE_DIR, load_yaml_mapping, validate_metadata, write_yaml
+from ...foundation.layout import PHOTREE_DIR
+from ...foundation.metadata_io import load_yaml_mapping, validate_metadata, write_yaml
 from .protocol import EXIF_CACHE_DIR, ExifCache
 
 # ---------------------------------------------------------------------------
@@ -31,7 +32,7 @@ def load_exif_cache(album_dir: Path, media_source_name: str) -> ExifCache | None
     """Load EXIF cache from ``.photree/cache/exif/{name}.yaml``.
 
     Returns ``None`` when the file is absent. A present-but-corrupt file
-    raises :class:`~photree.fsprotocol.InvalidMetadataError`; the cache is
+    raises :class:`~photree.foundation.metadata_io.InvalidMetadataError`; the cache is
     derived data, so the fix is ``album refresh --refresh-exif-cache`` or
     deleting the file — not silently reading around it.
     """

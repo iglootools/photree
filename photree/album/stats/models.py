@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
-from ..store.protocol import MediaSourceType
+from ..store.media_source import MediaSourceType
 
 
 class StorageRole(StrEnum):

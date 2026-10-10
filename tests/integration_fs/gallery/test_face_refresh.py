@@ -12,11 +12,8 @@ from photree.album.faces.store import FaceData, save_face_data
 from photree.album.id import generate_album_id
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
-from photree.fsprotocol import (
-    GalleryMetadata,
-    InvalidMetadataError,
-    save_gallery_metadata,
-)
+from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
+from photree.foundation.metadata_io import InvalidMetadataError
 from photree.gallery.faces.check import AlbumFaceDataNotIndexed, check_face_clusters
 from photree.gallery.faces.face_refresh import (
     FACE_REFRESH_STAGES,

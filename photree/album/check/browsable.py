@@ -13,9 +13,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ...common.fs import list_files
-from ...fsprotocol import LinkMode
-from ..store.media_sources import dedup_media_dict
-from ..store.protocol import _KeyFn
+from ...foundation.linking import LinkMode
+from ..store.file_matching import dedup_media_dict
+from ..store.media_source import KeyFn
 
 # ---------------------------------------------------------------------------
 # Data classes
@@ -304,7 +304,7 @@ def check_browsable_dir(
     browsable_dir: Path,
     *,
     media_extensions: frozenset[str],
-    key_fn: _KeyFn,
+    key_fn: KeyFn,
     link_mode: LinkMode,
     checksum: bool = True,
     on_file_checked: Callable[[str, bool], None] | None = None,

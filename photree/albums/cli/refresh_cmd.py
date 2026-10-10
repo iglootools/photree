@@ -8,9 +8,9 @@ import typer
 
 from ...clihelpers.options import DRY_RUN_OPTION
 from ...clihelpers.sysdeps import refresh_deps, require_system_deps
+from ..batchcli.refresh import run_batch_refresh
+from ..batchcli.resolution import resolve_check_batch_albums
 from . import AlbumDirOption, DirOption, albums_app
-from .batch_ops.refresh import run_batch_refresh
-from .ops import resolve_check_batch_albums
 
 
 @albums_app.command("refresh")

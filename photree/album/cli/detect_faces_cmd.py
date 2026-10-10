@@ -11,13 +11,10 @@ from ...clihelpers.console import err_console
 from ...clihelpers.sysdeps import FACE_DETECTION_DEPS, require_system_deps
 from ...common.formatting import indent
 from ..faces.detect import memoized_face_analyzer_factory
-from ..faces.refresh import (
-    FaceSourceRefreshResult,
-    format_face_failures,
-    refresh_face_data,
-)
+from ..faces.failures import format_face_failures
+from ..faces.refresh import FaceSourceRefreshResult, refresh_face_data
 from . import album_app
-from .helpers import exit_on_media_source_conflict
+from .media_source_conflict import exit_on_media_source_conflict
 
 
 @album_app.command("detect-faces")

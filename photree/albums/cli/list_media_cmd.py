@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from ...clihelpers.options import OUTPUT_FILE_OPTION, OUTPUT_FORMAT_OPTION, OutputFormat
+from ..batchcli.listmedia import run_batch_list_media
+from ..batchcli.resolution import resolve_check_batch_albums
 from . import AlbumDirOption, DirOption, albums_app
-from .batch_ops.listmedia import run_batch_list_media
-from .ops import resolve_check_batch_albums
 
 
 @albums_app.command("list-media")

@@ -4,19 +4,19 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from enum import StrEnum
 from functools import partial
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
-from insightface.app import FaceAnalysis
 
 from ...common.fs import list_files
 from ...common.parallelism import ParallelResult, run_parallel
 from ...common.sips import get_dimensions
-from ..store.media_sources import dedup_media_dict
+from ..formats import IMG_EXTENSIONS, IOS_IMG_EXTENSIONS
+from ..store.file_matching import dedup_media_dict
+from ..store.media_source import MediaSource
 from ..store.media_sources_discovery import discover_media_sources
-from ..store.protocol import IMG_EXTENSIONS, IOS_IMG_EXTENSIONS, MediaSource
 from .detect import (
     DetectedFace,
     FaceAnalyzerFactory,
@@ -25,6 +25,7 @@ from .detect import (
     generate_thumbnail,
     thumb_filename,
 )
+from .failures import FaceFailure, FaceFailureStage
 from .protocol import (
     DEFAULT_MODEL_NAME,
     DEFAULT_MODEL_VERSION,
@@ -42,35 +43,13 @@ from .store import (
     thumbs_dir,
 )
 
+if TYPE_CHECKING:
+    # Annotation only: importing insightface costs ~0.3 s at CLI startup.
+    from insightface.app import FaceAnalysis
+
 # ---------------------------------------------------------------------------
 # Result types
 # ---------------------------------------------------------------------------
-
-
-class FaceFailureStage(StrEnum):
-    """Pipeline stage at which an image failed."""
-
-    THUMBNAIL = "thumbnail"
-    DETECTION = "detection"
-
-
-@dataclass(frozen=True)
-class FaceFailure:
-    """One image that could not be thumbnailed or analysed."""
-
-    key: str
-    stage: FaceFailureStage
-    reason: str
-
-
-def format_face_failures(
-    failures: tuple[tuple[str, FaceFailure], ...],
-) -> list[str]:
-    """One unindented ``source/key (stage): reason`` line per failed image."""
-    return [
-        f"{ms_name}/{failure.key} ({failure.stage}): {failure.reason}"
-        for ms_name, failure in failures
-    ]
 
 
 @dataclass(frozen=True)

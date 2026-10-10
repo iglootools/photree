@@ -5,26 +5,25 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from ...common.fs import delete_files, list_files
-from ..store.protocol import IMG_EXTENSIONS, VID_EXTENSIONS, MediaSource, _KeyFn
+from ...common.fs import delete_files, file_ext, list_files
+from ..formats import IMG_EXTENSIONS, VID_EXTENSIONS
+from ..store.media_source import KeyFn, MediaSource
 from .helpers import _require_archive
 
 
 def _extract_keys(
     directory: Path,
     media_extensions: frozenset[str],
-    key_fn: _KeyFn,
+    key_fn: KeyFn,
 ) -> set[str]:
     """Return the set of keys present in an orig directory."""
-    from ...common.fs import file_ext
-
     return {key_fn(f) for f in list_files(directory) if file_ext(f) in media_extensions}
 
 
 def _find_orphan_files(
     orig_keys: set[str],
     directory: Path,
-    key_fn: _KeyFn,
+    key_fn: KeyFn,
 ) -> list[str]:
     """Find files whose key is not in the orig set."""
     return sorted(f for f in list_files(directory) if key_fn(f) not in orig_keys)
@@ -52,7 +51,7 @@ class RmOrphanResult:
 def _rm_orphans_in_dir(
     orig_keys: set[str],
     directory: Path,
-    key_fn: _KeyFn,
+    key_fn: KeyFn,
     *,
     dry_run: bool,
 ) -> tuple[str, tuple[str, ...]] | None:
@@ -69,7 +68,7 @@ def _rm_orphans_in_dir(
 def _rm_orphans_in_dirs(
     orig_keys: set[str],
     directories: tuple[Path, ...],
-    key_fn: _KeyFn,
+    key_fn: KeyFn,
     *,
     dry_run: bool,
 ) -> RmOrphanDirResult:

@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from photree.album.exif import _TIMESTAMP_TAGS
+from photree.album.exif import TIMESTAMP_TAGS
 from photree.common.exif import (
     ExifToolError,
     exiftool_session,
@@ -29,11 +29,11 @@ requires_exiftool = pytest.mark.skipif(
 
 def _extract_timestamp(metadata: dict[str, object]) -> datetime | None:
     """Test helper: extract_timestamp bound to the project's tag priority."""
-    return extract_timestamp(metadata, _TIMESTAMP_TAGS)
+    return extract_timestamp(metadata, TIMESTAMP_TAGS)
 
 
 # ---------------------------------------------------------------------------
-# extract_timestamp (with project's _TIMESTAMP_TAGS)
+# extract_timestamp (with project's TIMESTAMP_TAGS)
 # ---------------------------------------------------------------------------
 
 
@@ -150,7 +150,7 @@ class TestExiftoolSession:
 
 class TestReadExifTimestamps:
     def test_empty_files(self) -> None:
-        assert read_exif_timestamps([], _TIMESTAMP_TAGS) == []
+        assert read_exif_timestamps([], TIMESTAMP_TAGS) == []
 
 
 # ---------------------------------------------------------------------------
@@ -194,7 +194,7 @@ def _jpeg(path: Path, timestamp: str | None = "2024:07:20 13:55:20") -> Path:
 
 
 def _read(path: Path) -> datetime | None:
-    [ts] = read_exif_timestamps([path], _TIMESTAMP_TAGS) or [None]
+    [ts] = read_exif_timestamps([path], TIMESTAMP_TAGS) or [None]
     return ts
 
 
@@ -202,7 +202,7 @@ def _read(path: Path) -> datetime | None:
 class TestExifWriting:
     def test_write_exif_date_keeps_time(self, tmp_path: Path) -> None:
         img = _jpeg(tmp_path / "a.jpg")
-        changes = write_exif_date([img], "2023-01-02", _TIMESTAMP_TAGS)
+        changes = write_exif_date([img], "2023-01-02", TIMESTAMP_TAGS)
         assert [(c.original, c.new_value) for c in changes] == [
             ("2024:07:20 13:55:20", "2023:01:02 13:55:20")
         ]
@@ -212,7 +212,7 @@ class TestExifWriting:
         self, tmp_path: Path
     ) -> None:
         img = _jpeg(tmp_path / "a.jpg", timestamp=None)
-        assert write_exif_date([img], "2023-01-02", _TIMESTAMP_TAGS) == ()
+        assert write_exif_date([img], "2023-01-02", TIMESTAMP_TAGS) == ()
 
     def test_shift_date_and_time_both_directions(self, tmp_path: Path) -> None:
         img = _jpeg(tmp_path / "a.jpg")
@@ -233,5 +233,5 @@ class TestExifWriting:
     def test_missing_file_raises_on_read(self, tmp_path: Path) -> None:
         missing = tmp_path / "missing.jpg"
         with pytest.raises(ExifToolError) as exc_info:
-            write_exif_date([missing], "2023-01-02", _TIMESTAMP_TAGS)
+            write_exif_date([missing], "2023-01-02", TIMESTAMP_TAGS)
         assert exc_info.value.paths == (missing,)

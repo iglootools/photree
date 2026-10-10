@@ -1,12 +1,12 @@
-"""Tests for photree.fs.repo — media source discovery."""
+"""Tests for photree.album.store.media_sources_discovery — media source discovery."""
 
 from pathlib import Path
 
+from photree.album.store.media_source import MediaSourceType, std_media_source
 from photree.album.store.media_sources_discovery import (
     _is_std_source_dir,
     discover_media_sources,
 )
-from photree.album.store.protocol import MediaSourceType, std_media_source
 
 
 def _setup_dir(path: Path, filenames: list[str]) -> Path:

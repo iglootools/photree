@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from ..batchcli.resolution import resolve_check_batch_albums
+from ..batchcli.stats import run_batch_stats
 from . import AlbumDirOption, DirOption, albums_app
-from .batch_ops.stats import run_batch_stats
-from .ops import resolve_check_batch_albums
 
 
 @albums_app.command("stats")

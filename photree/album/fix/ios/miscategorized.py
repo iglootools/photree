@@ -7,8 +7,8 @@ from enum import StrEnum
 from pathlib import Path
 
 from ....common.fs import delete_files, list_files, move_files
-from ...store.media_sources import ios_file_prefix
-from ...store.protocol import MediaSource
+from ...store.file_matching import ios_file_prefix
+from ...store.media_source import MediaSource
 from ..helpers import require_ios
 
 

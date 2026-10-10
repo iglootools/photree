@@ -18,16 +18,16 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..common.fs import list_files
-from ..fsprotocol import LinkMode
-from .store.media_sources import dedup_media_dict
-from .store.protocol import _KeyFn
+from ..foundation.linking import LinkMode
+from .store.file_matching import dedup_media_dict
+from .store.media_source import KeyFn
 
 
 def compute_browsable_files(
     orig_dir: Path,
     edit_dir: Path,
     media_extensions: frozenset[str],
-    key_fn: _KeyFn,
+    key_fn: KeyFn,
 ) -> list[tuple[str, Path]]:
     """Compute which files should populate a browsable dir: (filename, source_dir) pairs.
 
@@ -64,7 +64,7 @@ _LINK_MODE_VERBS: dict[LinkMode, str] = {
 }
 
 
-def _place_file(src: Path, dst: Path, link_mode: LinkMode) -> None:
+def place_file(src: Path, dst: Path, link_mode: LinkMode) -> None:
     """Place a file into the browsable directory using the specified link mode."""
     match link_mode:
         case LinkMode.COPY:
@@ -97,7 +97,7 @@ def refresh_browsable_dir(
     browsable_dir: Path,
     *,
     media_extensions: frozenset[str],
-    key_fn: _KeyFn,
+    key_fn: KeyFn,
     link_mode: LinkMode = LinkMode.HARDLINK,
     dry_run: bool = False,
     on_file_start: Callable[[str], None] | None = None,
@@ -122,7 +122,7 @@ def refresh_browsable_dir(
             on_file_start(filename)
 
         if not dry_run:
-            _place_file(source_dir / filename, browsable_dir / filename, link_mode)
+            place_file(source_dir / filename, browsable_dir / filename, link_mode)
 
         if on_file_end:
             on_file_end(filename, True)

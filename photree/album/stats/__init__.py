@@ -12,10 +12,11 @@ from dataclasses import dataclass
 from itertools import groupby
 from pathlib import Path
 
-from ...fsprotocol import PHOTREE_DIR
+from ...foundation.layout import PHOTREE_DIR
 from ..naming import parse_album_name
+from ..store.media_source import MediaSource
 from ..store.media_sources_discovery import discover_media_sources
-from ..store.protocol import CACHE_DIR, MediaSource
+from ..store.protocol import CACHE_DIR
 from .aggregate import (
     aggregate_media_sources,
     merge_aggregates,

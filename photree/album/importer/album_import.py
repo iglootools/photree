@@ -11,16 +11,20 @@ import os
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ...common.fs import list_files
-from ...fsprotocol import PHOTREE_DIR, LinkMode
+from ...foundation.layout import PHOTREE_DIR
+from ...foundation.linking import LinkMode
+from ..faces.detect import FaceAnalyzerFactory
+from ..faces.failures import FaceFailure
 from ..id import generate_album_id
 from ..jpeg import ConvertFile, JpegConversionFailure, convert_single_file
+from ..refresh import AlbumRefreshResult, refresh_album_derived_data
+from ..store.media_source import MediaSource, MediaSourceType
 from ..store.metadata import save_album_metadata
-from ..store.protocol import ALBUM_YAML, AlbumMetadata, MediaSource, MediaSourceType
+from ..store.protocol import ALBUM_YAML, AlbumMetadata
 from . import image_capture, std
 from .collision import ArchiveCollision, ImportCollisionError
 from .image_capture import (
@@ -33,12 +37,6 @@ from .image_capture import (
 from .selection import has_selection
 from .std import StdImportResult, StdValidationError, validate_std_task
 from .tasks import ImportTask, discover_import_tasks
-
-if TYPE_CHECKING:
-    from ..faces.detect import FaceAnalyzerFactory
-    from ..faces.refresh import FaceFailure
-    from ..refresh import AlbumRefreshResult
-
 
 STAGE_REFRESH_DERIVED = "refresh-derived"
 
@@ -419,8 +417,6 @@ def _refresh_derived(
     cache/faces per source. Returns the refresh result, whose JPEG and face
     detection failures the import surfaces.
     """
-    from ..refresh import refresh_album_derived_data
-
     _notify(on_stage_start, STAGE_REFRESH_DERIVED)
     refresh_result = refresh_album_derived_data(
         album_dir,

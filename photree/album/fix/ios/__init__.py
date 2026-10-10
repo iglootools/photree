@@ -12,7 +12,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ...store.protocol import MediaSource
+from ...store.media_source import MediaSource
+from ...store.media_sources_discovery import discover_media_sources
 from .miscategorized import (
     MiscategorizedAction,
     MiscategorizedDirResult,
@@ -219,8 +220,6 @@ def run_fix_ios(
     and returns aggregated results. An album without iOS media sources is
     reported through ``no_ios_media_sources`` rather than an empty result.
     """
-    from ...store.media_sources_discovery import discover_media_sources
-
     media_sources = [ms for ms in discover_media_sources(album_dir) if ms.is_ios]
     if not media_sources:
         return FixIosResult(no_ios_media_sources=True)

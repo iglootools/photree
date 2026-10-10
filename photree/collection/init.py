@@ -35,7 +35,7 @@ def init_collection(
     """Write fresh metadata for *collection_dir* and return it.
 
     Raises :class:`CollectionAlreadyInitializedError` when metadata exists,
-    and :class:`~photree.fsprotocol.InvalidMetadataError` when it exists but
+    and :class:`~photree.foundation.metadata_io.InvalidMetadataError` when it exists but
     is corrupt: overwriting either would mint a new ID and orphan every
     reference to the old one.
     """

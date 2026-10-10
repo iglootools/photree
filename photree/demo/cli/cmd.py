@@ -38,6 +38,8 @@ from ...album.importer.testkit.preflight import (
     PREFLIGHT_OK as IMPORT_PREFLIGHT_OK,
 )
 from ...album.importer.testkit.validation import VALIDATION_ERRORS
+from ...album.stats.output import format_album_stats, format_albums_stats
+from ...album.stats.testkit import ALBUM_STATS, ALBUMS_STATS
 from ...clihelpers.console import console
 
 demo_app = typer.Typer(
@@ -268,9 +270,6 @@ _SAMPLES: tuple[tuple[str, Callable[[], str]], ...] = (
 @demo_app.command("output")
 def output_cmd() -> None:
     """Display all output/troubleshoot functions with fake data."""
-    from ...album.stats.output import format_album_stats, format_albums_stats
-    from ...album.stats.testkit import ALBUM_STATS, ALBUMS_STATS
-
     for title, render in _SAMPLES:
         _panel(title, render())
 

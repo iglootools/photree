@@ -8,11 +8,7 @@ from photree.album.importer.tasks import (
     discover_import_tasks,
     has_import_tasks,
 )
-from photree.album.store.protocol import (
-    ios_import_csv,
-    ios_import_dir,
-    std_import_dir,
-)
+from photree.album.staging import ios_import_csv, ios_import_dir, std_import_dir
 
 
 class TestDiscoverImportTasks:

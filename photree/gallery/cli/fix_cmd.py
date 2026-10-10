@@ -7,9 +7,9 @@ from typing import Annotated
 
 import typer
 
-from ...album.fix import FixValidationError
-from ...albums.cli.batch_ops.fix import run_batch_fix
-from ...albums.cli.ops import resolve_check_batch_albums
+from ...album.fix import FixValidationError, validate_fix_flags
+from ...albums.batchcli.fix import run_batch_fix
+from ...albums.batchcli.resolution import resolve_check_batch_albums
 from ...clihelpers.console import err_console
 from ...clihelpers.options import (
     DRY_RUN_OPTION,
@@ -48,8 +48,6 @@ def fix_cmd(
     dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """Fix all albums in the gallery."""
-    from ...album.fix import validate_fix_flags
-
     try:
         validate_fix_flags(
             fix_id=fix_id,

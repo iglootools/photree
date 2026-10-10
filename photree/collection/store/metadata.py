@@ -4,14 +4,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ...fsprotocol import PHOTREE_DIR, load_yaml_mapping, validate_metadata, write_yaml
+from ...foundation.layout import PHOTREE_DIR
+from ...foundation.metadata_io import load_yaml_mapping, validate_metadata, write_yaml
 from .protocol import COLLECTION_YAML, CollectionMetadata
 
 
 def load_collection_metadata(collection_dir: Path) -> CollectionMetadata | None:
     """Read ``.photree/collection.yaml``, or ``None`` if missing.
 
-    Raises :class:`~photree.fsprotocol.InvalidMetadataError` when the file
+    Raises :class:`~photree.foundation.metadata_io.InvalidMetadataError` when the file
     exists but is unreadable: treating a corrupt file as absent would let
     ``collection init`` mint a new ID and orphan every reference to the old one.
     """

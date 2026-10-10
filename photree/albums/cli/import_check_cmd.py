@@ -8,7 +8,7 @@ from typing import Annotated
 
 import typer
 
-from ...album.cli.helpers import _run_preflight_checks
+from ...album.cli.import_preflight import run_import_preflight
 from ...album.importer.album_import import task_has_content
 from ...album.importer.tasks import discover_import_tasks
 from ...clihelpers.console import err_console
@@ -132,7 +132,7 @@ def import_check_cmd(
         raise typer.Exit(code=1)
 
     # Shared preflight (sips + IC directory, no per-album selection check)
-    _run_preflight_checks(source, config)
+    run_import_preflight(source, config)
 
     cwd = Path.cwd()
     scan_dir = albums_dir if albums_dir is not None else cwd

@@ -15,18 +15,18 @@ from pathlib import Path
 
 from pydantic import Field
 
-from ...fsprotocol import (
-    PHOTREE_DIR,
+from ...foundation.layout import PHOTREE_DIR
+from ...foundation.metadata_io import (
     InvalidMetadataError,
-    _BaseModel,
     load_yaml_mapping,
     validate_metadata,
     write_yaml,
 )
+from ...foundation.model import PhotreeModel
 from .protocol import MEDIA_IDS_DIR
 
 
-class MediaSourceMediaMetadata(_BaseModel):
+class MediaSourceMediaMetadata(PhotreeModel):
     """ID mappings for a single media source (images and videos)."""
 
     images: dict[str, str] = Field(
@@ -39,7 +39,7 @@ class MediaSourceMediaMetadata(_BaseModel):
     )
 
 
-class MediaMetadata(_BaseModel):
+class MediaMetadata(PhotreeModel):
     """Per-album media metadata — aggregation of all media sources."""
 
     media_sources: dict[str, MediaSourceMediaMetadata] = Field(
@@ -70,7 +70,7 @@ def load_media_metadata(album_dir: Path) -> MediaMetadata | None:
 
     Returns ``None`` when there is no media-ids file at all. A file that is
     present but unreadable raises
-    :class:`~photree.fsprotocol.InvalidMetadataError` rather than being
+    :class:`~photree.foundation.metadata_io.InvalidMetadataError` rather than being
     skipped: dropping it would make the next refresh mint fresh UUIDs for every
     media item of that source, breaking collection references.
     """

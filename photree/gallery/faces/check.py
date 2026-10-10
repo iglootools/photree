@@ -13,7 +13,7 @@ from pathlib import Path
 from ...album.faces.protocol import FACES_DIR
 from ...album.store.album_discovery import discover_albums
 from ...album.store.metadata import load_album_metadata
-from ...fsprotocol import ALBUMS_DIR, PHOTREE_DIR
+from ...foundation.layout import ALBUMS_DIR, PHOTREE_DIR
 from .manifest import compute_npz_checksum, load_checksums, load_clusters, load_manifest
 from .protocol import FaceClusteringResult
 

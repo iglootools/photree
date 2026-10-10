@@ -22,14 +22,10 @@ from photree.album.importer.image_capture import (
     validate_import_plan,
 )
 from photree.album.importer.selection import read_selection_csv
-from photree.album.store.protocol import (
-    ios_import_csv,
-    ios_import_dir,
-    std_import_dir,
-    std_media_source,
-)
+from photree.album.staging import ios_import_csv, ios_import_dir, std_import_dir
+from photree.album.store.media_source import std_media_source
 from photree.common.fs import list_files
-from photree.fsprotocol import LinkMode
+from photree.foundation.linking import LinkMode
 
 SEL_DIR = ios_import_dir("main")  # to-import-ios-main
 SEL_CSV = ios_import_csv("main")  # to-import-ios-main.csv

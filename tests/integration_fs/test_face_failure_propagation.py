@@ -12,14 +12,15 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from photree.album.faces.refresh import FaceFailure, FaceFailureStage
+from photree.album.faces.failures import FaceFailure, FaceFailureStage
 from photree.album.importer import album_import
 from photree.album.importer.album_import import AlbumImportResult
 from photree.album.refresh import AlbumRefreshResult
 from photree.albums.cmd_handler import refresh as refresh_handler
 from photree.albums.cmd_handler.refresh import batch_refresh
 from photree.cli import app
-from photree.fsprotocol import GalleryMetadata, LinkMode, save_gallery_metadata
+from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
+from photree.foundation.linking import LinkMode
 from photree.gallery.cmd_handler.importer import _import_one
 from photree.gallery.import_plan import AlbumPlan, ImportAction
 from photree.gallery.importer import AlbumImportResult as GalleryImportResult
@@ -57,7 +58,7 @@ def test_batch_refresh_counts_face_failures_as_failed(
         refresh_handler, "refresh_album_derived_data", _refresh_with_face_failures
     )
 
-    result = batch_refresh([album])
+    result = batch_refresh([album], link_mode_for=lambda _: LinkMode.HARDLINK)
 
     assert result.refreshed == 0
     assert result.failed_albums == (album,)

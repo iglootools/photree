@@ -276,7 +276,8 @@ virality.
 ### Collection Refresh
 
 `gallery refresh` runs the following phases for collections, after the
-album media refresh:
+album media refresh. They are implemented in `photree/collection/refresh/`
+(one module per phase, orchestrated by `refresh_collections`):
 
 #### Phase 1: Scan and Validate Albums
 
@@ -557,7 +558,7 @@ Direct edits may be silently overwritten or cause unexpected behavior.
 
 ### Absent vs Corrupt Metadata
 
-Every `.photree/*.yaml` reader (`fsprotocol.load_yaml_mapping` /
+Every `.photree/*.yaml` reader (`foundation.metadata_io.load_yaml_mapping` /
 `validate_metadata`) distinguishes two cases:
 
 - **Absent** — the file does not exist. Commands that create metadata
@@ -600,7 +601,8 @@ written before the failure keep their new value.
 
 During album and gallery checks, photree reads all media files from each
 album's browsable directories (`{name}-jpg/`, `{name}-vid/`) and compares
-their EXIF timestamps against the album date. All ranges use an exclusive
+their EXIF timestamps against the album date (`album/exif_date_check.py`,
+on top of the date arithmetic in `dates.py`). All ranges use an exclusive
 end boundary:
 
 - **Single-day albums** (`YYYY-MM-DD`): each file must fall in
@@ -655,7 +657,8 @@ photree shells out to two external binaries:
 | `exiftool` | reading and writing EXIF timestamps |
 
 `photree/common/sysdeps.py` owns the list, each entry's purpose, and its
-install hint. `photree/clihelpers/sysdeps.py` turns that into the CLI gate.
+install hint. `photree/common/sysdeps_output.py` renders statuses and install
+instructions, and `photree/clihelpers/sysdeps.py` turns both into the CLI gate.
 
 ### Fail-fast gate
 

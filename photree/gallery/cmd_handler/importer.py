@@ -5,19 +5,15 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
-from ...album.faces.detect import memoized_face_analyzer_factory
+from ...album.faces.detect import FaceAnalyzerFactory, memoized_face_analyzer_factory
 from ...common.exif import exiftool_session
-from ...fsprotocol import LinkMode
+from ...foundation.linking import LinkMode
 from .. import importer as gallery_importer
 from ..import_plan import AlbumPlan, ImportAction
 from ..importer import AlbumImportResult, FaceFailures, JpegFailures
-
-if TYPE_CHECKING:
-    from ...album.faces.detect import FaceAnalyzerFactory
 
 
 def _execute_plan(

@@ -10,8 +10,9 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ...fsprotocol import LinkMode
-from ..store.protocol import MediaSource
+from ...foundation.linking import LinkMode
+from ..store.media_source import MediaSource
+from ..store.media_sources_discovery import discover_media_sources
 from .helpers import MissingArchiveError
 from .rm_orphan import RmOrphanDirResult, RmOrphanResult, rm_orphan
 from .rm_upstream import (
@@ -166,8 +167,6 @@ def run_fix(
     *force* lets rm-upstream use empty browsable dirs as deletion signals and
     delete every item of an archive (see :mod:`.rm_upstream`).
     """
-    from ..store.media_sources_discovery import discover_media_sources
-
     media_sources = discover_media_sources(album_dir)
     if not media_sources:
         return FixResult(no_media_sources=True)

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ...check.std import DuplicateStem
-from ...store.protocol import ios_media_source, std_media_source
+from ...store.media_source import ios_media_source, std_media_source
 from ..album_import import TaskIssue
 from ..image_capture import ValidationError, ValidationErrorKind
 

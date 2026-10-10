@@ -8,19 +8,21 @@ sidecar checks.
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from enum import StrEnum
 from itertools import groupby
 from pathlib import Path
 
 from ....common.fs import file_ext, list_files
-from ....fsprotocol import LinkMode
-from ...store.media_sources import ios_file_prefix, ios_img_number, ios_is_media
-from ...store.protocol import (
-    IOS_IMG_EXTENSIONS,
-    IOS_VID_EXTENSIONS,
-    MediaSource,
+from ....foundation.linking import LinkMode
+from ...formats import IOS_IMG_EXTENSIONS, IOS_VID_EXTENSIONS
+from ...live_photo import (
+    compute_live_photo_videos,
+    detect_live_photo_keys,
+    filter_live_photo_extras,
 )
+from ...store.file_matching import ios_file_prefix, ios_is_media
+from ...store.media_source import MediaSource, ios_img_number
 from ..browsable import BrowsableDirCheck, check_browsable_dir
 from ..jpeg import JpegCheck, check_jpeg_dir
 from .sidecar import SidecarCheck, check_sidecars
@@ -174,25 +176,10 @@ def check_miscategorized_files(
     )
 
 
-def _filter_live_photo_extras(
-    browsable_check: BrowsableDirCheck,
-    live_photo_vid_filenames: frozenset[str],
-) -> BrowsableDirCheck:
-    """Return a new BrowsableDirCheck with Live Photo videos removed from extra."""
-    return replace(
-        browsable_check,
-        extra=tuple(
-            f for f in browsable_check.extra if f not in live_photo_vid_filenames
-        ),
-    )
-
-
 def _detect_live_photo_vid_filenames(
     album_dir: Path, ms: MediaSource
 ) -> frozenset[str]:
     """Return expected Live Photo video filenames for an iOS media source."""
-    from ...live_photo import compute_live_photo_videos, detect_live_photo_keys
-
     live_keys = detect_live_photo_keys(
         album_dir / ms.orig_img_dir,
         IOS_IMG_EXTENSIONS,
@@ -243,7 +230,7 @@ def _check_browsable(
     # Filter Live Photo companion videos from the "extra" list — they are
     # expected in the browsable img dir but not matched by IOS_IMG_EXTENSIONS.
     live_videos = _detect_live_photo_vid_filenames(album_dir, ms)
-    return _filter_live_photo_extras(img, live_videos), vid
+    return filter_live_photo_extras(img, live_videos), vid
 
 
 def _check_ios_sidecars(album_dir: Path, ms: MediaSource) -> SidecarCheck:

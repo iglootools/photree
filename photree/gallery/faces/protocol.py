@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pydantic import Field
 
-from ...fsprotocol import _BaseModel
+from ...foundation.model import PhotreeModel
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -27,7 +27,7 @@ DEFAULT_CLUSTER_THRESHOLD = 0.45
 # ---------------------------------------------------------------------------
 
 
-class FaceReference(_BaseModel):
+class FaceReference(PhotreeModel):
     """A reference to a single detected face in the gallery."""
 
     album_id: str = Field(description="Album internal UUID.")
@@ -36,7 +36,7 @@ class FaceReference(_BaseModel):
     face_index: int = Field(description="0-based face index within the image.")
 
 
-class FaceManifest(_BaseModel):
+class FaceManifest(PhotreeModel):
     """Maps FAISS index rows to face references.
 
     Position ``i`` in ``faces`` corresponds to row ``i`` in the FAISS index.
@@ -45,7 +45,7 @@ class FaceManifest(_BaseModel):
     faces: list[FaceReference] = Field(default_factory=list)
 
 
-class FaceCluster(_BaseModel):
+class FaceCluster(PhotreeModel):
     """A cluster of faces belonging to the same identity."""
 
     id: str = Field(description="UUID v7 for stable identity across re-clusters.")
@@ -55,7 +55,7 @@ class FaceCluster(_BaseModel):
     )
 
 
-class FaceClusteringResult(_BaseModel):
+class FaceClusteringResult(PhotreeModel):
     """Persistent clustering result stored in ``clusters.yaml``."""
 
     version: int = Field(default=1)
@@ -65,7 +65,7 @@ class FaceClusteringResult(_BaseModel):
     clusters: list[FaceCluster] = Field(default_factory=list)
 
 
-class AlbumFaceChecksums(_BaseModel):
+class AlbumFaceChecksums(PhotreeModel):
     """Tracks which album face data has been ingested into the gallery index.
 
     Maps ``album_id → {media_source → sha256_hex}``.

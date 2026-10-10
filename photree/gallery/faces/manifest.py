@@ -1,7 +1,7 @@
 """Gallery face manifest I/O — load/save manifest, clusters, and checksums.
 
 A file that exists but cannot be read raises
-:class:`~photree.fsprotocol.InvalidMetadataError` rather than reading as
+:class:`~photree.foundation.metadata_io.InvalidMetadataError` rather than reading as
 absent: a corrupt ``clusters.yaml`` treated as missing would trigger a silent
 full re-cluster that mints fresh cluster UUIDs and loses every identity.
 """
@@ -13,12 +13,8 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from ...fsprotocol import (
-    PHOTREE_DIR,
-    load_yaml_mapping,
-    validate_metadata,
-    write_yaml,
-)
+from ...foundation.layout import PHOTREE_DIR
+from ...foundation.metadata_io import load_yaml_mapping, validate_metadata, write_yaml
 from .protocol import (
     FACE_CHECKSUMS_FILE,
     FACE_CLUSTERS_FILE,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ..store.protocol import MediaSource
+from ..store.media_source import MediaSource
 
 
 class MissingArchiveError(FileNotFoundError):

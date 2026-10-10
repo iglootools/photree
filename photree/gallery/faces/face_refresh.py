@@ -15,7 +15,7 @@ from ...album.faces.protocol import FACES_DIR
 from ...album.faces.store import load_face_data
 from ...album.store.album_discovery import discover_albums
 from ...album.store.metadata import load_album_metadata
-from ...fsprotocol import ALBUMS_DIR, PHOTREE_DIR
+from ...foundation.layout import ALBUMS_DIR, PHOTREE_DIR
 from .clustering import (
     assign_to_nearest_cluster,
     build_faiss_index,
@@ -86,7 +86,7 @@ class FaceRefreshMode(StrEnum):
 class GalleryFaceRefreshResult:
     """Result of a gallery face clustering refresh.
 
-    Failures raise (e.g. :class:`~photree.fsprotocol.InvalidMetadataError` for
+    Failures raise (e.g. :class:`~photree.foundation.metadata_io.InvalidMetadataError` for
     a corrupt ``clusters.yaml``) instead of being folded into the result: a
     refresh that cannot read its previous state must not save a new one.
     """

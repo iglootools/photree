@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ...common.fs import list_files
-from ..store.media_sources import ios_img_number
+from ..store.media_source import ios_img_number
 
 
 @dataclass(frozen=True)

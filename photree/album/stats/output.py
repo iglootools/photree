@@ -16,7 +16,7 @@ from rich.table import Table
 from rich.text import Text
 
 from ...common.formatting import indent, markup_escape
-from ..store.protocol import MediaSourceType
+from ..store.media_source import MediaSourceType
 from .models import (
     AggregateStats,
     AlbumsStats,

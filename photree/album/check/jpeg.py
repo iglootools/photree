@@ -11,11 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ...common.fs import file_ext, list_files
-from ..store.protocol import (
-    CONVERT_TO_JPEG_EXTENSIONS,
-    COPY_AS_IS_TO_JPEG_EXTENSIONS,
-    MediaSource,
-)
+from ..formats import CONVERT_TO_JPEG_EXTENSIONS, COPY_AS_IS_TO_JPEG_EXTENSIONS
+from ..store.media_source import MediaSource
 
 # ---------------------------------------------------------------------------
 # Data classes

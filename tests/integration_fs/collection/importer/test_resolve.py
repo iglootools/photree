@@ -31,7 +31,7 @@ from photree.collection.store.protocol import (
     CollectionMembers,
     CollectionMetadata,
 )
-from photree.fsprotocol import GalleryMetadata, save_gallery_metadata
+from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 
 
 def _write(path: Path, content: str = "data") -> None:
@@ -251,7 +251,7 @@ class TestResolveByMediaFilename:
     def test_invalid_album_date_does_not_crash_date_hint(self, tmp_path: Path) -> None:
         """An album named with a non-existent date is skipped by the date hint.
 
-        Regression: _timestamp_in_album_range raises on such dates, which
+        Regression: dates.timestamp_in_range raises on such dates, which
         crashed the whole resolution instead of narrowing to the valid album.
         """
         gallery = _setup_gallery(tmp_path)

@@ -23,7 +23,7 @@ from pathlib import Path
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ...album.exif import read_exif_timestamps_by_file
-from ...album.store.protocol import IMG_EXTENSIONS, VID_EXTENSIONS
+from ...album.formats import IMG_EXTENSIONS, VID_EXTENSIONS
 from ...common.fs import file_ext, list_files
 
 SELECTION_DIR = "to-import"

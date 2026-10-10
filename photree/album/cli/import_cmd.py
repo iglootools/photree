@@ -13,8 +13,9 @@ from ...clihelpers.options import CONFIG_OPTION
 from ...clihelpers.progress import StageProgressBar
 from ...common.exif import exiftool_session
 from ...common.fs import display_path, list_files
-from ...fsprotocol import LinkMode
+from ...foundation.linking import LinkMode
 from ..check.output import derived_failures_report, format_naming_checks
+from ..exif_date_check import AlbumNamingResult, check_exif_date_match
 from ..faces.detect import memoized_face_analyzer_factory
 from ..importer import album_import
 from ..importer import output as importer_output
@@ -28,14 +29,10 @@ from ..importer.album_import import (
 from ..importer.collision import ArchiveCollision, ImportCollisionError
 from ..importer.tasks import discover_import_tasks
 from ..jpeg import convert_single_file, noop_convert_single
-from ..naming import (
-    AlbumNamingResult,
-    check_album_naming,
-    check_exif_date_match,
-    parse_album_name,
-)
+from ..naming import check_album_naming, parse_album_name
 from . import album_app
-from .helpers import _run_preflight_checks, exit_on_media_source_conflict
+from .import_preflight import run_import_preflight
+from .media_source_conflict import exit_on_media_source_conflict
 
 
 @album_app.command("import")
@@ -108,7 +105,7 @@ def import_cmd(
     2. image-capture-dir from config file
     3. Default: ~/Pictures/iPhone
     """
-    image_capture_dir = _run_preflight_checks(
+    image_capture_dir = run_import_preflight(
         source,
         config,
         album_dir=album_dir,

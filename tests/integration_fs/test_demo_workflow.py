@@ -9,23 +9,20 @@ import os
 import shutil
 from pathlib import Path
 
-from photree.album.check import check_sips_available, run_album_preflight
+from photree.album.check import check_sips_available, run_album_check
 from photree.album.exporter.single import compute_target_dir, export_album
 from photree.album.importer.album_import import run_import
 from photree.album.importer.testkit import seed_demo
 from photree.album.jpeg import convert_single_file, copy_convert_single
 from photree.album.store.album_discovery import is_album
+from photree.album.store.media_source import MAIN_MEDIA_SOURCE
 from photree.album.store.media_sources_discovery import discover_media_sources
 from photree.album.store.metadata import load_album_metadata
-from photree.album.store.protocol import ALBUM_YAML, MAIN_MEDIA_SOURCE
+from photree.album.store.protocol import ALBUM_YAML
 from photree.common.exif import exiftool_session
-from photree.fsprotocol import (
-    PHOTREE_DIR,
-    SHARE_SENTINEL,
-    AlbumShareLayout,
-    LinkMode,
-    ShareDirectoryLayout,
-)
+from photree.foundation.layout import PHOTREE_DIR, SHARE_SENTINEL
+from photree.foundation.linking import LinkMode
+from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 
 
 class TestDemoWorkflow:
@@ -137,7 +134,7 @@ class TestDemoWorkflow:
 
         # ── Check ────────────────────────────────────────────
         with exiftool_session() as exiftool:
-            preflight = run_album_preflight(
+            preflight = run_album_check(
                 album_dir,
                 sips_available=check_sips_available(),
                 exiftool=exiftool,

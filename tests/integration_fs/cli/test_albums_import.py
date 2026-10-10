@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from photree.album.store.protocol import ios_import_dir
+from photree.album.staging import ios_import_dir
 from photree.albums.cli import import_cmd as albums_import_cmd
 from photree.cli import app
 

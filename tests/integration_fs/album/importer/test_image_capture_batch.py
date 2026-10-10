@@ -8,11 +8,7 @@ from photree.album.importer.batch import (
     scan_albums,
     validate_albums,
 )
-from photree.album.store.protocol import (
-    ios_import_csv,
-    ios_import_dir,
-    std_import_dir,
-)
+from photree.album.staging import ios_import_csv, ios_import_dir, std_import_dir
 
 SEL_DIR = ios_import_dir("main")  # to-import-ios-main
 SEL_CSV = ios_import_csv("main")  # to-import-ios-main.csv

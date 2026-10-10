@@ -27,7 +27,7 @@ from ...collection.store.collection_discovery import discover_collections
 from ...common.exif import exiftool_session
 from ...common.formatting import indent
 from ...common.fs import display_path
-from ...fsprotocol import InvalidMetadataError
+from ...foundation.metadata_io import InvalidMetadataError
 from . import collections_app
 
 

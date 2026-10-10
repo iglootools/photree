@@ -5,37 +5,24 @@ Target format::
     DATE - [PART - ] [Series - ] Title [tags]
 
 Where:
-- DATE is ``YYYY-MM-DD`` or ``YYYY-MM-DD--YYYY-MM-DD``
+- DATE is a date spec (``YYYY``, ``YYYY-MM``, ``YYYY-MM-DD``, or a ``--``
+  range of mixed precision); its grammar lives in :mod:`photree.dates`
 - PART is a zero-padded two-digit number (``01``, ``02``, …)
 - Tags are ``[tag]`` at the end; only ``[private]`` is currently allowed
 - Parenthesised content (e.g. ``(Day 2)``, ``(bis)``) is ordinary title text
 
-This module performs **no** filesystem mutations.
+This module only inspects name strings: no filesystem access. EXIF date
+matching lives in :mod:`.exif_date_check`.
 """
 
 from __future__ import annotations
 
-import calendar
 import re
+from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
 from enum import StrEnum
-from pathlib import Path
 
-from exiftool import ExifToolHelper  # type: ignore[import-untyped]
-
-from .exif import read_exif_timestamps_by_file
-from .exif_cache.store import load_exif_cache
-from .store.media_sources import (
-    ios_find_files_by_number,
-    ios_img_number,
-    std_find_files_by_stem,
-)
-from .store.media_sources_discovery import (
-    discover_browsable_media_files,
-    discover_media_sources,
-)
-from .store.protocol import ALBUM_DATE_RE, MediaSource
+from ..dates import DATE_PREFIX_RE, is_day_precision, is_valid_date
 
 # ---------------------------------------------------------------------------
 # Regexes
@@ -46,9 +33,6 @@ _TAGS_RE = re.compile(r"\s*\[([^\]]+)\]\s*$")
 
 # Prefix-style part number: "XX - rest"
 _PREFIX_PART_RE = re.compile(r"^(\d{2}) - (.+)$")
-
-# Single-day date: exactly YYYY-MM-DD (no range, no lower precision)
-_DAY_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 # Kebab-case slug validation for tags
 _KEBAB_SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -70,11 +54,6 @@ _LEGACY_DATE_RE = re.compile(
 
 # Valid tags (whitelist)
 VALID_TAGS = frozenset({"private"})
-
-
-def _is_day_precision(date_str: str) -> bool:
-    """Return True when *date_str* is a single day (YYYY-MM-DD)."""
-    return _DAY_DATE_RE.match(date_str) is not None
 
 
 # ---------------------------------------------------------------------------
@@ -113,59 +92,6 @@ class NamingIssue:
 
     code: NamingIssueCode
     message: str
-
-
-class InvalidAlbumDateError(ValueError):
-    """An album date matches the naming grammar but is not a real date range.
-
-    E.g. ``2024-02-30`` or ``2024-13``, or a range ending before it starts.
-    """
-
-    def __init__(self, album_date: str) -> None:
-        self.album_date = album_date
-        super().__init__(f"album date {album_date!r} is not a valid date range")
-
-
-@dataclass(frozen=True)
-class ExifMismatch:
-    """A single file whose EXIF timestamp falls outside the album date range."""
-
-    file_name: str
-    timestamp: str
-    upstream_files: tuple[str, ...] = ()
-    is_ios: bool = False
-
-
-@dataclass(frozen=True)
-class ExifTimestampCheck:
-    """Result of validating EXIF timestamps against album date."""
-
-    album_date: str
-    total_files: int
-    mismatches: tuple[ExifMismatch, ...]
-    no_exact_album_date_match: bool = False
-
-    @property
-    def matches(self) -> bool:
-        return not self.mismatches and not self.no_exact_album_date_match
-
-
-@dataclass(frozen=True)
-class AlbumNamingResult:
-    """Full naming validation result for a single album."""
-
-    parsed: ParsedAlbumName | None
-    issues: tuple[NamingIssue, ...]
-    exif_check: ExifTimestampCheck | None
-
-    @property
-    def success(self) -> bool:
-        # EXIF mismatch is a warning, not a failure
-        return self.parsed is not None and not self.issues
-
-    @property
-    def has_warnings(self) -> bool:
-        return self.exif_check is not None and not self.exif_check.matches
 
 
 @dataclass(frozen=True)
@@ -236,7 +162,7 @@ def parse_album_name(name: str) -> ParsedAlbumName | None:
     Returns ``None`` if the name does not start with a valid date prefix.
     """
     without_tags, tags = _split_tags(name)
-    dm = ALBUM_DATE_RE.match(without_tags)
+    dm = DATE_PREFIX_RE.match(without_tags)
     if dm is None:
         return None
     prefix_part, body = _split_part_prefix(without_tags[dm.end() :])
@@ -334,7 +260,7 @@ def _date_issues(parsed: ParsedAlbumName) -> list[NamingIssue]:
                     "or its range ends before it starts",
                 )
             ]
-            if _album_date_range(parsed.date) is None
+            if not is_valid_date(parsed.date)
             else []
         ),
         *(
@@ -345,7 +271,7 @@ def _date_issues(parsed: ParsedAlbumName) -> list[NamingIssue]:
                     f'(YYYY-MM-DD), got date "{parsed.date}"',
                 )
             ]
-            if parsed.part is not None and not _is_day_precision(parsed.date)
+            if parsed.part is not None and not is_day_precision(parsed.date)
             else []
         ),
     ]
@@ -385,282 +311,6 @@ def check_album_naming(album_name: str) -> tuple[NamingIssue, ...]:
 
 
 # ---------------------------------------------------------------------------
-# EXIF date match
-# ---------------------------------------------------------------------------
-
-
-def _date_bounds(date_str: str) -> tuple[date, date] | None:
-    """Return the first and last day covered by a single date string.
-
-    ``YYYY`` → Jan 1..Dec 31, ``YYYY-MM`` → 1st..last day of month,
-    ``YYYY-MM-DD`` → that day. ``None`` when it is not a real calendar date.
-    """
-    try:
-        match [int(p) for p in date_str.split("-")]:
-            case [year]:
-                return date(year, 1, 1), date(year, 12, 31)
-            case [year, month]:
-                last_day = calendar.monthrange(year, month)[1]
-                return date(year, month, 1), date(year, month, last_day)
-            case [year, month, day]:
-                return date(year, month, day), date(year, month, day)
-            case _:
-                return None
-    except ValueError:
-        # Non-numeric segment, or a month/day out of range (2024-13, 2024-02-30)
-        return None
-
-
-def _album_date_range(album_date: str) -> tuple[date, date] | None:
-    """Extract the date range from an album date string.
-
-    Handles all precisions (``YYYY``, ``YYYY-MM``, ``YYYY-MM-DD``) and
-    ranges of mixed precision.  Returns ``(start, end)`` inclusive, or
-    ``None`` if unparseable, not a real calendar date, or a range that ends
-    before it starts.
-    """
-    start_str, _, end_str = album_date.partition("--")
-    start_bounds = _date_bounds(start_str)
-    end_bounds = _date_bounds(end_str) if end_str else start_bounds
-    if start_bounds is None or end_bounds is None:
-        return None
-    start, end = start_bounds[0], end_bounds[1]
-    return (start, end) if start <= end else None
-
-
-def is_valid_album_date(album_date: str) -> bool:
-    """Whether *album_date* denotes a real date range.
-
-    Names can match the grammar yet not be real dates (``2024-02-30``, a range
-    ending before it starts); :func:`_timestamp_in_album_range` raises on those.
-    """
-    return _album_date_range(album_date) is not None
-
-
-def _timestamp_in_album_range(
-    timestamp: datetime,
-    album_date: str,
-) -> bool:
-    """Check if a timestamp falls within the album's date range.
-
-    All cases use exclusive end:
-    - Single day (``YYYY-MM-DD``): ``[album_date, album_date + 2 days)``
-      — allows album date and the next day (timezone / midnight tolerance).
-    - Range (``--``): ``[start, end + 1 day)``
-    - Lower precision (``YYYY``, ``YYYY-MM``): ``[start, end + 1 day)``
-
-    Raises :class:`InvalidAlbumDateError` when *album_date* is not a real date
-    range: there is nothing to compare against, and answering ``True`` would
-    silently pass every file.
-    """
-    date_range = _album_date_range(album_date)
-    if date_range is None:
-        raise InvalidAlbumDateError(album_date)
-
-    start, end = date_range
-    # Single day: allow album date + next day (timezone / midnight tolerance).
-    # Ranges and lower precisions: strict [start, end + 1).
-    tolerance_days = 2 if _is_day_precision(album_date) else 1
-    return start <= timestamp.date() < end + timedelta(days=tolerance_days)
-
-
-def _timestamp_matches_album_date_exactly(
-    timestamp: datetime,
-    album_date: str,
-) -> bool:
-    """Check if a timestamp's date matches the album date exactly (day precision only).
-
-    Callers validate *album_date* first (see :func:`check_exif_date_match`).
-    """
-    return not _is_day_precision(album_date) or (
-        timestamp.date() == date.fromisoformat(album_date)
-    )
-
-
-def _upstream_dirs(ms: MediaSource, *, is_video: bool) -> tuple[str, ...]:
-    """Directories holding the files an EXIF fix must touch for one item."""
-    match (ms.is_ios, is_video):
-        case (True, True):
-            return (ms.orig_vid_dir, ms.edit_vid_dir)
-        case (True, False):
-            return (ms.orig_img_dir, ms.edit_img_dir)
-        case (False, True):
-            return (ms.vid_dir,)
-        case (False, False):
-            # Include both img (source of truth) and jpg (derived) so the
-            # exiftool fix command updates all files in one go.
-            return (ms.img_dir, ms.jpg_dir)
-
-
-def _resolve_upstream_files(
-    album_dir: Path,
-    file_path: Path,
-    media_sources: list[MediaSource],
-) -> tuple[tuple[str, ...], bool]:
-    """Find upstream source files for a browsable file.
-
-    Returns ``(upstream_relative_paths, is_ios)``.
-    """
-    from ..common.fs import file_ext
-    from .store.protocol import VID_EXTENSIONS
-
-    dir_part = str(file_path.relative_to(album_dir).parent)
-    filename = file_path.name
-
-    # Find the media source that owns this directory
-    ms = next(
-        (m for m in media_sources if dir_part in (m.jpg_dir, m.vid_dir, m.img_dir)),
-        None,
-    )
-    if ms is None:
-        return ((), False)
-
-    def find(directory: Path) -> list[str]:
-        return (
-            ios_find_files_by_number({ios_img_number(filename)}, directory)
-            if ms.is_ios
-            else std_find_files_by_stem({Path(filename).stem}, directory)
-        )
-
-    dirs = _upstream_dirs(ms, is_video=file_ext(filename) in VID_EXTENSIONS)
-    upstream = tuple(
-        f"{d}/{uf}"
-        for d in dirs
-        if (album_dir / d).is_dir()
-        for uf in find(album_dir / d)
-    )
-    return (upstream, ms.is_ios)
-
-
-def _no_exact_album_date_match(
-    file_timestamps: list[tuple[Path, datetime]], album_date: str, part: str | None
-) -> bool:
-    """For single-day albums, at least one file must match the album date exactly.
-
-    Relaxed for part > 01 (continuation albums where all files may spill into
-    the next day).
-    """
-    is_continuation = part is not None and part > "01"
-    return (
-        _is_day_precision(album_date)
-        and not is_continuation
-        and not any(
-            _timestamp_matches_album_date_exactly(ts, album_date)
-            for _, ts in file_timestamps
-        )
-    )
-
-
-def _exif_mismatches(
-    album_dir: Path, file_timestamps: list[tuple[Path, datetime]], album_date: str
-) -> tuple[ExifMismatch, ...]:
-    media_sources = discover_media_sources(album_dir)
-    return tuple(
-        ExifMismatch(
-            file_name=str(f.relative_to(album_dir)),
-            timestamp=ts.isoformat(),
-            upstream_files=upstream,
-            is_ios=is_ios,
-        )
-        for f, ts in file_timestamps
-        if not _timestamp_in_album_range(ts, album_date)
-        for upstream, is_ios in [_resolve_upstream_files(album_dir, f, media_sources)]
-    )
-
-
-def check_exif_date_match(
-    album_dir: Path,
-    album_date: str,
-    *,
-    exiftool: ExifToolHelper | None = None,
-    part: str | None = None,
-) -> ExifTimestampCheck | None:
-    """Check EXIF timestamps of all media files against the album date.
-
-    Reads from the EXIF cache when available and fresh. Falls back to
-    exiftool when the cache is missing or stale.
-
-    Returns ``None`` if no media files found or no timestamps could be read,
-    and when *album_date* is not a real date: the naming check reports that
-    as an ``invalid-date`` error, and there is no range to compare against.
-    """
-    if _album_date_range(album_date) is None:
-        return None
-
-    file_timestamps = _read_timestamps_from_cache_or_exiftool(
-        album_dir, exiftool=exiftool
-    )
-    if not file_timestamps:
-        return None
-
-    return ExifTimestampCheck(
-        album_date=album_date,
-        total_files=len(file_timestamps),
-        mismatches=_exif_mismatches(album_dir, file_timestamps, album_date),
-        no_exact_album_date_match=_no_exact_album_date_match(
-            file_timestamps, album_date, part
-        ),
-    )
-
-
-# ---------------------------------------------------------------------------
-# EXIF cache integration
-# ---------------------------------------------------------------------------
-
-
-def _read_timestamps_from_cache_or_exiftool(
-    album_dir: Path,
-    *,
-    exiftool: ExifToolHelper | None,
-) -> list[tuple[Path, datetime]]:
-    """Read timestamps from EXIF cache if fresh, else fall back to exiftool."""
-    cached = _try_read_from_cache(album_dir)
-    if cached is not None:
-        return cached
-
-    files = discover_browsable_media_files(album_dir)
-    if not files:
-        return []
-    return read_exif_timestamps_by_file(files, exiftool=exiftool)
-
-
-def _try_read_from_cache(album_dir: Path) -> list[tuple[Path, datetime]] | None:
-    """Try to read all timestamps from the EXIF cache.
-
-    Returns ``None`` if any media source has no cache file, or one written in
-    an older layout (see ``exif_cache.protocol.EXIF_CACHE_VERSION``). An empty
-    cache file (written for sources with no browsable files) is valid.
-
-    Trusts cached entries without per-file mtime verification — the
-    cache is validated at write time during ``album refresh``. Use
-    ``--refresh-exif-cache`` on check commands to force a re-read.
-    """
-    media_sources = discover_media_sources(album_dir)
-    if not media_sources:
-        return None
-
-    caches = [load_exif_cache(album_dir, ms.name) for ms in media_sources]
-    current = [cache for cache in caches if cache is not None and cache.is_current]
-    if len(current) != len(caches):
-        return None
-
-    # Current-layout entries store the album-relative path, so videos resolve
-    # to {name}-vid/ rather than being reported under {name}-jpg/.
-    # Timestamps are normalised to naive wall-clock time, matching
-    # common.exif.parse_timestamp: a cache written with an offset must compare
-    # like a fresh exiftool read, and mixing aware/naive values would raise.
-    return [
-        (
-            album_dir / entry.file_name,
-            datetime.fromisoformat(entry.timestamp).replace(tzinfo=None),
-        )
-        for cache in current
-        for entry in cache.files.values()
-        if entry.timestamp is not None
-    ]
-
-
-# ---------------------------------------------------------------------------
 # Batch checks
 # ---------------------------------------------------------------------------
 
@@ -676,14 +326,12 @@ def check_batch_date_collisions(
 
     *albums* is a list of ``(album_name, parsed)`` tuples.
     """
-    from collections import defaultdict
-
     # Date ranges are excluded: parts are not valid for ranges, so
     # collisions cannot be resolved by adding a part number.
     by_date: defaultdict[str, list[ParsedAlbumName]] = defaultdict(list)
     names_by_date: defaultdict[str, list[str]] = defaultdict(list)
     for name, parsed in albums:
-        if not parsed.private and _is_day_precision(parsed.date):
+        if not parsed.private and is_day_precision(parsed.date):
             by_date[parsed.date].append(parsed)
             names_by_date[parsed.date].append(name)
 

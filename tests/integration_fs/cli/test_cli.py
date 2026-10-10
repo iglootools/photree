@@ -12,7 +12,7 @@ from photree.album.id import format_album_external_id, generate_album_id
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.cli import app
-from photree.fsprotocol import InvalidMetadataError
+from photree.foundation.metadata_io import InvalidMetadataError
 
 runner = CliRunner()
 

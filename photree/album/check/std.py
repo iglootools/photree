@@ -13,8 +13,9 @@ from pathlib import Path
 from typing import TypedDict
 
 from ...common.fs import file_ext, list_files
-from ...fsprotocol import LinkMode
-from ..store.protocol import IMG_EXTENSIONS, VID_EXTENSIONS, MediaSource
+from ...foundation.linking import LinkMode
+from ..formats import IMG_EXTENSIONS, VID_EXTENSIONS
+from ..store.media_source import MediaSource
 from .browsable import BrowsableDirCheck, check_browsable_dir
 from .jpeg import JpegCheck, check_jpeg_dir
 

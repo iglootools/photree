@@ -10,8 +10,10 @@ from photree.album.id import generate_album_id
 from photree.album.jpeg import copy_convert_single, noop_convert_single
 from photree.album.refresh import AlbumRefreshResult
 from photree.album.store.metadata import load_album_metadata, save_album_metadata
-from photree.album.store.protocol import AlbumDatePrefixError, AlbumMetadata
-from photree.fsprotocol import GalleryMetadata, LinkMode, save_gallery_metadata
+from photree.album.store.protocol import AlbumMetadata
+from photree.dates import DatePrefixError
+from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
+from photree.foundation.linking import LinkMode
 from photree.gallery.importer import (
     TargetExistsError,
     compute_target_dir,
@@ -67,9 +69,9 @@ class TestComputeTargetDir:
         )
 
     def test_invalid_name_raises(self) -> None:
-        with pytest.raises(AlbumDatePrefixError) as exc_info:
+        with pytest.raises(DatePrefixError) as exc_info:
             compute_target_dir(Path("/gallery"), "no-date-album")
-        assert exc_info.value.album_name == "no-date-album"
+        assert exc_info.value.name == "no-date-album"
 
 
 class TestImportAlbum:

@@ -13,9 +13,8 @@ import warnings
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import cv2
 import numpy as np
 
 from ...common.native_stderr import filter_native_stderr
@@ -30,20 +29,19 @@ def is_ort_device_discovery_noise(line: str) -> bool:
     module is imported — before ``set_default_logger_severity`` can be called.
     Device discovery then warns about PCI paths it does not recognize, such as
     the Hyper-V ones on GitHub-hosted runners. Harmless, but printed once per
-    photree invocation since the CLI imports this module at startup.
+    photree invocation that loads the face analyzer.
     """
     return "device_discovery" in line and "GetPciBusId" in line
 
 
-with filter_native_stderr(is_ort_device_discovery_noise):
-    import onnxruntime
+if TYPE_CHECKING:
     from insightface.app import FaceAnalysis
 
 # A zero-argument factory that produces a prepared :class:`FaceAnalysis`. Face
 # detection is injected as a *factory* (not an instance) so the ~300 MB model
 # loads lazily — only once a refresh actually has images to process — and so a
 # single instance can be shared across albums in a batch.
-FaceAnalyzerFactory = Callable[[], FaceAnalysis]
+FaceAnalyzerFactory = Callable[[], "FaceAnalysis"]
 
 
 # ---------------------------------------------------------------------------
@@ -75,6 +73,12 @@ def create_face_analyzer(
     Model download (~300 MB) happens on first use. Subsequent calls
     load from ``~/.insightface/models/`` (takes a few seconds).
     """
+    # Imported here, not at module level: insightface and onnxruntime take
+    # ~0.5 s to import, which every CLI invocation would otherwise pay.
+    with filter_native_stderr(is_ort_device_discovery_noise):
+        import onnxruntime
+        from insightface.app import FaceAnalysis
+
     # Suppress insightface's verbose stdout (model loading messages) and
     # FutureWarning from deprecated scikit-image API calls.
     with (
@@ -220,6 +224,9 @@ def detect_faces(
     Returns an empty list when no faces are found. Raises
     :class:`UnreadableThumbnailError` when the image cannot be read.
     """
+    # Imported here, not at module level: cv2 costs ~0.14 s at CLI startup.
+    import cv2
+
     img = cv2.imread(str(image_path))
     if img is None:
         raise UnreadableThumbnailError(image_path)

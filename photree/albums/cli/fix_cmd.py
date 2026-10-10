@@ -14,9 +14,9 @@ from ...clihelpers.options import (
     RM_ORPHAN_OPTION,
     RM_UPSTREAM_OPTION,
 )
+from ..batchcli.fix import run_batch_fix
+from ..batchcli.resolution import resolve_check_batch_albums
 from . import AlbumDirOption, DirOption, albums_app
-from .batch_ops.fix import run_batch_fix
-from .ops import resolve_check_batch_albums
 
 
 @albums_app.command("fix")

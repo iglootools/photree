@@ -21,6 +21,7 @@ from itertools import groupby
 from operator import itemgetter
 from pathlib import Path
 
+from ...album.formats import IMG_EXTENSIONS, VID_EXTENSIONS
 from ...album.id import (
     ALBUM_ID_PREFIX,
     IMAGE_ID_PREFIX,
@@ -28,20 +29,17 @@ from ...album.id import (
     InvalidExternalIdError,
     parse_external_id,
 )
-from ...album.naming import (
-    _timestamp_in_album_range,
-    is_valid_album_date,
-    parse_album_name,
-)
+from ...album.naming import parse_album_name
 from ...album.store.album_discovery import discover_albums
 from ...album.store.media_metadata import load_media_metadata
 from ...album.store.metadata import load_album_metadata
-from ...album.store.protocol import IMG_EXTENSIONS, VID_EXTENSIONS, AlbumMetadata
+from ...album.store.protocol import AlbumMetadata
 from ...collection.id import COLLECTION_ID_PREFIX
 from ...collection.store.collection_discovery import discover_collections
 from ...collection.store.metadata import load_collection_metadata
 from ...common.fs import file_ext
-from ...fsprotocol import ALBUMS_DIR, COLLECTIONS_DIR
+from ...dates import is_valid_date, timestamp_in_range
+from ...foundation.layout import ALBUMS_DIR, COLLECTIONS_DIR
 from .selection import SelectionEntry
 
 # ---------------------------------------------------------------------------
@@ -197,11 +195,9 @@ def _scanned_album(album_dir: Path, meta: AlbumMetadata) -> ScannedAlbum:
         dir_name=album_dir.name,
         # An album whose date is not a real date (e.g. 2024-02-30) has no
         # range to compare a date hint against: treat it like an undated one
-        # rather than letting _timestamp_in_album_range raise mid-resolution.
+        # rather than letting timestamp_in_range raise mid-resolution.
         album_date=(
-            parsed.date
-            if parsed is not None and is_valid_album_date(parsed.date)
-            else None
+            parsed.date if parsed is not None and is_valid_date(parsed.date) else None
         ),
         image_keys={key: mid for s in sources for mid, key in s.images.items()},
         video_keys={key: mid for s in sources for mid, key in s.videos.items()},
@@ -410,7 +406,7 @@ def _check_date_mismatch(entry: SelectionEntry, m: _Match) -> list[ResolutionWar
     match (entry.date_hint, m.album_date):
         case (datetime() as hint, str() as album_date) if _has_media_extension(
             entry.value
-        ) and not _timestamp_in_album_range(hint, album_date):
+        ) and not timestamp_in_range(hint, album_date):
             return [ResolutionWarning(entry.value, hint, album_date)]
         case _:
             return []
@@ -427,8 +423,7 @@ def _filter_by_date_hint(
     return [
         m
         for m in entry_matches
-        if m.album_date is not None
-        and _timestamp_in_album_range(date_hint, m.album_date)
+        if m.album_date is not None and timestamp_in_range(date_hint, m.album_date)
     ]
 
 

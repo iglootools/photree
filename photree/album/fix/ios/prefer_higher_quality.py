@@ -6,12 +6,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ....common.fs import delete_files, file_ext, list_files
-from ...store.media_sources import group_by_key, ios_img_number, pick_media_priority
-from ...store.protocol import (
-    IOS_IMG_EXTENSIONS,
-    PICTURE_PRIORITY_EXTENSIONS,
-    MediaSource,
-)
+from ...formats import IOS_IMG_EXTENSIONS, PICTURE_PRIORITY_EXTENSIONS
+from ...store.file_matching import group_by_key, pick_media_priority
+from ...store.media_source import MediaSource, ios_img_number
 from ..helpers import require_ios
 
 

@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..store.protocol import MAIN_MEDIA_SOURCE, MediaSource
+from ..store.media_source import MAIN_MEDIA_SOURCE, MediaSource
 
 
 @dataclass(frozen=True)

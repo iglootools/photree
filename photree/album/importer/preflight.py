@@ -14,6 +14,8 @@ from ...common.sysdeps import (
     missing_dependencies,
 )
 from ...config import load_config
+from .album_import import task_has_content
+from .tasks import discover_import_tasks
 
 
 def default_image_capture_dir(home: Path) -> Path:
@@ -142,9 +144,6 @@ def _check_import_tasks(album_dir: Path) -> tuple[SelectionStatus, bool]:
 
     Returns ``(status, ios_import_required)``.
     """
-    from .album_import import task_has_content
-    from .tasks import discover_import_tasks
-
     tasks = discover_import_tasks(album_dir)
     ios_required = any(t.is_ios for t in tasks)
     if not tasks:

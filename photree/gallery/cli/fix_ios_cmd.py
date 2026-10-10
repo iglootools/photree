@@ -8,8 +8,8 @@ from typing import Annotated
 import typer
 
 from ...album.fix.ios import FixIosValidationError, validate_fix_flags
-from ...albums.cli.batch_ops.fix import run_batch_fix_ios
-from ...albums.cli.ops import resolve_batch_albums
+from ...albums.batchcli.fix import run_batch_fix_ios
+from ...albums.batchcli.resolution import resolve_batch_albums
 from ...clihelpers.console import err_console
 from ...clihelpers.options import (
     DRY_RUN_OPTION,

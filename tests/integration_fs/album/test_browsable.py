@@ -4,9 +4,9 @@ import os
 from pathlib import Path
 
 from photree.album.browsable import RefreshBrowsableDirResult, refresh_browsable_dir
-from photree.album.store.media_sources import ios_img_number
-from photree.album.store.protocol import IMG_EXTENSIONS, VID_EXTENSIONS, _stem_key
-from photree.fsprotocol import LinkMode
+from photree.album.formats import IMG_EXTENSIONS, VID_EXTENSIONS
+from photree.album.store.media_source import ios_img_number, stem_key
+from photree.foundation.linking import LinkMode
 
 
 def _setup_dir(path: Path, filenames: list[str]) -> Path:
@@ -354,7 +354,7 @@ class TestRefreshBrowsableDirStd:
             edit,
             browsable,
             media_extensions=IMG_EXTENSIONS,
-            key_fn=_stem_key,
+            key_fn=stem_key,
         )
 
         assert result.copied == 2
@@ -371,7 +371,7 @@ class TestRefreshBrowsableDirStd:
             edit,
             browsable,
             media_extensions=IMG_EXTENSIONS,
-            key_fn=_stem_key,
+            key_fn=stem_key,
         )
 
         assert result.copied == 2
@@ -396,7 +396,7 @@ class TestRefreshBrowsableDirStd:
             edit,
             browsable,
             media_extensions=IMG_EXTENSIONS,
-            key_fn=_stem_key,
+            key_fn=stem_key,
         )
 
         assert result.copied == 3
@@ -415,7 +415,7 @@ class TestRefreshBrowsableDirStd:
             edit,
             browsable,
             media_extensions=IMG_EXTENSIONS,
-            key_fn=_stem_key,
+            key_fn=stem_key,
         )
 
         assert result == RefreshBrowsableDirResult(copied=0)
@@ -431,7 +431,7 @@ class TestRefreshBrowsableDirStd:
             edit,
             browsable,
             media_extensions=IMG_EXTENSIONS,
-            key_fn=_stem_key,
+            key_fn=stem_key,
         )
 
         assert (browsable / "sunset.heic").exists()
@@ -447,7 +447,7 @@ class TestRefreshBrowsableDirStd:
             edit,
             browsable,
             media_extensions=VID_EXTENSIONS,
-            key_fn=_stem_key,
+            key_fn=stem_key,
         )
 
         assert result.copied == 1
@@ -464,7 +464,7 @@ class TestRefreshBrowsableDirStd:
             edit,
             browsable,
             media_extensions=IMG_EXTENSIONS,
-            key_fn=_stem_key,
+            key_fn=stem_key,
         )
 
         assert (browsable / "sunset.jpg").read_text() == "data-sunset.jpg"
@@ -480,7 +480,7 @@ class TestRefreshBrowsableDirStd:
             edit,
             browsable,
             media_extensions=IMG_EXTENSIONS,
-            key_fn=_stem_key,
+            key_fn=stem_key,
         )
 
         assert result.copied == 1

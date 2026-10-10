@@ -8,9 +8,9 @@ import typer
 
 from ...clihelpers.options import DRY_RUN_OPTION
 from ...clihelpers.sysdeps import FACE_DETECTION_DEPS, require_system_deps
+from ..batchcli.detect_faces import run_batch_detect_faces
+from ..batchcli.resolution import resolve_check_batch_albums
 from . import AlbumDirOption, DirOption, albums_app
-from .batch_ops.detect_faces import run_batch_detect_faces
-from .ops import resolve_check_batch_albums
 
 
 @albums_app.command("detect-faces")

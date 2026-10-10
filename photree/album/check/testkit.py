@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ..store.protocol import MAIN_MEDIA_SOURCE, std_media_source
+from ..store.media_source import MAIN_MEDIA_SOURCE, std_media_source
 from . import (
     AlbumDirCheck,
     AlbumIdCheck,

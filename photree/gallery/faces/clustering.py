@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
-import faiss  # type: ignore[import-untyped]
 import numpy as np
-from sklearn.cluster import AgglomerativeClustering  # type: ignore[import-untyped]
 
 from .protocol import DEFAULT_CLUSTER_THRESHOLD
+
+# faiss, scipy and sklearn are imported inside the functions that use them, not
+# here: this module is reachable from the CLI, and loading them would slow down
+# every invocation, most of which never cluster faces.
+if TYPE_CHECKING:
+    import faiss  # type: ignore[import-untyped]
 
 # ---------------------------------------------------------------------------
 # FAISS index management
@@ -21,6 +25,8 @@ def build_faiss_index(embeddings: np.ndarray) -> faiss.IndexFlatIP:
 
     For normalized vectors, inner product = cosine similarity.
     """
+    import faiss  # type: ignore[import-untyped]
+
     dim = embeddings.shape[1] if embeddings.ndim == 2 else 512
     index = faiss.IndexFlatIP(dim)  # type: ignore[call-arg]
     if len(embeddings) > 0:
@@ -30,12 +36,16 @@ def build_faiss_index(embeddings: np.ndarray) -> faiss.IndexFlatIP:
 
 def save_faiss_index(index: faiss.IndexFlatIP, path: Path) -> None:
     """Serialize a FAISS index to disk."""
+    import faiss  # type: ignore[import-untyped]
+
     path.parent.mkdir(parents=True, exist_ok=True)
     faiss.write_index(index, str(path))
 
 
 def load_faiss_index(path: Path) -> faiss.IndexFlatIP | None:
     """Load a FAISS index from disk, or ``None`` if the file is missing."""
+    import faiss  # type: ignore[import-untyped]
+
     if not path.is_file():
         return None
     return cast(faiss.IndexFlatIP, faiss.read_index(str(path)))
@@ -65,6 +75,10 @@ def cluster_embeddings(
     if n == 1:
         return np.array([0], dtype=np.int32)
 
+    from sklearn.cluster import (  # type: ignore[import-untyped]
+        AgglomerativeClustering,
+    )
+
     connectivity = (
         _build_sparse_connectivity(embeddings, k=min(50, n - 1)) if n > 10_000 else None
     )
@@ -86,6 +100,7 @@ def _build_sparse_connectivity(embeddings: np.ndarray, *, k: int) -> object:
     Returns a binary adjacency matrix where entry (i, j) = 1 iff
     j is among the k nearest neighbors of i.
     """
+    import faiss  # type: ignore[import-untyped]
     from scipy.sparse import lil_matrix
 
     index = faiss.IndexFlatIP(embeddings.shape[1])  # type: ignore[call-arg]
@@ -247,6 +262,8 @@ def _build_medoid_index(
     embeddings: np.ndarray, medoids: dict[int, int]
 ) -> tuple[faiss.IndexFlatIP, list[int]]:
     """Build a FAISS index of medoid embeddings for nearest-neighbor matching."""
+    import faiss  # type: ignore[import-untyped]
+
     medoid_embeddings = np.stack([embeddings[idx] for idx in medoids.values()]).astype(
         np.float32
     )

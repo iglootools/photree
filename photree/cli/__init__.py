@@ -1,5 +1,17 @@
 """Typer CLI for photree."""
 
+import sys
+from pathlib import Path
+
+from ..album.cli.media_source_conflict import format_media_source_conflict
+from ..album.store.media_sources_discovery import MediaSourceConflictError
+from ..clihelpers.config_errors import format_config_error
+from ..clihelpers.console import err_console
+from ..clihelpers.resolution import format_invalid_metadata
+from ..common.sysdeps import MissingSystemDependencyError
+from ..common.sysdeps_output import format_missing_troubleshoot
+from ..config import ConfigError
+from ..foundation.metadata_io import InvalidMetadataError
 from .app import app
 
 __all__ = ["app", "main"]
@@ -7,18 +19,6 @@ __all__ = ["app", "main"]
 
 def main() -> None:
     """Main CLI entry point."""
-    import sys
-    from pathlib import Path
-
-    from ..album.cli.helpers import format_config_error, format_media_source_conflict
-    from ..album.store.media_sources_discovery import MediaSourceConflictError
-    from ..clihelpers.console import err_console
-    from ..clihelpers.resolution import format_invalid_metadata
-    from ..clihelpers.sysdeps import format_missing_troubleshoot
-    from ..common.sysdeps import MissingSystemDependencyError
-    from ..config import ConfigError
-    from ..fsprotocol import InvalidMetadataError
-
     try:
         app()
     except MissingSystemDependencyError as exc:

@@ -10,22 +10,18 @@ An album may carry multiple import staging entries, one per media source:
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from pathlib import Path
 
 from ...common.fs import list_dirs, list_files
-from ..store.protocol import (
+from ..staging import STAGING_CSV_RE, STAGING_DIR_RE
+from ..store.media_source import (
     DEFAULT_MEDIA_SOURCE,
-    TO_IMPORT_PREFIX,
     MediaSource,
     MediaSourceType,
     ios_media_source,
     std_media_source,
 )
-
-_DIR_RE = re.compile(rf"^{re.escape(TO_IMPORT_PREFIX)}(ios|std)-(.+)$")
-_CSV_RE = re.compile(rf"^{re.escape(TO_IMPORT_PREFIX)}ios-(.+)\.csv$")
 
 
 @dataclass(frozen=True)
@@ -62,7 +58,7 @@ def _staging_dirs(album_dir: Path, kind: MediaSourceType) -> dict[str, Path]:
     return {
         m.group(2): album_dir / m.group(0)
         for d in list_dirs(album_dir)
-        if (m := _DIR_RE.match(d)) and m.group(1) == kind
+        if (m := STAGING_DIR_RE.match(d)) and m.group(1) == kind
     }
 
 
@@ -76,7 +72,7 @@ def discover_import_tasks(album_dir: Path) -> list[ImportTask]:
     ios_csvs = {
         m.group(1): album_dir / m.group(0)
         for f in list_files(album_dir)
-        if (m := _CSV_RE.match(f))
+        if (m := STAGING_CSV_RE.match(f))
     }
 
     tasks = [

@@ -15,10 +15,11 @@ from photree.album.importer.album_import import (
     EmptyImageCaptureDirError,
 )
 from photree.album.importer.collision import ImportCollisionError
+from photree.album.store.media_source import std_media_source
 from photree.album.store.media_sources_discovery import MediaSourceConflictError
-from photree.album.store.protocol import std_media_source
 from photree.cli import app
-from photree.fsprotocol import SHARE_SENTINEL, InvalidMetadataError
+from photree.foundation.layout import SHARE_SENTINEL
+from photree.foundation.metadata_io import InvalidMetadataError
 
 runner = CliRunner()
 
@@ -326,7 +327,8 @@ def test_export_settings_error_is_structured(tmp_path: Path) -> None:
         ResolvedExportSettings,
         validate_export_settings,
     )
-    from photree.fsprotocol import AlbumShareLayout, LinkMode, ShareDirectoryLayout
+    from photree.foundation.linking import LinkMode
+    from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 
     with pytest.raises(ExportSettingsError) as exc_info:
         validate_export_settings(

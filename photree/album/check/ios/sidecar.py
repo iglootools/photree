@@ -11,10 +11,9 @@ from enum import StrEnum
 from pathlib import Path
 
 from ....common.fs import file_ext, list_files
-from ...store.media_sources import ios_img_number, ios_is_media
-from ...store.protocol import (
-    IOS_SIDECAR_EXTENSIONS,
-)
+from ...formats import IOS_SIDECAR_EXTENSIONS
+from ...store.file_matching import ios_is_media
+from ...store.media_source import ios_img_number
 
 # ---------------------------------------------------------------------------
 # Data classes
