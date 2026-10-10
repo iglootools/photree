@@ -9,9 +9,11 @@ import typer
 from typer.testing import CliRunner
 
 from photree.album.id import format_album_external_id, generate_album_id
+from photree.album.importer.batch import AlbumFailure, ImportFailureStage
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.albums.cli.batch_ops.check import run_batch_check
+from photree.albums.cli.import_cmd import retry_commands
 from photree.albums.cmd_handler import AlbumStepError, run_album_step
 from photree.albums.cmd_handler.stats import batch_stats
 from photree.cli import app
@@ -224,3 +226,26 @@ class TestImportCheck:
         assert "0 album(s) ready to import, 1 not ready." in result.output
         assert "no to-import-* staging entries" in result.output
         assert "photree album import-check --album-dir" in result.output
+
+
+class TestBatchImportRetryCommands:
+    def test_failed_import_is_retried_with_import(self, tmp_path: Path) -> None:
+        failure = AlbumFailure(tmp_path / "A", "copy failed")
+
+        assert retry_commands(failure, tmp_path) == [
+            'photree album import --album-dir "A"'
+        ]
+
+    def test_partial_failure_is_not_retried_with_import(self, tmp_path: Path) -> None:
+        # The staging was consumed by the completed import, so 'album import'
+        # would only report that there is nothing to import.
+        failure = AlbumFailure(
+            tmp_path / "A",
+            "jpeg conversion failed: ...; face detection failed: ...",
+            frozenset({ImportFailureStage.JPEG, ImportFailureStage.FACES}),
+        )
+
+        assert retry_commands(failure, tmp_path) == [
+            'photree album refresh --refresh-jpeg --album-dir "A"',
+            'photree album detect-faces --album-dir "A"',
+        ]

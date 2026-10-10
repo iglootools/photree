@@ -13,6 +13,7 @@ from ...album.faces.detect import memoized_face_analyzer_factory
 from ...album.importer import batch
 from ...album.importer import output as importer_output
 from ...album.importer.album_import import TaskIssue
+from ...album.importer.batch import ImportFailureStage
 from ...album.jpeg import convert_single_file, noop_convert_single
 from ...clihelpers.console import err_console
 from ...clihelpers.progress import BatchProgressBar
@@ -79,18 +80,42 @@ def _run_import(
     return result
 
 
+# Ordered so the suggestions read in the order a user would run them.
+_RETRY_COMMANDS: tuple[tuple[ImportFailureStage, str], ...] = (
+    (ImportFailureStage.IMPORT, "photree album import --album-dir {dir}"),
+    (ImportFailureStage.JPEG, "photree album refresh --refresh-jpeg --album-dir {dir}"),
+    (ImportFailureStage.FACES, "photree album detect-faces --album-dir {dir}"),
+    (
+        ImportFailureStage.UNPROCESSED_SELECTION,
+        "photree album import-check --album-dir {dir}",
+    ),
+)
+
+
+def retry_commands(failure: batch.AlbumFailure, cwd: Path) -> list[str]:
+    """The commands that retry what actually failed for *failure*.
+
+    A partial failure happens after the staging entries were consumed, so
+    suggesting ``album import`` again would only report "nothing to import".
+    """
+    quoted = f'"{display_path(failure.album_dir, cwd)}"'
+    return [
+        template.format(dir=quoted)
+        for stage, template in _RETRY_COMMANDS
+        if stage in failure.stages
+    ]
+
+
 def _report_failures(result: batch.BatchResult, base: Path, cwd: Path) -> None:
     err_console.print(importer_output.batch_failures(result.failed, base))
     err_console.print(
         "\n".join(
             [
-                "\nTo investigate failures:",
+                "\nTo retry or investigate failures:",
                 *(
-                    indent(
-                        "photree album import --album-dir "
-                        f'"{display_path(album_dir, cwd)}"'
-                    )
-                    for album_dir, _ in result.failed
+                    indent(command)
+                    for failure in result.failed
+                    for command in retry_commands(failure, cwd)
                 ),
             ]
         ),

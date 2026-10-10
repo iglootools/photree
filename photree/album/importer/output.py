@@ -19,6 +19,7 @@ from .album_import import (
     TaskIssue,
     TaskIssueDetail,
 )
+from .batch import AlbumFailure
 from .collision import ArchiveCollision
 from .image_capture import (
     DedupWarning,
@@ -251,7 +252,7 @@ def batch_summary(imported: int, skipped: int, failed: int = 0) -> str:
     return f"\nDone. {imported} album(s) imported, {failed} failed, {skipped} skipped."
 
 
-def batch_failures(failures: Sequence[tuple[Path, str]], base: Path) -> str:
+def batch_failures(failures: Sequence[AlbumFailure], base: Path) -> str:
     """Format the per-album failure reasons of a batch import.
 
     The reason is what the batch loop swallowed previously; without it a run
@@ -262,8 +263,10 @@ def batch_failures(failures: Sequence[tuple[Path, str]], base: Path) -> str:
         [
             "\nFailed albums:",
             *(
-                indent(f"{display_path(album_dir, base)}\n{indent(reason)}")
-                for album_dir, reason in failures
+                indent(
+                    f"{display_path(failure.album_dir, base)}\n{indent(failure.reason)}"
+                )
+                for failure in failures
             ),
         ]
     )

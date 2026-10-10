@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple, Protocol
 
@@ -52,11 +53,31 @@ class AlbumValidation:
         return len(self.errors) == 0
 
 
+class ImportFailureStage(StrEnum):
+    """What went wrong — and therefore what a retry has to run.
+
+    ``IMPORT`` means the import itself did not complete (staging may still
+    be in place, so re-running the import is the retry). The other stages
+    are partial failures of an import that *did* complete: its staging was
+    consumed, so re-running the import would find nothing to do.
+    """
+
+    IMPORT = "import"
+    JPEG = "jpeg"
+    FACES = "faces"
+    UNPROCESSED_SELECTION = "unprocessed-selection"
+
+
 class AlbumFailure(NamedTuple):
-    """An album whose import was attempted and failed, with the reason."""
+    """An album whose import was attempted and failed, with the reason.
+
+    *stages* says which parts failed, so the CLI can suggest the command
+    that actually retries each one.
+    """
 
     album_dir: Path
     reason: str
+    stages: frozenset[ImportFailureStage] = frozenset({ImportFailureStage.IMPORT})
 
 
 @dataclass(frozen=True)
@@ -206,16 +227,37 @@ def _result_failure(album_dir: Path, result: AlbumImportResult) -> AlbumFailure 
         for source, failure in result.jpeg_failures
     )
     faces = "; ".join(format_face_failures(result.face_failures))
-    reasons = [
+    parts = [
         *(
-            [f"selection entries left behind: {', '.join(result.unprocessed)}"]
+            [
+                (
+                    ImportFailureStage.UNPROCESSED_SELECTION,
+                    f"selection entries left behind: {', '.join(result.unprocessed)}",
+                )
+            ]
             if result.unprocessed
             else []
         ),
-        *([f"jpeg conversion failed: {jpeg}"] if jpeg else []),
-        *([f"face detection failed: {faces}"] if faces else []),
+        *(
+            [(ImportFailureStage.JPEG, f"jpeg conversion failed: {jpeg}")]
+            if jpeg
+            else []
+        ),
+        *(
+            [(ImportFailureStage.FACES, f"face detection failed: {faces}")]
+            if faces
+            else []
+        ),
     ]
-    return AlbumFailure(album_dir, "; ".join(reasons)) if reasons else None
+    return (
+        AlbumFailure(
+            album_dir,
+            "; ".join(reason for _, reason in parts),
+            frozenset(stage for stage, _ in parts),
+        )
+        if parts
+        else None
+    )
 
 
 def _import_one(
