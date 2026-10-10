@@ -4,9 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import yaml
-
-from ...fsprotocol import PHOTREE_DIR
+from ...fsprotocol import PHOTREE_DIR, load_yaml_mapping, validate_metadata, write_yaml
 from .protocol import EXIF_CACHE_DIR, ExifCache
 
 # ---------------------------------------------------------------------------
@@ -15,12 +13,12 @@ from .protocol import EXIF_CACHE_DIR, ExifCache
 
 
 def exif_cache_dir(album_dir: Path) -> Path:
-    """Return ``<album>/.photree/exif-cache/``."""
+    """Return ``<album>/.photree/cache/exif/``."""
     return album_dir / PHOTREE_DIR / EXIF_CACHE_DIR
 
 
 def cache_path(album_dir: Path, media_source_name: str) -> Path:
-    """Return ``<album>/.photree/exif-cache/{name}.yaml``."""
+    """Return ``<album>/.photree/cache/exif/{name}.yaml``."""
     return exif_cache_dir(album_dir) / f"{media_source_name}.yaml"
 
 
@@ -30,23 +28,20 @@ def cache_path(album_dir: Path, media_source_name: str) -> Path:
 
 
 def load_exif_cache(album_dir: Path, media_source_name: str) -> ExifCache | None:
-    """Load EXIF cache from ``.photree/exif-cache/{name}.yaml``."""
+    """Load EXIF cache from ``.photree/cache/exif/{name}.yaml``.
+
+    Returns ``None`` when the file is absent. A present-but-corrupt file
+    raises :class:`~photree.fsprotocol.InvalidMetadataError`; the cache is
+    derived data, so the fix is ``album refresh --refresh-exif-cache`` or
+    deleting the file — not silently reading around it.
+    """
     path = cache_path(album_dir, media_source_name)
-    if not path.is_file():
-        return None
-    with open(path) as f:
-        raw = yaml.safe_load(f)
-    return ExifCache.model_validate(raw) if isinstance(raw, dict) else None
+    raw = load_yaml_mapping(path)
+    return validate_metadata(path, ExifCache, raw) if raw is not None else None
 
 
 def save_exif_cache(album_dir: Path, media_source_name: str, cache: ExifCache) -> None:
-    """Write EXIF cache to ``.photree/exif-cache/{name}.yaml``."""
+    """Write EXIF cache to ``.photree/cache/exif/{name}.yaml``."""
     path = cache_path(album_dir, media_source_name)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        yaml.safe_dump(
-            cache.model_dump(by_alias=True, mode="json"),
-            default_flow_style=False,
-            sort_keys=False,
-        )
-    )
+    write_yaml(path, cache.model_dump(by_alias=True, mode="json"))

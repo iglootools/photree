@@ -6,9 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
-import yaml
 
-from ...fsprotocol import PHOTREE_DIR
+from ...fsprotocol import PHOTREE_DIR, load_yaml_mapping, validate_metadata, write_yaml
 from .protocol import (
     EMBEDDING_DIM,
     FACES_DATA_SUFFIX,
@@ -24,22 +23,22 @@ from .protocol import (
 
 
 def faces_dir(album_dir: Path) -> Path:
-    """Return ``<album>/.photree/faces/``."""
+    """Return ``<album>/.photree/cache/faces/``."""
     return album_dir / PHOTREE_DIR / FACES_DIR
 
 
 def state_path(album_dir: Path, media_source_name: str) -> Path:
-    """Return ``<album>/.photree/faces/{name}.yaml``."""
+    """Return ``<album>/.photree/cache/faces/{name}.yaml``."""
     return faces_dir(album_dir) / f"{media_source_name}{FACES_STATE_SUFFIX}"
 
 
 def data_path(album_dir: Path, media_source_name: str) -> Path:
-    """Return ``<album>/.photree/faces/{name}.npz``."""
+    """Return ``<album>/.photree/cache/faces/{name}.npz``."""
     return faces_dir(album_dir) / f"{media_source_name}{FACES_DATA_SUFFIX}"
 
 
 def thumbs_dir(album_dir: Path, media_source_name: str) -> Path:
-    """Return ``<album>/.photree/faces/{name}-thumbs/``."""
+    """Return ``<album>/.photree/cache/faces/{name}-thumbs/``."""
     return faces_dir(album_dir) / f"{media_source_name}{THUMBS_DIR_SUFFIX}"
 
 
@@ -80,7 +79,7 @@ class FaceData:
 
 
 def load_face_data(album_dir: Path, media_source_name: str) -> FaceData | None:
-    """Load face data from ``.photree/faces/{name}.npz``, or ``None`` if missing."""
+    """Load face data from ``.photree/cache/faces/{name}.npz``, or ``None`` if missing."""
     path = data_path(album_dir, media_source_name)
     if not path.is_file():
         return None
@@ -96,7 +95,7 @@ def load_face_data(album_dir: Path, media_source_name: str) -> FaceData | None:
 
 
 def save_face_data(album_dir: Path, media_source_name: str, data: FaceData) -> None:
-    """Write face data to ``.photree/faces/{name}.npz``."""
+    """Write face data to ``.photree/cache/faces/{name}.npz``."""
     path = data_path(album_dir, media_source_name)
     path.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(
@@ -118,28 +117,26 @@ def save_face_data(album_dir: Path, media_source_name: str, data: FaceData) -> N
 def load_face_state(
     album_dir: Path, media_source_name: str
 ) -> FaceProcessingState | None:
-    """Load processing state from ``.photree/faces/{name}.yaml``."""
+    """Load processing state from ``.photree/cache/faces/{name}.yaml``.
+
+    Returns ``None`` when absent; raises
+    :class:`~photree.fsprotocol.InvalidMetadataError` when present but corrupt
+    (``--redetect-faces`` or deleting the file rebuilds it).
+    """
     path = state_path(album_dir, media_source_name)
-    if not path.is_file():
-        return None
-    with open(path) as f:
-        raw = yaml.safe_load(f)
-    return FaceProcessingState.model_validate(raw) if isinstance(raw, dict) else None
+    raw = load_yaml_mapping(path)
+    return (
+        validate_metadata(path, FaceProcessingState, raw) if raw is not None else None
+    )
 
 
 def save_face_state(
     album_dir: Path, media_source_name: str, state: FaceProcessingState
 ) -> None:
-    """Write processing state to ``.photree/faces/{name}.yaml``."""
+    """Write processing state to ``.photree/cache/faces/{name}.yaml``."""
     path = state_path(album_dir, media_source_name)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        yaml.safe_dump(
-            state.model_dump(by_alias=True, mode="json"),
-            default_flow_style=False,
-            sort_keys=False,
-        )
-    )
+    write_yaml(path, state.model_dump(by_alias=True, mode="json"))
 
 
 # ---------------------------------------------------------------------------

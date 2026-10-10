@@ -9,12 +9,12 @@ import typer
 
 from ...albums.cli.batch_ops.refresh import run_batch_refresh
 from ...albums.cli.ops import resolve_check_batch_albums
-from ...clihelpers.console import err_console
+from ...clihelpers.console import console, err_console
 from ...clihelpers.options import DRY_RUN_OPTION
 from ...clihelpers.progress import StageProgressBar, run_with_spinner
 from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...clihelpers.sysdeps import refresh_deps, require_system_deps
-from ...common.formatting import CHECK
+from ...common.formatting import CHECK, indent
 from ...fsprotocol import GALLERY_YAML, PHOTREE_DIR, load_gallery_metadata
 from ..browsable_refresh import refresh_browsable as refresh_gallery_browsable
 from ..collection_refresh import (
@@ -26,6 +26,12 @@ from ..collection_refresh import (
 )
 from . import gallery_app
 from .ops import run_face_clustering
+from .refresh_output import (
+    format_browsable_error,
+    format_collection_changes,
+    format_collection_refresh_error,
+    format_dangling_members,
+)
 
 
 @gallery_app.command("refresh")
@@ -82,6 +88,7 @@ def refresh_cmd(
     require_system_deps(refresh_deps())
 
     resolved = resolve_gallery_or_exit(gallery_dir)
+    cwd = Path.cwd()
     albums, display_base = resolve_check_batch_albums(resolved, None)
     run_batch_refresh(
         albums,
@@ -93,18 +100,28 @@ def refresh_cmd(
         redetect_faces=redetect_faces,
         refresh_face_thumbs=refresh_face_thumbs,
     )
+    # Face clustering runs before the collection refresh so cluster data is
+    # available to it.
+    _refresh_face_clusters(resolved, dry_run=dry_run, force_full=redetect_faces)
+    _refresh_collections(resolved, cwd, dry_run=dry_run)
+    _refresh_browsable(resolved, cwd, dry_run=dry_run)
 
-    # Face clustering (before collection refresh so cluster data is available)
-    gallery_meta = load_gallery_metadata(resolved / PHOTREE_DIR / GALLERY_YAML)
+
+def _refresh_face_clusters(
+    gallery_dir: Path, *, dry_run: bool, force_full: bool
+) -> None:
+    gallery_meta = load_gallery_metadata(gallery_dir / PHOTREE_DIR / GALLERY_YAML)
     if gallery_meta.faces_enabled:
         run_face_clustering(
-            resolved,
+            gallery_dir,
             distance_threshold=gallery_meta.face_cluster_threshold,
             dry_run=dry_run,
-            force_full=redetect_faces,
+            force_full=force_full,
         )
 
-    # Refresh collections (implicit detection + smart materialization)
+
+def _refresh_collections(gallery_dir: Path, cwd: Path, *, dry_run: bool) -> None:
+    """Implicit detection + smart materialization; exit 1 on any error."""
     typer.echo("\nCollections:")
     with StageProgressBar(
         total=4,
@@ -115,61 +132,44 @@ def refresh_cmd(
             STAGE_SMART_REFRESH: "Refreshing smart collections",
         },
     ) as progress:
-        col_result = refresh_collections(
-            resolved,
+        result = refresh_collections(
+            gallery_dir,
             dry_run=dry_run,
             on_stage_start=progress.on_start,
             on_stage_end=progress.on_end,
         )
 
-    if col_result.created:
-        for name in col_result.created:
-            typer.echo(f"  created: {name}")
-    if col_result.updated:
-        for name in col_result.updated:
-            typer.echo(f"  updated: {name}")
-    if col_result.renamed:
-        for old, new in col_result.renamed:
-            typer.echo(f"  renamed: {old} -> {new}")
-    if col_result.deleted:
-        for name in col_result.deleted:
-            typer.echo(f"  deleted: {name}")
-    if col_result.album_renames:
-        typer.echo("\nAlbum title sync:")
-        for old, new in col_result.album_renames:
-            typer.echo(f"  {old} -> {new}")
-
-    if not col_result.success:
-        for error in col_result.errors:
-            err_console.print(f"  error: {error.message}")
+    # Report what was applied even on failure: a later stage's error does
+    # not undo an earlier stage's changes.
+    typer.echo(indent("\n".join(format_collection_changes(result))))
+    if not result.success:
+        err_console.print(
+            "\n".join(
+                indent(format_collection_refresh_error(error, cwd))
+                for error in result.errors
+            )
+        )
         raise typer.Exit(code=1)
 
-    if not (
-        col_result.created
-        or col_result.updated
-        or col_result.renamed
-        or col_result.deleted
-        or col_result.album_renames
-    ):
-        typer.echo("  no changes")
 
-    # Refresh browsable directory structure
+def _refresh_browsable(gallery_dir: Path, cwd: Path, *, dry_run: bool) -> None:
+    """Re-render the browsable/ tree; exit 1 on any error."""
     typer.echo("\nBrowsable:")
-    browsable_result = run_with_spinner(
+    result = run_with_spinner(
         "Rendering browsable structure...",
-        lambda: refresh_gallery_browsable(resolved, dry_run=dry_run),
+        lambda: refresh_gallery_browsable(gallery_dir, dry_run=dry_run),
     )
-
-    if not browsable_result.success:
-        for error in browsable_result.errors:
-            err_console.print(f"  error: {error.message}")
+    if result.dangling_members:
+        err_console.print(indent(format_dangling_members(result.dangling_members, cwd)))
+    if not result.success:
+        err_console.print(
+            "\n".join(indent(format_browsable_error(e, cwd)) for e in result.errors)
+        )
         raise typer.Exit(code=1)
-
-    from ...clihelpers.console import console
 
     console.print(
         f"{CHECK} browsable "
-        f"({browsable_result.albums_rendered} album(s), "
-        f"{browsable_result.collections_rendered} collection(s), "
-        f"{browsable_result.symlinks_created} symlink(s))"
+        f"({result.albums_rendered} album(s), "
+        f"{result.collections_rendered} collection(s), "
+        f"{result.symlinks_created} symlink(s))"
     )

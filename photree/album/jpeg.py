@@ -5,44 +5,105 @@
 - JPEG files are copied as-is. The main-img directory may contain JPEGs because
   some iPhones shoot in JPEG (e.g. when HEIF is disabled in Camera settings, or for
   certain camera modes), and Image Capture preserves the original format.
-- Other files (PNG, etc.) are skipped.
+- Other files (videos, etc.) are skipped.
 """
 
 from __future__ import annotations
 
 import shutil
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from enum import StrEnum
 from functools import partial
 from pathlib import Path
+from typing import Protocol
 
 from ..common.fs import file_ext, list_files
-from ..common.parallelism import run_parallel
+from ..common.parallelism import ParallelResult, run_parallel
 from ..common.sips import convert_to_jpeg
 from .store.protocol import CONVERT_TO_JPEG_EXTENSIONS, COPY_AS_IS_TO_JPEG_EXTENSIONS
+
+# ---------------------------------------------------------------------------
+# Classification
+# ---------------------------------------------------------------------------
+
+
+class JpegAction(StrEnum):
+    """What producing the JPEG variant of a browsable image involves."""
+
+    CONVERT = "convert"  # HEIC/HEIF/DNG → JPEG via sips
+    COPY = "copy"  # JPEG/PNG copied as-is
+    SKIP = "skip"  # no JPEG variant (videos, unknown formats)
+
+
+def jpeg_action(filename: str) -> JpegAction:
+    """Classify *filename* by how its JPEG variant is produced."""
+    match file_ext(filename):
+        case ext if ext in CONVERT_TO_JPEG_EXTENSIONS:
+            return JpegAction.CONVERT
+        case ext if ext in COPY_AS_IS_TO_JPEG_EXTENSIONS:
+            return JpegAction.COPY
+        case _:
+            return JpegAction.SKIP
+
+
+def jpeg_name(filename: str) -> str | None:
+    """Return the name of *filename*'s JPEG variant, or ``None`` if it has none."""
+    match jpeg_action(filename):
+        case JpegAction.CONVERT:
+            return Path(filename).with_suffix(".jpg").name
+        case JpegAction.COPY:
+            return filename
+        case JpegAction.SKIP:
+            return None
+
+
+# ---------------------------------------------------------------------------
+# Single-file converters
+# ---------------------------------------------------------------------------
+
+
+class ConvertFile(Protocol):
+    """Produce the JPEG variant of *src* in *dst_dir*.
+
+    Returns the destination path, or ``None`` when the file was skipped.
+    Implementations must be safe to call from worker threads.
+    """
+
+    def __call__(
+        self, src: Path, dst_dir: Path, /, *, dry_run: bool
+    ) -> Path | None: ...
+
+
+def _produce_jpeg(
+    src: Path,
+    dst_dir: Path,
+    *,
+    dry_run: bool,
+    convert: Callable[[Path, Path], object],
+) -> Path | None:
+    """Shared body of the converters: classify, then convert or copy."""
+    target = jpeg_name(src.name)
+    if target is None:
+        return None
+    dst = dst_dir / target
+    if not dry_run:
+        match jpeg_action(src.name):
+            case JpegAction.CONVERT:
+                convert(src, dst)
+            case _:
+                shutil.copy(src, dst)
+    return dst
 
 
 def convert_single_file(src: Path, dst_dir: Path, *, dry_run: bool) -> Path | None:
     """Convert or copy a single file to the JPEG output directory.
 
-    - HEIC → converted to JPEG via ``sips`` (preserves EXIF metadata)
+    - HEIC/HEIF/DNG → converted to JPEG via ``sips`` (preserves EXIF metadata)
     - JPEG/JPG/PNG → copied as-is
     - Other → skipped (returns None)
     """
-    ext = file_ext(src.name)
-
-    if ext in CONVERT_TO_JPEG_EXTENSIONS:
-        dst = dst_dir / Path(src.name).with_suffix(".jpg").name
-        if not dry_run:
-            convert_to_jpeg(src, dst)
-        return dst
-    elif ext in COPY_AS_IS_TO_JPEG_EXTENSIONS:
-        dst = dst_dir / src.name
-        if not dry_run:
-            shutil.copy(src, dst_dir)
-        return dst
-    else:
-        return None
+    return _produce_jpeg(src, dst_dir, dry_run=dry_run, convert=convert_to_jpeg)
 
 
 def noop_convert_single(_src: Path, _dst_dir: Path, *, dry_run: bool) -> Path | None:
@@ -56,20 +117,12 @@ def copy_convert_single(src: Path, dst_dir: Path, *, dry_run: bool) -> Path | No
     Use in integration tests on platforms where sips is unavailable. HEIC/DNG files are copied
     rather than converted, so the output is not true JPEG.
     """
-    ext = file_ext(src.name)
+    return _produce_jpeg(src, dst_dir, dry_run=dry_run, convert=shutil.copy)
 
-    if ext in CONVERT_TO_JPEG_EXTENSIONS:
-        dst = dst_dir / Path(src.name).with_suffix(".jpg").name
-        if not dry_run:
-            shutil.copy(src, dst)
-        return dst
-    elif ext in COPY_AS_IS_TO_JPEG_EXTENSIONS:
-        dst = dst_dir / src.name
-        if not dry_run:
-            shutil.copy(src, dst_dir)
-        return dst
-    else:
-        return None
+
+# ---------------------------------------------------------------------------
+# Directory refresh
+# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -98,17 +151,12 @@ class RefreshResult:
         return not self.failed
 
 
-def _classify_file(
-    filename: str,
-) -> str:
-    """Classify a file as 'convert', 'copy', or 'skip'."""
-    ext = file_ext(filename)
-    if ext in CONVERT_TO_JPEG_EXTENSIONS:
-        return "convert"
-    elif ext in COPY_AS_IS_TO_JPEG_EXTENSIONS:
-        return "copy"
-    else:
-        return "skip"
+def _clear_dir(directory: Path) -> None:
+    """Delete the regular files of *directory*, creating it if needed."""
+    directory.mkdir(parents=True, exist_ok=True)
+    for f in directory.iterdir():
+        if f.is_file():
+            f.unlink()
 
 
 def refresh_jpeg_dir(
@@ -118,179 +166,84 @@ def refresh_jpeg_dir(
     dry_run: bool = False,
     on_file_start: Callable[[str], None] | None = None,
     on_file_end: Callable[[str, bool], None] | None = None,
-    convert_file: Callable[..., Path | None] = convert_single_file,
+    convert_file: ConvertFile = convert_single_file,
     max_workers: int | None = None,
 ) -> RefreshResult:
     """Delete contents of *dst_dir* and re-convert all files from *src_dir*.
 
+    The destination is cleared even when the source is empty or missing, so
+    JPEGs of deleted images do not survive the refresh.
+
     Calls ``on_file_start(filename)`` before and ``on_file_end(filename, success)``
-    after each file.
+    after each convertible file; files with no JPEG variant are counted as
+    skipped without callbacks.
 
-    When *max_workers* > 1, conversions run in parallel via
-    :class:`~concurrent.futures.ThreadPoolExecutor`.  Defaults to sequential
-    when *max_workers* is ``None``.
+    Conversions run in parallel when *max_workers* > 1, sequentially otherwise
+    (the default). Both paths call *convert_file* and record a per-file
+    failure instead of abandoning the directory.
     """
-    if not src_dir.is_dir():
-        return RefreshResult(converted=0, copied=0, skipped=0)
+    if not dry_run and (src_dir.is_dir() or dst_dir.is_dir()):
+        _clear_dir(dst_dir)
 
-    src_files = list_files(src_dir)
-    if not src_files:
-        return RefreshResult(converted=0, copied=0, skipped=0)
-
-    # Clear destination
-    if not dry_run:
-        dst_dir.mkdir(parents=True, exist_ok=True)
-        for f in dst_dir.iterdir():
-            if f.is_file():
-                f.unlink()
-
-    use_parallel = (
-        max_workers is not None
-        and max_workers > 1
-        and convert_file is convert_single_file
+    all_files = list_files(src_dir)
+    src_files = [f for f in all_files if jpeg_action(f) != JpegAction.SKIP]
+    tasks = [
+        (filename, partial(convert_file, src_dir / filename, dst_dir, dry_run=dry_run))
+        for filename in src_files
+    ]
+    results = (
+        run_parallel(
+            tasks, max_workers=max_workers, on_start=on_file_start, on_end=on_file_end
+        )
+        if max_workers is not None and max_workers > 1
+        else _run_sequential(tasks, on_start=on_file_start, on_end=on_file_end)
     )
-
-    if use_parallel:
-        return _refresh_parallel(
-            src_dir,
-            dst_dir,
-            src_files,
-            dry_run=dry_run,
-            on_file_start=on_file_start,
-            on_file_end=on_file_end,
-            max_workers=max_workers,
-        )
-    else:
-        return _refresh_sequential(
-            src_dir,
-            dst_dir,
-            src_files,
-            dry_run=dry_run,
-            on_file_start=on_file_start,
-            on_file_end=on_file_end,
-            convert_file=convert_file,
-        )
+    return _summarize(results, skipped=len(all_files) - len(src_files))
 
 
-def _refresh_sequential(
-    src_dir: Path,
-    dst_dir: Path,
-    src_files: list[str],
+def _run_sequential(
+    tasks: Sequence[tuple[str, Callable[[], Path | None]]],
     *,
-    dry_run: bool,
-    on_file_start: Callable[[str], None] | None,
-    on_file_end: Callable[[str, bool], None] | None,
-    convert_file: Callable[..., Path | None],
-) -> RefreshResult:
-    """Process files sequentially (original behavior)."""
-    converted = 0
-    copied = 0
-    skipped = 0
-    failed: list[JpegConversionFailure] = []
-
-    for filename in src_files:
-        src = src_dir / filename
-        if not src.is_file():
-            skipped += 1
-            continue
-
-        if on_file_start:
-            on_file_start(filename)
-
+    on_start: Callable[[str], None] | None,
+    on_end: Callable[[str, bool], None] | None,
+) -> list[ParallelResult[Path | None]]:
+    """Run *tasks* one by one, with the same per-file contract as run_parallel."""
+    # Documented exception (docs/guidelines.md): a per-item try/except in a
+    # batch loop cannot be a comprehension.
+    results: list[ParallelResult[Path | None]] = []
+    for key, fn in tasks:
+        if on_start:
+            on_start(key)
+        result: ParallelResult[Path | None]
         try:
-            result = convert_file(src, dst_dir, dry_run=dry_run)
+            # SipsError is an OSError, as are copy failures; anything else is a
+            # bug and propagates.
+            result = ParallelResult(key=key, success=True, value=fn())
         except OSError as exc:
-            # Recorded rather than raised so one bad file does not abandon the
-            # rest of the directory — and so this path behaves identically to
-            # the parallel one below.
-            failed.append(JpegConversionFailure(filename=filename, reason=str(exc)))
-            if on_file_end:
-                on_file_end(filename, False)
-            continue
-
-        if result is None:
-            skipped += 1
-            if on_file_end:
-                on_file_end(filename, False)
-        elif file_ext(filename) in CONVERT_TO_JPEG_EXTENSIONS:
-            converted += 1
-            if on_file_end:
-                on_file_end(filename, True)
-        else:
-            copied += 1
-            if on_file_end:
-                on_file_end(filename, True)
-
-    return RefreshResult(
-        converted=converted, copied=copied, skipped=skipped, failed=tuple(failed)
-    )
+            result = ParallelResult(key=key, success=False, exception=exc)
+        if on_end:
+            on_end(key, result.success)
+        results.append(result)
+    return results
 
 
-def _refresh_parallel(
-    src_dir: Path,
-    dst_dir: Path,
-    src_files: list[str],
-    *,
-    dry_run: bool,
-    on_file_start: Callable[[str], None] | None,
-    on_file_end: Callable[[str, bool], None] | None,
-    max_workers: int | None,
+def _summarize(
+    results: Sequence[ParallelResult[Path | None]], *, skipped: int
 ) -> RefreshResult:
-    """Process files in parallel using :func:`run_parallel`."""
-    tasks: list[tuple[str, Callable[[], object]]] = []
-    categories: dict[str, str] = {}
-    skipped = 0
+    """Count outcomes from the results, not from the plan.
 
-    for filename in src_files:
-        src = src_dir / filename
-        if not src.is_file():
-            skipped += 1
-            continue
-
-        category = _classify_file(filename)
-        match category:
-            case "convert":
-                dst = dst_dir / Path(filename).with_suffix(".jpg").name
-                tasks.append(
-                    (
-                        filename,
-                        partial(convert_to_jpeg, src, dst) if not dry_run else _noop,
-                    )
-                )
-                categories[filename] = category
-            case "copy":
-                tasks.append(
-                    (
-                        filename,
-                        partial(shutil.copy, src, dst_dir) if not dry_run else _noop,
-                    )
-                )
-                categories[filename] = category
-            case _:
-                skipped += 1
-
-    # Counted from the results, not from the plan: tallying before the work runs
-    # reports every file as converted even when sips failed on half of them.
-    results = run_parallel(
-        tasks,
-        max_workers=max_workers,
-        on_start=on_file_start,
-        on_end=on_file_end,
-    )
-
+    Tallying before the work runs reports every file as converted even when
+    sips failed on half of them. A converter returning ``None`` (e.g.
+    :func:`noop_convert_single`) skipped the file deliberately.
+    """
+    landed = [r for r in results if r.success and r.value is not None]
     return RefreshResult(
-        converted=sum(
-            1 for r in results if r.success and categories[r.key] == "convert"
-        ),
-        copied=sum(1 for r in results if r.success and categories[r.key] == "copy"),
-        skipped=skipped,
+        converted=sum(1 for r in landed if jpeg_action(r.key) == JpegAction.CONVERT),
+        copied=sum(1 for r in landed if jpeg_action(r.key) == JpegAction.COPY),
+        skipped=skipped + sum(1 for r in results if r.success and r.value is None),
         failed=tuple(
             JpegConversionFailure(filename=r.key, reason=r.error or "unknown error")
             for r in results
             if not r.success
         ),
     )
-
-
-def _noop() -> None:
-    """No-op for dry-run parallel tasks."""

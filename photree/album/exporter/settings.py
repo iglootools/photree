@@ -3,16 +3,45 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
-from textwrap import dedent
 
 from ...config import load_config
 from ...fsprotocol import LinkMode
 from ..exporter.protocol import SHARE_SENTINEL, AlbumShareLayout, ShareDirectoryLayout
 
 
+class ExportSettingsErrorKind(StrEnum):
+    """Why export settings could not be used."""
+
+    UNKNOWN_PROFILE = "unknown-profile"
+    NO_SHARE_DIR = "no-share-dir"
+    ALBUMS_LAYOUT_NEEDS_ALL = "albums-layout-needs-all"
+    MISSING_SENTINEL = "missing-sentinel"
+
+
 class ExportSettingsError(ValueError):
-    """Raised when export settings are invalid or incomplete."""
+    """Raised when export settings are invalid or incomplete.
+
+    Carries the failure as data (*kind* plus the fields relevant to it) so the
+    CLI renders paths relative to the cwd; ``str()`` is a plain fallback.
+    """
+
+    def __init__(
+        self,
+        kind: ExportSettingsErrorKind,
+        *,
+        profile: str | None = None,
+        available_profiles: tuple[str, ...] = (),
+        album_layout: AlbumShareLayout | None = None,
+        share_dir: Path | None = None,
+    ) -> None:
+        super().__init__(f"invalid export settings: {kind}")
+        self.kind = kind
+        self.profile = profile
+        self.available_profiles = available_profiles
+        self.album_layout = album_layout
+        self.share_dir = share_dir
 
 
 @dataclass(frozen=True)
@@ -44,14 +73,15 @@ def resolve_export_settings(
         cfg = load_config(config_path)
         profile = cfg.exporter.profiles.get(profile_name)
         if profile is None:
-            available = ", ".join(sorted(cfg.exporter.profiles)) or "(none)"
             raise ExportSettingsError(
-                f'Unknown profile "{profile_name}". Available profiles: {available}'
+                ExportSettingsErrorKind.UNKNOWN_PROFILE,
+                profile=profile_name,
+                available_profiles=tuple(sorted(cfg.exporter.profiles)),
             )
 
     resolved_share_dir = share_dir or (profile.share_dir if profile else None)
     if resolved_share_dir is None:
-        raise ExportSettingsError("No --share-dir specified and no profile selected.")
+        raise ExportSettingsError(ExportSettingsErrorKind.NO_SHARE_DIR)
 
     resolved_share_layout = (
         share_layout
@@ -85,19 +115,11 @@ def validate_export_settings(settings: ResolvedExportSettings) -> None:
         and settings.album_layout != AlbumShareLayout.ALL
     ):
         raise ExportSettingsError(
-            f'The "albums" share layout requires --album-layout=all, '
-            f"but got --album-layout={settings.album_layout.value}."
+            ExportSettingsErrorKind.ALBUMS_LAYOUT_NEEDS_ALL,
+            album_layout=settings.album_layout,
         )
 
-    sentinel = settings.share_dir / SHARE_SENTINEL
-    if not sentinel.exists():
-        indent = " " * 2
+    if not (settings.share_dir / SHARE_SENTINEL).exists():
         raise ExportSettingsError(
-            dedent(f"""\
-                Share directory does not contain a {SHARE_SENTINEL} sentinel file: \
-                {settings.share_dir}
-
-                To initialize a share directory, ensure the volume is mounted
-                and create the sentinel file:
-                {indent}touch {sentinel}""")
+            ExportSettingsErrorKind.MISSING_SENTINEL, share_dir=settings.share_dir
         )

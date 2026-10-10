@@ -118,6 +118,14 @@ ignore = [
   # the batch result and reported to the user instead of propagating.
   "BLE001",
 ]
+# PLW1514 (open/read_text/write_text without an explicit encoding) is still a preview
+# rule in ruff 0.16. explicit-preview-rules opts into that one rule alone, so the rest
+# of the rule set keeps its stable behavior. It enforces the UTF-8-everywhere guideline:
+# without it the locale encoding is used silently. Drop the preview flags once ruff
+# stabilizes PLW1514.
+preview = true
+explicit-preview-rules = true
+extend-select = ["PLW1514"]
 
 [tool.pytest.ini_options]
 markers = [

@@ -49,7 +49,9 @@ graph TD
     cli --> collection
     cli --> collections
     cli --> common
+    cli --> config
     cli --> demo
+    cli --> fsprotocol
     cli --> gallery
     clihelpers --> common
     clihelpers --> fsprotocol
@@ -60,8 +62,10 @@ graph TD
     collections --> clihelpers
     collections --> collection
     collections --> common
+    collections --> fsprotocol
     config --> fsprotocol
     demo --> album
+    demo --> clihelpers
     gallery --> album
     gallery --> albums
     gallery --> clihelpers

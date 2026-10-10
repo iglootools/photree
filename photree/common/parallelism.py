@@ -18,7 +18,14 @@ class ParallelResult[T]:
     key: str
     success: bool
     value: T | None = None
-    error: str | None = None
+    # The exception itself, not its message: callers can inspect its type and
+    # attributes (e.g. a SipsError's path/stderr) instead of parsing prose.
+    exception: Exception | None = None
+
+    @property
+    def error(self) -> str | None:
+        """The failure message (``str(exception)``), or ``None`` on success."""
+        return str(self.exception) if self.exception is not None else None
 
 
 def run_parallel[T](
@@ -41,16 +48,11 @@ def run_parallel[T](
         return []
 
     workers = max_workers or os.cpu_count() or 4
-    results: list[ParallelResult[T]] = []
-
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        future_to_key = {
-            pool.submit(_run_task, key, fn, on_start, on_end): key for key, fn in tasks
-        }
-        for future in as_completed(future_to_key):
-            results.append(future.result())
-
-    return results
+        futures = [
+            pool.submit(_run_task, key, fn, on_start, on_end) for key, fn in tasks
+        ]
+        return [future.result() for future in as_completed(futures)]
 
 
 def _run_task[T](
@@ -70,4 +72,4 @@ def _run_task[T](
     except Exception as exc:
         if on_end:
             on_end(key, False)
-        return ParallelResult(key=key, success=False, error=str(exc))
+        return ParallelResult(key=key, success=False, exception=exc)

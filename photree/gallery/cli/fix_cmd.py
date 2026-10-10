@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Annotated
 
@@ -11,8 +10,10 @@ import typer
 from ...album.fix import FixValidationError
 from ...albums.cli.batch_ops.fix import run_batch_fix
 from ...albums.cli.ops import resolve_check_batch_albums
+from ...clihelpers.console import err_console
 from ...clihelpers.options import (
     DRY_RUN_OPTION,
+    FORCE_OPTION,
     LINK_MODE_OPTION,
     RM_ORPHAN_OPTION,
     RM_UPSTREAM_OPTION,
@@ -46,6 +47,7 @@ def fix_cmd(
     link_mode: LINK_MODE_OPTION = None,
     rm_upstream: RM_UPSTREAM_OPTION = False,
     rm_orphan: RM_ORPHAN_OPTION = False,
+    force: FORCE_OPTION = False,
     dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """Fix all albums in the gallery."""
@@ -59,7 +61,10 @@ def fix_cmd(
             rm_orphan=rm_orphan,
         )
     except FixValidationError as exc:
-        typer.echo(str(exc), err=True)
+        err_console.print(
+            f"{exc}\nRun 'photree gallery fix --help' for the available fixes.",
+            markup=False,
+        )
         raise typer.Exit(code=1) from exc
 
     resolved = resolve_gallery_or_exit(gallery_dir)
@@ -74,5 +79,5 @@ def fix_cmd(
         rm_upstream=rm_upstream,
         rm_orphan=rm_orphan,
         dry_run=dry_run,
-        max_workers=os.cpu_count(),
+        force=force,
     )

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import shutil
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
+from typing import NamedTuple
 
 from ...fsprotocol import LinkMode
 from ..exporter.protocol import AlbumShareLayout, ShareDirectoryLayout
@@ -12,15 +14,19 @@ from ..store.album_discovery import discover_albums as discover_photree_albums
 from .single import compute_target_dir, export_album
 
 
-@dataclass
-class BatchExportResult:
-    """Result of a batch export run.
+class ExportFailure(NamedTuple):
+    """An album whose export failed, with the reason."""
 
-    Not frozen because it is incrementally built during the export loop.
-    """
+    album_dir: Path
+    reason: str
+
+
+@dataclass(frozen=True)
+class BatchExportResult:
+    """Result of a batch export run."""
 
     exported: int = 0
-    failed: list[tuple[Path, str]] = field(default_factory=list)
+    failed: tuple[ExportFailure, ...] = ()
 
 
 def discover_albums(base_dir: Path) -> list[Path]:
@@ -41,6 +47,61 @@ def discover_albums(base_dir: Path) -> list[Path]:
     )
 
     return sorted([*photree_albums, *other_dirs])
+
+
+@dataclass(frozen=True)
+class _ExportOptions:
+    share_dir: Path
+    share_layout: ShareDirectoryLayout
+    album_layout: AlbumShareLayout
+    link_mode: LinkMode
+
+
+def _resolve_albums(
+    base_dir: Path | None, album_dirs: Sequence[Path] | None
+) -> list[Path]:
+    match (base_dir, album_dirs):
+        case (Path() as base, None):
+            return discover_albums(base)
+        case (None, [*dirs]):
+            return dirs
+        case _:
+            raise ValueError("Exactly one of base_dir or album_dirs must be provided")
+
+
+def _export_one(
+    album_dir: Path,
+    options: _ExportOptions,
+    *,
+    on_exporting: Callable[[str], None] | None,
+    on_exported: Callable[[str], None] | None,
+    on_error: Callable[[str, str], None] | None,
+) -> ExportFailure | None:
+    """Export one album, reporting the outcome through the callbacks."""
+    album_name = album_dir.name
+    if on_exporting:
+        on_exporting(album_name)
+    try:
+        target_dir = compute_target_dir(
+            options.share_dir, album_name, options.share_layout
+        )
+        export_album(
+            album_dir,
+            target_dir,
+            album_layout=options.album_layout,
+            link_mode=options.link_mode,
+        )
+    # A per-album filesystem failure, or a name the share layout cannot place
+    # (ValueError from the date parsing), is reported and the batch carries
+    # on. Anything else is a bug and propagates.
+    except (OSError, ValueError, shutil.Error) as exc:
+        if on_error:
+            on_error(album_name, str(exc))
+        return ExportFailure(album_dir, str(exc))
+    else:
+        if on_exported:
+            on_exported(album_name)
+        return None
 
 
 def run_batch_export(
@@ -65,30 +126,17 @@ def run_batch_export(
     - ``on_exported(album_name)`` — called after success
     - ``on_error(album_name, message)`` — called on failure
     """
-    if (base_dir is None) == (album_dirs is None):
-        msg = "Exactly one of base_dir or album_dirs must be provided"
-        raise ValueError(msg)
-
-    albums = (
-        discover_albums(base_dir) if base_dir is not None else list(album_dirs)  # type: ignore[arg-type]
-    )
-    result = BatchExportResult()
-
-    for album_dir in albums:
-        album_name = album_dir.name
-        if on_exporting:
-            on_exporting(album_name)
-        try:
-            target_dir = compute_target_dir(share_dir, album_name, share_layout)
-            export_album(
-                album_dir, target_dir, album_layout=album_layout, link_mode=link_mode
-            )
-            result.exported += 1
-            if on_exported:
-                on_exported(album_name)
-        except Exception as exc:
-            result.failed.append((album_dir, str(exc)))
-            if on_error:
-                on_error(album_name, str(exc))
-
-    return result
+    albums = _resolve_albums(base_dir, album_dirs)
+    options = _ExportOptions(share_dir, share_layout, album_layout, link_mode)
+    outcomes = [
+        _export_one(
+            album_dir,
+            options,
+            on_exporting=on_exporting,
+            on_exported=on_exported,
+            on_error=on_error,
+        )
+        for album_dir in albums
+    ]
+    failures = tuple(f for f in outcomes if f is not None)
+    return BatchExportResult(exported=len(outcomes) - len(failures), failed=failures)

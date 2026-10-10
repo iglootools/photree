@@ -29,6 +29,9 @@ class TestRunParallel:
 
         assert len(parallel_results) == 1
         assert not parallel_results[0].success
+        exc = parallel_results[0].exception
+        assert isinstance(exc, RuntimeError)
+        assert exc.args == ("boom",)
         assert parallel_results[0].error == "boom"
 
     def test_calls_on_start_and_on_end(self) -> None:

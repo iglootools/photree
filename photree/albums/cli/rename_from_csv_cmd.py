@@ -8,8 +8,11 @@ from typing import Annotated
 import typer
 
 from ...album.id import format_album_external_id
+from ...clihelpers.console import err_console
 from ...clihelpers.options import DRY_RUN_OPTION
+from ...common.formatting import indent
 from ...common.fs import display_path
+from ..index import AlbumIndex, MissingAlbumIdError, build_album_index
 from . import AlbumDirOption, DirOption, albums_app
 from .batch_ops.rename import run_batch_rename_from_csv
 from .ops import resolve_check_batch_albums
@@ -37,34 +40,46 @@ def rename_from_csv_cmd(
     where a mutable field changed are renamed. Immutable fields (date, part,
     tags) are preserved from the current on-disk album name.
     """
-    from ...clihelpers.console import err_console
-    from ..index import MissingAlbumIdError, build_album_index
-
-    cwd = Path.cwd()
     albums, _ = resolve_check_batch_albums(base_dir, album_dirs)
+    index = _build_index_or_exit(albums, Path.cwd())
+    run_batch_rename_from_csv(index.id_to_path, csv_file, dry_run=dry_run)
 
-    # Build album index
+
+def _build_index_or_exit(albums: list[Path], cwd: Path) -> AlbumIndex:
+    """Index albums by ID, exiting with a fix suggestion on missing/duplicate IDs."""
     try:
         index = build_album_index(albums)
     except MissingAlbumIdError as exc:
-        err_console.print("Albums with missing IDs found:")
-        for p in exc.albums:
-            err_console.print(f"  {display_path(p, cwd)}")
-        err_console.print(
-            "\nRun 'photree albums fix --id' to generate missing album IDs."
-        )
+        err_console.print(_missing_ids_report(exc.albums, cwd), markup=False)
         raise typer.Exit(code=1) from exc
-
-    # Check for duplicate IDs
     if index.duplicates:
-        err_console.print("Cannot rename — duplicate album IDs found:")
-        for aid, paths in index.duplicates.items():
-            err_console.print(f"  {format_album_external_id(aid)}:")
-            for p in paths:
-                err_console.print(f"    {display_path(p, cwd)}")
-        err_console.print(
-            "\nResolve duplicates first with 'photree albums fix --new-id'."
-        )
+        err_console.print(_duplicate_ids_report(index, cwd), markup=False)
         raise typer.Exit(code=1)
+    return index
 
-    run_batch_rename_from_csv(index.id_to_path, csv_file, dry_run=dry_run)
+
+def _missing_ids_report(albums: tuple[Path, ...], cwd: Path) -> str:
+    return "\n".join(
+        [
+            "Albums with missing IDs found:",
+            *(indent(str(display_path(p, cwd))) for p in albums),
+            "\nRun 'photree albums fix --id' to generate missing album IDs.",
+        ]
+    )
+
+
+def _duplicate_ids_report(index: AlbumIndex, cwd: Path) -> str:
+    return "\n".join(
+        [
+            "Cannot rename — duplicate album IDs found:",
+            *(
+                line
+                for aid, paths in index.duplicates.items()
+                for line in [
+                    indent(f"{format_album_external_id(aid)}:"),
+                    *(indent(str(display_path(p, cwd)), 2) for p in paths),
+                ]
+            ),
+            "\nResolve duplicates first with 'photree albums fix --new-id'.",
+        ]
+    )

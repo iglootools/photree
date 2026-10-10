@@ -9,6 +9,7 @@ from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.gallery import AlbumIndex
 from photree.gallery.import_plan import (
+    ClobberConflict,
     ImportAction,
     plan_imports,
 )
@@ -16,7 +17,7 @@ from photree.gallery.import_plan import (
 
 def _write(path: Path, content: str = "data") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content)
+    path.write_text(content, encoding="utf-8")
 
 
 def _make_source(
@@ -151,3 +152,48 @@ class TestPlanImportsErrors:
 
         assert not result.has_errors
         assert all(p.action is ImportAction.NEW for p in result.plans)
+
+
+class TestPlanImportsRenamedSource:
+    def test_rename_onto_other_album_is_a_clobber_conflict(
+        self, tmp_path: Path
+    ) -> None:
+        """Regression: the ID match short-circuited the clobber check."""
+        gallery = tmp_path / "gallery"
+        album_id = generate_album_id()
+        existing = gallery / "albums" / "2024" / "2024-07-14 - Hiking"
+        occupant_id = generate_album_id()
+        occupied = gallery / "albums" / "2024" / "2024-07-14 - Hiking the Rockies"
+        occupied.mkdir(parents=True)
+        save_album_metadata(occupied, AlbumMetadata(id=occupant_id))
+        source = _make_source(tmp_path / "src", occupied.name, album_id=album_id)
+        index = AlbumIndex(
+            id_to_path={album_id: existing, occupant_id: occupied}, duplicates={}
+        )
+
+        result = plan_imports([source], index, gallery, reimport=True)
+
+        assert result.clobber_conflicts == (
+            ClobberConflict(
+                source=source,
+                existing=occupied,
+                source_id=album_id,
+                existing_id=occupant_id,
+            ),
+        )
+        assert not result.to_import
+
+    def test_rename_onto_free_name_is_a_reimport(self, tmp_path: Path) -> None:
+        gallery = tmp_path / "gallery"
+        album_id = generate_album_id()
+        existing = gallery / "albums" / "2024" / "2024-07-14 - Hiking"
+        source = _make_source(
+            tmp_path / "src", "2024-07-14 - Hiking the Rockies", album_id=album_id
+        )
+        index = AlbumIndex(id_to_path={album_id: existing}, duplicates={})
+
+        result = plan_imports([source], index, gallery, reimport=True)
+
+        assert not result.has_errors
+        assert result.plans[0].action is ImportAction.REIMPORT
+        assert result.plans[0].existing == existing

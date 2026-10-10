@@ -23,7 +23,7 @@ from photree.album.store.protocol import AlbumMetadata
 
 def _write(path: Path, content: str = "data") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content)
+    path.write_text(content, encoding="utf-8")
 
 
 def _setup_ios_album(album_dir: Path) -> None:

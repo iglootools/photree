@@ -50,7 +50,7 @@ class FaceProcessedKey(_BaseModel):
 
 
 class FaceProcessingState(_BaseModel):
-    """Per-media-source face detection state stored in ``.photree/faces/{name}.yaml``."""
+    """Per-media-source face detection state in ``.photree/cache/faces/{name}.yaml``."""
 
     model_name: str = Field(default=DEFAULT_MODEL_NAME)
     model_version: str = Field(default=DEFAULT_MODEL_VERSION)

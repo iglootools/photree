@@ -33,10 +33,51 @@ def _result_icon(success: bool) -> str:
     return CHECK if success else CROSS
 
 
-class _ProgressContextMixin:
-    """Mixin adding context manager support to progress bars."""
+def _new_progress() -> Progress:
+    """Build the transient spinner + bar + M/N progress shared by all bars."""
+    return Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        MofNCompleteColumn(),
+        transient=True,
+    )
 
-    def stop(self) -> None: ...
+
+class _LazyProgress:
+    """Base for progress bars: lazily started Rich progress with one task.
+
+    Starting on first use keeps a command that ends up doing nothing from
+    flashing an empty bar. Every result-line method goes through
+    :meth:`_ensure_started`, so a result reported without a preceding
+    ``on_start`` is still printed rather than silently dropped.
+    """
+
+    def __init__(self, total: int) -> None:
+        self._total = total
+        self._started: tuple[Progress, TaskID] | None = None
+
+    def _ensure_started(self, description: str) -> tuple[Progress, TaskID]:
+        match self._started:
+            case None:
+                progress = _new_progress()
+                progress.start()
+                task_id = progress.add_task(description, total=self._total)
+                self._started = (progress, task_id)
+                return self._started
+            case (progress, task_id):
+                progress.update(task_id, description=description)
+                return self._started
+
+    def _print_result(self, description: str, line: str) -> None:
+        """Print *line* above the bar and advance it (starting it if needed)."""
+        progress, task_id = self._ensure_started(description)
+        progress.console.print(line)
+        progress.advance(task_id)
+
+    def stop(self) -> None:
+        if self._started is not None:
+            self._started[0].stop()
 
     def __enter__(self) -> Self:
         return self
@@ -50,7 +91,7 @@ class _ProgressContextMixin:
         self.stop()
 
 
-class SilentProgressBar(_ProgressContextMixin):
+class SilentProgressBar(_LazyProgress):
     """Silent progress bar that shows a spinner and count but no per-file output.
 
     Usage::
@@ -60,24 +101,16 @@ class SilentProgressBar(_ProgressContextMixin):
     """
 
     def __init__(self, total: int, description: str) -> None:
-        self._progress = Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            MofNCompleteColumn(),
-            transient=True,
-        )
-        self._progress.start()
-        self._task_id = self._progress.add_task(f"{description}...", total=total)
+        super().__init__(total)
+        self._description = f"{description}..."
+        self._ensure_started(self._description)
 
     def advance(self, _filename: str, _success: bool) -> None:
-        self._progress.advance(self._task_id)
-
-    def stop(self) -> None:
-        self._progress.stop()
+        progress, task_id = self._ensure_started(self._description)
+        progress.advance(task_id)
 
 
-class FileProgressBar(_ProgressContextMixin):
+class FileProgressBar(_LazyProgress):
     """Progress bar for per-file operations — one check line per file.
 
     Usage::
@@ -92,49 +125,21 @@ class FileProgressBar(_ProgressContextMixin):
         description: str,
         done_description: str,
     ) -> None:
-        self._total = total
+        super().__init__(total)
         self._description = description
         self._done_description = done_description
-        self._progress: Progress | None = None
-        self._task_id: TaskID | None = None
-
-    def _ensure_started(self, label: str) -> None:
-        if self._progress is None:
-            self._progress = Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                BarColumn(),
-                MofNCompleteColumn(),
-                transient=True,
-            )
-            self._progress.start()
-            self._task_id = self._progress.add_task(
-                f"{self._description} {label}...", total=self._total
-            )
-        else:
-            assert self._task_id is not None
-            self._progress.update(
-                self._task_id, description=f"{self._description} {label}..."
-            )
 
     def on_start(self, filename: str) -> None:
-        self._ensure_started(filename)
+        self._ensure_started(f"{self._description} {filename}...")
 
     def on_end(self, filename: str, success: bool) -> None:
-        self._ensure_started(filename)
-        assert self._progress is not None
-        assert self._task_id is not None
-        self._progress.console.print(
-            f"{_result_icon(success)} {self._done_description} {filename}"
+        self._print_result(
+            f"{self._description} {filename}...",
+            f"{_result_icon(success)} {self._done_description} {filename}",
         )
-        self._progress.advance(self._task_id)
-
-    def stop(self) -> None:
-        if self._progress is not None:
-            self._progress.stop()
 
 
-class StageProgressBar(_ProgressContextMixin):
+class StageProgressBar(_LazyProgress):
     """Progress bar for stage-based operations — one check line per stage.
 
     Usage::
@@ -148,39 +153,20 @@ class StageProgressBar(_ProgressContextMixin):
     """
 
     def __init__(self, total: int, labels: dict[str, str] | None = None) -> None:
-        self._total = total
+        super().__init__(total)
         self._labels = labels or {}
-        self._progress: Progress | None = None
-        self._task_id: TaskID | None = None
+
+    def _stage_description(self, stage: str) -> str:
+        return f"{self._labels.get(stage, stage)}..."
 
     def on_start(self, stage: str) -> None:
-        label = self._labels.get(stage, stage)
-        if self._progress is None:
-            self._progress = Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                BarColumn(),
-                MofNCompleteColumn(),
-                transient=True,
-            )
-            self._progress.start()
-            self._task_id = self._progress.add_task(f"{label}...", total=self._total)
-        else:
-            assert self._task_id is not None
-            self._progress.update(self._task_id, description=f"{label}...")
+        self._ensure_started(self._stage_description(stage))
 
     def on_end(self, stage: str) -> None:
-        if self._progress is not None:
-            assert self._task_id is not None
-            self._progress.console.print(f"{CHECK} {stage}")
-            self._progress.advance(self._task_id)
-
-    def stop(self) -> None:
-        if self._progress is not None:
-            self._progress.stop()
+        self._print_result(self._stage_description(stage), f"{CHECK} {stage}")
 
 
-class BatchProgressBar(_ProgressContextMixin):
+class BatchProgressBar(_LazyProgress):
     """Progress bar for batch operations — one check line per album/item.
 
     Usage::
@@ -197,26 +183,9 @@ class BatchProgressBar(_ProgressContextMixin):
         description: str,
         done_description: str,
     ) -> None:
-        self._total = total
+        super().__init__(total)
         self._description = description
         self._done_description = done_description
-        self._progress: Progress | None = None
-        self._task_id: TaskID | None = None
-
-    def _ensure_started(self, description: str) -> None:
-        if self._progress is None:
-            self._progress = Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                BarColumn(),
-                MofNCompleteColumn(),
-                transient=True,
-            )
-            self._progress.start()
-            self._task_id = self._progress.add_task(description, total=self._total)
-        else:
-            assert self._task_id is not None
-            self._progress.update(self._task_id, description=description)
 
     def on_start(self, album_name: str) -> None:
         self._ensure_started(f"{self._description} {album_name}...")
@@ -229,32 +198,26 @@ class BatchProgressBar(_ProgressContextMixin):
         error_labels: tuple[str, ...] = (),
         warning_labels: tuple[str, ...] = (),
     ) -> None:
-        if self._progress is not None:
-            assert self._task_id is not None
-            has_warnings = bool(warning_labels)
-            icon = WARNING if success and has_warnings else _result_icon(success)
-            parts: list[str] = []
-            if error_labels:
-                parts.append(f"[red]| {', '.join(error_labels)}[/red]")
-            if warning_labels:
-                parts.append(rich_warning_text("| " + ", ".join(warning_labels)))
-            suffix = f" {' '.join(parts)}" if parts else ""
-            self._progress.console.print(
-                f"{icon} {self._done_description} {album_name}{suffix}"
-            )
-            self._progress.advance(self._task_id)
+        icon = WARNING if success and warning_labels else _result_icon(success)
+        fragments = [
+            *([f"[red]| {', '.join(error_labels)}[/red]"] if error_labels else []),
+            *(
+                [rich_warning_text("| " + ", ".join(warning_labels))]
+                if warning_labels
+                else []
+            ),
+        ]
+        suffix = "".join(f" {fragment}" for fragment in fragments)
+        self._print_result(
+            f"{self._description} {album_name}...",
+            f"{icon} {self._done_description} {album_name}{suffix}",
+        )
 
     def on_skipped(self, album_name: str, reason: str, *, warn: bool = False) -> None:
-        self._ensure_started(f"Skipping {album_name}...")
-        if self._progress is not None:
-            assert self._task_id is not None
-            icon = WARN_SIGN if warn else CROSS
-            self._progress.console.print(f"{icon} {album_name} ({reason})")
-            self._progress.advance(self._task_id)
-
-    def stop(self) -> None:
-        if self._progress is not None:
-            self._progress.stop()
+        icon = WARN_SIGN if warn else CROSS
+        self._print_result(
+            f"Skipping {album_name}...", f"{icon} {album_name} ({reason})"
+        )
 
 
 # ---------------------------------------------------------------------------

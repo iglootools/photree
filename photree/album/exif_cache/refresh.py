@@ -2,18 +2,20 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from contextlib import nullcontext
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
-from ...common.exif import try_start_exiftool
+from ...common.exif import exiftool_session
 from ...common.fs import list_files
 from ..exif import _TIMESTAMP_TAGS
 from ..store.media_sources_discovery import discover_media_sources
 from ..store.protocol import MediaSource
-from .protocol import ExifCache, ExifCacheEntry
+from .protocol import EXIF_CACHE_VERSION, ExifCache, ExifCacheEntry
 from .store import load_exif_cache, save_exif_cache
 
 # ---------------------------------------------------------------------------
@@ -64,36 +66,69 @@ def refresh_exif_cache(
     """Refresh EXIF timestamp cache for all media sources in an album.
 
     When *force* is True, re-read all files regardless of mtime.
-    *exiftool* can be shared across albums in batch operations.
+    *exiftool* can be shared across albums in batch operations; when it is
+    ``None`` a transient one is started (and closed) for this album.
     """
     sources = discover_media_sources(album_dir)
     if not sources:
         return ExifCacheRefreshResult(by_media_source=())
 
-    # Reuse caller's exiftool or start a transient one
-    owns_exiftool = exiftool is None
-    et = exiftool or try_start_exiftool()
-
-    try:
-        results = [
-            (
-                ms.name,
-                _refresh_source(
-                    album_dir, ms, exiftool=et, force=force, dry_run=dry_run
-                ),
+    with nullcontext(exiftool) if exiftool is not None else exiftool_session() as et:
+        return ExifCacheRefreshResult(
+            by_media_source=tuple(
+                (
+                    ms.name,
+                    _refresh_source(
+                        album_dir, ms, exiftool=et, force=force, dry_run=dry_run
+                    ),
+                )
+                for ms in sources
             )
-            for ms in sources
-        ]
-    finally:
-        if owns_exiftool and et is not None:
-            et.__exit__(None, None, None)
-
-    return ExifCacheRefreshResult(by_media_source=tuple(results))
+        )
 
 
 # ---------------------------------------------------------------------------
 # Per-source refresh
 # ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class _SourcePlan:
+    """What a per-source refresh has to do, computed before any I/O."""
+
+    existing: ExifCache
+    current_files: Mapping[str, str]  # cache key -> album-relative path
+    keys_to_refresh: tuple[str, ...]
+    stale_keys: frozenset[str]
+
+    @property
+    def is_noop(self) -> bool:
+        return not self.keys_to_refresh and not self.stale_keys
+
+
+def _load_current_cache(album_dir: Path, ms: MediaSource) -> ExifCache:
+    """Load the cache, discarding it when it predates the current layout."""
+    cache = load_exif_cache(album_dir, ms.name)
+    return cache if cache is not None and cache.is_current else _empty_cache()
+
+
+def _empty_cache() -> ExifCache:
+    return ExifCache(version=EXIF_CACHE_VERSION)
+
+
+def _plan_source(album_dir: Path, ms: MediaSource, *, force: bool) -> _SourcePlan:
+    existing = _load_current_cache(album_dir, ms)
+    current_files = _scan_browsable_files(album_dir, ms)
+    return _SourcePlan(
+        existing=existing,
+        current_files=current_files,
+        keys_to_refresh=tuple(
+            sorted(current_files)
+            if force
+            else _keys_needing_refresh(current_files, album_dir, existing)
+        ),
+        stale_keys=frozenset(existing.files) - frozenset(current_files),
+    )
 
 
 def _refresh_source(
@@ -105,51 +140,52 @@ def _refresh_source(
     dry_run: bool,
 ) -> ExifCacheSourceResult:
     """Refresh EXIF cache for a single media source."""
-    existing = load_exif_cache(album_dir, ms.name) or ExifCache()
+    plan = _plan_source(album_dir, ms, force=force)
 
-    current_files = _scan_browsable_files(album_dir, ms)
-    current_keys = set(current_files.keys())
-    stale_keys = set(existing.files.keys()) - current_keys
-
-    keys_to_refresh = (
-        sorted(current_keys)
-        if force
-        else _keys_needing_refresh(current_files, album_dir, ms, existing)
-    )
-
-    if not keys_to_refresh and not stale_keys:
-        # Ensure cache file exists even when empty (no browsable files),
-        # so the check path knows this source was processed.
-        if not dry_run and load_exif_cache(album_dir, ms.name) is None:
-            save_exif_cache(album_dir, ms.name, existing)
-        return ExifCacheSourceResult(cached=len(current_keys), refreshed=0, pruned=0)
+    if plan.is_noop:
+        # Ensure the cache file exists (and is current) even when empty, so the
+        # check path knows this source was processed.
+        if not dry_run and load_exif_cache(album_dir, ms.name) != plan.existing:
+            save_exif_cache(album_dir, ms.name, plan.existing)
+        return ExifCacheSourceResult(
+            cached=len(plan.current_files), refreshed=0, pruned=0
+        )
 
     if dry_run:
         return ExifCacheSourceResult(
-            cached=len(current_keys) - len(keys_to_refresh),
-            refreshed=len(keys_to_refresh),
-            pruned=len(stale_keys),
+            cached=len(plan.current_files) - len(plan.keys_to_refresh),
+            refreshed=len(plan.keys_to_refresh),
+            pruned=len(plan.stale_keys),
         )
 
-    # Read EXIF for new/changed files
-    new_entries = _read_exif_for_keys(
-        keys_to_refresh, current_files, album_dir, ms, exiftool=exiftool
-    )
+    return _apply_plan(album_dir, ms, plan, exiftool=exiftool)
 
-    # Merge: keep unchanged, add/replace refreshed, drop stale
+
+def _apply_plan(
+    album_dir: Path,
+    ms: MediaSource,
+    plan: _SourcePlan,
+    *,
+    exiftool: ExifToolHelper | None,
+) -> ExifCacheSourceResult:
+    """Read EXIF for new/changed files, merge with the kept entries, and save."""
+    new_entries = _read_exif_for_keys(
+        plan.keys_to_refresh, plan.current_files, album_dir, exiftool=exiftool
+    )
     retained = {
         k: v
-        for k, v in existing.files.items()
-        if k in current_keys and k not in keys_to_refresh
+        for k, v in plan.existing.files.items()
+        if k in plan.current_files and k not in plan.keys_to_refresh
     }
-    updated = ExifCache(files={**retained, **new_entries})
-
-    save_exif_cache(album_dir, ms.name, updated)
-
+    save_exif_cache(
+        album_dir,
+        ms.name,
+        ExifCache(version=EXIF_CACHE_VERSION, files={**retained, **new_entries}),
+    )
     return ExifCacheSourceResult(
         cached=len(retained),
         refreshed=len(new_entries),
-        pruned=len(stale_keys),
+        pruned=len(plan.stale_keys),
     )
 
 
@@ -158,26 +194,31 @@ def _refresh_source(
 # ---------------------------------------------------------------------------
 
 
+def cache_key(subdir: str, filename: str) -> str:
+    """Return the cache key of a browsable file: ``{subdir}/{stem}``.
+
+    Scoped by directory so that ``main-jpg/clip.jpg`` and ``main-vid/clip.mp4``
+    (same stem, different media) do not collide.
+    """
+    return f"{subdir}/{Path(filename).stem}"
+
+
 def _scan_browsable_files(album_dir: Path, ms: MediaSource) -> dict[str, str]:
-    """Scan browsable directories and return ``{key: filename}`` mapping.
+    """Scan browsable directories and return ``{cache_key: relative_path}``.
 
     Scans ``{name}-jpg/`` and ``{name}-vid/`` (the directories used for
     EXIF date checking).
     """
-    result: dict[str, str] = {}
-    for subdir in (ms.jpg_dir, ms.vid_dir):
-        dir_path = album_dir / subdir
-        if dir_path.is_dir():
-            for filename in list_files(dir_path):
-                key = Path(filename).stem
-                result[key] = f"{subdir}/{filename}"
-    return result
+    return {
+        cache_key(subdir, filename): f"{subdir}/{filename}"
+        for subdir in (ms.jpg_dir, ms.vid_dir)
+        for filename in list_files(album_dir / subdir)
+    }
 
 
 def _keys_needing_refresh(
-    current_files: dict[str, str],
+    current_files: Mapping[str, str],
     album_dir: Path,
-    ms: MediaSource,
     cache: ExifCache,
 ) -> list[str]:
     """Return keys whose EXIF timestamps need re-reading."""
@@ -191,9 +232,9 @@ def _keys_needing_refresh(
 def _needs_refresh(key: str, file_path: Path, cache: ExifCache) -> bool:
     """Return True when a file's EXIF timestamp needs re-reading."""
     entry = cache.files.get(key)
-    if entry is None:
-        return True
-    return file_path.is_file() and entry.mtime != file_path.stat().st_mtime
+    return entry is None or (
+        file_path.is_file() and entry.mtime != file_path.stat().st_mtime
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -202,10 +243,9 @@ def _needs_refresh(key: str, file_path: Path, cache: ExifCache) -> bool:
 
 
 def _read_exif_for_keys(
-    keys: list[str],
-    current_files: dict[str, str],
+    keys: tuple[str, ...],
+    current_files: Mapping[str, str],
     album_dir: Path,
-    ms: MediaSource,
     *,
     exiftool: ExifToolHelper | None,
 ) -> dict[str, ExifCacheEntry]:
@@ -218,7 +258,7 @@ def _read_exif_for_keys(
     return {
         key: ExifCacheEntry(
             mtime=(album_dir / current_files[key]).stat().st_mtime,
-            file_name=Path(current_files[key]).name,
+            file_name=current_files[key],
             timestamp=ts.isoformat() if ts is not None else None,
         )
         for key, ts in zip(keys, timestamps)

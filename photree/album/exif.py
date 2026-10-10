@@ -14,17 +14,11 @@ from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ..common.exif import (
     ExifDateChange,
-)
-from ..common.exif import (
-    read_exif_timestamps as _generic_read_timestamps,
+    write_exif_date,
 )
 from ..common.exif import (
     read_exif_timestamps_by_file as _generic_read_by_file,
 )
-from ..common.exif import (
-    set_exif_date as _generic_set_date,
-)
-from .store.media_sources_discovery import discover_browsable_media_files
 
 # Tag priority for timestamp extraction (first match wins):
 #
@@ -49,15 +43,6 @@ _TIMESTAMP_TAGS = ["CreationDate", "DateTimeOriginal", "CreateDate"]
 # ---------------------------------------------------------------------------
 
 
-def read_exif_timestamps(
-    files: list[Path],
-    *,
-    exiftool: ExifToolHelper | None = None,
-) -> list[datetime]:
-    """Read timestamps from files using the project's tag priority."""
-    return _generic_read_timestamps(files, _TIMESTAMP_TAGS, exiftool=exiftool)
-
-
 def read_exif_timestamps_by_file(
     files: list[Path],
     *,
@@ -70,17 +55,10 @@ def read_exif_timestamps_by_file(
 def set_exif_date(
     files: list[Path],
     date: str,
-) -> tuple[int, tuple[ExifDateChange, ...]]:
-    """Set the date portion of EXIF timestamps using the project's tag priority."""
-    return _generic_set_date(files, date, _TIMESTAMP_TAGS)
+) -> tuple[ExifDateChange, ...]:
+    """Set the date portion of EXIF timestamps using the project's tag priority.
 
-
-def read_album_min_timestamp(
-    album_dir: Path,
-    *,
-    exiftool: ExifToolHelper | None = None,
-) -> datetime | None:
-    """Read all media files from an album and return the earliest EXIF timestamp."""
-    files = discover_browsable_media_files(album_dir)
-    timestamps = read_exif_timestamps(files, exiftool=exiftool)
-    return min(timestamps) if timestamps else None
+    Returns one change per file actually rewritten (see
+    :func:`common.exif.write_exif_date`).
+    """
+    return write_exif_date(files, date, _TIMESTAMP_TAGS)

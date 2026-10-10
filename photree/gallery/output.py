@@ -8,17 +8,20 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ..album.faces.refresh import format_face_failures
 from ..album.id import format_album_external_id
 from ..album.naming import NamingIssue
-from ..common.formatting import CROSS, WARNING
+from ..common.formatting import CROSS, WARNING, indent
 from ..common.fs import display_path
+from .cmd_handler.importer import AlbumImportFailure
 from .import_plan import AlbumPlan, ClobberConflict, GalleryImportPlan, SourceDuplicate
+from .importer import TargetExistsError
 
 
 def _naming_block(album: Path, issues: tuple[NamingIssue, ...], cwd: Path) -> list[str]:
     return [
         f"{CROSS} {display_path(album, cwd)} — naming: {len(issues)} issue(s)",
-        *(f"    {issue.message}" for issue in issues),
+        *(indent(issue.message, 2) for issue in issues),
     ]
 
 
@@ -34,7 +37,7 @@ def _structure_block(album: Path, cwd: Path) -> list[str]:
 def _collision_block(date_str: str, names: tuple[str, ...]) -> list[str]:
     return [
         f"{CROSS} date collision on {date_str} (add part numbers to disambiguate):",
-        *(f"    {name}" for name in names),
+        *(indent(name, 2) for name in names),
     ]
 
 
@@ -44,7 +47,7 @@ def _duplicate_id_block(dup: SourceDuplicate, cwd: Path) -> list[str]:
             f"{CROSS} duplicate album ID {format_album_external_id(dup.album_id)} "
             "among source albums:"
         ),
-        *(f"    {display_path(p, cwd)}" for p in dup.paths),
+        *(indent(str(display_path(p, cwd)), 2) for p in dup.paths),
     ]
 
 
@@ -54,9 +57,14 @@ def _clobber_block(conflict: ClobberConflict, cwd: Path) -> list[str]:
             f"{CROSS} {display_path(conflict.source, cwd)} — a different album "
             f"already occupies {display_path(conflict.existing, cwd)}"
         ),
-        f"    source id:   {format_album_external_id(conflict.source_id)}",
-        f"    existing id: {format_album_external_id(conflict.existing_id)}",
-        "    Rename the source album before importing.",
+        *(
+            indent(line, 2)
+            for line in (
+                f"source id:   {format_album_external_id(conflict.source_id)}",
+                f"existing id: {format_album_external_id(conflict.existing_id)}",
+                "Rename the source album before importing.",
+            )
+        ),
     ]
 
 
@@ -82,4 +90,39 @@ def format_skipped(plans: list[AlbumPlan], cwd: Path) -> str:
                 for plan in plans
             ),
         ]
+    )
+
+
+# ---------------------------------------------------------------------------
+# Import execution failures
+# ---------------------------------------------------------------------------
+
+
+def format_import_error(exc: ValueError | OSError, cwd: Path) -> str:
+    """Describe an import that raised, with paths relative to *cwd*."""
+    match exc:
+        case TargetExistsError():
+            return (
+                f"Target already exists: {display_path(exc.target, cwd)} — an "
+                "album with the same name is already in the gallery."
+            )
+        case OSError(filename=str() | Path() as filename):
+            return f"{exc.strerror or type(exc).__name__}: " + str(
+                display_path(Path(filename), cwd)
+            )
+        case _:
+            return str(exc)
+
+
+def format_import_failure_labels(
+    failure: AlbumImportFailure, cwd: Path
+) -> tuple[str, ...]:
+    """One label per reason an album of a batch did not import cleanly."""
+    return (
+        *([format_import_error(failure.error, cwd)] if failure.error else []),
+        *(
+            f"{source}/{jpeg.filename}: {jpeg.reason}"
+            for source, jpeg in failure.jpeg_failures
+        ),
+        *format_face_failures(failure.face_failures),
     )

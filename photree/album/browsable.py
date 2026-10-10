@@ -106,24 +106,16 @@ def refresh_browsable_dir(
     """Rebuild a browsable directory from orig and edited archive sources.
 
     Clears the browsable directory and re-populates it with the best version
-    of each file (edited if available, otherwise original).
+    of each file (edited if available, otherwise original). The directory is
+    cleared even when the archive is empty or missing, so files of deleted
+    media do not survive the refresh.
     """
-    if not orig_dir.is_dir():
-        return RefreshBrowsableDirResult(copied=0)
-
     files_to_copy = compute_browsable_files(
         orig_dir, edit_dir, media_extensions, key_fn
     )
 
-    if not files_to_copy:
-        return RefreshBrowsableDirResult(copied=0)
-
-    # Clear and recreate destination
     if not dry_run:
-        if browsable_dir.is_dir():
-            for f in os.listdir(browsable_dir):
-                (browsable_dir / f).unlink()
-        browsable_dir.mkdir(parents=True, exist_ok=True)
+        _clear_browsable_dir(browsable_dir, create=bool(files_to_copy))
 
     for filename, source_dir in files_to_copy:
         if on_file_start:
@@ -136,3 +128,16 @@ def refresh_browsable_dir(
             on_file_end(filename, True)
 
     return RefreshBrowsableDirResult(copied=len(files_to_copy))
+
+
+def _clear_browsable_dir(browsable_dir: Path, *, create: bool) -> None:
+    """Remove every entry of *browsable_dir*; create it when *create* is set.
+
+    An empty archive leaves an existing browsable dir empty rather than
+    creating one that never existed.
+    """
+    if browsable_dir.is_dir():
+        for f in os.listdir(browsable_dir):
+            (browsable_dir / f).unlink()
+    if create:
+        browsable_dir.mkdir(parents=True, exist_ok=True)

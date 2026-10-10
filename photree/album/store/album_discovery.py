@@ -6,7 +6,7 @@ from pathlib import Path
 
 from ...common.fs import matching_subdirectories, partition_subdirectories
 from ...fsprotocol import PHOTREE_DIR
-from .media_sources_discovery import discover_media_sources
+from .media_sources_discovery import has_any_media_source
 from .protocol import ALBUM_YAML
 
 
@@ -16,8 +16,8 @@ def is_album(directory: Path) -> bool:
     A directory is an album if it contains ``.photree/album.yaml``
     **and** at least one media source (iOS or std).
     """
-    return (directory / PHOTREE_DIR / ALBUM_YAML).is_file() and bool(
-        discover_media_sources(directory)
+    return (directory / PHOTREE_DIR / ALBUM_YAML).is_file() and has_any_media_source(
+        directory
     )
 
 
@@ -26,7 +26,7 @@ def has_media_sources(directory: Path) -> bool:
 
     Unlike :func:`is_album`, this does **not** require ``.photree/album.yaml``.
     """
-    return bool(discover_media_sources(directory))
+    return has_any_media_source(directory)
 
 
 def discover_albums(base_dir: Path) -> list[Path]:
@@ -34,7 +34,7 @@ def discover_albums(base_dir: Path) -> list[Path]:
 
     A directory is considered an album when it contains:
     1. A ``.photree/album.yaml`` file (album metadata), **and**
-    2. At least one media source (``ios-{name}/`` or ``{name}-img/``/``{name}-vid/``)
+    2. At least one media source archive (``ios-{name}/`` or ``std-{name}/``)
 
     The *base_dir* itself is never returned as an album.
     """

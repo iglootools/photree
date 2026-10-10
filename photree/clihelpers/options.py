@@ -2,12 +2,45 @@
 
 from __future__ import annotations
 
+from enum import StrEnum
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
 from ..fsprotocol import AlbumShareLayout, LinkMode, ShareDirectoryLayout
+
+# ---------------------------------------------------------------------------
+# Listing output options
+# ---------------------------------------------------------------------------
+
+
+class OutputFormat(StrEnum):
+    """Output format of the list commands.
+
+    An enum rather than a free ``str`` so Typer rejects ``--format json``
+    instead of silently falling back to text.
+    """
+
+    TEXT = "text"
+    CSV = "csv"
+
+
+OUTPUT_FORMAT_OPTION = Annotated[
+    OutputFormat,
+    typer.Option("--format", help="Output format.", case_sensitive=False),
+]
+
+OUTPUT_FILE_OPTION = Annotated[
+    Path | None,
+    typer.Option(
+        "--output",
+        "-o",
+        help="Write output to a file instead of stdout.",
+        dir_okay=False,
+        resolve_path=True,
+    ),
+]
 
 # ---------------------------------------------------------------------------
 # Check options
@@ -103,6 +136,17 @@ RM_ORPHAN_OPTION = Annotated[
     typer.Option(
         "--rm-orphan",
         help="Delete edited and main files that have no corresponding orig file.",
+    ),
+]
+
+FORCE_OPTION = Annotated[
+    bool,
+    typer.Option(
+        "--force",
+        help=(
+            "With --rm-upstream: also trust an empty {name}-jpg/ as a "
+            "deletion signal, and allow deleting every item of an archive."
+        ),
     ),
 ]
 

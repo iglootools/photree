@@ -13,6 +13,7 @@ import warnings
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import cv2
 import numpy as np
@@ -179,6 +180,36 @@ class DetectedFace:
     embedding: np.ndarray  # (512,) float32
 
 
+class UnreadableThumbnailError(OSError):
+    """OpenCV could not decode a thumbnail (missing, truncated, or not an image).
+
+    Raised rather than returning no faces: an unreadable image must be
+    recorded as a detection failure, not as "this photo has no faces".
+    """
+
+    def __init__(self, image_path: Path) -> None:
+        self.image_path = image_path
+        super().__init__(f"cannot read image {image_path.name}")
+
+
+def _face_landmarks(face: Any) -> np.ndarray:
+    """Return the 5-point landmarks, preferring the 106-point model's first five."""
+    landmark_106 = getattr(face, "landmark_2d_106", None)
+    kps = getattr(face, "kps", None)
+    if landmark_106 is not None:
+        return landmark_106[:5].astype(np.float32)
+    elif kps is not None:
+        return kps.astype(np.float32)
+    else:
+        return np.zeros((5, 2), dtype=np.float32)
+
+
+def _face_embedding(face: Any) -> np.ndarray:
+    """Return the L2-normalized embedding when available, else the raw one."""
+    normed = getattr(face, "normed_embedding", None)
+    return (normed if normed is not None else face.embedding).astype(np.float32)
+
+
 def detect_faces(
     key: str,
     image_path: Path,
@@ -186,11 +217,12 @@ def detect_faces(
 ) -> list[DetectedFace]:
     """Run InsightFace on a single image, returning detected faces.
 
-    Returns an empty list when no faces are found or the image cannot be read.
+    Returns an empty list when no faces are found. Raises
+    :class:`UnreadableThumbnailError` when the image cannot be read.
     """
     img = cv2.imread(str(image_path))
     if img is None:
-        return []
+        raise UnreadableThumbnailError(image_path)
 
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=FutureWarning, module="insightface")
@@ -202,17 +234,11 @@ def detect_faces(
             face_index=i,
             det_score=float(face.det_score),
             bbox=face.bbox.astype(np.float32),
-            landmarks=face.landmark_2d_106[:5].astype(np.float32)
-            if hasattr(face, "landmark_2d_106") and face.landmark_2d_106 is not None
-            else face.kps.astype(np.float32)
-            if hasattr(face, "kps") and face.kps is not None
-            else np.zeros((5, 2), dtype=np.float32),
-            embedding=face.normed_embedding.astype(np.float32)
-            if hasattr(face, "normed_embedding")
-            else face.embedding.astype(np.float32),
+            landmarks=_face_landmarks(face),
+            embedding=_face_embedding(face),
         )
         for i, face in enumerate(faces)
-        if hasattr(face, "embedding") and face.embedding is not None
+        if getattr(face, "embedding", None) is not None
     ]
 
 

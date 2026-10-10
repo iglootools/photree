@@ -47,7 +47,8 @@ class TestRmUpstreamHeic:
         # main-jpg is empty — the jpeg was "deleted" by the user
         _setup_dir(tmp_path / "main-jpg", [])
 
-        result = rm_upstream(tmp_path, MC)
+        # The only image deleted everywhere: needs --force (would empty the archive)
+        result = rm_upstream(tmp_path, MC, force=True)
 
         assert result.heic.removed_browsable == ("IMG_E0410.HEIC",)
         assert set(result.heic.removed_rendered) == {"IMG_E0410.HEIC", "IMG_O0410.AAE"}
@@ -93,7 +94,7 @@ class TestRmUpstreamHeic:
         # JPG was deleted from main-jpg
         _setup_dir(tmp_path / "main-jpg", [])
 
-        result = rm_upstream(tmp_path, MC)
+        result = rm_upstream(tmp_path, MC, force=True)
 
         assert result.heic.removed_browsable == ("IMG_0001.JPG",)
 
@@ -146,7 +147,7 @@ class TestRmUpstreamHeic:
         _setup_dir(tmp_path / "main-img", ["IMG_0001.HEIC"])
         _setup_dir(tmp_path / "main-jpg", [])
 
-        result = rm_upstream(tmp_path, MC, dry_run=True)
+        result = rm_upstream(tmp_path, MC, dry_run=True, force=True)
 
         assert result.heic.removed_browsable == ("IMG_0001.HEIC",)
         # Files still exist
@@ -167,7 +168,7 @@ class TestRmUpstreamMov:
         _setup_dir(tmp_path / "ios-main/edit-vid", ["IMG_E0115.MOV"])
         _setup_dir(tmp_path / "main-vid", [])
 
-        result = rm_upstream(tmp_path, MC)
+        result = rm_upstream(tmp_path, MC, force=True)
 
         assert result.mov.removed_rendered == ("IMG_E0115.MOV",)
         assert result.mov.removed_orig == ("IMG_0115.MOV",)

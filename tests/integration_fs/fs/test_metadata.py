@@ -9,6 +9,8 @@ import pytest
 import yaml
 
 from photree.album.id import (
+    InvalidExternalIdError,
+    InvalidExternalIdKind,
     format_album_external_id,
     format_external_id,
     format_image_external_id,
@@ -31,18 +33,22 @@ from photree.common.base58 import base58_decode, base58_encode
 from photree.fsprotocol import (
     PHOTREE_DIR,
     GalleryMetadata,
+    GalleryNotFoundError,
+    InvalidMetadataError,
     LinkMode,
     load_gallery_metadata,
+    load_yaml_mapping,
     resolve_gallery_dir,
     resolve_gallery_metadata,
     resolve_link_mode,
     save_gallery_metadata,
+    write_yaml,
 )
 
 
 def _write(path: Path, content: str = "data") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content)
+    path.write_text(content, encoding="utf-8")
 
 
 def _mark_album(album_dir: Path) -> None:
@@ -98,18 +104,23 @@ class TestExternalId:
     def test_parse_wrong_prefix_raises(self) -> None:
         internal = str(uuid.uuid4())
         external = format_external_id("album", internal)
-        try:
+        with pytest.raises(InvalidExternalIdError) as exc_info:
             parse_external_id(external, "gallery")
-            assert False, "Should have raised ValueError"
-        except ValueError:
-            pass
+        assert exc_info.value.expected_prefix == "gallery"
+        assert exc_info.value.value == external
+        assert exc_info.value.kind == InvalidExternalIdKind.WRONG_PREFIX
 
     def test_parse_no_underscore_raises(self) -> None:
-        try:
+        with pytest.raises(InvalidExternalIdError) as exc_info:
             parse_external_id("nounderscore", "album")
-            assert False, "Should have raised ValueError"
-        except ValueError:
-            pass
+        assert exc_info.value.kind == InvalidExternalIdKind.WRONG_PREFIX
+
+    def test_parse_malformed_base58_raises(self) -> None:
+        # "0" is not in the base58 alphabet.
+        with pytest.raises(InvalidExternalIdError) as exc_info:
+            parse_external_id("album_0abc", "album")
+        assert exc_info.value.kind == InvalidExternalIdKind.MALFORMED
+        assert exc_info.value.value == "album_0abc"
 
 
 class TestMediaExternalId:
@@ -134,14 +145,18 @@ class TestMediaExternalId:
     def test_parse_image_wrong_prefix_raises(self) -> None:
         internal = str(uuid.uuid4())
         external = format_video_external_id(internal)
-        with pytest.raises(ValueError, match="Expected 'image_"):
+        with pytest.raises(InvalidExternalIdError) as exc_info:
             parse_image_external_id(external)
+        assert exc_info.value.expected_prefix == "image"
+        assert exc_info.value.value == external
 
     def test_parse_video_wrong_prefix_raises(self) -> None:
         internal = str(uuid.uuid4())
         external = format_image_external_id(internal)
-        with pytest.raises(ValueError, match="Expected 'video_"):
+        with pytest.raises(InvalidExternalIdError) as exc_info:
             parse_video_external_id(external)
+        assert exc_info.value.expected_prefix == "video"
+        assert exc_info.value.value == external
 
 
 class TestGenerateMediaId:
@@ -178,11 +193,28 @@ class TestAlbumMetadata:
     def test_load_missing_returns_none(self, tmp_path: Path) -> None:
         assert load_album_metadata(tmp_path) is None
 
-    def test_load_empty_file_returns_none(self, tmp_path: Path) -> None:
+    def test_load_empty_file_raises(self, tmp_path: Path) -> None:
         photree_dir = tmp_path / PHOTREE_DIR
         photree_dir.mkdir()
         (photree_dir / ALBUM_YAML).write_text("")
-        assert load_album_metadata(tmp_path) is None
+        with pytest.raises(InvalidMetadataError) as exc_info:
+            load_album_metadata(tmp_path)
+        assert exc_info.value.path == photree_dir / ALBUM_YAML
+
+    def test_load_truncated_file_raises(self, tmp_path: Path) -> None:
+        photree_dir = tmp_path / PHOTREE_DIR
+        photree_dir.mkdir()
+        (photree_dir / ALBUM_YAML).write_text("id: [0192d4e1", encoding="utf-8")
+        with pytest.raises(InvalidMetadataError) as exc_info:
+            load_album_metadata(tmp_path)
+        assert exc_info.value.path == photree_dir / ALBUM_YAML
+
+    def test_load_mapping_without_id_raises(self, tmp_path: Path) -> None:
+        photree_dir = tmp_path / PHOTREE_DIR
+        photree_dir.mkdir()
+        (photree_dir / ALBUM_YAML).write_text("other: 1\n", encoding="utf-8")
+        with pytest.raises(InvalidMetadataError):
+            load_album_metadata(tmp_path)
 
     def test_save_creates_photree_dir(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
@@ -304,24 +336,48 @@ class TestResolveGalleryDir:
         assert resolve_gallery_dir(tmp_path) == tmp_path
 
     def test_explicit_dir_without_gallery_yaml_raises(self, tmp_path: Path) -> None:
-        with pytest.raises(ValueError, match="No gallery metadata"):
-            resolve_gallery_dir(tmp_path)
+        with pytest.raises(GalleryNotFoundError) as info:
+            resolve_gallery_dir(tmp_path, start_dir=tmp_path)
+        assert info.value.explicit == tmp_path
 
-    def test_resolves_from_cwd(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_resolves_by_walking_up_from_start_dir(self, tmp_path: Path) -> None:
         save_gallery_metadata(tmp_path, GalleryMetadata())
         child = tmp_path / "subdir"
         child.mkdir()
-        monkeypatch.chdir(child)
-        assert resolve_gallery_dir(None) == tmp_path
+        assert resolve_gallery_dir(None, start_dir=child) == tmp_path.resolve()
 
-    def test_no_gallery_found_raises(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    def test_no_gallery_found_raises(self, tmp_path: Path) -> None:
+        with pytest.raises(GalleryNotFoundError) as info:
+            resolve_gallery_dir(None, start_dir=tmp_path)
+        assert info.value.explicit is None
+        assert info.value.searched_from == tmp_path.resolve()
+
+
+class TestYamlMetadataIO:
+    def test_absent_file_is_none(self, tmp_path: Path) -> None:
+        assert load_yaml_mapping(tmp_path / "missing.yaml") is None
+
+    @pytest.mark.parametrize("content", ["", "- a\n- b\n", "key: [unclosed\n"])
+    def test_present_but_unusable_file_raises(
+        self, tmp_path: Path, content: str
     ) -> None:
-        monkeypatch.chdir(tmp_path)
-        with pytest.raises(ValueError, match="No gallery metadata"):
-            resolve_gallery_dir(None)
+        path = tmp_path / "bad.yaml"
+        path.write_text(content, encoding="utf-8")
+        with pytest.raises(InvalidMetadataError) as info:
+            load_yaml_mapping(path)
+        assert info.value.path == path
+
+    def test_corrupt_gallery_yaml_raises(self, tmp_path: Path) -> None:
+        path = tmp_path / "gallery.yaml"
+        path.write_text("link-mode: teleport\n", encoding="utf-8")
+        with pytest.raises(InvalidMetadataError) as info:
+            load_gallery_metadata(path)
+        assert info.value.path == path
+
+    def test_round_trips_non_ascii(self, tmp_path: Path) -> None:
+        path = tmp_path / "x.yaml"
+        write_yaml(path, {"title": "Été à Montréal"})
+        assert load_yaml_mapping(path) == {"title": "Été à Montréal"}
 
 
 class TestDiscoverAlbums:

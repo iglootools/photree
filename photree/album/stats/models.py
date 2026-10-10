@@ -3,8 +3,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 
 from ..store.protocol import MediaSourceType
+
+
+class StorageRole(StrEnum):
+    """Which tier of a media source a directory belongs to."""
+
+    ARCHIVE = "archive"  # ios-{name}/ or std-{name}/
+    BROWSABLE = "browsable"  # {name}-img/, {name}-vid/
+    DERIVED = "derived"  # {name}-jpg/
 
 
 @dataclass(frozen=True)

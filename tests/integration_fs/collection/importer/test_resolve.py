@@ -23,7 +23,7 @@ from photree.collection.id import (
     format_collection_external_id,
     generate_collection_id,
 )
-from photree.collection.importer.resolve import resolve_entries
+from photree.collection.importer.resolve import ResolutionErrorKind, resolve_entries
 from photree.collection.importer.selection import SelectionEntry
 from photree.collection.store.metadata import save_collection_metadata
 from photree.collection.store.protocol import (
@@ -36,7 +36,7 @@ from photree.fsprotocol import GalleryMetadata, save_gallery_metadata
 
 def _write(path: Path, content: str = "data") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content)
+    path.write_text(content, encoding="utf-8")
 
 
 def _entry(value: str, date_hint: datetime | None = None) -> SelectionEntry:
@@ -214,7 +214,7 @@ class TestResolveByMediaFilename:
 
         result = resolve_entries((_entry("IMG_0410.HEIC"),), gallery)
         assert not result.success
-        assert "ambiguous" in result.errors[0].message
+        assert result.errors[0].kind == ResolutionErrorKind.AMBIGUOUS
 
     def test_disambiguate_with_date_hint(self, tmp_path: Path) -> None:
         """Same image number in two albums, date hint narrows to one."""
@@ -248,13 +248,66 @@ class TestResolveByMediaFilename:
         assert result.success
         assert result.members.images == (img_id1,)
 
+    def test_invalid_album_date_does_not_crash_date_hint(self, tmp_path: Path) -> None:
+        """An album named with a non-existent date is skipped by the date hint.
+
+        Regression: _timestamp_in_album_range raises on such dates, which
+        crashed the whole resolution instead of narrowing to the valid album.
+        """
+        gallery = _setup_gallery(tmp_path)
+        album1, _aid1 = _setup_album(gallery, "2024-07-14 - Trip A")
+        album2, _aid2 = _setup_album(gallery, "2024-02-30 - Not A Day")
+        img_id1 = generate_media_id()
+        img_id2 = generate_media_id()
+        for album, img_id in ((album1, img_id1), (album2, img_id2)):
+            save_media_metadata(
+                album,
+                MediaMetadata(
+                    media_sources={
+                        "main": MediaSourceMediaMetadata(images={img_id: "0410"})
+                    }
+                ),
+            )
+
+        result = resolve_entries(
+            (_entry("IMG_0410.HEIC", date_hint=datetime(2024, 7, 14, 13, 55)),),
+            gallery,
+        )
+
+        assert result.success
+        assert result.members.images == (img_id1,)
+
+    def test_single_match_in_invalid_date_album_has_no_warning(
+        self, tmp_path: Path
+    ) -> None:
+        gallery = _setup_gallery(tmp_path)
+        album, _ = _setup_album(gallery, "2024-02-30 - Not A Day")
+        img_id = generate_media_id()
+        save_media_metadata(
+            album,
+            MediaMetadata(
+                media_sources={
+                    "main": MediaSourceMediaMetadata(images={img_id: "0410"})
+                }
+            ),
+        )
+
+        result = resolve_entries(
+            (_entry("IMG_0410.HEIC", date_hint=datetime(2024, 7, 14, 13, 55)),),
+            gallery,
+        )
+
+        assert result.success
+        assert result.members.images == (img_id,)
+        assert result.warnings == ()
+
     def test_no_match_for_media_file(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
         _setup_album(gallery, "2024-07-14 - Trip")
 
         result = resolve_entries((_entry("IMG_9999.HEIC"),), gallery)
         assert not result.success
-        assert "not found" in result.errors[0].message
+        assert result.errors[0].kind == ResolutionErrorKind.NOT_FOUND
 
     def test_resolve_std_stem_based_file(self, tmp_path: Path) -> None:
         """Non-IMG_ prefixed file uses stem for matching."""
@@ -302,7 +355,7 @@ class TestResolveErrors:
         result = resolve_entries((_entry("nonexistent"),), gallery)
         assert not result.success
         assert len(result.errors) == 1
-        assert "not found" in result.errors[0].message
+        assert result.errors[0].kind == ResolutionErrorKind.NOT_FOUND
 
     def test_unresolved_external_id(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
@@ -310,7 +363,7 @@ class TestResolveErrors:
 
         result = resolve_entries((_entry(fake_id),), gallery)
         assert not result.success
-        assert "not found" in result.errors[0].message
+        assert result.errors[0].kind == ResolutionErrorKind.NOT_FOUND
 
     def test_ambiguous_album_name(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
@@ -329,7 +382,7 @@ class TestResolveErrors:
 
         result = resolve_entries((_entry(name),), gallery)
         assert not result.success
-        assert "ambiguous" in result.errors[0].message
+        assert result.errors[0].kind == ResolutionErrorKind.AMBIGUOUS
 
     def test_duplicate_entry(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
@@ -339,4 +392,6 @@ class TestResolveErrors:
         # Same album referenced twice (by name and by ID)
         result = resolve_entries((_entry("2024-07-14 - Trip"), _entry(ext_id)), gallery)
         assert not result.success
-        assert any("duplicate" in e.message for e in result.errors)
+        assert [(e.kind, e.duplicate_of) for e in result.errors] == [
+            (ResolutionErrorKind.DUPLICATE, "2024-07-14 - Trip")
+        ]

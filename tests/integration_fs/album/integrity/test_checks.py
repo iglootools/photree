@@ -4,9 +4,17 @@ import os
 from pathlib import Path
 
 from photree.album.check import check_album_integrity
-from photree.album.check.browsable import check_browsable_dir
-from photree.album.check.ios import check_miscategorized_files
-from photree.album.check.ios.sidecar import check_sidecars
+from photree.album.check.browsable import WrongSource, check_browsable_dir
+from photree.album.check.ios import (
+    MiscategorizedFile,
+    MiscategorizedKind,
+    check_miscategorized_files,
+)
+from photree.album.check.ios.sidecar import (
+    SidecarIssue,
+    SidecarIssueKind,
+    check_sidecars,
+)
 from photree.album.check.jpeg import check_jpeg_dir
 from photree.album.store.media_sources import ios_img_number
 from photree.album.store.media_sources_discovery import discover_media_sources
@@ -16,7 +24,7 @@ from photree.fsprotocol import LinkMode
 
 def _write(path: Path, content: str = "data") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content)
+    path.write_text(content, encoding="utf-8")
 
 
 def _setup_ios_album(album: Path) -> None:
@@ -114,7 +122,9 @@ class TestCheckBrowsableDir:
             link_mode=LinkMode.COPY,
         )
         assert not result.success
-        assert any("IMG_0001.HEIC" in w for w in result.wrong_source)
+        assert result.wrong_source == (
+            WrongSource(filename="IMG_0001.HEIC", expected="IMG_E0001.HEIC"),
+        )
 
     def test_size_mismatch_detected(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
@@ -215,8 +225,8 @@ class TestCheckSidecars:
             album / MAIN_MEDIA_SOURCE.orig_img_dir,
             album / MAIN_MEDIA_SOURCE.edit_img_dir,
         )
-        assert any(
-            "IMG_0001.HEIC" in w and "no AAE" in w for w in result.missing_sidecars
+        assert result.missing_sidecars == (
+            SidecarIssue("IMG_0001.HEIC", "orig-img", SidecarIssueKind.MISSING_SIDECAR),
         )
 
     def test_missing_o_aae_for_rendered(self, tmp_path: Path) -> None:
@@ -228,9 +238,10 @@ class TestCheckSidecars:
             album / MAIN_MEDIA_SOURCE.orig_img_dir,
             album / MAIN_MEDIA_SOURCE.edit_img_dir,
         )
-        assert any(
-            "IMG_E0001.HEIC" in w and "O-prefixed AAE" in w
-            for w in result.missing_sidecars
+        assert result.missing_sidecars == (
+            SidecarIssue(
+                "IMG_E0001.HEIC", "edit-img", SidecarIssueKind.MISSING_EDIT_SIDECAR
+            ),
         )
 
     def test_orphan_aae_in_orig(self, tmp_path: Path) -> None:
@@ -242,9 +253,8 @@ class TestCheckSidecars:
             album / MAIN_MEDIA_SOURCE.orig_img_dir,
             album / MAIN_MEDIA_SOURCE.edit_img_dir,
         )
-        assert any(
-            "IMG_0001.AAE" in w and "no matching media" in w
-            for w in result.orphan_sidecars
+        assert result.orphan_sidecars == (
+            SidecarIssue("IMG_0001.AAE", "orig-img", SidecarIssueKind.ORPHAN_SIDECAR),
         )
 
     def test_orphan_o_aae_in_rendered(self, tmp_path: Path) -> None:
@@ -256,9 +266,10 @@ class TestCheckSidecars:
             album / MAIN_MEDIA_SOURCE.orig_img_dir,
             album / MAIN_MEDIA_SOURCE.edit_img_dir,
         )
-        assert any(
-            "IMG_O0001.AAE" in w and "no matching edited media" in w
-            for w in result.orphan_sidecars
+        assert result.orphan_sidecars == (
+            SidecarIssue(
+                "IMG_O0001.AAE", "edit-img", SidecarIssueKind.ORPHAN_EDIT_SIDECAR
+            ),
         )
 
 
@@ -273,7 +284,11 @@ class TestCheckMiscategorizedFiles:
 
         warnings = check_miscategorized_files(orig, rendered)
 
-        assert any("IMG_E0001.HEIC" in w and "edited file" in w for w in warnings)
+        assert warnings == (
+            MiscategorizedFile(
+                "IMG_E0001.HEIC", "orig-img", MiscategorizedKind.EDITED_IN_ORIG
+            ),
+        )
 
     def test_original_in_rendered_detected(self, tmp_path: Path) -> None:
         orig = tmp_path / "ios-main/orig-img"
@@ -284,7 +299,11 @@ class TestCheckMiscategorizedFiles:
 
         warnings = check_miscategorized_files(orig, rendered)
 
-        assert any("IMG_0001.HEIC" in w and "original file" in w for w in warnings)
+        assert warnings == (
+            MiscategorizedFile(
+                "IMG_0001.HEIC", "edit-img", MiscategorizedKind.ORIGINAL_IN_EDIT
+            ),
+        )
 
     def test_no_warnings_when_correct(self, tmp_path: Path) -> None:
         orig = tmp_path / "ios-main/orig-img"

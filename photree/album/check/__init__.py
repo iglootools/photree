@@ -12,7 +12,6 @@ from pathlib import Path
 
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
-from ...common.exif import try_start_exiftool
 from ...fsprotocol import LinkMode
 from ..naming import (
     AlbumNamingResult,
@@ -23,9 +22,12 @@ from ..naming import (
 from ..store.album_discovery import (
     discover_albums,
 )
-from ..store.media_sources_discovery import discover_media_sources
+from ..store.media_sources_discovery import (
+    discover_media_sources,
+    find_media_source_conflicts,
+)
 from ..store.metadata import load_album_metadata
-from ..store.protocol import MediaSource
+from ..store.protocol import MediaSource, MediaSourceType
 from .dir_structure import AlbumDirCheck, check_album_dir_structure
 from .exif_cache_state import ExifCacheStateCheck, check_exif_cache_state
 from .face_state import FaceStateCheck, check_face_state
@@ -37,7 +39,7 @@ from .system import (
     check_exiftool_available as check_exiftool_available,
 )
 from .system import (
-    check_sips_available,
+    check_sips_available as check_sips_available,
 )
 from .unexpected_dirs import UnexpectedDirsCheck, check_unexpected_dirs
 
@@ -143,11 +145,18 @@ class AlbumPreflightResult:
     naming: AlbumNamingResult | None = None
     face_state_check: FaceStateCheck | None = None
     exif_cache_check: ExifCacheStateCheck | None = None
+    media_source_conflicts: tuple[str, ...] = ()
+    """Names backed by both ``ios-<name>/`` and ``std-<name>/``.
+
+    When non-empty, the media-source-based checks (structure, integrity,
+    JPEG, caches, EXIF) were skipped: their results would be meaningless.
+    """
 
     @property
     def success(self) -> bool:
         return (
             self.sips_available
+            and not self.media_source_conflicts
             and self.dir_check.success
             and (self.album_id_check is None or self.album_id_check.has_id)
             and (
@@ -184,6 +193,7 @@ class AlbumPreflightResult:
     def error_labels(self) -> tuple[str, ...]:
         return (
             *(["sips not found"] if not self.sips_available else []),
+            *(["media source conflict"] if self.media_source_conflicts else []),
             *(["missing dirs"] if not self.dir_check.success else []),
             *(
                 ["missing album id"]
@@ -284,37 +294,48 @@ def check_album_integrity(
 
     Dispatches to iOS or std checks based on each media source's type.
     """
-    results: list[tuple[MediaSource, MediaSourceIntegrityResult]] = []
-
-    for ms in media_sources:
-        if ms.is_ios:
-            results.append(
-                (
+    return AlbumIntegrityResult(
+        by_media_source=tuple(
+            (
+                ms,
+                _check_media_source_integrity(
+                    album_dir,
                     ms,
-                    check_ios_media_source_integrity(
-                        album_dir,
-                        ms,
-                        link_mode=link_mode,
-                        checksum=checksum,
-                        on_file_checked=on_file_checked,
-                    ),
-                )
+                    link_mode=link_mode,
+                    checksum=checksum,
+                    on_file_checked=on_file_checked,
+                ),
             )
-        elif ms.is_std:
-            results.append(
-                (
-                    ms,
-                    check_std_media_source_integrity(
-                        album_dir,
-                        ms,
-                        link_mode=link_mode,
-                        checksum=checksum,
-                        on_file_checked=on_file_checked,
-                    ),
-                )
-            )
+            for ms in media_sources
+        )
+    )
 
-    return AlbumIntegrityResult(by_media_source=tuple(results))
+
+def _check_media_source_integrity(
+    album_dir: Path,
+    ms: MediaSource,
+    *,
+    link_mode: LinkMode,
+    checksum: bool,
+    on_file_checked: Callable[[str, bool], None] | None,
+) -> MediaSourceIntegrityResult:
+    match ms.media_source_type:
+        case MediaSourceType.IOS:
+            return check_ios_media_source_integrity(
+                album_dir,
+                ms,
+                link_mode=link_mode,
+                checksum=checksum,
+                on_file_checked=on_file_checked,
+            )
+        case MediaSourceType.STD:
+            return check_std_media_source_integrity(
+                album_dir,
+                ms,
+                link_mode=link_mode,
+                checksum=checksum,
+                on_file_checked=on_file_checked,
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -336,7 +357,20 @@ def run_album_check(
 
     Accepts ``sips_available`` and ``exiftool`` as parameters so
     system checks can be done once for batch operations.
+
+    An iOS/std media source name clash is reported as a failed check (see
+    :attr:`AlbumPreflightResult.media_source_conflicts`) rather than raised,
+    so a batch check carries on to the next album.
     """
+    conflicts = find_media_source_conflicts(album_dir)
+    if conflicts:
+        return _conflicted_album_result(
+            album_dir,
+            conflicts,
+            sips_available=sips_available,
+            exiftool_available=exiftool is not None,
+            check_naming_flag=check_naming_flag,
+        )
     media_sources = discover_media_sources(album_dir)
 
     # Structure: album identity, directory layout, media metadata
@@ -372,6 +406,34 @@ def run_album_check(
         naming=naming,
         face_state_check=face_state,
         exif_cache_check=exif_cache_state,
+    )
+
+
+def _conflicted_album_result(
+    album_dir: Path,
+    conflicts: tuple[str, ...],
+    *,
+    sips_available: bool,
+    exiftool_available: bool,
+    check_naming_flag: bool,
+) -> AlbumPreflightResult:
+    """Result for an album whose media sources cannot be resolved.
+
+    Only the checks that do not depend on media sources run: album ID and
+    naming (without the EXIF date match, which reads per-source caches).
+    """
+    metadata = load_album_metadata(album_dir)
+    return AlbumPreflightResult(
+        sips_available=sips_available,
+        exiftool_available=exiftool_available,
+        media_source_summary=AlbumMediaSourceSummary(media_sources=()),
+        dir_check=AlbumDirCheck(present=(), missing=()),
+        album_id_check=AlbumIdCheck(
+            has_id=metadata is not None,
+            album_id=metadata.id if metadata is not None else None,
+        ),
+        naming=_check_naming(album_dir, None, check_naming_flag),
+        media_source_conflicts=conflicts,
     )
 
 
@@ -437,16 +499,20 @@ def _check_naming(
     """Naming checks: convention + EXIF timestamp match."""
     if not check_naming_flag:
         return None
-    issues = check_album_naming(album_dir.name)
-    parsed = parse_album_name(album_dir.name)
-    exif_check = (
-        check_exif_date_match(
-            album_dir, parsed.date, exiftool=exiftool, part=parsed.part
+    else:
+        parsed = parse_album_name(album_dir.name)
+        exif_check = (
+            check_exif_date_match(
+                album_dir, parsed.date, exiftool=exiftool, part=parsed.part
+            )
+            if exiftool is not None and parsed is not None
+            else None
         )
-        if exiftool is not None and parsed is not None
-        else None
-    )
-    return AlbumNamingResult(parsed=parsed, issues=issues, exif_check=exif_check)
+        return AlbumNamingResult(
+            parsed=parsed,
+            issues=check_album_naming(album_dir.name),
+            exif_check=exif_check,
+        )
 
 
 def _check_cache(
@@ -462,36 +528,32 @@ def _check_cache(
 def run_album_preflight(
     album_dir: Path,
     *,
+    sips_available: bool,
+    exiftool: ExifToolHelper | None,
     link_mode: LinkMode | None = None,
     checksum: bool = True,
     check_naming_flag: bool = True,
-    check_exif_date_match: bool = True,
     on_file_checked: Callable[[str, bool], None] | None = None,
 ) -> AlbumPreflightResult:
-    """Run all album preflight checks including system checks."""
+    """Run all album preflight checks, resolving the link mode from the gallery.
+
+    System probing (``sips`` on PATH, starting exiftool) is the CLI layer's
+    job, so both arrive as parameters; pass ``exiftool=None`` to skip the
+    EXIF date match.
+    """
     from ...fsprotocol import resolve_link_mode
 
-    resolved_link_mode = link_mode or resolve_link_mode(None, album_dir)
-    exiftool = try_start_exiftool() if check_exif_date_match else None
-    try:
-        return run_album_check(
-            album_dir,
-            sips_available=check_sips_available(),
-            exiftool=exiftool,
-            link_mode=resolved_link_mode,
-            checksum=checksum,
-            check_naming_flag=check_naming_flag,
-            on_file_checked=on_file_checked,
-        )
-    finally:
-        if exiftool is not None:
-            exiftool.__exit__(None, None, None)
+    return run_album_check(
+        album_dir,
+        sips_available=sips_available,
+        exiftool=exiftool,
+        link_mode=link_mode or resolve_link_mode(None, album_dir),
+        checksum=checksum,
+        check_naming_flag=check_naming_flag,
+        on_file_checked=on_file_checked,
+    )
 
 
 def discover_archive_albums(base_dir: Path) -> list[Path]:
     """Recursively discover albums with archive directories under *base_dir*."""
     return discover_albums(base_dir)
-
-
-# Backward compat alias
-discover_ios_albums = discover_archive_albums

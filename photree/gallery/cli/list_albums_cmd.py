@@ -9,6 +9,11 @@ import typer
 
 from ...albums.cli.batch_ops.listing import run_batch_list_albums
 from ...albums.cli.ops import resolve_check_batch_albums
+from ...clihelpers.options import (
+    OUTPUT_FILE_OPTION,
+    OUTPUT_FORMAT_OPTION,
+    OutputFormat,
+)
 from ...clihelpers.resolution import resolve_gallery_or_exit
 from . import gallery_app
 
@@ -33,23 +38,8 @@ def list_albums_cmd(
             help="Show parsed album metadata and media sources (default: enabled).",
         ),
     ] = True,
-    output_format: Annotated[
-        str,
-        typer.Option(
-            "--format",
-            help="Output format: text (default) or csv.",
-        ),
-    ] = "text",
-    output_file: Annotated[
-        Path | None,
-        typer.Option(
-            "--output",
-            "-o",
-            help="Write output to a file instead of stdout.",
-            dir_okay=False,
-            resolve_path=True,
-        ),
-    ] = None,
+    output_format: OUTPUT_FORMAT_OPTION = OutputFormat.TEXT,
+    output_file: OUTPUT_FILE_OPTION = None,
 ) -> None:
     """List all albums in the gallery."""
     resolved = resolve_gallery_or_exit(gallery_dir)

@@ -11,6 +11,7 @@ from ...album.id import format_album_external_id
 from ...albums.cli.batch_ops.rename import run_batch_rename_from_csv
 from ...clihelpers.console import err_console
 from ...clihelpers.resolution import resolve_gallery_or_exit
+from ...common.formatting import indent
 from ...common.fs import display_path
 from . import gallery_app
 from .ops import build_index_or_exit
@@ -62,13 +63,21 @@ def rename_from_csv_cmd(
 
     # Check for duplicate IDs in gallery
     if index.duplicates:
-        err_console.print("Cannot rename — duplicate album IDs in gallery:")
-        for aid, paths in index.duplicates.items():
-            err_console.print(f"  {format_album_external_id(aid)}:")
-            for p in paths:
-                err_console.print(f"    {display_path(p, cwd)}")
         err_console.print(
-            "\nResolve duplicates first with 'photree gallery fix --new-id'."
+            "\n".join(
+                [
+                    "Cannot rename — duplicate album IDs in gallery:",
+                    *(
+                        line
+                        for aid, paths in index.duplicates.items()
+                        for line in [
+                            indent(f"{format_album_external_id(aid)}:"),
+                            *(indent(str(display_path(p, cwd)), 2) for p in paths),
+                        ]
+                    ),
+                    "\nResolve duplicates first with 'photree gallery fix --new-id'.",
+                ]
+            )
         )
         raise typer.Exit(code=1)
 

@@ -189,6 +189,9 @@ class TestBatchImport:
         assert result.imported == 0  # nothing imported
         assert len(validation_errors) == 1
         assert "invalid" in validation_errors
+        # The result itself records the refusal, not just the callback.
+        assert [v.album_dir.name for v in result.validation_failures] == ["invalid"]
+        assert not result.success
         # valid album should NOT have been processed either
         assert not (albums_dir / "valid" / "ios-main/orig-img").exists()
 

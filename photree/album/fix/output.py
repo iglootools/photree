@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from .rm_upstream import RmUpstreamSkip, SignalSkipReason
+
 if TYPE_CHECKING:
-    from . import FixResult
+    from . import FixResult, FixRmUpstreamResult
 
 
 def rm_upstream_summary(
@@ -41,6 +43,16 @@ def rm_upstream_summary(
         return "Done. Nothing to remove."
 
 
+def rm_upstream_skip_line(skip: RmUpstreamSkip) -> str:
+    """Explain why a browsable directory was not used as a deletion signal."""
+    match skip.reason:
+        case SignalSkipReason.MISSING:
+            why = "directory is missing"
+        case SignalSkipReason.NO_EXPECTED_FILES:
+            why = "directory holds none of its expected files (use --force if intended)"
+    return f"Skipped {skip.directory} as a deletion signal: {why}."
+
+
 def rm_orphan_summary(
     removed_by_dir: tuple[tuple[str, tuple[str, ...]], ...],
 ) -> str:
@@ -51,27 +63,39 @@ def rm_orphan_summary(
     return f"Done. Removed {total} orphan(s): {parts}."
 
 
+def _rm_upstream_lines(ru: FixRmUpstreamResult) -> list[str]:
+    return [
+        *(rm_upstream_skip_line(skip) for skip in ru.skipped),
+        rm_upstream_summary(
+            heic_jpeg=ru.heic_jpeg,
+            heic_browsable=ru.heic_browsable,
+            heic_rendered=ru.heic_rendered,
+            heic_orig=ru.heic_orig,
+            mov_rendered=ru.mov_rendered,
+            mov_orig=ru.mov_orig,
+        ),
+    ]
+
+
 def format_fix_result(result: FixResult) -> list[str]:
     """Format a :class:`FixResult` into output lines."""
-    lines: list[str] = []
-
-    if result.rm_upstream_result is not None:
-        ru = result.rm_upstream_result
-        lines.append(
-            rm_upstream_summary(
-                heic_jpeg=ru.heic_jpeg,
-                heic_browsable=ru.heic_browsable,
-                heic_rendered=ru.heic_rendered,
-                heic_orig=ru.heic_orig,
-                mov_rendered=ru.mov_rendered,
-                mov_orig=ru.mov_orig,
-            )
-        )
-
-    if result.rm_orphan_removed_by_dir:
-        lines.append(rm_orphan_summary(result.rm_orphan_removed_by_dir))
-
-    return lines
+    return [
+        *(
+            ["No media sources found; nothing to fix."]
+            if result.no_media_sources
+            else []
+        ),
+        *(
+            _rm_upstream_lines(result.rm_upstream_result)
+            if result.rm_upstream_result is not None
+            else []
+        ),
+        *(
+            [rm_orphan_summary(result.rm_orphan_removed_by_dir)]
+            if result.rm_orphan_removed_by_dir is not None
+            else []
+        ),
+    ]
 
 
 def batch_fix_summary(fixed: int, failed: int) -> str:

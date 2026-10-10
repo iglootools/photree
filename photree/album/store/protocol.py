@@ -7,7 +7,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from textwrap import dedent
 
 from pydantic import Field
 
@@ -76,46 +75,59 @@ class AlbumMetadata(_BaseModel):
 _DATE_PART = r"\d{4}(?:-\d{2}(?:-\d{2})?)?"
 ALBUM_DATE_RE = re.compile(rf"^({_DATE_PART}(?:--{_DATE_PART})?) - ")
 
-_ALBUM_DATE_RE = re.compile(r"^(\d{4})-\d{2}-\d{2}")
-_ALBUM_MONTH_RE = re.compile(r"^(\d{4}-\d{2})")
+# The year of any album date precision: "2024 - ...", "2024-06", "2024-06-15".
+_ALBUM_YEAR_RE = re.compile(r"^(\d{4})(?!\d)")
+_ALBUM_MONTH_RE = re.compile(r"^(\d{4}-\d{2})(?!\d)")
+
+
+class AlbumDatePrefixKind(StrEnum):
+    """Which date prefix an album name was expected to start with."""
+
+    YEAR = "year"
+    """``YYYY`` (any album date precision)."""
+    MONTH = "month"
+    """``YYYY-MM`` (month or day precision, or a range starting with one)."""
+
+
+class AlbumDatePrefixError(ValueError):
+    """An album name lacks the date prefix needed to place it by year/month."""
+
+    def __init__(self, album_name: str, kind: AlbumDatePrefixKind) -> None:
+        expected = "YYYY" if kind is AlbumDatePrefixKind.YEAR else "YYYY-MM"
+        super().__init__(
+            f'album name "{album_name}" does not start with a {expected} date;'
+            ' expected "DATE - <Title>" (e.g. "2024-06-15 - Summer Vacation")'
+        )
+        self.album_name = album_name
+        self.kind = kind
 
 
 def parse_album_year(album_name: str) -> str:
-    """Extract the year from an album name starting with ``YYYY-MM-DD``.
+    """Extract the ``YYYY`` year from an album name's date prefix.
 
-    Raises :class:`ValueError` when the name does not match.
+    Any album date precision works (``2024``, ``2024-06``, ``2024-06-15``,
+    ranges): the year is the start year. Raises :class:`AlbumDatePrefixError`
+    when the name does not start with a year.
     """
-    m = _ALBUM_DATE_RE.match(album_name)
+    m = _ALBUM_YEAR_RE.match(album_name)
     if m is None:
-        raise ValueError(
-            dedent(f"""\
-            album name "{album_name}" does not start with YYYY-MM-DD.
-
-            The "albums" share layout organizes exports by year, parsed from
-            the album directory name. Expected naming convention:
-            "YYYY-MM-DD - <Title>" (e.g. "2024-06-15 - Summer Vacation").""")
-        )
-    return m.group(1)
+        raise AlbumDatePrefixError(album_name, AlbumDatePrefixKind.YEAR)
+    else:
+        return m.group(1)
 
 
 def parse_album_month(album_name: str) -> str:
     """Extract the ``YYYY-MM`` month from an album name.
 
     For date ranges (``YYYY-MM-DD--YYYY-MM-DD``), the start month is returned
-    (the prefix is matched). Raises :class:`ValueError` when the name does
-    not start with at least a ``YYYY-MM`` date.
+    (the prefix is matched). Raises :class:`AlbumDatePrefixError` when the
+    name does not start with at least a ``YYYY-MM`` date.
     """
     m = _ALBUM_MONTH_RE.match(album_name)
     if m is None:
-        raise ValueError(
-            dedent(f"""\
-            album name "{album_name}" does not start with YYYY-MM.
-
-            The "by-month" share layout organizes exports by month, parsed from
-            the album directory name. Expected naming convention:
-            "YYYY-MM-DD - <Title>" (e.g. "2024-06-15 - Summer Vacation").""")
-        )
-    return m.group(1)
+        raise AlbumDatePrefixError(album_name, AlbumDatePrefixKind.MONTH)
+    else:
+        return m.group(1)
 
 
 # ---------------------------------------------------------------------------
@@ -176,11 +188,13 @@ class MediaSource:
         iOS sources match by image number (digits extracted from filename).
         Std sources match by filename stem.
         """
-        if self.is_ios:
-            from ..store.media_sources import ios_img_number as img_number
+        match self.media_source_type:
+            case MediaSourceType.IOS:
+                from ..store.media_sources import ios_img_number
 
-            return img_number
-        return _stem_key
+                return ios_img_number
+            case MediaSourceType.STD:
+                return _stem_key
 
     @property
     def image_variant_dirs(self) -> tuple[str, ...]:

@@ -11,6 +11,7 @@ from ...clihelpers.console import err_console
 from ...common.fs import display_path
 from .. import media
 from . import album_app
+from .helpers import exit_on_media_source_conflict
 
 
 @album_app.command("mv-media")
@@ -59,11 +60,12 @@ def mv_media_cmd(
     and moves them all. Any variant file can be used to identify the media.
     """
     cwd = Path.cwd()
-    try:
-        result = media.move_media(source_album, dest_album, files, dry_run=dry_run)
-    except ValueError as exc:
-        err_console.print(str(exc))
-        raise typer.Exit(code=1) from None
+    with exit_on_media_source_conflict(cwd):
+        try:
+            result = media.move_media(source_album, dest_album, files, dry_run=dry_run)
+        except media.MediaOpError as exc:
+            err_console.print(media.format_media_op_error(exc, cwd))
+            raise typer.Exit(code=1) from None
 
     typer.echo(media.media_op_summary("Moved", result.files_by_dir))
     typer.echo(

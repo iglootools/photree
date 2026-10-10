@@ -54,31 +54,30 @@ class ImportTask:
         return self.media_source.is_std
 
 
+def _staging_dirs(album_dir: Path, kind: MediaSourceType) -> dict[str, Path]:
+    """``{media source name: to-import-<kind>-<name>/}`` in *album_dir*.
+
+    ``list_dirs`` returns ``[]`` for a missing *album_dir*.
+    """
+    return {
+        m.group(2): album_dir / m.group(0)
+        for d in list_dirs(album_dir)
+        if (m := _DIR_RE.match(d)) and m.group(1) == kind
+    }
+
+
 def discover_import_tasks(album_dir: Path) -> list[ImportTask]:
     """Discover all import tasks in *album_dir*.
 
     Returns tasks sorted with ``main`` first, then by name, iOS before std.
     """
-    if not album_dir.is_dir():
-        return []
-
-    ios_dirs: dict[str, Path] = {}
-    std_dirs: dict[str, Path] = {}
-    for d in list_dirs(album_dir):
-        m = _DIR_RE.match(d)
-        if m is None:
-            continue
-        kind, name = m.group(1), m.group(2)
-        if kind == MediaSourceType.IOS:
-            ios_dirs[name] = album_dir / d
-        else:
-            std_dirs[name] = album_dir / d
-
-    ios_csvs: dict[str, Path] = {}
-    for f in list_files(album_dir):
-        m = _CSV_RE.match(f)
-        if m is not None:
-            ios_csvs[m.group(1)] = album_dir / f
+    ios_dirs = _staging_dirs(album_dir, MediaSourceType.IOS)
+    std_dirs = _staging_dirs(album_dir, MediaSourceType.STD)
+    ios_csvs = {
+        m.group(1): album_dir / m.group(0)
+        for f in list_files(album_dir)
+        if (m := _CSV_RE.match(f))
+    }
 
     tasks = [
         *(

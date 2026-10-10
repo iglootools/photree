@@ -8,6 +8,7 @@ Use ``album refresh --redetect-faces`` to force re-detection.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 
 from ..faces.protocol import (
@@ -16,6 +17,7 @@ from ..faces.protocol import (
     FaceProcessingState,
 )
 from ..faces.store import (
+    FaceData,
     data_path,
     load_face_data,
     load_face_state,
@@ -24,12 +26,29 @@ from ..faces.store import (
 from ..store.protocol import MediaSource
 
 
+class FaceSyncIssueKind(StrEnum):
+    # Refresh writes the .npz and the .yaml together, so one without the
+    # other means a write was interrupted or a file was deleted by hand.
+    MISSING_NPZ = "missing-npz"  # .yaml records faces, .npz is absent
+    MISSING_YAML = "missing-yaml"  # .npz present, .yaml is absent
+    KEYS_MISMATCH = "keys-mismatch"  # .npz keys != .yaml keys with faces
+    ARRAY_LENGTHS = "array-lengths"  # .npz arrays of different lengths
+
+
+@dataclass(frozen=True)
+class FaceSyncIssue:
+    """A .npz/.yaml inconsistency for one media source."""
+
+    media_source: str
+    kind: FaceSyncIssueKind
+
+
 @dataclass(frozen=True)
 class FaceStateCheck:
     """Result of face state validation for an album."""
 
     model_mismatch: bool
-    npz_yaml_sync_errors: tuple[str, ...]
+    npz_yaml_sync_errors: tuple[FaceSyncIssue, ...]
 
     @property
     def success(self) -> bool:
@@ -53,9 +72,6 @@ def check_face_state(
     per-file mtime verification — the state is validated at write time
     during album refresh.
     """
-    if not media_sources:
-        return None
-
     has_any_face_data = any(
         state_path(album_dir, ms.name).is_file()
         or data_path(album_dir, ms.name).is_file()
@@ -63,18 +79,19 @@ def check_face_state(
     )
     if not has_any_face_data:
         return None
-
-    per_source = [
-        _check_source(album_dir, ms, model_name=model_name, model_version=model_version)
-        for ms in media_sources
-    ]
-
-    return FaceStateCheck(
-        model_mismatch=any(r.model_mismatch for r in per_source),
-        npz_yaml_sync_errors=tuple(
-            s for r in per_source for s in r.npz_yaml_sync_errors
-        ),
-    )
+    else:
+        per_source = [
+            _check_source(
+                album_dir, ms, model_name=model_name, model_version=model_version
+            )
+            for ms in media_sources
+        ]
+        return FaceStateCheck(
+            model_mismatch=any(r.model_mismatch for r in per_source),
+            npz_yaml_sync_errors=tuple(
+                s for r in per_source for s in r.npz_yaml_sync_errors
+            ),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -85,10 +102,7 @@ def check_face_state(
 @dataclass(frozen=True)
 class _SourceCheck:
     model_mismatch: bool
-    npz_yaml_sync_errors: tuple[str, ...]
-
-
-_EMPTY = _SourceCheck(model_mismatch=False, npz_yaml_sync_errors=())
+    npz_yaml_sync_errors: tuple[FaceSyncIssue, ...]
 
 
 def _check_source(
@@ -100,15 +114,24 @@ def _check_source(
 ) -> _SourceCheck:
     """Validate face state for a single media source."""
     state = load_face_state(album_dir, ms.name)
-    if state is None:
-        return _EMPTY
-
-    return _SourceCheck(
-        model_mismatch=(
-            state.model_name != model_name or state.model_version != model_version
-        ),
-        npz_yaml_sync_errors=_check_npz_yaml_sync(album_dir, ms.name, state),
-    )
+    face_data = load_face_data(album_dir, ms.name)
+    match (state, face_data):
+        case (None, None):
+            return _SourceCheck(model_mismatch=False, npz_yaml_sync_errors=())
+        case (None, FaceData()):
+            return _SourceCheck(
+                model_mismatch=False,
+                npz_yaml_sync_errors=(
+                    FaceSyncIssue(ms.name, FaceSyncIssueKind.MISSING_YAML),
+                ),
+            )
+        case (FaceProcessingState() as s, _):
+            return _SourceCheck(
+                model_mismatch=(
+                    s.model_name != model_name or s.model_version != model_version
+                ),
+                npz_yaml_sync_errors=_check_npz_yaml_sync(ms.name, s, face_data),
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -117,36 +140,43 @@ def _check_source(
 
 
 def _check_npz_yaml_sync(
-    album_dir: Path,
     ms_name: str,
     state: FaceProcessingState,
-) -> tuple[str, ...]:
-    """Check .npz/.yaml consistency for a media source."""
-    face_data = load_face_data(album_dir, ms_name)
-    if face_data is None:
-        return ()
-
-    npz_keys = set(face_data.keys)
+    face_data: FaceData | None,
+) -> tuple[FaceSyncIssue, ...]:
+    """Check .npz/.yaml consistency for a media source with a .yaml state."""
     state_keys_with_faces = {
         k for k, v in state.processed_keys.items() if v.face_count > 0
     }
-
-    return (
-        *(
-            [f"{ms_name}: .npz keys don't match .yaml processed-keys"]
-            if npz_keys != state_keys_with_faces
-            else []
-        ),
-        *(
-            [f"{ms_name}: .npz array lengths inconsistent"]
-            if not (
-                len(face_data.keys)
-                == len(face_data.face_indices)
-                == len(face_data.det_scores)
-                == face_data.bboxes.shape[0]
-                == face_data.landmarks.shape[0]
-                == face_data.embeddings.shape[0]
+    match face_data:
+        case None:
+            # No faces recorded means there is nothing the .npz should hold.
+            return (
+                (FaceSyncIssue(ms_name, FaceSyncIssueKind.MISSING_NPZ),)
+                if state_keys_with_faces
+                else ()
             )
-            else []
-        ),
+        case data:
+            return (
+                *(
+                    [FaceSyncIssue(ms_name, FaceSyncIssueKind.KEYS_MISMATCH)]
+                    if set(data.keys) != state_keys_with_faces
+                    else []
+                ),
+                *(
+                    [FaceSyncIssue(ms_name, FaceSyncIssueKind.ARRAY_LENGTHS)]
+                    if not _consistent_lengths(data)
+                    else []
+                ),
+            )
+
+
+def _consistent_lengths(data: FaceData) -> bool:
+    return (
+        len(data.keys)
+        == len(data.face_indices)
+        == len(data.det_scores)
+        == data.bboxes.shape[0]
+        == data.landmarks.shape[0]
+        == data.embeddings.shape[0]
     )

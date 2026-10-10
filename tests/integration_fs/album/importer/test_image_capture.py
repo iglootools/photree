@@ -8,13 +8,27 @@ import pytest
 from photree.album.importer.album_import import (
     STAGE_REFRESH_DERIVED,
     AlbumImportResult,
+    EmptyImageCaptureDirError,
+    NoImportTasksError,
     run_import,
+    validate_album_import,
 )
+from photree.album.importer.collision import ArchiveCollision, ImportCollisionError
 from photree.album.importer.image_capture import (
+    DedupWarning,
+    ValidationErrorKind,
+    ValidationWarningKind,
     plan_import,
     validate_import_plan,
 )
-from photree.album.store.protocol import ios_import_csv, ios_import_dir
+from photree.album.importer.selection import read_selection_csv
+from photree.album.store.protocol import (
+    ios_import_csv,
+    ios_import_dir,
+    std_import_dir,
+    std_media_source,
+)
+from photree.common.fs import list_files
 from photree.fsprotocol import LinkMode
 
 SEL_DIR = ios_import_dir("main")  # to-import-ios-main
@@ -154,7 +168,8 @@ class TestValidateImportPlan:
         plan = plan_import(["IMG_9999.HEIC"], ["IMG_0001.HEIC"])
         errors, _warnings = validate_import_plan(plan)
         assert len(errors) == 1
-        assert "no matching original" in errors[0].message
+        assert errors[0].kind == ValidationErrorKind.NO_MATCHING_ORIGINAL
+        assert errors[0].selection_file == "IMG_9999.HEIC"
 
     def test_rendered_without_sidecar_warns(self) -> None:
         # Apple Photos sometimes omits IMG_O*.AAE for edited images
@@ -165,7 +180,9 @@ class TestValidateImportPlan:
         )
         errors, warnings = validate_import_plan(plan)
         assert not errors
-        assert any("no rendered sidecar" in w.message for w in warnings)
+        assert [(w.kind, w.file) for w in warnings] == [
+            (ValidationWarningKind.MISSING_RENDERED_SIDECAR, "IMG_E0410.HEIC")
+        ]
 
     def test_rendered_sidecar_without_rendered_media(self) -> None:
         plan = plan_import(
@@ -173,7 +190,9 @@ class TestValidateImportPlan:
             ["IMG_0410.HEIC", "IMG_0410.AAE", "IMG_O0410.AAE"],
         )
         errors, _warnings = validate_import_plan(plan)
-        assert any("rendered media" in e.message for e in errors)
+        assert [(e.kind, e.files) for e in errors] == [
+            (ValidationErrorKind.ORPHAN_RENDERED_SIDECAR, ("IMG_O0410.AAE",))
+        ]
 
     def test_heic_without_aae_warns(self) -> None:
         plan = plan_import(
@@ -182,7 +201,9 @@ class TestValidateImportPlan:
         )
         errors, warnings = validate_import_plan(plan)
         assert not errors
-        assert any("no AAE sidecar" in w.message for w in warnings)
+        assert [(w.kind, w.file) for w in warnings] == [
+            (ValidationWarningKind.MISSING_ORIGINAL_SIDECAR, "IMG_0410.HEIC")
+        ]
 
     def test_png_without_aae_is_fine(self) -> None:
         plan = plan_import(
@@ -200,9 +221,11 @@ class TestValidateImportPlan:
         )
         # No validation errors (dedup resolved it)
         errors, _warnings = validate_import_plan(plan)
-        assert not any("expected 1 original media file" in e.message for e in errors)
+        assert not any(e.kind == ValidationErrorKind.MULTIPLE_ORIGINALS for e in errors)
         # Dedup warning on the plan
-        assert any("IMG_0410.JPG dropped" in w for w in plan.dedup_warnings)
+        assert DedupWarning("0410", kept="IMG_0410.HEIC", dropped="IMG_0410.JPG") in (
+            plan.dedup_warnings
+        )
         # Only HEIC in the match
         assert len(plan.matches) == 1
         orig_media = [
@@ -222,10 +245,10 @@ class TestValidateImportPlan:
             ],
         )
         errors, _warnings = validate_import_plan(plan)
-        assert not any(
-            "expected at most 1 rendered media file" in e.message for e in errors
+        assert not any(e.kind == ValidationErrorKind.MULTIPLE_RENDERED for e in errors)
+        assert DedupWarning("0410", kept="IMG_E0410.HEIC", dropped="IMG_E0410.JPG") in (
+            plan.dedup_warnings
         )
-        assert any("IMG_E0410.JPG dropped" in w for w in plan.dedup_warnings)
         rendered_media = [
             f for f in plan.matches[0].rendered_files if f.endswith((".HEIC", ".JPG"))
         ]
@@ -259,7 +282,9 @@ class TestPlanImportProRaw:
             ["IMG_0235.DNG"],
             ["IMG_0235.DNG", "IMG_0235.HEIC", "IMG_0235.AAE"],
         )
-        assert any("IMG_0235.HEIC dropped" in w for w in plan.dedup_warnings)
+        assert DedupWarning("0235", kept="IMG_0235.DNG", dropped="IMG_0235.HEIC") in (
+            plan.dedup_warnings
+        )
         orig_media = [
             f for f in plan.matches[0].orig_files if f.endswith((".DNG", ".HEIC"))
         ]
@@ -359,20 +384,22 @@ class TestRunImport:
         album.mkdir(parents=True)
         ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0001.HEIC"])
 
-        with pytest.raises(FileNotFoundError, match="to-import"):
+        with pytest.raises(NoImportTasksError) as exc_info:
             run_import(
                 album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
             )
+        assert exc_info.value.album_dir == album
 
     def test_error_when_image_capture_empty(self, tmp_path: Path) -> None:
         album = _setup_album(tmp_path, ["IMG_0001.HEIC"])
         ic_dir = tmp_path / "image_capture"
         ic_dir.mkdir()
 
-        with pytest.raises(FileNotFoundError, match="image capture"):
+        with pytest.raises(EmptyImageCaptureDirError) as exc_info:
             run_import(
                 album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
             )
+        assert exc_info.value.image_capture_dir == ic_dir
 
     def test_only_imports_files_matching_selection(self, tmp_path: Path) -> None:
         album = _setup_album(tmp_path, ["IMG_0001.HEIC"])
@@ -440,12 +467,14 @@ class TestRunImport:
         round2.mkdir()
         ic_dir2 = _setup_image_capture_dir(round2, ["IMG_0410.HEIC", "IMG_0410.AAE"])
 
-        with pytest.raises(ValueError, match="would conflict"):
+        with pytest.raises(ImportCollisionError) as exc_info:
             run_import(
                 album_dir=album,
                 image_capture_dir=ic_dir2,
                 convert_file=_noop_convert,
             )
+        assert exc_info.value.media_source.name == "main"
+        assert exc_info.value.keys == ("0410",)
 
 
 class TestRunImportLinkMode:
@@ -563,8 +592,9 @@ class TestRunImportCsv:
         )
 
         assert (album / "ios-main/orig-img" / "IMG_0410.HEIC").exists()
-        # CSV should be kept because IMG_9999.HEIC was not processed
-        assert (album / SEL_CSV).exists()
+        # CSV should be kept because IMG_9999.HEIC was not processed, minus
+        # the imported row so a re-run does not collide with it.
+        assert read_selection_csv(album / SEL_CSV) == ["IMG_9999.HEIC"]
 
     def test_dedup_across_sources(self, tmp_path: Path) -> None:
         """Same image number in dir and CSV results in single import."""
@@ -584,3 +614,99 @@ class TestRunImportCsv:
         assert (album / "ios-main/orig-img" / "IMG_0410.HEIC").exists()
         # Dir entry was used (JPEG), so that file gets cleaned up
         assert not (album / SEL_DIR / "IMG_0410.JPEG").exists()
+        # The CSV row names the same number in another format: it was
+        # imported too, so the CSV is consumed rather than left behind.
+        assert not (album / SEL_CSV).exists()
+
+
+# ---------------------------------------------------------------------------
+# Selection cleanup by image number (regression)
+# ---------------------------------------------------------------------------
+
+
+class TestSelectionCleanupByNumber:
+    def test_live_photo_export_is_fully_consumed_and_reimport_works(
+        self, tmp_path: Path
+    ) -> None:
+        """A Live Photo exported from Photos yields both the HEIC and the MOV.
+
+        Both entries share one image number, so the merged selection keeps
+        only one of them. The other used to be left behind, and the next
+        ``album import`` then failed with an archive collision.
+        """
+        album = _setup_album(tmp_path, ["IMG_0001.HEIC", "IMG_0001.MOV"])
+        ic_dir = _setup_image_capture_dir(
+            tmp_path,
+            ["IMG_0001.HEIC", "IMG_0001.MOV", "IMG_0001.AAE", "IMG_0002.HEIC"],
+        )
+
+        result = run_import(
+            album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
+        )
+
+        assert result.unprocessed == ()
+        assert not (album / SEL_DIR).exists()
+
+        # A follow-up import of another photo must not trip over leftovers.
+        (album / SEL_DIR).mkdir()
+        (album / SEL_DIR / "IMG_0002.HEIC").write_text("data")
+        second = run_import(
+            album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
+        )
+
+        assert second.unprocessed == ()
+        assert (album / "ios-main/orig-img" / "IMG_0002.HEIC").exists()
+
+    def test_same_number_in_dir_and_csv_consumes_both(self, tmp_path: Path) -> None:
+        album = _setup_album(tmp_path, ["IMG_0410.HEIC"])
+        (album / SEL_CSV).write_text("IMG_0410.JPG\n")
+        ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0410.HEIC", "IMG_0410.AAE"])
+
+        result = run_import(
+            album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
+        )
+
+        assert result.unprocessed == ()
+        assert not (album / SEL_DIR).exists()
+        assert not (album / SEL_CSV).exists()
+
+
+# ---------------------------------------------------------------------------
+# Collisions are refused before any mutation (regression)
+# ---------------------------------------------------------------------------
+
+
+class TestCollisionBeforeMutation:
+    def _album_with_colliding_std_task(self, tmp_path: Path) -> tuple[Path, Path]:
+        """iOS task ``main`` is clean; std task ``nelu`` collides with its archive."""
+        album = _setup_album(tmp_path, ["IMG_0001.HEIC"])
+        ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0001.HEIC", "IMG_0001.AAE"])
+        nelu = std_media_source("nelu")
+        (album / nelu.orig_img_dir).mkdir(parents=True)
+        (album / nelu.orig_img_dir / "a.jpg").write_text("existing")
+        (album / std_import_dir("nelu") / "orig").mkdir(parents=True)
+        (album / std_import_dir("nelu") / "orig" / "a.jpg").write_text("incoming")
+        return album, ic_dir
+
+    def test_validation_reports_collision(self, tmp_path: Path) -> None:
+        album, ic_dir = self._album_with_colliding_std_task(tmp_path)
+
+        validation = validate_album_import(album, list_files(ic_dir))
+
+        assert [i.detail for i in validation.errors] == [
+            ArchiveCollision(std_media_source("nelu"), ("a",))
+        ]
+
+    def test_run_import_leaves_earlier_task_untouched(self, tmp_path: Path) -> None:
+        album, ic_dir = self._album_with_colliding_std_task(tmp_path)
+
+        with pytest.raises(ImportCollisionError) as exc_info:
+            run_import(
+                album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
+            )
+
+        assert exc_info.value.keys == ("a",)
+        # The iOS task ran first in the old code and was left imported.
+        assert not (album / "ios-main").exists()
+        assert (album / SEL_DIR / "IMG_0001.HEIC").exists()
+        assert not (album / ".photree").exists()

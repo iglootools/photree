@@ -17,17 +17,14 @@ def find_duplicate_media_ids(
     paths that share it. Albums without ``.photree/media-ids/`` are
     silently skipped.
     """
-    pairs: list[tuple[str, Path]] = []
-    for album_dir in albums:
-        metadata = load_media_metadata(album_dir)
-        if metadata is None:
-            continue
-        for ms_meta in metadata.media_sources.values():
-            for uuid in ms_meta.images:
-                pairs.append((uuid, album_dir))
-            for uuid in ms_meta.videos:
-                pairs.append((uuid, album_dir))
-
+    pairs = [
+        (uuid, album_dir)
+        for album_dir in albums
+        for metadata in [load_media_metadata(album_dir)]
+        if metadata is not None
+        for ms_meta in metadata.media_sources.values()
+        for uuid in (*ms_meta.images, *ms_meta.videos)
+    ]
     sorted_pairs = sorted(pairs, key=lambda t: t[0])
     grouped = {
         mid: [p for _, p in group]

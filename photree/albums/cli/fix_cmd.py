@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-import os
 from typing import Annotated
 
 import typer
 
-from ...album.fix import FixValidationError
+from ...album.fix import FixValidationError, validate_fix_flags
+from ...clihelpers.console import err_console
 from ...clihelpers.options import (
     DRY_RUN_OPTION,
+    FORCE_OPTION,
     LINK_MODE_REQUIRED_OPTION,
     RM_ORPHAN_OPTION,
     RM_UPSTREAM_OPTION,
@@ -35,12 +36,11 @@ def fix_cmd(
     link_mode: LINK_MODE_REQUIRED_OPTION = LinkMode.HARDLINK,
     rm_upstream: RM_UPSTREAM_OPTION = False,
     rm_orphan: RM_ORPHAN_OPTION = False,
+    force: FORCE_OPTION = False,
     dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """Fix all albums under a directory or from an explicit list."""
     try:
-        from ...album.fix import validate_fix_flags
-
         validate_fix_flags(
             fix_id=fix_id,
             new_id=new_id,
@@ -48,7 +48,10 @@ def fix_cmd(
             rm_orphan=rm_orphan,
         )
     except FixValidationError as exc:
-        typer.echo(str(exc), err=True)
+        err_console.print(
+            f"{exc}\nRun 'photree albums fix --help' for the available fixes.",
+            markup=False,
+        )
         raise typer.Exit(code=1) from exc
 
     albums, display_base = resolve_check_batch_albums(base_dir, album_dirs)
@@ -62,5 +65,5 @@ def fix_cmd(
         rm_upstream=rm_upstream,
         rm_orphan=rm_orphan,
         dry_run=dry_run,
-        max_workers=os.cpu_count(),
+        force=force,
     )

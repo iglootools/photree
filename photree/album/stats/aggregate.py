@@ -17,12 +17,12 @@ from .models import (
 
 def merge_size_stats(stats: Iterable[SizeStats]) -> SizeStats:
     """Sum ``SizeStats`` fields across multiple instances."""
-    fc = ab = od = 0
-    for s in stats:
-        fc += s.file_count
-        ab += s.apparent_bytes
-        od += s.on_disk_bytes
-    return SizeStats(file_count=fc, apparent_bytes=ab, on_disk_bytes=od)
+    stats_list = list(stats)
+    return SizeStats(
+        file_count=sum(s.file_count for s in stats_list),
+        apparent_bytes=sum(s.apparent_bytes for s in stats_list),
+        on_disk_bytes=sum(s.on_disk_bytes for s in stats_list),
+    )
 
 
 def merge_role_breakdowns(breakdowns: Iterable[RoleBreakdown]) -> RoleBreakdown:
@@ -35,33 +35,35 @@ def merge_role_breakdowns(breakdowns: Iterable[RoleBreakdown]) -> RoleBreakdown:
     )
 
 
+def _merge_same_format(extension: str, stats: list[FormatStats]) -> FormatStats:
+    return FormatStats(
+        extension=extension,
+        file_count=sum(fs.file_count for fs in stats),
+        apparent_bytes=sum(fs.apparent_bytes for fs in stats),
+        on_disk_bytes=sum(fs.on_disk_bytes for fs in stats),
+        archive_bytes=sum(fs.archive_bytes for fs in stats),
+        derived_bytes=sum(fs.derived_bytes for fs in stats),
+    )
+
+
 def merge_format_stats(
     groups: Iterable[tuple[FormatStats, ...]],
 ) -> tuple[FormatStats, ...]:
     """Merge per-format stats across multiple sources, sorted by bytes desc."""
-    count_by_ext: Counter[str] = Counter()
-    bytes_by_ext: Counter[str] = Counter()
-    on_disk_by_ext: Counter[str] = Counter()
-    archive_by_ext: Counter[str] = Counter()
-    derived_by_ext: Counter[str] = Counter()
-    for group in groups:
-        for fs in group:
-            count_by_ext[fs.extension] += fs.file_count
-            bytes_by_ext[fs.extension] += fs.apparent_bytes
-            on_disk_by_ext[fs.extension] += fs.on_disk_bytes
-            archive_by_ext[fs.extension] += fs.archive_bytes
-            derived_by_ext[fs.extension] += fs.derived_bytes
-    return tuple(
-        FormatStats(
-            extension=ext,
-            file_count=count_by_ext[ext],
-            apparent_bytes=amt,
-            on_disk_bytes=on_disk_by_ext[ext],
-            archive_bytes=archive_by_ext[ext],
-            derived_bytes=derived_by_ext[ext],
-        )
-        for ext, amt in sorted(bytes_by_ext.items(), key=lambda kv: -kv[1])
-    )
+    flat = [fs for group in groups for fs in group]
+    # dict.fromkeys keeps first-seen extension order, which breaks size ties
+    # the same way as before (stable sort).
+    merged = [
+        _merge_same_format(ext, [fs for fs in flat if fs.extension == ext])
+        for ext in dict.fromkeys(fs.extension for fs in flat)
+    ]
+    return tuple(sorted(merged, key=lambda fs: -fs.apparent_bytes))
+
+
+def _sorted_type_counts(
+    counts: Counter[MediaSourceType],
+) -> tuple[tuple[MediaSourceType, int], ...]:
+    return tuple(sorted(counts.items(), key=lambda kv: kv[0]))
 
 
 def aggregate_media_sources(
@@ -69,10 +71,6 @@ def aggregate_media_sources(
 ) -> AggregateStats:
     """Build an ``AggregateStats`` from per-media-source stats."""
     source_list = list(sources)
-    type_counts: Counter[MediaSourceType] = Counter()
-    for ms in source_list:
-        type_counts[ms.media_source_type] += 1
-
     return AggregateStats(
         total=merge_size_stats(ms.total for ms in source_list),
         archive=merge_size_stats(ms.archive for ms in source_list),
@@ -86,18 +84,15 @@ def aggregate_media_sources(
         sidecars=merge_role_breakdowns(ms.sidecars for ms in source_list),
         by_format=merge_format_stats(ms.by_format for ms in source_list),
         media_source_count=len(source_list),
-        by_media_source_type=tuple(sorted(type_counts.items(), key=lambda kv: kv[0])),
+        by_media_source_type=_sorted_type_counts(
+            Counter(ms.media_source_type for ms in source_list)
+        ),
     )
 
 
 def merge_aggregates(aggregates: Iterable[AggregateStats]) -> AggregateStats:
     """Merge multiple ``AggregateStats`` (e.g. from albums into gallery)."""
     agg_list = list(aggregates)
-    type_counts: Counter[MediaSourceType] = Counter()
-    for a in agg_list:
-        for mst, count in a.by_media_source_type:
-            type_counts[mst] += count
-
     return AggregateStats(
         total=merge_size_stats(a.total for a in agg_list),
         archive=merge_size_stats(a.archive for a in agg_list),
@@ -111,5 +106,10 @@ def merge_aggregates(aggregates: Iterable[AggregateStats]) -> AggregateStats:
         sidecars=merge_role_breakdowns(a.sidecars for a in agg_list),
         by_format=merge_format_stats(a.by_format for a in agg_list),
         media_source_count=sum(a.media_source_count for a in agg_list),
-        by_media_source_type=tuple(sorted(type_counts.items(), key=lambda kv: kv[0])),
+        by_media_source_type=_sorted_type_counts(
+            sum(
+                (Counter(dict(a.by_media_source_type)) for a in agg_list),
+                Counter(),
+            )
+        ),
     )

@@ -32,7 +32,7 @@ SEL_DIR = ios_import_dir("main")  # to-import-ios-main
 
 def _write(path: Path, data: str = "data") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(data)
+    path.write_text(data, encoding="utf-8")
 
 
 def _setup_ic(tmp_path: Path, filenames: list[str]) -> Path:
@@ -380,12 +380,15 @@ class TestRunImportLivePhoto:
 
         import pytest
 
-        with pytest.raises(ValueError, match="conflict"):
+        from photree.album.importer.collision import ImportCollisionError
+
+        with pytest.raises(ImportCollisionError) as exc_info:
             run_import(
                 album_dir=album,
                 image_capture_dir=ic,
                 convert_file=noop_convert_single,
             )
+        assert exc_info.value.keys == ("0001",)
 
 
 # ---------------------------------------------------------------------------
@@ -418,8 +421,9 @@ class TestCheckWithLivePhotos:
 
         all_media = IOS_IMG_EXTENSIONS | IOS_VID_EXTENSIONS
         dupes = check_duplicate_numbers(d, all_media, IOS_IMG_EXTENSIONS)
-        assert len(dupes) == 1
-        assert "0001" in dupes[0]
+        assert [(d.img_number, d.files) for d in dupes] == [
+            ("0001", ("IMG_E0001.HEIC", "IMG_E0001.JPG"))
+        ]
 
 
 # ---------------------------------------------------------------------------

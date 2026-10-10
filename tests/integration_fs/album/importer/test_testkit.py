@@ -1,6 +1,9 @@
 """Tests for photree.album.importer.testkit module."""
 
+import shutil
 from pathlib import Path
+
+import pytest
 
 from photree.album.importer.testkit import seed_demo
 
@@ -49,18 +52,19 @@ class TestSeedDemo:
             "IMG_0009.JPG",
         ]
 
+    @pytest.mark.skipif(shutil.which("sips") is None, reason="sips not installed")
     def test_heic_files_are_valid_when_sips_available(self, tmp_path: Path) -> None:
-        import shutil
-
         result = seed_demo(tmp_path)
 
         heic = result.image_capture_dir / "IMG_0001.HEIC"
-        if shutil.which("sips") is not None:
-            # On macOS: sips converts to real HEIC (larger than the 347-byte JPEG source)
-            assert heic.stat().st_size > 1000
-        else:
-            # On Linux: no sips, HEIC files keep JPEG content
-            assert heic.stat().st_size > 0
+        # sips converts to real HEIC (larger than the 347-byte JPEG source)
+        assert heic.stat().st_size > 1000
+
+    def test_heic_files_keep_jpeg_content_without_sips(self, tmp_path: Path) -> None:
+        result = seed_demo(tmp_path, which=lambda _name: None)
+
+        heic = result.image_capture_dir / "IMG_0001.HEIC"
+        assert heic.read_bytes()[:2] == b"\xff\xd8"  # JPEG SOI marker
 
     def test_custom_album_name(self, tmp_path: Path) -> None:
         result = seed_demo(tmp_path, album_name="2025-01-01 - New Year")

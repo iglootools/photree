@@ -11,6 +11,7 @@ from ...store.protocol import (
     IOS_SIDECAR_EXTENSIONS,
     MediaSource,
 )
+from ..helpers import require_ios
 
 
 def _find_orphan_sidecars(directory: Path) -> list[str]:
@@ -36,6 +37,12 @@ class RmOrphanSidecarResult:
         return sum(len(files) for _, files in self.removed_by_dir)
 
 
+def _remove_orphans_in_dir(directory: Path, *, dry_run: bool) -> tuple[str, ...]:
+    orphans = _find_orphan_sidecars(directory)
+    delete_files(directory, orphans, dry_run=dry_run)
+    return tuple(orphans)
+
+
 def rm_orphan_sidecar(
     album_dir: Path,
     ms: MediaSource,
@@ -46,22 +53,17 @@ def rm_orphan_sidecar(
 
     Scans orig-img/, edit-img/, orig-vid/, and edit-vid/.
     """
-    assert ms.is_ios, "ios_fixes operations require an iOS media source"
+    require_ios(ms)
     directories = (
         album_dir / ms.orig_img_dir,
         album_dir / ms.edit_img_dir,
         album_dir / ms.orig_vid_dir,
         album_dir / ms.edit_vid_dir,
     )
-
-    results: list[tuple[str, tuple[str, ...]]] = []
-    for d in directories:
-        if not d.is_dir():
-            continue
-        orphans = _find_orphan_sidecars(d)
-        if not orphans:
-            continue
-        delete_files(d, orphans, dry_run=dry_run)
-        results.append((d.name, tuple(orphans)))
-
-    return RmOrphanSidecarResult(removed_by_dir=tuple(results))
+    return RmOrphanSidecarResult(
+        removed_by_dir=tuple(
+            (d.name, removed)
+            for d in directories
+            if d.is_dir() and (removed := _remove_orphans_in_dir(d, dry_run=dry_run))
+        )
+    )

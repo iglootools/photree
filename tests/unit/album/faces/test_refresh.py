@@ -1,12 +1,16 @@
 """Tests for photree.album.faces.refresh module — change detection logic."""
 
+import shutil
 from pathlib import Path
+
+import pytest
 
 from photree.album.faces.protocol import (
     FaceProcessedKey,
     FaceProcessingState,
 )
 from photree.album.faces.refresh import (
+    FaceFailureStage,
     _keys_needing_processing,
     _needs_processing,
     refresh_face_data,
@@ -15,7 +19,7 @@ from photree.album.faces.refresh import (
 
 def _make_file(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("data")
+    path.write_text("data", encoding="utf-8")
 
 
 def _make_ios_source(album_dir: Path) -> None:
@@ -186,7 +190,7 @@ class TestFailureReporting:
         assert state_key is None
         assert failure is not None
         assert failure.key == "0410"
-        assert failure.stage == "detection"
+        assert failure.stage == FaceFailureStage.DETECTION
         assert failure.reason
 
     def test_result_exposes_failures_per_media_source(self) -> None:
@@ -196,7 +200,9 @@ class TestFailureReporting:
             FaceSourceRefreshResult,
         )
 
-        failure = FaceFailure(key="0410", stage="thumbnail", reason="sips said no")
+        failure = FaceFailure(
+            key="0410", stage=FaceFailureStage.THUMBNAIL, reason="sips said no"
+        )
         result = FaceRefreshResult(
             by_media_source=(
                 (
@@ -215,3 +221,104 @@ class TestFailureReporting:
         assert result.failures == (("main", failure),)
         assert result.by_media_source[0][1].failed == 1
         assert result.by_media_source[1][1].failed == 0
+
+
+class TestFailureAccounting:
+    def test_unreadable_thumbnail_is_a_detection_failure(self, tmp_path: Path) -> None:
+        """cv2 returning None used to read as "no faces"; it is a failure."""
+        from photree.album.faces.detect import ThumbnailResult
+        from photree.album.faces.refresh import _detect_single
+
+        thumb = tmp_path / "0410.jpg"
+        thumb.write_text("not a jpeg", encoding="utf-8")
+        orig_dir = tmp_path / "orig"
+        _make_file(orig_dir / "IMG_0410.HEIC")
+        tr = ThumbnailResult(
+            key="0410",
+            file_name="IMG_0410.HEIC",
+            thumb_path=thumb,
+            orig_width=4032,
+            orig_height=3024,
+            thumb_width=640,
+            thumb_height=480,
+        )
+
+        class _NeverCalled:
+            def get(self, *_args, **_kwargs):
+                raise AssertionError("analyzer must not see an unreadable image")
+
+        faces, state_key, failure = _detect_single(tr, orig_dir, _NeverCalled())
+
+        assert faces is None and state_key is None
+        assert failure is not None
+        assert failure.stage == FaceFailureStage.DETECTION
+
+    def test_failed_keys_are_not_counted_as_processed(self, tmp_path: Path) -> None:
+        """Placeholder bytes cannot be thumbnailed: 1 failure, 0 processed."""
+        _make_ios_source(tmp_path)
+
+        def _factory():
+            raise AssertionError("analyzer factory should not be invoked")
+
+        result = refresh_face_data(tmp_path, analyzer_factory=_factory)
+
+        ((_, source),) = result.by_media_source
+        assert source.processed == 0
+        assert [f.key for f in source.failures] == ["0410"]
+        assert source.failures[0].stage == FaceFailureStage.THUMBNAIL
+
+
+class TestReuseThumbnail:
+    def test_without_previous_state_is_a_failure(self, tmp_path: Path) -> None:
+        from photree.album.faces.refresh import FaceFailure, _reuse_thumbnail
+
+        result = _reuse_thumbnail("0410", "IMG_0410.HEIC", tmp_path / "x.jpg", None)
+
+        assert isinstance(result, FaceFailure)
+        assert result.stage == FaceFailureStage.THUMBNAIL
+
+    def test_unreadable_thumbnail_is_a_failure_not_a_crash(
+        self, tmp_path: Path
+    ) -> None:
+        from photree.album.faces.refresh import FaceFailure, _reuse_thumbnail
+
+        thumb = tmp_path / "0410.jpg"
+        thumb.write_text("not a jpeg", encoding="utf-8")
+
+        result = _reuse_thumbnail(
+            "0410", "IMG_0410.HEIC", thumb, _processed(4032, 3024)
+        )
+
+        assert isinstance(result, FaceFailure)
+
+    @pytest.mark.skipif(shutil.which("sips") is None, reason="needs macOS sips")
+    def test_keeps_original_dimensions_from_state(self, tmp_path: Path) -> None:
+        """Reused thumbnails used to record a 0x0 original."""
+        import cv2
+        import numpy as np
+
+        from photree.album.faces.detect import ThumbnailResult
+        from photree.album.faces.refresh import _reuse_thumbnail
+
+        thumb = tmp_path / "0410.jpg"
+        cv2.imwrite(str(thumb), np.zeros((48, 64, 3), dtype=np.uint8))
+
+        result = _reuse_thumbnail(
+            "0410", "IMG_0410.HEIC", thumb, _processed(4032, 3024)
+        )
+
+        assert isinstance(result, ThumbnailResult)
+        assert (result.orig_width, result.orig_height) == (4032, 3024)
+        assert (result.thumb_width, result.thumb_height) == (64, 48)
+
+
+def _processed(width: int, height: int) -> FaceProcessedKey:
+    return FaceProcessedKey(
+        mtime=1.0,
+        file_name="IMG_0410.HEIC",
+        face_count=0,
+        orig_width=width,
+        orig_height=height,
+        thumb_width=640,
+        thumb_height=480,
+    )

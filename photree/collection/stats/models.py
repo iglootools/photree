@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from ..store.protocol import CollectionLifecycle, CollectionMembers, CollectionStrategy
@@ -26,7 +27,7 @@ class GalleryCollectionStats:
     """Aggregate collection stats for a gallery."""
 
     total: int
-    by_combination: dict[
+    by_combination: Mapping[
         tuple[CollectionMembers, CollectionLifecycle, CollectionStrategy], int
     ]
     total_album_refs: int

@@ -11,6 +11,7 @@ from ...clihelpers.console import err_console
 from ...common.fs import display_path
 from .. import media
 from . import album_app
+from .helpers import exit_on_media_source_conflict
 
 
 @album_app.command("rm-media")
@@ -52,11 +53,12 @@ def rm_media_cmd(
         raise typer.Exit(code=1)
 
     cwd = Path.cwd()
-    try:
-        result = media.rm_media(album_dir, files, dry_run=dry_run)
-    except ValueError as exc:
-        err_console.print(str(exc))
-        raise typer.Exit(code=1) from None
+    with exit_on_media_source_conflict(cwd):
+        try:
+            result = media.rm_media(album_dir, files, dry_run=dry_run)
+        except media.MediaOpError as exc:
+            err_console.print(media.format_media_op_error(exc, cwd))
+            raise typer.Exit(code=1) from None
 
     typer.echo(media.media_op_summary("Removed", result.files_by_dir))
     typer.echo(media.media_op_check_suggestions([str(display_path(album_dir, cwd))]))

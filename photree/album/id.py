@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid as _uuid
+from enum import StrEnum
 
 from uuid6 import uuid7
 
@@ -28,12 +29,49 @@ def format_external_id(type_prefix: str, internal_id: str) -> str:
     return f"{type_prefix}_{base58_encode(_uuid.UUID(internal_id).bytes)}"
 
 
+class InvalidExternalIdKind(StrEnum):
+    """Why an external ID could not be parsed."""
+
+    WRONG_PREFIX = "wrong-prefix"
+    """No ``prefix_`` part, or a prefix other than the expected one."""
+    MALFORMED = "malformed"
+    """The base58 part is not valid base58 or does not decode to a UUID."""
+
+
+class InvalidExternalIdError(ValueError):
+    """An external ID that does not parse as ``<expected_prefix>_<base58>``."""
+
+    def __init__(
+        self, value: str, expected_prefix: str, kind: InvalidExternalIdKind
+    ) -> None:
+        super().__init__(
+            f"Invalid external ID '{value}' ({kind}), expected '{expected_prefix}_...'"
+        )
+        self.value = value
+        self.expected_prefix = expected_prefix
+        self.kind = kind
+
+
 def parse_external_id(external_id: str, expected_prefix: str) -> str:
-    """Convert ``prefix_base58`` external form back to a UUID string."""
+    """Convert ``prefix_base58`` external form back to a UUID string.
+
+    Raises :class:`InvalidExternalIdError` on a wrong prefix or an encoded
+    part that is not a base58-encoded UUID.
+    """
     prefix, sep, encoded = external_id.partition("_")
     if not sep or prefix != expected_prefix:
-        raise ValueError(f"Expected '{expected_prefix}_...' but got '{external_id}'")
-    return str(_uuid.UUID(bytes=base58_decode(encoded)))
+        raise InvalidExternalIdError(
+            external_id, expected_prefix, InvalidExternalIdKind.WRONG_PREFIX
+        )
+    else:
+        try:
+            return str(_uuid.UUID(bytes=base58_decode(encoded)))
+        except ValueError as exc:
+            # base58_decode rejects characters outside the alphabet;
+            # UUID(bytes=...) rejects anything that is not exactly 16 bytes.
+            raise InvalidExternalIdError(
+                external_id, expected_prefix, InvalidExternalIdKind.MALFORMED
+            ) from exc
 
 
 def format_album_external_id(internal_id: str) -> str:

@@ -60,10 +60,14 @@ def compute_gallery_stats(albums: AlbumsStats, gallery_dir: Path) -> GalleryStat
 
 def format_gallery_stats(stats: GalleryStats) -> Group:
     """Format gallery statistics: the albums report plus the collection table."""
-    renderables = list(
-        albums_stats_renderables(stats.albums, cache_storage=stats.cache_storage)
+    collections = stats.collection_stats
+    return Group(
+        *albums_stats_renderables(stats.albums, cache_storage=stats.cache_storage),
+        *(
+            [Text(""), format_collections_overview(collections)]
+            if collections is not None and collections.total > 0
+            else []
+        ),
+        Text(""),
+        LEGEND,
     )
-    if stats.collection_stats is not None and stats.collection_stats.total > 0:
-        renderables.append(Text(""))
-        renderables.append(format_collections_overview(stats.collection_stats))
-    return Group(*renderables, Text(""), LEGEND)

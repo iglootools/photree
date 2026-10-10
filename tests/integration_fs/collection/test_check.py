@@ -26,7 +26,7 @@ from photree.fsprotocol import GalleryMetadata, save_gallery_metadata
 
 def _write(path: Path, content: str = "data") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content)
+    path.write_text(content, encoding="utf-8")
 
 
 def _setup_gallery(tmp_path: Path) -> Path:
@@ -213,3 +213,68 @@ class TestCheckEmpty:
         lookup = build_gallery_lookup(gallery)
         result = check_collection(col_dir, lookup)
         assert result.success
+
+
+def _setup_chapter(gallery: Path, year: str, name: str) -> tuple[Path, str]:
+    col_dir = gallery / "collections" / year / name
+    col_dir.mkdir(parents=True)
+    cid = generate_collection_id()
+    save_collection_metadata(
+        col_dir,
+        CollectionMetadata(
+            id=cid,
+            members=CollectionMembers.SMART,
+            lifecycle=CollectionLifecycle.EXPLICIT,
+            strategy=CollectionStrategy.CHAPTER,
+        ),
+    )
+    return col_dir, cid
+
+
+class TestCheckChapterOverlap:
+    def test_overlap_across_year_directories_detected(self, tmp_path: Path) -> None:
+        # Regression: chapters were only compared with siblings in the same
+        # collections/YYYY/ directory, so these two never conflicted.
+        gallery = _setup_gallery(tmp_path)
+        montreal, _ = _setup_chapter(gallery, "2019", "2019--2022 - Montreal")
+        _setup_chapter(gallery, "2021", "2021--2023 - Toronto")
+
+        result = check_collection(montreal, build_gallery_lookup(gallery))
+
+        assert [i.code for i in result.issues] == ["chapter-date-overlap"]
+
+    def test_non_overlapping_chapters_pass(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        montreal, _ = _setup_chapter(gallery, "2019", "2019--2020 - Montreal")
+        toronto, _ = _setup_chapter(gallery, "2021", "2021--2023 - Toronto")
+        lookup = build_gallery_lookup(gallery)
+
+        assert check_collection(montreal, lookup).success
+        assert check_collection(toronto, lookup).success
+
+    def test_date_range_collection_does_not_count_as_chapter(
+        self, tmp_path: Path
+    ) -> None:
+        gallery = _setup_gallery(tmp_path)
+        montreal, _ = _setup_chapter(gallery, "2019", "2019--2022 - Montreal")
+        _setup_collection(
+            gallery,
+            "2020 - Year",
+            members=CollectionMembers.SMART,
+            strategy=CollectionStrategy.DATE_RANGE,
+        )
+
+        assert check_collection(montreal, build_gallery_lookup(gallery)).success
+
+
+class TestCheckInvalidMetadata:
+    def test_corrupt_metadata_reported_not_crashing(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        col_dir, _ = _setup_collection(gallery, "2024-07 - July")
+        (col_dir / ".photree" / "collection.yaml").write_text(
+            "- not a mapping\n", encoding="utf-8"
+        )
+
+        result = check_collection(col_dir, build_gallery_lookup(gallery))
+
+        assert [i.code for i in result.issues] == ["invalid-metadata"]

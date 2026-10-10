@@ -51,13 +51,21 @@ class WrongLinkMode:
 
 
 @dataclass(frozen=True)
+class WrongSource:
+    """An original in the browsable dir although its edited version exists."""
+
+    filename: str
+    expected: str  # the edited variant that should be there instead
+
+
+@dataclass(frozen=True)
 class BrowsableDirCheck:
     """Result of checking a browsable directory against archive orig/edited."""
 
     correct: tuple[FileComparison, ...]
     missing: tuple[MissingFile, ...]
     extra: tuple[str, ...]
-    wrong_source: tuple[str, ...]
+    wrong_source: tuple[WrongSource, ...]
     wrong_link_mode: tuple[WrongLinkMode, ...]
     size_mismatches: tuple[FileComparison, ...]
     checksum_mismatches: tuple[FileComparison, ...]
@@ -128,11 +136,16 @@ _LINK_MODE_NAMES: dict[LinkMode, str] = {
 
 def _detect_actual_link_mode(main_path: Path, source_path: Path) -> str:
     """Return the actual link mode of *main_path* relative to *source_path*."""
-    if _is_symlink_to(main_path, source_path):
-        return "symlink"
-    if _is_hardlink_to(main_path, source_path):
-        return "hardlink"
-    return "copy"
+    match (
+        _is_symlink_to(main_path, source_path),
+        _is_hardlink_to(main_path, source_path),
+    ):
+        case (True, _):
+            return "symlink"
+        case (False, True):
+            return "hardlink"
+        case _:
+            return "copy"
 
 
 def _compare_file(
@@ -158,38 +171,58 @@ def _compare_file(
         if actual != expected
         else None
     )
+    return _compare_content(main_path, source_path, actual, checksum), wrong_lm
 
-    is_link = actual in ("hardlink", "symlink")
-    if is_link:
-        return (
-            FileComparison(
-                filename=main_path.name,
-                expected_source=source_path.name,
-                size_match=True,
-                checksum_match=True if checksum else None,
-                link_verified=True,
-            ),
-            wrong_lm,
+
+def _compare_content(
+    main_path: Path, source_path: Path, actual_link_mode: str, checksum: bool
+) -> FileComparison:
+    if actual_link_mode in ("hardlink", "symlink"):
+        return FileComparison(
+            filename=main_path.name,
+            expected_source=source_path.name,
+            size_match=True,
+            checksum_match=True if checksum else None,
+            link_verified=True,
         )
-
-    size_match = _file_size(main_path) == _file_size(source_path)
-    match (checksum, size_match):
-        case (False, _):
-            checksum_match = None
-        case (True, False):
-            checksum_match = False
-        case (True, True):
-            checksum_match = _file_sha256(main_path) == _file_sha256(source_path)
-
-    return (
-        FileComparison(
+    else:
+        size_match = _file_size(main_path) == _file_size(source_path)
+        match (checksum, size_match):
+            case (False, _):
+                checksum_match = None
+            case (True, False):
+                checksum_match = False
+            case (True, True):
+                checksum_match = _file_sha256(main_path) == _file_sha256(source_path)
+        return FileComparison(
             filename=main_path.name,
             expected_source=source_path.name,
             size_match=size_match,
             checksum_match=checksum_match,
-        ),
-        wrong_lm,
-    )
+        )
+
+
+@dataclass(frozen=True)
+class _Classified:
+    """How one expected file compares; exactly one of the first four is set."""
+
+    correct: FileComparison | None = None
+    missing: MissingFile | None = None
+    size_mismatch: FileComparison | None = None
+    checksum_mismatch: FileComparison | None = None
+    wrong_link_mode: WrongLinkMode | None = None
+
+
+def _classify_comparison(
+    comparison: FileComparison, wrong_lm: WrongLinkMode | None
+) -> _Classified:
+    match (comparison.size_match, comparison.checksum_match):
+        case (False, _):
+            return _Classified(size_mismatch=comparison, wrong_link_mode=wrong_lm)
+        case (True, False):
+            return _Classified(checksum_mismatch=comparison, wrong_link_mode=wrong_lm)
+        case _:
+            return _Classified(correct=comparison, wrong_link_mode=wrong_lm)
 
 
 def _classify_expected_file(
@@ -202,43 +235,67 @@ def _classify_expected_file(
     link_mode: LinkMode,
     checksum: bool,
     on_file_checked: Callable[[str, bool], None] | None,
-) -> tuple[
-    list[FileComparison],  # correct
-    list[MissingFile],  # missing
-    list[WrongLinkMode],  # wrong_link_mode
-    list[FileComparison],  # size_mismatches
-    list[FileComparison],  # checksum_mismatches
-]:
+) -> _Classified:
     """Classify a single expected file against the main directory."""
-    if expected_name not in browsable_files:
-        if on_file_checked:
-            on_file_checked(expected_name, False)
-        return [], [MissingFile(expected_name, source_dir.name)], [], [], []
-
-    comparison, wrong_lm = _compare_file(
-        browsable_dir / expected_name,
-        source_dir / source_name,
-        link_mode=link_mode,
-        checksum=checksum,
+    classified = (
+        _classify_comparison(
+            *_compare_file(
+                browsable_dir / expected_name,
+                source_dir / source_name,
+                link_mode=link_mode,
+                checksum=checksum,
+            )
+        )
+        if expected_name in browsable_files
+        else _Classified(missing=MissingFile(expected_name, source_dir.name))
     )
-
-    if not comparison.size_match:
-        if on_file_checked:
-            on_file_checked(expected_name, False)
-        return [], [], [wrong_lm] if wrong_lm else [], [comparison], []
-    elif comparison.checksum_match is False:
-        if on_file_checked:
-            on_file_checked(expected_name, False)
-        return [], [], [wrong_lm] if wrong_lm else [], [], [comparison]
-    else:
-        if on_file_checked:
-            on_file_checked(expected_name, True)
-        return [comparison], [], [wrong_lm] if wrong_lm else [], [], []
+    if on_file_checked:
+        on_file_checked(expected_name, classified.correct is not None)
+    return classified
 
 
 # ---------------------------------------------------------------------------
 # Check function
 # ---------------------------------------------------------------------------
+
+
+def _expected_files(
+    orig_by_key: dict[str, str],
+    edit_by_key: dict[str, str],
+    orig_dir: Path,
+    edit_dir: Path,
+) -> dict[str, tuple[str, Path]]:
+    """``{expected browsable name: (source name, source dir)}``.
+
+    The edited variant when one exists, otherwise the original.
+    """
+    return {
+        **{
+            edit_by_key[key]: (edit_by_key[key], edit_dir)
+            for key in orig_by_key
+            if key in edit_by_key
+        },
+        **{
+            orig_name: (orig_name, orig_dir)
+            for key, orig_name in orig_by_key.items()
+            if key not in edit_by_key
+        },
+    }
+
+
+def _wrong_sources(
+    orig_by_key: dict[str, str],
+    edit_by_key: dict[str, str],
+    browsable_files: set[str],
+) -> tuple[WrongSource, ...]:
+    """Originals present in the browsable dir although an edited version exists."""
+    return tuple(
+        WrongSource(filename=orig_name, expected=edit_name)
+        for key, edit_name in edit_by_key.items()
+        if (orig_name := orig_by_key.get(key))
+        and orig_name in browsable_files
+        and orig_name != edit_name
+    )
 
 
 def check_browsable_dir(
@@ -262,37 +319,13 @@ def check_browsable_dir(
     each file uses the expected link type. Files with correct content but
     wrong link type are reported as ``wrong_link_mode``.
     """
-    orig_files = list_files(orig_dir)
-    edit_files = list_files(edit_dir)
     browsable_files = set(list_files(browsable_dir))
-
     # Use priority dedup to handle duplicate keys (e.g. IMG_E7658.JPG + IMG_E7658.HEIC)
-    orig_media_by_number = dedup_media_dict(orig_files, media_extensions, key_fn)
-    edit_media_by_number = dedup_media_dict(edit_files, media_extensions, key_fn)
+    orig_by_key = dedup_media_dict(list_files(orig_dir), media_extensions, key_fn)
+    edit_by_key = dedup_media_dict(list_files(edit_dir), media_extensions, key_fn)
+    expected = _expected_files(orig_by_key, edit_by_key, orig_dir, edit_dir)
 
-    # Determine what should be in main: edited if available, else original
-    expected: dict[str, tuple[str, Path]] = {
-        **(
-            {
-                edit_media_by_number[num]: (
-                    edit_media_by_number[num],
-                    edit_dir,
-                )
-                for num in orig_media_by_number
-                if num in edit_media_by_number
-            }
-        ),
-        **(
-            {
-                orig_name: (orig_name, orig_dir)
-                for num, orig_name in orig_media_by_number.items()
-                if num not in edit_media_by_number
-            }
-        ),
-    }
-
-    # Classify each expected file
-    classifications = [
+    classified = [
         _classify_expected_file(
             expected_name,
             source_name,
@@ -306,30 +339,16 @@ def check_browsable_dir(
         for expected_name, (source_name, source_dir) in sorted(expected.items())
     ]
 
-    correct = [c for cls in classifications for c in cls[0]]
-    missing = [m for cls in classifications for m in cls[1]]
-    wrong_link_mode = [w for cls in classifications for w in cls[2]]
-    size_mismatches = [s for cls in classifications for s in cls[3]]
-    checksum_mismatches = [c for cls in classifications for c in cls[4]]
-
-    # Wrong source: orig in main when edited version exists
-    wrong_source = [
-        f"{orig_media_by_number[num]} (should be {edit_name}, edited version exists)"
-        for num, edit_name in edit_media_by_number.items()
-        if (orig_name := orig_media_by_number.get(num))
-        and orig_name in browsable_files
-        and orig_name != edit_name
-    ]
-
-    # Extra files in main that shouldn't be there
-    extra = sorted(browsable_files - set(expected.keys()))
-
     return BrowsableDirCheck(
-        correct=tuple(correct),
-        missing=tuple(missing),
-        extra=tuple(extra),
-        wrong_source=tuple(wrong_source),
-        wrong_link_mode=tuple(wrong_link_mode),
-        size_mismatches=tuple(size_mismatches),
-        checksum_mismatches=tuple(checksum_mismatches),
+        correct=tuple(c.correct for c in classified if c.correct),
+        missing=tuple(c.missing for c in classified if c.missing),
+        extra=tuple(sorted(browsable_files - set(expected))),
+        wrong_source=_wrong_sources(orig_by_key, edit_by_key, browsable_files),
+        wrong_link_mode=tuple(
+            c.wrong_link_mode for c in classified if c.wrong_link_mode
+        ),
+        size_mismatches=tuple(c.size_mismatch for c in classified if c.size_mismatch),
+        checksum_mismatches=tuple(
+            c.checksum_mismatch for c in classified if c.checksum_mismatch
+        ),
     )

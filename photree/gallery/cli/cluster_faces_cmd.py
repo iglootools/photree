@@ -16,7 +16,7 @@ from ...clihelpers.sysdeps import (
 )
 from ...fsprotocol import GALLERY_YAML, PHOTREE_DIR, load_gallery_metadata
 from . import gallery_app
-from .ops import run_face_clustering
+from .ops import require_valid_threshold, run_face_clustering
 
 
 @gallery_app.command("cluster-faces")
@@ -62,6 +62,7 @@ def cluster_faces_cmd(
         refresh_deps() if (redetect or refresh_thumbs) else FACE_DETECTION_DEPS
     )
 
+    require_valid_threshold(threshold, "--threshold")
     resolved = resolve_gallery_or_exit(gallery_dir)
 
     if redetect or refresh_thumbs:
@@ -80,7 +81,10 @@ def cluster_faces_cmd(
     gallery_meta = load_gallery_metadata(resolved / PHOTREE_DIR / GALLERY_YAML)
     run_face_clustering(
         resolved,
-        distance_threshold=threshold or gallery_meta.face_cluster_threshold,
+        # ``is None``, not ``or``: 0.0 is a valid (strictest) threshold.
+        distance_threshold=(
+            gallery_meta.face_cluster_threshold if threshold is None else threshold
+        ),
         dry_run=dry_run,
         force_full=redetect,
     )

@@ -7,14 +7,23 @@ work with both iOS and std media sources.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 
 from ...fsprotocol import LinkMode
+from ..store.protocol import MediaSource
+from .helpers import MissingArchiveError
 from .rm_orphan import RmOrphanDirResult, RmOrphanResult, rm_orphan
 from .rm_upstream import (
     RmUpstreamHeicResult,
     RmUpstreamMovResult,
+    RmUpstreamRefusedError,
     RmUpstreamResult,
+    RmUpstreamSkip,
+    SignalSkipReason,
+    apply_rm_upstream,
+    check_rm_upstream_plans,
+    plan_rm_upstream,
     rm_upstream,
 )
 
@@ -22,11 +31,16 @@ __all__ = [
     "FixResult",
     "FixRmUpstreamResult",
     "FixValidationError",
+    "FixValidationErrorKind",
+    "MissingArchiveError",
     "RmOrphanDirResult",
     "RmOrphanResult",
     "RmUpstreamHeicResult",
     "RmUpstreamMovResult",
+    "RmUpstreamRefusedError",
     "RmUpstreamResult",
+    "RmUpstreamSkip",
+    "SignalSkipReason",
     "rm_orphan",
     "rm_upstream",
     "run_fix",
@@ -35,12 +49,24 @@ __all__ = [
 
 
 # ---------------------------------------------------------------------------
-# Aggregated fix runner
+# Flag validation
 # ---------------------------------------------------------------------------
 
 
+class FixValidationErrorKind(StrEnum):
+    NO_FIX_SPECIFIED = "no-fix-specified"
+
+
 class FixValidationError(ValueError):
-    """Raised when fix flag combinations are invalid."""
+    """Raised when fix flag combinations are invalid.
+
+    The message carries no command advice: each CLI scope (album, albums,
+    gallery) suggests its own ``--help``.
+    """
+
+    def __init__(self, kind: FixValidationErrorKind) -> None:
+        self.kind = kind
+        super().__init__("No fix specified.")
 
 
 def validate_fix_flags(
@@ -54,11 +80,13 @@ def validate_fix_flags(
 
     Raises :class:`FixValidationError` when no fix is specified.
     """
-    any_fix = fix_id or new_id or rm_upstream or rm_orphan
-    if not any_fix:
-        raise FixValidationError(
-            "No fix specified. Run photree album fix --help for available fixes."
-        )
+    if not (fix_id or new_id or rm_upstream or rm_orphan):
+        raise FixValidationError(FixValidationErrorKind.NO_FIX_SPECIFIED)
+
+
+# ---------------------------------------------------------------------------
+# Aggregated fix runner
+# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -71,14 +99,54 @@ class FixRmUpstreamResult:
     heic_orig: int
     mov_rendered: int
     mov_orig: int
+    skipped: tuple[RmUpstreamSkip, ...] = ()
+
+    @staticmethod
+    def from_results(results: list[RmUpstreamResult]) -> FixRmUpstreamResult:
+        return FixRmUpstreamResult(
+            heic_jpeg=sum(len(r.heic.removed_jpeg) for r in results),
+            heic_browsable=sum(len(r.heic.removed_browsable) for r in results),
+            heic_rendered=sum(len(r.heic.removed_rendered) for r in results),
+            heic_orig=sum(len(r.heic.removed_orig) for r in results),
+            mov_rendered=sum(len(r.mov.removed_rendered) for r in results),
+            mov_orig=sum(len(r.mov.removed_orig) for r in results),
+            skipped=tuple(skip for r in results for skip in r.skipped),
+        )
 
 
 @dataclass(frozen=True)
 class FixResult:
-    """Aggregated result of all fix operations on a single album."""
+    """Aggregated result of all fix operations on a single album.
+
+    ``None`` means the operation was not requested; an empty value means it
+    ran and found nothing, which is reported as such.
+    """
 
     rm_upstream_result: FixRmUpstreamResult | None = None
-    rm_orphan_removed_by_dir: tuple[tuple[str, tuple[str, ...]], ...] = ()
+    rm_orphan_removed_by_dir: tuple[tuple[str, tuple[str, ...]], ...] | None = None
+    no_media_sources: bool = False
+
+
+def _run_rm_upstream(
+    album_dir: Path, media_sources: list[MediaSource], *, dry_run: bool, force: bool
+) -> FixRmUpstreamResult:
+    """Plan every source first, so one refusal leaves the whole album untouched."""
+    plans = [plan_rm_upstream(album_dir, ms, force=force) for ms in media_sources]
+    check_rm_upstream_plans(plans, force=force)
+    return FixRmUpstreamResult.from_results(
+        [apply_rm_upstream(album_dir, plan, dry_run=dry_run) for plan in plans]
+    )
+
+
+def _run_rm_orphan(
+    album_dir: Path, media_sources: list[MediaSource], *, dry_run: bool
+) -> tuple[tuple[str, tuple[str, ...]], ...]:
+    return tuple(
+        entry
+        for ms in media_sources
+        for result in [rm_orphan(album_dir, ms, dry_run=dry_run)]
+        for entry in (*result.heic.removed_by_dir, *result.mov.removed_by_dir)
+    )
 
 
 def run_fix(
@@ -88,54 +156,34 @@ def run_fix(
     dry_run: bool,
     rm_upstream_flag: bool = False,
     rm_orphan_flag: bool = False,
-    max_workers: int | None = None,
+    force: bool = False,
 ) -> FixResult:
     """Run selected fix operations on a single album.
 
     Iterates over all media sources, runs the requested operations, and
     returns aggregated results. Works for both iOS and std media sources.
+
+    *force* lets rm-upstream use empty browsable dirs as deletion signals and
+    delete every item of an archive (see :mod:`.rm_upstream`).
+
+    *link_mode* is accepted for caller compatibility but unused: no fix
+    rebuilds browsable files.
     """
     from ..store.media_sources_discovery import discover_media_sources
 
     media_sources = discover_media_sources(album_dir)
-
     if not media_sources:
-        return FixResult()
-
-    ru_result = None
-    orphan_by_dir: list[tuple[str, tuple[str, ...]]] = []
-
-    if rm_upstream_flag:
-        total_heic_jpeg = 0
-        total_heic_browsable = 0
-        total_heic_rendered = 0
-        total_heic_orig = 0
-        total_mov_rendered = 0
-        total_mov_orig = 0
-        for ms in media_sources:
-            result_rm = rm_upstream(album_dir, ms, dry_run=dry_run)
-            total_heic_jpeg += len(result_rm.heic.removed_jpeg)
-            total_heic_browsable += len(result_rm.heic.removed_browsable)
-            total_heic_rendered += len(result_rm.heic.removed_rendered)
-            total_heic_orig += len(result_rm.heic.removed_orig)
-            total_mov_rendered += len(result_rm.mov.removed_rendered)
-            total_mov_orig += len(result_rm.mov.removed_orig)
-        ru_result = FixRmUpstreamResult(
-            heic_jpeg=total_heic_jpeg,
-            heic_browsable=total_heic_browsable,
-            heic_rendered=total_heic_rendered,
-            heic_orig=total_heic_orig,
-            mov_rendered=total_mov_rendered,
-            mov_orig=total_mov_orig,
-        )
-
-    if rm_orphan_flag:
-        for ms in media_sources:
-            result_orphan = rm_orphan(album_dir, ms, dry_run=dry_run)
-            orphan_by_dir.extend(result_orphan.heic.removed_by_dir)
-            orphan_by_dir.extend(result_orphan.mov.removed_by_dir)
+        return FixResult(no_media_sources=True)
 
     return FixResult(
-        rm_upstream_result=ru_result,
-        rm_orphan_removed_by_dir=tuple(orphan_by_dir),
+        rm_upstream_result=(
+            _run_rm_upstream(album_dir, media_sources, dry_run=dry_run, force=force)
+            if rm_upstream_flag
+            else None
+        ),
+        rm_orphan_removed_by_dir=(
+            _run_rm_orphan(album_dir, media_sources, dry_run=dry_run)
+            if rm_orphan_flag
+            else None
+        ),
     )

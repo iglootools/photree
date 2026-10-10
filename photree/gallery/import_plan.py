@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import itertools
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 from ..album.naming import (
@@ -30,7 +30,7 @@ from . import AlbumIndex
 from .importer import compute_target_dir
 
 
-class ImportAction(Enum):
+class ImportAction(StrEnum):
     """What to do with a source album during import."""
 
     NEW = "new"
@@ -142,12 +142,12 @@ def _detect_collisions(
         if p.action is ImportAction.REIMPORT and p.existing is not None
     }
     final_names = [
-        p.target.name
-        for p in plans
-        if p.action in (ImportAction.NEW, ImportAction.REIMPORT)
-    ]
-    final_names += [
-        gpath.name for gpath in index.id_to_path.values() if gpath not in replaced
+        *(
+            p.target.name
+            for p in plans
+            if p.action in (ImportAction.NEW, ImportAction.REIMPORT)
+        ),
+        *(gpath.name for gpath in index.id_to_path.values() if gpath not in replaced),
     ]
     inputs = [
         (name, parsed)
@@ -155,6 +155,32 @@ def _detect_collisions(
         if (parsed := parse_album_name(name)) is not None
     ]
     return check_batch_date_collisions(inputs).date_collisions
+
+
+def _clobber_conflict(
+    source: Path,
+    meta: AlbumMetadata | None,
+    target: Path,
+    existing: Path | None,
+) -> ClobberConflict | None:
+    """Detect a target name occupied by a *different* album.
+
+    Applies to both detection paths: an ID-less match on the target name, and
+    an ID match whose source was renamed onto a name another album already
+    holds (*existing* is then the album's current, different location).
+    An ID-less source cannot be told apart from the occupant, so it never
+    conflicts.
+    """
+    if meta is None or target == existing or not target.exists():
+        return None
+    occupant = load_album_metadata(target)
+    return (
+        ClobberConflict(
+            source=source, existing=target, source_id=meta.id, existing_id=occupant.id
+        )
+        if occupant is not None and occupant.id != meta.id
+        else None
+    )
 
 
 def _plan_album_import(
@@ -168,21 +194,17 @@ def _plan_album_import(
     """Plan the import of one validly-named album into a plan or clobber conflict."""
     target = compute_target_dir(gallery_dir, source.name)
     action = ImportAction.REIMPORT if reimport else ImportAction.SKIP
+    by_id = index.id_to_path.get(meta.id) if meta is not None else None
 
-    if meta is not None and meta.id in index.id_to_path:
-        return AlbumPlan(source, action, target, existing=index.id_to_path[meta.id])
-    if not target.exists():
-        return AlbumPlan(source, ImportAction.NEW, target)
-
-    existing_meta = load_album_metadata(target)
-    if meta is not None and existing_meta is not None and meta.id != existing_meta.id:
-        return ClobberConflict(
-            source=source,
-            existing=target,
-            source_id=meta.id,
-            existing_id=existing_meta.id,
-        )
-    return AlbumPlan(source, action, target, existing=target)
+    match (_clobber_conflict(source, meta, target, by_id), by_id, target.exists()):
+        case (ClobberConflict() as conflict, _, _):
+            return conflict
+        case (None, Path() as existing, _):
+            return AlbumPlan(source, action, target, existing=existing)
+        case (None, None, False):
+            return AlbumPlan(source, ImportAction.NEW, target)
+        case _:
+            return AlbumPlan(source, action, target, existing=target)
 
 
 def plan_imports(

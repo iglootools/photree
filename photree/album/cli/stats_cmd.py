@@ -8,9 +8,11 @@ from typing import Annotated
 import typer
 
 from ...clihelpers.console import console, err_console
+from ...common.fs import display_path
 from .. import stats as album_stats
 from ..stats import output as stats_output
 from . import album_app
+from .helpers import exit_on_media_source_conflict
 
 
 @album_app.command("stats")
@@ -28,10 +30,16 @@ def stats_cmd(
     ] = Path("."),
 ) -> None:
     """Show disk usage and content statistics for a single album."""
-    try:
-        result = album_stats.compute_album_stats(album_dir)
-    except ValueError as exc:
-        err_console.print(str(exc))
-        raise typer.Exit(code=1) from None
+    cwd = Path.cwd()
+    with exit_on_media_source_conflict(cwd):
+        try:
+            result = album_stats.compute_album_stats(album_dir)
+        except album_stats.UnparseableAlbumNameError as exc:
+            err_console.print(f'Album name "{exc.album_dir.name}" cannot be parsed.')
+            err_console.print(
+                "Run 'photree album check --album-dir "
+                f'"{display_path(exc.album_dir, cwd)}"\' to identify naming issues.'
+            )
+            raise typer.Exit(code=1) from None
 
     console.print(stats_output.format_album_stats(result))

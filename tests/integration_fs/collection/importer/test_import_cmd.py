@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from photree.album.id import format_album_external_id, generate_album_id
@@ -11,7 +12,18 @@ from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.cli import app
 from photree.collection.id import generate_collection_id
-from photree.collection.importer.selection import SELECTION_CSV, SELECTION_DIR
+from photree.collection.importer.import_members import (
+    CollectionImportError,
+    CollectionImportErrorKind,
+    import_collection_members,
+)
+from photree.collection.importer.selection import (
+    SELECTION_CSV,
+    SELECTION_DIR,
+    SelectionError,
+    SelectionErrorKind,
+    read_selection,
+)
 from photree.collection.store.metadata import (
     load_collection_metadata,
     save_collection_metadata,
@@ -20,6 +32,7 @@ from photree.collection.store.protocol import (
     CollectionLifecycle,
     CollectionMembers,
     CollectionMetadata,
+    CollectionStrategy,
 )
 from photree.fsprotocol import GalleryMetadata, save_gallery_metadata
 
@@ -28,13 +41,13 @@ runner = CliRunner()
 
 def _write(path: Path, content: str = "data") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content)
+    path.write_text(content, encoding="utf-8")
 
 
 def _write_csv(path: Path, entries: list[str]) -> None:
     """Write a collection to-import.csv with header."""
     lines = ["entry,date", *[f"{e}," for e in entries]]
-    path.write_text("\n".join(lines) + "\n")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def _setup_gallery(tmp_path: Path) -> Path:
@@ -247,3 +260,93 @@ class TestCollectionImportCmd:
         )
         assert result.exit_code == 1
         assert "No selection entries" in result.output
+
+
+class TestSelectionDateErrors:
+    def test_invalid_date_is_reported_with_row_and_value(self, tmp_path: Path) -> None:
+        col_dir = _setup_collection(tmp_path)
+        (col_dir / SELECTION_CSV).write_text(
+            "entry,date\nIMG_0001.HEIC,2024-07-14\nIMG_0002.HEIC,14/07/2024\n",
+            encoding="utf-8",
+        )
+
+        sources = read_selection(col_dir)
+
+        assert sources.errors == (
+            SelectionError(
+                SelectionErrorKind.INVALID_DATE,
+                col_dir / SELECTION_CSV,
+                3,
+                "IMG_0002.HEIC",
+                "14/07/2024",
+            ),
+        )
+
+    def test_import_fails_on_invalid_date_without_writing(self, tmp_path: Path) -> None:
+        # Regression: an unparseable date used to be dropped silently, so the
+        # entry was resolved without the disambiguation the user asked for.
+        gallery = _setup_gallery(tmp_path)
+        _setup_album(gallery, "2024-07-14 - Trip")
+        col_dir = _setup_collection(tmp_path)
+        (col_dir / SELECTION_CSV).write_text(
+            "entry,date\n2024-07-14 - Trip,yesterday\n", encoding="utf-8"
+        )
+
+        result = runner.invoke(
+            app, ["collection", "import", "-c", str(col_dir), "-g", str(gallery)]
+        )
+
+        assert result.exit_code == 1
+        assert "invalid date 'yesterday'" in result.output
+        assert f"{SELECTION_CSV}:2" in result.output
+        loaded = load_collection_metadata(col_dir)
+        assert loaded is not None
+        assert loaded.albums == []
+        assert (col_dir / SELECTION_CSV).exists()
+
+
+class TestImportMembersErrors:
+    def test_smart_collection_raises_structured_error(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        col_dir = tmp_path / "smart"
+        col_dir.mkdir()
+        save_collection_metadata(
+            col_dir,
+            CollectionMetadata(
+                id=generate_collection_id(),
+                members=CollectionMembers.SMART,
+                lifecycle=CollectionLifecycle.EXPLICIT,
+                strategy=CollectionStrategy.DATE_RANGE,
+            ),
+        )
+
+        with pytest.raises(CollectionImportError) as exc_info:
+            import_collection_members(col_dir, gallery)
+
+        assert exc_info.value.kind == CollectionImportErrorKind.SMART_COLLECTION
+        assert exc_info.value.collection_dir == col_dir
+
+    def test_missing_metadata_raises_structured_error(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+
+        with pytest.raises(CollectionImportError) as exc_info:
+            import_collection_members(tmp_path, gallery)
+
+        assert exc_info.value.kind == CollectionImportErrorKind.NO_METADATA
+
+
+class TestCollectionsImportCmd:
+    def test_reports_each_failure_with_reason(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        col_dir = _setup_collection(tmp_path)
+        _write_csv(col_dir / SELECTION_CSV, ["nonexistent-album"])
+
+        result = runner.invoke(
+            app,
+            ["collections", "import", "-c", str(col_dir), "-g", str(gallery)],
+        )
+
+        assert result.exit_code == 1
+        assert "0 collection(s) imported, 0 skipped, 1 failed." in result.output
+        assert "[nonexistent-album] not found in gallery" in result.output
+        assert "photree collection import --collection-dir" in result.output

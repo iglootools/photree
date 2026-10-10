@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from photree.album.fix import (
+    MissingArchiveError,
     rm_orphan,
     rm_upstream,
 )
@@ -84,8 +85,9 @@ class TestRmOrphanStd:
     def test_raises_when_archive_missing(self, tmp_path: Path) -> None:
         _setup_dir(tmp_path / "nelu-img", ["sunset.heic"])
 
-        with pytest.raises(FileNotFoundError, match="Archive directory"):
+        with pytest.raises(MissingArchiveError) as exc_info:
             rm_orphan(tmp_path, STD)
+        assert exc_info.value.archive_dir == "std-nelu"
 
     def test_missing_dirs_are_safe(self, tmp_path: Path) -> None:
         """No crash when archive exists but downstream dirs don't."""
@@ -111,7 +113,8 @@ class TestRmUpstreamStd:
         # nelu-jpg is empty — jpeg was "deleted" by the user
         _setup_dir(tmp_path / "nelu-jpg", [])
 
-        result = rm_upstream(tmp_path, STD)
+        # The only image deleted everywhere: needs --force (would empty the archive)
+        result = rm_upstream(tmp_path, STD, force=True)
 
         assert result.heic.removed_browsable == ("sunset.jpg",)
         assert result.heic.removed_rendered == ("sunset.jpg",)
@@ -171,8 +174,9 @@ class TestRmUpstreamStd:
     def test_raises_when_archive_missing(self, tmp_path: Path) -> None:
         _setup_dir(tmp_path / "nelu-img", ["sunset.heic"])
 
-        with pytest.raises(FileNotFoundError, match="Archive directory"):
+        with pytest.raises(MissingArchiveError) as exc_info:
             rm_upstream(tmp_path, STD)
+        assert exc_info.value.archive_dir == "std-nelu"
 
     def test_missing_dirs_are_safe(self, tmp_path: Path) -> None:
         """No crash when archive exists but no browsable dirs."""
@@ -188,7 +192,7 @@ class TestRmUpstreamStd:
         _setup_dir(tmp_path / "nelu-img", ["sunset.heic"])
         _setup_dir(tmp_path / "nelu-jpg", [])
 
-        result = rm_upstream(tmp_path, STD, dry_run=True)
+        result = rm_upstream(tmp_path, STD, dry_run=True, force=True)
 
         assert result.heic.removed_browsable == ("sunset.heic",)
         # Files still exist

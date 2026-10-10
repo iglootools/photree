@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Annotated
 
 import typer
 
+from ...clihelpers.options import OUTPUT_FILE_OPTION, OUTPUT_FORMAT_OPTION, OutputFormat
 from . import AlbumDirOption, DirOption, albums_app
 from .batch_ops.listing import run_batch_list_albums
 from .ops import resolve_check_batch_albums
@@ -23,23 +23,8 @@ def list_cmd(
             help="Show parsed album metadata and media sources (default: enabled).",
         ),
     ] = True,
-    output_format: Annotated[
-        str,
-        typer.Option(
-            "--format",
-            help="Output format: text (default) or csv.",
-        ),
-    ] = "text",
-    output_file: Annotated[
-        Path | None,
-        typer.Option(
-            "--output",
-            "-o",
-            help="Write output to a file instead of stdout.",
-            dir_okay=False,
-            resolve_path=True,
-        ),
-    ] = None,
+    output_format: OUTPUT_FORMAT_OPTION = OutputFormat.TEXT,
+    output_file: OUTPUT_FILE_OPTION = None,
 ) -> None:
     """List all discovered albums with their metadata and media sources."""
     albums, display_base = resolve_check_batch_albums(base_dir, album_dirs)
