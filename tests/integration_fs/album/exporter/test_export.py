@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from photree.album.exporter.settings import resolve_export_settings
 from photree.album.exporter.single import (
     ExportedAlbumType,
     compute_target_dir,
@@ -17,6 +18,7 @@ from photree.album.store.protocol import (
     parse_album_year,
     std_media_source,
 )
+from photree.config import ConfigError, ConfigErrorKind
 from photree.fsprotocol import (
     PHOTREE_DIR,
     AlbumShareLayout,
@@ -449,3 +451,22 @@ class TestExportPlainArchive:
         assert (target / "a.jpg").exists()
         assert (target / "b.jpg").exists()
         assert result.files_copied == 2
+
+
+class TestExplicitConfigIsAlwaysLoaded:
+    def test_missing_explicit_config_without_profile_is_an_error(
+        self, tmp_path: Path
+    ) -> None:
+        # Regression: without --profile the config was never read, so a
+        # mistyped --config path was silently ignored.
+        missing = tmp_path / "nope.toml"
+        with pytest.raises(ConfigError) as info:
+            resolve_export_settings(
+                profile_name=None,
+                share_dir=tmp_path,
+                share_layout=None,
+                album_layout=None,
+                link_mode=None,
+                config_path=str(missing),
+            )
+        assert info.value.kind == ConfigErrorKind.FILE_NOT_FOUND

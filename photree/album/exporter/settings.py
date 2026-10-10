@@ -68,9 +68,16 @@ def resolve_export_settings(
     Raises :class:`ExportSettingsError` on invalid or incomplete settings.
     Raises :class:`~photree.config.ConfigError` on config file errors.
     """
+    # Only profiles come from the config, so a searched-for config is read only
+    # when a profile is named. An explicit --config is always loaded: silently
+    # ignoring a path the user typed (missing file, typo) would hide the mistake.
     profile = None
-    if profile_name is not None:
-        cfg = load_config(config_path)
+    cfg = (
+        load_config(config_path)
+        if profile_name is not None or config_path is not None
+        else None
+    )
+    if cfg is not None and profile_name is not None:
         profile = cfg.exporter.profiles.get(profile_name)
         if profile is None:
             raise ExportSettingsError(

@@ -25,6 +25,13 @@ runner = CliRunner()
 _TRUNCATED_YAML = "id: [0192d4e1"
 
 
+def _empty_config(tmp_path: Path) -> Path:
+    """An empty config file, so the test never reads the user's own config."""
+    config = tmp_path / "empty.toml"
+    config.write_text("", encoding="utf-8")
+    return config
+
+
 def _write(path: Path, content: str = "data") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
@@ -161,7 +168,7 @@ def test_export_unplaceable_name_is_reported(tmp_path: Path) -> None:
             "--share-layout",
             "by-month",
             "--config",
-            str(tmp_path / "missing.toml"),
+            str(_empty_config(tmp_path)),
         ],
     )
 
@@ -302,7 +309,7 @@ def test_export_missing_sentinel_suggests_quoted_relative_touch(
             "--share-dir",
             str(tmp_path / "my share"),
             "--config",
-            str(tmp_path / "missing.toml"),
+            str(_empty_config(tmp_path)),
         ],
     )
 

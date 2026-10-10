@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import pytest
+
 from photree.album.importer.preflight import (
     check_image_capture_dir,
     resolve_image_capture_dir,
@@ -9,6 +11,7 @@ from photree.album.importer.preflight import (
 )
 from photree.clihelpers.sysdeps import import_deps, refresh_deps
 from photree.common.sysdeps import SystemDependency, SystemDependencyStatus
+from photree.config import ConfigError, ConfigErrorKind
 
 
 def _populate(path: Path, filenames: list[str]) -> None:
@@ -26,6 +29,15 @@ class TestResolveImageCaptureDir:
     def test_explicit_source_wins(self, tmp_path: Path) -> None:
         config = self._config(tmp_path, '[importer]\nimage-capture-dir = "/cfg"\n')
         assert resolve_image_capture_dir(tmp_path / "src", config) == tmp_path / "src"
+
+    def test_explicit_missing_config_is_an_error_even_with_source(
+        self, tmp_path: Path
+    ) -> None:
+        missing = tmp_path / "nope.toml"
+        with pytest.raises(ConfigError) as info:
+            resolve_image_capture_dir(tmp_path / "src", str(missing))
+        assert info.value.kind == ConfigErrorKind.FILE_NOT_FOUND
+        assert info.value.path == missing
 
     def test_config_beats_default(self, tmp_path: Path) -> None:
         config = self._config(tmp_path, '[importer]\nimage-capture-dir = "/cfg"\n')

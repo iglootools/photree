@@ -35,8 +35,12 @@ def resolve_image_capture_dir(
     Raises :class:`~photree.config.ConfigError` on config file errors.
     """
     if source is not None:
-        # An explicit flag wins without reading the config, so a broken
-        # config file cannot block an import that does not need it.
+        # An explicit flag wins without reading a *searched-for* config, so a
+        # broken config file cannot block an import that does not need it. An
+        # explicit --config is still loaded: a path the user typed must not be
+        # silently ignored.
+        if config_path is not None:
+            load_config(config_path)
         return source
     else:
         configured = load_config(config_path).importer.image_capture_dir
