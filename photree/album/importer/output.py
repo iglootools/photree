@@ -13,9 +13,9 @@ from collections.abc import Sequence
 from pathlib import Path
 from textwrap import dedent
 
-from ...clihelpers.sysdeps import format_missing_troubleshoot, format_statuses
 from ...common.formatting import CHECK, CROSS, indent, markup_escape
 from ...common.fs import display_path
+from ...common.sysdeps_output import format_missing_troubleshoot, format_statuses
 from ..check.output import format_duplicate_stem
 from ..check.std import DuplicateStem
 from .album_import import (

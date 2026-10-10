@@ -12,7 +12,6 @@ from pathlib import Path
 
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
-from ...foundation.gallery_metadata import resolve_link_mode
 from ...foundation.linking import LinkMode
 from ..exif_date_check import AlbumNamingResult, check_exif_date_match
 from ..naming import check_album_naming, parse_album_name
@@ -519,33 +518,6 @@ def _check_cache(
     return (
         check_face_state(album_dir, media_sources=media_sources),
         check_exif_cache_state(album_dir, media_sources=media_sources),
-    )
-
-
-def run_album_preflight(
-    album_dir: Path,
-    *,
-    sips_available: bool,
-    exiftool: ExifToolHelper | None,
-    link_mode: LinkMode | None = None,
-    checksum: bool = True,
-    check_naming_flag: bool = True,
-    on_file_checked: Callable[[str, bool], None] | None = None,
-) -> AlbumPreflightResult:
-    """Run all album preflight checks, resolving the link mode from the gallery.
-
-    System probing (``sips`` on PATH, starting exiftool) is the CLI layer's
-    job, so both arrive as parameters; pass ``exiftool=None`` to skip the
-    EXIF date match.
-    """
-    return run_album_check(
-        album_dir,
-        sips_available=sips_available,
-        exiftool=exiftool,
-        link_mode=link_mode or resolve_link_mode(None, album_dir),
-        checksum=checksum,
-        check_naming_flag=check_naming_flag,
-        on_file_checked=on_file_checked,
     )
 
 

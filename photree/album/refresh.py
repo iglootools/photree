@@ -9,7 +9,6 @@ from pathlib import Path
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ..common.fs import list_files
-from ..foundation.gallery_metadata import resolve_link_mode
 from ..foundation.linking import LinkMode
 from .browsable import refresh_browsable_dir
 from .check.browsable import check_browsable_dir
@@ -238,7 +237,7 @@ def refresh_media_metadata(
 def refresh_album_derived_data(
     album_dir: Path,
     *,
-    link_mode: LinkMode | None = None,
+    link_mode: LinkMode,
     max_workers: int | None = None,
     exiftool: ExifToolHelper | None = None,
     analyzer_factory: FaceAnalyzerFactory | None = None,
@@ -266,6 +265,8 @@ def refresh_album_derived_data(
        as EXIF cache).
 
     The ``force_*`` flags bypass the check gate for the corresponding step.
+    *link_mode* is resolved by the caller (CLI option or ``gallery.yaml``):
+    looking up the gallery is the CLI layer's job.
 
     A shared *exiftool* instance and a memoized *analyzer_factory* can be
     passed to amortize startup cost across albums in batch operations. When
@@ -276,7 +277,7 @@ def refresh_album_derived_data(
     _refresh_browsable_dirs(
         album_dir,
         media_sources,
-        link_mode=link_mode or resolve_link_mode(None, album_dir),
+        link_mode=link_mode,
         force=force_browsable,
         dry_run=dry_run,
     )

@@ -657,7 +657,8 @@ photree shells out to two external binaries:
 | `exiftool` | reading and writing EXIF timestamps |
 
 `photree/common/sysdeps.py` owns the list, each entry's purpose, and its
-install hint. `photree/clihelpers/sysdeps.py` turns that into the CLI gate.
+install hint. `photree/common/sysdeps_output.py` renders statuses and install
+instructions, and `photree/clihelpers/sysdeps.py` turns both into the CLI gate.
 
 ### Fail-fast gate
 

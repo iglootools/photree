@@ -123,7 +123,9 @@ def import_all_cmd(
         to_import, resolved_gallery, resolved_lm, dry_run, max_workers=os.cpu_count()
     )
     mutated = not dry_run and bool(result.imported)
-    check_failed = _post_import_check(to_import, result, cwd) if mutated else []
+    check_failed = (
+        _post_import_check(to_import, result, resolved_gallery, cwd) if mutated else []
+    )
     if mutated:
         _cluster_faces(resolved_gallery)
 
@@ -154,13 +156,18 @@ def _resolve_albums_or_exit(
 
 
 def _post_import_check(
-    to_import: list[AlbumPlan], result: BatchImportResult, cwd: Path
+    to_import: list[AlbumPlan],
+    result: BatchImportResult,
+    gallery_dir: Path,
+    cwd: Path,
 ) -> list[Path]:
     """Check every album that imported; return those that failed."""
     typer.echo("\nPost-Import Check:")
     imported = set(result.imported)
     check_failed = run_batch_post_import_check(
-        [plan.target for plan in to_import if plan.source in imported], cwd
+        [plan.target for plan in to_import if plan.source in imported],
+        gallery_dir,
+        cwd,
     )
     if check_failed:
         err_console.print(

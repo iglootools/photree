@@ -9,7 +9,7 @@ import typer
 
 from ...clihelpers.options import CONFIG_OPTION
 from . import album_app
-from .helpers import run_import_preflight
+from .import_preflight import run_import_preflight
 
 
 @album_app.command("import-check")

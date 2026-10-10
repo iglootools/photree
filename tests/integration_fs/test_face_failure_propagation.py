@@ -58,7 +58,7 @@ def test_batch_refresh_counts_face_failures_as_failed(
         refresh_handler, "refresh_album_derived_data", _refresh_with_face_failures
     )
 
-    result = batch_refresh([album])
+    result = batch_refresh([album], link_mode_for=lambda _: LinkMode.HARDLINK)
 
     assert result.refreshed == 0
     assert result.failed_albums == (album,)

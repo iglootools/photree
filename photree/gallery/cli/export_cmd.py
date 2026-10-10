@@ -7,7 +7,6 @@ from typing import Annotated
 
 import typer
 
-from ...album.cli.helpers import format_config_error
 from ...album.exporter import batch as _batch
 from ...album.exporter import output as _export_output
 from ...album.exporter.settings import (
@@ -17,6 +16,7 @@ from ...album.exporter.settings import (
     validate_export_settings,
 )
 from ...album.store.album_discovery import discover_albums
+from ...clihelpers.config_errors import format_config_error
 from ...clihelpers.console import err_console
 from ...clihelpers.options import (
     ALBUM_LAYOUT_OPTION,

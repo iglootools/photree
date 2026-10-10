@@ -25,7 +25,7 @@ from ..fix.ios import (
 )
 from ..fix.ios.output import format_fix_ios_result
 from . import album_app
-from .helpers import exit_on_media_source_conflict
+from .media_source_conflict import exit_on_media_source_conflict
 
 
 @album_app.command("fix-ios")

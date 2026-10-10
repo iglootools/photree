@@ -1,53 +1,22 @@
-"""Shared helpers for album CLI commands."""
+"""Import preflight shared by the album and albums import commands.
+
+Public to the ``albums`` CLI (``albums import``, ``albums import-check``):
+both scopes run the same checks and abort the same way.
+"""
 
 from __future__ import annotations
 
-from collections.abc import Iterator
-from contextlib import contextmanager
 from pathlib import Path
 
 import typer
 
+from ...clihelpers.config_errors import format_config_error
 from ...clihelpers.console import console, err_console
 from ...clihelpers.sysdeps import import_deps
-from ...common.fs import display_path
 from ...common.sysdeps import check_system_dependencies
 from ...config import ConfigError
 from ..importer import output as importer_output
 from ..importer.preflight import resolve_image_capture_dir, run_preflight
-from ..store.media_sources_discovery import MediaSourceConflictError
-
-
-def format_config_error(exc: ConfigError) -> str:
-    """Plain text (print with ``markup=False``: TOML tables look like markup)."""
-    return (
-        f"Invalid configuration: {exc}\n"
-        "Fix the config file, or pass --config to use another one."
-    )
-
-
-def format_media_source_conflict(exc: MediaSourceConflictError, cwd: Path) -> str:
-    """Describe an iOS/std media source name clash, with a fix suggestion."""
-    album = display_path(exc.album_dir, cwd)
-    names = ", ".join(exc.names)
-    return (
-        f"{album} has both ios-<name>/ and std-<name>/ archives for: {names}.\n"
-        "Both would share the same browsable directories and media IDs. "
-        "Rename one of the two archive directories (and its browsable "
-        "directories) so every media source name is unique."
-    )
-
-
-@contextmanager
-def exit_on_media_source_conflict(cwd: Path) -> Iterator[None]:
-    """Report a :class:`MediaSourceConflictError` and exit 1 instead of a traceback."""
-    try:
-        yield
-    except MediaSourceConflictError as exc:
-        # markup=False: album names may contain "[private]", which Rich
-        # would otherwise swallow as a style tag.
-        err_console.print(format_media_source_conflict(exc, cwd), markup=False)
-        raise typer.Exit(code=1) from exc
 
 
 def run_import_preflight(

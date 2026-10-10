@@ -9,7 +9,7 @@ import os
 import shutil
 from pathlib import Path
 
-from photree.album.check import check_sips_available, run_album_preflight
+from photree.album.check import check_sips_available, run_album_check
 from photree.album.exporter.single import compute_target_dir, export_album
 from photree.album.importer.album_import import run_import
 from photree.album.importer.testkit import seed_demo
@@ -134,7 +134,7 @@ class TestDemoWorkflow:
 
         # ── Check ────────────────────────────────────────────
         with exiftool_session() as exiftool:
-            preflight = run_album_preflight(
+            preflight = run_album_check(
                 album_dir,
                 sips_available=check_sips_available(),
                 exiftool=exiftool,

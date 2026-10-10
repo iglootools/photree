@@ -23,6 +23,7 @@ from ...clihelpers.progress import BatchProgressBar, StageProgressBar
 from ...common.exif import exiftool_session
 from ...common.formatting import CHECK, indent
 from ...common.fs import display_path
+from ...foundation.gallery_metadata import resolve_link_mode
 from ...foundation.linking import LinkMode
 from .. import (
     AlbumIndex,
@@ -184,10 +185,11 @@ def _post_import_check(target_dir: Path, cwd: Path) -> None:
     """Run the preflight check on a freshly imported album; exit 1 on failure."""
     typer.echo("\nPost-Import Check:")
     with exiftool_session() as exiftool:
-        check_result = album_check.run_album_preflight(
+        check_result = album_check.run_album_check(
             target_dir,
             sips_available=album_check.check_sips_available(),
             exiftool=exiftool,
+            link_mode=resolve_link_mode(None, target_dir),
         )
     console.print(preflight_output.format_album_preflight_checks(check_result))
     if not check_result.success:
@@ -255,11 +257,14 @@ def run_batch_import(
 
 def run_batch_post_import_check(
     imported_targets: list[Path],
+    gallery_dir: Path,
     cwd: Path,
 ) -> list[Path]:
     """Run post-import checks on all imported albums.
 
-    Returns the list of albums that failed checking.
+    The albums are checked against the gallery's configured link mode (not a
+    ``--link-mode`` override given to the import). Returns the list of albums
+    that failed checking.
     """
     with BatchProgressBar(
         total=len(imported_targets),
@@ -268,6 +273,7 @@ def run_batch_post_import_check(
     ) as check_progress:
         check_failed = _run_batch_post_import_check(
             imported_targets,
+            link_mode=resolve_link_mode(None, gallery_dir),
             sips_available=album_check.check_sips_available(),
             display_fn=lambda p: str(display_path(p, cwd)),
             on_start=check_progress.on_start,

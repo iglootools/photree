@@ -180,7 +180,9 @@ Two call styles, matching what the command does:
   diagnostic and depends on this.
 
 Probing PATH is the CLI layer's job. Library functions take the resolved
-statuses as a parameter and stay pure.
+statuses as a parameter and stay pure; output layers render them with
+`common/sysdeps_output.py`, never by importing `clihelpers` (only CLI modules
+— `*/cli/`, `albums/batchcli/`, `clihelpers/` — may import `clihelpers`).
 
 ### Discoverability
 
@@ -208,6 +210,16 @@ Commands with `--format csv` follow this pattern:
 - Write to stdout or file, close file in `finally`
 - When `--format csv`, suppress non-CSV output (e.g., "No albums found"
   goes to stderr)
+
+### Ambient Gallery Lookups
+
+Finding the gallery (walking up to `.photree/gallery.yaml`) is ambient state,
+like probing PATH, so it is the CLI layer's job too. Core functions take the
+resolved value — e.g. `link_mode: LinkMode` on `refresh_album_derived_data`
+and `run_album_check` — and the CLI (or `albums/batchcli/`) calls
+`foundation.gallery_metadata.resolve_link_mode`. A batch handler whose albums
+may live in different galleries takes a resolver instead
+(`batch_refresh(link_mode_for=...)`), still supplied by the CLI.
 
 ### Errors and Output
 

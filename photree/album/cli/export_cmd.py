@@ -7,6 +7,7 @@ from typing import Annotated
 
 import typer
 
+from ...clihelpers.config_errors import format_config_error
 from ...clihelpers.console import err_console
 from ...clihelpers.options import (
     ALBUM_LAYOUT_OPTION,
@@ -29,7 +30,6 @@ from ..exporter.settings import (
 )
 from ..exporter.single import compute_target_dir as export_compute_target_dir
 from . import album_app
-from .helpers import format_config_error
 
 
 @album_app.command("export")

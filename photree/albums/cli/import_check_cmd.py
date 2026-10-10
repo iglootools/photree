@@ -8,7 +8,7 @@ from typing import Annotated
 
 import typer
 
-from ...album.cli.helpers import run_import_preflight
+from ...album.cli.import_preflight import run_import_preflight
 from ...album.importer.album_import import task_has_content
 from ...album.importer.tasks import discover_import_tasks
 from ...clihelpers.console import err_console

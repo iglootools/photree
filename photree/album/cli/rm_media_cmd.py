@@ -11,7 +11,7 @@ from ...clihelpers.console import err_console
 from ...common.fs import display_path
 from .. import media
 from . import album_app
-from .helpers import exit_on_media_source_conflict
+from .media_source_conflict import exit_on_media_source_conflict
 
 
 @album_app.command("rm-media")

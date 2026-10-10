@@ -34,6 +34,12 @@ photree follows a flat package layout with the following top-level modules:
   phase. `gallery refresh` calls `refresh_collections`; the gallery package
   keeps only gallery-level orchestration (media refresh, browsable tree,
   faces).
+- `clihelpers/` — CLI-only infrastructure (console, options, progress bars,
+  gallery resolution, the system dependency gate, config error rendering).
+  Only CLI modules (`*/cli/`, `albums/batchcli/`, `cli/`) import it; domain
+  output layers render dependency statuses with `common/sysdeps_output.py`.
+  The album CLI exposes `album/cli/import_preflight.py` and
+  `album/cli/media_source_conflict.py` to the `albums` CLI and the entry point.
 
 Within `album/`, media knowledge is split by concern: `album/formats.py`
 (recognized extensions and JPEG/priority rules), `album/store/media_source.py`
@@ -87,6 +93,7 @@ graph TD
     cli --> foundation
     cli --> gallery
     clihelpers --> common
+    clihelpers --> config
     clihelpers --> foundation
     collection --> album
     collection --> clihelpers

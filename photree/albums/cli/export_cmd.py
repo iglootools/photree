@@ -8,7 +8,6 @@ from typing import Annotated
 
 import typer
 
-from ...album.cli.helpers import format_config_error
 from ...album.exporter import batch
 from ...album.exporter import output as export_output
 from ...album.exporter.batch import BatchExportResult
@@ -18,6 +17,7 @@ from ...album.exporter.settings import (
     resolve_export_settings,
     validate_export_settings,
 )
+from ...clihelpers.config_errors import format_config_error
 from ...clihelpers.console import err_console
 from ...clihelpers.options import (
     ALBUM_LAYOUT_OPTION,

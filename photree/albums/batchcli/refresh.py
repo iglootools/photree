@@ -7,6 +7,7 @@ from pathlib import Path
 import typer
 
 from ...clihelpers.progress import BatchProgressBar
+from ...foundation.gallery_metadata import resolve_link_mode
 from ..cmd_handler.refresh import batch_refresh
 from .failures import exit_if_no_albums, exit_with_failures
 from .resolution import make_display_fn
@@ -32,6 +33,7 @@ def run_batch_refresh(
     ) as progress:
         result = batch_refresh(
             albums,
+            link_mode_for=lambda album_dir: resolve_link_mode(None, album_dir),
             dry_run=dry_run,
             force_browsable=force_browsable,
             force_jpeg=force_jpeg,

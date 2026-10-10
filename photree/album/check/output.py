@@ -16,7 +16,6 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from textwrap import dedent
 
-from ...clihelpers.sysdeps import format_missing_troubleshoot
 from ...common.formatting import (
     CHECK,
     CROSS,
@@ -27,6 +26,7 @@ from ...common.formatting import (
 )
 from ...common.fs import display_path
 from ...common.sysdeps import SystemDependency
+from ...common.sysdeps_output import format_missing_troubleshoot
 from ..exif_date_check import AlbumNamingResult, ExifTimestampCheck
 from ..faces.failures import FaceFailure, format_face_failures
 from ..id import format_album_external_id

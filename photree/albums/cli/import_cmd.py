@@ -8,7 +8,7 @@ from typing import Annotated
 
 import typer
 
-from ...album.cli.helpers import run_import_preflight
+from ...album.cli.import_preflight import run_import_preflight
 from ...album.faces.detect import memoized_face_analyzer_factory
 from ...album.importer import batch
 from ...album.importer import output as importer_output

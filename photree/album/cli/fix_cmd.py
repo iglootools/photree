@@ -22,7 +22,7 @@ from ..id import format_album_external_id, generate_album_id
 from ..store.metadata import load_album_metadata, save_album_metadata
 from ..store.protocol import AlbumMetadata
 from . import album_app
-from .helpers import exit_on_media_source_conflict
+from .media_source_conflict import exit_on_media_source_conflict
 
 
 @album_app.command("fix")

@@ -13,11 +13,12 @@ from ...clihelpers.sysdeps import refresh_deps, require_system_deps
 from ...common.exif import exiftool_session
 from ...common.formatting import CHECK
 from ...common.fs import display_path
+from ...foundation.gallery_metadata import resolve_link_mode
 from ..check.output import derived_failures_report
 from ..faces.detect import memoized_face_analyzer_factory
 from ..refresh import AlbumRefreshResult, refresh_album_derived_data
 from . import album_app
-from .helpers import exit_on_media_source_conflict
+from .media_source_conflict import exit_on_media_source_conflict
 
 
 @album_app.command("refresh")
@@ -82,6 +83,7 @@ def refresh_cmd(
             "Refreshing album...",
             lambda: refresh_album_derived_data(
                 album_dir,
+                link_mode=resolve_link_mode(None, album_dir),
                 exiftool=exiftool,
                 analyzer_factory=memoized_face_analyzer_factory(),
                 force_browsable=refresh_browsable,
