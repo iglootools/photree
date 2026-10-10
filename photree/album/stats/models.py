@@ -66,6 +66,17 @@ class MediaSourceStats:
 
 
 @dataclass(frozen=True)
+class MediaSourceTypeStats:
+    """Totals of every media source of one type (all iOS, or all std)."""
+
+    media_source_type: MediaSourceType
+    source_count: int
+    total: SizeStats
+    archive: SizeStats
+    derived: SizeStats
+
+
+@dataclass(frozen=True)
 class AggregateStats:
     """Common aggregate fields shared between album-level and gallery-level stats.
 
@@ -85,7 +96,7 @@ class AggregateStats:
     sidecars: RoleBreakdown
     by_format: tuple[FormatStats, ...]
     media_source_count: int
-    by_media_source_type: tuple[tuple[MediaSourceType, int], ...]
+    by_media_source_type: tuple[MediaSourceTypeStats, ...]
 
 
 @dataclass(frozen=True)

@@ -366,9 +366,21 @@ class TestComputeAlbumStats:
         assert len(result.by_media_source) == 2
         assert result.aggregate.media_source_count == 2
 
-        type_dict = dict(result.aggregate.by_media_source_type)
-        assert type_dict[MediaSourceType.IOS] == 1
-        assert type_dict[MediaSourceType.STD] == 1
+        by_type = {
+            t.media_source_type: t for t in result.aggregate.by_media_source_type
+        }
+        assert by_type[MediaSourceType.IOS].source_count == 1
+        assert by_type[MediaSourceType.STD].source_count == 1
+        # Each type carries its own sizes, not the album-wide totals.
+        assert (
+            by_type[MediaSourceType.IOS].total.apparent_bytes
+            + by_type[MediaSourceType.STD].total.apparent_bytes
+            == result.aggregate.total.apparent_bytes
+        )
+        assert (
+            by_type[MediaSourceType.STD].total.apparent_bytes
+            < result.aggregate.total.apparent_bytes
+        )
 
         # 2 iOS pictures + 1 std picture
         assert result.aggregate.unique_pictures == 3

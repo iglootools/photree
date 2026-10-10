@@ -18,6 +18,7 @@ from .models import (
     AlbumsStats,
     AlbumStats,
     MediaSourceStats,
+    MediaSourceTypeStats,
     SizeStats,
     YearStats,
 )
@@ -50,10 +51,10 @@ def _format_count(n: int) -> str:
 
 
 def _media_source_type_summary(
-    by_type: tuple[tuple[MediaSourceType, int], ...],
+    by_type: tuple[MediaSourceTypeStats, ...],
 ) -> str:
     """Format media source type counts, e.g. ``'2 iOS, 1 std'``."""
-    return ", ".join(f"{count} {mst}" for mst, count in by_type)
+    return ", ".join(f"{t.source_count} {t.media_source_type}" for t in by_type)
 
 
 def _space_saved(agg: AggregateStats) -> tuple[int, float]:
@@ -350,21 +351,18 @@ def _source_type_table(agg: AggregateStats) -> Table:
     table.add_column("Files", justify="right")
     _size_columns(table)
 
-    counts = dict(agg.by_media_source_type)
-    # AggregateStats carries no per-type sizes, so each row shows the overall
-    # totals next to its source count.
-    for mst, label in ((MediaSourceType.IOS, "iOS"), (MediaSourceType.STD, "Std")):
-        if counts.get(mst, 0) > 0:
-            table.add_row(
-                f"{label} ({counts[mst]})",
-                _format_count(agg.total.file_count),
-                *_size_cells(
-                    agg.total.apparent_bytes,
-                    agg.total.on_disk_bytes,
-                    agg.archive.apparent_bytes,
-                    agg.derived.apparent_bytes,
-                ),
-            )
+    labels = {MediaSourceType.IOS: "iOS", MediaSourceType.STD: "Std"}
+    for t in agg.by_media_source_type:
+        table.add_row(
+            f"{labels[t.media_source_type]} ({t.source_count})",
+            _format_count(t.total.file_count),
+            *_size_cells(
+                t.total.apparent_bytes,
+                t.total.on_disk_bytes,
+                t.archive.apparent_bytes,
+                t.derived.apparent_bytes,
+            ),
+        )
 
     return table
 

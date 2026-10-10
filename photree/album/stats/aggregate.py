@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-from collections import Counter
 from collections.abc import Iterable
 
-from ..store.protocol import MediaSourceType
 from .models import (
     AggregateStats,
     FormatStats,
     MediaSourceStats,
+    MediaSourceTypeStats,
     RoleBreakdown,
     SizeStats,
 )
@@ -60,10 +59,40 @@ def merge_format_stats(
     return tuple(sorted(merged, key=lambda fs: -fs.apparent_bytes))
 
 
-def _sorted_type_counts(
-    counts: Counter[MediaSourceType],
-) -> tuple[tuple[MediaSourceType, int], ...]:
-    return tuple(sorted(counts.items(), key=lambda kv: kv[0]))
+def media_source_type_stats(
+    sources: Iterable[MediaSourceStats],
+) -> tuple[MediaSourceTypeStats, ...]:
+    """Per-type totals of *sources*, one entry per type present, by type."""
+    source_list = list(sources)
+    return tuple(
+        MediaSourceTypeStats(
+            media_source_type=mst,
+            source_count=len(of_type),
+            total=merge_size_stats(ms.total for ms in of_type),
+            archive=merge_size_stats(ms.archive for ms in of_type),
+            derived=merge_size_stats(ms.derived for ms in of_type),
+        )
+        for mst in sorted({ms.media_source_type for ms in source_list})
+        if (of_type := [ms for ms in source_list if ms.media_source_type == mst])
+    )
+
+
+def merge_media_source_type_stats(
+    groups: Iterable[tuple[MediaSourceTypeStats, ...]],
+) -> tuple[MediaSourceTypeStats, ...]:
+    """Merge per-type totals across albums, one entry per type, by type."""
+    flat = [t for group in groups for t in group]
+    return tuple(
+        MediaSourceTypeStats(
+            media_source_type=mst,
+            source_count=sum(t.source_count for t in of_type),
+            total=merge_size_stats(t.total for t in of_type),
+            archive=merge_size_stats(t.archive for t in of_type),
+            derived=merge_size_stats(t.derived for t in of_type),
+        )
+        for mst in sorted({t.media_source_type for t in flat})
+        if (of_type := [t for t in flat if t.media_source_type == mst])
+    )
 
 
 def aggregate_media_sources(
@@ -84,9 +113,7 @@ def aggregate_media_sources(
         sidecars=merge_role_breakdowns(ms.sidecars for ms in source_list),
         by_format=merge_format_stats(ms.by_format for ms in source_list),
         media_source_count=len(source_list),
-        by_media_source_type=_sorted_type_counts(
-            Counter(ms.media_source_type for ms in source_list)
-        ),
+        by_media_source_type=media_source_type_stats(source_list),
     )
 
 
@@ -106,10 +133,7 @@ def merge_aggregates(aggregates: Iterable[AggregateStats]) -> AggregateStats:
         sidecars=merge_role_breakdowns(a.sidecars for a in agg_list),
         by_format=merge_format_stats(a.by_format for a in agg_list),
         media_source_count=sum(a.media_source_count for a in agg_list),
-        by_media_source_type=_sorted_type_counts(
-            sum(
-                (Counter(dict(a.by_media_source_type)) for a in agg_list),
-                Counter(),
-            )
+        by_media_source_type=merge_media_source_type_stats(
+            a.by_media_source_type for a in agg_list
         ),
     )
