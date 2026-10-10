@@ -192,6 +192,7 @@ def _export(albums: list[Path], settings: ResolvedExportSettings, cwd: Path) -> 
                         for album_dir, error in result.failed
                     ),
                 ]
-            )
+            ),
+            markup=False,
         )
         raise typer.Exit(code=1)

@@ -59,7 +59,7 @@ def list_media_cmd(
         # Keep stdout pure CSV: anything else goes to stderr in CSV mode.
         match output_format:
             case OutputFormat.CSV:
-                err_console.print(message)
+                err_console.print(message, markup=False)
             case OutputFormat.TEXT:
                 typer.echo(message)
         raise typer.Exit(code=0)

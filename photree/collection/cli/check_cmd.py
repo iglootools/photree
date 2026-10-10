@@ -6,11 +6,10 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from rich.markup import escape
 
 from ...clihelpers.console import console, err_console
 from ...clihelpers.resolution import resolve_gallery_or_exit
-from ...common.formatting import CHECK, CROSS, indent
+from ...common.formatting import CHECK, CROSS, indent, markup_escape
 from ...common.fs import display_path
 from ..check import build_gallery_lookup, check_collection
 from . import collection_app
@@ -39,13 +38,14 @@ def check_cmd(
     result = check_collection(collection_dir, lookup)
 
     for issue in result.issues:
-        console.print(indent(f"{CROSS} {escape(issue.message)}"))
+        console.print(indent(f"{CROSS} {markup_escape(issue.message)}"))
 
     if result.success:
-        console.print(f"{CHECK} {display_path(collection_dir, cwd)}")
+        console.print(f"{CHECK} {markup_escape(display_path(collection_dir, cwd))}")
     else:
         err_console.print(
             f"\n{len(result.issues)} issue(s) found in "
-            f"{display_path(collection_dir, cwd)}"
+            f"{display_path(collection_dir, cwd)}",
+            markup=False,
         )
         raise typer.Exit(code=1)

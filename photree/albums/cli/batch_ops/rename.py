@@ -88,7 +88,9 @@ def run_batch_rename_from_csv(
             "\n".join(indent(format_rename_plan_error(e)) for e in result.errors),
             markup=False,
         )
-        err_console.print(f"Fix the rows in {display_path(csv_file, cwd)} and re-run.")
+        err_console.print(
+            f"Fix the rows in {display_path(csv_file, cwd)} and re-run.", markup=False
+        )
         raise typer.Exit(code=1)
 
     if not result.actions:

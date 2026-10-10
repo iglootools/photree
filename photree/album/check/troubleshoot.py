@@ -6,9 +6,7 @@ import shlex
 from collections import defaultdict
 from textwrap import dedent
 
-from rich.markup import escape
-
-from ...common.formatting import indent
+from ...common.formatting import indent, markup_escape
 from ..naming import ExifMismatch
 from ..store.protocol import MediaSource
 from .ios import IosMediaSourceIntegrityResult
@@ -169,7 +167,7 @@ def _expand_date(d: str) -> str:
 
 def _sh(path: str) -> str:
     """Shell-quote a path, then escape for Rich markup."""
-    return escape(shlex.quote(path))
+    return markup_escape(shlex.quote(path))
 
 
 def _fix_lines(

@@ -56,5 +56,5 @@ def resolve_gallery_or_exit(gallery_dir: Path | None) -> Path:
     try:
         return resolve_gallery_dir(gallery_dir)
     except GalleryNotFoundError as exc:
-        err_console.print(format_gallery_not_found(exc, Path.cwd()))
+        err_console.print(format_gallery_not_found(exc, Path.cwd()), markup=False)
         raise typer.Exit(code=1) from exc

@@ -15,10 +15,9 @@ from collections.abc import Iterable, Sequence
 from pathlib import Path
 
 import typer
-from rich.markup import escape
 
 from ....clihelpers.console import err_console
-from ....common.formatting import indent
+from ....common.formatting import indent, markup_escape
 from ....common.fs import display_path
 from ...cmd_handler import BatchFailure
 
@@ -29,8 +28,8 @@ def batch_failures_report(failures: Iterable[BatchFailure], base: Path) -> str:
         [
             "\nFailed albums:",
             *(
-                indent(f"{escape(str(display_path(f.album_dir, base)))}\n")
-                + indent(escape(f.reason), 2)
+                indent(f"{markup_escape(display_path(f.album_dir, base))}\n")
+                + indent(markup_escape(f.reason), 2)
                 for f in failures
             ),
         ]
@@ -54,7 +53,7 @@ def investigate_commands(
             "\nTo investigate failures:",
             *(
                 indent(
-                    escape(
+                    markup_escape(
                         f"photree album {command} --album-dir "
                         f'"{display_path(album_dir, base)}"{extra_flags}'
                     )

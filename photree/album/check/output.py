@@ -3,6 +3,11 @@
 Formatters return unindented lines; nested detail lines are indented relative
 to their heading with :func:`~photree.common.formatting.indent`, and the call
 site decides how deep the whole block sits.
+
+Formatters return Rich markup: every user-derived value (album and media
+source names, paths, filenames, issue messages) is escaped with
+:func:`~photree.common.formatting.markup_escape` here, so callers print the
+result with markup enabled and must not escape it again.
 """
 
 from __future__ import annotations
@@ -11,10 +16,15 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from textwrap import dedent
 
-from rich.markup import escape
-
 from ...clihelpers.sysdeps import format_missing_troubleshoot
-from ...common.formatting import CHECK, CROSS, WARNING, format_check_line, indent
+from ...common.formatting import (
+    CHECK,
+    CROSS,
+    WARNING,
+    format_check_line,
+    indent,
+    markup_escape,
+)
 from ...common.fs import display_path
 from ...common.sysdeps import SystemDependency
 from ..faces.refresh import FaceFailure, format_face_failures
@@ -42,8 +52,8 @@ from .unexpected_dirs import UnexpectedDirsCheck
 
 
 def _bullets(items: Sequence[str]) -> list[str]:
-    """``- item`` lines, one level deeper than their heading."""
-    return [indent(f"- {item}") for item in items]
+    """``- item`` lines (plain text, escaped), one level deeper than their heading."""
+    return [indent(f"- {markup_escape(item)}") for item in items]
 
 
 # ---------------------------------------------------------------------------
@@ -59,7 +69,9 @@ def jpeg_failures_report(
         [
             f"{CROSS} jpeg: {len(failures)} file(s) could not be converted",
             *(
-                indent(escape(f"{source}/{failure.filename}: {failure.reason}"), 2)
+                indent(
+                    markup_escape(f"{source}/{failure.filename}: {failure.reason}"), 2
+                )
                 for source, failure in failures
             ),
         ]
@@ -71,7 +83,10 @@ def face_failures_report(failures: tuple[tuple[str, FaceFailure], ...]) -> str:
     return "\n".join(
         [
             f"{CROSS} face detection failed for {len(failures)} image(s)",
-            *(indent(escape(line), 2) for line in format_face_failures(failures)),
+            *(
+                indent(markup_escape(line), 2)
+                for line in format_face_failures(failures)
+            ),
         ]
     )
 
@@ -87,7 +102,7 @@ def derived_failures_report(
     gallery import), so a partial refresh reads — and is retried — the same
     way everywhere. Rich markup, with user text escaped.
     """
-    flag = escape(f'--album-dir "{album_dir}"')
+    flag = markup_escape(f'--album-dir "{album_dir}"')
     return "\n".join(
         [
             *(
@@ -147,7 +162,7 @@ def media_sources_check(summary: AlbumMediaSourceSummary) -> str:
     if not summary.media_sources:
         return f"{CROSS} media sources: none detected"
     else:
-        return f"{CHECK} media sources: {summary.description}"
+        return f"{CHECK} media sources: {markup_escape(summary.description)}"
 
 
 def media_source_conflicts_check(conflicts: tuple[str, ...]) -> str:
@@ -168,7 +183,7 @@ def media_source_conflicts_check(conflicts: tuple[str, ...]) -> str:
 
 
 def media_source_conflicts_troubleshoot(conflicts: tuple[str, ...]) -> str:
-    names = ", ".join(conflicts)
+    names = markup_escape(", ".join(conflicts))
     return (
         f"Media source name(s) used by both an iOS and a std archive: {names}.\n"
         "Rename one of the two archive directories (and its browsable "
@@ -209,10 +224,13 @@ def album_dir_check(
     optional_absent: tuple[str, ...] = (),
 ) -> str:
     lines = [
-        *[f"{CHECK} dir: {d}/" for d in present],
-        *[f"{CROSS} dir: {d}/ (missing)" for d in missing],
-        *[f"{CHECK} dir: {d}/ (optional)" for d in optional_present],
-        *[f"{CHECK} dir: {d}/ (optional, absent)" for d in optional_absent],
+        *[f"{CHECK} dir: {markup_escape(d)}/" for d in present],
+        *[f"{CROSS} dir: {markup_escape(d)}/ (missing)" for d in missing],
+        *[f"{CHECK} dir: {markup_escape(d)}/ (optional)" for d in optional_present],
+        *[
+            f"{CHECK} dir: {markup_escape(d)}/ (optional, absent)"
+            for d in optional_absent
+        ],
     ]
     return "\n".join(lines)
 
@@ -224,7 +242,7 @@ def unexpected_dirs_check_line(check: UnexpectedDirsCheck) -> str:
         return "\n".join(
             [
                 f"{CROSS} unexpected directories:",
-                *[indent(f"{d}/", 2) for d in check.unexpected],
+                *[indent(f"{markup_escape(d)}/", 2) for d in check.unexpected],
             ]
         )
 
@@ -253,7 +271,7 @@ def _format_naming_line(result: AlbumNamingResult) -> list[str]:
     if result.issues:
         return [
             f"{CROSS} naming: {len(result.issues)} issue(s)",
-            *[indent(issue.message, 2) for issue in result.issues],
+            *[indent(markup_escape(issue.message), 2) for issue in result.issues],
         ]
     else:
         return [f"{CHECK} naming"]
@@ -294,7 +312,7 @@ def _format_exif_mismatches(
         [
             f"{icon} exif: {n} file(s) outside album date ({exif_check.album_date})",
             *[
-                indent(f"{m.file_name}  {m.timestamp}", 2)
+                indent(markup_escape(f"{m.file_name}  {m.timestamp}"), 2)
                 for m in exif_check.mismatches[:max_examples]
             ],
             *(
@@ -330,7 +348,7 @@ def format_batch_naming_issues(result: BatchNamingResult) -> str:
                     for album_date, albums in result.date_collisions
                     for line in (
                         indent(f"{album_date}:"),
-                        *(indent(escape(album), 2) for album in albums),
+                        *(indent(markup_escape(album), 2) for album in albums),
                     )
                 ),
             ]
@@ -343,13 +361,16 @@ def format_batch_naming_issues(result: BatchNamingResult) -> str:
 
 
 def _issues_block(icon: str, label: str, issues: Sequence[str]) -> str:
-    return "\n".join([f"{icon} {label}: {len(issues)} issue(s)", *_bullets(issues)])
+    """*label* and *issues* are plain text, escaped here."""
+    return "\n".join(
+        [f"{icon} {markup_escape(label)}: {len(issues)} issue(s)", *_bullets(issues)]
+    )
 
 
 def format_browsable_dir_check(label: str, check: BrowsableDirCheck) -> str:
     """Format a main directory check result."""
     if check.success:
-        return f"{CHECK} {label}: {len(check.correct)} file(s) verified"
+        return f"{CHECK} {markup_escape(label)}: {len(check.correct)} file(s) verified"
     else:
         issues = [
             *[
@@ -380,7 +401,7 @@ def format_browsable_dir_check(label: str, check: BrowsableDirCheck) -> str:
 def format_jpeg_check(check: JpegCheck, label: str) -> str:
     """Format a JPEG directory check result."""
     if check.success:
-        return f"{CHECK} {label}: {len(check.present)} file(s) verified"
+        return f"{CHECK} {markup_escape(label)}: {len(check.present)} file(s) verified"
     else:
         issues = [
             *[f"missing: {f}" for f in check.missing],
@@ -589,7 +610,7 @@ def format_face_state_check(check: FaceStateCheck) -> str:
             [
                 f"{CROSS} face state ({check.issue_count} issue(s))",
                 *(
-                    indent(line, 2)
+                    indent(markup_escape(line), 2)
                     for line in (
                         *(["model version mismatch"] if check.model_mismatch else []),
                         *(
@@ -638,7 +659,7 @@ def format_exif_cache_check(check: ExifCacheStateCheck) -> str:
             [
                 f"{CROSS} exif cache ({check.issue_count} issue(s))",
                 *(
-                    indent(line, 2)
+                    indent(markup_escape(line), 2)
                     for line in (
                         *_format_issue_group("missing cache", check.missing_sources),
                         (
@@ -834,11 +855,13 @@ def format_fatal_warnings(
         [
             "Failed due to fatal warning flags:",
             *(
-                indent(f"{CROSS} sidecars: {format_sidecar_issue(i)}")
+                indent(f"{CROSS} sidecars: {markup_escape(format_sidecar_issue(i))}")
                 for i in sidecar_issues
             ),
             *(
-                indent(f"{CROSS} exif: {m.file_name}  {m.timestamp}")
+                indent(
+                    f"{CROSS} exif: {markup_escape(f'{m.file_name}  {m.timestamp}')}"
+                )
                 for m in exif_mismatches
             ),
         ]
@@ -915,7 +938,9 @@ def format_album_preflight_troubleshoot(
         *(
             [
                 "Suggested fixes (remove --dry-run to apply):\n\n"
-                + "\n\n".join(all_suggestions)
+                # Suggestions are plain text quoting the album dir and media
+                # source names, so they are escaped as a whole.
+                + "\n\n".join(markup_escape(s) for s in all_suggestions)
             ]
             if all_suggestions
             else []
@@ -962,7 +987,7 @@ def duplicate_ids_report(
         "\n".join(
             [
                 f"{CROSS} duplicate {kind} id: {format_id(dup_id)}",
-                *(indent(str(display_path(p, base)), 2) for p in paths),
+                *(indent(markup_escape(display_path(p, base)), 2) for p in paths),
             ]
         )
         for dup_id, paths in duplicates.items()

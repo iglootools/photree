@@ -1,4 +1,8 @@
-"""Rich table formatting for album and gallery statistics."""
+"""Rich table formatting for album and gallery statistics.
+
+Table cells are Rich markup: user-chosen names (media sources) are escaped
+with ``markup_escape``.
+"""
 
 from __future__ import annotations
 
@@ -11,7 +15,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from ...common.formatting import indent
+from ...common.formatting import indent, markup_escape
 from ..store.protocol import MediaSourceType
 from .models import (
     AggregateStats,
@@ -189,7 +193,7 @@ def _overview_counts(
     )
     unique_desc = (
         f" — {len(unique_media_source_names)} unique: "
-        f"{', '.join(unique_media_source_names)}"
+        f"{markup_escape(', '.join(unique_media_source_names))}"
         if unique_media_source_names is not None
         else ""
     )
@@ -379,7 +383,7 @@ def _per_media_source_table(
 
     for ms in media_sources:
         table.add_row(
-            ms.name,
+            markup_escape(ms.name),
             str(ms.media_source_type),
             _format_count(ms.total.file_count),
             *_size_cells(

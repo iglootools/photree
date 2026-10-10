@@ -6,24 +6,26 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from rich.markup import escape
 
 from ...clihelpers.console import console, err_console
 from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...collection.check import CollectionCheckResult, check_all_collections
-from ...common.formatting import CHECK, CROSS, indent
+from ...common.formatting import CHECK, CROSS, indent, markup_escape
 from ...common.fs import display_path
 from . import collections_app
 
 
 def _format_result(result: CollectionCheckResult, cwd: Path) -> str:
     """One check line, followed by the indented issues on failure (Rich markup)."""
-    name = escape(str(display_path(result.collection_dir, cwd)))
+    name = markup_escape(display_path(result.collection_dir, cwd))
     return (
         f"{CHECK} {name}"
         if result.success
         else "\n".join(
-            [f"{CROSS} {name}", *(indent(escape(i.message), 2) for i in result.issues)]
+            [
+                f"{CROSS} {name}",
+                *(indent(markup_escape(i.message), 2) for i in result.issues),
+            ]
         )
     )
 

@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from rich.markup import escape
 
 from ...clihelpers.console import err_console
 from ...clihelpers.options import (
@@ -17,6 +16,7 @@ from ...clihelpers.options import (
     SHARE_DIR_OPTION,
     SHARE_LAYOUT_OPTION,
 )
+from ...common.formatting import markup_escape
 from ...common.fs import display_path
 from ...config import ConfigError
 from ..exporter import output as export_output
@@ -103,9 +103,9 @@ def export_cmd(
     except AlbumDatePrefixError as exc:
         err_console.print(
             f"Cannot place album under the '{settings.share_layout}' share"
-            f" layout: {escape(str(exc))}."
+            f" layout: {markup_escape(exc)}."
         )
-        album_display = escape(str(display_path(album_dir, Path.cwd())))
+        album_display = markup_escape(display_path(album_dir, Path.cwd()))
         err_console.print(
             "Rename the album to follow the naming convention, or run"
             f" 'photree album export --album-dir \"{album_display}\"'"

@@ -57,7 +57,7 @@ def rm_media_cmd(
         try:
             result = media.rm_media(album_dir, files, dry_run=dry_run)
         except media.MediaOpError as exc:
-            err_console.print(media.format_media_op_error(exc, cwd))
+            err_console.print(media.format_media_op_error(exc, cwd), markup=False)
             raise typer.Exit(code=1) from None
 
     typer.echo(media.media_op_summary("Removed", result.files_by_dir))

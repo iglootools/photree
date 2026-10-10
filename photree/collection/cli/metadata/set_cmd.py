@@ -31,7 +31,8 @@ def _load_or_exit(collection_dir: Path, cwd: Path) -> CollectionMetadata:
         err_console.print(
             f"No collection metadata found: {yaml_path}\n"
             "Run 'photree collection init --collection-dir "
-            f'"{display_path(collection_dir, cwd)}"\' to initialize.'
+            f'"{display_path(collection_dir, cwd)}"\' to initialize.',
+            markup=False,
         )
         raise typer.Exit(code=1)
     return current
@@ -59,7 +60,7 @@ def _apply_settings(
         updated.members, updated.lifecycle, updated.strategy
     )
     if validation_error is not None:
-        err_console.print(validation_error)
+        err_console.print(validation_error, markup=False)
         raise typer.Exit(code=1)
     return updated
 

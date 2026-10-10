@@ -24,7 +24,7 @@ def main() -> None:
     except MissingSystemDependencyError as exc:
         # Safety net for code paths not fronted by require_system_deps: without
         # it a missing binary surfaces as an unhandled traceback.
-        err_console.print(str(exc))
+        err_console.print(str(exc), markup=False)
         err_console.print("")
         err_console.print(format_missing_troubleshoot(exc.missing))
         sys.exit(1)
@@ -32,7 +32,7 @@ def main() -> None:
         # Safety net for any store read not handled closer to the command: a
         # corrupt metadata file must stop the run legibly, never be treated as
         # absent (which would mint new IDs) nor surface as a traceback.
-        err_console.print(format_invalid_metadata(exc, Path.cwd()))
+        err_console.print(format_invalid_metadata(exc, Path.cwd()), markup=False)
         sys.exit(1)
     except MediaSourceConflictError as exc:
         # Safety net for media source discovery not wrapped by the command: an

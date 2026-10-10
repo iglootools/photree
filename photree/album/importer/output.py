@@ -1,4 +1,11 @@
-"""User-facing messages for the importer."""
+"""User-facing messages for the importer.
+
+Every formatter returns Rich markup with user-derived text (paths, album and
+media source names, filenames, reasons) escaped via ``markup_escape``; print
+the result with markup enabled. The exception is
+:func:`format_archive_collision`, which is plain text because
+:func:`format_task_issue` embeds and escapes it.
+"""
 
 from __future__ import annotations
 
@@ -6,9 +13,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from textwrap import dedent
 
-from rich.markup import escape
-
-from ...common.formatting import CHECK, CROSS, indent
+from ...common.formatting import CHECK, CROSS, indent, markup_escape
 from ...common.fs import display_path
 from ..check.output import format_duplicate_stem
 from ..check.std import DuplicateStem
@@ -39,12 +44,13 @@ from .std import StdNoMediaError
 _MAX_COLLISIONS_SHOWN = 10
 
 
-def _shown(path: Path, cwd: Path | None) -> Path:
-    """*path* relative to *cwd* (default: the process cwd) when possible."""
-    return display_path(path, cwd if cwd is not None else Path.cwd())
+def _shown(path: Path, cwd: Path | None) -> str:
+    """*path* relative to *cwd* (default: the process cwd), escaped for Rich."""
+    return markup_escape(display_path(path, cwd if cwd is not None else Path.cwd()))
 
 
 def _bullets(items: Sequence[str]) -> str:
+    """``- item`` lines; *items* are Rich markup (escaped by the caller)."""
     return "\n".join(indent(f"- {item}") for item in items)
 
 
@@ -114,7 +120,7 @@ def _format_ic_dir_warnings(check: ImageCaptureDirCheck) -> list[str]:
             [
                 (
                     f"Found {len(check.subdirectory_names)} subdirectory(ies): "
-                    f"{', '.join(check.subdirectory_names)}. "
+                    f"{markup_escape(', '.join(check.subdirectory_names))}. "
                     f"Image Capture exports to a flat directory without subdirectories. "
                     f"You may be pointing at the wrong level "
                     f"(e.g. ~/Pictures instead of ~/Pictures/<Device>)."
@@ -227,11 +233,12 @@ def import_error(exc: NoImportTasksError | EmptyImageCaptureDirError, cwd: Path)
         case NoImportTasksError(album_dir=album_dir):
             return (
                 "No to-import-{ios,std}-<media-source> directories found in "
-                f"{display_path(album_dir, cwd)}"
+                f"{markup_escape(display_path(album_dir, cwd))}"
             )
         case EmptyImageCaptureDirError(image_capture_dir=ic_dir):
             return (
-                f"Could not find any image capture files in {display_path(ic_dir, cwd)}"
+                "Could not find any image capture files in "
+                f"{markup_escape(display_path(ic_dir, cwd))}"
             )
 
 
@@ -241,11 +248,11 @@ def import_error(exc: NoImportTasksError | EmptyImageCaptureDirError, cwd: Path)
 
 
 def batch_album_importing(album_name: str) -> str:
-    return f"Importing: {album_name}"
+    return f"Importing: {markup_escape(album_name)}"
 
 
 def batch_album_skipped(album_name: str, reason: str) -> str:
-    return f"Skipping:  {album_name} ({reason})"
+    return f"Skipping:  {markup_escape(album_name)} ({markup_escape(reason)})"
 
 
 def batch_summary(imported: int, skipped: int, failed: int = 0) -> str:
@@ -264,7 +271,8 @@ def batch_failures(failures: Sequence[AlbumFailure], base: Path) -> str:
             "\nFailed albums:",
             *(
                 indent(
-                    f"{display_path(failure.album_dir, base)}\n{indent(failure.reason)}"
+                    f"{markup_escape(display_path(failure.album_dir, base))}\n"
+                    f"{indent(markup_escape(failure.reason))}"
                 )
                 for failure in failures
             ),
@@ -319,7 +327,11 @@ def _ios_warning_message(warning: ValidationWarning) -> str:
 
 
 def format_archive_collision(collision: ArchiveCollision) -> str:
-    """One-line description of an archive collision, with the way out."""
+    """One-line description of an archive collision, with the way out.
+
+    Plain text (print with ``markup=False``): :func:`format_task_issue`
+    embeds it and escapes the whole line.
+    """
     ms = collision.media_source
     keys = collision.keys
     shown = ", ".join(keys[:_MAX_COLLISIONS_SHOWN])
@@ -359,14 +371,14 @@ def format_task_issue(issue: TaskIssue) -> str:
     a markup tag and silently dropped.
     """
     ms = issue.media_source
-    return escape(
+    return markup_escape(
         f"[{ms.media_source_type}:{ms.name}] {_task_issue_message(issue.detail)}"
     )
 
 
 def validation_errors(album_name: str, errors: Sequence[TaskIssue]) -> str:
     bullet_list = _bullets([format_task_issue(e) for e in errors])
-    return f"Validation failed for {album_name}:\n{bullet_list}"
+    return f"Validation failed for {markup_escape(album_name)}:\n{bullet_list}"
 
 
 def _issue_section(title: str, issues: Sequence[TaskIssue]) -> list[str]:
@@ -394,6 +406,6 @@ def unprocessed_selection_files(files: tuple[str, ...]) -> str:
                 "staging dir or CSV."
             ),
             "Remove them before the next import, or it will conflict:",
-            _bullets(files),
+            _bullets([markup_escape(f) for f in files]),
         ]
     )

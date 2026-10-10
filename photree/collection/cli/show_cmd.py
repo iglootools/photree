@@ -49,7 +49,8 @@ def show_cmd(collection_dir: COLLECTION_DIR_OPTION = Path(".")) -> None:
         err_console.print(
             f"No collection metadata found: {yaml_path}\n"
             "Run 'photree collection init --collection-dir "
-            f'"{display_path(collection_dir, cwd)}"\' to initialize.'
+            f'"{display_path(collection_dir, cwd)}"\' to initialize.',
+            markup=False,
         )
         raise typer.Exit(code=1)
 

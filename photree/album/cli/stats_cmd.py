@@ -35,10 +35,13 @@ def stats_cmd(
         try:
             result = album_stats.compute_album_stats(album_dir)
         except album_stats.UnparseableAlbumNameError as exc:
-            err_console.print(f'Album name "{exc.album_dir.name}" cannot be parsed.')
+            err_console.print(
+                f'Album name "{exc.album_dir.name}" cannot be parsed.', markup=False
+            )
             err_console.print(
                 "Run 'photree album check --album-dir "
-                f'"{display_path(exc.album_dir, cwd)}"\' to identify naming issues.'
+                f'"{display_path(exc.album_dir, cwd)}"\' to identify naming issues.',
+                markup=False,
             )
             raise typer.Exit(code=1) from None
 

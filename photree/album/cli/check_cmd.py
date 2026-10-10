@@ -119,7 +119,8 @@ def _require_no_media_source_conflict(album_dir: Path, cwd: Path) -> None:
         err_console.print(
             format_media_source_conflict(
                 MediaSourceConflictError(album_dir, conflicts), cwd
-            )
+            ),
+            markup=False,
         )
         raise typer.Exit(code=1)
 

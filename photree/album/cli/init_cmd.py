@@ -45,7 +45,7 @@ def init_cmd(
         err_console.print(
             f"Album already initialized: {format_album_external_id(metadata.id)}"
         )
-        err_console.print(indent(str(display_path(album_yaml, cwd))))
+        err_console.print(indent(str(display_path(album_yaml, cwd))), markup=False)
         raise typer.Exit(code=1)
 
     generated_id = generate_album_id()

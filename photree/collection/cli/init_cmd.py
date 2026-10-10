@@ -55,7 +55,7 @@ def init_cmd(
 
     validation_error = validate_collection_config(members, lifecycle, strategy)
     if validation_error is not None:
-        err_console.print(validation_error)
+        err_console.print(validation_error, markup=False)
         raise typer.Exit(code=1)
 
     try:
@@ -68,7 +68,8 @@ def init_cmd(
             f"{format_collection_external_id(exc.existing_id)}\n"
             f"{indent(str(collection_yaml))}\n"
             "Run 'photree collection metadata set --collection-dir "
-            f'"{display_path(collection_dir, cwd)}"\' to change settings.'
+            f'"{display_path(collection_dir, cwd)}"\' to change settings.',
+            markup=False,
         )
         raise typer.Exit(code=1) from exc
 

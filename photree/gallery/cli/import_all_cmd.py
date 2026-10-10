@@ -7,13 +7,12 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from rich.markup import escape
 
 from ...clihelpers.console import err_console
 from ...clihelpers.options import REIMPORT_OPTION
 from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...clihelpers.sysdeps import import_deps, require_system_deps
-from ...common.formatting import indent
+from ...common.formatting import indent, markup_escape
 from ...common.fs import display_path
 from ...fsprotocol import (
     GALLERY_YAML,
@@ -170,7 +169,7 @@ def _post_import_check(
                     "\nTo investigate failures, run:",
                     *(
                         indent(
-                            escape(
+                            markup_escape(
                                 "'photree album check --album-dir "
                                 f'"{display_path(target_dir, cwd)}"\''
                             )

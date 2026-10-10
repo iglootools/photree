@@ -6,7 +6,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from ...common.formatting import indent
+from ...common.formatting import indent, markup_escape
 from ..store.protocol import CollectionLifecycle, CollectionMembers, CollectionStrategy
 from .models import GalleryCollectionStats
 
@@ -61,7 +61,7 @@ def format_collections_table(stats: GalleryCollectionStats) -> Table:
 
     for col in stats.collections:
         table.add_row(
-            col.name,
+            markup_escape(col.name),
             col.members.value,
             col.strategy.value,
             _format_count(col.album_count),

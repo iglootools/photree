@@ -46,7 +46,8 @@ def init_cmd(
     if gallery_yaml.is_file():
         err_console.print(
             f"Gallery already initialized: {display_path(gallery_yaml, Path.cwd())}\n"
-            "Use 'photree gallery metadata set' to change settings."
+            "Use 'photree gallery metadata set' to change settings.",
+            markup=False,
         )
         raise typer.Exit(code=1)
 

@@ -80,7 +80,7 @@ def fix_ios_cmd(
     try:
         validate_fix_flags(**flags)
     except FixIosValidationError as exc:
-        err_console.print(str(exc))
+        err_console.print(str(exc), markup=False)
         err_console.print(
             "Run 'photree album fix-ios --help' to see the available fixes."
         )
@@ -108,9 +108,11 @@ def fix_ios_cmd(
 def _report_move_conflict(exc: MiscategorizedMoveConflictError, album: Path) -> None:
     err_console.print(
         f"--mv-miscategorized would overwrite {len(exc.conflicts)} file(s) "
-        f"already in {exc.target_dir}: {', '.join(exc.conflicts)}"
+        f"already in {exc.target_dir}: {', '.join(exc.conflicts)}",
+        markup=False,
     )
     err_console.print(
         "Run 'photree album fix-ios --rm-miscategorized-safe --album-dir "
-        f'"{album}"\' to drop those duplicates.'
+        f'"{album}"\' to drop those duplicates.',
+        markup=False,
     )

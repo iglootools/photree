@@ -77,7 +77,8 @@ def rename_from_csv_cmd(
                     ),
                     "\nResolve duplicates first with 'photree gallery fix --new-id'.",
                 ]
-            )
+            ),
+            markup=False,
         )
         raise typer.Exit(code=1)
 

@@ -212,6 +212,11 @@ Commands with `--format csv` follow this pattern:
   `FrozenInstanceError`.
 - **Indentation** is applied at the call site with `common.formatting.indent`;
   formatting helpers return unindented lines.
+- **Escape user text in Rich markup.** Names, paths, filenames, reasons and
+  exception messages interpolated into a Rich markup string must go through
+  `common.formatting.markup_escape`, or the line must be printed with
+  `markup=False`, because Rich silently drops bracketed text such as
+  `[private]`.
 - **Corrupt metadata is never "absent".** Read `.photree/*.yaml` through
   `fsprotocol.load_yaml_mapping` / `validate_metadata`: `None` means the file
   does not exist, and anything present but unusable raises

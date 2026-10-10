@@ -3,6 +3,10 @@
 Each progress bar is transient (disappears after completion) and prints
 result lines (✓/✗) above the bar as each unit completes.
 
+Descriptions and result lines are Rich markup, so every caller-supplied name
+(album, file, stage, reason, label) is escaped here with ``markup_escape``:
+callers pass plain text and must not escape it themselves.
+
 All progress bars support context manager usage::
 
     with BatchProgressBar(total=10, ...) as bar:
@@ -26,7 +30,14 @@ from rich.progress import (
     TextColumn,
 )
 
-from ..common.formatting import CHECK, CROSS, WARN_SIGN, WARNING, rich_warning_text
+from ..common.formatting import (
+    CHECK,
+    CROSS,
+    WARN_SIGN,
+    WARNING,
+    markup_escape,
+    rich_warning_text,
+)
 
 
 def _result_icon(success: bool) -> str:
@@ -130,12 +141,13 @@ class FileProgressBar(_LazyProgress):
         self._done_description = done_description
 
     def on_start(self, filename: str) -> None:
-        self._ensure_started(f"{self._description} {filename}...")
+        self._ensure_started(f"{self._description} {markup_escape(filename)}...")
 
     def on_end(self, filename: str, success: bool) -> None:
+        name = markup_escape(filename)
         self._print_result(
-            f"{self._description} {filename}...",
-            f"{_result_icon(success)} {self._done_description} {filename}",
+            f"{self._description} {name}...",
+            f"{_result_icon(success)} {self._done_description} {name}",
         )
 
 
@@ -157,13 +169,15 @@ class StageProgressBar(_LazyProgress):
         self._labels = labels or {}
 
     def _stage_description(self, stage: str) -> str:
-        return f"{self._labels.get(stage, stage)}..."
+        return f"{markup_escape(self._labels.get(stage, stage))}..."
 
     def on_start(self, stage: str) -> None:
         self._ensure_started(self._stage_description(stage))
 
     def on_end(self, stage: str) -> None:
-        self._print_result(self._stage_description(stage), f"{CHECK} {stage}")
+        self._print_result(
+            self._stage_description(stage), f"{CHECK} {markup_escape(stage)}"
+        )
 
 
 class BatchProgressBar(_LazyProgress):
@@ -188,7 +202,7 @@ class BatchProgressBar(_LazyProgress):
         self._done_description = done_description
 
     def on_start(self, album_name: str) -> None:
-        self._ensure_started(f"{self._description} {album_name}...")
+        self._ensure_started(f"{self._description} {markup_escape(album_name)}...")
 
     def on_end(
         self,
@@ -199,24 +213,24 @@ class BatchProgressBar(_LazyProgress):
         warning_labels: tuple[str, ...] = (),
     ) -> None:
         icon = WARNING if success and warning_labels else _result_icon(success)
+        errors = markup_escape(", ".join(error_labels))
+        warnings = markup_escape(", ".join(warning_labels))
         fragments = [
-            *([f"[red]| {', '.join(error_labels)}[/red]"] if error_labels else []),
-            *(
-                [rich_warning_text("| " + ", ".join(warning_labels))]
-                if warning_labels
-                else []
-            ),
+            *([f"[red]| {errors}[/red]"] if error_labels else []),
+            *([rich_warning_text(f"| {warnings}")] if warning_labels else []),
         ]
         suffix = "".join(f" {fragment}" for fragment in fragments)
+        name = markup_escape(album_name)
         self._print_result(
-            f"{self._description} {album_name}...",
-            f"{icon} {self._done_description} {album_name}{suffix}",
+            f"{self._description} {name}...",
+            f"{icon} {self._done_description} {name}{suffix}",
         )
 
     def on_skipped(self, album_name: str, reason: str, *, warn: bool = False) -> None:
         icon = WARN_SIGN if warn else CROSS
+        name = markup_escape(album_name)
         self._print_result(
-            f"Skipping {album_name}...", f"{icon} {album_name} ({reason})"
+            f"Skipping {name}...", f"{icon} {name} ({markup_escape(reason)})"
         )
 
 
@@ -226,11 +240,11 @@ class BatchProgressBar(_LazyProgress):
 
 
 def run_with_spinner[T](description: str, fn: Callable[[], T]) -> T:
-    """Run *fn* with a transient spinner showing *description*."""
+    """Run *fn* with a transient spinner showing plain-text *description*."""
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         transient=True,
     ) as progress:
-        progress.add_task(description, total=None)
+        progress.add_task(markup_escape(description), total=None)
         return fn()

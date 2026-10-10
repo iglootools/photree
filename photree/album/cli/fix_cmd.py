@@ -80,7 +80,7 @@ def fix_cmd(
             rm_orphan=rm_orphan,
         )
     except FixValidationError as exc:
-        err_console.print(str(exc))
+        err_console.print(str(exc), markup=False)
         err_console.print("Run 'photree album fix --help' to see the available fixes.")
         raise typer.Exit(code=1) from exc
 
@@ -134,18 +134,21 @@ def _run_archive_fixes(
         except RmUpstreamRefusedError as exc:
             err_console.print(
                 f"Refusing to delete all {exc.key_count} {exc.kind} of media source "
-                f'"{exc.media_source}": its browsable directory looks emptied.'
+                f'"{exc.media_source}": its browsable directory looks emptied.',
+                markup=False,
             )
             err_console.print(
                 "If that deletion is intended, run 'photree album fix --rm-upstream "
-                f'--force --album-dir "{display_path(album_dir, cwd)}"\'.'
+                f'--force --album-dir "{display_path(album_dir, cwd)}"\'.',
+                markup=False,
             )
             raise typer.Exit(code=1) from exc
         except MissingArchiveError as exc:
             err_console.print(
                 f"Archive directory {exc.archive_dir} does not exist in "
                 f"{display_path(exc.album_dir, cwd)}; archive-dependent fixes "
-                "cannot run without it."
+                "cannot run without it.",
+                markup=False,
             )
             raise typer.Exit(code=1) from exc
 

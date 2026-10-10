@@ -74,7 +74,7 @@ def detect_faces_cmd(
     if result.failures:
         err_console.print("\nFailed images:")
         for line in format_face_failures(result.failures):
-            err_console.print(indent(line))
+            err_console.print(indent(line), markup=False)
         raise typer.Exit(code=1)
 
 

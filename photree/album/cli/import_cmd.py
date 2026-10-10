@@ -155,7 +155,8 @@ def _require_valid_name(album_dir: Path, album_display: Path) -> None:
     err_console.print(
         f"\nAlbum name does not follow naming conventions. Rename {album_display} "
         "to the expected form shown above, then run "
-        "'photree album import --album-dir \"<renamed-album-dir>\"'."
+        "'photree album import --album-dir \"<renamed-album-dir>\"'.",
+        markup=False,
     )
     raise typer.Exit(code=1)
 
@@ -166,11 +167,13 @@ def _require_valid_tasks(
     """Pre-validate every staging entry before importing any of them."""
     if not discover_import_tasks(album_dir):
         err_console.print(
-            f"No to-import-{{ios,std}}-<media-source> staging entries in {album_display}."
+            f"No to-import-{{ios,std}}-<media-source> staging entries in {album_display}.",
+            markup=False,
         )
         err_console.print(
             "Create one (e.g. a to-import-ios-main/ selection), then run "
-            f"'photree album import --album-dir \"{album_display}\"'."
+            f"'photree album import --album-dir \"{album_display}\"'.",
+            markup=False,
         )
         raise typer.Exit(code=1)
 
@@ -220,7 +223,8 @@ def _run_import(
             err_console.print(
                 importer_output.format_archive_collision(
                     ArchiveCollision(exc.media_source, exc.keys)
-                )
+                ),
+                markup=False,
             )
             raise typer.Exit(code=1) from exc
 

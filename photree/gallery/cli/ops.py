@@ -75,7 +75,8 @@ def build_index_or_exit(gallery_dir: Path, cwd: Path) -> AlbumIndex:
                     *(indent(str(display_path(p, cwd))) for p in exc.albums),
                     "\nRun 'photree gallery fix --id' to generate missing album IDs.",
                 ]
-            )
+            ),
+            markup=False,
         )
         raise typer.Exit(code=1) from exc
 
@@ -144,7 +145,7 @@ def run_single_import(
         except (ValueError, OSError) as exc:
             # Same failure set as the batch import: the importer removes its
             # staging copy, so nothing was placed in the gallery.
-            err_console.print(format_import_error(exc, Path.cwd()))
+            err_console.print(format_import_error(exc, Path.cwd()), markup=False)
             raise typer.Exit(code=1) from exc
     return result
 
@@ -189,7 +190,8 @@ def _post_import_check(target_dir: Path, cwd: Path) -> None:
     if not check_result.success:
         err_console.print(
             "\nTo investigate, run 'photree album check --album-dir "
-            f'"{display_path(target_dir, cwd)}"\'.'
+            f'"{display_path(target_dir, cwd)}"\'.',
+            markup=False,
         )
         raise typer.Exit(code=1)
 
@@ -285,7 +287,8 @@ def require_valid_threshold(threshold: float | None, option: str) -> None:
         err_console.print(
             f"Invalid {option} {threshold}: expected a cosine distance between "
             "0.0 and 1.0 (lower = stricter).\n"
-            f"Run 'photree gallery metadata set --help' for details."
+            f"Run 'photree gallery metadata set --help' for details.",
+            markup=False,
         )
         raise typer.Exit(code=1)
 

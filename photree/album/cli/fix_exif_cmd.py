@@ -8,12 +8,11 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from rich.markup import escape
 
 from ...clihelpers.console import console, err_console
 from ...clihelpers.sysdeps import EXIF_DEPS, require_system_deps
 from ...common import exif as common_exif
-from ...common.formatting import CHECK, indent
+from ...common.formatting import CHECK, indent, markup_escape
 from ...common.fs import display_path
 from .. import exif as album_exif
 from . import album_app
@@ -43,7 +42,7 @@ type _Operation = _SetDate | _SetDateTime | _ShiftDate | _ShiftTime
 
 
 def _fail(message: str) -> typer.Exit:
-    err_console.print(message)
+    err_console.print(message, markup=False)
     return typer.Exit(code=1)
 
 
@@ -118,14 +117,14 @@ def _apply(operation: _Operation, files: list[Path], cwd: Path) -> tuple[str, ..
 def _report_exiftool_error(exc: common_exif.ExifToolError, cwd: Path) -> None:
     err_console.print(f"fix-exif failed: exiftool exited with status {exc.returncode}.")
     err_console.print(
-        "\n".join(indent(escape(str(display_path(p, cwd)))) for p in exc.paths)
+        "\n".join(indent(markup_escape(display_path(p, cwd))) for p in exc.paths)
     )
     if exc.stderr:
-        err_console.print(indent(escape(exc.stderr)))
+        err_console.print(indent(markup_escape(exc.stderr)))
     first = shlex.quote(str(display_path(exc.paths[0], cwd))) if exc.paths else "<file>"
     err_console.print(
         "Check that the files exist and are writable media files,"
-        f" e.g. run 'exiftool {escape(first)}'."
+        f" e.g. run 'exiftool {markup_escape(first)}'."
     )
 
 
@@ -194,5 +193,5 @@ def fix_exif_cmd(
         raise typer.Exit(code=1) from exc
 
     for line in lines:
-        console.print(f"{CHECK} {escape(line)}")
+        console.print(f"{CHECK} {markup_escape(line)}")
     typer.echo(f"Done. {len(lines)} file(s) updated.")
