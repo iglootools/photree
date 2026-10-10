@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pydantic import Field
 
-from ...fsprotocol import PhotreeModel
+from ...foundation.model import PhotreeModel
 
 # ---------------------------------------------------------------------------
 # Constants

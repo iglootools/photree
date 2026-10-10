@@ -12,12 +12,9 @@ from photree.album.exporter.single import (
 )
 from photree.album.store.media_source import MAIN_MEDIA_SOURCE, std_media_source
 from photree.config import ConfigError, ConfigErrorKind
-from photree.fsprotocol import (
-    PHOTREE_DIR,
-    AlbumShareLayout,
-    LinkMode,
-    ShareDirectoryLayout,
-)
+from photree.foundation.layout import PHOTREE_DIR
+from photree.foundation.linking import LinkMode
+from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 
 
 def _setup_dir(path: Path, filenames: list[str]) -> Path:

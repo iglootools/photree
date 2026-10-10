@@ -50,7 +50,7 @@ from ..collection.store.protocol import (
     CollectionStrategy,
 )
 from ..dates import DateRange, date_range, range_contains
-from ..fsprotocol import ALBUMS_DIR, COLLECTIONS_DIR
+from ..foundation.layout import ALBUMS_DIR, COLLECTIONS_DIR
 from .metadata_scan import read_or_none
 
 # ---------------------------------------------------------------------------

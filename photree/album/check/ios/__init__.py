@@ -14,7 +14,7 @@ from itertools import groupby
 from pathlib import Path
 
 from ....common.fs import file_ext, list_files
-from ....fsprotocol import LinkMode
+from ....foundation.linking import LinkMode
 from ...formats import IOS_IMG_EXTENSIONS, IOS_VID_EXTENSIONS
 from ...live_photo import (
     compute_live_photo_videos,

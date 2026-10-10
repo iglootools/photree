@@ -24,7 +24,8 @@ from ..album.store.album_discovery import discover_albums
 from ..album.store.media_metadata import MediaMetadata, load_media_metadata
 from ..album.store.metadata import load_album_metadata
 from ..dates import date_range, range_contains, ranges_overlap
-from ..fsprotocol import ALBUMS_DIR, COLLECTIONS_DIR, PHOTREE_DIR, InvalidMetadataError
+from ..foundation.layout import ALBUMS_DIR, COLLECTIONS_DIR, PHOTREE_DIR
+from ..foundation.metadata_io import InvalidMetadataError
 from .id import format_collection_external_id
 from .naming import ParsedCollectionName, parse_collection_name
 from .store.collection_discovery import discover_collections

@@ -34,7 +34,8 @@ from photree.collection.store.protocol import (
     CollectionStrategy,
 )
 from photree.common.formatting import CHECK, markup_escape
-from photree.fsprotocol import GalleryMetadata, LinkMode, save_gallery_metadata
+from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
+from photree.foundation.linking import LinkMode
 
 runner = CliRunner()
 

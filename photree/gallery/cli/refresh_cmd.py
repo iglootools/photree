@@ -15,7 +15,8 @@ from ...clihelpers.progress import StageProgressBar, run_with_spinner
 from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...clihelpers.sysdeps import refresh_deps, require_system_deps
 from ...common.formatting import CHECK, indent
-from ...fsprotocol import GALLERY_YAML, PHOTREE_DIR, load_gallery_metadata
+from ...foundation.gallery_metadata import GALLERY_YAML, load_gallery_metadata
+from ...foundation.layout import PHOTREE_DIR
 from ..browsable_refresh import refresh_browsable as refresh_gallery_browsable
 from ..collection_refresh import (
     STAGE_IMPLICIT_REFRESH,

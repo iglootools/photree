@@ -15,7 +15,7 @@ from photree.albums.index import (
     resolve_album_path_by_id,
 )
 from photree.albums.renamer import plan_renames_from_csv
-from photree.fsprotocol import InvalidMetadataError
+from photree.foundation.metadata_io import InvalidMetadataError
 from photree.gallery.index import build_album_id_to_path_index
 
 

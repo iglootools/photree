@@ -25,7 +25,11 @@ def _write(path: Path, content: str = "data") -> None:
 
 
 def _setup_gallery(tmp_path: Path) -> Path:
-    from photree.fsprotocol import GalleryMetadata, LinkMode, save_gallery_metadata
+    from photree.foundation.gallery_metadata import (
+        GalleryMetadata,
+        save_gallery_metadata,
+    )
+    from photree.foundation.linking import LinkMode
 
     gallery = tmp_path / "gallery"
     gallery.mkdir()

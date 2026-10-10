@@ -46,7 +46,8 @@ from photree.album.store.media_sources_discovery import (
 )
 from photree.albums.cmd_handler.check import batch_check
 from photree.common.sips import SipsError
-from photree.fsprotocol import InvalidMetadataError, LinkMode
+from photree.foundation.linking import LinkMode
+from photree.foundation.metadata_io import InvalidMetadataError
 
 
 def _write(path: Path, content: str = "data") -> None:

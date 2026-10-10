@@ -14,7 +14,7 @@ from photree.album.store.media_metadata import (
     save_media_metadata,
 )
 from photree.album.store.protocol import MEDIA_IDS_DIR
-from photree.fsprotocol import PHOTREE_DIR
+from photree.foundation.layout import PHOTREE_DIR
 
 
 class TestMediaMetadata:

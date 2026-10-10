@@ -31,7 +31,9 @@ from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...common.formatting import indent
 from ...common.fs import display_path
 from ...config import ConfigError
-from ...fsprotocol import ALBUMS_DIR, AlbumShareLayout, LinkMode, ShareDirectoryLayout
+from ...foundation.layout import ALBUMS_DIR
+from ...foundation.linking import LinkMode
+from ...foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 from . import gallery_app
 
 

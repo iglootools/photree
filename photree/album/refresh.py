@@ -9,7 +9,8 @@ from pathlib import Path
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ..common.fs import list_files
-from ..fsprotocol import LinkMode, resolve_link_mode
+from ..foundation.gallery_metadata import resolve_link_mode
+from ..foundation.linking import LinkMode
 from .browsable import refresh_browsable_dir
 from .check.browsable import check_browsable_dir
 from .check.jpeg import check_jpeg_dir

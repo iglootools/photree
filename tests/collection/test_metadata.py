@@ -18,7 +18,8 @@ from photree.collection.store.protocol import (
     CollectionMetadata,
     CollectionStrategy,
 )
-from photree.fsprotocol import PHOTREE_DIR, InvalidMetadataError
+from photree.foundation.layout import PHOTREE_DIR
+from photree.foundation.metadata_io import InvalidMetadataError
 
 
 class TestCollectionMetadata:

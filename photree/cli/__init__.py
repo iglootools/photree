@@ -10,7 +10,7 @@ from ..clihelpers.resolution import format_invalid_metadata
 from ..clihelpers.sysdeps import format_missing_troubleshoot
 from ..common.sysdeps import MissingSystemDependencyError
 from ..config import ConfigError
-from ..fsprotocol import InvalidMetadataError
+from ..foundation.metadata_io import InvalidMetadataError
 from .app import app
 
 __all__ = ["app", "main"]

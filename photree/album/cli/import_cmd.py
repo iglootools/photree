@@ -13,7 +13,7 @@ from ...clihelpers.options import CONFIG_OPTION
 from ...clihelpers.progress import StageProgressBar
 from ...common.exif import exiftool_session
 from ...common.fs import display_path, list_files
-from ...fsprotocol import LinkMode
+from ...foundation.linking import LinkMode
 from ..check.output import derived_failures_report, format_naming_checks
 from ..exif_date_check import AlbumNamingResult, check_exif_date_match
 from ..faces.detect import memoized_face_analyzer_factory

@@ -15,6 +15,14 @@ photree follows a flat package layout with the following top-level modules:
   specs, inclusive ranges, containment/overlap, timestamp matching). A pure
   foundation module: album naming, EXIF date matching, collection checks and
   smart-collection refresh all build on it instead of on each other.
+- `foundation/` — the bottom layer every other package builds on, depending
+  only on `common`, `dates` and third-party libraries: `model` (the
+  `PhotreeModel` YAML base), `metadata_io` (YAML read/validate/write and
+  `InvalidMetadataError`), `layout` (`.photree`, `albums`, `collections`,
+  `browsable`, share sentinel names), `linking` (`LinkMode`), `share_layout`
+  (export layout enums) and `gallery_metadata` (`gallery.yaml` and gallery
+  resolution — kept below `album` because album commands resolve the
+  gallery's link mode while `gallery` imports `album`).
 
 Within `album/`, media knowledge is split by concern: `album/formats.py`
 (recognized extensions and JPEG/priority rules), `album/store/media_source.py`
@@ -41,19 +49,19 @@ graph TD
     config["config/"]
     dates["dates"]
     demo["demo/"]
-    fsprotocol["fsprotocol"]
+    foundation["foundation/"]
     gallery["gallery/"]
 
     album --> clihelpers
     album --> common
     album --> config
     album --> dates
-    album --> fsprotocol
+    album --> foundation
     albums --> album
     albums --> clihelpers
     albums --> common
     albums --> config
-    albums --> fsprotocol
+    albums --> foundation
     check --> clihelpers
     check --> common
     cli --> album
@@ -65,20 +73,20 @@ graph TD
     cli --> common
     cli --> config
     cli --> demo
-    cli --> fsprotocol
+    cli --> foundation
     cli --> gallery
     clihelpers --> common
-    clihelpers --> fsprotocol
+    clihelpers --> foundation
     collection --> album
     collection --> clihelpers
     collection --> common
     collection --> dates
-    collection --> fsprotocol
+    collection --> foundation
     collections --> clihelpers
     collections --> collection
     collections --> common
-    collections --> fsprotocol
-    config --> fsprotocol
+    collections --> foundation
+    config --> foundation
     demo --> album
     demo --> clihelpers
     gallery --> album
@@ -88,6 +96,6 @@ graph TD
     gallery --> common
     gallery --> config
     gallery --> dates
-    gallery --> fsprotocol
+    gallery --> foundation
 ```
 <!-- END MODULE OVERVIEW -->

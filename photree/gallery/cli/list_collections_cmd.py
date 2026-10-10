@@ -23,7 +23,7 @@ from ...collection.store.metadata import load_collection_metadata
 from ...collection.store.protocol import CollectionMetadata
 from ...common.formatting import indent
 from ...common.fs import display_path
-from ...fsprotocol import COLLECTIONS_DIR
+from ...foundation.layout import COLLECTIONS_DIR
 from . import gallery_app
 
 _CSV_HEADER = [

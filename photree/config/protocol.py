@@ -8,7 +8,8 @@ from enum import StrEnum
 from pathlib import Path
 from types import MappingProxyType
 
-from ..fsprotocol import AlbumShareLayout, LinkMode, ShareDirectoryLayout
+from ..foundation.linking import LinkMode
+from ..foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 
 
 class ConfigErrorKind(StrEnum):

@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import NamedTuple, Protocol
 
 from ...common.fs import list_files
-from ...fsprotocol import LinkMode
+from ...foundation.linking import LinkMode
 from ..faces.detect import FaceAnalyzerFactory
 from ..faces.failures import format_face_failures
 from ..jpeg import ConvertFile, convert_single_file

@@ -6,7 +6,7 @@ from pathlib import Path
 
 from ..album.store.album_discovery import discover_albums
 from ..albums.index import AlbumIndex, build_album_index
-from ..fsprotocol import ALBUMS_DIR
+from ..foundation.layout import ALBUMS_DIR
 
 
 def build_album_id_to_path_index(gallery_dir: Path) -> AlbumIndex:

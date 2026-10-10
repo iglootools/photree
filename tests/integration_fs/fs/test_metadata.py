@@ -30,18 +30,20 @@ from photree.album.store.album_discovery import (
 from photree.album.store.metadata import load_album_metadata, save_album_metadata
 from photree.album.store.protocol import ALBUM_YAML, AlbumMetadata
 from photree.common.base58 import base58_decode, base58_encode
-from photree.fsprotocol import (
-    PHOTREE_DIR,
+from photree.foundation.gallery_metadata import (
     GalleryMetadata,
     GalleryNotFoundError,
-    InvalidMetadataError,
-    LinkMode,
     load_gallery_metadata,
-    load_yaml_mapping,
     resolve_gallery_dir,
     resolve_gallery_metadata,
     resolve_link_mode,
     save_gallery_metadata,
+)
+from photree.foundation.layout import PHOTREE_DIR
+from photree.foundation.linking import LinkMode
+from photree.foundation.metadata_io import (
+    InvalidMetadataError,
+    load_yaml_mapping,
     write_yaml,
 )
 

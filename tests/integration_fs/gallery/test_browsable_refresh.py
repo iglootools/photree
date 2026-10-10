@@ -20,7 +20,8 @@ from photree.collection.store.protocol import (
     CollectionMetadata,
     CollectionStrategy,
 )
-from photree.fsprotocol import BROWSABLE_DIR, GalleryMetadata, save_gallery_metadata
+from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
+from photree.foundation.layout import BROWSABLE_DIR
 from photree.gallery.browsable_refresh import (
     BrowsableRefreshError,
     BrowsableRefreshErrorKind,

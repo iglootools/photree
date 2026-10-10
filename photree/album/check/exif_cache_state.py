@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from ...fsprotocol import PHOTREE_DIR
+from ...foundation.layout import PHOTREE_DIR
 from ..exif_cache.protocol import EXIF_CACHE_DIR
 from ..exif_cache.store import cache_path
 from ..store.media_source import MediaSource

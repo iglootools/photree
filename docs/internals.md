@@ -557,7 +557,7 @@ Direct edits may be silently overwritten or cause unexpected behavior.
 
 ### Absent vs Corrupt Metadata
 
-Every `.photree/*.yaml` reader (`fsprotocol.load_yaml_mapping` /
+Every `.photree/*.yaml` reader (`foundation.metadata_io.load_yaml_mapping` /
 `validate_metadata`) distinguishes two cases:
 
 - **Absent** — the file does not exist. Commands that create metadata

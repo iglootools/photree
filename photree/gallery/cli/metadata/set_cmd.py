@@ -12,14 +12,14 @@ from ....clihelpers.console import err_console
 from ....clihelpers.resolution import resolve_gallery_or_exit
 from ....common.formatting import indent
 from ....common.fs import display_path
-from ....fsprotocol import (
+from ....foundation.gallery_metadata import (
     GALLERY_YAML,
-    PHOTREE_DIR,
     GalleryMetadata,
-    LinkMode,
     load_gallery_metadata,
     save_gallery_metadata,
 )
+from ....foundation.layout import PHOTREE_DIR
+from ....foundation.linking import LinkMode
 from ..ops import require_valid_threshold
 from . import gallery_metadata_app
 

@@ -26,7 +26,7 @@ from photree.album.store.media_source import (
 )
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
-from photree.fsprotocol import PHOTREE_DIR
+from photree.foundation.layout import PHOTREE_DIR
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from ...common.formatting import indent
 from ...common.fs import display_path
-from .protocol import SHARE_SENTINEL
+from ...foundation.layout import SHARE_SENTINEL
 from .settings import ExportSettingsError, ExportSettingsErrorKind
 
 

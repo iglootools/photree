@@ -18,14 +18,13 @@ from photree.collection.store.protocol import (
     CollectionMembers,
     CollectionMetadata,
 )
-from photree.fsprotocol import (
+from photree.foundation.gallery_metadata import (
     GALLERY_YAML,
-    PHOTREE_DIR,
-    SHARE_SENTINEL,
     GalleryMetadata,
     load_gallery_metadata,
     save_gallery_metadata,
 )
+from photree.foundation.layout import PHOTREE_DIR, SHARE_SENTINEL
 from photree.gallery.cli import import_all_cmd
 from photree.gallery.cmd_handler.importer import (
     AlbumImportFailure,

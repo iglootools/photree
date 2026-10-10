@@ -29,7 +29,8 @@ from ..album.store.media_metadata import load_media_metadata, save_media_metadat
 from ..album.store.metadata import load_album_metadata, save_album_metadata
 from ..album.store.protocol import AlbumMetadata
 from ..dates import parse_year_prefix
-from ..fsprotocol import ALBUMS_DIR, PHOTREE_DIR, LinkMode
+from ..foundation.layout import ALBUMS_DIR, PHOTREE_DIR
+from ..foundation.linking import LinkMode
 
 # Import stages
 STAGE_COPY = "copy"

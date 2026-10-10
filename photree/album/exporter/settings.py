@@ -7,8 +7,9 @@ from enum import StrEnum
 from pathlib import Path
 
 from ...config import load_config
-from ...fsprotocol import LinkMode
-from ..exporter.protocol import SHARE_SENTINEL, AlbumShareLayout, ShareDirectoryLayout
+from ...foundation.layout import SHARE_SENTINEL
+from ...foundation.linking import LinkMode
+from ...foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 
 
 class ExportSettingsErrorKind(StrEnum):

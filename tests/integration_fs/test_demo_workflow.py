@@ -20,13 +20,9 @@ from photree.album.store.media_sources_discovery import discover_media_sources
 from photree.album.store.metadata import load_album_metadata
 from photree.album.store.protocol import ALBUM_YAML
 from photree.common.exif import exiftool_session
-from photree.fsprotocol import (
-    PHOTREE_DIR,
-    SHARE_SENTINEL,
-    AlbumShareLayout,
-    LinkMode,
-    ShareDirectoryLayout,
-)
+from photree.foundation.layout import PHOTREE_DIR, SHARE_SENTINEL
+from photree.foundation.linking import LinkMode
+from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 
 
 class TestDemoWorkflow:

@@ -12,7 +12,8 @@ from photree.album.refresh import AlbumRefreshResult
 from photree.album.store.metadata import load_album_metadata, save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.dates import DatePrefixError
-from photree.fsprotocol import GalleryMetadata, LinkMode, save_gallery_metadata
+from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
+from photree.foundation.linking import LinkMode
 from photree.gallery.importer import (
     TargetExistsError,
     compute_target_dir,

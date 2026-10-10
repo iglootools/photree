@@ -1,4 +1,4 @@
-"""Tests for photree.fs.repo — media source discovery."""
+"""Tests for photree.album.store.media_sources_discovery — media source discovery."""
 
 from pathlib import Path
 

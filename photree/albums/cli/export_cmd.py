@@ -31,7 +31,8 @@ from ...clihelpers.progress import BatchProgressBar
 from ...common.formatting import indent
 from ...common.fs import display_path
 from ...config import ConfigError
-from ...fsprotocol import AlbumShareLayout, LinkMode, ShareDirectoryLayout
+from ...foundation.linking import LinkMode
+from ...foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 from . import AlbumDirOption, albums_app
 
 

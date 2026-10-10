@@ -23,7 +23,7 @@ from ...clihelpers.progress import BatchProgressBar, StageProgressBar
 from ...common.exif import exiftool_session
 from ...common.formatting import CHECK, indent
 from ...common.fs import display_path
-from ...fsprotocol import LinkMode
+from ...foundation.linking import LinkMode
 from .. import (
     AlbumIndex,
     MissingAlbumIdError,

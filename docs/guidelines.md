@@ -227,7 +227,7 @@ Commands with `--format csv` follow this pattern:
   `markup=False`, because Rich silently drops bracketed text such as
   `[private]`.
 - **Corrupt metadata is never "absent".** Read `.photree/*.yaml` through
-  `fsprotocol.load_yaml_mapping` / `validate_metadata`: `None` means the file
+  `foundation.metadata_io.load_yaml_mapping` / `validate_metadata`: `None` means the file
   does not exist, and anything present but unusable raises
   `InvalidMetadataError`. Treating corruption as absence is how a truncated
   `album.yaml` used to get a fresh ID and orphan every reference to the old

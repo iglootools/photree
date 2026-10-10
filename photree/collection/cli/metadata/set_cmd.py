@@ -10,7 +10,7 @@ import typer
 from ....clihelpers.console import err_console
 from ....common.formatting import indent
 from ....common.fs import display_path
-from ....fsprotocol import PHOTREE_DIR
+from ....foundation.layout import PHOTREE_DIR
 from ...store.metadata import load_collection_metadata, save_collection_metadata
 from ...store.protocol import (
     COLLECTION_YAML,

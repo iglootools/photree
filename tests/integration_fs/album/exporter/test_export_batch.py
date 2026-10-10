@@ -7,7 +7,8 @@ from photree.album.exporter.batch import (
     run_batch_export,
 )
 from photree.album.store.media_source import MAIN_MEDIA_SOURCE
-from photree.fsprotocol import AlbumShareLayout, LinkMode, ShareDirectoryLayout
+from photree.foundation.linking import LinkMode
+from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 
 
 def _setup_dir(path: Path, filenames: list[str]) -> Path:

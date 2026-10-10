@@ -12,7 +12,8 @@ from pathlib import Path
 
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
-from ...fsprotocol import LinkMode, resolve_link_mode
+from ...foundation.gallery_metadata import resolve_link_mode
+from ...foundation.linking import LinkMode
 from ..exif_date_check import AlbumNamingResult, check_exif_date_match
 from ..naming import check_album_naming, parse_album_name
 from ..store.album_discovery import (

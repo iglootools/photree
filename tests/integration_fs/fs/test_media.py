@@ -1,4 +1,4 @@
-"""Tests for photree.fs.media module (generic key-function-based matching)."""
+"""Tests for photree.album.store.file_matching (generic key-function-based matching)."""
 
 from pathlib import Path
 

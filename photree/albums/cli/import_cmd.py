@@ -19,7 +19,7 @@ from ...clihelpers.console import err_console
 from ...clihelpers.progress import BatchProgressBar
 from ...common.formatting import indent
 from ...common.fs import display_path
-from ...fsprotocol import LinkMode
+from ...foundation.linking import LinkMode
 from . import albums_app
 
 

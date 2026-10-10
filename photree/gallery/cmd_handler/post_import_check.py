@@ -9,7 +9,7 @@ from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ...album import check as album_check
 from ...common.exif import exiftool_session
-from ...fsprotocol import resolve_link_mode
+from ...foundation.gallery_metadata import resolve_link_mode
 
 
 def run_batch_post_import_check(

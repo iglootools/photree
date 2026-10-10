@@ -15,7 +15,8 @@ from pathlib import Path
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ...common.fs import list_files
-from ...fsprotocol import PHOTREE_DIR, LinkMode
+from ...foundation.layout import PHOTREE_DIR
+from ...foundation.linking import LinkMode
 from ..faces.detect import FaceAnalyzerFactory
 from ..faces.failures import FaceFailure
 from ..id import generate_album_id

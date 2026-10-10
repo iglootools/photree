@@ -19,7 +19,7 @@ from photree.album.check.jpeg import check_jpeg_dir
 from photree.album.formats import IMG_EXTENSIONS
 from photree.album.store.media_source import MAIN_MEDIA_SOURCE, ios_img_number
 from photree.album.store.media_sources_discovery import discover_media_sources
-from photree.fsprotocol import LinkMode
+from photree.foundation.linking import LinkMode
 
 
 def _write(path: Path, content: str = "data") -> None:

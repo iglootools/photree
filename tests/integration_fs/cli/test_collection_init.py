@@ -19,7 +19,7 @@ from photree.collection.store.protocol import (
     CollectionMetadata,
     CollectionStrategy,
 )
-from photree.fsprotocol import InvalidMetadataError
+from photree.foundation.metadata_io import InvalidMetadataError
 
 runner = CliRunner()
 

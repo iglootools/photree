@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from ...common.fs import matching_subdirectories, partition_subdirectories
-from ...fsprotocol import PHOTREE_DIR
+from ...foundation.layout import PHOTREE_DIR
 from .media_sources_discovery import has_any_media_source
 from .protocol import ALBUM_YAML
 

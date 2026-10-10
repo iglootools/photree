@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ...fsprotocol import LinkMode
+from ...foundation.linking import LinkMode
 from ..store.media_source import MediaSource
 from ..store.media_sources_discovery import discover_media_sources
 from .helpers import MissingArchiveError

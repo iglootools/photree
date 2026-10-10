@@ -16,7 +16,8 @@ from ...clihelpers.sysdeps import (
     refresh_deps,
     require_system_deps,
 )
-from ...fsprotocol import GALLERY_YAML, PHOTREE_DIR, load_gallery_metadata
+from ...foundation.gallery_metadata import GALLERY_YAML, load_gallery_metadata
+from ...foundation.layout import PHOTREE_DIR
 from . import gallery_app
 from .ops import require_valid_threshold, run_face_clustering
 

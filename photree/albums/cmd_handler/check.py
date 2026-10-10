@@ -12,7 +12,7 @@ from ...album import (
     check as album_check,
 )
 from ...album.id import format_album_external_id
-from ...fsprotocol import LinkMode
+from ...foundation.linking import LinkMode
 
 type OnCheckEnd = Callable[[str, bool, tuple[str, ...], tuple[str, ...]], None]
 

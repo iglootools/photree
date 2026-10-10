@@ -7,7 +7,8 @@ from pathlib import Path
 
 import numpy as np
 
-from ...fsprotocol import PHOTREE_DIR, load_yaml_mapping, validate_metadata, write_yaml
+from ...foundation.layout import PHOTREE_DIR
+from ...foundation.metadata_io import load_yaml_mapping, validate_metadata, write_yaml
 from .protocol import (
     EMBEDDING_DIM,
     FACES_DATA_SUFFIX,
@@ -120,7 +121,7 @@ def load_face_state(
     """Load processing state from ``.photree/cache/faces/{name}.yaml``.
 
     Returns ``None`` when absent; raises
-    :class:`~photree.fsprotocol.InvalidMetadataError` when present but corrupt
+    :class:`~photree.foundation.metadata_io.InvalidMetadataError` when present but corrupt
     (``--redetect-faces`` or deleting the file rebuilds it).
     """
     path = state_path(album_dir, media_source_name)

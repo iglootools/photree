@@ -20,7 +20,7 @@ from ....clihelpers.console import console, err_console
 from ....clihelpers.progress import BatchProgressBar, run_with_spinner
 from ....clihelpers.sysdeps import CHECK_DEPS, EXIF_DEPS, require_system_deps
 from ....common.exif import exiftool_session
-from ....fsprotocol import resolve_link_mode
+from ....foundation.gallery_metadata import resolve_link_mode
 from ...cmd_handler import BatchFailure, failures_of, run_album_step
 from ...cmd_handler.check import BatchCheckResult, batch_check
 from ...index import find_duplicate_album_ids

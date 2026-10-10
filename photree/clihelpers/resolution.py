@@ -14,13 +14,13 @@ from pathlib import Path
 import typer
 
 from ..common.fs import display_path
-from ..fsprotocol import (
+from ..foundation.gallery_metadata import (
     GALLERY_YAML,
-    PHOTREE_DIR,
     GalleryNotFoundError,
-    InvalidMetadataError,
     resolve_gallery_dir,
 )
+from ..foundation.layout import PHOTREE_DIR
+from ..foundation.metadata_io import InvalidMetadataError
 from .console import err_console
 
 

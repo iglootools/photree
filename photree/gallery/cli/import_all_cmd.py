@@ -14,13 +14,13 @@ from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...clihelpers.sysdeps import import_deps, require_system_deps
 from ...common.formatting import indent, markup_escape
 from ...common.fs import display_path
-from ...fsprotocol import (
+from ...foundation.gallery_metadata import (
     GALLERY_YAML,
-    PHOTREE_DIR,
-    LinkMode,
     load_gallery_metadata,
     resolve_link_mode,
 )
+from ...foundation.layout import PHOTREE_DIR
+from ...foundation.linking import LinkMode
 from ..cmd_handler.importer import BatchImportResult
 from ..import_plan import AlbumPlan
 from . import gallery_app

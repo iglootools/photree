@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..common.fs import list_files
-from ..fsprotocol import LinkMode
+from ..foundation.linking import LinkMode
 from .store.file_matching import dedup_media_dict
 from .store.media_source import KeyFn
 

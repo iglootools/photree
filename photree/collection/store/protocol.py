@@ -6,7 +6,7 @@ from enum import StrEnum
 
 from pydantic import Field
 
-from ...fsprotocol import PhotreeModel
+from ...foundation.model import PhotreeModel
 
 # ---------------------------------------------------------------------------
 # Constants

@@ -20,7 +20,8 @@ from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.cli import app
 from photree.common.sysdeps import SystemDependency
-from photree.fsprotocol import GalleryMetadata, LinkMode, save_gallery_metadata
+from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
+from photree.foundation.linking import LinkMode
 
 runner = CliRunner()
 

@@ -28,9 +28,10 @@ from enum import StrEnum
 from pathlib import Path
 
 from ...dates import parse_month_prefix, parse_year_prefix
-from ...fsprotocol import PHOTREE_DIR, LinkMode
+from ...foundation.layout import PHOTREE_DIR
+from ...foundation.linking import LinkMode
+from ...foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 from ..browsable import refresh_browsable_dir
-from ..exporter.protocol import AlbumShareLayout, ShareDirectoryLayout
 from ..formats import IMG_EXTENSIONS, VID_EXTENSIONS
 from ..store.media_source import MediaSource
 from ..store.media_sources_discovery import discover_media_sources

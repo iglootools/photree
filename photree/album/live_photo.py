@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ..common.fs import list_files
-from ..fsprotocol import LinkMode
+from ..foundation.linking import LinkMode
 from .browsable import place_file
 from .store.file_matching import dedup_media_dict
 from .store.media_source import KeyFn

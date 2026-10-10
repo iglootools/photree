@@ -39,7 +39,7 @@ from ...collection.store.collection_discovery import discover_collections
 from ...collection.store.metadata import load_collection_metadata
 from ...common.fs import file_ext
 from ...dates import is_valid_date, timestamp_in_range
-from ...fsprotocol import ALBUMS_DIR, COLLECTIONS_DIR
+from ...foundation.layout import ALBUMS_DIR, COLLECTIONS_DIR
 from .selection import SelectionEntry
 
 # ---------------------------------------------------------------------------

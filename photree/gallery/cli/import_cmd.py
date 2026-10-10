@@ -11,13 +11,13 @@ import typer
 from ...clihelpers.options import REIMPORT_OPTION
 from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...clihelpers.sysdeps import import_deps, require_system_deps
-from ...fsprotocol import (
+from ...foundation.gallery_metadata import (
     GALLERY_YAML,
-    PHOTREE_DIR,
-    LinkMode,
     load_gallery_metadata,
     resolve_link_mode,
 )
+from ...foundation.layout import PHOTREE_DIR
+from ...foundation.linking import LinkMode
 from ..import_plan import ImportAction
 from . import gallery_app
 from .ops import (

@@ -6,7 +6,7 @@ from pathlib import Path
 from photree.album.browsable import RefreshBrowsableDirResult, refresh_browsable_dir
 from photree.album.formats import IMG_EXTENSIONS, VID_EXTENSIONS
 from photree.album.store.media_source import ios_img_number, stem_key
-from photree.fsprotocol import LinkMode
+from photree.foundation.linking import LinkMode
 
 
 def _setup_dir(path: Path, filenames: list[str]) -> Path:

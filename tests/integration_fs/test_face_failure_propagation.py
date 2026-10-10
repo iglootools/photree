@@ -19,7 +19,8 @@ from photree.album.refresh import AlbumRefreshResult
 from photree.albums.cmd_handler import refresh as refresh_handler
 from photree.albums.cmd_handler.refresh import batch_refresh
 from photree.cli import app
-from photree.fsprotocol import GalleryMetadata, LinkMode, save_gallery_metadata
+from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
+from photree.foundation.linking import LinkMode
 from photree.gallery.cmd_handler.importer import _import_one
 from photree.gallery.import_plan import AlbumPlan, ImportAction
 from photree.gallery.importer import AlbumImportResult as GalleryImportResult
