@@ -13,8 +13,9 @@ from photree.album.media import (
     resolve_variants,
     rm_media,
 )
+from photree.album.store.media_source import MAIN_MEDIA_SOURCE
 from photree.album.store.metadata import save_album_metadata
-from photree.album.store.protocol import MAIN_MEDIA_SOURCE, AlbumMetadata
+from photree.album.store.protocol import AlbumMetadata
 
 MC = MAIN_MEDIA_SOURCE
 PHOTREE_DIR = ".photree"

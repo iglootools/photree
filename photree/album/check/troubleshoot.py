@@ -7,8 +7,8 @@ from collections import defaultdict
 from textwrap import dedent
 
 from ...common.formatting import indent, markup_escape
-from ..naming import ExifMismatch
-from ..store.protocol import MediaSource
+from ..exif_date_check import ExifMismatch
+from ..store.media_source import MediaSource
 from .ios import IosMediaSourceIntegrityResult
 from .std import StdMediaSourceIntegrityResult
 

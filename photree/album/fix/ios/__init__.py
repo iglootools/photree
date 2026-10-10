@@ -12,8 +12,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
+from ...store.media_source import MediaSource
 from ...store.media_sources_discovery import discover_media_sources
-from ...store.protocol import MediaSource
 from .miscategorized import (
     MiscategorizedAction,
     MiscategorizedDirResult,

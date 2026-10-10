@@ -15,8 +15,9 @@ import pytest
 from typer.testing import CliRunner
 
 from photree.album.id import generate_album_id
+from photree.album.staging import ios_import_dir
 from photree.album.store.metadata import save_album_metadata
-from photree.album.store.protocol import AlbumMetadata, ios_import_dir
+from photree.album.store.protocol import AlbumMetadata
 from photree.cli import app
 from photree.common.sysdeps import SystemDependency
 from photree.fsprotocol import GalleryMetadata, LinkMode, save_gallery_metadata

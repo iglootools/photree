@@ -29,13 +29,13 @@ from .. import (
 )
 from ..check import output as preflight_output
 from ..exif_cache.refresh import refresh_exif_cache as refresh_album_exif_cache
+from ..formats import IMG_EXTENSIONS, VID_EXTENSIONS
 from ..store.album_discovery import discover_albums
 from ..store.media_sources_discovery import (
     MediaSourceConflictError,
     discover_media_sources,
     find_media_source_conflicts,
 )
-from ..store.protocol import IMG_EXTENSIONS, VID_EXTENSIONS
 from . import album_app
 from .helpers import format_media_source_conflict
 

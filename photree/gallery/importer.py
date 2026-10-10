@@ -27,7 +27,8 @@ from ..album.jpeg import ConvertFile, JpegConversionFailure
 from ..album.refresh import AlbumRefreshResult, refresh_album_derived_data
 from ..album.store.media_metadata import load_media_metadata, save_media_metadata
 from ..album.store.metadata import load_album_metadata, save_album_metadata
-from ..album.store.protocol import AlbumMetadata, parse_album_year
+from ..album.store.protocol import AlbumMetadata
+from ..dates import parse_year_prefix
 from ..fsprotocol import ALBUMS_DIR, PHOTREE_DIR, LinkMode
 
 # Import stages
@@ -74,7 +75,7 @@ def _notify(callback: Callable[[str], None] | None, stage: str) -> None:
 
 def compute_target_dir(gallery_dir: Path, album_name: str) -> Path:
     """Compute the target path: ``<gallery_dir>/albums/YYYY/<album_name>``."""
-    year = parse_album_year(album_name)
+    year = parse_year_prefix(album_name)
     return gallery_dir / ALBUMS_DIR / year / album_name
 
 
@@ -271,7 +272,7 @@ def import_album(
     wrong link mode and rebuilds them as hardlinks/symlinks.
 
     Raises :class:`TargetExistsError` if the target directory already exists,
-    or :class:`~photree.album.store.protocol.AlbumDatePrefixError` (a
+    or :class:`~photree.dates.DatePrefixError` (a
     :class:`ValueError`) if the album name has no year prefix.
     """
     target_dir = compute_target_dir(gallery_dir, source_dir.name)
@@ -325,7 +326,7 @@ def reimport_album(
     is left untouched if any step fails.
 
     Raises :class:`TargetExistsError` when a rename would land on a directory
-    that is already taken, or :class:`~photree.album.store.protocol.AlbumDatePrefixError`
+    that is already taken, or :class:`~photree.dates.DatePrefixError`
     (a :class:`ValueError`) if the album name has no year prefix.
     """
     target_dir = compute_target_dir(gallery_dir, source_dir.name)

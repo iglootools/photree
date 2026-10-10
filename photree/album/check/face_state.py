@@ -23,7 +23,7 @@ from ..faces.store import (
     load_face_state,
     state_path,
 )
-from ..store.protocol import MediaSource
+from ..store.media_source import MediaSource
 
 
 class FaceSyncIssueKind(StrEnum):

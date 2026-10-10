@@ -11,8 +11,8 @@ from enum import StrEnum
 from pathlib import Path
 
 from ...fsprotocol import LinkMode
+from ..store.media_source import MediaSource
 from ..store.media_sources_discovery import discover_media_sources
-from ..store.protocol import MediaSource
 from .helpers import MissingArchiveError
 from .rm_orphan import RmOrphanDirResult, RmOrphanResult, rm_orphan
 from .rm_upstream import (

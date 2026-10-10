@@ -279,7 +279,8 @@ When introducing a new concept that is managed by photree:
 
 - [ ] **Metadata model**: `.photree/<entity>.yaml` with Pydantic model, load/save I/O
 - [ ] **ID system**: generate/format/parse functions with `<type>_<base58>` external form
-- [ ] **Naming convention**: parser, reconstructor, validation
+- [ ] **Naming convention**: parser, reconstructor, validation (reuse
+  `photree/dates.py` for any date component rather than re-deriving ranges)
 - [ ] **Discovery**: `is_<entity>`, `discover_<entities>` functions
 - [ ] **CLI commands at all three levels**: single (`<entity> <op>`), batch (`<entities> <op>`), gallery (`gallery <op>`)
 - [ ] **Standard operations**: init, show, check, import, metadata set, list (with CSV output), stats

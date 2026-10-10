@@ -14,8 +14,8 @@ from pathlib import Path
 
 from ...common.fs import list_files
 from ...fsprotocol import LinkMode
-from ..store.media_sources import dedup_media_dict
-from ..store.protocol import KeyFn
+from ..store.file_matching import dedup_media_dict
+from ..store.media_source import KeyFn
 
 # ---------------------------------------------------------------------------
 # Data classes

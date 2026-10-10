@@ -15,8 +15,8 @@ from photree.album.importer.album_import import (
     EmptyImageCaptureDirError,
 )
 from photree.album.importer.collision import ImportCollisionError
+from photree.album.store.media_source import std_media_source
 from photree.album.store.media_sources_discovery import MediaSourceConflictError
-from photree.album.store.protocol import std_media_source
 from photree.cli import app
 from photree.fsprotocol import SHARE_SENTINEL, InvalidMetadataError
 

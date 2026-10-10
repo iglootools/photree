@@ -27,18 +27,14 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
+from ...dates import parse_month_prefix, parse_year_prefix
 from ...fsprotocol import PHOTREE_DIR, LinkMode
 from ..browsable import refresh_browsable_dir
 from ..exporter.protocol import AlbumShareLayout, ShareDirectoryLayout
+from ..formats import IMG_EXTENSIONS, VID_EXTENSIONS
+from ..store.media_source import MediaSource
 from ..store.media_sources_discovery import discover_media_sources
-from ..store.protocol import (
-    CACHE_DIR,
-    IMG_EXTENSIONS,
-    VID_EXTENSIONS,
-    MediaSource,
-    parse_album_month,
-    parse_album_year,
-)
+from ..store.protocol import CACHE_DIR
 
 _IgnoreFn = Callable[[str, list[str]], set[str]]
 
@@ -96,10 +92,10 @@ def compute_target_dir(
         case ShareDirectoryLayout.FLAT:
             return share_dir / album_name
         case ShareDirectoryLayout.ALBUMS:
-            year = parse_album_year(album_name)
+            year = parse_year_prefix(album_name)
             return share_dir / year / album_name
         case ShareDirectoryLayout.BY_MONTH:
-            month = parse_album_month(album_name)
+            month = parse_month_prefix(album_name)
             return share_dir / month / album_name
 
 

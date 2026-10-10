@@ -15,9 +15,10 @@ from photree.album.importer.album_import import run_import
 from photree.album.importer.testkit import seed_demo
 from photree.album.jpeg import convert_single_file, copy_convert_single
 from photree.album.store.album_discovery import is_album
+from photree.album.store.media_source import MAIN_MEDIA_SOURCE
 from photree.album.store.media_sources_discovery import discover_media_sources
 from photree.album.store.metadata import load_album_metadata
-from photree.album.store.protocol import ALBUM_YAML, MAIN_MEDIA_SOURCE
+from photree.album.store.protocol import ALBUM_YAML
 from photree.common.exif import exiftool_session
 from photree.fsprotocol import (
     PHOTREE_DIR,

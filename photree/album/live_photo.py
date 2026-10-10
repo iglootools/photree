@@ -17,8 +17,8 @@ from typing import TYPE_CHECKING
 from ..common.fs import list_files
 from ..fsprotocol import LinkMode
 from .browsable import place_file
-from .store.media_sources import dedup_media_dict
-from .store.protocol import KeyFn
+from .store.file_matching import dedup_media_dict
+from .store.media_source import KeyFn
 
 if TYPE_CHECKING:
     # Annotation only: a runtime import would cycle back through album.check,

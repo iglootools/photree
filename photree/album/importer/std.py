@@ -17,7 +17,8 @@ from typing import TYPE_CHECKING
 
 from ...common.fs import file_ext, list_files
 from ..check.std import DuplicateStem, check_duplicate_stems
-from ..store.protocol import IMG_EXTENSIONS, VID_EXTENSIONS, MediaSource
+from ..formats import IMG_EXTENSIONS, VID_EXTENSIONS
+from ..store.media_source import MediaSource
 from .collision import ArchiveCollision
 
 if TYPE_CHECKING:

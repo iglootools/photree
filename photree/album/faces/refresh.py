@@ -13,9 +13,10 @@ import numpy as np
 from ...common.fs import list_files
 from ...common.parallelism import ParallelResult, run_parallel
 from ...common.sips import get_dimensions
-from ..store.media_sources import dedup_media_dict
+from ..formats import IMG_EXTENSIONS, IOS_IMG_EXTENSIONS
+from ..store.file_matching import dedup_media_dict
+from ..store.media_source import MediaSource
 from ..store.media_sources_discovery import discover_media_sources
-from ..store.protocol import IMG_EXTENSIONS, IOS_IMG_EXTENSIONS, MediaSource
 from .detect import (
     DetectedFace,
     FaceAnalyzerFactory,

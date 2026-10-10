@@ -15,16 +15,16 @@ from enum import StrEnum
 from pathlib import Path
 
 from ...common.fs import file_ext, list_files
-from ..live_photo import detect_live_photo_keys
-from ..store.media_sources import dedup_media_dict as generic_dedup_media_dict
-from ..store.protocol import (
+from ..formats import (
     IMG_EXTENSIONS,
     IOS_IMG_EXTENSIONS,
     IOS_SIDECAR_EXTENSIONS,
     IOS_VID_EXTENSIONS,
     VID_EXTENSIONS,
-    MediaSource,
 )
+from ..live_photo import detect_live_photo_keys
+from ..store.file_matching import dedup_media_dict as generic_dedup_media_dict
+from ..store.media_source import MediaSource
 from .aggregate import merge_size_stats
 from .models import FormatStats, SizeStats, StorageRole
 

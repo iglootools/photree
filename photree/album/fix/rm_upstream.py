@@ -28,9 +28,10 @@ from pathlib import Path
 
 from ...common.fs import delete_files, list_files
 from .. import browsable as browsable_module
+from ..formats import IMG_EXTENSIONS
 from ..jpeg import jpeg_name
-from ..store.media_sources import find_files_by_key
-from ..store.protocol import IMG_EXTENSIONS, MediaSource
+from ..store.file_matching import find_files_by_key
+from ..store.media_source import MediaSource
 from .helpers import _require_archive
 
 # ---------------------------------------------------------------------------

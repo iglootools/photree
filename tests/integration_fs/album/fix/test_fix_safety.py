@@ -27,7 +27,7 @@ from photree.album.fix.ios import (
 from photree.album.fix.ios.output import format_fix_ios_result
 from photree.album.fix.output import format_fix_result
 from photree.album.fix.rm_upstream import MediaKind
-from photree.album.store.protocol import MAIN_MEDIA_SOURCE, std_media_source
+from photree.album.store.media_source import MAIN_MEDIA_SOURCE, std_media_source
 
 MC = MAIN_MEDIA_SOURCE
 STD = std_media_source("nelu")

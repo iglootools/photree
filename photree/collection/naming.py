@@ -18,7 +18,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from ..album.store.protocol import ALBUM_DATE_RE
+from ..dates import DATE_PREFIX_RE, parse_year_prefix
 
 # ---------------------------------------------------------------------------
 # Regexes
@@ -26,9 +26,6 @@ from ..album.store.protocol import ALBUM_DATE_RE
 
 # Matches "[tag1, tag2]" at the end of a name (same as album naming)
 _TAGS_RE = re.compile(r"\s*\[([^\]]+)\]\s*$")
-
-# Year extraction from the date component (start year for ranges)
-_YEAR_RE = re.compile(r"^(\d{4})")
 
 
 # ---------------------------------------------------------------------------
@@ -67,7 +64,7 @@ def parse_collection_name(name: str) -> ParsedCollectionName:
         remaining = remaining[: tags_match.start()]
 
     # Step 2: extract date prefix (optional)
-    dm = ALBUM_DATE_RE.match(remaining)
+    dm = DATE_PREFIX_RE.match(remaining)
     if dm is not None:
         collection_date: str | None = dm.group(1)
         body = remaining[dm.end() :].strip()
@@ -113,7 +110,5 @@ def parse_collection_year(name: str) -> str | None:
     Used for placing collections in ``collections/YYYY/`` directories.
     """
     parsed = parse_collection_name(name)
-    if parsed.date is None:
-        return None
-    m = _YEAR_RE.match(parsed.date)
-    return m.group(1) if m else None
+    # A parsed date always matches the date grammar, so it starts with a year.
+    return parse_year_prefix(parsed.date) if parsed.date is not None else None

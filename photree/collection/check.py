@@ -19,10 +19,11 @@ from ..album.id import (
     format_image_external_id,
     format_video_external_id,
 )
-from ..album.naming import ParsedAlbumName, _album_date_range, parse_album_name
+from ..album.naming import ParsedAlbumName, parse_album_name
 from ..album.store.album_discovery import discover_albums
 from ..album.store.media_metadata import MediaMetadata, load_media_metadata
 from ..album.store.metadata import load_album_metadata
+from ..dates import date_range, range_contains, ranges_overlap
 from ..fsprotocol import ALBUMS_DIR, COLLECTIONS_DIR, PHOTREE_DIR, InvalidMetadataError
 from .id import format_collection_external_id
 from .naming import ParsedCollectionName, parse_collection_name
@@ -164,7 +165,7 @@ def _scan_collections(gallery_dir: Path) -> list[_CollectionEntry]:
 def _chapter_range(collection_name: str) -> _ChapterRange | None:
     """Date range of a collection name, or ``None`` when dateless/unparseable."""
     parsed_date = parse_collection_name(collection_name).date
-    rng = _album_date_range(parsed_date) if parsed_date is not None else None
+    rng = date_range(parsed_date) if parsed_date is not None else None
     match (parsed_date, rng):
         case (str(), (start, end)):
             return _ChapterRange(collection_name, parsed_date, start, end)
@@ -292,11 +293,8 @@ def _check_member_existence(
 
 def _date_outside_range(member_date: str, col_start: date, col_end: date) -> bool:
     """Check if a member's date range falls outside the collection's range."""
-    rng = _album_date_range(member_date)
-    if rng is None:
-        return False
-    m_start, m_end = rng
-    return m_start < col_start or m_end > col_end
+    rng = date_range(member_date)
+    return rng is not None and not range_contains((col_start, col_end), rng)
 
 
 def _check_date_coverage(
@@ -307,7 +305,7 @@ def _check_date_coverage(
     """Check collection date range covers all contained albums/collections."""
     parsed_date = parse_collection_name(collection_dir.name).date
     # Dateless (or unparseable) collections have no range to check.
-    col_range = _album_date_range(parsed_date) if parsed_date is not None else None
+    col_range = date_range(parsed_date) if parsed_date is not None else None
     if parsed_date is None or col_range is None:
         return []
     member_dates = [
@@ -405,11 +403,9 @@ def _check_chapter_no_overlap(
             for other_id, other in sorted(
                 lookup.chapters.items(), key=lambda item: item[1].dir_name
             )
-            # Ranges are inclusive of both ends, so sharing a single
-            # boundary day (2019-06-30 in both) is an overlap.
+            # Sharing a single boundary day (2019-06-30 in both) is an overlap.
             if other_id != metadata.id
-            and mine.start <= other.end
-            and other.start <= mine.end
+            and ranges_overlap((mine.start, mine.end), (other.start, other.end))
         ]
         if mine is not None
         else []

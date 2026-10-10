@@ -251,7 +251,7 @@ class TestResolveByMediaFilename:
     def test_invalid_album_date_does_not_crash_date_hint(self, tmp_path: Path) -> None:
         """An album named with a non-existent date is skipped by the date hint.
 
-        Regression: _timestamp_in_album_range raises on such dates, which
+        Regression: dates.timestamp_in_range raises on such dates, which
         crashed the whole resolution instead of narrowing to the valid album.
         """
         gallery = _setup_gallery(tmp_path)

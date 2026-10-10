@@ -8,19 +8,18 @@ from enum import StrEnum
 from pathlib import Path
 
 from ...common.fs import list_files
-from ..store.media_metadata import (
-    MediaSourceMediaMetadata,
-    load_media_metadata,
-)
-from ..store.media_sources import dedup_media_dict
-from ..store.protocol import (
+from ..formats import (
     IMG_EXTENSIONS,
     IOS_IMG_EXTENSIONS,
     IOS_VID_EXTENSIONS,
     VID_EXTENSIONS,
-    KeyFn,
-    MediaSource,
 )
+from ..store.file_matching import dedup_media_dict
+from ..store.media_metadata import (
+    MediaSourceMediaMetadata,
+    load_media_metadata,
+)
+from ..store.media_source import KeyFn, MediaSource
 
 # ---------------------------------------------------------------------------
 # Intermediate types

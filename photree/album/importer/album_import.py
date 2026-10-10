@@ -21,8 +21,9 @@ from ..faces.failures import FaceFailure
 from ..id import generate_album_id
 from ..jpeg import ConvertFile, JpegConversionFailure, convert_single_file
 from ..refresh import AlbumRefreshResult, refresh_album_derived_data
+from ..store.media_source import MediaSource, MediaSourceType
 from ..store.metadata import save_album_metadata
-from ..store.protocol import ALBUM_YAML, AlbumMetadata, MediaSource, MediaSourceType
+from ..store.protocol import ALBUM_YAML, AlbumMetadata
 from . import image_capture, std
 from .collision import ArchiveCollision, ImportCollisionError
 from .image_capture import (

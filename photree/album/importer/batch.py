@@ -13,7 +13,7 @@ from ...fsprotocol import LinkMode
 from ..faces.detect import FaceAnalyzerFactory
 from ..faces.failures import format_face_failures
 from ..jpeg import ConvertFile, convert_single_file
-from ..store.protocol import ios_import_dir, std_import_dir
+from ..staging import ios_import_dir, std_import_dir
 from . import album_import
 from .album_import import (
     AlbumImportResult,

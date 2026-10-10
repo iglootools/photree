@@ -19,13 +19,13 @@ from photree.album.stats.scan import (
     count_unique_pictures,
     count_unique_videos,
 )
-from photree.album.store.metadata import save_album_metadata
-from photree.album.store.protocol import (
+from photree.album.store.media_source import (
     MAIN_MEDIA_SOURCE,
-    AlbumMetadata,
     MediaSourceType,
     std_media_source,
 )
+from photree.album.store.metadata import save_album_metadata
+from photree.album.store.protocol import AlbumMetadata
 from photree.fsprotocol import PHOTREE_DIR
 
 # ---------------------------------------------------------------------------

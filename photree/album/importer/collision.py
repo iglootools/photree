@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ..store.protocol import MediaSource
+from ..store.media_source import MediaSource
 
 
 @dataclass(frozen=True)

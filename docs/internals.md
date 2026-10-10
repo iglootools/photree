@@ -600,7 +600,8 @@ written before the failure keep their new value.
 
 During album and gallery checks, photree reads all media files from each
 album's browsable directories (`{name}-jpg/`, `{name}-vid/`) and compares
-their EXIF timestamps against the album date. All ranges use an exclusive
+their EXIF timestamps against the album date (`album/exif_date_check.py`,
+on top of the date arithmetic in `dates.py`). All ranges use an exclusive
 end boundary:
 
 - **Single-day albums** (`YYYY-MM-DD`): each file must fall in

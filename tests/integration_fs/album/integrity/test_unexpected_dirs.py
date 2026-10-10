@@ -3,13 +3,9 @@
 from pathlib import Path
 
 from photree.album.check.unexpected_dirs import check_unexpected_dirs
+from photree.album.staging import ios_import_dir, std_import_dir
+from photree.album.store.media_source import MAIN_MEDIA_SOURCE, std_media_source
 from photree.album.store.media_sources_discovery import discover_media_sources
-from photree.album.store.protocol import (
-    MAIN_MEDIA_SOURCE,
-    ios_import_dir,
-    std_import_dir,
-    std_media_source,
-)
 
 
 def _setup_ios_album(album: Path) -> None:

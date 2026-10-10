@@ -15,17 +15,14 @@ from pathlib import Path
 
 from ....common.fs import file_ext, list_files
 from ....fsprotocol import LinkMode
+from ...formats import IOS_IMG_EXTENSIONS, IOS_VID_EXTENSIONS
 from ...live_photo import (
     compute_live_photo_videos,
     detect_live_photo_keys,
     filter_live_photo_extras,
 )
-from ...store.media_sources import ios_file_prefix, ios_img_number, ios_is_media
-from ...store.protocol import (
-    IOS_IMG_EXTENSIONS,
-    IOS_VID_EXTENSIONS,
-    MediaSource,
-)
+from ...store.file_matching import ios_file_prefix, ios_is_media
+from ...store.media_source import MediaSource, ios_img_number
 from ..browsable import BrowsableDirCheck, check_browsable_dir
 from ..jpeg import JpegCheck, check_jpeg_dir
 from .sidecar import SidecarCheck, check_sidecars

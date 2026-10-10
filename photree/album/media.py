@@ -13,9 +13,10 @@ from pathlib import Path
 
 from ..common.formatting import indent
 from ..common.fs import delete_files, display_path, file_ext, move_files
-from .store.media_sources import find_files_by_key
+from .formats import VID_EXTENSIONS
+from .store.file_matching import find_files_by_key
+from .store.media_source import MediaSource
 from .store.media_sources_discovery import discover_media_sources
-from .store.protocol import VID_EXTENSIONS, MediaSource
 
 # ---------------------------------------------------------------------------
 # Data structures

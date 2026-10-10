@@ -19,9 +19,9 @@ from pathlib import Path
 from ..album.naming import parse_album_name
 from ..album.store.album_discovery import discover_albums
 from ..album.store.media_metadata import load_media_metadata
+from ..album.store.media_source import MediaSource
 from ..album.store.media_sources_discovery import discover_media_sources
 from ..album.store.metadata import load_album_metadata
-from ..album.store.protocol import MediaSource
 from ..collection.naming import parse_collection_name, parse_collection_year
 from ..collection.store.collection_discovery import discover_collections
 from ..collection.store.metadata import load_collection_metadata

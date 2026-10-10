@@ -24,7 +24,6 @@ from pathlib import Path
 from ..album.naming import (
     NamingIssue,
     ParsedAlbumName,
-    _album_date_range,
     check_album_naming,
     check_batch_date_collisions,
     parse_album_name,
@@ -50,6 +49,7 @@ from ..collection.store.protocol import (
     CollectionMetadata,
     CollectionStrategy,
 )
+from ..dates import DateRange, date_range, range_contains
 from ..fsprotocol import ALBUMS_DIR, COLLECTIONS_DIR
 from .metadata_scan import read_or_none
 
@@ -240,7 +240,7 @@ def _compute_date_string(dates: list[str]) -> str:
 
     Same date → that date. Different dates → min-max range.
     """
-    ranges = [rng for d in dates for rng in [_album_date_range(d)] if rng is not None]
+    ranges = [rng for d in dates for rng in [date_range(d)] if rng is not None]
     match dates, ranges:
         case [], _:
             return ""
@@ -755,13 +755,6 @@ def _refresh_implicit_collections(
 # ---------------------------------------------------------------------------
 
 
-def _is_contained(
-    member_start: date, member_end: date, col_start: date, col_end: date
-) -> bool:
-    """Check if the member's date range is fully contained within the collection's."""
-    return member_start >= col_start and member_end <= col_end
-
-
 @dataclass(frozen=True)
 class _DatedMember:
     member_id: str
@@ -770,9 +763,9 @@ class _DatedMember:
     private: bool
 
 
-def _collection_range(col: _ExistingCollection) -> tuple[date, date] | None:
+def _collection_range(col: _ExistingCollection) -> DateRange | None:
     parsed = parse_collection_name(col.name)
-    return _album_date_range(parsed.date) if parsed.date is not None else None
+    return date_range(parsed.date) if parsed.date is not None else None
 
 
 def _smart_metadata(
@@ -794,7 +787,6 @@ def _smart_metadata(
         or col_range is None
     ):
         return None
-    col_start, col_end = col_range
     private = parse_collection_name(col.name).private
 
     def contained(members: tuple[_DatedMember, ...]) -> list[str]:
@@ -803,7 +795,7 @@ def _smart_metadata(
             for m in members
             if m.member_id != col.metadata.id
             and m.private == private
-            and _is_contained(m.start, m.end, col_start, col_end)
+            and range_contains(col_range, (m.start, m.end))
         )
 
     return CollectionMetadata(
@@ -831,7 +823,7 @@ def _refresh_smart_collections(
     dated_albums = tuple(
         _DatedMember(album.album_id, *rng, album.parsed.private)
         for album in albums
-        for rng in [_album_date_range(album.parsed.date)]
+        for rng in [date_range(album.parsed.date)]
         if rng is not None
     )
     dated_collections = tuple(

@@ -13,21 +13,17 @@ from pathlib import Path
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ...fsprotocol import LinkMode, resolve_link_mode
-from ..naming import (
-    AlbumNamingResult,
-    check_album_naming,
-    check_exif_date_match,
-    parse_album_name,
-)
+from ..exif_date_check import AlbumNamingResult, check_exif_date_match
+from ..naming import check_album_naming, parse_album_name
 from ..store.album_discovery import (
     discover_albums,
 )
+from ..store.media_source import MediaSource, MediaSourceType
 from ..store.media_sources_discovery import (
     discover_media_sources,
     find_media_source_conflicts,
 )
 from ..store.metadata import load_album_metadata
-from ..store.protocol import MediaSource, MediaSourceType
 from .dir_structure import AlbumDirCheck, check_album_dir_structure
 from .exif_cache_state import ExifCacheStateCheck, check_exif_cache_state
 from .face_state import FaceStateCheck, check_face_state

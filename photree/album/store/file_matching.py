@@ -1,12 +1,12 @@
-"""Media source file matching utilities.
+"""Media file matching utilities.
 
 Provides key-function-parameterized grouping, deduplication, and file
 finding that work for both iOS (image-number matching) and std
 (filename-stem matching) media sources.
 
-Also includes iOS-specific (``ios_img_number``,
-``ios_find_files_by_number``) and std-specific (``std_find_files_by_stem``)
-convenience wrappers.
+Also includes iOS-specific (``ios_find_files_by_number``) and std-specific
+(``std_find_files_by_stem``) convenience wrappers. The key functions
+themselves live with :class:`~.media_source.MediaSource`.
 """
 
 from __future__ import annotations
@@ -16,11 +16,12 @@ from itertools import groupby
 from pathlib import Path
 
 from ...common.fs import file_ext, list_files
-from .protocol import (
+from ..formats import (
     IOS_IMG_EXTENSIONS,
     IOS_VID_EXTENSIONS,
     PICTURE_PRIORITY_EXTENSIONS,
 )
+from .media_source import ios_img_number
 
 # ---------------------------------------------------------------------------
 # Generic (key-function-parameterized) utilities
@@ -83,11 +84,6 @@ def find_files_by_key(
 # ---------------------------------------------------------------------------
 # iOS-specific convenience wrappers
 # ---------------------------------------------------------------------------
-
-
-def ios_img_number(filename: str) -> str:
-    """Extract the numeric portion of a filename (e.g. ``"0410"`` from ``"IMG_0410.HEIC"``)."""
-    return "".join(c for c in filename if c.isdigit())
 
 
 def ios_is_media(filename: str) -> bool:

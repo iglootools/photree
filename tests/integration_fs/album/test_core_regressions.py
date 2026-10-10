@@ -23,8 +23,10 @@ from photree.album.exif_cache.store import (
     load_exif_cache,
     save_exif_cache,
 )
+from photree.album.exif_date_check import _try_read_from_cache, check_exif_date_match
 from photree.album.faces.protocol import FaceProcessedKey, FaceProcessingState
 from photree.album.faces.store import load_face_state, save_face_state
+from photree.album.formats import IMG_EXTENSIONS
 from photree.album.jpeg import (
     JpegAction,
     jpeg_action,
@@ -32,23 +34,16 @@ from photree.album.jpeg import (
     noop_convert_single,
     refresh_jpeg_dir,
 )
-from photree.album.naming import (
-    InvalidAlbumDateError,
-    NamingIssueCode,
-    _timestamp_in_album_range,
-    _try_read_from_cache,
-    check_album_naming,
-    check_exif_date_match,
-)
+from photree.album.naming import NamingIssueCode, check_album_naming
 from photree.album.refresh import refresh_media_metadata
 from photree.album.store.album_discovery import has_media_sources
 from photree.album.store.media_metadata import load_media_metadata
+from photree.album.store.media_source import MAIN_MEDIA_SOURCE
 from photree.album.store.media_sources_discovery import (
     MediaSourceConflictError,
     discover_media_sources,
     find_media_source_conflicts,
 )
-from photree.album.store.protocol import IMG_EXTENSIONS, MAIN_MEDIA_SOURCE
 from photree.albums.cmd_handler.check import batch_check
 from photree.common.sips import SipsError
 from photree.fsprotocol import InvalidMetadataError, LinkMode
@@ -181,11 +176,6 @@ class TestInvalidDates:
     def test_valid_dates_have_no_date_issue(self) -> None:
         for name in ("2024-02-29 - Leap", "2024-07--2024-08-03 - Mixed", "2024 - Y"):
             assert check_album_naming(name) == ()
-
-    def test_range_check_refuses_invalid_date(self) -> None:
-        with pytest.raises(InvalidAlbumDateError) as exc_info:
-            _timestamp_in_album_range(datetime(2024, 2, 28), "2024-02-30")
-        assert exc_info.value.album_date == "2024-02-30"
 
     def test_exif_check_skipped_for_invalid_date(self, tmp_path: Path) -> None:
         assert check_exif_date_match(tmp_path, "2024-02-30") is None

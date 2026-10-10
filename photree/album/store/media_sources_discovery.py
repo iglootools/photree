@@ -4,12 +4,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .protocol import (
+from ..formats import IMG_EXTENSIONS, VID_EXTENSIONS
+from .media_source import (
     DEFAULT_MEDIA_SOURCE,
-    IMG_EXTENSIONS,
     IOS_DIR_PREFIX,
     STD_DIR_PREFIX,
-    VID_EXTENSIONS,
     MediaSource,
     ios_media_source,
     std_media_source,
