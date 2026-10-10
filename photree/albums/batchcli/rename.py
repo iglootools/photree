@@ -7,11 +7,11 @@ from pathlib import Path
 
 import typer
 
-from ....clihelpers.console import err_console
-from ....common.formatting import indent
-from ....common.fs import display_path
-from ...cmd_handler.rename import BatchRenameResult, batch_rename_from_csv
-from ...renamer import (
+from ...clihelpers.console import err_console
+from ...common.formatting import indent
+from ...common.fs import display_path
+from ..cmd_handler.rename import BatchRenameResult, batch_rename_from_csv
+from ..renamer import (
     RenameCollisionError,
     RenameFailure,
     RenamePhase,

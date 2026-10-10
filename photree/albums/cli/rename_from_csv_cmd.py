@@ -12,10 +12,10 @@ from ...clihelpers.console import err_console
 from ...clihelpers.options import DRY_RUN_OPTION
 from ...common.formatting import indent
 from ...common.fs import display_path
+from ..batchcli.rename import run_batch_rename_from_csv
+from ..batchcli.resolution import resolve_check_batch_albums
 from ..index import AlbumIndex, MissingAlbumIdError, build_album_index
 from . import AlbumDirOption, DirOption, albums_app
-from .batch_ops.rename import run_batch_rename_from_csv
-from .ops import resolve_check_batch_albums
 
 
 @albums_app.command("rename-from-csv")

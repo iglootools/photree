@@ -123,7 +123,7 @@ with BatchProgressBar(
 ```
 
 For gallery-scoped scanning (resolving album list), use a transient
-Rich spinner via `resolve_check_batch_albums` in `albums/cli/ops.py`.
+Rich spinner via `resolve_check_batch_albums` in `albums/batchcli/resolution.py`.
 
 ### Icons and Result Formatting
 
@@ -237,13 +237,19 @@ Commands with `--format csv` follow this pattern:
 
 Batch operations follow a three-layer pattern:
 
-1. **CLI command** (`*_cmd.py`) — argument parsing, delegates to shared wrapper
-2. **Batch wrapper** (`batch_ops.py`) — progress bars, output formatting,
-   `typer.Exit`. Shared between `albums` and `gallery` commands
-3. **Command handler** (`cmd_handler/*.py`) — pure business logic with callbacks
+1. **CLI command** (`albums/cli/*_cmd.py`, `gallery/cli/*_cmd.py`) — argument
+   parsing, delegates to the shared wrapper
+2. **Batch wrapper** (`albums/batchcli/<operation>.py`) — progress bars,
+   output formatting, `typer.Exit`. Shared between `albums` and `gallery`
+   commands, so it is a sibling of `albums/cli/` rather than part of it: the
+   `gallery` CLI never imports the `albums` command group
+3. **Command handler** (`albums/cmd_handler/*.py`) — pure business logic with
+   callbacks, no `typer`/`rich`/`clihelpers`. It stays in `albums/` because
+   it is the domain of "a set of albums" (alongside `albums/index.py` and
+   `albums/renamer.py`); the batch wrappers and `gallery` depend on it, not
+   the other way round
 
-Album resolution helpers live in `albums/cli/ops.py` (mirroring
-`gallery/cli/ops.py`):
+Album resolution helpers live in `albums/batchcli/resolution.py`:
 - `resolve_check_batch_albums` — for check/list/refresh commands
 - `resolve_batch_albums` — for archive-based commands (fix-ios)
 - `resolve_init_batch_albums` — for init commands

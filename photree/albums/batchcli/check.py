@@ -10,23 +10,23 @@ from pathlib import Path
 import typer
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
-from ....album import naming as album_naming
-from ....album.check import output as preflight_output
-from ....album.check.output import batch_check_summary
-from ....album.exif_cache.refresh import refresh_exif_cache as _refresh_exif
-from ....album.id import format_album_external_id, format_image_external_id
-from ....album.naming import BatchNamingResult
-from ....clihelpers.console import console, err_console
-from ....clihelpers.progress import BatchProgressBar, run_with_spinner
-from ....clihelpers.sysdeps import CHECK_DEPS, EXIF_DEPS, require_system_deps
-from ....common.exif import exiftool_session
-from ....foundation.gallery_metadata import resolve_link_mode
-from ...cmd_handler import BatchFailure, failures_of, run_album_step
-from ...cmd_handler.check import BatchCheckResult, batch_check
-from ...index import find_duplicate_album_ids
-from ...media_index import find_duplicate_media_ids
-from ..ops import make_display_fn
+from ...album import naming as album_naming
+from ...album.check import output as preflight_output
+from ...album.check.output import batch_check_summary
+from ...album.exif_cache.refresh import refresh_exif_cache as _refresh_exif
+from ...album.id import format_album_external_id, format_image_external_id
+from ...album.naming import BatchNamingResult
+from ...clihelpers.console import console, err_console
+from ...clihelpers.progress import BatchProgressBar, run_with_spinner
+from ...clihelpers.sysdeps import CHECK_DEPS, EXIF_DEPS, require_system_deps
+from ...common.exif import exiftool_session
+from ...foundation.gallery_metadata import resolve_link_mode
+from ..cmd_handler import BatchFailure, failures_of, run_album_step
+from ..cmd_handler.check import BatchCheckResult, batch_check
+from ..index import find_duplicate_album_ids
+from ..media_index import find_duplicate_media_ids
 from .failures import batch_failures_report, investigate_commands
+from .resolution import make_display_fn
 
 
 @dataclass(frozen=True)

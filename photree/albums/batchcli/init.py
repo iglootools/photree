@@ -6,10 +6,10 @@ from pathlib import Path
 
 import typer
 
-from ....clihelpers.progress import BatchProgressBar
-from ...cmd_handler.init import batch_init
-from ..ops import make_display_fn
+from ...clihelpers.progress import BatchProgressBar
+from ..cmd_handler.init import batch_init
 from .failures import exit_if_no_albums, exit_with_failures
+from .resolution import make_display_fn
 
 
 def run_batch_init(

@@ -6,14 +6,14 @@ from pathlib import Path
 
 import typer
 
-from ....album.fix.ios.output import batch_fix_ios_summary
-from ....album.fix.output import batch_fix_summary
-from ....clihelpers.console import console
-from ....clihelpers.progress import BatchProgressBar
-from ...cmd_handler.fix import batch_fix
-from ...cmd_handler.fix_ios import batch_fix_ios
-from ..ops import make_display_fn
+from ...album.fix.ios.output import batch_fix_ios_summary
+from ...album.fix.output import batch_fix_summary
+from ...clihelpers.console import console
+from ...clihelpers.progress import BatchProgressBar
+from ..cmd_handler.fix import batch_fix
+from ..cmd_handler.fix_ios import batch_fix_ios
 from .failures import album_reports_block, exit_if_no_albums, exit_with_failures
+from .resolution import make_display_fn
 
 
 def _print_reports(reports: tuple[tuple[str, str], ...]) -> None:

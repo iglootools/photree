@@ -23,6 +23,12 @@ photree follows a flat package layout with the following top-level modules:
   (export layout enums) and `gallery_metadata` (`gallery.yaml` and gallery
   resolution — kept below `album` because album commands resolve the
   gallery's link mode while `gallery` imports `album`).
+- `albums/` — operations over a set of albums. `albums/cmd_handler/` holds
+  the pure batch logic, `albums/batchcli/` the batch presentation layer
+  shared by the `albums` and `gallery` command groups (one `run_batch_*`
+  wrapper per operation plus `resolution`, `--dir` / `--album-dir` to an
+  album list), and `albums/cli/` only the `albums` commands themselves, so
+  `gallery/cli/` never imports `albums/cli/`.
 
 Within `album/`, media knowledge is split by concern: `album/formats.py`
 (recognized extensions and JPEG/priority rules), `album/store/media_source.py`

@@ -7,8 +7,8 @@ from typing import Annotated
 
 import typer
 
-from ...albums.cli.batch_ops.listmedia import run_batch_list_media
-from ...albums.cli.ops import resolve_check_batch_albums
+from ...albums.batchcli.listmedia import run_batch_list_media
+from ...albums.batchcli.resolution import resolve_check_batch_albums
 from ...clihelpers.options import (
     OUTPUT_FILE_OPTION,
     OUTPUT_FORMAT_OPTION,

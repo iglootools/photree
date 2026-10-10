@@ -6,16 +6,16 @@ from pathlib import Path
 
 import typer
 
-from ....album.id import format_album_external_id
-from ....album.naming import ParsedAlbumName, parse_album_name
-from ....album.store.media_sources_discovery import discover_media_sources
-from ....album.store.metadata import load_album_metadata
-from ....album.store.protocol import AlbumMetadata
-from ....clihelpers.console import err_console
-from ....clihelpers.options import OutputFormat
-from ....common.formatting import indent
-from ....common.fs import display_path
-from ..ops import display_name
+from ...album.id import format_album_external_id
+from ...album.naming import ParsedAlbumName, parse_album_name
+from ...album.store.media_sources_discovery import discover_media_sources
+from ...album.store.metadata import load_album_metadata
+from ...album.store.protocol import AlbumMetadata
+from ...clihelpers.console import err_console
+from ...clihelpers.options import OutputFormat
+from ...common.formatting import indent
+from ...common.fs import display_path
+from .resolution import display_name
 from .sink import write_csv, write_text
 
 _CSV_HEADER = (

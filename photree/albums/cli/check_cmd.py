@@ -15,9 +15,9 @@ from ...clihelpers.options import (
     FATAL_SIDECAR_OPTION,
     FATAL_WARNINGS_OPTION,
 )
+from ..batchcli.check import run_batch_check
+from ..batchcli.resolution import resolve_check_batch_albums
 from . import AlbumDirOption, DirOption, albums_app
-from .batch_ops.check import run_batch_check
-from .ops import resolve_check_batch_albums
 
 
 @albums_app.command("check")

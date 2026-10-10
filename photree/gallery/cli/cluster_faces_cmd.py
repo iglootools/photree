@@ -7,8 +7,8 @@ from typing import Annotated
 
 import typer
 
-from ...albums.cli.batch_ops.refresh import run_batch_refresh
-from ...albums.cli.ops import resolve_check_batch_albums
+from ...albums.batchcli.refresh import run_batch_refresh
+from ...albums.batchcli.resolution import resolve_check_batch_albums
 from ...clihelpers.options import DRY_RUN_OPTION
 from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...clihelpers.sysdeps import (

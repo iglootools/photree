@@ -12,7 +12,7 @@ from photree.album.id import format_album_external_id, generate_album_id
 from photree.album.importer.batch import AlbumFailure, ImportFailureStage
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
-from photree.albums.cli.batch_ops.check import run_batch_check
+from photree.albums.batchcli.check import run_batch_check
 from photree.albums.cli.import_cmd import retry_commands
 from photree.albums.cmd_handler import AlbumStepError, run_album_step
 from photree.albums.cmd_handler.stats import batch_stats

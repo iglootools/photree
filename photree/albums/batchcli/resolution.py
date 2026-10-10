@@ -1,7 +1,7 @@
-"""Shared helpers for albums CLI commands.
+"""Album list resolution and display names for batch commands.
 
-Album resolution and display utilities used by both ``albums`` and
-``gallery`` CLI commands.
+Turns the mutually exclusive ``--dir`` / ``--album-dir`` options into an
+album list; used by both ``albums`` and ``gallery`` CLI commands.
 """
 
 from __future__ import annotations

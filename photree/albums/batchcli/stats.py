@@ -8,16 +8,16 @@ from pathlib import Path
 import typer
 from rich.console import RenderableType
 
-from ....album.naming import parse_album_name
-from ....album.stats import models as stats_models
-from ....album.stats import output as stats_output
-from ....clihelpers.console import console, err_console
-from ....clihelpers.progress import BatchProgressBar
-from ....common.formatting import indent
-from ....common.fs import display_path
-from ...cmd_handler.stats import batch_stats
-from ..ops import make_display_fn
+from ...album.naming import parse_album_name
+from ...album.stats import models as stats_models
+from ...album.stats import output as stats_output
+from ...clihelpers.console import console, err_console
+from ...clihelpers.progress import BatchProgressBar
+from ...common.formatting import indent
+from ...common.fs import display_path
+from ..cmd_handler.stats import batch_stats
 from .failures import exit_with_failures
+from .resolution import make_display_fn
 
 
 def _exit_if_unparseable(

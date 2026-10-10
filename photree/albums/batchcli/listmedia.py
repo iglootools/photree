@@ -7,20 +7,20 @@ from pathlib import Path
 
 import typer
 
-from ....album.id import (
+from ...album.id import (
     format_album_external_id,
     format_image_external_id,
     format_video_external_id,
 )
-from ....album.store.media_metadata import (
+from ...album.store.media_metadata import (
     MediaMetadata,
     MediaSourceMediaMetadata,
     load_media_metadata,
 )
-from ....album.store.metadata import load_album_metadata
-from ....clihelpers.options import OutputFormat
-from ....common.formatting import indent
-from ..ops import display_name
+from ...album.store.metadata import load_album_metadata
+from ...clihelpers.options import OutputFormat
+from ...common.formatting import indent
+from .resolution import display_name
 from .sink import write_csv, write_text
 
 _CSV_HEADER = ("album_id", "media_source", "type", "id", "key")

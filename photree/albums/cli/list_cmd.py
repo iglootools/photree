@@ -7,9 +7,9 @@ from typing import Annotated
 import typer
 
 from ...clihelpers.options import OUTPUT_FILE_OPTION, OUTPUT_FORMAT_OPTION, OutputFormat
+from ..batchcli.listing import run_batch_list_albums
+from ..batchcli.resolution import resolve_check_batch_albums
 from . import AlbumDirOption, DirOption, albums_app
-from .batch_ops.listing import run_batch_list_albums
-from .ops import resolve_check_batch_albums
 
 
 @albums_app.command("list")

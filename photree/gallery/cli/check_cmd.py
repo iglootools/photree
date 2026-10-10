@@ -7,8 +7,8 @@ from typing import Annotated
 
 import typer
 
-from ...albums.cli.batch_ops.check import run_batch_check
-from ...albums.cli.ops import resolve_check_batch_albums
+from ...albums.batchcli.check import run_batch_check
+from ...albums.batchcli.resolution import resolve_check_batch_albums
 from ...clihelpers.console import console, err_console
 from ...clihelpers.options import (
     CHECK_DATE_PART_COLLISION_OPTION,

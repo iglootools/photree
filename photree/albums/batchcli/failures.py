@@ -16,10 +16,10 @@ from pathlib import Path
 
 import typer
 
-from ....clihelpers.console import err_console
-from ....common.formatting import indent, markup_escape
-from ....common.fs import display_path
-from ...cmd_handler import BatchFailure
+from ...clihelpers.console import err_console
+from ...common.formatting import indent, markup_escape
+from ...common.fs import display_path
+from ..cmd_handler import BatchFailure
 
 
 def batch_failures_report(failures: Iterable[BatchFailure], base: Path) -> str:
