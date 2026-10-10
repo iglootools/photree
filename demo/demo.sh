@@ -36,22 +36,36 @@ rm -rf "$DEMO_DIR"
 
 # On Linux (CI), create a fake sips shim that copies files instead of converting.
 # This lets the demo run without macOS sips — JPEG output won't be real JPEG,
-# but the demo doesn't assert file content.
+# but the demo doesn't assert file content. The shim must also answer the
+# dimension queries (`sips -g pixelWidth -g pixelHeight <file>`) that face
+# detection makes: photree reports a failed query as a face-detection failure
+# and exits 1, which would stop the recording.
 if ! command -v sips &>/dev/null; then
     SIPS_SHIM_DIR="$DEMO_DIR/.shims"
     mkdir -p "$SIPS_SHIM_DIR"
     cat > "$SIPS_SHIM_DIR/sips" <<'SHIM'
 #!/usr/bin/env bash
-# Fake sips: parse --out <dst> from args and copy the source file
-src="" dst=""
+# Fake sips: copy <src> to --out <dst>, or print the pixel size for -g queries.
+src="" dst="" query=false
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --out) dst="$2"; shift 2 ;;
         -s)    shift 2 ;;  # skip -s format <fmt>
+        -g)    query=true; shift 2 ;;  # skip -g <property>
+        --resampleHeightWidthMax) shift 2 ;;
         *)     src="$1"; shift ;;
     esac
 done
-[[ -n "$src" && -n "$dst" ]] && cp "$src" "$dst"
+[[ -n "$src" ]] || exit 1
+if $query; then
+    # Same layout as real sips: the path, then indented "key: value" lines.
+    # Pillow is a photree dependency, so the environment running photree has it.
+    python -c 'import sys; from PIL import Image
+w, h = Image.open(sys.argv[1]).size
+print(f"{sys.argv[1]}\n  pixelWidth: {w}\n  pixelHeight: {h}")' "$src"
+else
+    [[ -n "$dst" ]] && cp "$src" "$dst"
+fi
 SHIM
     chmod +x "$SIPS_SHIM_DIR/sips"
     export PATH="$SIPS_SHIM_DIR:$PATH"
