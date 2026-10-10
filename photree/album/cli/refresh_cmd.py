@@ -10,10 +10,14 @@ import typer
 from ...clihelpers.console import console, err_console
 from ...clihelpers.progress import run_with_spinner
 from ...clihelpers.sysdeps import refresh_deps, require_system_deps
-from ...common.exif import try_start_exiftool
+from ...common.exif import exiftool_session
 from ...common.formatting import CHECK
+from ...common.fs import display_path
+from ..check.output import derived_failures_report
 from ..faces.detect import memoized_face_analyzer_factory
+from ..refresh import AlbumRefreshResult
 from . import album_app
+from .helpers import exit_on_media_source_conflict
 
 
 @album_app.command("refresh")
@@ -74,9 +78,8 @@ def refresh_cmd(
 
     require_system_deps(refresh_deps())
 
-    exiftool = try_start_exiftool()
-
-    try:
+    cwd = Path.cwd()
+    with exiftool_session() as exiftool, exit_on_media_source_conflict(cwd):
         result = run_with_spinner(
             "Refreshing album...",
             lambda: refresh_album_derived_data(
@@ -91,17 +94,18 @@ def refresh_cmd(
                 dry_run=dry_run,
             ),
         )
-    finally:
-        if exiftool is not None:
-            exiftool.__exit__(None, None, None)
 
-    if result.jpeg_failures:
-        from ..check.output import jpeg_failures_report
-
-        err_console.print(jpeg_failures_report(result.jpeg_failures))
-        err_console.print(
-            "\nRun 'photree album refresh --refresh-jpeg' to retry the conversions."
-        )
+    if not result.success:
+        _report_failures(result, album_dir=display_path(album_dir, cwd))
         raise typer.Exit(code=1)
 
     console.print(f"{CHECK} album refresh complete")
+
+
+def _report_failures(result: AlbumRefreshResult, *, album_dir: Path) -> None:
+    """Print every JPEG and face-detection failure, each with its retry command."""
+    err_console.print(
+        derived_failures_report(
+            result.jpeg_failures, result.face_failures, str(album_dir)
+        )
+    )

@@ -12,13 +12,14 @@ from photree.album.id import format_album_external_id, generate_album_id
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.cli import app
+from photree.fsprotocol import InvalidMetadataError
 
 runner = CliRunner()
 
 
 def _write(path: Path, content: str = "data") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content)
+    path.write_text(content, encoding="utf-8")
 
 
 def _setup_media_source(album_dir: Path) -> None:
@@ -45,7 +46,7 @@ def _write_csv(path: Path, rows: list[dict[str, str]]) -> None:
     writer = csv.DictWriter(buf, fieldnames=list(rows[0].keys()))
     writer.writeheader()
     writer.writerows(rows)
-    path.write_text(buf.getvalue())
+    path.write_text(buf.getvalue(), encoding="utf-8")
 
 
 class TestVersionCommand:
@@ -180,8 +181,9 @@ class TestAlbumsRenameFromCsv:
         assert result.exit_code == 0
         assert "Renamed 1 album(s)" in result.output
 
-    def test_missing_album_id_exits(self, tmp_path: Path) -> None:
-        # Album with empty album.yaml (no valid ID)
+    def test_corrupt_album_yaml_exits(self, tmp_path: Path) -> None:
+        # An empty album.yaml is corrupt metadata, not a missing ID: it must
+        # stop the run rather than be treated as absent.
         album_dir = tmp_path / "2024-06-15 - Broken"
         _setup_media_source(album_dir)
         photree_dir = album_dir / ".photree"
@@ -195,7 +197,5 @@ class TestAlbumsRenameFromCsv:
             ["albums", "rename-from-csv", str(csv_file), "-a", str(album_dir)],
         )
         assert result.exit_code == 1
-        assert (
-            "missing IDs" in result.output.lower()
-            or "missing ids" in result.output.lower()
-        )
+        assert isinstance(result.exception, InvalidMetadataError)
+        assert result.exception.path == album_dir / ".photree" / "album.yaml"

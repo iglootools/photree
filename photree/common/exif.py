@@ -7,14 +7,18 @@ layout or naming convention.
 
 from __future__ import annotations
 
+import json
 import shutil
+import subprocess
+from collections.abc import Generator, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
-from .sysdeps import SystemDependency, require
+from .sysdeps import SystemDependency, WhichFn, is_available, require
 
 _EXIF_DATE_FORMAT = "%Y:%m:%d %H:%M:%S"
 _EXIF_DATE_TZ_FORMAT = "%Y:%m:%d %H:%M:%S%z"
@@ -25,21 +29,39 @@ _EXIF_DATE_TZ_FORMAT = "%Y:%m:%d %H:%M:%S%z"
 # ---------------------------------------------------------------------------
 
 
-def try_start_exiftool() -> ExifToolHelper | None:
-    """Start a persistent exiftool process if available.
+def try_start_exiftool(*, which: WhichFn = shutil.which) -> ExifToolHelper | None:
+    """Start a persistent exiftool process if the binary is installed.
 
-    Returns ``None`` when the ``exiftool`` binary is not installed or
-    fails to start.  The caller must close the returned helper (use as
-    a context manager or call ``__exit__`` in a ``finally`` block).
+    Returns ``None`` only when ``exiftool`` is not on PATH (EXIF checks are
+    optional and degrade to "skipped"). A binary that is installed but fails
+    to start raises: treating it as absent would silently skip every EXIF
+    check on a machine that believes it has them. The caller must close the
+    returned helper; prefer :func:`exiftool_session`.
     """
-    if not shutil.which("exiftool"):
+    if not is_available(SystemDependency.EXIFTOOL, which=which):
         return None
+    et = ExifToolHelper()
+    et.__enter__()
+    return et
+
+
+@contextmanager
+def exiftool_session(
+    *, enabled: bool = True, which: WhichFn = shutil.which
+) -> Generator[ExifToolHelper | None, None, None]:
+    """Yield a running exiftool helper (or ``None``), closing it on exit.
+
+    ``None`` when *enabled* is false or exiftool is not installed. Use this
+    instead of pairing :func:`try_start_exiftool` with a manual
+    ``__exit__`` in a ``finally``: an early ``typer.Exit`` between the two
+    leaks the process.
+    """
+    et = try_start_exiftool(which=which) if enabled else None
     try:
-        et = ExifToolHelper()
-        et.__enter__()
-        return et
-    except (OSError, FileNotFoundError):
-        return None
+        yield et
+    finally:
+        if et is not None:
+            et.__exit__(None, None, None)
 
 
 # ---------------------------------------------------------------------------
@@ -48,10 +70,17 @@ def try_start_exiftool() -> ExifToolHelper | None:
 
 
 def parse_timestamp(value: str) -> datetime | None:
-    """Parse an exiftool timestamp, with or without timezone."""
+    """Parse an exiftool timestamp, with or without timezone.
+
+    Always returns a **naive wall-clock** datetime: an offset, when present,
+    is parsed and then dropped, keeping the local time as recorded by the
+    camera. Album dates are wall-clock dates, so the local time is what the
+    date checks need; and mixing aware values (``CreationDate``) with naive
+    ones (``DateTimeOriginal``) would make ``min()``/comparisons raise.
+    """
     for fmt in (_EXIF_DATE_TZ_FORMAT, _EXIF_DATE_FORMAT):
         try:
-            return datetime.strptime(value, fmt)
+            return datetime.strptime(value, fmt).replace(tzinfo=None)
         except ValueError:
             pass
     return None
@@ -137,6 +166,21 @@ def read_exif_timestamps_by_file(
 # ---------------------------------------------------------------------------
 
 
+class ExifToolError(OSError):
+    """An ``exiftool`` invocation exited non-zero.
+
+    Carries the files it was run on, the exit code, and exiftool's stderr so
+    the CLI layer can report *which* files failed and why. A plain class (not
+    a frozen dataclass) because Python assigns ``__traceback__`` on raise.
+    """
+
+    def __init__(self, paths: Sequence[Path], returncode: int, stderr: str) -> None:
+        super().__init__(f"exiftool exited with status {returncode}")
+        self.paths = tuple(paths)
+        self.returncode = returncode
+        self.stderr = stderr
+
+
 @dataclass(frozen=True)
 class ExifDateChange:
     """Record of a single file's EXIF date change."""
@@ -146,160 +190,121 @@ class ExifDateChange:
     new_value: str
 
 
-def set_exif_date(
+def _run_exiftool(args: Sequence[str], paths: Sequence[Path]) -> str:
+    """Run ``exiftool *args* *paths*`` and return its stdout.
+
+    Raises :class:`ExifToolError` on a non-zero exit: exiftool reports
+    per-file failures (unwritable file, unsupported format) through its exit
+    status and stderr, and ignoring them would report unchanged files as
+    updated.
+    """
+    result = subprocess.run(
+        ["exiftool", *args, *[str(p) for p in paths]],
+        check=False,  # returncode is inspected below
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    if result.returncode != 0:
+        raise ExifToolError(paths, result.returncode, result.stderr.strip())
+    return result.stdout
+
+
+def _write_all_dates(paths: Sequence[Path], assignment: str) -> None:
+    """Apply one tag *assignment* suffix (``=v``, ``+=v``, ``-=v``) to all dates."""
+    _run_exiftool(
+        [f"-AllDates{assignment}", f"-CreationDate{assignment}", "-overwrite_original"],
+        paths,
+    )
+
+
+def _first_timestamp(entry: dict[str, object], tags: Sequence[str]) -> str | None:
+    """Return the first non-blank string value among *tags* in *entry*."""
+    return next(
+        (
+            value
+            for t in tags
+            if isinstance(value := entry.get(t), str) and value.strip()
+        ),
+        None,
+    )
+
+
+def _date_change(
+    entry: dict[str, object], tags: Sequence[str], exif_date: str
+) -> ExifDateChange | None:
+    """Plan the date replacement for one exiftool JSON *entry* (keeps the time)."""
+    original = _first_timestamp(entry, tags)
+    if original is None:
+        return None
+    else:
+        _, sep, time = original.partition(" ")
+        return ExifDateChange(
+            path=Path(str(entry.get("SourceFile", ""))),
+            original=original,
+            new_value=f"{exif_date} {time if sep else '00:00:00'}",
+        )
+
+
+def write_exif_date(
     files: list[Path],
     date: str,
     tags: list[str],
-) -> tuple[int, tuple[ExifDateChange, ...]]:
+) -> tuple[ExifDateChange, ...]:
     """Set the date portion of EXIF timestamps, preserving the original time.
 
     *date* must be ``YYYY-MM-DD`` format.  Reads each file's existing
-    timestamp, replaces the date part, and writes it back.
-    Returns ``(updated_count, changes)``.
+    timestamp, replaces the date part, and writes it back. Files without any
+    of *tags* are left untouched and absent from the result.
+
+    Raises :class:`ExifToolError` if reading or any write fails; files
+    written before the failure keep their new value.
     """
-    import json
-    import subprocess
-
     exif_date = date.replace("-", ":")  # "2024:07:20"
-
-    result = subprocess.run(
-        [
-            "exiftool",
-            "-json",
-            *[f"-{t}" for t in tags],
-            *[str(f) for f in files],
-        ],
-        check=False,  # returncode is inspected below
-        capture_output=True,
-        text=True,
+    entries = json.loads(_run_exiftool(["-json", *[f"-{t}" for t in tags]], files))
+    changes = tuple(
+        change
+        for entry in entries
+        if (change := _date_change(entry, tags, exif_date)) is not None
     )
-    if result.returncode != 0:
-        return 0, ()
-
-    updated = 0
-    changes: list[ExifDateChange] = []
-    for entry in json.loads(result.stdout):
-        path = entry.get("SourceFile", "")
-        original = next(
-            (
-                entry[t]
-                for t in tags
-                if isinstance(entry.get(t), str) and entry[t].strip()
-            ),
-            None,
-        )
-        if not original:
-            continue
-
-        time_part = original.split(" ", 1)[1] if " " in original else "00:00:00"
-        new_date = f"{exif_date} {time_part}"
-
-        subprocess.run(
-            [
-                "exiftool",
-                f"-AllDates={new_date}",
-                f"-CreationDate={new_date}",
-                "-overwrite_original",
-                path,
-            ],
-            check=False,
-            capture_output=True,
-        )
-        changes.append(
-            ExifDateChange(path=Path(path), original=original, new_value=new_date)
-        )
-        updated += 1
-
-    return updated, tuple(changes)
+    for change in changes:
+        _write_all_dates([change.path], f"={change.new_value}")
+    return changes
 
 
-def set_exif_date_time(
-    files: list[Path],
-    timestamp: str,
-) -> int:
+def set_exif_date_time(files: list[Path], timestamp: str) -> None:
     """Set the full EXIF timestamp on all files.
 
     *timestamp* is an ISO-like string (e.g. ``2024-07-20T13:55:20``
-    or ``2024-07-20T13:55:20-06:00``).
-    Returns the number of files updated.
+    or ``2024-07-20T13:55:20-06:00``). Raises :class:`ExifToolError` on
+    failure.
     """
-    import subprocess
-
-    # Convert ISO separators to exiftool format: "2024-07-20T13:55:20" -> "2024:07:20 13:55:20"
+    # ISO separators to exiftool format: "2024-07-20T13:55:20" -> "2024:07:20 13:55:20"
     exif_ts = timestamp.replace("T", " ").replace("-", ":", 2)
-
-    result = subprocess.run(
-        [
-            "exiftool",
-            f"-AllDates={exif_ts}",
-            f"-CreationDate={exif_ts}",
-            "-overwrite_original",
-            *[str(f) for f in files],
-        ],
-        check=False,  # returncode is inspected below
-    )
-    return len(files) if result.returncode == 0 else 0
+    _write_all_dates(files, f"={exif_ts}")
 
 
-def shift_exif_date(
-    files: list[Path],
-    days: int,
-) -> int:
-    """Shift EXIF timestamps by a number of days.
+def _shift(files: list[Path], spec: str, amount: int) -> None:
+    """Shift all date tags by *amount* units of *spec*.
 
-    Positive *days* shifts forward, negative shifts backward.
-    Returns the number of files updated.
+    *spec* is an exiftool ``Y:M:D H:M:S`` template with a ``{n}`` placeholder
+    in the position being shifted; the sign of *amount* picks the operator.
     """
-    import subprocess
-
-    if days >= 0:
-        op = "+="
-    else:
-        op = "-="
-        days = -days
-
-    shift = f"0:0:{days} 0:0:0"  # Y:M:D H:M:S
-
-    result = subprocess.run(
-        [
-            "exiftool",
-            f"-AllDates{op}{shift}",
-            f"-CreationDate{op}{shift}",
-            "-overwrite_original",
-            *[str(f) for f in files],
-        ],
-        check=False,  # returncode is inspected below
-    )
-    return len(files) if result.returncode == 0 else 0
+    op, n = ("+=", amount) if amount >= 0 else ("-=", -amount)
+    _write_all_dates(files, f"{op}{spec.format(n=n)}")
 
 
-def shift_exif_time(
-    files: list[Path],
-    hours: int,
-) -> int:
-    """Shift EXIF timestamps by a number of hours.
+def shift_exif_date(files: list[Path], days: int) -> None:
+    """Shift EXIF timestamps by *days* (negative shifts backward).
 
-    Positive *hours* shifts forward, negative shifts backward.
-    Returns the number of files updated.
+    Raises :class:`ExifToolError` on failure.
     """
-    import subprocess
+    _shift(files, "0:0:{n} 0:0:0", days)
 
-    if hours >= 0:
-        op = "+="
-    else:
-        op = "-="
-        hours = -hours
 
-    shift = f"0:0:0 {hours}:0:0"  # Y:M:D H:M:S
+def shift_exif_time(files: list[Path], hours: int) -> None:
+    """Shift EXIF timestamps by *hours* (negative shifts backward).
 
-    result = subprocess.run(
-        [
-            "exiftool",
-            f"-AllDates{op}{shift}",
-            f"-CreationDate{op}{shift}",
-            "-overwrite_original",
-            *[str(f) for f in files],
-        ],
-        check=False,  # returncode is inspected below
-    )
-    return len(files) if result.returncode == 0 else 0
+    Raises :class:`ExifToolError` on failure.
+    """
+    _shift(files, "0:0:0 {n}:0:0", hours)

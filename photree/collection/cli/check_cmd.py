@@ -9,25 +9,16 @@ import typer
 
 from ...clihelpers.console import console, err_console
 from ...clihelpers.resolution import resolve_gallery_or_exit
-from ...common.formatting import CHECK, CROSS
+from ...common.formatting import CHECK, CROSS, indent, markup_escape
 from ...common.fs import display_path
 from ..check import build_gallery_lookup, check_collection
 from . import collection_app
+from .options import COLLECTION_DIR_OPTION
 
 
 @collection_app.command("check")
 def check_cmd(
-    collection_dir: Annotated[
-        Path,
-        typer.Option(
-            "--dir",
-            "-d",
-            help="Collection directory.",
-            exists=True,
-            file_okay=False,
-            resolve_path=True,
-        ),
-    ] = Path("."),
+    collection_dir: COLLECTION_DIR_OPTION = Path("."),
     gallery_dir: Annotated[
         Path | None,
         typer.Option(
@@ -47,13 +38,14 @@ def check_cmd(
     result = check_collection(collection_dir, lookup)
 
     for issue in result.issues:
-        console.print(f"  {CROSS} {issue.message}")
+        console.print(indent(f"{CROSS} {markup_escape(issue.message)}"))
 
     if result.success:
-        console.print(f"{CHECK} {display_path(collection_dir, cwd)}")
+        console.print(f"{CHECK} {markup_escape(display_path(collection_dir, cwd))}")
     else:
         err_console.print(
             f"\n{len(result.issues)} issue(s) found in "
-            f"{display_path(collection_dir, cwd)}"
+            f"{display_path(collection_dir, cwd)}",
+            markup=False,
         )
         raise typer.Exit(code=1)

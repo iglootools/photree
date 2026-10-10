@@ -1,10 +1,17 @@
-"""Low-level directory scanning for stats computation."""
+"""Low-level directory scanning for stats computation.
+
+On-disk sizes are inode-deduplicated: a hardlinked file (browsable dirs are
+usually hardlinks into the archive) is counted once across a whole album.
+That needs state carried from one directory to the next — the set of inodes
+already seen — which every function here takes and returns explicitly rather
+than mutating a shared set.
+"""
 
 from __future__ import annotations
 
 import os
-from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass, replace
+from enum import StrEnum
 from pathlib import Path
 
 from ...common.fs import file_ext, list_files
@@ -15,9 +22,13 @@ from ..store.protocol import (
     VID_EXTENSIONS,
     MediaSource,
 )
-from .models import FormatStats, SizeStats
+from .aggregate import merge_size_stats
+from .models import FormatStats, SizeStats, StorageRole
 
 _ZERO = SizeStats(file_count=0, apparent_bytes=0, on_disk_bytes=0)
+
+InodeKey = tuple[int, int]
+"""``(st_dev, st_ino)`` — identifies a file's storage across hardlinks."""
 
 
 def scan_directory_size(directory: Path) -> SizeStats:
@@ -26,20 +37,15 @@ def scan_directory_size(directory: Path) -> SizeStats:
     Does not deduplicate inodes — face storage directories do not
     contain hardlinks.
     """
-    if not directory.is_dir():
-        return _ZERO
-
-    file_count = 0
-    total_bytes = 0
-    for entry in directory.rglob("*"):
-        if entry.is_file():
-            file_count += 1
-            total_bytes += entry.stat().st_size
-
+    sizes = (
+        [entry.stat().st_size for entry in directory.rglob("*") if entry.is_file()]
+        if directory.is_dir()
+        else []
+    )
     return SizeStats(
-        file_count=file_count,
-        apparent_bytes=total_bytes,
-        on_disk_bytes=total_bytes,
+        file_count=len(sizes),
+        apparent_bytes=sum(sizes),
+        on_disk_bytes=sum(sizes),
     )
 
 
@@ -48,82 +54,69 @@ def scan_directory_size(directory: Path) -> SizeStats:
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class _FileInfo:
-    """Stat result for a single file."""
+    """Stat result for a single file, and whether its inode is new."""
 
     ext: str
     size: int
     is_new_inode: bool
 
 
-def _stat_file(
-    path: Path,
-    filename: str,
-    seen_inodes: set[tuple[int, int]],
-) -> _FileInfo:
-    """Stat a file and check inode novelty."""
-    st = os.stat(path)
-    inode_key = (st.st_dev, st.st_ino)
-    is_new = inode_key not in seen_inodes
-    if is_new:
-        seen_inodes.add(inode_key)
-    return _FileInfo(ext=file_ext(filename), size=st.st_size, is_new_inode=is_new)
+def _stat_files(
+    directory: Path, seen_inodes: frozenset[InodeKey]
+) -> tuple[tuple[_FileInfo, ...], frozenset[InodeKey]]:
+    """Stat every file of *directory*, flagging inodes not in *seen_inodes*.
 
-
-# ---------------------------------------------------------------------------
-# Size accumulator
-# ---------------------------------------------------------------------------
-
-
-@dataclass
-class _SizeAccumulator:
-    """Mutable accumulator for building a SizeStats."""
-
-    file_count: int = 0
-    apparent_bytes: int = 0
-    on_disk_bytes: int = 0
-
-    def add(self, info: _FileInfo) -> None:
-        self.file_count += 1
-        self.apparent_bytes += info.size
-        if info.is_new_inode:
-            self.on_disk_bytes += info.size
-
-    def to_size_stats(self) -> SizeStats:
-        return SizeStats(
-            file_count=self.file_count,
-            apparent_bytes=self.apparent_bytes,
-            on_disk_bytes=self.on_disk_bytes,
-        )
-
-
-@dataclass
-class _FormatAccumulator:
-    """Mutable accumulator for per-extension stats."""
-
-    apparent: Counter[str] = field(default_factory=Counter)
-    on_disk: Counter[str] = field(default_factory=Counter)
-    count: Counter[str] = field(default_factory=Counter)
-
-    def add(self, info: _FileInfo) -> None:
-        self.apparent[info.ext] += info.size
-        self.count[info.ext] += 1
-        if info.is_new_inode:
-            self.on_disk[info.ext] += info.size
-
-    def to_format_stats(self) -> tuple[FormatStats, ...]:
-        return tuple(
-            FormatStats(
-                extension=ext,
-                file_count=self.count[ext],
-                apparent_bytes=amt,
-                on_disk_bytes=self.on_disk[ext],
-                archive_bytes=0,
-                derived_bytes=0,
+    Returns the infos and the updated set of seen inodes.
+    """
+    # Documented exception (docs/guidelines.md): loop-carried state — whether
+    # an inode is new depends on the files stat'ed before it.
+    infos: list[_FileInfo] = []
+    seen = set(seen_inodes)
+    for filename in list_files(directory):
+        st = os.stat(directory / filename)
+        inode = (st.st_dev, st.st_ino)
+        infos.append(
+            _FileInfo(
+                ext=file_ext(filename), size=st.st_size, is_new_inode=inode not in seen
             )
-            for ext, amt in sorted(self.apparent.items(), key=lambda kv: -kv[1])
         )
+        seen.add(inode)
+    return tuple(infos), frozenset(seen)
+
+
+def _size_stats(infos: tuple[_FileInfo, ...]) -> SizeStats:
+    return SizeStats(
+        file_count=len(infos),
+        apparent_bytes=sum(i.size for i in infos),
+        on_disk_bytes=sum(i.size for i in infos if i.is_new_inode),
+    )
+
+
+def _format_stats(infos: tuple[_FileInfo, ...]) -> tuple[FormatStats, ...]:
+    """Per-extension stats, sorted by apparent bytes descending."""
+    by_ext = {
+        ext: tuple(i for i in infos if i.ext == ext)
+        for ext in sorted({i.ext for i in infos})
+    }
+    return tuple(
+        sorted(
+            (
+                FormatStats(
+                    extension=ext,
+                    file_count=stats.file_count,
+                    apparent_bytes=stats.apparent_bytes,
+                    on_disk_bytes=stats.on_disk_bytes,
+                    archive_bytes=0,
+                    derived_bytes=0,
+                )
+                for ext, group in by_ext.items()
+                for stats in [_size_stats(group)]
+            ),
+            key=lambda fs: -fs.apparent_bytes,
+        )
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -131,50 +124,69 @@ class _FormatAccumulator:
 # ---------------------------------------------------------------------------
 
 
-def _classify_ext(ext: str) -> str:
+class _Category(StrEnum):
+    IMAGE = "image"
+    VIDEO = "video"
+    SIDECAR = "sidecar"
+    OTHER = "other"
+
+
+def _classify_ext(ext: str) -> _Category:
     """Classify a file extension into a media category."""
-    if ext in IMG_EXTENSIONS:
-        return "img"
-    elif ext in VID_EXTENSIONS:
-        return "vid"
-    elif ext in IOS_SIDECAR_EXTENSIONS:
-        return "sidecar"
-    else:
-        return "other"
+    match ext:
+        case _ if ext in IMG_EXTENSIONS:
+            return _Category.IMAGE
+        case _ if ext in VID_EXTENSIONS:
+            return _Category.VIDEO
+        case _ if ext in IOS_SIDECAR_EXTENSIONS:
+            return _Category.SIDECAR
+        case _:
+            return _Category.OTHER
+
+
+@dataclass(frozen=True)
+class DirStats:
+    """Stats of one directory, split by media category.
+
+    ``by_format`` has ``archive_bytes=0`` and ``derived_bytes=0``; see
+    :func:`tag_format_role`.
+    """
+
+    images: SizeStats
+    videos: SizeStats
+    sidecars: SizeStats
+    by_format: tuple[FormatStats, ...]
+
+    @property
+    def total(self) -> SizeStats:
+        return merge_size_stats([self.images, self.videos, self.sidecars])
+
+
+EMPTY_DIR_STATS = DirStats(images=_ZERO, videos=_ZERO, sidecars=_ZERO, by_format=())
 
 
 def categorize_size_stats(
     directory: Path,
-    seen_inodes: set[tuple[int, int]],
-) -> tuple[SizeStats, SizeStats, SizeStats, tuple[FormatStats, ...]]:
+    seen_inodes: frozenset[InodeKey] = frozenset(),
+) -> tuple[DirStats, frozenset[InodeKey]]:
     """Scan a directory and split results into images / videos / sidecars.
 
-    Returns ``(images, videos, sidecars, by_format)`` where ``FormatStats``
-    have ``archive_bytes=0`` and ``derived_bytes=0``.
+    Returns the stats and the updated set of seen inodes, to pass to the next
+    directory of the same album.
     """
-    files = list_files(directory)
-    if not files:
-        return _ZERO, _ZERO, _ZERO, ()
+    infos, seen = _stat_files(directory, seen_inodes)
 
-    by_category: dict[str, _SizeAccumulator] = {
-        "img": _SizeAccumulator(),
-        "vid": _SizeAccumulator(),
-        "sidecar": _SizeAccumulator(),
-    }
-    formats = _FormatAccumulator()
-
-    for filename in files:
-        info = _stat_file(directory / filename, filename, seen_inodes)
-        formats.add(info)
-        category = _classify_ext(info.ext)
-        if category in by_category:
-            by_category[category].add(info)
+    def of(category: _Category) -> SizeStats:
+        return _size_stats(tuple(i for i in infos if _classify_ext(i.ext) == category))
 
     return (
-        by_category["img"].to_size_stats(),
-        by_category["vid"].to_size_stats(),
-        by_category["sidecar"].to_size_stats(),
-        formats.to_format_stats(),
+        DirStats(
+            images=of(_Category.IMAGE),
+            videos=of(_Category.VIDEO),
+            sidecars=of(_Category.SIDECAR),
+            by_format=_format_stats(infos),
+        ),
+        seen,
     )
 
 
@@ -186,35 +198,15 @@ def categorize_size_stats(
 def tag_format_role(
     fmts: tuple[FormatStats, ...],
     *,
-    role: str,
+    role: StorageRole,
 ) -> tuple[FormatStats, ...]:
     """Set archive_bytes or derived_bytes on format stats based on role."""
     match role:
-        case "archive":
-            return tuple(
-                FormatStats(
-                    extension=fs.extension,
-                    file_count=fs.file_count,
-                    apparent_bytes=fs.apparent_bytes,
-                    on_disk_bytes=fs.on_disk_bytes,
-                    archive_bytes=fs.apparent_bytes,
-                    derived_bytes=0,
-                )
-                for fs in fmts
-            )
-        case "derived":
-            return tuple(
-                FormatStats(
-                    extension=fs.extension,
-                    file_count=fs.file_count,
-                    apparent_bytes=fs.apparent_bytes,
-                    on_disk_bytes=fs.on_disk_bytes,
-                    archive_bytes=0,
-                    derived_bytes=fs.apparent_bytes,
-                )
-                for fs in fmts
-            )
-        case _:
+        case StorageRole.ARCHIVE:
+            return tuple(replace(fs, archive_bytes=fs.apparent_bytes) for fs in fmts)
+        case StorageRole.DERIVED:
+            return tuple(replace(fs, derived_bytes=fs.apparent_bytes) for fs in fmts)
+        case StorageRole.BROWSABLE:
             return fmts
 
 

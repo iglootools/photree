@@ -4,31 +4,29 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import yaml
-
-from ...fsprotocol import PHOTREE_DIR
+from ...fsprotocol import PHOTREE_DIR, load_yaml_mapping, validate_metadata, write_yaml
 from .protocol import ALBUM_YAML, AlbumMetadata
 
 
+def album_metadata_path(album_dir: Path) -> Path:
+    """Return ``<album>/.photree/album.yaml``."""
+    return album_dir / PHOTREE_DIR / ALBUM_YAML
+
+
 def load_album_metadata(album_dir: Path) -> AlbumMetadata | None:
-    """Read ``.photree/album.yaml``, or ``None`` if missing."""
-    path = album_dir / PHOTREE_DIR / ALBUM_YAML
-    if not path.is_file():
-        return None
-    with open(path) as f:
-        raw = yaml.safe_load(f)
-    return AlbumMetadata.model_validate(raw) if isinstance(raw, dict) else None
+    """Read ``.photree/album.yaml``, or ``None`` if missing.
+
+    Raises :class:`~photree.fsprotocol.InvalidMetadataError` when the file
+    exists but cannot be read: treating a corrupt file as absent is how
+    ``album init`` / ``album fix --id`` would mint a new ID over the old one.
+    """
+    path = album_metadata_path(album_dir)
+    raw = load_yaml_mapping(path)
+    return validate_metadata(path, AlbumMetadata, raw) if raw is not None else None
 
 
 def save_album_metadata(album_dir: Path, metadata: AlbumMetadata) -> None:
     """Write :class:`AlbumMetadata` to ``.photree/album.yaml``."""
-    photree_dir = album_dir / PHOTREE_DIR
-    photree_dir.mkdir(exist_ok=True)
-    path = photree_dir / ALBUM_YAML
-    path.write_text(
-        yaml.safe_dump(
-            metadata.model_dump(by_alias=True, mode="json"),
-            default_flow_style=False,
-            sort_keys=False,
-        )
-    )
+    path = album_metadata_path(album_dir)
+    path.parent.mkdir(exist_ok=True)
+    write_yaml(path, metadata.model_dump(by_alias=True, mode="json"))

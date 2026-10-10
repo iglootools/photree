@@ -8,6 +8,7 @@ from typing import Annotated
 import typer
 
 from ....clihelpers.console import err_console
+from ....common.formatting import indent
 from ....common.fs import display_path
 from ....fsprotocol import PHOTREE_DIR
 from ...store.metadata import load_collection_metadata, save_collection_metadata
@@ -19,22 +20,69 @@ from ...store.protocol import (
     CollectionStrategy,
     validate_collection_config,
 )
+from ..options import COLLECTION_DIR_OPTION
 from . import collection_metadata_app
+
+
+def _load_or_exit(collection_dir: Path, cwd: Path) -> CollectionMetadata:
+    current = load_collection_metadata(collection_dir)
+    if current is None:
+        yaml_path = display_path(collection_dir / PHOTREE_DIR / COLLECTION_YAML, cwd)
+        err_console.print(
+            f"No collection metadata found: {yaml_path}\n"
+            "Run 'photree collection init --collection-dir "
+            f'"{display_path(collection_dir, cwd)}"\' to initialize.',
+            markup=False,
+        )
+        raise typer.Exit(code=1)
+    return current
+
+
+def _apply_settings(
+    current: CollectionMetadata,
+    members: CollectionMembers | None,
+    lifecycle: CollectionLifecycle | None,
+    strategy: CollectionStrategy | None,
+) -> CollectionMetadata:
+    """Return *current* with every given setting applied, or exit if invalid."""
+    updated = current.model_copy(
+        update={
+            k: v
+            for k, v in {
+                "members": members,
+                "lifecycle": lifecycle,
+                "strategy": strategy,
+            }.items()
+            if v is not None
+        }
+    )
+    validation_error = validate_collection_config(
+        updated.members, updated.lifecycle, updated.strategy
+    )
+    if validation_error is not None:
+        err_console.print(validation_error, markup=False)
+        raise typer.Exit(code=1)
+    return updated
+
+
+def _format_changes(
+    current: CollectionMetadata, updated: CollectionMetadata
+) -> list[str]:
+    """``field: old -> new`` lines (unindented) for each changed setting."""
+    return [
+        f"{field}: {old.value} -> {new.value}"
+        for field, old, new in (
+            ("members", current.members, updated.members),
+            ("lifecycle", current.lifecycle, updated.lifecycle),
+            ("strategy", current.strategy, updated.strategy),
+        )
+        if old != new
+    ]
 
 
 @collection_metadata_app.command("set")
 def set_cmd(
-    collection_dir: Annotated[
-        Path,
-        typer.Option(
-            "--dir",
-            "-d",
-            help="Collection directory.",
-            exists=True,
-            file_okay=False,
-            resolve_path=True,
-        ),
-    ] = Path("."),
+    collection_dir: COLLECTION_DIR_OPTION = Path("."),
     members: Annotated[
         CollectionMembers | None,
         typer.Option(
@@ -60,64 +108,19 @@ def set_cmd(
     """Update collection metadata fields."""
     if members is None and lifecycle is None and strategy is None:
         err_console.print(
-            "No fields specified. Use --members, --lifecycle, and/or --strategy to set a value."
+            "No fields specified. Use --members, --lifecycle, and/or --strategy "
+            "to set a value."
         )
         raise typer.Exit(code=1)
 
     cwd = Path.cwd()
-    collection_yaml_path = collection_dir / PHOTREE_DIR / COLLECTION_YAML
-    current = load_collection_metadata(collection_dir)
-    if current is None:
-        err_console.print(
-            f"No collection metadata found: {display_path(collection_yaml_path, cwd)}\n"
-            "Run 'photree collection init' to initialize."
-        )
-        raise typer.Exit(code=1)
-
-    new_members = members if members is not None else current.members
-    new_lifecycle = lifecycle if lifecycle is not None else current.lifecycle
-    new_strategy = strategy if strategy is not None else current.strategy
-
-    validation_error = validate_collection_config(
-        new_members, new_lifecycle, new_strategy
-    )
-    if validation_error is not None:
-        err_console.print(validation_error)
-        raise typer.Exit(code=1)
-
-    updated = CollectionMetadata(
-        id=current.id,
-        members=new_members,
-        lifecycle=new_lifecycle,
-        strategy=new_strategy,
-        albums=current.albums,
-        collections=current.collections,
-        images=current.images,
-        videos=current.videos,
-    )
-
+    current = _load_or_exit(collection_dir, cwd)
+    updated = _apply_settings(current, members, lifecycle, strategy)
     if updated == current:
         typer.echo("No changes — metadata is already up to date.")
         raise typer.Exit(code=0)
 
     save_collection_metadata(collection_dir, updated)
-    changes = [
-        *(
-            [f"  members: {current.members.value} -> {updated.members.value}"]
-            if members is not None and members != current.members
-            else []
-        ),
-        *(
-            [f"  lifecycle: {current.lifecycle.value} -> {updated.lifecycle.value}"]
-            if lifecycle is not None and lifecycle != current.lifecycle
-            else []
-        ),
-        *(
-            [f"  strategy: {current.strategy.value} -> {updated.strategy.value}"]
-            if strategy is not None and strategy != current.strategy
-            else []
-        ),
-    ]
-    typer.echo(f"Updated {display_path(collection_yaml_path, cwd)}")
-    for change in changes:
-        typer.echo(change)
+    yaml_path = display_path(collection_dir / PHOTREE_DIR / COLLECTION_YAML, cwd)
+    typer.echo(f"Updated {yaml_path}")
+    typer.echo(indent("\n".join(_format_changes(current, updated))))

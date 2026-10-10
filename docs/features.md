@@ -65,10 +65,12 @@ Reduce disk usage by replacing file copies with links.
 
 Repair and maintain iOS album consistency with targeted fix commands.
 
-- **`--rm-upstream`**: Propagate deletions from browsable dirs to upstream dirs (useful after curating photos in `main-jpg/`)
+- **`--rm-upstream`**: Propagate deletions from browsable dirs to upstream dirs (useful after curating photos in `main-jpg/`).
+  A missing browsable dir is never read as "everything was deleted", and a run that would
+  empty an entire archive is refused unless `--force` is given (available on `album fix`, `albums fix` and `gallery fix`)
 - **`--rm-orphan`**: Remove edited and main files with no corresponding original
 - **`--rm-orphan-sidecar`**: Remove AAE sidecar files with no matching media file
-- **`--prefer-higher-quality-when-dups`**: Remove lower-quality duplicates (DNG > HEIC > JPG/PNG)
+- **`--prefer-higher-quality-when-dups`**: Keep only the highest-quality variant of each image (DNG > HEIC > HEIF > JPG/PNG)
 - **`--rm-miscategorized`** / **`--rm-miscategorized-safe`** / **`--mv-miscategorized`**: Fix files in the wrong directory
 - All fixes support dry-run mode
 
@@ -108,7 +110,7 @@ Detect faces in album photos and cluster them by identity across the gallery.
 - **Stable cluster UUIDs**: medoid matching preserves cluster identity across full re-clusters
 - **CoreML acceleration**: uses Neural Engine on M-series Macs for face detection inference
 - **Parallel thumbnail generation**: `sips` conversions run in parallel via `ThreadPoolExecutor`
-- **Gallery config**: `faces-enabled` (default: true) and `face-cluster-threshold` (default: 0.45) in `gallery.yaml`
+- **Gallery config**: `faces-enabled` (default: true) and `face-cluster-threshold` (default: 0.45, validated to 0.0–1.0; 0.0 is a valid, maximally strict value) in `gallery.yaml`
 - **Gallery import integration**: `gallery import` and `gallery import-all` automatically run face detection per album and gallery-wide clustering when `faces-enabled: true`
 - CLI commands: `album detect-faces`, `albums detect-faces`, `gallery cluster-faces`
 - Refresh flags: `--redetect-faces` (re-run detection, reuse thumbnails), `--refresh-face-thumbs` (regenerate thumbnails from originals)

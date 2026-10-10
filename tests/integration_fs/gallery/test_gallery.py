@@ -10,17 +10,18 @@ from photree.album.id import format_album_external_id, generate_album_id
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.albums.index import (
-    MissingAlbumIdError,
+    AlbumIdNotFoundError,
     build_album_index,
     resolve_album_path_by_id,
 )
 from photree.albums.renamer import plan_renames_from_csv
+from photree.fsprotocol import InvalidMetadataError
 from photree.gallery.index import build_album_id_to_path_index
 
 
 def _write(path: Path, content: str = "data") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content)
+    path.write_text(content, encoding="utf-8")
 
 
 def _mark_album(album_dir: Path, album_id: str | None = None) -> str:
@@ -85,16 +86,17 @@ class TestBuildAlbumIdToPathIndex:
         albums = _albums_dir(tmp_path)
         _setup_album(albums, "2024-06-15 - Good Album")
 
-        # Create album with empty album.yaml (load_album_metadata returns None)
+        # An empty album.yaml is corrupt, not absent: it must raise rather
+        # than be reported (and later "fixed") as a missing ID.
         broken = albums / "2024-07-01 - Broken"
         _setup_media_source(broken)
         photree_dir = broken / ".photree"
         photree_dir.mkdir(parents=True, exist_ok=True)
         (photree_dir / "album.yaml").write_text("")
 
-        with pytest.raises(MissingAlbumIdError) as exc_info:
+        with pytest.raises(InvalidMetadataError) as exc_info:
             build_album_id_to_path_index(tmp_path)
-        assert broken in exc_info.value.albums
+        assert exc_info.value.path == photree_dir / "album.yaml"
 
     def test_duplicate_ids_detected(self, tmp_path: Path) -> None:
         albums = _albums_dir(tmp_path)
@@ -141,9 +143,9 @@ class TestBuildAlbumIndex:
         photree_dir.mkdir(parents=True, exist_ok=True)
         (photree_dir / "album.yaml").write_text("")
 
-        with pytest.raises(MissingAlbumIdError) as exc_info:
+        with pytest.raises(InvalidMetadataError) as exc_info:
             build_album_index([good_dir, broken])
-        assert broken in exc_info.value.albums
+        assert exc_info.value.path == photree_dir / "album.yaml"
 
 
 # ---------------------------------------------------------------------------
@@ -171,8 +173,9 @@ class TestResolveAlbumPathById:
         dir1, _ = _setup_album(tmp_path, "2024-06-15 - Trip")
         index = build_album_index([dir1])
         unknown = format_album_external_id(generate_album_id())
-        with pytest.raises(KeyError, match="not found"):
+        with pytest.raises(AlbumIdNotFoundError) as info:
             resolve_album_path_by_id(index.id_to_path, unknown)
+        assert info.value.album_id == unknown
 
 
 # ---------------------------------------------------------------------------

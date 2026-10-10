@@ -8,17 +8,18 @@ import typer
 
 from ....album.fix.ios.output import batch_fix_ios_summary
 from ....album.fix.output import batch_fix_summary
-from ....clihelpers.console import console, err_console
+from ....clihelpers.console import console
 from ....clihelpers.progress import BatchProgressBar
-from ....fsprotocol import LinkMode
 from ...cmd_handler.fix import batch_fix
 from ...cmd_handler.fix_ios import batch_fix_ios
 from ..ops import make_display_fn
-from .failures import (
-    album_reports_block,
-    batch_failures_report,
-    investigate_commands,
-)
+from .failures import album_reports_block, exit_if_no_albums, exit_with_failures
+
+
+def _print_reports(reports: tuple[tuple[str, str], ...]) -> None:
+    if reports:
+        typer.echo("")
+        typer.echo(album_reports_block(reports), color=True)
 
 
 def run_batch_fix(
@@ -27,21 +28,14 @@ def run_batch_fix(
     *,
     fix_id: bool = False,
     new_id: bool = False,
-    link_mode: LinkMode = LinkMode.HARDLINK,
     rm_upstream: bool = False,
     rm_orphan: bool = False,
     dry_run: bool = False,
-    max_workers: int | None = None,
+    force: bool = False,
 ) -> None:
     """Shared implementation for gallery fix / albums fix."""
     cwd = Path.cwd()
-
-    if not albums:
-        typer.echo("\nNo albums found.")
-        raise typer.Exit(code=0)
-
-    if display_base is not None:
-        typer.echo(f"\nFound {len(albums)} album(s).\n")
+    exit_if_no_albums(albums, display_base)
 
     with BatchProgressBar(
         total=len(albums), description="Fixing", done_description="fix"
@@ -50,28 +44,34 @@ def run_batch_fix(
             albums,
             fix_id=fix_id,
             new_id=new_id,
-            link_mode=link_mode,
             rm_upstream=rm_upstream,
             rm_orphan=rm_orphan,
             dry_run=dry_run,
+            force=force,
             display_fn=make_display_fn(display_base, cwd),
             on_start=progress.on_start,
             on_end=lambda name, success, errors: progress.on_end(
                 name, success=success, error_labels=errors
             ),
-            max_workers=max_workers,
         )
 
-    if result.album_reports:
-        typer.echo("")
-        typer.echo(album_reports_block(result.album_reports), color=True)
-
-    console.print(batch_fix_summary(result.fixed, len(result.failed_albums)))
-
-    if result.failed_albums:
-        err_console.print(batch_failures_report(result.failures, cwd))
-        err_console.print(investigate_commands("fix", result.failed_albums, cwd))
-        raise typer.Exit(code=1)
+    _print_reports(result.album_reports)
+    console.print(batch_fix_summary(result.fixed, len(result.failures)))
+    # The single-album retry must carry the same fixes, or it only prints
+    # "No fix specified".
+    retry_flags = "".join(
+        flag
+        for flag, enabled in (
+            (" --id", fix_id),
+            (" --new-id", new_id),
+            (" --rm-upstream", rm_upstream),
+            (" --rm-orphan", rm_orphan),
+            (" --force", force),
+            (" --dry-run", dry_run),
+        )
+        if enabled
+    )
+    exit_with_failures(result.failures, "fix", cwd, extra_flags=retry_flags)
 
 
 def run_batch_fix_ios(
@@ -87,13 +87,7 @@ def run_batch_fix_ios(
 ) -> None:
     """Shared implementation for gallery fix-ios / albums fix-ios."""
     cwd = Path.cwd()
-
-    if not albums:
-        typer.echo("No iOS albums found.")
-        raise typer.Exit(code=0)
-
-    if display_base is not None:
-        typer.echo(f"Found {len(albums)} iOS album(s).\n")
+    exit_if_no_albums(albums, display_base, noun="iOS album")
 
     with BatchProgressBar(
         total=len(albums), description="Fixing", done_description="fix-ios"
@@ -113,13 +107,6 @@ def run_batch_fix_ios(
             ),
         )
 
-    if result.album_reports:
-        typer.echo("")
-        typer.echo(album_reports_block(result.album_reports), color=True)
-
-    console.print(batch_fix_ios_summary(result.fixed, len(result.failed_albums)))
-
-    if result.failed_albums:
-        err_console.print(batch_failures_report(result.failures, cwd))
-        err_console.print(investigate_commands("fix-ios", result.failed_albums, cwd))
-        raise typer.Exit(code=1)
+    _print_reports(result.album_reports)
+    console.print(batch_fix_ios_summary(result.fixed, len(result.failures)))
+    exit_with_failures(result.failures, "fix-ios", cwd)

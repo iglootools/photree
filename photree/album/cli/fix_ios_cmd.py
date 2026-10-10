@@ -7,6 +7,7 @@ from typing import Annotated
 
 import typer
 
+from ...clihelpers.console import err_console
 from ...clihelpers.options import (
     DRY_RUN_OPTION,
     MV_MISCATEGORIZED_OPTION,
@@ -15,14 +16,16 @@ from ...clihelpers.options import (
     RM_MISCATEGORIZED_SAFE_OPTION,
     RM_ORPHAN_SIDECAR_OPTION,
 )
+from ...common.fs import display_path
 from ..fix.ios import (
     FixIosValidationError,
+    MiscategorizedMoveConflictError,
     run_fix_ios,
     validate_fix_flags,
 )
 from ..fix.ios.output import format_fix_ios_result
-from ..store.media_sources_discovery import discover_media_sources
 from . import album_app
+from .helpers import exit_on_media_source_conflict
 
 
 @album_app.command("fix-ios")
@@ -67,35 +70,49 @@ def fix_ios_cmd(
     --mv-miscategorized: Moves files to the correct directory instead of
     deleting them (e.g. edited files from orig-img/ to edit-img/).
     """
-    media_sources = discover_media_sources(album_dir)
-    if not any(ms.is_ios for ms in media_sources):
-        typer.echo(
-            "No iOS media sources found. fix-ios only supports iOS albums.",
-            err=True,
+    flags = {
+        "rm_orphan_sidecar": rm_orphan_sidecar,
+        "prefer_higher_quality_when_dups": prefer_higher_quality_when_dups,
+        "rm_miscategorized": rm_miscategorized,
+        "rm_miscategorized_safe": rm_miscategorized_safe,
+        "mv_miscategorized": mv_miscategorized,
+    }
+    try:
+        validate_fix_flags(**flags)
+    except FixIosValidationError as exc:
+        err_console.print(str(exc), markup=False)
+        err_console.print(
+            "Run 'photree album fix-ios --help' to see the available fixes."
+        )
+        raise typer.Exit(code=1) from exc
+
+    cwd = Path.cwd()
+    with exit_on_media_source_conflict(cwd):
+        try:
+            result = run_fix_ios(album_dir, dry_run=dry_run, **flags)
+        except MiscategorizedMoveConflictError as exc:
+            _report_move_conflict(exc, display_path(album_dir, cwd))
+            raise typer.Exit(code=1) from exc
+
+    if result.no_ios_media_sources:
+        err_console.print(
+            "No iOS media sources found. fix-ios only supports iOS albums; "
+            "run 'photree album fix --help' for fixes that apply to all sources."
         )
         raise typer.Exit(code=1)
 
-    try:
-        validate_fix_flags(
-            rm_orphan_sidecar=rm_orphan_sidecar,
-            prefer_higher_quality_when_dups=prefer_higher_quality_when_dups,
-            rm_miscategorized=rm_miscategorized,
-            rm_miscategorized_safe=rm_miscategorized_safe,
-            mv_miscategorized=mv_miscategorized,
-        )
-    except FixIosValidationError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=1) from exc
-
-    result = run_fix_ios(
-        album_dir,
-        dry_run=dry_run,
-        rm_orphan_sidecar=rm_orphan_sidecar,
-        prefer_higher_quality_when_dups=prefer_higher_quality_when_dups,
-        rm_miscategorized=rm_miscategorized,
-        rm_miscategorized_safe=rm_miscategorized_safe,
-        mv_miscategorized=mv_miscategorized,
-    )
-
     for line in format_fix_ios_result(result):
         typer.echo(line)
+
+
+def _report_move_conflict(exc: MiscategorizedMoveConflictError, album: Path) -> None:
+    err_console.print(
+        f"--mv-miscategorized would overwrite {len(exc.conflicts)} file(s) "
+        f"already in {exc.target_dir}: {', '.join(exc.conflicts)}",
+        markup=False,
+    )
+    err_console.print(
+        "Run 'photree album fix-ios --rm-miscategorized-safe --album-dir "
+        f'"{album}"\' to drop those duplicates.',
+        markup=False,
+    )

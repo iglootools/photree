@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
@@ -15,7 +16,30 @@ from .resolve import (
     ResolvedMembers,
     resolve_entries,
 )
-from .selection import SELECTION_CSV, SELECTION_DIR, read_selection
+from .selection import SELECTION_CSV, SELECTION_DIR, SelectionError, read_selection
+
+
+class CollectionImportErrorKind(StrEnum):
+    """Why a collection cannot be imported into at all."""
+
+    NO_METADATA = "no-metadata"
+    IMPLICIT_COLLECTION = "implicit-collection"
+    SMART_COLLECTION = "smart-collection"
+    NO_SELECTION = "no-selection"
+
+
+class CollectionImportError(Exception):
+    """The collection cannot be imported into.
+
+    Structured (kind + path) so the CLI renders the message with
+    ``display_path`` and a suggestion; see
+    :func:`photree.collection.importer.output.format_import_error`.
+    """
+
+    def __init__(self, kind: CollectionImportErrorKind, collection_dir: Path) -> None:
+        self.kind = kind
+        self.collection_dir = collection_dir
+        super().__init__(f"{kind}: {collection_dir}")
 
 
 @dataclass(frozen=True)
@@ -23,13 +47,18 @@ class CollectionImportResult:
     """Result of importing members into a single collection."""
 
     collection_dir: Path
+    collection_id: str
     members: ResolvedMembers
     errors: tuple[ResolutionError, ...]
     warnings: tuple[ResolutionWarning, ...] = ()
+    selection_errors: tuple[SelectionError, ...] = ()
 
     @property
     def success(self) -> bool:
-        return len(self.errors) == 0
+        return not self.errors and not self.selection_errors
+
+
+_EMPTY_MEMBERS = ResolvedMembers(albums=(), collections=(), images=(), videos=())
 
 
 def _merge_ids(existing: list[str], new: tuple[str, ...]) -> list[str]:
@@ -56,6 +85,41 @@ def _cleanup_selection(collection_dir: Path) -> None:
         csv_path.unlink()
 
 
+def _load_importable(collection_dir: Path) -> CollectionMetadata:
+    """Load the collection's metadata, refusing collections that cannot import."""
+    metadata = load_collection_metadata(collection_dir)
+    match metadata:
+        case None:
+            raise CollectionImportError(
+                CollectionImportErrorKind.NO_METADATA, collection_dir
+            )
+        case CollectionMetadata(lifecycle=CollectionLifecycle.IMPLICIT):
+            raise CollectionImportError(
+                CollectionImportErrorKind.IMPLICIT_COLLECTION, collection_dir
+            )
+        case CollectionMetadata(members=CollectionMembers.SMART):
+            raise CollectionImportError(
+                CollectionImportErrorKind.SMART_COLLECTION, collection_dir
+            )
+        case _:
+            return metadata
+
+
+def _merged_metadata(
+    metadata: CollectionMetadata, members: ResolvedMembers
+) -> CollectionMetadata:
+    return CollectionMetadata(
+        id=metadata.id,
+        members=metadata.members,
+        lifecycle=metadata.lifecycle,
+        strategy=metadata.strategy,
+        albums=_merge_ids(metadata.albums, members.albums),
+        collections=_merge_ids(metadata.collections, members.collections),
+        images=_merge_ids(metadata.images, members.images),
+        videos=_merge_ids(metadata.videos, members.videos),
+    )
+
+
 def import_collection_members(
     collection_dir: Path,
     gallery_dir: Path,
@@ -67,61 +131,40 @@ def import_collection_members(
 
     Returns the result with resolved members or errors. On success (and
     not dry_run), saves updated metadata and cleans up selection sources.
+    Unusable selection rows (e.g. an unparseable date) fail the import
+    before anything is resolved or written.
 
-    Raises ``FileNotFoundError`` if collection metadata is missing.
-    Raises ``ValueError`` if no selection entries found.
+    Raises :class:`CollectionImportError` when the collection has no
+    metadata, cannot be imported into (implicit/smart), or has no
+    selection entries.
     """
-    metadata = load_collection_metadata(collection_dir)
-    if metadata is None:
-        raise FileNotFoundError(f"No collection metadata found in {collection_dir}")
-
-    if metadata.lifecycle == CollectionLifecycle.IMPLICIT:
-        raise ValueError(
-            "Cannot import into an implicit collection — members are managed "
-            "by 'gallery refresh' via album series detection."
-        )
-
-    if metadata.members == CollectionMembers.SMART:
-        raise ValueError(
-            "Cannot import into a smart collection — members are managed "
-            "automatically by 'gallery refresh'. Use 'collection metadata set "
-            "--members manual' to convert first."
-        )
+    metadata = _load_importable(collection_dir)
 
     sources = read_selection(collection_dir, exiftool=exiftool)
+    if sources.errors:
+        return CollectionImportResult(
+            collection_dir,
+            metadata.id,
+            _EMPTY_MEMBERS,
+            errors=(),
+            selection_errors=sources.errors,
+        )
     if not sources.merged:
-        raise ValueError(
-            f"No selection entries found in {SELECTION_DIR}/ or {SELECTION_CSV}"
+        raise CollectionImportError(
+            CollectionImportErrorKind.NO_SELECTION, collection_dir
         )
 
     result = resolve_entries(sources.merged, gallery_dir)
-
-    if not result.success:
-        return CollectionImportResult(
-            collection_dir=collection_dir,
-            members=result.members,
-            errors=result.errors,
-            warnings=result.warnings,
+    if result.success and not dry_run:
+        save_collection_metadata(
+            collection_dir, _merged_metadata(metadata, result.members)
         )
-
-    if not dry_run:
-        members = result.members
-        updated = CollectionMetadata(
-            id=metadata.id,
-            members=metadata.members,
-            lifecycle=metadata.lifecycle,
-            strategy=metadata.strategy,
-            albums=_merge_ids(metadata.albums, members.albums),
-            collections=_merge_ids(metadata.collections, members.collections),
-            images=_merge_ids(metadata.images, members.images),
-            videos=_merge_ids(metadata.videos, members.videos),
-        )
-        save_collection_metadata(collection_dir, updated)
         _cleanup_selection(collection_dir)
 
     return CollectionImportResult(
         collection_dir=collection_dir,
+        collection_id=metadata.id,
         members=result.members,
-        errors=(),
+        errors=result.errors,
         warnings=result.warnings,
     )

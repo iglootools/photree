@@ -9,6 +9,11 @@ import typer
 
 from ...albums.cli.batch_ops.listmedia import run_batch_list_media
 from ...albums.cli.ops import resolve_check_batch_albums
+from ...clihelpers.options import (
+    OUTPUT_FILE_OPTION,
+    OUTPUT_FORMAT_OPTION,
+    OutputFormat,
+)
 from ...clihelpers.resolution import resolve_gallery_or_exit
 from . import gallery_app
 
@@ -19,30 +24,15 @@ def list_media_cmd(
         Path | None,
         typer.Option(
             "--gallery-dir",
-            "-d",
+            "-g",
             help="Gallery root directory (or resolved from cwd via .photree/gallery.yaml).",
             exists=True,
             file_okay=False,
             resolve_path=True,
         ),
     ] = None,
-    output_format: Annotated[
-        str,
-        typer.Option(
-            "--format",
-            help="Output format: text (default) or csv.",
-        ),
-    ] = "text",
-    output_file: Annotated[
-        Path | None,
-        typer.Option(
-            "--output",
-            "-o",
-            help="Write output to a file instead of stdout.",
-            dir_okay=False,
-            resolve_path=True,
-        ),
-    ] = None,
+    output_format: OUTPUT_FORMAT_OPTION = OutputFormat.TEXT,
+    output_file: OUTPUT_FILE_OPTION = None,
 ) -> None:
     """List all media items across all albums in the gallery."""
     resolved = resolve_gallery_or_exit(gallery_dir)

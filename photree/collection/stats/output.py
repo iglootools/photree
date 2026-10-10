@@ -6,6 +6,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
+from ...common.formatting import indent, markup_escape
 from ..store.protocol import CollectionLifecycle, CollectionMembers, CollectionStrategy
 from .models import GalleryCollectionStats
 
@@ -26,20 +27,19 @@ def _combination_label(
 
 def format_collections_overview(stats: GalleryCollectionStats) -> Panel:
     """Format collection overview as a Rich Panel."""
-    lines = [f"Collections: {_format_count(stats.total)}"]
-
-    for (members, lifecycle, strategy), count in sorted(
-        stats.by_combination.items(),
-        key=lambda kv: -kv[1],
-    ):
-        label = _combination_label(members, lifecycle, strategy)
-        lines.append(f"  {label}: {_format_count(count)}")
-
-    lines.append("")
-    lines.append(f"Album refs: {_format_count(stats.total_album_refs)}")
-    lines.append(f"Collection refs: {_format_count(stats.total_collection_refs)}")
-    lines.append(f"Image refs: {_format_count(stats.total_image_refs)}")
-    lines.append(f"Video refs: {_format_count(stats.total_video_refs)}")
+    combinations = sorted(stats.by_combination.items(), key=lambda kv: -kv[1])
+    lines = [
+        f"Collections: {_format_count(stats.total)}",
+        *(
+            indent(f"{_combination_label(*combo)}: {_format_count(count)}")
+            for combo, count in combinations
+        ),
+        "",
+        f"Album refs: {_format_count(stats.total_album_refs)}",
+        f"Collection refs: {_format_count(stats.total_collection_refs)}",
+        f"Image refs: {_format_count(stats.total_image_refs)}",
+        f"Video refs: {_format_count(stats.total_video_refs)}",
+    ]
 
     return Panel(
         Text("\n".join(lines)),
@@ -61,7 +61,7 @@ def format_collections_table(stats: GalleryCollectionStats) -> Table:
 
     for col in stats.collections:
         table.add_row(
-            col.name,
+            markup_escape(col.name),
             col.members.value,
             col.strategy.value,
             _format_count(col.album_count),

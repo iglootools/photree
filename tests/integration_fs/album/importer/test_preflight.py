@@ -2,15 +2,52 @@
 
 from pathlib import Path
 
-from photree.album.importer.preflight import check_image_capture_dir, run_preflight
+import pytest
+
+from photree.album.importer.preflight import (
+    check_image_capture_dir,
+    resolve_image_capture_dir,
+    run_preflight,
+)
 from photree.clihelpers.sysdeps import import_deps, refresh_deps
 from photree.common.sysdeps import SystemDependency, SystemDependencyStatus
+from photree.config import ConfigError, ConfigErrorKind
 
 
 def _populate(path: Path, filenames: list[str]) -> None:
     path.mkdir(parents=True, exist_ok=True)
     for name in filenames:
         (path / name).write_text("data")
+
+
+class TestResolveImageCaptureDir:
+    def _config(self, tmp_path: Path, body: str = "") -> str:
+        config = tmp_path / "config.toml"
+        config.write_text(body, encoding="utf-8")
+        return str(config)
+
+    def test_explicit_source_wins(self, tmp_path: Path) -> None:
+        config = self._config(tmp_path, '[importer]\nimage-capture-dir = "/cfg"\n')
+        assert resolve_image_capture_dir(tmp_path / "src", config) == tmp_path / "src"
+
+    def test_explicit_missing_config_is_an_error_even_with_source(
+        self, tmp_path: Path
+    ) -> None:
+        missing = tmp_path / "nope.toml"
+        with pytest.raises(ConfigError) as info:
+            resolve_image_capture_dir(tmp_path / "src", str(missing))
+        assert info.value.kind == ConfigErrorKind.FILE_NOT_FOUND
+        assert info.value.path == missing
+
+    def test_config_beats_default(self, tmp_path: Path) -> None:
+        config = self._config(tmp_path, '[importer]\nimage-capture-dir = "/cfg"\n')
+        assert resolve_image_capture_dir(None, config) == Path("/cfg")
+
+    def test_default_is_under_injected_home(self, tmp_path: Path) -> None:
+        resolved = resolve_image_capture_dir(
+            None, self._config(tmp_path), home=lambda: tmp_path / "home"
+        )
+        assert resolved == tmp_path / "home" / "Pictures" / "iPhone"
 
 
 class TestCheckImageCaptureDir:

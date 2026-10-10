@@ -8,18 +8,39 @@ from typing import Annotated
 
 import typer
 
+from ...clihelpers.console import err_console
 from ...clihelpers.csvout import csv_output
+from ...clihelpers.options import (
+    OUTPUT_FILE_OPTION,
+    OUTPUT_FORMAT_OPTION,
+    OutputFormat,
+)
 from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...collection.id import format_collection_external_id
-from ...collection.naming import parse_collection_name
+from ...collection.naming import ParsedCollectionName, parse_collection_name
 from ...collection.store.collection_discovery import discover_collections
 from ...collection.store.metadata import load_collection_metadata
+from ...collection.store.protocol import CollectionMetadata
+from ...common.formatting import indent
+from ...common.fs import display_path
 from ...fsprotocol import COLLECTIONS_DIR
 from . import gallery_app
 
-
-def _display_name(col_dir: Path, gallery_dir: Path, cwd: Path) -> str:
-    return str(col_dir.relative_to(gallery_dir))
+_CSV_HEADER = [
+    "id",
+    "path",
+    "date",
+    "title",
+    "location",
+    "tags",
+    "members",
+    "lifecycle",
+    "strategy",
+    "albums",
+    "collections",
+    "images",
+    "videos",
+]
 
 
 @gallery_app.command("list-collections")
@@ -28,7 +49,7 @@ def list_collections_cmd(
         Path | None,
         typer.Option(
             "--gallery-dir",
-            "-d",
+            "-g",
             help="Gallery root directory (or resolved from cwd via .photree/gallery.yaml).",
             exists=True,
             file_okay=False,
@@ -42,138 +63,125 @@ def list_collections_cmd(
             help="Show parsed collection metadata (default: enabled).",
         ),
     ] = True,
-    output_format: Annotated[
-        str,
-        typer.Option(
-            "--format",
-            help="Output format: text (default) or csv.",
-        ),
-    ] = "text",
-    output_file: Annotated[
-        Path | None,
-        typer.Option(
-            "--output",
-            "-o",
-            help="Write output to a file instead of stdout.",
-            dir_okay=False,
-            resolve_path=True,
-        ),
-    ] = None,
+    output_format: OUTPUT_FORMAT_OPTION = OutputFormat.TEXT,
+    output_file: OUTPUT_FILE_OPTION = None,
 ) -> None:
     """List all collections in the gallery."""
     resolved = resolve_gallery_or_exit(gallery_dir)
     cwd = Path.cwd()
     collections = discover_collections(resolved / COLLECTIONS_DIR)
 
-    if not collections:
-        typer.echo("No collections found.", err=output_format == "csv")
-        raise typer.Exit(code=0)
+    match output_format, collections:
+        case OutputFormat.CSV, []:
+            # Keep stdout pure CSV: the notice goes to stderr.
+            err_console.print("No collections found.")
+        case OutputFormat.TEXT, []:
+            typer.echo("No collections found.")
+        case OutputFormat.CSV, _:
+            _list_csv(collections, cwd, output_file)
+        case OutputFormat.TEXT, _:
+            _list_text(collections, cwd, metadata)
 
-    if output_format == "csv":
-        _list_csv(collections, resolved, cwd, output_file)
-    else:
-        _list_text(collections, resolved, cwd, metadata)
+
+# ---------------------------------------------------------------------------
+# CSV
+# ---------------------------------------------------------------------------
 
 
-def _list_csv(
-    collections: list[Path],
-    gallery_dir: Path,
-    cwd: Path,
-    output_file: Path | None,
-) -> None:
+def _member_counts(meta: CollectionMetadata | None) -> list[int]:
+    return (
+        [len(meta.albums), len(meta.collections), len(meta.images), len(meta.videos)]
+        if meta is not None
+        else [0, 0, 0, 0]
+    )
+
+
+def _csv_row(col_dir: Path, cwd: Path) -> list[str | int]:
+    meta = load_collection_metadata(col_dir)
+    parsed = parse_collection_name(col_dir.name)
+    return [
+        format_collection_external_id(meta.id) if meta is not None else "",
+        str(display_path(col_dir, cwd)),
+        parsed.date or "",
+        parsed.title,
+        parsed.location or "",
+        "private" if parsed.private else "",
+        *(
+            [meta.members.value, meta.lifecycle.value, meta.strategy.value]
+            if meta is not None
+            else ["", "", ""]
+        ),
+        *_member_counts(meta),
+    ]
+
+
+def _list_csv(collections: list[Path], cwd: Path, output_file: Path | None) -> None:
     with csv_output(output_file) as out:
         writer = csv.writer(out)
-        writer.writerow(
-            [
-                "id",
-                "path",
-                "date",
-                "title",
-                "location",
-                "tags",
-                "members",
-                "lifecycle",
-                "strategy",
-                "albums",
-                "collections",
-                "images",
-                "videos",
-            ]
-        )
-        for col_dir in collections:
-            rel_path = _display_name(col_dir, gallery_dir, cwd)
-            col_meta = load_collection_metadata(col_dir)
-            external_id = (
-                format_collection_external_id(col_meta.id)
-                if col_meta is not None
-                else ""
+        writer.writerow(_CSV_HEADER)
+        writer.writerows(_csv_row(col_dir, cwd) for col_dir in collections)
+
+
+# ---------------------------------------------------------------------------
+# Text
+# ---------------------------------------------------------------------------
+
+
+def _name_line(parsed: ParsedCollectionName) -> str:
+    return ", ".join(
+        [
+            *([f"date={parsed.date}"] if parsed.date is not None else []),
+            f"title={parsed.title}",
+            *([f"location={parsed.location}"] if parsed.location is not None else []),
+            *(["private"] if parsed.private else []),
+        ]
+    )
+
+
+def _metadata_lines(meta: CollectionMetadata | None) -> list[str]:
+    return (
+        [
+            f"id: {format_collection_external_id(meta.id)}",
+            f"members: {meta.members}",
+            f"lifecycle: {meta.lifecycle}",
+            f"strategy: {meta.strategy}",
+        ]
+        if meta is not None
+        else ["id: (missing)"]
+    )
+
+
+def _member_count_parts(meta: CollectionMetadata | None) -> list[str]:
+    return (
+        [
+            f"{label}={len(ids)}"
+            for label, ids in (
+                ("albums", meta.albums),
+                ("collections", meta.collections),
+                ("images", meta.images),
+                ("videos", meta.videos),
             )
-            parsed = parse_collection_name(col_dir.name)
-
-            writer.writerow(
-                [
-                    external_id,
-                    rel_path,
-                    parsed.date or "",
-                    parsed.title,
-                    parsed.location or "",
-                    "private" if parsed.private else "",
-                    col_meta.members.value if col_meta is not None else "",
-                    col_meta.lifecycle.value if col_meta is not None else "",
-                    col_meta.strategy.value if col_meta is not None else "",
-                    len(col_meta.albums) if col_meta is not None else 0,
-                    len(col_meta.collections) if col_meta is not None else 0,
-                    len(col_meta.images) if col_meta is not None else 0,
-                    len(col_meta.videos) if col_meta is not None else 0,
-                ]
-            )
+            if ids
+        ]
+        if meta is not None
+        else []
+    )
 
 
-def _list_text(
-    collections: list[Path],
-    gallery_dir: Path,
-    cwd: Path,
-    show_metadata: bool,
-) -> None:
+def _text_block(col_dir: Path, cwd: Path, show_metadata: bool) -> str:
+    """The collection's path, then (optionally) its indented metadata."""
+    if not show_metadata:
+        return str(display_path(col_dir, cwd))
+    meta = load_collection_metadata(col_dir)
+    member_counts = _member_count_parts(meta)
+    details = [
+        *_metadata_lines(meta),
+        _name_line(parse_collection_name(col_dir.name)),
+        *([f"members: {', '.join(member_counts)}"] if member_counts else []),
+    ]
+    return "\n".join([str(display_path(col_dir, cwd)), *(indent(d) for d in details)])
+
+
+def _list_text(collections: list[Path], cwd: Path, show_metadata: bool) -> None:
     typer.echo(f"Found {len(collections)} collection(s).\n")
-
-    for col_dir in collections:
-        name = _display_name(col_dir, gallery_dir, cwd)
-        typer.echo(name)
-
-        if show_metadata:
-            col_meta = load_collection_metadata(col_dir)
-            if col_meta is not None:
-                typer.echo(f"  id: {format_collection_external_id(col_meta.id)}")
-                typer.echo(f"  members: {col_meta.members}")
-                typer.echo(f"  lifecycle: {col_meta.lifecycle}")
-                typer.echo(f"  strategy: {col_meta.strategy}")
-            else:
-                typer.echo("  id: (missing)")
-
-            parsed = parse_collection_name(col_dir.name)
-            parts = [
-                *([f"date={parsed.date}"] if parsed.date is not None else []),
-                f"title={parsed.title}",
-                *(
-                    [f"location={parsed.location}"]
-                    if parsed.location is not None
-                    else []
-                ),
-                *(["private"] if parsed.private else []),
-            ]
-            typer.echo(f"  {', '.join(parts)}")
-
-            if col_meta is not None:
-                member_parts = [
-                    *([f"albums={len(col_meta.albums)}"] if col_meta.albums else []),
-                    *(
-                        [f"collections={len(col_meta.collections)}"]
-                        if col_meta.collections
-                        else []
-                    ),
-                    *([f"images={len(col_meta.images)}"] if col_meta.images else []),
-                    *([f"videos={len(col_meta.videos)}"] if col_meta.videos else []),
-                ]
-                if member_parts:
-                    typer.echo(f"  members: {', '.join(member_parts)}")
+    typer.echo("\n".join(_text_block(c, cwd, show_metadata) for c in collections))

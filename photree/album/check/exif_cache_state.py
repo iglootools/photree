@@ -37,19 +37,19 @@ def check_exif_cache_state(
 ) -> ExifCacheStateCheck | None:
     """Validate EXIF cache state for an album.
 
-    Returns ``None`` if no EXIF cache directory exists. Only checks
-    that each media source has a cache file — trusts the cache content
-    without per-file mtime verification.
+    Returns ``None`` when there is nothing to check (no media source, or no
+    EXIF cache directory yet), and a check — successful or not — whenever the
+    cache exists. Only checks that each media source has a cache file —
+    trusts the cache content without per-file mtime verification.
     """
-    if not media_sources:
-        return None
-
     cache_dir = album_dir / PHOTREE_DIR / EXIF_CACHE_DIR
-    if not cache_dir.is_dir():
+    if not media_sources or not cache_dir.is_dir():
         return None
-
-    missing = tuple(
-        ms.name for ms in media_sources if not cache_path(album_dir, ms.name).is_file()
-    )
-
-    return ExifCacheStateCheck(missing_sources=missing) if missing else None
+    else:
+        return ExifCacheStateCheck(
+            missing_sources=tuple(
+                ms.name
+                for ms in media_sources
+                if not cache_path(album_dir, ms.name).is_file()
+            )
+        )

@@ -16,8 +16,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ...common.fs import file_ext, list_files
-from ..check.std import check_duplicate_stems
-from ..store.protocol import IMG_EXTENSIONS, VID_EXTENSIONS
+from ..check.std import DuplicateStem, check_duplicate_stems
+from ..store.protocol import IMG_EXTENSIONS, VID_EXTENSIONS, MediaSource
+from .collision import ArchiveCollision
 
 if TYPE_CHECKING:
     from .tasks import ImportTask
@@ -26,6 +27,16 @@ ORIG_SUBDIR = "orig"
 EDIT_SUBDIR = "edit"
 
 _MEDIA_EXTENSIONS = IMG_EXTENSIONS | VID_EXTENSIONS
+
+
+@dataclass(frozen=True)
+class StdNoMediaError:
+    """The staging dir holds no media file under ``orig/`` or ``edit/``."""
+
+
+# Validation errors for a std task: an empty staging dir, or several files
+# sharing a stem within ``orig/`` or ``edit/``.
+StdValidationError = StdNoMediaError | DuplicateStem
 
 
 @dataclass(frozen=True)
@@ -41,19 +52,34 @@ def _is_media(filename: str) -> bool:
     return file_ext(filename) in _MEDIA_EXTENSIONS
 
 
-def has_media(task: ImportTask) -> bool:
-    """Return True if the std task's staging dir has at least one media file."""
-    staging = task.staging_dir
-    assert staging is not None, "std task requires a staging dir"
-    return any(
-        _is_media(f)
+def _staging_dir(task: ImportTask) -> Path:
+    match task.staging_dir:
+        case None:
+            raise ValueError(
+                f"std import task '{task.name}' has no to-import-std staging dir"
+            )
+        case staging:
+            return staging
+
+
+def _staged_media(task: ImportTask) -> list[str]:
+    """Media filenames in the staging dir's ``orig/`` and ``edit/`` subfolders."""
+    staging = _staging_dir(task)
+    return [
+        f
         for sub in (ORIG_SUBDIR, EDIT_SUBDIR)
         for f in list_files(staging / sub)
-    )
+        if _is_media(f)
+    ]
 
 
-def validate_std_task(task: ImportTask) -> list[str]:
-    """Validate a std import task. Returns a list of error messages.
+def has_media(task: ImportTask) -> bool:
+    """Return True if the std task's staging dir has at least one media file."""
+    return bool(_staged_media(task))
+
+
+def validate_std_task(task: ImportTask) -> tuple[StdValidationError, ...]:
+    """Validate a std import task.
 
     Mirrors existing std media source rules (see
     :func:`photree.album.check.std.check_std_media_source_integrity`):
@@ -62,23 +88,15 @@ def validate_std_task(task: ImportTask) -> list[str]:
     is allowed (same as existing std sources) — it is imported but omitted from
     the browsable dir.
     """
-    staging = task.staging_dir
-    assert staging is not None, "std task requires a staging dir"
-    orig = staging / ORIG_SUBDIR
-    edit = staging / EDIT_SUBDIR
-
-    orig_media = [f for f in list_files(orig) if _is_media(f)]
-    edit_media = [f for f in list_files(edit) if _is_media(f)]
-
-    errors: list[str] = []
-    if not orig_media and not edit_media:
-        errors.append(f"no media files found in {ORIG_SUBDIR}/ or {EDIT_SUBDIR}/")
-    errors.extend(check_duplicate_stems(orig, _MEDIA_EXTENSIONS))
-    errors.extend(check_duplicate_stems(edit, _MEDIA_EXTENSIONS))
-    return errors
+    staging = _staging_dir(task)
+    return (
+        *(() if has_media(task) else (StdNoMediaError(),)),
+        *check_duplicate_stems(staging / ORIG_SUBDIR, _MEDIA_EXTENSIONS),
+        *check_duplicate_stems(staging / EDIT_SUBDIR, _MEDIA_EXTENSIONS),
+    )
 
 
-def _existing_archive_stems(album_dir: Path, ms) -> set[str]:
+def _existing_archive_stems(album_dir: Path, ms: MediaSource) -> set[str]:
     """Collect stems already present in a std source's archive directories."""
     return {
         Path(f).stem
@@ -93,6 +111,46 @@ def _existing_archive_stems(album_dir: Path, ms) -> set[str]:
     }
 
 
+def find_std_collision(album_dir: Path, task: ImportTask) -> ArchiveCollision | None:
+    """Return the staged stems already present in the task's std archive."""
+    ms = task.media_source
+    incoming = {Path(f).stem for f in _staged_media(task)}
+    collisions = sorted(incoming & _existing_archive_stems(album_dir, ms))
+    return ArchiveCollision(ms, tuple(collisions)) if collisions else None
+
+
+def _archive_target(
+    album_dir: Path, filename: str, img_dst: str, vid_dst: str
+) -> Path | None:
+    """Archive dir a staged file goes to, or None when it is not media."""
+    match file_ext(filename):
+        case ext if ext in IMG_EXTENSIONS:
+            return album_dir / img_dst
+        case ext if ext in VID_EXTENSIONS:
+            return album_dir / vid_dst
+        case _:
+            return None
+
+
+def _plan_copies(
+    album_dir: Path, staging: Path, ms: MediaSource
+) -> list[tuple[str, Path, Path | None]]:
+    """``(display name, source file, archive dir or None)`` for every staged file."""
+    subdir_targets = (
+        (ORIG_SUBDIR, ms.orig_img_dir, ms.orig_vid_dir),
+        (EDIT_SUBDIR, ms.edit_img_dir, ms.edit_vid_dir),
+    )
+    return [
+        (
+            f"{src_sub}/{f}",
+            staging / src_sub / f,
+            _archive_target(album_dir, f, img_dst, vid_dst),
+        )
+        for src_sub, img_dst, vid_dst in subdir_targets
+        for f in list_files(staging / src_sub)
+    ]
+
+
 def import_std_source(
     album_dir: Path,
     task: ImportTask,
@@ -103,63 +161,24 @@ def import_std_source(
 
     Splits each staging subfolder by extension into the archive's image/video
     directories, then (on a non-dry run) removes the staging directory.
+
+    The archive collision check (:func:`find_std_collision`) is the caller's
+    job, before any mutation: :func:`photree.album.importer.album_import.run_import`
+    runs it for every task up front.
     """
-    ms = task.media_source
-    staging = task.staging_dir
-    assert staging is not None, "std task requires a staging dir"
+    staging = _staging_dir(task)
+    copies = _plan_copies(album_dir, staging, task.media_source)
+    media = [(src, dst) for _, src, dst in copies if dst is not None]
 
-    # ── Pre-copy collision check (by filename stem) ──
-    existing_stems = _existing_archive_stems(album_dir, ms)
-    incoming_stems = {
-        Path(f).stem
-        for sub in (ORIG_SUBDIR, EDIT_SUBDIR)
-        for f in list_files(staging / sub)
-        if _is_media(f)
-    }
-    collisions = sorted(incoming_stems & existing_stems)
-    if collisions:
-        raise ValueError(
-            f"Import would conflict with {len(collisions)} existing "
-            f"file(s) in media source '{ms.name}':\n"
-            + "".join(f"  {stem}\n" for stem in collisions[:10])
-            + (
-                f"  ... and {len(collisions) - 10} more\n"
-                if len(collisions) > 10
-                else ""
-            )
-            + f"Import into a different media source by renaming the staging "
-            f"directory (current: to-import-std-{ms.name})."
-        )
-
-    # ── Copy files, splitting by extension ──
-    subdir_targets = (
-        (ORIG_SUBDIR, ms.orig_img_dir, ms.orig_vid_dir),
-        (EDIT_SUBDIR, ms.edit_img_dir, ms.edit_vid_dir),
-    )
-    imported = 0
-    skipped: list[str] = []
-    for src_sub, img_dst, vid_dst in subdir_targets:
-        src = staging / src_sub
-        for f in list_files(src):
-            ext = file_ext(f)
-            if ext in IMG_EXTENSIONS:
-                dst = album_dir / img_dst
-            elif ext in VID_EXTENSIONS:
-                dst = album_dir / vid_dst
-            else:
-                skipped.append(f"{src_sub}/{f}")
-                continue
-            if not dry_run:
-                dst.mkdir(parents=True, exist_ok=True)
-                shutil.copy(src / f, dst / f)
-            imported += 1
-
-    # ── Consume the staging directory on success ──
     if not dry_run:
+        for src, dst in media:
+            dst.mkdir(parents=True, exist_ok=True)
+            shutil.copy(src, dst / src.name)
+        # Consume the staging directory on success
         shutil.rmtree(staging)
 
     return StdImportResult(
-        media_source_name=ms.name,
-        imported=imported,
-        skipped_non_media=tuple(skipped),
+        media_source_name=task.media_source.name,
+        imported=len(media),
+        skipped_non_media=tuple(name for name, _, dst in copies if dst is None),
     )

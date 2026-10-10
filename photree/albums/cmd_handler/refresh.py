@@ -3,13 +3,24 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 
-from ...album.faces.detect import memoized_face_analyzer_factory
-from ...album.refresh import refresh_album_derived_data
-from ...common.exif import try_start_exiftool
-from . import BatchFailure
+from exiftool import ExifToolHelper  # type: ignore[import-untyped]
+
+from ...album.faces.detect import FaceAnalyzerFactory, memoized_face_analyzer_factory
+from ...album.faces.refresh import format_face_failures
+from ...album.refresh import AlbumRefreshResult, refresh_album_derived_data
+from ...common.exif import exiftool_session
+from . import (
+    AlbumStepError,
+    BatchFailure,
+    OnEnd,
+    OnStart,
+    failures_of,
+    run_album_step,
+)
 
 
 @dataclass(frozen=True)
@@ -17,11 +28,62 @@ class BatchRefreshResult:
     """Result of batch media metadata refresh."""
 
     refreshed: int
-    failures: list[BatchFailure] = field(default_factory=list)
+    failures: tuple[BatchFailure, ...] = ()
 
     @property
-    def failed_albums(self) -> list[Path]:
-        return [f.album_dir for f in self.failures]
+    def failed_albums(self) -> tuple[Path, ...]:
+        return tuple(f.album_dir for f in self.failures)
+
+
+@dataclass(frozen=True)
+class _RefreshOptions:
+    dry_run: bool
+    force_browsable: bool
+    force_jpeg: bool
+    force_exif_cache: bool
+    redetect_faces: bool
+    refresh_face_thumbs: bool
+
+
+def _refresh_one(
+    album_dir: Path,
+    opts: _RefreshOptions,
+    exiftool: ExifToolHelper | None,
+    analyzer_factory: FaceAnalyzerFactory,
+) -> None:
+    result = refresh_album_derived_data(
+        album_dir,
+        exiftool=exiftool,
+        analyzer_factory=analyzer_factory,
+        force_browsable=opts.force_browsable,
+        force_jpeg=opts.force_jpeg,
+        force_exif_cache=opts.force_exif_cache,
+        redetect_faces=opts.redetect_faces,
+        refresh_face_thumbs=opts.refresh_face_thumbs,
+        dry_run=opts.dry_run,
+    )
+    # A JPEG that failed to convert leaves a gap in {name}-jpg/, and an image
+    # whose face detection failed is missing from clustering. The album
+    # refreshed, but not completely — report it as failed so the run does not
+    # exit 0 on a partial result.
+    if not result.success:
+        raise _partial_refresh_error(result)
+
+
+def _partial_refresh_error(result: AlbumRefreshResult) -> AlbumStepError:
+    """One failure carrying every JPEG and face-detection problem as labels."""
+    jpeg = tuple(
+        f"{source}/{failure.filename}: {failure.reason}"
+        for source, failure in result.jpeg_failures
+    )
+    faces = tuple(format_face_failures(result.face_failures))
+    reason = "; ".join(
+        [
+            *([f"jpeg conversion failed: {'; '.join(jpeg)}"] if jpeg else []),
+            *([f"face detection failed: {'; '.join(faces)}"] if faces else []),
+        ]
+    )
+    return AlbumStepError(reason, (*jpeg, *faces))
 
 
 def batch_refresh(
@@ -34,8 +96,8 @@ def batch_refresh(
     redetect_faces: bool = False,
     refresh_face_thumbs: bool = False,
     display_fn: Callable[[Path], str] = lambda p: p.name,
-    on_start: Callable[[str], None] | None = None,
-    on_end: Callable[[str, bool, tuple[str, ...]], None] | None = None,
+    on_start: OnStart = None,
+    on_end: OnEnd = None,
 ) -> BatchRefreshResult:
     """Refresh all derived data for multiple albums.
 
@@ -45,57 +107,25 @@ def batch_refresh(
     A shared exiftool and a memoized face analyzer factory are reused across
     albums (the model loads once, on the first album with images to detect).
     """
-    refreshed = 0
-    failures: list[BatchFailure] = []
-
-    exiftool = try_start_exiftool()
+    opts = _RefreshOptions(
+        dry_run,
+        force_browsable,
+        force_jpeg,
+        force_exif_cache,
+        redetect_faces,
+        refresh_face_thumbs,
+    )
     analyzer_factory = memoized_face_analyzer_factory()
-
-    try:
-        for album_dir in albums:
-            album_name = display_fn(album_dir)
-            if on_start:
-                on_start(album_name)
-
-            try:
-                result = refresh_album_derived_data(
-                    album_dir,
-                    exiftool=exiftool,
-                    analyzer_factory=analyzer_factory,
-                    force_browsable=force_browsable,
-                    force_jpeg=force_jpeg,
-                    force_exif_cache=force_exif_cache,
-                    redetect_faces=redetect_faces,
-                    refresh_face_thumbs=refresh_face_thumbs,
-                    dry_run=dry_run,
-                )
-
-                # A JPEG that failed to convert leaves a gap in {name}-jpg/.
-                # The album refreshed, but not completely — report it as failed
-                # so the run does not exit 0 on a partial result.
-                if result.jpeg_failures:
-                    labels = tuple(
-                        f"{source}/{failure.filename}: {failure.reason}"
-                        for source, failure in result.jpeg_failures
-                    )
-                    if on_end:
-                        on_end(album_name, False, labels)
-                    failures.append(
-                        BatchFailure(
-                            album_dir=album_dir,
-                            reason=f"jpeg conversion failed: {'; '.join(labels)}",
-                        )
-                    )
-                else:
-                    if on_end:
-                        on_end(album_name, True, ())
-                    refreshed += 1
-            except Exception as exc:
-                if on_end:
-                    on_end(album_name, False, (str(exc),))
-                failures.append(BatchFailure(album_dir=album_dir, reason=str(exc)))
-    finally:
-        if exiftool is not None:
-            exiftool.__exit__(None, None, None)
-
-    return BatchRefreshResult(refreshed=refreshed, failures=failures)
+    with exiftool_session() as exiftool:
+        outcomes = [
+            run_album_step(
+                album_dir,
+                partial(_refresh_one, album_dir, opts, exiftool, analyzer_factory),
+                name=display_fn(album_dir),
+                on_start=on_start,
+                on_end=on_end,
+            )
+            for album_dir in albums
+        ]
+    failures = failures_of(outcomes)
+    return BatchRefreshResult(refreshed=len(albums) - len(failures), failures=failures)

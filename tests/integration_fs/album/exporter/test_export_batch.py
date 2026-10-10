@@ -171,7 +171,10 @@ class TestBatchExport:
 
         assert result.exported == 0
         assert len(result.failed) == 1
-        assert "YYYY-MM-DD" in result.failed[0][1]
+        assert (
+            'album name "no-date-album" does not start with a YYYY date'
+            in (result.failed[0][1])
+        )
 
     def test_by_month_archive_layout(self, tmp_path: Path) -> None:
         album = _setup_ios_album(tmp_path / "2024-06-15 - Vacation")

@@ -9,9 +9,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from photree.album.store.protocol import ios_import_dir
+from photree.albums.cli import import_cmd as albums_import_cmd
 from photree.cli import app
 
 runner = CliRunner()
@@ -21,7 +23,7 @@ SEL_DIR = ios_import_dir("main")
 
 def _write(path: Path, content: str = "data") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content)
+    path.write_text(content, encoding="utf-8")
 
 
 def _image_capture_dir(tmp_path: Path) -> Path:
@@ -35,6 +37,10 @@ def _staged_album(parent: Path, name: str) -> Path:
     album = parent / name
     _write(album / SEL_DIR / "IMG_0001.HEIC")
     return album
+
+
+def _no_faces() -> None:
+    """Analyzer factory stand-in: ``None`` skips face detection."""
 
 
 def _invoke(albums_dir: Path, ic_dir: Path):
@@ -83,7 +89,14 @@ class TestFailureReporting:
 
         assert "0 album(s) imported, 1 failed, 1 skipped." in result.output
 
-    def test_all_succeeding_exits_zero(self, tmp_path: Path) -> None:
+    def test_all_succeeding_exits_zero(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The fixture HEIC is not a real image, so face detection would fail
+        # (and now, rightly, fail the album): disable it for this test.
+        monkeypatch.setattr(
+            albums_import_cmd, "memoized_face_analyzer_factory", _no_faces
+        )
         ic_dir = _image_capture_dir(tmp_path)
         albums_dir = tmp_path / "albums"
         album = _staged_album(albums_dir, "2024-07-14 - Hiking")

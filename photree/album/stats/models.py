@@ -3,8 +3,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 
 from ..store.protocol import MediaSourceType
+
+
+class StorageRole(StrEnum):
+    """Which tier of a media source a directory belongs to."""
+
+    ARCHIVE = "archive"  # ios-{name}/ or std-{name}/
+    BROWSABLE = "browsable"  # {name}-img/, {name}-vid/
+    DERIVED = "derived"  # {name}-jpg/
 
 
 @dataclass(frozen=True)
@@ -57,6 +66,17 @@ class MediaSourceStats:
 
 
 @dataclass(frozen=True)
+class MediaSourceTypeStats:
+    """Totals of every media source of one type (all iOS, or all std)."""
+
+    media_source_type: MediaSourceType
+    source_count: int
+    total: SizeStats
+    archive: SizeStats
+    derived: SizeStats
+
+
+@dataclass(frozen=True)
 class AggregateStats:
     """Common aggregate fields shared between album-level and gallery-level stats.
 
@@ -76,7 +96,7 @@ class AggregateStats:
     sidecars: RoleBreakdown
     by_format: tuple[FormatStats, ...]
     media_source_count: int
-    by_media_source_type: tuple[tuple[MediaSourceType, int], ...]
+    by_media_source_type: tuple[MediaSourceTypeStats, ...]
 
 
 @dataclass(frozen=True)

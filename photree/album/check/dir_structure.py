@@ -25,11 +25,6 @@ class AlbumDirCheck:
         return len(self.missing) == 0
 
 
-def _is_group_present(album_dir: Path, group: tuple[str, ...]) -> bool:
-    """Check if all directories in a group are present."""
-    return all((album_dir / d).is_dir() for d in group)
-
-
 def _has_any(album_dir: Path, group: tuple[str, ...]) -> bool:
     """Check if any directory in a group is present."""
     return any((album_dir / d).is_dir() for d in group)
@@ -58,63 +53,37 @@ def check_album_dir_structure(
             present=(),
             missing=MAIN_MEDIA_SOURCE.required_subdirs,
         )
-
-    all_present: list[str] = []
-    all_missing: list[str] = []
-    all_optional_present: list[str] = []
-    all_optional_absent: list[str] = []
-
-    for ms in media_sources:
-        image_present = _is_group_present(album_dir, ms.image_subdirs)
-        video_present = _is_group_present(album_dir, ms.video_subdirs)
-
-        required = [
-            *(
-                ms.image_subdirs
-                if image_present or _has_any(album_dir, ms.image_subdirs)
-                else ()
-            ),
-            *(
-                ms.video_subdirs
-                if video_present or _has_any(album_dir, ms.video_subdirs)
-                else ()
-            ),
-        ]
-
-        if not required:
-            required = list(ms.required_subdirs)
-
-        optional_from_groups = [
-            *(
-                ms.image_subdirs
-                if not image_present and not _has_any(album_dir, ms.image_subdirs)
-                else ()
-            ),
-            *(
-                ms.video_subdirs
-                if not video_present and not _has_any(album_dir, ms.video_subdirs)
-                else ()
-            ),
-        ]
-
-        all_present.extend(d for d in required if (album_dir / d).is_dir())
-        all_missing.extend(d for d in required if not (album_dir / d).is_dir())
-        all_optional_present.extend(
-            d
-            for d in (*ms.optional_subdirs, *optional_from_groups)
-            if (album_dir / d).is_dir()
-        )
-        all_optional_absent.extend(
-            d
-            for d in (*ms.optional_subdirs, *optional_from_groups)
-            if not (album_dir / d).is_dir()
+    else:
+        per_source = [_check_media_source_dirs(album_dir, ms) for ms in media_sources]
+        return AlbumDirCheck(
+            present=tuple(d for c in per_source for d in c.present),
+            missing=tuple(d for c in per_source for d in c.missing),
+            optional_present=tuple(d for c in per_source for d in c.optional_present),
+            optional_absent=tuple(d for c in per_source for d in c.optional_absent),
         )
 
+
+def _check_media_source_dirs(album_dir: Path, ms: MediaSource) -> AlbumDirCheck:
+    """Directory check for one media source (see :func:`check_album_dir_structure`)."""
+    # A group counts as "in use" as soon as one of its dirs exists; all of
+    # its dirs are then required. Unused groups are reported as optional.
+    image_used = _has_any(album_dir, ms.image_subdirs)
+    video_used = _has_any(album_dir, ms.video_subdirs)
+    used_groups = (
+        *(ms.image_subdirs if image_used else ()),
+        *(ms.video_subdirs if video_used else ()),
+    )
+    required = used_groups or ms.required_subdirs
+    optional = (
+        *ms.optional_subdirs,
+        *(ms.image_subdirs if not image_used else ()),
+        *(ms.video_subdirs if not video_used else ()),
+    )
     return AlbumDirCheck(
-        present=tuple(all_present),
-        missing=tuple(all_missing),
-        optional_present=tuple(all_optional_present),
-        optional_absent=tuple(all_optional_absent),
+        present=tuple(d for d in required if (album_dir / d).is_dir()),
+        missing=tuple(d for d in required if not (album_dir / d).is_dir()),
+        optional_present=tuple(d for d in optional if (album_dir / d).is_dir()),
+        optional_absent=tuple(d for d in optional if not (album_dir / d).is_dir()),
     )
 
 

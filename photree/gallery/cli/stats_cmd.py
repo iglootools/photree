@@ -20,7 +20,7 @@ def stats_cmd(
         Path | None,
         typer.Option(
             "--gallery-dir",
-            "-d",
+            "-g",
             help="Gallery root directory.",
             exists=True,
             file_okay=False,

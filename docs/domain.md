@@ -107,6 +107,8 @@ currently allowed.
 
 Constraints:
 
+- The date must be a real calendar date (`2024-02-30` is rejected), and a
+  range must not end before it starts.
 - 255 bytes maximum for the full directory name.
 - ` - ` (space-dash-space) is the field separator and must not appear inside
   Title or Series (a hyphenated word without surrounding spaces is fine).
@@ -179,7 +181,9 @@ There are two kinds:
 | JPEG conversion | yes | yes |
 
 Every media source is backed by its archive directory. Browsable directories
-without a backing archive are not a media source.
+without a backing archive are not a media source. A media source name is unique
+within an album: `ios-bruno/` and `std-bruno/` would share `bruno-img/` and
+`media-ids/bruno.yaml`, so their coexistence is an error.
 
 ### Archive, Browsable, and Derived
 
@@ -199,7 +203,10 @@ Browsable and derived directories can always be rebuilt from the archive
 backup.
 
 Deleting a file from a browsable directory is how you curate; `album fix
---rm-upstream` propagates that deletion back to the archive.
+--rm-upstream` propagates that deletion back to the archive. A browsable
+directory that is missing (or a JPEG directory holding none of its expected
+files) is not read as a deletion signal, and a run that would remove every item
+of an archive is refused unless `--force` is given.
 
 ## Media Item
 
@@ -224,7 +231,7 @@ An item may exist as several files:
 | JPEG | the browsable image converted to JPEG, in `<name>-jpg/` |
 
 When the same key exists in several image formats, the higher quality wins:
-DNG > HEIC > JPG/PNG.
+DNG > HEIC > HEIF > JPG/PNG.
 
 ### iOS Variants (Image Capture)
 
@@ -373,8 +380,11 @@ The rule that selects members:
 - **`album-series`** — the albums of one contiguous album series. Used by
   implicit collections.
 - **`chapter`** — like `date-range`, but chapter collections must not overlap
-  in date range with other chapter collections. Chapters partition a life
-  into periods (e.g. "2019--2022 - Living in Montreal").
+  in date range with any other chapter collection in the gallery (regardless
+  of which `collections/YYYY/` directory it lives in). Ranges include both
+  ends, so two chapters sharing a single day overlap; consecutive chapters
+  end and start on adjacent days. Chapters partition a
+  life into periods (e.g. "2019--2022 - Living in Montreal").
 
 ### Valid Combinations
 
@@ -495,7 +505,8 @@ an external volume — marked by a `.photree-share` sentinel file so a mistyped
 path can never receive an export. An export is shaped by two layouts:
 
 - **Album layout** — what of each album is exported: `browsable-jpg` (JPEGs
-  and videos), `browsable`, `all` (archive plus rebuilt browsable dirs), or
+  and videos), `browsable`, `all` (archive, album metadata, and rebuilt
+  browsable dirs), or
   `archive` (archive and metadata only, a compact backup).
 - **Share layout** — how albums are arranged: `flat`, `albums` (by year), or
   `by-month`.

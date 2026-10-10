@@ -14,7 +14,7 @@ from enum import StrEnum
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 # ---------------------------------------------------------------------------
 # Pydantic base model (kebab-case YAML aliases, frozen)
@@ -30,6 +30,66 @@ class _BaseModel(BaseModel):
         alias_generator=_to_kebab,
         populate_by_name=True,
         frozen=True,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Metadata errors and YAML I/O
+#
+# Every ``.photree/*.yaml`` store distinguishes *absent* (``None``: nothing
+# has been written yet) from *present but unreadable* (an error). Folding the
+# two together is how a truncated ``album.yaml`` used to make ``album init``
+# mint a fresh ID and silently orphan every collection reference to the old
+# one.
+# ---------------------------------------------------------------------------
+
+
+class InvalidMetadataError(ValueError):
+    """A metadata file exists but its content cannot be used.
+
+    Carries the path and reason as structured data so the CLI can render the
+    path with ``display_path`` and tests can assert on fields, not prose.
+    """
+
+    def __init__(self, path: Path, reason: str) -> None:
+        self.path = path
+        self.reason = reason
+        super().__init__(f"Invalid metadata in {path}: {reason}")
+
+
+def load_yaml_mapping(path: Path) -> dict[str, object] | None:
+    """Read a YAML mapping, or ``None`` if *path* does not exist.
+
+    Raises :class:`InvalidMetadataError` when the file exists but is not
+    parseable YAML or does not hold a mapping (empty and truncated files
+    included).
+    """
+    if not path.is_file():
+        return None
+    try:
+        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as exc:
+        raise InvalidMetadataError(path, f"not valid YAML ({exc})") from exc
+    if not isinstance(raw, dict):
+        raise InvalidMetadataError(
+            path, f"expected a YAML mapping, got {type(raw).__name__}"
+        )
+    return raw
+
+
+def validate_metadata[M: BaseModel](path: Path, model_cls: type[M], raw: object) -> M:
+    """Validate *raw* against *model_cls*, reporting failures against *path*."""
+    try:
+        return model_cls.model_validate(raw)
+    except ValidationError as exc:
+        raise InvalidMetadataError(path, str(exc)) from exc
+
+
+def write_yaml(path: Path, data: object) -> None:
+    """Write *data* as block-style YAML in UTF-8, preserving key order."""
+    path.write_text(
+        yaml.safe_dump(data, default_flow_style=False, sort_keys=False),
+        encoding="utf-8",
     )
 
 
@@ -121,25 +181,41 @@ def save_gallery_metadata(gallery_dir: Path, metadata: GalleryMetadata) -> None:
     """Write :class:`GalleryMetadata` to ``.photree/gallery.yaml``."""
     photree_dir = gallery_dir / PHOTREE_DIR
     photree_dir.mkdir(exist_ok=True)
-    path = photree_dir / GALLERY_YAML
-    path.write_text(
-        yaml.safe_dump(
-            metadata.model_dump(by_alias=True, mode="json"),
-            default_flow_style=False,
-            sort_keys=False,
-        )
+    write_yaml(
+        photree_dir / GALLERY_YAML, metadata.model_dump(by_alias=True, mode="json")
     )
 
 
 def load_gallery_metadata(gallery_yaml_path: Path) -> GalleryMetadata:
-    """Read a ``gallery.yaml`` file and return :class:`GalleryMetadata`."""
-    with open(gallery_yaml_path) as f:
-        raw = yaml.safe_load(f)
-    # ValueError, not TypeError (TRY004): this validates the *content* of a file the
-    # user owns, not an argument passed by a caller, so it is a malformed-input error.
-    if not isinstance(raw, dict):
-        raise ValueError(f"Expected YAML mapping in {gallery_yaml_path}")  # noqa: TRY004
-    return GalleryMetadata.model_validate(raw)
+    """Read a ``gallery.yaml`` file and return :class:`GalleryMetadata`.
+
+    Raises :class:`InvalidMetadataError` if the file is missing or malformed:
+    callers reach this only after resolution found the file, so absence here
+    is as much a corruption as bad content.
+    """
+    raw = load_yaml_mapping(gallery_yaml_path)
+    if raw is None:
+        raise InvalidMetadataError(gallery_yaml_path, "file not found")
+    return validate_metadata(gallery_yaml_path, GalleryMetadata, raw)
+
+
+class GalleryNotFoundError(ValueError):
+    """No ``.photree/gallery.yaml`` was found.
+
+    ``explicit`` is the ``--gallery-dir`` that was given (``None`` when the
+    search walked up from ``searched_from``). The message stays free of CLI
+    advice and absolute-path formatting: the CLI layer renders both.
+    """
+
+    def __init__(self, *, explicit: Path | None, searched_from: Path) -> None:
+        self.explicit = explicit
+        self.searched_from = searched_from
+        super().__init__(
+            f"No gallery metadata found at {explicit / PHOTREE_DIR / GALLERY_YAML}"
+            if explicit is not None
+            else f"No gallery metadata ({PHOTREE_DIR}/{GALLERY_YAML}) found in "
+            f"{searched_from} or its parent directories"
+        )
 
 
 def resolve_gallery_dir(
@@ -150,17 +226,14 @@ def resolve_gallery_dir(
     Resolution order: explicit path > walk up from *start_dir* (or cwd)
     looking for ``.photree/gallery.yaml``.
 
-    Raises :class:`ValueError` if no gallery metadata is found.
+    Raises :class:`GalleryNotFoundError` if no gallery metadata is found.
     """
+    current = (start_dir or Path.cwd()).resolve()
     if explicit is not None:
         if not (explicit / PHOTREE_DIR / GALLERY_YAML).is_file():
-            raise ValueError(
-                f"No gallery metadata found at {explicit / PHOTREE_DIR / GALLERY_YAML}.\n"
-                "Run 'photree gallery init' to initialize the gallery."
-            )
+            raise GalleryNotFoundError(explicit=explicit, searched_from=current)
         return explicit
 
-    current = (start_dir or Path.cwd()).resolve()
     try:
         return next(
             d
@@ -168,10 +241,7 @@ def resolve_gallery_dir(
             if (d / PHOTREE_DIR / GALLERY_YAML).is_file()
         )
     except StopIteration:
-        raise ValueError(
-            "No gallery metadata (.photree/gallery.yaml) found in parent directories.\n"
-            "Run 'photree gallery init' in the gallery root, or use --gallery-dir."
-        ) from None
+        raise GalleryNotFoundError(explicit=None, searched_from=current) from None
 
 
 def resolve_gallery_metadata(start_dir: Path) -> GalleryMetadata | None:
@@ -181,7 +251,7 @@ def resolve_gallery_metadata(start_dir: Path) -> GalleryMetadata | None:
     """
     try:
         gallery_dir = resolve_gallery_dir(None, start_dir=start_dir)
-    except ValueError:
+    except GalleryNotFoundError:
         return None
     return load_gallery_metadata(gallery_dir / PHOTREE_DIR / GALLERY_YAML)
 

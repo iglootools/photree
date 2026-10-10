@@ -5,7 +5,14 @@ from pathlib import Path
 import pytest
 
 from photree.album.id import generate_album_id
-from photree.album.media import move_media, resolve_variants, rm_media
+from photree.album.media import (
+    MediaOpError,
+    MediaOpErrorKind,
+    format_media_op_error,
+    move_media,
+    resolve_variants,
+    rm_media,
+)
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import MAIN_MEDIA_SOURCE, AlbumMetadata
 
@@ -157,15 +164,37 @@ class TestResolveVariants:
         album = tmp_path / "album"
         _setup_ios_album(album)
 
-        with pytest.raises(ValueError, match="does not match any media source"):
+        with pytest.raises(MediaOpError) as exc_info:
             resolve_variants(album, ["unknown-dir/IMG_0410.jpg"])
+        assert exc_info.value.kind == MediaOpErrorKind.UNKNOWN_DIRECTORY
+        assert exc_info.value.subdir == "unknown-dir"
 
     def test_no_directory_in_path_raises(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_ios_album(album)
 
-        with pytest.raises(ValueError, match="must be a relative path"):
+        with pytest.raises(MediaOpError) as exc_info:
             resolve_variants(album, ["IMG_0410.jpg"])
+        assert exc_info.value.kind == MediaOpErrorKind.PATH_WITHOUT_DIRECTORY
+        assert exc_info.value.rel_path == "IMG_0410.jpg"
+
+    def test_no_media_sources_raises(self, tmp_path: Path) -> None:
+        album = tmp_path / "album"
+        album.mkdir()
+
+        with pytest.raises(MediaOpError) as exc_info:
+            resolve_variants(album, ["main-jpg/IMG_0410.jpg"])
+        assert exc_info.value.kind == MediaOpErrorKind.NO_MEDIA_SOURCES
+
+    def test_error_message_uses_display_path(self, tmp_path: Path) -> None:
+        album = tmp_path / "album"
+        album.mkdir()
+
+        with pytest.raises(MediaOpError) as exc_info:
+            resolve_variants(album, ["main-jpg/IMG_0410.jpg"])
+        message = format_media_op_error(exc_info.value, tmp_path)
+        assert str(tmp_path) not in message
+        assert "album" in message
 
     def test_multiple_numbers(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
@@ -302,8 +331,10 @@ class TestMoveMedia:
         _setup_ios_album(src)
         _setup_ios_album(dst)
 
-        with pytest.raises(ValueError, match="would conflict"):
+        with pytest.raises(MediaOpError) as exc_info:
             move_media(src, dst, ["main-jpg/IMG_E0410.jpg"])
+        assert exc_info.value.kind == MediaOpErrorKind.MOVE_CONFLICT
+        assert "main-jpg/IMG_E0410.jpg" in exc_info.value.conflicts
 
         # Source should be unchanged — nothing was moved
         assert "IMG_0410.HEIC" in _names(src / "ios-main/orig-img")
@@ -324,8 +355,10 @@ class TestMoveMedia:
         _setup_dir(dst / "ios-main/orig-img", ["IMG_0410.JPG"])
         _setup_dir(dst / "main-img", ["IMG_0410.JPG"])
 
-        with pytest.raises(ValueError, match="would conflict"):
+        with pytest.raises(MediaOpError) as exc_info:
             move_media(src, dst, ["main-jpg/IMG_0410.jpg"])
+        assert exc_info.value.kind == MediaOpErrorKind.MOVE_CONFLICT
+        assert "ios-main/orig-img/IMG_0410.JPG" in exc_info.value.conflicts
 
 
 # ---------------------------------------------------------------------------

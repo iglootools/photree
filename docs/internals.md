@@ -55,6 +55,12 @@ placement into `albums/YYYY/`.
 classification + validation pass, then copy each album to
 `albums/YYYY/<album-name>/`, generate a missing ID, and refresh derived data.
 
+A first import is built in a hidden sibling (`albums/YYYY/.<album-name>.import`)
+and renamed into place only once the copy and the derived-data refresh have
+succeeded; on any failure the staging directory is removed. A half-built album
+is therefore never left under its real name, where the next run would mistake it
+for an already-imported one.
+
 **Validation gate (all-or-nothing).** Before any filesystem mutation, every
 source album is validated: name (`check_album_naming`), cross-album date
 collisions across the batch **and** the existing gallery
@@ -91,10 +97,24 @@ With `--reimport`, the album's media is replaced:
 
 `--reimport` on a not-yet-imported album is a normal import.
 
+**Placement.** The target year is the start year of the album date at any
+precision, so `2024 - Family` and `2024-07 - Summer` land in `albums/2024/`.
+
+**Derived-data failures fail the album.** If JPEG conversion or face detection
+fails for any image during the post-copy refresh, the album is imported but
+reported as failed, and the command exits 1 (as do `album import`,
+`albums import` and `albums refresh`).
+
 **Clobber guard.** If the target name exists but is occupied by a *different*
 album (the source carries an ID differing from the existing copy's), the
-import is refused even with `--reimport`. An ID-less source cannot be
-distinguished, so `--reimport` proceeds in that case.
+import is refused even with `--reimport`. This also applies when the source
+was matched by ID and renamed: the gallery copy is moved to the new name only
+if no other album holds it. An ID-less source cannot be distinguished, so
+`--reimport` proceeds in that case.
+
+**Swap rollback.** If the final rename of the reimport swap fails, the old copy
+is moved back from its aside name and the staging directory is removed, so the
+album never disappears from the gallery.
 
 **Caveat.** UUID preservation holds only when source keys (iOS image numbers,
 std filename stems) are stable; a re-export that renumbers files rotates the
@@ -206,7 +226,10 @@ directories at the top level are the browsable/shareable versions:
 An album is fed by one or more per-media-source staging entries, named
 `to-import-{ios,std}-<media-source>`. `album import` / `albums import`
 discover every staging entry in the album, validate them all, import each into
-its target media source, then refresh derived data once. A single album can
+its target media source, then refresh derived data once. Validation includes
+the archive collision checks (an incoming iOS image number or std stem that
+already exists in the target archive), so a collision in any entry refuses the
+whole import before anything is copied. A single album can
 carry several (e.g. `to-import-ios-main/` plus `to-import-std-nelu/`).
 
 ### iOS staging (`to-import-ios-<name>/`, `to-import-ios-<name>.csv`)
@@ -223,8 +246,11 @@ directory. The actual file contents are irrelevant; only the filenames matter
   each row is a filename (e.g. `IMG_0410.HEIC`).
 
 When both forms exist, their entries are merged (union), deduplicated by image
-number. After a successful import, processed files are deleted from the
-directory and the CSV is deleted if all its entries were processed. This
+number. After a successful import, cleanup also works by image number: every
+directory entry and CSV row whose number was imported is removed — including
+the second half of a Live Photo export (`IMG_0410.HEIC` + `IMG_0410.MOV`). A CSV
+is deleted once all its numbers are processed, and otherwise rewritten with only
+its remaining rows. This
 decouples the selection from any specific tool: exporting from Apple Photos is
 the most common workflow, but the list can equally come from a phone, a custom
 CLI, an LLM, AppleScript, or anything that produces filenames.
@@ -272,6 +298,12 @@ album names.
 
 See [domain.md — Lifecycle](./domain.md#lifecycle) for examples.
 
+All renames are planned and checked before any is applied: a target name that
+already exists, or two albums renaming to the same name, is reported as an
+error and nothing is renamed. The planned renames are applied to the in-memory
+album list (in both normal and dry-run mode), so phase 3 sees the post-sync
+names without re-reading the disk and a dry run predicts the real run.
+
 #### Phase 3: Implicit Collection Refresh
 
 Detects album series and creates/updates/renames/deletes implicit
@@ -298,6 +330,11 @@ collections:
 
 3. **Create new** — groups with no matching collection get a new implicit
    collection in `collections/YYYY/`.
+
+   Each existing collection is claimed by at most one group. Two runs of the
+   same series that would produce the same collection name (e.g. same date,
+   parts 01/02/03 with series A, B, A) are reported as a naming conflict and
+   nothing is written.
 
 4. **Delete orphaned** — implicit collections whose series no longer
    appears in any album are removed.
@@ -384,8 +421,15 @@ browsable/
 The browsable directory is **deleted and recreated** on each
 `gallery refresh`. Before deletion, a safety check validates that
 the directory only contains directories and symlinks (no regular files
-that could be accidentally destroyed). All symlinks are relative for
-gallery portability.
+that could be accidentally destroyed). Albums or collections whose metadata
+cannot be read, or whose name does not parse, abort the step before anything is
+deleted. Collection members whose ID no longer resolves are rendered without
+that member and reported as warnings. All symlinks are relative for gallery
+portability.
+
+Collection `images/` and `videos/` entries are matched with the media source's
+own key rule (image number for iOS, filename stem for std), so a std source
+whose files happen to start with `IMG_` is linked correctly.
 
 ### Cycle Detection
 
@@ -490,7 +534,7 @@ face-cluster-threshold: 0.45
 |--------------------------|----------------|------------|-------------|
 | `link-mode`              | string         | `hardlink` | Default link mode for refresh and other link-mode operations. Values: `hardlink`, `symlink`, `copy`. |
 | `faces-enabled`          | bool           | `true`     | Enable face detection and clustering during gallery refresh. |
-| `face-cluster-threshold` | float or null  | `null`     | Cosine distance threshold for face clustering (0.0–1.0). When null, defaults to 0.45 at runtime. Lower = stricter (fewer merges). |
+| `face-cluster-threshold` | float or null  | `null`     | Cosine distance threshold for face clustering (0.0–1.0, validated; 0.0 is valid). When null, defaults to 0.45 at runtime. Lower = stricter (fewer merges). |
 
 The `--link-mode` CLI argument overrides the gallery-level setting.
 If no gallery.yaml is found and no CLI argument is given, the default
@@ -510,6 +554,20 @@ should not be edited directly. Use the provided CLI commands instead:
   `photree gallery refresh`) to generate and update media IDs.
 
 Direct edits may be silently overwritten or cause unexpected behavior.
+
+### Absent vs Corrupt Metadata
+
+Every `.photree/*.yaml` reader (`fsprotocol.load_yaml_mapping` /
+`validate_metadata`) distinguishes two cases:
+
+- **Absent** — the file does not exist. Commands that create metadata
+  (`album init`, `fix --id`, refresh of media IDs) may write it.
+- **Present but unusable** — empty, truncated, not a YAML mapping, or failing
+  validation. This raises `InvalidMetadataError` and the command stops,
+  printing the file and the reason. photree never regenerates such a file:
+  a fresh `album.yaml`, `media-ids/*.yaml`, `collection.yaml` or
+  `clusters.yaml` would carry fresh IDs and silently orphan every reference to
+  the old ones.
 
 ## EXIF Metadata
 
@@ -531,6 +589,14 @@ Tags are checked in priority order (first match wins):
 
 For photos, `CreationDate` is simply absent (QuickTime-only tag), so the
 priority naturally falls through to `DateTimeOriginal`.
+
+Timestamps are **naive wall-clock** values. `DateTimeOriginal` carries no
+offset; when a tag does (`CreationDate` on videos), the offset is parsed and
+then dropped, so photos and videos compare on the same basis.
+
+`album fix-exif` writes through exiftool and stops on the first failure: the
+files and exiftool's diagnostics are printed and the command exits 1. Files
+written before the failure keep their new value.
 
 During album and gallery checks, photree reads all media files from each
 album's browsable directories (`{name}-jpg/`, `{name}-vid/`) and compares
@@ -607,6 +673,7 @@ instructions for whatever is missing, and exits 1 having modified nothing.
 | `album refresh`, `albums refresh`, `gallery refresh` | `sips` + `exiftool` |
 | `collection import`, `collections import` | `exiftool` |
 | `album detect-faces`, `albums detect-faces` | `sips` |
+| `album check`, `albums check`, `gallery check` | `sips` (`CHECK_DEPS`); `albums check --refresh-exif-cache` also `exiftool` |
 | `gallery cluster-faces` | `sips`; also `exiftool` with `--redetect` / `--refresh-thumbs` |
 | `album fix-exif` | `exiftool` |
 | `check system` | reports both, exits 1 if any is missing |
@@ -638,8 +705,8 @@ cross-album date collisions. No media file access — only inspects names
 and album metadata. Fast, suitable as a pre-validation gate.
 
 Includes:
-- Per-album naming validation (parseability, tags, part number rules,
-  canonical spacing)
+- Per-album naming validation (parseability, valid calendar dates and
+  ranges, tags, part number rules, canonical spacing)
 - Cross-album date collision detection (multiple non-private single-day
   albums on the same date without part numbers)
 
@@ -691,16 +758,22 @@ mtimes — no exiftool process needed.
 ### Cache Schema
 
 ```yaml
+version: 2
 files:
-  "0410":
+  main-jpg/IMG_0410:
     mtime: 1721008370.5
-    file-name: IMG_0410.jpg
+    file-name: main-jpg/IMG_0410.jpg
     timestamp: "2024-07-14T14:32:50"
-  "0411":
+  main-vid/IMG_0115:
     mtime: 1721010622.3
-    file-name: IMG_0411.jpg
+    file-name: main-vid/IMG_0115.MOV
     timestamp: null              # no EXIF timestamp found
 ```
+
+Entries are keyed by `{browsable-dir}/{stem}` and store the album-relative
+path, so an image and a video sharing a stem (`clip.jpg`, `clip.mp4`) do not
+collide, and mismatches point at the right directory. A cache without the
+current `version` is treated as absent and rebuilt on the next refresh.
 
 ### Cache Lifecycle
 

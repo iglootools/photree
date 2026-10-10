@@ -68,11 +68,11 @@ photree gallery init
 photree gallery init --link-mode symlink
 
 # Initialize a specific directory
-photree gallery init -d ~/Pictures/albums
+photree gallery init -g ~/Pictures/albums
 ```
 
 The `link-mode` setting in `gallery.yaml` is used as the default for `refresh`,
-`fix-ios`, and other commands that accept `--link-mode`. An explicit `--link-mode`
+`import`, `export`, and other commands that accept `--link-mode`. An explicit `--link-mode`
 CLI flag always overrides the gallery default.
 
 See [internals.md](./internals.md) for the gallery metadata format and resolution rules.
@@ -213,7 +213,7 @@ for details.
 photree gallery check
 
 # Check a specific gallery
-photree gallery check -d ~/Pictures/gallery
+photree gallery check -g ~/Pictures/gallery
 
 # Disable checksum verification for faster checks
 photree gallery check --no-checksum
@@ -301,6 +301,9 @@ for details.
 ### Export Albums
 
 Exports all gallery albums to a shared directory (cloud sync folders, external volumes).
+The gallery is resolved like every other `gallery` command (`--gallery-dir`, or
+walking up from the current directory); `--dir` / `--album-dir` narrow the export
+to a subset.
 
 ```bash
 # Export using a named profile
@@ -316,7 +319,10 @@ photree gallery export -p mega -n
 **Album layouts:**
 - `browsable-jpg` (default): exports `{name}-jpg/` and `{name}-vid/` (most compatible formats)
 - `browsable`: exports `{name}-img/`, `{name}-jpg/`, `{name}-vid/`
-- `all`: exports archival directories (orig/edit) and `{name}-jpg`, recreates browsable dirs with links
+- `all`: exports archival directories (orig/edit), `{name}-jpg`, and `.photree/`
+  metadata (excluding the derived `cache/`), and recreates browsable dirs with links.
+  Album and media IDs travel with the export, so the copy is still recognized as
+  the same album.
 - `archive`: exports only the archive (orig/edit) plus `.photree/` metadata
   (excluding the derived `cache/`). All browsable/JPEG dirs are dropped — they
   are regenerable via `photree albums refresh`. Space-efficient for backups to

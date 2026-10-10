@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from photree.collection.id import generate_collection_id
 from photree.collection.store.metadata import (
     load_collection_metadata,
@@ -16,7 +18,7 @@ from photree.collection.store.protocol import (
     CollectionMetadata,
     CollectionStrategy,
 )
-from photree.fsprotocol import PHOTREE_DIR
+from photree.fsprotocol import PHOTREE_DIR, InvalidMetadataError
 
 
 class TestCollectionMetadata:
@@ -102,3 +104,33 @@ class TestCollectionMetadata:
         assert "strategy:" in content
         # No underscores in keys
         assert "collection_" not in content
+
+
+class TestCorruptCollectionMetadata:
+    def test_non_mapping_raises(self, tmp_path: Path) -> None:
+        path = tmp_path / PHOTREE_DIR / COLLECTION_YAML
+        path.parent.mkdir()
+        path.write_text("- a list\n", encoding="utf-8")
+
+        with pytest.raises(InvalidMetadataError) as exc_info:
+            load_collection_metadata(tmp_path)
+
+        assert exc_info.value.path == path
+
+    def test_empty_file_raises(self, tmp_path: Path) -> None:
+        path = tmp_path / PHOTREE_DIR / COLLECTION_YAML
+        path.parent.mkdir()
+        path.write_text("", encoding="utf-8")
+
+        with pytest.raises(InvalidMetadataError):
+            load_collection_metadata(tmp_path)
+
+    def test_invalid_field_raises(self, tmp_path: Path) -> None:
+        path = tmp_path / PHOTREE_DIR / COLLECTION_YAML
+        path.parent.mkdir()
+        path.write_text(
+            "id: x\nmembers: bogus\nlifecycle: explicit\n", encoding="utf-8"
+        )
+
+        with pytest.raises(InvalidMetadataError):
+            load_collection_metadata(tmp_path)

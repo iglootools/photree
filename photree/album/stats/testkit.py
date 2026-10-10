@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from ..store.protocol import MediaSourceType
+from .aggregate import media_source_type_stats, merge_media_source_type_stats
 from .models import (
     AggregateStats,
     AlbumsStats,
@@ -166,10 +167,7 @@ _AGGREGATE_ALBUM = AggregateStats(
         FormatStats(".aae", 524, _mb(42.5), 0, _mb(42.5), 0),
     ),
     media_source_count=2,
-    by_media_source_type=(
-        (MediaSourceType.IOS, 1),
-        (MediaSourceType.STD, 1),
-    ),
+    by_media_source_type=media_source_type_stats((_IOS_MAIN, _PLAIN_NELU)),
 )
 
 ALBUM_STATS = AlbumStats(
@@ -207,7 +205,7 @@ _ALBUM_2024_A = AlbumStats(
         sidecars=_IOS_MAIN.sidecars,
         by_format=_IOS_MAIN.by_format,
         media_source_count=1,
-        by_media_source_type=((MediaSourceType.IOS, 1),),
+        by_media_source_type=media_source_type_stats((_IOS_MAIN,)),
     ),
 )
 
@@ -270,7 +268,7 @@ _ALBUM_2025 = AlbumStats(
             FormatStats(".aae", 135, _mb(11.2), 0, _mb(11.2), 0),
         ),
         media_source_count=1,
-        by_media_source_type=((MediaSourceType.IOS, 1),),
+        by_media_source_type=media_source_type_stats((_IOS_MAIN,)),
     ),
 )
 
@@ -324,9 +322,9 @@ _GALLERY_AGGREGATE = AggregateStats(
         FormatStats(".aae", 1183, _mb(96.2), 0, _mb(96.2), 0),
     ),
     media_source_count=4,
-    by_media_source_type=(
-        (MediaSourceType.IOS, 3),
-        (MediaSourceType.STD, 1),
+    by_media_source_type=merge_media_source_type_stats(
+        a.aggregate.by_media_source_type
+        for a in (_ALBUM_2024_A, _ALBUM_2024_B, _ALBUM_2025)
     ),
 )
 
@@ -405,9 +403,9 @@ ALBUMS_STATS = AlbumsStats(
                     FormatStats(".aae", 1048, _mb(85.0), 0, _mb(85.0), 0),
                 ),
                 media_source_count=3,
-                by_media_source_type=(
-                    (MediaSourceType.IOS, 2),
-                    (MediaSourceType.STD, 1),
+                by_media_source_type=merge_media_source_type_stats(
+                    a.aggregate.by_media_source_type
+                    for a in (_ALBUM_2024_A, _ALBUM_2024_B)
                 ),
             ),
         ),

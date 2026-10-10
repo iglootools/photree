@@ -4,16 +4,21 @@ from pathlib import Path
 
 import pytest
 
+from photree.album.exporter.settings import resolve_export_settings
 from photree.album.exporter.single import (
+    ExportedAlbumType,
     compute_target_dir,
     export_album,
 )
 from photree.album.store.protocol import (
     MAIN_MEDIA_SOURCE,
+    AlbumDatePrefixError,
+    AlbumDatePrefixKind,
     parse_album_month,
     parse_album_year,
     std_media_source,
 )
+from photree.config import ConfigError, ConfigErrorKind
 from photree.fsprotocol import (
     PHOTREE_DIR,
     AlbumShareLayout,
@@ -62,12 +67,21 @@ class TestParseAlbumYear:
         assert parse_album_year("1999-01-01 - Millenium") == "1999"
 
     def test_no_date_prefix_raises(self) -> None:
-        with pytest.raises(ValueError, match="does not start with YYYY-MM-DD"):
+        with pytest.raises(AlbumDatePrefixError) as exc_info:
             parse_album_year("vacation-photos")
+        assert exc_info.value.album_name == "vacation-photos"
+        assert exc_info.value.kind == AlbumDatePrefixKind.YEAR
 
-    def test_partial_date_raises(self) -> None:
-        with pytest.raises(ValueError, match="does not start with YYYY-MM-DD"):
-            parse_album_year("2024-06")
+    def test_lower_precisions_use_their_year(self) -> None:
+        # Year- and month-precision albums are valid names and must be
+        # placeable under albums/YYYY/ (gallery import, "albums" share layout).
+        assert parse_album_year("2024-06") == "2024"
+        assert parse_album_year("2024 - Family") == "2024"
+        assert parse_album_year("2024--2025 - Abroad") == "2024"
+
+    def test_five_digit_year_raises(self) -> None:
+        with pytest.raises(AlbumDatePrefixError):
+            parse_album_year("20245 - Typo")
 
 
 class TestParseAlbumMonth:
@@ -84,12 +98,15 @@ class TestParseAlbumMonth:
         assert parse_album_month("2024-06-15--2024-07-17 - Trip") == "2024-06"
 
     def test_no_date_prefix_raises(self) -> None:
-        with pytest.raises(ValueError, match="does not start with YYYY-MM"):
+        with pytest.raises(AlbumDatePrefixError) as exc_info:
             parse_album_month("vacation-photos")
+        assert exc_info.value.album_name == "vacation-photos"
+        assert exc_info.value.kind == AlbumDatePrefixKind.MONTH
 
     def test_year_only_raises(self) -> None:
-        with pytest.raises(ValueError, match="does not start with YYYY-MM"):
+        with pytest.raises(AlbumDatePrefixError) as exc_info:
             parse_album_month("2024 - Family")
+        assert exc_info.value.kind == AlbumDatePrefixKind.MONTH
 
 
 class TestComputeTargetDir:
@@ -141,11 +158,25 @@ class TestExportOtherAlbum:
         result = export_album(album_dir, target)
 
         assert result.album_name == "my-album"
-        assert result.album_type == "std"
+        # A directory without a media source is exported as-is, not as "std".
+        assert result.album_type == ExportedAlbumType.PLAIN
         assert result.files_copied == 3
         assert (target / "photo1.jpg").exists()
         assert (target / "photo2.jpg").exists()
         assert (target / "video.mov").exists()
+
+    def test_reexport_counts_only_copied_files(self, tmp_path: Path) -> None:
+        album_dir = tmp_path / "my-album"
+        _setup_dir(album_dir, ["photo1.jpg", "photo2.jpg"])
+        target = tmp_path / "share" / "my-album"
+        # Leftover from an earlier export that is no longer in the source.
+        _setup_dir(target, ["old.jpg"])
+
+        first = export_album(album_dir, target)
+        second = export_album(album_dir, target)
+
+        assert first.files_copied == 2
+        assert second.files_copied == 2
 
     def test_copies_nested_directories(self, tmp_path: Path) -> None:
         album_dir = tmp_path / "vacation"
@@ -304,16 +335,21 @@ class TestExportIosAll:
         assert not (target / "notes.txt").exists()
         assert not (target / "extra-dir").exists()
 
-    def test_creates_empty_photree_dir(self, tmp_path: Path) -> None:
+    def test_copies_album_metadata_without_cache(self, tmp_path: Path) -> None:
+        """The ``all`` layout keeps the album and media IDs, like ``archive``.
+
+        It used to export an empty ``.photree/``, so the exported album lost
+        its identity and could not be re-imported as the same album.
+        """
         album_dir = _setup_ios_album(tmp_path / "trip")
-        (album_dir / PHOTREE_DIR).mkdir()
-        (album_dir / PHOTREE_DIR / "title.bkp").write_text("backup")
+        _setup_photree_metadata(album_dir)
         target = tmp_path / "share" / "trip"
 
         export_album(album_dir, target, album_layout=AlbumShareLayout.ALL)
 
-        assert (target / PHOTREE_DIR).is_dir()
-        assert not list((target / PHOTREE_DIR).iterdir())
+        assert (target / PHOTREE_DIR / "album.yaml").is_file()
+        assert (target / PHOTREE_DIR / "media-ids" / "main.yaml").is_file()
+        assert not (target / PHOTREE_DIR / "cache").exists()
 
 
 def _setup_photree_metadata(album_dir: Path) -> None:
@@ -415,3 +451,22 @@ class TestExportPlainArchive:
         assert (target / "a.jpg").exists()
         assert (target / "b.jpg").exists()
         assert result.files_copied == 2
+
+
+class TestExplicitConfigIsAlwaysLoaded:
+    def test_missing_explicit_config_without_profile_is_an_error(
+        self, tmp_path: Path
+    ) -> None:
+        # Regression: without --profile the config was never read, so a
+        # mistyped --config path was silently ignored.
+        missing = tmp_path / "nope.toml"
+        with pytest.raises(ConfigError) as info:
+            resolve_export_settings(
+                profile_name=None,
+                share_dir=tmp_path,
+                share_layout=None,
+                album_layout=None,
+                link_mode=None,
+                config_path=str(missing),
+            )
+        assert info.value.kind == ConfigErrorKind.FILE_NOT_FOUND

@@ -190,12 +190,39 @@ Use single quotes around commands, include necessary flags, and use
 ### CSV Output
 
 Commands with `--format csv` follow this pattern:
-- `--format` option: `text` (default) or `csv`
-- `--output -o` option: write to file instead of stdout
+- `--format` option: `text` (default) or `csv`, declared with the shared
+  `OUTPUT_FORMAT_OPTION` (an `OutputFormat` enum, so an unknown value is
+  rejected rather than silently rendered as text)
+- `--output -o` option (`OUTPUT_FILE_OPTION`): write to file instead of
+  stdout, for every format
 - CSV always includes a header row
 - Write to stdout or file, close file in `finally`
 - When `--format csv`, suppress non-CSV output (e.g., "No albums found"
   goes to stderr)
+
+### Errors and Output
+
+- **Structured errors.** Errors are data: a frozen dataclass with a `kind`
+  enum and fields, or an exception class with attributes. The human message
+  is rendered in the output/CLI layer (with `display_path`), so tests assert
+  on kinds and fields rather than on prose.
+- **Exceptions are plain classes**, never `@dataclass(frozen=True)`: Python
+  assigns `__traceback__` while an exception propagates (e.g. through a
+  `@contextmanager`), which a frozen dataclass turns into
+  `FrozenInstanceError`.
+- **Indentation** is applied at the call site with `common.formatting.indent`;
+  formatting helpers return unindented lines.
+- **Escape user text in Rich markup.** Names, paths, filenames, reasons and
+  exception messages interpolated into a Rich markup string must go through
+  `common.formatting.markup_escape`, or the line must be printed with
+  `markup=False`, because Rich silently drops bracketed text such as
+  `[private]`.
+- **Corrupt metadata is never "absent".** Read `.photree/*.yaml` through
+  `fsprotocol.load_yaml_mapping` / `validate_metadata`: `None` means the file
+  does not exist, and anything present but unusable raises
+  `InvalidMetadataError`. Treating corruption as absence is how a truncated
+  `album.yaml` used to get a fresh ID and orphan every reference to the old
+  one.
 
 ### Batch Operation Architecture
 

@@ -35,7 +35,7 @@ from photree.fsprotocol import PHOTREE_DIR
 
 def _write(path: Path, content: str = "data") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content)
+    path.write_text(content, encoding="utf-8")
 
 
 def _make_album(album: Path) -> None:
@@ -89,14 +89,30 @@ class TestCategorizeSizeStats:
         _write(tmp_path / "a.heic", "x" * 50)
         _write(tmp_path / "b.mov", "y" * 100)
         _write(tmp_path / "c.aae", "z" * 10)
-        seen: set[tuple[int, int]] = set()
-        imgs, vids, scs, _ = categorize_size_stats(tmp_path, seen)
-        assert imgs.file_count == 1
-        assert imgs.apparent_bytes == 50
-        assert vids.file_count == 1
-        assert vids.apparent_bytes == 100
-        assert scs.file_count == 1
-        assert scs.apparent_bytes == 10
+        stats, seen = categorize_size_stats(tmp_path)
+        assert stats.images.file_count == 1
+        assert stats.images.apparent_bytes == 50
+        assert stats.videos.file_count == 1
+        assert stats.videos.apparent_bytes == 100
+        assert stats.sidecars.file_count == 1
+        assert stats.sidecars.apparent_bytes == 10
+        assert len(seen) == 3
+
+    def test_seen_inodes_are_explicit(self, tmp_path: Path) -> None:
+        """A hardlink seen in an earlier dir is not counted on disk again."""
+        _write(tmp_path / "a" / "x.heic", "x" * 50)
+        (tmp_path / "b").mkdir()
+        os.link(tmp_path / "a" / "x.heic", tmp_path / "b" / "x.heic")
+
+        first, seen = categorize_size_stats(tmp_path / "a")
+        second, _ = categorize_size_stats(tmp_path / "b", seen)
+        fresh, _ = categorize_size_stats(tmp_path / "b")
+
+        assert first.images.on_disk_bytes == 50
+        assert second.images.on_disk_bytes == 0
+        assert second.images.apparent_bytes == 50
+        # The caller's set is not mutated: scanning again from scratch counts it.
+        assert fresh.images.on_disk_bytes == 50
 
 
 # ---------------------------------------------------------------------------
@@ -222,8 +238,7 @@ class TestComputeMediaSourceStats:
         album = tmp_path / "2024-07-14 - Test"
         _setup_ios_album(album)
         ms = MAIN_MEDIA_SOURCE
-        seen: set[tuple[int, int]] = set()
-        result = compute_media_source_stats(album, ms, seen)
+        result, _ = compute_media_source_stats(album, ms)
 
         assert result.name == "main"
         assert result.media_source_type == MediaSourceType.IOS
@@ -255,8 +270,7 @@ class TestComputeMediaSourceStats:
         _write(album / ms.jpg_dir / "photo1.jpg", "w" * 60)
         _write(album / ms.jpg_dir / "photo2.jpg", "y" * 80)
 
-        seen: set[tuple[int, int]] = set()
-        result = compute_media_source_stats(album, ms, seen)
+        result, _ = compute_media_source_stats(album, ms)
 
         assert result.media_source_type == MediaSourceType.STD
         assert result.unique_pictures == 2
@@ -295,8 +309,7 @@ class TestComputeMediaSourceStats:
         _write(album / ms.jpg_dir / "photo1.jpg", "d" * 60)
         _write(album / ms.jpg_dir / "photo2.jpg", "e" * 50)
 
-        seen: set[tuple[int, int]] = set()
-        result = compute_media_source_stats(album, ms, seen)
+        result, _ = compute_media_source_stats(album, ms)
 
         assert result.media_source_type == MediaSourceType.STD
         assert result.unique_pictures == 2  # from orig-img
@@ -317,8 +330,7 @@ class TestComputeMediaSourceStats:
         (album / ms.vid_dir).mkdir(parents=True, exist_ok=True)
         (album / ms.jpg_dir).mkdir(parents=True, exist_ok=True)
 
-        seen: set[tuple[int, int]] = set()
-        result = compute_media_source_stats(album, ms, seen)
+        result, _ = compute_media_source_stats(album, ms)
         assert result.unique_pictures == 1
         assert result.archive.file_count == 1
 
@@ -354,9 +366,21 @@ class TestComputeAlbumStats:
         assert len(result.by_media_source) == 2
         assert result.aggregate.media_source_count == 2
 
-        type_dict = dict(result.aggregate.by_media_source_type)
-        assert type_dict[MediaSourceType.IOS] == 1
-        assert type_dict[MediaSourceType.STD] == 1
+        by_type = {
+            t.media_source_type: t for t in result.aggregate.by_media_source_type
+        }
+        assert by_type[MediaSourceType.IOS].source_count == 1
+        assert by_type[MediaSourceType.STD].source_count == 1
+        # Each type carries its own sizes, not the album-wide totals.
+        assert (
+            by_type[MediaSourceType.IOS].total.apparent_bytes
+            + by_type[MediaSourceType.STD].total.apparent_bytes
+            == result.aggregate.total.apparent_bytes
+        )
+        assert (
+            by_type[MediaSourceType.STD].total.apparent_bytes
+            < result.aggregate.total.apparent_bytes
+        )
 
         # 2 iOS pictures + 1 std picture
         assert result.aggregate.unique_pictures == 3

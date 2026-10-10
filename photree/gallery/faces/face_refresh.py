@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 from uuid6 import uuid7
@@ -41,6 +43,9 @@ from .protocol import (
     FaceReference,
 )
 
+if TYPE_CHECKING:
+    import faiss  # type: ignore[import-untyped]
+
 # ---------------------------------------------------------------------------
 # Stage constants
 # ---------------------------------------------------------------------------
@@ -57,35 +62,51 @@ FACE_REFRESH_STAGES = (
     STAGE_SAVE,
 )
 
+_POST_SCAN_STAGES = (STAGE_BUILD_INDEX, STAGE_CLUSTER, STAGE_SAVE)
+
 # ---------------------------------------------------------------------------
 # Result types
 # ---------------------------------------------------------------------------
 
 
-@dataclass(frozen=True)
-class FaceRefreshError:
-    message: str
+class FaceRefreshMode(StrEnum):
+    """How a refresh updated the gallery clusters."""
+
+    NONE = "none"
+    """Nothing changed since the last run."""
+
+    INCREMENTAL = "incremental"
+    """New faces were assigned to their nearest existing cluster."""
+
+    FULL = "full"
+    """Everything was re-clustered (UUIDs recovered by medoid matching)."""
 
 
 @dataclass(frozen=True)
 class GalleryFaceRefreshResult:
-    """Result of a gallery face clustering refresh."""
+    """Result of a gallery face clustering refresh.
+
+    Failures raise (e.g. :class:`~photree.fsprotocol.InvalidMetadataError` for
+    a corrupt ``clusters.yaml``) instead of being folded into the result: a
+    refresh that cannot read its previous state must not save a new one.
+    """
 
     total_faces: int = 0
     total_clusters: int = 0
     new_faces: int = 0
     removed_faces: int = 0
-    mode: str = "none"  # "incremental", "full", "none"
-    errors: tuple[FaceRefreshError, ...] = ()
-
-    @property
-    def success(self) -> bool:
-        return len(self.errors) == 0
+    mode: FaceRefreshMode = FaceRefreshMode.NONE
 
 
 # ---------------------------------------------------------------------------
 # Internal data types
 # ---------------------------------------------------------------------------
+
+
+class _SourceStatus(StrEnum):
+    NEW = "new"
+    MODIFIED = "modified"
+    UNCHANGED = "unchanged"
 
 
 @dataclass(frozen=True)
@@ -99,10 +120,45 @@ class _AlbumFaceSource:
 
 @dataclass(frozen=True)
 class _ChangeSet:
-    new_sources: list[_AlbumFaceSource]
-    modified_sources: list[_AlbumFaceSource]
-    removed_album_sources: list[tuple[str, str]]  # (album_id, media_source)
-    unchanged_sources: list[_AlbumFaceSource]
+    new_sources: tuple[_AlbumFaceSource, ...]
+    modified_sources: tuple[_AlbumFaceSource, ...]
+    removed_album_sources: tuple[tuple[str, str], ...]  # (album_id, media_source)
+    unchanged_sources: tuple[_AlbumFaceSource, ...]
+
+    @property
+    def has_changes(self) -> bool:
+        return bool(
+            self.new_sources or self.modified_sources or self.removed_album_sources
+        )
+
+
+def _new_cluster_id() -> str:
+    return str(uuid7())
+
+
+@dataclass(frozen=True)
+class _Run:
+    """Per-run context: where to save, how to cluster, whom to notify."""
+
+    gallery_dir: Path
+    threshold: float
+    new_id: Callable[[], str]
+    on_stage_start: Callable[[str], None] | None
+    on_stage_end: Callable[[str], None] | None
+
+    def start(self, stage: str) -> None:
+        if self.on_stage_start is not None:
+            self.on_stage_start(stage)
+
+    def end(self, stage: str) -> None:
+        if self.on_stage_end is not None:
+            self.on_stage_end(stage)
+
+    def skip(self, *stages: str) -> None:
+        """Notify start/end for *stages* without doing work."""
+        for stage in stages:
+            self.start(stage)
+            self.end(stage)
 
 
 # ---------------------------------------------------------------------------
@@ -118,62 +174,87 @@ def refresh_face_clusters(
     force_full: bool = False,
     on_stage_start: Callable[[str], None] | None = None,
     on_stage_end: Callable[[str], None] | None = None,
+    new_id: Callable[[], str] = _new_cluster_id,
 ) -> GalleryFaceRefreshResult:
-    """Refresh face clustering for the entire gallery."""
-    threshold = distance_threshold or DEFAULT_CLUSTER_THRESHOLD
+    """Refresh face clustering for the entire gallery.
 
-    # ── Stage 1: scan-face-data ──
-    _notify(on_stage_start, STAGE_SCAN_FACE_DATA)
+    *distance_threshold* ``None`` means the default; ``0.0`` is a valid
+    (strictest) threshold, not a missing one.
+    """
+    threshold = (
+        DEFAULT_CLUSTER_THRESHOLD if distance_threshold is None else distance_threshold
+    )
+    run = _Run(gallery_dir, threshold, new_id, on_stage_start, on_stage_end)
+    run.start(STAGE_SCAN_FACE_DATA)
     changes = _scan_face_data(gallery_dir)
-    _notify(on_stage_end, STAGE_SCAN_FACE_DATA)
+    run.end(STAGE_SCAN_FACE_DATA)
 
-    has_changes = (
-        changes.new_sources or changes.modified_sources or changes.removed_album_sources
-    )
-    existing_clusters = load_clusters(gallery_dir)
-
-    # Force rebuild when clusters are empty but album face data exists —
-    # handles the case where a previous run saved checksums before .npz
-    # files were populated.
-    stale_empty = changes.unchanged_sources and (
-        existing_clusters is None or existing_clusters.face_count == 0
-    )
-
-    if not has_changes and not force_full and not stale_empty:
-        _skip_remaining_stages(on_stage_start, on_stage_end)
+    # Loaded once and threaded through: every later step needs the same view.
+    existing = load_clusters(gallery_dir)
+    if not (changes.has_changes or force_full or _is_stale_empty(changes, existing)):
+        run.skip(*_POST_SCAN_STAGES)
         return GalleryFaceRefreshResult(
-            total_faces=existing_clusters.face_count if existing_clusters else 0,
-            total_clusters=existing_clusters.cluster_count if existing_clusters else 0,
-            mode="none",
+            total_faces=existing.face_count if existing else 0,
+            total_clusters=existing.cluster_count if existing else 0,
+            mode=FaceRefreshMode.NONE,
         )
 
-    needs_full = stale_empty or _needs_full_recluster(
-        changes, force_full, gallery_dir, threshold
-    )
-
+    index = _extendable_index(run, changes, existing, force_full=force_full)
     if dry_run:
-        _skip_remaining_stages(on_stage_start, on_stage_end)
+        run.skip(*_POST_SCAN_STAGES)
         return GalleryFaceRefreshResult(
             new_faces=sum(_count_faces(s.npz_path) for s in changes.new_sources),
-            mode="full" if needs_full else "incremental",
+            mode=FaceRefreshMode.FULL if index is None else FaceRefreshMode.INCREMENTAL,
         )
+    match index:
+        case None:
+            return _run_full_cluster(run, changes, existing)
+        case _:
+            return _run_incremental(run, changes, existing, index)
 
-    if needs_full:
-        return _run_full_cluster(
-            gallery_dir,
-            changes,
-            threshold=threshold,
-            on_stage_start=on_stage_start,
-            on_stage_end=on_stage_end,
-        )
-    else:
-        return _run_incremental(
-            gallery_dir,
-            changes,
-            threshold=threshold,
-            on_stage_start=on_stage_start,
-            on_stage_end=on_stage_end,
-        )
+
+def _extendable_index(
+    run: _Run,
+    changes: _ChangeSet,
+    existing: FaceClusteringResult | None,
+    *,
+    force_full: bool,
+) -> faiss.IndexFlatIP | None:
+    """The saved index when new faces can be added to it, else ``None`` (full).
+
+    A missing index cannot be extended, so it forces a full re-cluster too.
+    """
+    needs_full = _needs_full_recluster(
+        changes, existing, force_full=force_full, threshold=run.threshold
+    )
+    return None if needs_full else load_faiss_index(faiss_index_path(run.gallery_dir))
+
+
+def _is_stale_empty(changes: _ChangeSet, existing: FaceClusteringResult | None) -> bool:
+    """Clusters are empty although album face data exists.
+
+    Handles a previous run that saved checksums before the ``.npz`` files
+    were populated: nothing looks changed, yet nothing was ever clustered.
+    """
+    return bool(changes.unchanged_sources) and (
+        existing is None or existing.face_count == 0
+    )
+
+
+def _needs_full_recluster(
+    changes: _ChangeSet,
+    existing: FaceClusteringResult | None,
+    *,
+    force_full: bool,
+    threshold: float,
+) -> bool:
+    """Determine whether a full re-cluster is needed."""
+    return (
+        force_full
+        or bool(changes.modified_sources or changes.removed_album_sources)
+        or _is_stale_empty(changes, existing)
+        or (existing is not None and existing.threshold != threshold)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -182,59 +263,42 @@ def refresh_face_clusters(
 
 
 def _run_full_cluster(
-    gallery_dir: Path,
+    run: _Run,
     changes: _ChangeSet,
-    *,
-    threshold: float,
-    on_stage_start: Callable[[str], None] | None,
-    on_stage_end: Callable[[str], None] | None,
+    existing: FaceClusteringResult | None,
 ) -> GalleryFaceRefreshResult:
     """Rebuild the FAISS index and re-cluster everything."""
-    all_sources = [
+    all_sources = (
         *changes.new_sources,
         *changes.modified_sources,
         *changes.unchanged_sources,
-    ]
+    )
 
-    # ── Stage 2: build-index ──
-    _notify(on_stage_start, STAGE_BUILD_INDEX)
+    run.start(STAGE_BUILD_INDEX)
     all_refs, all_embeddings = _collect_all_faces(all_sources)
-
     if not all_embeddings:
-        _notify(on_stage_end, STAGE_BUILD_INDEX)
-        _skip_stages(on_stage_start, on_stage_end, STAGE_CLUSTER, STAGE_SAVE)
-        _save_empty(gallery_dir, all_sources, threshold)
-        return GalleryFaceRefreshResult(mode="full")
-
+        run.end(STAGE_BUILD_INDEX)
+        run.skip(STAGE_CLUSTER, STAGE_SAVE)
+        _save_empty(run, all_sources)
+        return GalleryFaceRefreshResult(mode=FaceRefreshMode.FULL)
     embeddings = np.concatenate(all_embeddings, axis=0).astype(np.float32)
     index = build_faiss_index(embeddings)
-    _notify(on_stage_end, STAGE_BUILD_INDEX)
+    run.end(STAGE_BUILD_INDEX)
 
-    # ── Stage 3: cluster ──
-    _notify(on_stage_start, STAGE_CLUSTER)
-    labels = cluster_embeddings(embeddings, distance_threshold=threshold)
-    old_uuid_map = _recover_old_uuid_map(gallery_dir, embeddings, labels, threshold)
-    cluster_map = _assign_cluster_uuids(labels, old_uuid_map)
-    _notify(on_stage_end, STAGE_CLUSTER)
-
-    # ── Stage 4: save ──
-    _notify(on_stage_start, STAGE_SAVE)
-    clusters = _build_cluster_list(labels, cluster_map)
-    _save_results(
-        gallery_dir,
-        index=index,
-        manifest=FaceManifest(faces=all_refs),
-        clusters=clusters,
-        threshold=threshold,
-        sources=all_sources,
+    run.start(STAGE_CLUSTER)
+    labels = cluster_embeddings(embeddings, distance_threshold=run.threshold)
+    old_uuid_map = _recover_old_uuid_map(run, existing, embeddings, labels)
+    clusters = _build_cluster_list(
+        labels, _assign_cluster_uuids(labels, old_uuid_map, run.new_id)
     )
-    _notify(on_stage_end, STAGE_SAVE)
+    run.end(STAGE_CLUSTER)
 
+    _save_stage(run, index, FaceManifest(faces=all_refs), clusters, all_sources)
     return GalleryFaceRefreshResult(
         total_faces=len(embeddings),
         total_clusters=len(clusters),
         new_faces=sum(_count_faces(s.npz_path) for s in changes.new_sources),
-        mode="full",
+        mode=FaceRefreshMode.FULL,
     )
 
 
@@ -244,95 +308,71 @@ def _run_full_cluster(
 
 
 def _run_incremental(
-    gallery_dir: Path,
+    run: _Run,
     changes: _ChangeSet,
-    *,
-    threshold: float,
-    on_stage_start: Callable[[str], None] | None,
-    on_stage_end: Callable[[str], None] | None,
+    existing: FaceClusteringResult | None,
+    index: faiss.IndexFlatIP,
 ) -> GalleryFaceRefreshResult:
     """Add new faces to the existing index and assign to nearest cluster."""
-    # ── Stage 2: build-index ──
-    _notify(on_stage_start, STAGE_BUILD_INDEX)
-    index = load_faiss_index(faiss_index_path(gallery_dir))
-    manifest = load_manifest(gallery_dir) or FaceManifest()
-    existing_clusters_result = load_clusters(gallery_dir)
-
-    if index is None:
-        _notify(on_stage_end, STAGE_BUILD_INDEX)
-        return _run_full_cluster(
-            gallery_dir,
-            changes,
-            threshold=threshold,
-            on_stage_start=lambda _: None,
-            on_stage_end=lambda _: None,
-        )
-
+    run.start(STAGE_BUILD_INDEX)
+    manifest = load_manifest(run.gallery_dir) or FaceManifest()
     new_refs, new_embeddings_list = _collect_all_faces(changes.new_sources)
-
     if not new_embeddings_list:
-        _notify(on_stage_end, STAGE_BUILD_INDEX)
-        _skip_stages(on_stage_start, on_stage_end, STAGE_CLUSTER, STAGE_SAVE)
+        run.end(STAGE_BUILD_INDEX)
+        run.skip(STAGE_CLUSTER, STAGE_SAVE)
         return GalleryFaceRefreshResult(
             total_faces=index.ntotal,
-            total_clusters=(
-                existing_clusters_result.cluster_count
-                if existing_clusters_result
-                else 0
-            ),
-            mode="incremental",
+            total_clusters=existing.cluster_count if existing else 0,
+            mode=FaceRefreshMode.INCREMENTAL,
         )
-
     new_embeddings = np.concatenate(new_embeddings_list, axis=0).astype(np.float32)
     existing_labels = (
-        _labels_from_clusters(existing_clusters_result, manifest)
-        if existing_clusters_result
+        _labels_from_clusters(existing, manifest)
+        if existing
         else np.array([], dtype=np.int32)
     )
-    _notify(on_stage_end, STAGE_BUILD_INDEX)
+    run.end(STAGE_BUILD_INDEX)
 
-    # ── Stage 3: cluster ──
-    _notify(on_stage_start, STAGE_CLUSTER)
-    max_existing_label = (
-        int(existing_labels.max()) + 1 if len(existing_labels) > 0 else 0
+    run.start(STAGE_CLUSTER)
+    all_labels = _assign_new_faces(run, index, existing_labels, new_embeddings)
+    old_uuids = _extract_existing_label_uuids(existing, all_labels)
+    clusters = _build_cluster_list(
+        all_labels, _assign_cluster_uuids(all_labels, old_uuids, run.new_id)
     )
-    new_labels = assign_to_nearest_cluster(
+    run.end(STAGE_CLUSTER)
+
+    _save_stage(
+        run,
         index,
-        existing_labels,
-        new_embeddings,
-        distance_threshold=threshold,
-        next_cluster_id=max_existing_label,
+        FaceManifest(faces=[*manifest.faces, *new_refs]),
+        clusters,
+        (*changes.new_sources, *changes.unchanged_sources),
     )
-
-    index.add(new_embeddings)  # type: ignore[call-arg]
-    all_labels = np.concatenate([existing_labels, new_labels])
-
-    existing_label_to_uuid = _extract_existing_label_uuids(
-        existing_clusters_result, all_labels
-    )
-    cluster_map = _assign_cluster_uuids(all_labels, existing_label_to_uuid)
-    _notify(on_stage_end, STAGE_CLUSTER)
-
-    # ── Stage 4: save ──
-    _notify(on_stage_start, STAGE_SAVE)
-    clusters = _build_cluster_list(all_labels, cluster_map)
-    all_sources = [*changes.new_sources, *changes.unchanged_sources]
-    _save_results(
-        gallery_dir,
-        index=index,
-        manifest=FaceManifest(faces=[*manifest.faces, *new_refs]),
-        clusters=clusters,
-        threshold=threshold,
-        sources=all_sources,
-    )
-    _notify(on_stage_end, STAGE_SAVE)
-
     return GalleryFaceRefreshResult(
         total_faces=len(all_labels),
         total_clusters=len(clusters),
         new_faces=len(new_embeddings),
-        mode="incremental",
+        mode=FaceRefreshMode.INCREMENTAL,
     )
+
+
+def _assign_new_faces(
+    run: _Run,
+    index: faiss.IndexFlatIP,
+    existing_labels: np.ndarray,
+    new_embeddings: np.ndarray,
+) -> np.ndarray:
+    """Label the new faces, append them to *index*, and return all labels."""
+    next_label = int(existing_labels.max()) + 1 if len(existing_labels) > 0 else 0
+    new_labels = assign_to_nearest_cluster(
+        index,
+        existing_labels,
+        new_embeddings,
+        distance_threshold=run.threshold,
+        next_cluster_id=next_label,
+    )
+    index.add(new_embeddings)  # type: ignore[call-arg]
+    return np.concatenate([existing_labels, new_labels])
 
 
 # ---------------------------------------------------------------------------
@@ -342,23 +382,9 @@ def _run_incremental(
 
 def _scan_face_data(gallery_dir: Path) -> _ChangeSet:
     """Scan all albums and compute which face sources changed."""
-    albums_dir = gallery_dir / ALBUMS_DIR
-    album_dirs = discover_albums(albums_dir)
+    album_dirs = discover_albums(gallery_dir / ALBUMS_DIR)
     existing_checksums = load_checksums(gallery_dir) or AlbumFaceChecksums()
     return _compute_changes(album_dirs, existing_checksums)
-
-
-def _needs_full_recluster(
-    changes: _ChangeSet,
-    force_full: bool,
-    gallery_dir: Path,
-    threshold: float,
-) -> bool:
-    """Determine whether a full re-cluster is needed."""
-    if force_full or changes.modified_sources or changes.removed_album_sources:
-        return True
-    existing_clusters = load_clusters(gallery_dir)
-    return existing_clusters is not None and existing_clusters.threshold != threshold
 
 
 def _compute_changes(
@@ -369,33 +395,32 @@ def _compute_changes(
     all_sources = [
         src for album_dir in album_dirs for src in _scan_album_face_sources(album_dir)
     ]
-
     classified = [
         (src, _classify_source(src, existing_checksums)) for src in all_sources
     ]
-
     seen_keys = {(src.album_id, src.media_source) for src in all_sources}
 
+    def with_status(status: _SourceStatus) -> tuple[_AlbumFaceSource, ...]:
+        return tuple(src for src, s in classified if s is status)
+
     return _ChangeSet(
-        new_sources=[src for src, cat in classified if cat == "new"],
-        modified_sources=[src for src, cat in classified if cat == "modified"],
-        removed_album_sources=[
+        new_sources=with_status(_SourceStatus.NEW),
+        modified_sources=with_status(_SourceStatus.MODIFIED),
+        removed_album_sources=tuple(
             (album_id, ms_name)
             for album_id, sources in existing_checksums.albums.items()
             for ms_name in sources
             if (album_id, ms_name) not in seen_keys
-        ],
-        unchanged_sources=[src for src, cat in classified if cat == "unchanged"],
+        ),
+        unchanged_sources=with_status(_SourceStatus.UNCHANGED),
     )
 
 
 def _scan_album_face_sources(album_dir: Path) -> list[_AlbumFaceSource]:
     """Discover all face .npz files for an album."""
     metadata = load_album_metadata(album_dir)
-    if metadata is None:
-        return []
     faces_dir = album_dir / PHOTREE_DIR / FACES_DIR
-    if not faces_dir.is_dir():
+    if metadata is None or not faces_dir.is_dir():
         return []
     return [
         _AlbumFaceSource(
@@ -412,16 +437,16 @@ def _scan_album_face_sources(album_dir: Path) -> list[_AlbumFaceSource]:
 def _classify_source(
     src: _AlbumFaceSource,
     existing_checksums: AlbumFaceChecksums,
-) -> str:
-    """Classify a face source as 'new', 'modified', or 'unchanged'."""
+) -> _SourceStatus:
+    """Classify a face source as new, modified, or unchanged."""
     old_checksum = existing_checksums.albums.get(src.album_id, {}).get(src.media_source)
     match old_checksum:
         case None:
-            return "new"
+            return _SourceStatus.NEW
         case ck if ck != src.checksum:
-            return "modified"
+            return _SourceStatus.MODIFIED
         case _:
-            return "unchanged"
+            return _SourceStatus.UNCHANGED
 
 
 # ---------------------------------------------------------------------------
@@ -430,7 +455,7 @@ def _classify_source(
 
 
 def _collect_all_faces(
-    sources: list[_AlbumFaceSource],
+    sources: tuple[_AlbumFaceSource, ...],
 ) -> tuple[list[FaceReference], list[np.ndarray]]:
     """Load and flatten face refs + embeddings from multiple sources."""
     loaded = [_load_source_faces(src) for src in sources]
@@ -464,27 +489,25 @@ def _load_source_faces(
 
 
 def _recover_old_uuid_map(
-    gallery_dir: Path,
+    run: _Run,
+    existing: FaceClusteringResult | None,
     new_embeddings: np.ndarray,
     new_labels: np.ndarray,
-    threshold: float,
 ) -> dict[int, str]:
     """Recover old cluster UUIDs via medoid matching after a full re-cluster."""
-    existing_clusters = load_clusters(gallery_dir)
-    if existing_clusters is None:
+    if existing is None:
         return {}
-
-    old_manifest = load_manifest(gallery_dir)
-    old_index = load_faiss_index(faiss_index_path(gallery_dir))
+    old_manifest = load_manifest(run.gallery_dir)
+    old_index = load_faiss_index(faiss_index_path(run.gallery_dir))
     if not old_manifest or not old_index or old_index.ntotal == 0:
         return {}
 
     old_embeddings = np.zeros((old_index.ntotal, old_index.d), dtype=np.float32)
     old_index.reconstruct_n(0, old_index.ntotal, old_embeddings)
-    old_labels = _labels_from_clusters(existing_clusters, old_manifest)
+    old_labels = _labels_from_clusters(existing, old_manifest)
     old_id_map = {
         label: c.id
-        for c in existing_clusters.clusters
+        for c in existing.clusters
         for label in [_cluster_label_for(c, old_labels)]
         if label is not None
     }
@@ -494,7 +517,7 @@ def _recover_old_uuid_map(
         old_id_map,
         new_embeddings,
         new_labels,
-        threshold=threshold,
+        threshold=run.threshold,
     )
 
 
@@ -539,10 +562,14 @@ def _cluster_label_for(cluster: FaceCluster, labels: np.ndarray) -> int | None:
 def _assign_cluster_uuids(
     labels: np.ndarray,
     existing_map: dict[int, str],
+    new_id: Callable[[], str],
 ) -> dict[int, str]:
     """Assign UUIDs to cluster labels, reusing existing UUIDs where matched."""
     unique_labels = sorted({int(label) for label in labels})
-    return {label: existing_map.get(label, str(uuid7())) for label in unique_labels}
+    return {
+        label: existing_map[label] if label in existing_map else new_id()
+        for label in unique_labels
+    }
 
 
 def _build_cluster_list(
@@ -563,78 +590,52 @@ def _build_cluster_list(
 # ---------------------------------------------------------------------------
 
 
-def _save_results(
-    gallery_dir: Path,
-    *,
-    index: object,  # faiss.IndexFlatIP (untyped SWIG binding)
+def _save_stage(
+    run: _Run,
+    index: faiss.IndexFlatIP,
     manifest: FaceManifest,
     clusters: list[FaceCluster],
-    threshold: float,
-    sources: list[_AlbumFaceSource],
+    sources: tuple[_AlbumFaceSource, ...],
 ) -> None:
-    """Save FAISS index, manifest, clusters, and checksums."""
+    """Stage 4: save FAISS index, manifest, clusters, and checksums."""
+    run.start(STAGE_SAVE)
     result = FaceClusteringResult(
-        threshold=threshold,
+        threshold=run.threshold,
         face_count=len(manifest.faces),
         cluster_count=len(clusters),
         clusters=clusters,
     )
-    save_faiss_index(index, faiss_index_path(gallery_dir))  # type: ignore[arg-type]
-    save_manifest(gallery_dir, manifest)
-    save_clusters(gallery_dir, result)
-    save_checksums(gallery_dir, _build_checksums(sources))
+    save_faiss_index(index, faiss_index_path(run.gallery_dir))
+    save_manifest(run.gallery_dir, manifest)
+    save_clusters(run.gallery_dir, result)
+    save_checksums(run.gallery_dir, _build_checksums(sources))
+    run.end(STAGE_SAVE)
 
 
-def _save_empty(
-    gallery_dir: Path,
-    sources: list[_AlbumFaceSource],
-    threshold: float,
-) -> None:
+def _save_empty(run: _Run, sources: tuple[_AlbumFaceSource, ...]) -> None:
     """Save empty clustering results."""
-    save_manifest(gallery_dir, FaceManifest())
-    save_clusters(gallery_dir, FaceClusteringResult(threshold=threshold))
-    save_checksums(gallery_dir, _build_checksums(sources))
+    save_manifest(run.gallery_dir, FaceManifest())
+    save_clusters(run.gallery_dir, FaceClusteringResult(threshold=run.threshold))
+    save_checksums(run.gallery_dir, _build_checksums(sources))
 
 
-def _build_checksums(sources: list[_AlbumFaceSource]) -> AlbumFaceChecksums:
+def _build_checksums(sources: tuple[_AlbumFaceSource, ...]) -> AlbumFaceChecksums:
     """Build checksums from a list of face sources."""
-    albums: dict[str, dict[str, str]] = {}
-    for src in sources:
-        albums.setdefault(src.album_id, {})[src.media_source] = src.checksum
-    return AlbumFaceChecksums(albums=albums)
-
-
-# ---------------------------------------------------------------------------
-# Stage notification helpers
-# ---------------------------------------------------------------------------
-
-
-def _notify(callback: Callable[[str], None] | None, stage: str) -> None:
-    if callback:
-        callback(stage)
-
-
-def _skip_remaining_stages(
-    on_stage_start: Callable[[str], None] | None,
-    on_stage_end: Callable[[str], None] | None,
-) -> None:
-    """Notify start/end for stages 2–4 without doing work."""
-    _skip_stages(
-        on_stage_start, on_stage_end, STAGE_BUILD_INDEX, STAGE_CLUSTER, STAGE_SAVE
+    return AlbumFaceChecksums(
+        albums={
+            album_id: {
+                src.media_source: src.checksum
+                for src in sources
+                if src.album_id == album_id
+            }
+            for album_id in dict.fromkeys(src.album_id for src in sources)
+        }
     )
-
-
-def _skip_stages(
-    on_stage_start: Callable[[str], None] | None,
-    on_stage_end: Callable[[str], None] | None,
-    *stages: str,
-) -> None:
-    for stage in stages:
-        _notify(on_stage_start, stage)
-        _notify(on_stage_end, stage)
 
 
 def _count_faces(npz_path: Path) -> int:
     """Count the number of faces in a .npz file."""
-    data = np.load(npz_path, allow_pickle=True)
-    return len(data["keys"]) if "keys" in data else 0
+    # ``keys`` is saved as an object array (see album/faces/store.py), which
+    # numpy only reads back with pickling enabled; the file is our own cache.
+    with np.load(npz_path, allow_pickle=True) as data:
+        return len(data["keys"]) if "keys" in data else 0

@@ -13,6 +13,7 @@ import typer
 
 from ...album import check as album_check
 from ...album.store.album_discovery import discover_potential_albums
+from ...clihelpers.console import err_console
 from ...common.fs import display_path
 
 
@@ -90,9 +91,9 @@ def _resolve_batch_albums_with(
     from rich.progress import Progress, SpinnerColumn, TextColumn
 
     if base_dir is not None and album_dirs is not None:
-        typer.echo(
-            "--dir and --album-dir are mutually exclusive.",
-            err=True,
+        err_console.print(
+            "--dir and --album-dir are mutually exclusive: scan a base directory "
+            "with --dir, or list albums with --album-dir (repeatable)."
         )
         raise typer.Exit(code=1)
 

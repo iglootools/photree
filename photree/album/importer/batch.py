@@ -3,20 +3,33 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple, Protocol
 
 from ...common.fs import list_files
 from ...fsprotocol import LinkMode
-from ..jpeg import convert_single_file
+from ..faces.refresh import format_face_failures
+from ..jpeg import ConvertFile, convert_single_file
 from ..store.protocol import ios_import_dir, std_import_dir
 from . import album_import
-from .album_import import task_has_content, validate_album_import
+from .album_import import (
+    AlbumImportResult,
+    TaskIssue,
+    task_has_content,
+    validate_album_import,
+)
 from .tasks import discover_import_tasks, has_import_tasks
 
 if TYPE_CHECKING:
     from ..faces.detect import FaceAnalyzerFactory
+
+
+class OnSkipped(Protocol):
+    """Called for each album the batch does not attempt."""
+
+    def __call__(self, album_name: str, reason: str, *, warn: bool = False) -> None: ...
 
 
 @dataclass(frozen=True)
@@ -33,22 +46,51 @@ class AlbumValidation:
     """Validation result for a single album (aggregated across its tasks)."""
 
     album_dir: Path
-    errors: tuple[str, ...] = ()
+    errors: tuple[TaskIssue, ...] = ()
 
     @property
     def success(self) -> bool:
         return len(self.errors) == 0
 
 
-@dataclass
+class ImportFailureStage(StrEnum):
+    """What went wrong — and therefore what a retry has to run.
+
+    ``IMPORT`` means the import itself did not complete (staging may still
+    be in place, so re-running the import is the retry). The other stages
+    are partial failures of an import that *did* complete: its staging was
+    consumed, so re-running the import would find nothing to do.
+    """
+
+    IMPORT = "import"
+    JPEG = "jpeg"
+    FACES = "faces"
+    UNPROCESSED_SELECTION = "unprocessed-selection"
+
+
+class AlbumFailure(NamedTuple):
+    """An album whose import was attempted and failed, with the reason.
+
+    *stages* says which parts failed, so the CLI can suggest the command
+    that actually retries each one.
+    """
+
+    album_dir: Path
+    reason: str
+    stages: frozenset[ImportFailureStage] = frozenset({ImportFailureStage.IMPORT})
+
+
+@dataclass(frozen=True)
 class BatchResult:
     """Result of a batch import run.
 
-    Not frozen because it is incrementally built during the import loop.
+    *validation_failures* is non-empty when validation refused the batch, in
+    which case nothing was imported and *failed* is empty.
     """
 
     imported: int = 0
-    failed: list[tuple[Path, str]] = field(default_factory=list)
+    failed: tuple[AlbumFailure, ...] = ()
+    validation_failures: tuple[AlbumValidation, ...] = ()
     scan: AlbumScan = AlbumScan()
 
     @property
@@ -63,6 +105,10 @@ class BatchResult:
     @property
     def failed_count(self) -> int:
         return len(self.failed)
+
+    @property
+    def success(self) -> bool:
+        return not self.failed and not self.validation_failures
 
 
 def scan_albums(albums_dir: Path) -> AlbumScan:
@@ -127,6 +173,129 @@ def validate_albums(
     ]
 
 
+# ---------------------------------------------------------------------------
+# Batch run
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class _ImportOptions:
+    image_capture_dir: Path
+    link_mode: LinkMode
+    dry_run: bool
+    convert_file: ConvertFile
+    max_workers: int | None
+    analyzer_factory: FaceAnalyzerFactory | None
+
+
+@dataclass(frozen=True)
+class _Callbacks:
+    on_importing: Callable[[str], None] | None
+    on_imported: Callable[[str], None] | None
+    on_error: Callable[[str, str], None] | None
+
+
+def _scan(albums_dir: Path | None, album_dirs: Sequence[Path] | None) -> AlbumScan:
+    match (albums_dir, album_dirs):
+        case (Path() as base, None):
+            return scan_albums(base)
+        case (None, [*dirs]):
+            return categorize_albums(dirs)
+        case _:
+            raise ValueError("Exactly one of albums_dir or album_dirs must be provided")
+
+
+def _report_skips(scan: AlbumScan, on_skipped: OnSkipped | None) -> None:
+    if on_skipped:
+        for album_dir in scan.no_selection:
+            on_skipped(album_dir.name, "no to-import-{ios,std}-<name> directory")
+        # A to-import-* dir that yields nothing is most likely a user mistake
+        # (e.g. std files placed directly instead of under orig/) — warn, don't
+        # skip silently like an album with no staging dir at all.
+        for album_dir in scan.empty_selection:
+            on_skipped(album_dir.name, _empty_task_reason(album_dir), warn=True)
+
+
+def _result_failure(album_dir: Path, result: AlbumImportResult) -> AlbumFailure | None:
+    """An import that ran to completion can still have failed in part.
+
+    Every partial failure is reported: listing only the first would hide the
+    others until the next run.
+    """
+    jpeg = "; ".join(
+        f"{source}/{failure.filename}: {failure.reason}"
+        for source, failure in result.jpeg_failures
+    )
+    faces = "; ".join(format_face_failures(result.face_failures))
+    parts = [
+        *(
+            [
+                (
+                    ImportFailureStage.UNPROCESSED_SELECTION,
+                    f"selection entries left behind: {', '.join(result.unprocessed)}",
+                )
+            ]
+            if result.unprocessed
+            else []
+        ),
+        *(
+            [(ImportFailureStage.JPEG, f"jpeg conversion failed: {jpeg}")]
+            if jpeg
+            else []
+        ),
+        *(
+            [(ImportFailureStage.FACES, f"face detection failed: {faces}")]
+            if faces
+            else []
+        ),
+    ]
+    return (
+        AlbumFailure(
+            album_dir,
+            "; ".join(reason for _, reason in parts),
+            frozenset(stage for stage, _ in parts),
+        )
+        if parts
+        else None
+    )
+
+
+def _import_one(
+    album_dir: Path, options: _ImportOptions, callbacks: _Callbacks
+) -> AlbumFailure | None:
+    """Import one album, reporting the outcome through *callbacks*."""
+    if callbacks.on_importing:
+        callbacks.on_importing(album_dir.name)
+    try:
+        failure = _result_failure(
+            album_dir,
+            album_import.run_import(
+                album_dir=album_dir,
+                image_capture_dir=options.image_capture_dir,
+                link_mode=options.link_mode,
+                dry_run=options.dry_run,
+                convert_file=options.convert_file,
+                max_workers=options.max_workers,
+                analyzer_factory=options.analyzer_factory,
+            ),
+        )
+    # OSError rather than FileNotFoundError alone: a batch should report
+    # any per-album filesystem failure and carry on, matching the gallery
+    # batch importer. A missing system dependency is deliberately not
+    # caught here — it is machine-wide, so it aborts the whole run.
+    except (OSError, ValueError) as exc:
+        failure = AlbumFailure(album_dir, str(exc))
+
+    match failure:
+        case None:
+            if callbacks.on_imported:
+                callbacks.on_imported(album_dir.name)
+        case AlbumFailure(reason=reason):
+            if callbacks.on_error:
+                callbacks.on_error(album_dir.name, reason)
+    return failure
+
+
 def run_batch_import(
     *,
     albums_dir: Path | None = None,
@@ -136,10 +305,10 @@ def run_batch_import(
     dry_run: bool = False,
     on_importing: Callable[[str], None] | None = None,
     on_imported: Callable[[str], None] | None = None,
-    on_skipped: Callable[..., None] | None = None,
+    on_skipped: OnSkipped | None = None,
     on_error: Callable[[str, str], None] | None = None,
-    on_validation_error: Callable[[str, list[str]], None] | None = None,
-    convert_file: Callable[..., Path | None] = convert_single_file,
+    on_validation_error: Callable[[str, list[TaskIssue]], None] | None = None,
+    convert_file: ConvertFile = convert_single_file,
     max_workers: int | None = None,
     analyzer_factory: FaceAnalyzerFactory | None = None,
 ) -> BatchResult:
@@ -149,85 +318,40 @@ def run_batch_import(
     *album_dirs* (explicit list of album directories).
 
     Validates ALL albums before importing ANY. If any album fails validation,
-    no imports are performed.
+    no imports are performed and the failures are returned in
+    :attr:`BatchResult.validation_failures`.
 
     Callbacks are optional hooks for the CLI layer to print status:
     - ``on_importing(album_name)`` — called before importing an album
     - ``on_imported(album_name)`` — called after a successful album import
-    - ``on_skipped(album_name, reason)`` — called for each skipped album
+    - ``on_skipped(album_name, reason, warn=...)`` — called for each skipped album
     - ``on_error(album_name, error)`` — called when an album import fails
     - ``on_validation_error(album_name, errors)`` — called when validation fails
     """
-    if (albums_dir is None) == (album_dirs is None):
-        msg = "Exactly one of albums_dir or album_dirs must be provided"
-        raise ValueError(msg)
+    scan = _scan(albums_dir, album_dirs)
+    _report_skips(scan, on_skipped)
 
-    scan = (
-        scan_albums(albums_dir)
-        if albums_dir is not None
-        else categorize_albums(album_dirs)  # type: ignore[arg-type]
-    )
-    result = BatchResult(scan=scan)
-
-    for album_dir in scan.no_selection:
-        if on_skipped:
-            on_skipped(album_dir.name, "no to-import-{ios,std}-<name> directory")
-
-    # A to-import-* dir that yields nothing is most likely a user mistake
-    # (e.g. std files placed directly instead of under orig/) — warn, don't
-    # skip silently like an album with no staging dir at all.
-    for album_dir in scan.empty_selection:
-        if on_skipped:
-            on_skipped(album_dir.name, _empty_task_reason(album_dir), warn=True)
-
-    # Validate all albums before importing any
     ic_files = list_files(image_capture_dir) if scan.to_import else []
-    validations = validate_albums(scan.to_import, ic_files)
-    failed_validations = [v for v in validations if not v.success]
-    if failed_validations:
-        for v in failed_validations:
-            if on_validation_error:
+    validation_failures = tuple(
+        v for v in validate_albums(scan.to_import, ic_files) if not v.success
+    )
+    if validation_failures:
+        if on_validation_error:
+            for v in validation_failures:
                 on_validation_error(v.album_dir.name, list(v.errors))
-        return result
-
-    # All validations passed — proceed with imports
-    for album_dir in scan.to_import:
-        if on_importing:
-            on_importing(album_dir.name)
-        try:
-            import_result = album_import.run_import(
-                album_dir=album_dir,
-                image_capture_dir=image_capture_dir,
-                link_mode=link_mode,
-                dry_run=dry_run,
-                convert_file=convert_file,
-                max_workers=max_workers,
-                analyzer_factory=analyzer_factory,
-            )
-            if import_result.unprocessed:
-                msg = f"unprocessed selection files: {', '.join(import_result.unprocessed)}"
-                result.failed.append((album_dir, msg))
-                if on_error:
-                    on_error(album_dir.name, msg)
-            elif import_result.jpeg_failures:
-                msg = "; ".join(
-                    f"{source}/{failure.filename}: {failure.reason}"
-                    for source, failure in import_result.jpeg_failures
-                )
-                result.failed.append((album_dir, f"jpeg conversion failed: {msg}"))
-                if on_error:
-                    on_error(album_dir.name, f"jpeg conversion failed: {msg}")
-            else:
-                result.imported += 1
-                if on_imported:
-                    on_imported(album_dir.name)
-        # OSError rather than FileNotFoundError alone: a batch should report
-        # any per-album filesystem failure and carry on, matching the gallery
-        # batch importer. A missing system dependency is deliberately not
-        # caught here — it is machine-wide, so it aborts the whole run.
-        except (OSError, ValueError) as exc:
-            result.failed.append((album_dir, str(exc)))
-            if on_error:
-                on_error(album_dir.name, str(exc))
-
-    return result
+        return BatchResult(scan=scan, validation_failures=validation_failures)
+    else:
+        options = _ImportOptions(
+            image_capture_dir=image_capture_dir,
+            link_mode=link_mode,
+            dry_run=dry_run,
+            convert_file=convert_file,
+            max_workers=max_workers,
+            analyzer_factory=analyzer_factory,
+        )
+        callbacks = _Callbacks(on_importing, on_imported, on_error)
+        outcomes = [_import_one(d, options, callbacks) for d in scan.to_import]
+        failures = tuple(f for f in outcomes if f is not None)
+        return BatchResult(
+            imported=len(outcomes) - len(failures), failed=failures, scan=scan
+        )

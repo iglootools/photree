@@ -7,34 +7,26 @@ from typing import Annotated
 
 import typer
 
+from ...clihelpers.console import err_console
+from ...common.formatting import indent
 from ...common.fs import display_path
 from ...fsprotocol import PHOTREE_DIR
-from ..id import format_collection_external_id, generate_collection_id
-from ..store.metadata import load_collection_metadata, save_collection_metadata
+from ..id import format_collection_external_id
+from ..init import CollectionAlreadyInitializedError, init_collection
 from ..store.protocol import (
     COLLECTION_YAML,
     CollectionLifecycle,
     CollectionMembers,
-    CollectionMetadata,
     CollectionStrategy,
     validate_collection_config,
 )
 from . import collection_app
+from .options import COLLECTION_DIR_OPTION
 
 
 @collection_app.command("init")
 def init_cmd(
-    collection_dir: Annotated[
-        Path,
-        typer.Option(
-            "--dir",
-            "-d",
-            help="Collection directory.",
-            exists=True,
-            file_okay=False,
-            resolve_path=True,
-        ),
-    ] = Path("."),
+    collection_dir: COLLECTION_DIR_OPTION = Path("."),
     members: Annotated[
         CollectionMembers,
         typer.Option(
@@ -59,36 +51,30 @@ def init_cmd(
 ) -> None:
     """Initialize collection metadata (.photree/collection.yaml)."""
     cwd = Path.cwd()
-    metadata = load_collection_metadata(collection_dir)
-    if metadata is not None:
-        typer.echo(
-            f"Collection already initialized: {format_collection_external_id(metadata.id)}\n"
-            f"  {display_path(collection_dir / PHOTREE_DIR / COLLECTION_YAML, cwd)}\n"
-            "Use 'photree collection metadata set' to change settings.",
-            err=True,
-        )
-        raise typer.Exit(code=1)
+    collection_yaml = display_path(collection_dir / PHOTREE_DIR / COLLECTION_YAML, cwd)
 
     validation_error = validate_collection_config(members, lifecycle, strategy)
     if validation_error is not None:
-        typer.echo(validation_error, err=True)
+        err_console.print(validation_error, markup=False)
         raise typer.Exit(code=1)
 
-    generated_id = generate_collection_id()
-    save_collection_metadata(
-        collection_dir,
-        CollectionMetadata(
-            id=generated_id,
-            members=members,
-            lifecycle=lifecycle,
-            strategy=strategy,
-        ),
-    )
-    collection_yaml = collection_dir / PHOTREE_DIR / COLLECTION_YAML
+    try:
+        metadata = init_collection(
+            collection_dir, members=members, lifecycle=lifecycle, strategy=strategy
+        )
+    except CollectionAlreadyInitializedError as exc:
+        err_console.print(
+            "Collection already initialized: "
+            f"{format_collection_external_id(exc.existing_id)}\n"
+            f"{indent(str(collection_yaml))}\n"
+            "Run 'photree collection metadata set --collection-dir "
+            f'"{display_path(collection_dir, cwd)}"\' to change settings.',
+            markup=False,
+        )
+        raise typer.Exit(code=1) from exc
+
+    typer.echo(f"Created {collection_yaml}")
+    typer.echo(f"Collection ID: {format_collection_external_id(metadata.id)}")
     typer.echo(
-        f"Created {display_path(collection_yaml, cwd)}\n"
-        f"Collection ID: {format_collection_external_id(generated_id)}\n"
-        f"  members: {members}\n"
-        f"  lifecycle: {lifecycle}\n"
-        f"  strategy: {strategy}"
+        indent(f"members: {members}\nlifecycle: {lifecycle}\nstrategy: {strategy}")
     )

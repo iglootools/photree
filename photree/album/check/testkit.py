@@ -10,11 +10,15 @@ from . import (
     AlbumMediaSourceSummary,
     AlbumPreflightResult,
 )
-from .browsable import BrowsableDirCheck, FileComparison, MissingFile
-from .ios import IosMediaSourceIntegrityResult
-from .ios.sidecar import SidecarCheck
+from .browsable import BrowsableDirCheck, FileComparison, MissingFile, WrongSource
+from .ios import (
+    IosMediaSourceIntegrityResult,
+    MiscategorizedFile,
+    MiscategorizedKind,
+)
+from .ios.sidecar import SidecarCheck, SidecarIssue, SidecarIssueKind
 from .jpeg import AlbumJpegIntegrityResult, JpegCheck
-from .std import StdMediaSourceIntegrityResult
+from .std import DuplicateStem, StdMediaSourceIntegrityResult
 from .unexpected_dirs import UnexpectedDirsCheck
 
 _STD_MEDIA_SOURCE = std_media_source("nelu")
@@ -60,7 +64,7 @@ _BROWSABLE_FAILURES = BrowsableDirCheck(
     correct=(),
     missing=(MissingFile("IMG_E0001.HEIC", "edit-img"),),
     extra=("STRAY_FILE.HEIC",),
-    wrong_source=("IMG_0002.HEIC (should be IMG_E0002.HEIC, edited version exists)",),
+    wrong_source=(WrongSource("IMG_0002.HEIC", "IMG_E0002.HEIC"),),
     wrong_link_mode=(),
     size_mismatches=(FileComparison("IMG_0003.HEIC", "IMG_0003.HEIC", False, None),),
     checksum_mismatches=(),
@@ -95,14 +99,22 @@ IOS_INTEGRITY_FAILURES = IosMediaSourceIntegrityResult(
     browsable_jpg=_JPEG_FAILURES,
     sidecars=SidecarCheck(
         missing_sidecars=(
-            "IMG_0001.HEIC has no AAE sidecar in orig-img/",
-            "IMG_E0002.HEIC has no O-prefixed AAE sidecar in edit-img/",
+            SidecarIssue("IMG_0001.HEIC", "orig-img", SidecarIssueKind.MISSING_SIDECAR),
+            SidecarIssue(
+                "IMG_E0002.HEIC", "edit-img", SidecarIssueKind.MISSING_EDIT_SIDECAR
+            ),
         ),
-        orphan_sidecars=("IMG_9999.AAE has no matching media file in orig-img/",),
+        orphan_sidecars=(
+            SidecarIssue("IMG_9999.AAE", "orig-img", SidecarIssueKind.ORPHAN_SIDECAR),
+        ),
     ),
     miscategorized=(
-        "IMG_E0410.HEIC in orig-img/ looks like an edited file (IMG_E prefix)",
-        "IMG_0100.HEIC in edit-img/ looks like an original file (no E/O prefix)",
+        MiscategorizedFile(
+            "IMG_E0410.HEIC", "orig-img", MiscategorizedKind.EDITED_IN_ORIG
+        ),
+        MiscategorizedFile(
+            "IMG_0100.HEIC", "edit-img", MiscategorizedKind.ORIGINAL_IN_EDIT
+        ),
     ),
 )
 
@@ -152,7 +164,7 @@ STD_INTEGRITY_FAILURES = StdMediaSourceIntegrityResult(
     browsable_vid=_BROWSABLE_EMPTY,
     browsable_jpg=JpegCheck(present=(), missing=("photo1.jpg",), extra=()),
     duplicate_stems=(
-        "orig-img/: stem photo2 has multiple media files: photo2.heic, photo2.jpg",
+        DuplicateStem("orig-img", "photo2", ("photo2.heic", "photo2.jpg")),
     ),
 )
 

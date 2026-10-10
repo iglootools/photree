@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
+from textwrap import dedent
 from typing import Annotated
 
 import typer
-from rich.console import Console
 from rich.panel import Panel
+from rich.syntax import Syntax
+from rich.text import Text
 
 from ...album.check import output as preflight_output
 from ...album.check.output import format_integrity_checks
@@ -23,6 +26,7 @@ from ...album.fix.output import (
     rm_upstream_summary,
 )
 from ...album.importer import output as importer_output
+from ...album.importer.testkit import SeedResult, seed_demo
 from ...album.importer.testkit.preflight import (
     IC_CHECK_OK,
     IC_CHECK_WARNINGS,
@@ -34,8 +38,7 @@ from ...album.importer.testkit.preflight import (
     PREFLIGHT_OK as IMPORT_PREFLIGHT_OK,
 )
 from ...album.importer.testkit.validation import VALIDATION_ERRORS
-
-console = Console()
+from ...clihelpers.console import console
 
 demo_app = typer.Typer(
     name="demo",
@@ -58,30 +61,24 @@ def _panel(title: str, content: str) -> None:
     console.print()
 
 
-@demo_app.command("output")
-def output_cmd() -> None:
-    """Display all output/troubleshoot functions with fake data."""
-
-    # ── album.fix.output ─────────────────────────────────────────
-
-    _panel(
+# (title, render) pairs, rendered lazily so ``photree --help`` does not build
+# every sample. Grouped by the module whose output functions they exercise.
+_SAMPLES: tuple[tuple[str, Callable[[], str]], ...] = (
+    (
         "preflight_output.sips_check(available=True)",
-        preflight_output.sips_check(True),
-    )
-
-    _panel(
+        lambda: preflight_output.sips_check(True),
+    ),
+    (
         "preflight_output.sips_check(available=False)",
-        preflight_output.sips_check(False),
-    )
-
-    _panel(
+        lambda: preflight_output.sips_check(False),
+    ),
+    (
         "preflight_output.sips_troubleshoot()",
-        preflight_output.sips_troubleshoot(),
-    )
-
-    _panel(
+        lambda: preflight_output.sips_troubleshoot(),
+    ),
+    (
         "album_output.album_dir_check — album (all present)",
-        preflight_output.album_dir_check(
+        lambda: preflight_output.album_dir_check(
             present=(
                 "orig-img",
                 "orig-vid",
@@ -93,11 +90,10 @@ def output_cmd() -> None:
             ),
             missing=(),
         ),
-    )
-
-    _panel(
+    ),
+    (
         "album_output.album_dir_check — album (some missing)",
-        preflight_output.album_dir_check(
+        lambda: preflight_output.album_dir_check(
             present=("orig-img", "orig-vid", "main-img"),
             missing=(
                 "edit-img",
@@ -106,27 +102,24 @@ def output_cmd() -> None:
                 "main-jpg",
             ),
         ),
-    )
-
-    _panel(
+    ),
+    (
         "album_output.album_dir_check — import (to-import-ios-main present)",
-        preflight_output.album_dir_check(
+        lambda: preflight_output.album_dir_check(
             present=("to-import-ios-main",),
             missing=(),
         ),
-    )
-
-    _panel(
+    ),
+    (
         "album_output.album_dir_check — import (to-import-ios-main missing)",
-        preflight_output.album_dir_check(
+        lambda: preflight_output.album_dir_check(
             present=(),
             missing=("to-import-ios-main",),
         ),
-    )
-
-    _panel(
+    ),
+    (
         "album_output.rm_upstream_summary()",
-        rm_upstream_summary(
+        lambda: rm_upstream_summary(
             heic_jpeg=2,
             heic_browsable=3,
             heic_rendered=5,
@@ -134,230 +127,184 @@ def output_cmd() -> None:
             mov_rendered=1,
             mov_orig=1,
         ),
-    )
-
-    # ── format_album_preflight_checks / format_album_preflight_troubleshoot ──
-
-    _panel(
+    ),
+    (
         "integrity_output.format_integrity_checks (all ok)",
-        format_integrity_checks(INTEGRITY_OK),
-    )
-
-    _panel(
+        lambda: format_integrity_checks(INTEGRITY_OK),
+    ),
+    (
         "integrity_output.format_integrity_checks (failures)",
-        format_integrity_checks(INTEGRITY_FAILURES),
-    )
-
-    _panel(
+        lambda: format_integrity_checks(INTEGRITY_FAILURES),
+    ),
+    (
         "album_output.format_album_preflight_checks (ios, all ok)",
-        preflight_output.format_album_preflight_checks(PREFLIGHT_OK),
-    )
-
-    _panel(
+        lambda: preflight_output.format_album_preflight_checks(PREFLIGHT_OK),
+    ),
+    (
         "album_output.format_album_preflight_checks (ios, failures)",
-        preflight_output.format_album_preflight_checks(PREFLIGHT_FAILURES),
-    )
-
-    _panel(
+        lambda: preflight_output.format_album_preflight_checks(PREFLIGHT_FAILURES),
+    ),
+    (
         "album_output.format_album_preflight_checks (other)",
-        preflight_output.format_album_preflight_checks(PREFLIGHT_STD),
-    )
-
-    _panel(
+        lambda: preflight_output.format_album_preflight_checks(PREFLIGHT_STD),
+    ),
+    (
         "album_output.format_album_preflight_troubleshoot (failures)",
-        preflight_output.format_album_preflight_troubleshoot(
-            PREFLIGHT_FAILURES, album_dir="/path/to/album"
-        )
-        or "(none)",
-    )
-
-    _panel(
+        lambda: (
+            preflight_output.format_album_preflight_troubleshoot(
+                PREFLIGHT_FAILURES, album_dir="/path/to/album"
+            )
+            or "(none)"
+        ),
+    ),
+    (
         "album_output.format_album_preflight_troubleshoot (all ok — returns None)",
-        preflight_output.format_album_preflight_troubleshoot(
-            PREFLIGHT_OK, album_dir="/path/to/album"
-        )
-        or "(none)",
-    )
-
-    # ── importer.output ──────────────────────────────────────────
-
-    _panel(
+        lambda: (
+            preflight_output.format_album_preflight_troubleshoot(
+                PREFLIGHT_OK, album_dir="/path/to/album"
+            )
+            or "(none)"
+        ),
+    ),
+    (
         "importer_output.import_tasks_check (ok)",
-        importer_output.import_tasks_check(Path("/albums/trip-paris"), found=True),
-    )
-
-    _panel(
+        lambda: importer_output.import_tasks_check(
+            Path("/albums/trip-paris"), found=True
+        ),
+    ),
+    (
         "importer_output.import_tasks_check (not found)",
-        importer_output.import_tasks_check(Path("/albums/trip-paris"), found=False),
-    )
-
-    _panel(
+        lambda: importer_output.import_tasks_check(
+            Path("/albums/trip-paris"), found=False
+        ),
+    ),
+    (
         "importer_output.import_tasks_check (empty)",
-        importer_output.import_tasks_check(
+        lambda: importer_output.import_tasks_check(
             Path("/albums/trip-paris"), found=True, empty=True
         ),
-    )
-
-    _panel(
+    ),
+    (
         "importer_output.import_tasks_troubleshoot",
-        importer_output.import_tasks_troubleshoot(Path("/albums/trip-paris")),
-    )
-
-    _panel(
+        lambda: importer_output.import_tasks_troubleshoot(Path("/albums/trip-paris")),
+    ),
+    (
         "importer_output.image_capture_dir_check_output (not found)",
-        importer_output.image_capture_dir_check_output(
+        lambda: importer_output.image_capture_dir_check_output(
             Path("~/Pictures/iPhone"), found=False
         ),
-    )
-
-    _panel(
+    ),
+    (
         "importer_output.image_capture_dir_check_output (warnings)",
-        importer_output.image_capture_dir_check_output(
+        lambda: importer_output.image_capture_dir_check_output(
             Path("~/Pictures/iPhone"), found=True, check=IC_CHECK_WARNINGS
         ),
-    )
-
-    _panel(
+    ),
+    (
         "importer_output.image_capture_dir_check_output (ok)",
-        importer_output.image_capture_dir_check_output(
+        lambda: importer_output.image_capture_dir_check_output(
             Path("~/Pictures/iPhone"), found=True, check=IC_CHECK_OK
         ),
-    )
-
-    _panel(
+    ),
+    (
         "importer_output.image_capture_dir_check_output (preflight skipped)",
-        importer_output.image_capture_dir_check_output(
+        lambda: importer_output.image_capture_dir_check_output(
             Path("~/Pictures/iPhone"), found=True, preflight_skipped=True
         ),
-    )
-
-    _panel(
+    ),
+    (
         "importer_output.image_capture_dir_troubleshoot()",
-        importer_output.image_capture_dir_troubleshoot(IC_CHECK_WARNINGS),
-    )
-
-    # ── format_preflight_checks / format_preflight_troubleshoot ──
-
-    _panel(
+        lambda: importer_output.image_capture_dir_troubleshoot(IC_CHECK_WARNINGS),
+    ),
+    (
         "importer_output.format_preflight_checks (all ok)",
-        importer_output.format_preflight_checks(IMPORT_PREFLIGHT_OK),
-    )
-
-    _panel(
+        lambda: importer_output.format_preflight_checks(IMPORT_PREFLIGHT_OK),
+    ),
+    (
         "importer_output.format_preflight_checks (failures)",
-        importer_output.format_preflight_checks(IMPORT_PREFLIGHT_FAILURES),
-    )
-
-    _panel(
+        lambda: importer_output.format_preflight_checks(IMPORT_PREFLIGHT_FAILURES),
+    ),
+    (
         "importer_output.format_preflight_troubleshoot (failures)",
-        importer_output.format_preflight_troubleshoot(IMPORT_PREFLIGHT_FAILURES)
-        or "(none)",
-    )
-
-    _panel(
+        lambda: (
+            importer_output.format_preflight_troubleshoot(IMPORT_PREFLIGHT_FAILURES)
+            or "(none)"
+        ),
+    ),
+    (
         "importer_output.format_preflight_troubleshoot (all ok — returns None)",
-        importer_output.format_preflight_troubleshoot(IMPORT_PREFLIGHT_OK) or "(none)",
-    )
-
-    _panel(
+        lambda: (
+            importer_output.format_preflight_troubleshoot(IMPORT_PREFLIGHT_OK)
+            or "(none)"
+        ),
+    ),
+    (
         "importer_output.batch_album_importing()",
-        importer_output.batch_album_importing("trip-paris"),
-    )
-
-    _panel(
+        lambda: importer_output.batch_album_importing("trip-paris"),
+    ),
+    (
         "importer_output.batch_album_skipped()",
-        importer_output.batch_album_skipped(
+        lambda: importer_output.batch_album_skipped(
             "empty-album", "no to-import-{ios,std}-<name> directory"
         ),
-    )
-
-    _panel(
+    ),
+    (
         "importer_output.batch_summary()",
-        importer_output.batch_summary(imported=5, skipped=2),
-    )
-
-    _panel(
+        lambda: importer_output.batch_summary(imported=5, skipped=2),
+    ),
+    (
         "importer_output.validation_errors()",
-        importer_output.validation_errors("trip-paris", VALIDATION_ERRORS),
-    )
-
-    _panel(
+        lambda: importer_output.validation_errors("trip-paris", VALIDATION_ERRORS),
+    ),
+    (
         "importer_output.unprocessed_selection_files()",
-        importer_output.unprocessed_selection_files(("IMG_0001.HEIC", "IMG_0002.HEIC")),
-    )
+        lambda: importer_output.unprocessed_selection_files(
+            ("IMG_0001.HEIC", "IMG_0002.HEIC")
+        ),
+    ),
+)
 
-    # ── album stats ─────────────────────────────────────────────
 
+@demo_app.command("output")
+def output_cmd() -> None:
+    """Display all output/troubleshoot functions with fake data."""
     from ...album.stats.output import format_album_stats, format_albums_stats
     from ...album.stats.testkit import ALBUM_STATS, ALBUMS_STATS
 
+    for title, render in _SAMPLES:
+        _panel(title, render())
+
     console.print("\n[bold cyan]── format_album_stats ──[/bold cyan]\n")
     console.print(format_album_stats(ALBUM_STATS))
-
-    # ── gallery stats ───────────────────────────────────────────
-
     console.print("\n[bold cyan]── format_albums_stats ──[/bold cyan]\n")
     console.print(format_albums_stats(ALBUMS_STATS))
 
 
-@demo_app.command("seed")
-def seed_cmd(
-    base_dir: Annotated[
-        Path | None,
-        typer.Option(
-            "--base-dir",
-            "-d",
-            help="Directory to create the demo in. Default: creates a temp directory.",
-            file_okay=False,
-        ),
-    ] = None,
-    album_name: Annotated[
-        str,
-        typer.Option(
-            "--album-name",
-            help="Album name.",
-        ),
-    ] = "2024-06-15 - Demo Album",
-) -> None:
-    """Generate a demo environment with Image Capture files and an album."""
-    from textwrap import dedent
-
-    from rich.syntax import Syntax
-    from rich.text import Text
-
-    from ...album.importer.testkit import seed_demo
-
-    resolved_base = (
-        base_dir
-        if base_dir is not None
-        else Path(tempfile.mkdtemp(prefix="photree-demo-"))
-    )
-
-    result = seed_demo(resolved_base, album_name=album_name)
-
-    ic_count = len(list(result.image_capture_dir.iterdir()))
-    sel_count = len(list(result.selection_dir.iterdir()))
-
-    # Summary panel
+def _summary_panel(result: SeedResult, album_name: str) -> Panel:
+    """Aligned label/value table of what was seeded."""
     rows = [
         ("Seed directory", str(result.base_dir)),
-        ("Image Capture", f"image-capture/ ({ic_count} files)"),
+        (
+            "Image Capture",
+            f"image-capture/ ({len(list(result.image_capture_dir.iterdir()))} files)",
+        ),
         ("Album", f"{album_name}/"),
-        ("Selection", f"to-import-ios-main/ ({sel_count} files)"),
+        (
+            "Selection",
+            f"to-import-ios-main/ ({len(list(result.selection_dir.iterdir()))} files)",
+        ),
     ]
     label_w = max(len(label) for label, _ in rows)
     summary = Text("\n").join(
-        Text.assemble(
-            (f"{label:<{label_w}}  ", "bold"),
-            value,
-        )
-        for label, value in rows
+        Text.assemble((f"{label:<{label_w}}  ", "bold"), value) for label, value in rows
     )
-    console.print(Panel(summary, border_style="blue", padding=(0, 1)))
+    return Panel(summary, border_style="blue", padding=(0, 1))
 
-    # Commands panel
-    commands = dedent(f"""\
-        DEMO="{result.base_dir}"
+
+def _demo_commands(base_dir: Path, album_name: str) -> str:
+    """Copy-pasteable shell walkthrough of the seeded demo."""
+    return dedent(f"""\
+        DEMO="{base_dir}"
         IC="$DEMO/image-capture"
         ALBUM="$DEMO/{album_name}"
         SHARE="$DEMO/share"
@@ -388,17 +335,48 @@ def seed_cmd(
 
         # Show the album tree after export
         tree .""")
-    console.print(
-        Panel(
-            Syntax(
-                commands,
-                "bash",
-                theme="monokai",
-                background_color="default",
-                word_wrap=True,
-            ),
-            title="[bold]Try[/bold]",
-            border_style="green",
-            padding=(0, 1),
-        )
+
+
+def _commands_panel(result: SeedResult, album_name: str) -> Panel:
+    return Panel(
+        Syntax(
+            _demo_commands(result.base_dir, album_name),
+            "bash",
+            theme="monokai",
+            background_color="default",
+            word_wrap=True,
+        ),
+        title="[bold]Try[/bold]",
+        border_style="green",
+        padding=(0, 1),
     )
+
+
+@demo_app.command("seed")
+def seed_cmd(
+    base_dir: Annotated[
+        Path | None,
+        typer.Option(
+            "--base-dir",
+            "-d",
+            help="Directory to create the demo in. Default: creates a temp directory.",
+            file_okay=False,
+        ),
+    ] = None,
+    album_name: Annotated[
+        str,
+        typer.Option(
+            "--album-name",
+            help="Album name.",
+        ),
+    ] = "2024-06-15 - Demo Album",
+) -> None:
+    """Generate a demo environment with Image Capture files and an album."""
+    resolved_base = (
+        base_dir
+        if base_dir is not None
+        else Path(tempfile.mkdtemp(prefix="photree-demo-"))
+    )
+    result = seed_demo(resolved_base, album_name=album_name)
+    console.print(_summary_panel(result, album_name))
+    console.print(_commands_panel(result, album_name))

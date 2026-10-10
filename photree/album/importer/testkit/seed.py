@@ -7,10 +7,12 @@ following the conventions documented in docs/domain.md.
 from __future__ import annotations
 
 import shutil
-import subprocess
 import zlib
 from dataclasses import dataclass
 from pathlib import Path
+
+from ....common.sips import convert_to_heic
+from ....common.sysdeps import SystemDependency, WhichFn, is_available
 
 # ---------------------------------------------------------------------------
 # Minimal valid image generators (no external dependencies)
@@ -410,15 +412,6 @@ def _write(path: Path, data: bytes) -> None:
     path.write_bytes(data)
 
 
-def _convert_jpeg_to_heic(src: Path, dst: Path) -> None:
-    """Convert a JPEG file to HEIC using macOS sips."""
-    subprocess.run(
-        ["sips", "-s", "format", "heic", str(src), "--out", str(dst)],
-        check=True,
-        capture_output=True,
-    )
-
-
 # ---------------------------------------------------------------------------
 # Image Capture directory generation
 # ---------------------------------------------------------------------------
@@ -434,77 +427,75 @@ class SeedResult:
     selection_dir: Path
 
 
-def _seed_image_capture(ic_dir: Path) -> None:
-    """Generate a realistic Image Capture directory.
-
-    Creates files matching the conventions documented in docs/domain.md:
-    - HEIC photos with and without edits
-    - ProRAW (DNG) with JPG edit
-    - JPEG original (Most Compatible mode)
-    - PNG screenshot
-    - MOV videos with and without edits
-    """
+# Image Capture files, grouped by image number, following the conventions
+# documented in docs/domain.md. ``.HEIC`` entries start as JPEG content and are
+# converted to real HEIC when sips is available.
+_IMAGE_CAPTURE_FILES: tuple[tuple[str, bytes], ...] = (
     # 0001: HEIC with edits
-    _write(ic_dir / "IMG_0001.HEIC", _JPEG_BYTES)  # temporary JPEG, converted below
-    _write(ic_dir / "IMG_0001.AAE", _AAE_BYTES)
-    _write(ic_dir / "IMG_E0001.HEIC", _JPEG_BYTES)  # temporary JPEG, converted below
-    _write(ic_dir / "IMG_O0001.AAE", _AAE_BYTES)
-
+    ("IMG_0001.HEIC", _JPEG_BYTES),
+    ("IMG_0001.AAE", _AAE_BYTES),
+    ("IMG_E0001.HEIC", _JPEG_BYTES),
+    ("IMG_O0001.AAE", _AAE_BYTES),
     # 0002: HEIC without edits
-    _write(ic_dir / "IMG_0002.HEIC", _JPEG_BYTES)  # temporary JPEG, converted below
-    _write(ic_dir / "IMG_0002.AAE", _AAE_BYTES)
-
-    # 0003: ProRAW (DNG) with edited JPG
-    _write(ic_dir / "IMG_0003.DNG", _JPEG_BYTES)  # placeholder (valid DNG not feasible)
-    _write(ic_dir / "IMG_0003.AAE", _AAE_BYTES)
-    _write(ic_dir / "IMG_E0003.JPG", _JPEG_BYTES)
-    _write(ic_dir / "IMG_O0003.AAE", _AAE_BYTES)
-
+    ("IMG_0002.HEIC", _JPEG_BYTES),
+    ("IMG_0002.AAE", _AAE_BYTES),
+    # 0003: ProRAW (DNG) with edited JPG — placeholder (valid DNG not feasible)
+    ("IMG_0003.DNG", _JPEG_BYTES),
+    ("IMG_0003.AAE", _AAE_BYTES),
+    ("IMG_E0003.JPG", _JPEG_BYTES),
+    ("IMG_O0003.AAE", _AAE_BYTES),
     # 0004: JPEG original (Most Compatible)
-    _write(ic_dir / "IMG_0004.JPG", _JPEG_BYTES)
-    _write(ic_dir / "IMG_0004.AAE", _AAE_BYTES)
-
+    ("IMG_0004.JPG", _JPEG_BYTES),
+    ("IMG_0004.AAE", _AAE_BYTES),
     # 0005: PNG screenshot (no AAE)
-    _write(ic_dir / "IMG_0005.PNG", _PNG_BYTES)
-
+    ("IMG_0005.PNG", _PNG_BYTES),
     # 0006: Video without edits
-    _write(ic_dir / "IMG_0006.MOV", _MOV_PLACEHOLDER)
-
+    ("IMG_0006.MOV", _MOV_PLACEHOLDER),
     # 0007: Video with edits
-    _write(ic_dir / "IMG_0007.MOV", _MOV_PLACEHOLDER)
-    _write(ic_dir / "IMG_E0007.MOV", _MOV_PLACEHOLDER)
-    _write(ic_dir / "IMG_O0007.AAE", _AAE_BYTES)
-
+    ("IMG_0007.MOV", _MOV_PLACEHOLDER),
+    ("IMG_E0007.MOV", _MOV_PLACEHOLDER),
+    ("IMG_O0007.AAE", _AAE_BYTES),
     # 0008: Live Photo (HEIC + companion MOV, no edits)
-    _write(ic_dir / "IMG_0008.HEIC", _JPEG_BYTES)
-    _write(ic_dir / "IMG_0008.AAE", _AAE_BYTES)
-    _write(ic_dir / "IMG_0008.MOV", _MOV_PLACEHOLDER)
-
+    ("IMG_0008.HEIC", _JPEG_BYTES),
+    ("IMG_0008.AAE", _AAE_BYTES),
+    ("IMG_0008.MOV", _MOV_PLACEHOLDER),
     # 0009: Live Photo with edits (both image and video edited)
-    _write(ic_dir / "IMG_0009.HEIC", _JPEG_BYTES)
-    _write(ic_dir / "IMG_0009.AAE", _AAE_BYTES)
-    _write(ic_dir / "IMG_0009.MOV", _MOV_PLACEHOLDER)
-    _write(ic_dir / "IMG_E0009.HEIC", _JPEG_BYTES)
-    _write(ic_dir / "IMG_O0009.AAE", _AAE_BYTES)
-    _write(ic_dir / "IMG_E0009.MOV", _MOV_PLACEHOLDER)
+    ("IMG_0009.HEIC", _JPEG_BYTES),
+    ("IMG_0009.AAE", _AAE_BYTES),
+    ("IMG_0009.MOV", _MOV_PLACEHOLDER),
+    ("IMG_E0009.HEIC", _JPEG_BYTES),
+    ("IMG_O0009.AAE", _AAE_BYTES),
+    ("IMG_E0009.MOV", _MOV_PLACEHOLDER),
+)
+
+
+def _convert_placeholders_to_heic(ic_dir: Path) -> None:
+    """Replace the JPEG content of each ``.HEIC`` placeholder with real HEIC."""
+    heic_paths = [
+        ic_dir / name for name, _ in _IMAGE_CAPTURE_FILES if name.endswith(".HEIC")
+    ]
+    for heic_path in heic_paths:
+        jpg_tmp = heic_path.with_suffix(".tmp.jpg")
+        heic_path.rename(jpg_tmp)
+        convert_to_heic(jpg_tmp, heic_path)
+        jpg_tmp.unlink()
+
+
+def _seed_image_capture(ic_dir: Path, *, which: WhichFn) -> None:
+    """Generate a realistic Image Capture directory from ``_IMAGE_CAPTURE_FILES``.
+
+    Covers HEIC photos with and without edits, ProRAW (DNG) with JPG edit,
+    JPEG original (Most Compatible mode), PNG screenshot, MOV videos with and
+    without edits, and Live Photos.
+    """
+    for name, data in _IMAGE_CAPTURE_FILES:
+        _write(ic_dir / name, data)
 
     # Convert JPEG placeholders to valid HEIC files when sips is available
     # (macOS only). On Linux, HEIC files keep JPEG content — the import
     # workflow still works, but HEIC→JPEG conversion must use a noop converter.
-    if shutil.which("sips") is not None:
-        for name in (
-            "IMG_0001.HEIC",
-            "IMG_E0001.HEIC",
-            "IMG_0002.HEIC",
-            "IMG_0008.HEIC",
-            "IMG_0009.HEIC",
-            "IMG_E0009.HEIC",
-        ):
-            heic_path = ic_dir / name
-            jpg_tmp = heic_path.with_suffix(".tmp.jpg")
-            heic_path.rename(jpg_tmp)
-            _convert_jpeg_to_heic(jpg_tmp, heic_path)
-            jpg_tmp.unlink()
+    if is_available(SystemDependency.SIPS, which=which):
+        _convert_placeholders_to_heic(ic_dir)
 
 
 def _seed_album(album_dir: Path) -> None:
@@ -537,18 +528,22 @@ def seed_demo(
     base_dir: Path,
     *,
     album_name: str = "2024-06-15 - Demo Album",
+    which: WhichFn = shutil.which,
 ) -> SeedResult:
     """Generate a complete demo environment with Image Capture files and an album.
 
     Creates:
     - ``base_dir/image-capture/`` — realistic Image Capture directory
     - ``base_dir/<album_name>/to-import-ios-main/`` — album with selection files
+
+    *which* probes PATH for ``sips``; HEIC placeholders keep JPEG content when
+    it is absent.
     """
     base_dir.mkdir(parents=True, exist_ok=True)
 
     ic_dir = base_dir / "image-capture"
     ic_dir.mkdir(parents=True, exist_ok=True)
-    _seed_image_capture(ic_dir)
+    _seed_image_capture(ic_dir, which=which)
 
     album_dir = base_dir / album_name
     _seed_album(album_dir)

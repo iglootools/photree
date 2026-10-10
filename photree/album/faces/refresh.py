@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from enum import StrEnum
 from functools import partial
 from pathlib import Path
 
@@ -11,7 +12,8 @@ import numpy as np
 from insightface.app import FaceAnalysis
 
 from ...common.fs import list_files
-from ...common.parallelism import run_parallel
+from ...common.parallelism import ParallelResult, run_parallel
+from ...common.sips import get_dimensions
 from ..store.media_sources import dedup_media_dict
 from ..store.media_sources_discovery import discover_media_sources
 from ..store.protocol import IMG_EXTENSIONS, IOS_IMG_EXTENSIONS, MediaSource
@@ -45,21 +47,38 @@ from .store import (
 # ---------------------------------------------------------------------------
 
 
+class FaceFailureStage(StrEnum):
+    """Pipeline stage at which an image failed."""
+
+    THUMBNAIL = "thumbnail"
+    DETECTION = "detection"
+
+
 @dataclass(frozen=True)
 class FaceFailure:
     """One image that could not be thumbnailed or analysed."""
 
     key: str
-    stage: str  # "thumbnail" or "detection"
+    stage: FaceFailureStage
     reason: str
+
+
+def format_face_failures(
+    failures: tuple[tuple[str, FaceFailure], ...],
+) -> list[str]:
+    """One unindented ``source/key (stage): reason`` line per failed image."""
+    return [
+        f"{ms_name}/{failure.key} ({failure.stage}): {failure.reason}"
+        for ms_name, failure in failures
+    ]
 
 
 @dataclass(frozen=True)
 class FaceSourceRefreshResult:
     """Result of refreshing face data for a single media source."""
 
-    processed: int
-    skipped: int
+    processed: int  # images successfully analysed (failures excluded)
+    skipped: int  # images already up to date
     faces_detected: int
     failures: tuple[FaceFailure, ...] = ()
 
@@ -156,6 +175,53 @@ def refresh_face_data(
 # ---------------------------------------------------------------------------
 
 
+@dataclass(frozen=True)
+class _SourcePlan:
+    """What a per-source refresh has to do, computed before any detection."""
+
+    existing_state: FaceProcessingState
+    current_files: Mapping[str, str]  # key -> orig filename
+    keys_to_process: tuple[str, ...]
+    stale_keys: frozenset[str]
+    model_changed: bool
+
+    @property
+    def current_keys(self) -> frozenset[str]:
+        return frozenset(self.current_files)
+
+    @property
+    def is_noop(self) -> bool:
+        return not self.keys_to_process and not self.stale_keys
+
+
+def _plan_source(
+    album_dir: Path,
+    ms: MediaSource,
+    *,
+    model_name: str,
+    model_version: str,
+    redetect: bool,
+) -> _SourcePlan:
+    existing_state = load_face_state(album_dir, ms.name) or FaceProcessingState()
+    current_files = _scan_current_images(album_dir, ms)
+    model_changed = _model_version_changed(existing_state, model_name, model_version)
+    return _SourcePlan(
+        existing_state=existing_state,
+        current_files=current_files,
+        keys_to_process=tuple(
+            _keys_needing_processing(
+                current_files,
+                album_dir / ms.orig_img_dir,
+                existing_state,
+                model_changed=model_changed,
+                redetect=redetect,
+            )
+        ),
+        stale_keys=frozenset(existing_state.processed_keys) - frozenset(current_files),
+        model_changed=model_changed,
+    )
+
+
 def _refresh_source(
     album_dir: Path,
     ms: MediaSource,
@@ -173,67 +239,73 @@ def _refresh_source(
     if on_source_start:
         on_source_start(ms.name)
 
-    existing_state = load_face_state(album_dir, ms.name) or FaceProcessingState()
-    existing_data = load_face_data(album_dir, ms.name) or FaceData.empty()
-
-    current_files = _scan_current_images(album_dir, ms)
-    current_keys = set(current_files.keys())
-
-    model_changed = _model_version_changed(existing_state, model_name, model_version)
-
-    keys_to_process = _keys_needing_processing(
-        current_files,
-        album_dir / ms.orig_img_dir,
-        existing_state,
-        model_changed=model_changed,
+    plan = _plan_source(
+        album_dir,
+        ms,
+        model_name=model_name,
+        model_version=model_version,
         redetect=redetect,
     )
-    stale_keys = set(existing_state.processed_keys.keys()) - current_keys
+    result = (
+        _no_change_result(plan)
+        if plan.is_noop or dry_run
+        else _detect_and_save(
+            album_dir,
+            ms,
+            plan,
+            get_analyzer=get_analyzer,
+            refresh_thumbs=refresh_thumbs,
+            model_name=model_name,
+            model_version=model_version,
+        )
+    )
 
-    # Early returns for no-op and dry-run
-    if not keys_to_process and not stale_keys:
-        if on_source_end:
-            on_source_end(ms.name, True)
-        return _no_change_result(current_keys)
+    if on_source_end:
+        on_source_end(ms.name, not result.failures)
+    return result
 
-    if dry_run:
-        if on_source_end:
-            on_source_end(ms.name, True)
-        return _dry_run_result(keys_to_process, current_keys)
 
-    # Detect faces
+def _detect_and_save(
+    album_dir: Path,
+    ms: MediaSource,
+    plan: _SourcePlan,
+    *,
+    get_analyzer: Callable[[], FaceAnalysis],
+    refresh_thumbs: bool,
+    model_name: str,
+    model_version: str,
+) -> FaceSourceRefreshResult:
+    """Run detection for the planned keys, then persist the merged results."""
     new_faces, new_state_keys, failures = _run_detection(
         album_dir,
         ms,
-        current_files,
-        keys_to_process,
-        existing_state=existing_state,
-        refresh_thumbs=refresh_thumbs or model_changed,
+        plan.current_files,
+        list(plan.keys_to_process),
+        existing_state=plan.existing_state,
+        refresh_thumbs=refresh_thumbs or plan.model_changed,
         get_analyzer=get_analyzer,
     )
 
-    # Cleanup + persist
-    _delete_stale_thumbnails(thumbs_dir(album_dir, ms.name), stale_keys)
+    _delete_stale_thumbnails(thumbs_dir(album_dir, ms.name), set(plan.stale_keys))
     _save_updated_state(
         album_dir,
         ms,
-        existing_data,
-        existing_state,
-        current_keys=current_keys,
-        keys_to_process=keys_to_process,
-        stale_keys=stale_keys,
+        load_face_data(album_dir, ms.name) or FaceData.empty(),
+        plan.existing_state,
+        current_keys=set(plan.current_keys),
+        keys_to_process=list(plan.keys_to_process),
+        stale_keys=set(plan.stale_keys),
         new_faces=new_faces,
         new_state_keys=new_state_keys,
         model_name=model_name,
         model_version=model_version,
     )
 
-    if on_source_end:
-        on_source_end(ms.name, not failures)
-
     return FaceSourceRefreshResult(
-        processed=len(keys_to_process),
-        skipped=len(current_keys) - len(keys_to_process),
+        # Only keys that made it into the state were analysed: a key that
+        # failed is retried on the next refresh and must not count as done.
+        processed=len(new_state_keys),
+        skipped=len(plan.current_keys) - len(plan.keys_to_process),
         faces_detected=len(new_faces),
         failures=failures,
     )
@@ -257,7 +329,7 @@ def _model_version_changed(
 
 
 def _keys_needing_processing(
-    current_files: dict[str, str],
+    current_files: Mapping[str, str],
     orig_dir: Path,
     state: FaceProcessingState,
     *,
@@ -297,7 +369,7 @@ def _needs_processing(
 def _run_detection(
     album_dir: Path,
     ms: MediaSource,
-    current_files: dict[str, str],
+    current_files: Mapping[str, str],
     keys_to_process: list[str],
     *,
     existing_state: FaceProcessingState,
@@ -375,7 +447,7 @@ def _detect_single(
         return (
             None,
             None,
-            FaceFailure(key=tr.key, stage="detection", reason=str(exc)),
+            FaceFailure(key=tr.key, stage=FaceFailureStage.DETECTION, reason=str(exc)),
         )
 
 
@@ -384,32 +456,31 @@ def _detect_single(
 # ---------------------------------------------------------------------------
 
 
-def _generate_thumbnails(
+def _keys_needing_thumbnail(
     keys: list[str],
-    current_files: dict[str, str],
+    current_files: Mapping[str, str],
     orig_dir: Path,
     thumb_dir: Path,
     *,
     existing_state: FaceProcessingState,
     regenerate: bool,
-) -> tuple[list[ThumbnailResult], tuple[FaceFailure, ...]]:
-    """Generate thumbnails for keys that need them, in parallel.
-
-    A key whose thumbnail fails used to vanish from the returned list, so the
-    image was never analysed and never counted — indistinguishable from one
-    that had no faces.
-    """
-    thumb_dir.mkdir(parents=True, exist_ok=True)
-
-    needs_thumb = [
+) -> list[str]:
+    return [
         key
         for key in keys
         if regenerate
         or not (thumb_dir / thumb_filename(key)).is_file()
         or _needs_processing(key, current_files[key], orig_dir, existing_state)
     ]
-    reuse_keys = [key for key in keys if key not in needs_thumb]
 
+
+def _generate_new_thumbnails(
+    keys: list[str],
+    current_files: Mapping[str, str],
+    orig_dir: Path,
+    thumb_dir: Path,
+) -> list[ParallelResult[ThumbnailResult]]:
+    """Generate thumbnails for *keys* in parallel (sips is CPU-bound)."""
     tasks: list[tuple[str, Callable[[], ThumbnailResult]]] = [
         (
             key,
@@ -421,47 +492,106 @@ def _generate_thumbnails(
                 thumb_dir / thumb_filename(key),
             ),
         )
-        for key in needs_thumb
+        for key in keys
     ]
+    return run_parallel(tasks) if tasks else []
 
-    parallel_results = run_parallel(tasks) if tasks else []
-    generated: dict[str, ThumbnailResult] = {
-        pr.key: pr.value for pr in parallel_results if pr.success and pr.value
-    }
 
+def _thumbnail_failure(key: str, reason: str) -> FaceFailure:
+    return FaceFailure(key=key, stage=FaceFailureStage.THUMBNAIL, reason=reason)
+
+
+def _generate_thumbnails(
+    keys: list[str],
+    current_files: Mapping[str, str],
+    orig_dir: Path,
+    thumb_dir: Path,
+    *,
+    existing_state: FaceProcessingState,
+    regenerate: bool,
+) -> tuple[list[ThumbnailResult], tuple[FaceFailure, ...]]:
+    """Generate (or reuse) thumbnails for *keys*.
+
+    A key whose thumbnail fails used to vanish from the returned list, so the
+    image was never analysed and never counted — indistinguishable from one
+    that had no faces. Every failure is returned instead.
+    """
+    thumb_dir.mkdir(parents=True, exist_ok=True)
+
+    needs_thumb = _keys_needing_thumbnail(
+        keys,
+        current_files,
+        orig_dir,
+        thumb_dir,
+        existing_state=existing_state,
+        regenerate=regenerate,
+    )
+    generated = _generate_new_thumbnails(
+        needs_thumb, current_files, orig_dir, thumb_dir
+    )
     reused = [
-        _reuse_thumbnail(key, current_files[key], thumb_dir / thumb_filename(key))
-        for key in reuse_keys
+        _reuse_thumbnail(
+            key,
+            current_files[key],
+            thumb_dir / thumb_filename(key),
+            existing_state.processed_keys.get(key),
+        )
+        for key in keys
+        if key not in needs_thumb
     ]
 
     return (
         [
-            *(generated[key] for key in needs_thumb if key in generated),
-            *reused,
+            *_successes(generated),
+            *(tr for tr in reused if isinstance(tr, ThumbnailResult)),
         ],
-        tuple(
-            FaceFailure(
-                key=pr.key,
-                stage="thumbnail",
-                reason=pr.error or "thumbnail generation produced no result",
-            )
-            for pr in parallel_results
-            if pr.key not in generated
-        ),
+        (*_failures(generated), *(f for f in reused if isinstance(f, FaceFailure))),
     )
 
 
-def _reuse_thumbnail(key: str, file_name: str, thumb_path: Path) -> ThumbnailResult:
-    """Build a ThumbnailResult for an existing thumbnail."""
-    from ...common.sips import get_dimensions
+def _successes(
+    generated: list[ParallelResult[ThumbnailResult]],
+) -> list[ThumbnailResult]:
+    return [pr.value for pr in generated if pr.success and pr.value is not None]
 
-    thumb_w, thumb_h = get_dimensions(thumb_path)
+
+def _failures(
+    generated: list[ParallelResult[ThumbnailResult]],
+) -> list[FaceFailure]:
+    return [
+        _thumbnail_failure(
+            pr.key, pr.error or "thumbnail generation produced no result"
+        )
+        for pr in generated
+        if not (pr.success and pr.value is not None)
+    ]
+
+
+def _reuse_thumbnail(
+    key: str,
+    file_name: str,
+    thumb_path: Path,
+    previous: FaceProcessedKey | None,
+) -> ThumbnailResult | FaceFailure:
+    """Build a ThumbnailResult for an existing thumbnail, or record why not.
+
+    Original dimensions come from the previous processing state: a thumbnail is
+    only reused for a key that was already processed at the same mtime, so the
+    original has not changed. Writing 0x0 instead (as before) corrupted the
+    bounding-box scaling for every re-detected image.
+    """
+    if previous is None:
+        return _thumbnail_failure(key, "no previous state to reuse thumbnail from")
+    try:
+        thumb_w, thumb_h = get_dimensions(thumb_path)
+    except OSError as exc:
+        return _thumbnail_failure(key, str(exc))
     return ThumbnailResult(
         key=key,
         file_name=file_name,
         thumb_path=thumb_path,
-        orig_width=0,
-        orig_height=0,
+        orig_width=previous.orig_width,
+        orig_height=previous.orig_height,
         thumb_width=thumb_w,
         thumb_height=thumb_h,
     )
@@ -519,18 +649,11 @@ def _save_updated_state(
 # ---------------------------------------------------------------------------
 
 
-def _no_change_result(current_keys: set[str]) -> FaceSourceRefreshResult:
+def _no_change_result(plan: _SourcePlan) -> FaceSourceRefreshResult:
+    """Result when nothing is written: a no-op, or a dry run of *plan*."""
     return FaceSourceRefreshResult(
-        processed=0, skipped=len(current_keys), faces_detected=0
-    )
-
-
-def _dry_run_result(
-    keys_to_process: list[str], current_keys: set[str]
-) -> FaceSourceRefreshResult:
-    return FaceSourceRefreshResult(
-        processed=len(keys_to_process),
-        skipped=len(current_keys) - len(keys_to_process),
+        processed=len(plan.keys_to_process),
+        skipped=len(plan.current_keys) - len(plan.keys_to_process),
         faces_detected=0,
     )
 

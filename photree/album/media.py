@@ -8,9 +8,11 @@ and moves or deletes them.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 
-from ..common.fs import delete_files, file_ext, move_files
+from ..common.formatting import indent
+from ..common.fs import delete_files, display_path, file_ext, move_files
 from .store.media_sources import find_files_by_key
 from .store.media_sources_discovery import discover_media_sources
 from .store.protocol import VID_EXTENSIONS, MediaSource
@@ -31,6 +33,40 @@ class MediaOpResult:
         return sum(len(files) for _, files in self.files_by_dir)
 
 
+class MediaOpErrorKind(StrEnum):
+    """Why a move/remove request was refused before touching any file."""
+
+    NO_MEDIA_SOURCES = "no-media-sources"
+    PATH_WITHOUT_DIRECTORY = "path-without-directory"
+    UNKNOWN_DIRECTORY = "unknown-directory"
+    MOVE_CONFLICT = "move-conflict"
+
+
+class MediaOpError(ValueError):
+    """A move/remove request that cannot be carried out.
+
+    Carries structured fields; :func:`format_media_op_error` renders them for
+    the CLI with display paths. ``ValueError`` subclass for callers that
+    already catch that.
+    """
+
+    def __init__(
+        self,
+        kind: MediaOpErrorKind,
+        *,
+        album_dir: Path,
+        rel_path: str | None = None,
+        subdir: str | None = None,
+        conflicts: tuple[str, ...] = (),
+    ) -> None:
+        self.kind = kind
+        self.album_dir = album_dir
+        self.rel_path = rel_path
+        self.subdir = subdir
+        self.conflicts = conflicts
+        super().__init__(f"{kind}: {album_dir.name}")
+
+
 # ---------------------------------------------------------------------------
 # Directory-to-media-source mapping
 # ---------------------------------------------------------------------------
@@ -40,11 +76,7 @@ def _build_dir_to_media_source(
     media_sources: list[MediaSource],
 ) -> dict[str, MediaSource]:
     """Map every media source subdirectory name to its media source."""
-    mapping: dict[str, MediaSource] = {}
-    for ms in media_sources:
-        for d in ms.all_subdirs:
-            mapping[d] = ms
-    return mapping
+    return {d: ms for ms in media_sources for d in ms.all_subdirs}
 
 
 # ---------------------------------------------------------------------------
@@ -69,6 +101,40 @@ def _find_matching_files(
     return find_files_by_key(keys, directory, ms.key_fn)
 
 
+@dataclass(frozen=True)
+class _Target:
+    """One requested file, located: its media source, kind, and key."""
+
+    ms: MediaSource
+    is_video: bool
+    key: str
+
+
+def _locate(
+    album_dir: Path, rel_path: str, dir_to_ms: dict[str, MediaSource]
+) -> _Target:
+    """Map a relative path (``main-jpg/IMG_E3219.jpg``) to its media source and key.
+
+    Handles both flat (``main-jpg/file``) and nested
+    (``ios-main/orig-img/file``) directories.
+    """
+    parts = Path(rel_path).parts
+    if len(parts) < 2:
+        raise MediaOpError(
+            MediaOpErrorKind.PATH_WITHOUT_DIRECTORY,
+            album_dir=album_dir,
+            rel_path=rel_path,
+        )
+    subdir = str(Path(*parts[:-1]))
+    ms = dir_to_ms.get(subdir)
+    if ms is None:
+        raise MediaOpError(
+            MediaOpErrorKind.UNKNOWN_DIRECTORY, album_dir=album_dir, subdir=subdir
+        )
+    filename = parts[-1]
+    return _Target(ms=ms, is_video=_is_video(filename), key=ms.key_fn(filename))
+
+
 def resolve_variants(
     album_dir: Path,
     relative_paths: list[str],
@@ -77,53 +143,33 @@ def resolve_variants(
 
     Returns ``[(subdir, [filename, ...])]`` with all variant files found
     across the media source directory structure.
+
+    Raises :class:`MediaOpError` when a path cannot be mapped to a media
+    source.
     """
     media_sources = discover_media_sources(album_dir)
     if not media_sources:
-        raise ValueError(f"No media sources found in {album_dir}")
+        raise MediaOpError(MediaOpErrorKind.NO_MEDIA_SOURCES, album_dir=album_dir)
 
     dir_to_ms = _build_dir_to_media_source(media_sources)
+    targets = [_locate(album_dir, rel_path, dir_to_ms) for rel_path in relative_paths]
+    # Group keys by (media source, image-or-video); dict.fromkeys keeps the
+    # first-seen order of the groups.
+    groups = dict.fromkeys((t.ms, t.is_video) for t in targets)
 
-    # Group input paths by (media_source, is_video) → set of match keys
-    groups: dict[tuple[str, bool], set[str]] = {}
-    ms_by_name: dict[str, MediaSource] = {}
-
-    for rel_path in relative_paths:
-        parts = Path(rel_path).parts
-        if len(parts) < 2:
-            raise ValueError(
-                f'"{rel_path}" must be a relative path with a directory'
-                " (e.g. main-jpg/IMG_E3219.jpg)"
+    return [
+        (subdir, files)
+        for ms, video in groups
+        for subdir in (ms.video_variant_dirs if video else ms.image_variant_dirs)
+        if (
+            files := _find_matching_files(
+                album_dir,
+                subdir,
+                {t.key for t in targets if t.ms == ms and t.is_video == video},
+                ms,
             )
-        # Handle both flat (main-jpg/file) and nested (ios-main/orig-img/file) dirs
-        subdir = str(Path(*parts[:-1]))
-        filename = parts[-1]
-
-        ms = dir_to_ms.get(subdir)
-        if ms is None:
-            raise ValueError(
-                f'directory "{subdir}" does not match any media source in {album_dir}'
-            )
-
-        video = _is_video(filename)
-        key = ms.key_fn(filename)
-
-        group_key = (ms.name, video)
-        groups.setdefault(group_key, set()).add(key)
-        ms_by_name[ms.name] = ms
-
-    # Resolve variants across all directories
-    result: list[tuple[str, list[str]]] = []
-    for (ms_name, video), keys in groups.items():
-        ms = ms_by_name[ms_name]
-        dirs = ms.video_variant_dirs if video else ms.image_variant_dirs
-
-        for subdir in dirs:
-            files = _find_matching_files(album_dir, subdir, keys, ms)
-            if files:
-                result.append((subdir, files))
-
-    return result
+        )
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -157,15 +203,16 @@ def _check_move_conflicts(
 
     Returns a sorted list of conflicting file paths, empty if no conflicts.
     """
-    conflicts: set[str] = set()
-    for subdir, files in variants:
-        ms = dest_dir_to_ms.get(subdir)
-        if ms is None:
-            continue
-        keys = {ms.key_fn(f) for f in files}
-        for existing in _find_matching_files(dest_album, subdir, keys, ms):
-            conflicts.add(f"{subdir}/{existing}")
-    return sorted(conflicts)
+    return sorted(
+        {
+            f"{subdir}/{existing}"
+            for subdir, files in variants
+            if (ms := dest_dir_to_ms.get(subdir)) is not None
+            for existing in _find_matching_files(
+                dest_album, subdir, {ms.key_fn(f) for f in files}, ms
+            )
+        }
+    )
 
 
 def move_media(
@@ -175,36 +222,30 @@ def move_media(
     *,
     dry_run: bool = False,
 ) -> MediaOpResult:
-    """Move media files and all their variants from *source_album* to *dest_album*."""
+    """Move media files and all their variants from *source_album* to *dest_album*.
+
+    Raises :class:`MediaOpError` (``MOVE_CONFLICT``, with the conflicting
+    paths) before moving anything if the destination already holds files
+    with the same key.
+    """
     variants = resolve_variants(source_album, relative_paths)
 
-    # Fail fast before moving anything if the destination already contains
-    # files with the same key.
-    dest_media_sources = discover_media_sources(dest_album)
-    dest_dir_to_ms = _build_dir_to_media_source(dest_media_sources)
+    dest_dir_to_ms = _build_dir_to_media_source(discover_media_sources(dest_album))
     conflicts = _check_move_conflicts(variants, dest_album, dest_dir_to_ms)
-
     if conflicts:
-        raise ValueError(
-            f"Move would conflict with {len(conflicts)} existing file(s) "
-            f"in {dest_album.name}:\n"
-            + "".join(f"  {c}\n" for c in conflicts[:10])
-            + (f"  ... and {len(conflicts) - 10} more\n" if len(conflicts) > 10 else "")
-            + "Use a different media source to avoid conflicts."
+        raise MediaOpError(
+            MediaOpErrorKind.MOVE_CONFLICT,
+            album_dir=dest_album,
+            conflicts=tuple(conflicts),
         )
 
-    moved: list[tuple[str, tuple[str, ...]]] = []
     for subdir, files in variants:
-        move_files(
-            source_album / subdir,
-            dest_album / subdir,
-            files,
-            dry_run=dry_run,
-        )
-        moved.append((subdir, tuple(files)))
+        move_files(source_album / subdir, dest_album / subdir, files, dry_run=dry_run)
 
-    _remove_empty_dirs(source_album, [subdir for subdir, _ in moved], dry_run=dry_run)
-    return MediaOpResult(files_by_dir=tuple(moved))
+    _remove_empty_dirs(
+        source_album, [subdir for subdir, _ in variants], dry_run=dry_run
+    )
+    return MediaOpResult(files_by_dir=_files_by_dir(variants))
 
 
 def rm_media(
@@ -216,22 +257,56 @@ def rm_media(
     """Remove media files and all their variants from *album_dir*."""
     variants = resolve_variants(album_dir, relative_paths)
 
-    removed: list[tuple[str, tuple[str, ...]]] = []
     for subdir, files in variants:
-        delete_files(
-            album_dir / subdir,
-            files,
-            dry_run=dry_run,
-        )
-        removed.append((subdir, tuple(files)))
+        delete_files(album_dir / subdir, files, dry_run=dry_run)
 
-    _remove_empty_dirs(album_dir, [subdir for subdir, _ in removed], dry_run=dry_run)
-    return MediaOpResult(files_by_dir=tuple(removed))
+    _remove_empty_dirs(album_dir, [subdir for subdir, _ in variants], dry_run=dry_run)
+    return MediaOpResult(files_by_dir=_files_by_dir(variants))
+
+
+def _files_by_dir(
+    variants: list[tuple[str, list[str]]],
+) -> tuple[tuple[str, tuple[str, ...]], ...]:
+    return tuple((subdir, tuple(files)) for subdir, files in variants)
 
 
 # ---------------------------------------------------------------------------
 # Output formatting
 # ---------------------------------------------------------------------------
+
+_MAX_LISTED_CONFLICTS = 10
+
+
+def format_media_op_error(exc: MediaOpError, cwd: Path) -> str:
+    """Render a :class:`MediaOpError` for the CLI, with display paths."""
+    album = display_path(exc.album_dir, cwd)
+    match exc.kind:
+        case MediaOpErrorKind.NO_MEDIA_SOURCES:
+            return f"No media sources found in {album}."
+        case MediaOpErrorKind.PATH_WITHOUT_DIRECTORY:
+            return (
+                f'"{exc.rel_path}" must be a relative path with a directory'
+                " (e.g. main-jpg/IMG_E3219.jpg)."
+            )
+        case MediaOpErrorKind.UNKNOWN_DIRECTORY:
+            return (
+                f'Directory "{exc.subdir}" does not match any media source in {album}.'
+            )
+        case MediaOpErrorKind.MOVE_CONFLICT:
+            return _format_move_conflicts(exc.conflicts, album)
+
+
+def _format_move_conflicts(conflicts: tuple[str, ...], album: Path) -> str:
+    shown = conflicts[:_MAX_LISTED_CONFLICTS]
+    hidden = len(conflicts) - len(shown)
+    return "\n".join(
+        [
+            f"Move would conflict with {len(conflicts)} existing file(s) in {album}:",
+            *(indent(c) for c in shown),
+            *([indent(f"... and {hidden} more")] if hidden > 0 else []),
+            "Use a different media source to avoid conflicts.",
+        ]
+    )
 
 
 def media_op_summary(
@@ -246,6 +321,10 @@ def media_op_summary(
 
 
 def media_op_check_suggestions(album_dirs: list[str]) -> str:
-    lines = ["", "Suggested next steps:"]
-    lines.extend(f'  photree album check --album-dir "{d}"' for d in album_dirs)
-    return "\n".join(lines)
+    return "\n".join(
+        [
+            "",
+            "Suggested next steps:",
+            *(indent(f'photree album check --album-dir "{d}"') for d in album_dirs),
+        ]
+    )

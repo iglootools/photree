@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
@@ -14,14 +14,98 @@ from ...album import (
 from ...album.id import format_album_external_id
 from ...fsprotocol import LinkMode
 
+type OnCheckEnd = Callable[[str, bool, tuple[str, ...], tuple[str, ...]], None]
+
 
 @dataclass(frozen=True)
 class BatchCheckResult:
-    """Result of batch album checking."""
+    """Result of batch album checking.
+
+    ``failed_albums`` includes albums whose check itself crashed (their reason
+    is the error label reported through ``on_end``).
+    """
 
     passed: int
     warned: int
-    failed_albums: list[Path] = field(default_factory=list)
+    failed_albums: tuple[Path, ...] = ()
+    warned_albums: tuple[Path, ...] = ()  # passed, but with warnings
+
+
+@dataclass(frozen=True)
+class CheckOptions:
+    """Per-album check settings shared by every album of a batch."""
+
+    sips_available: bool
+    exiftool: ExifToolHelper | None
+    link_mode: LinkMode
+    checksum: bool = True
+    fatal_sidecar: bool = False
+    fatal_exif: bool = True
+    check_naming: bool = True
+
+
+@dataclass(frozen=True)
+class _AlbumOutcome:
+    album_dir: Path
+    ok: bool
+    has_warnings: bool
+
+
+def _album_label(album_name: str, result: album_check.AlbumPreflightResult) -> str:
+    """Include the external album ID in the label when available."""
+    id_check = result.album_id_check
+    return (
+        f"{album_name} ({format_album_external_id(id_check.album_id)})"
+        if id_check is not None and id_check.album_id is not None
+        else album_name
+    )
+
+
+def _check_one(
+    album_dir: Path,
+    album_name: str,
+    opts: CheckOptions,
+    on_end: OnCheckEnd | None,
+) -> _AlbumOutcome:
+    result = album_check.run_album_check(
+        album_dir,
+        sips_available=opts.sips_available,
+        exiftool=opts.exiftool,
+        link_mode=opts.link_mode,
+        checksum=opts.checksum,
+        check_naming_flag=opts.check_naming,
+    )
+    fatal = {"fatal_sidecar": opts.fatal_sidecar, "fatal_exif": opts.fatal_exif}
+    ok = result.success and not result.has_fatal_warnings(**fatal)
+    err_labels = (
+        () if ok else (*result.error_labels, *result.fatal_warning_labels(**fatal))
+    )
+    if on_end:
+        on_end(
+            _album_label(album_name, result),
+            ok,
+            err_labels,
+            result.non_fatal_warning_labels(**fatal),
+        )
+    return _AlbumOutcome(album_dir, ok, ok and result.has_warnings)
+
+
+def _check_one_safely(
+    album_dir: Path,
+    album_name: str,
+    opts: CheckOptions,
+    on_start: Callable[[str], None] | None,
+    on_end: OnCheckEnd | None,
+) -> _AlbumOutcome:
+    """Check one album; an album whose check crashes is a failure, not an abort."""
+    if on_start:
+        on_start(album_name)
+    try:
+        return _check_one(album_dir, album_name, opts, on_end)
+    except Exception as exc:
+        if on_end:
+            on_end(album_name, False, (str(exc),), ())
+        return _AlbumOutcome(album_dir, ok=False, has_warnings=False)
 
 
 def batch_check(
@@ -31,14 +115,12 @@ def batch_check(
     exiftool: ExifToolHelper | None = None,
     link_mode: LinkMode,
     checksum: bool = True,
-    fatal_warnings: bool = False,
     fatal_sidecar: bool = False,
     fatal_exif: bool = True,
     check_naming: bool = True,
-    check_date_part_collision: bool = True,
     display_fn: Callable[[Path], str] = lambda p: p.name,
     on_start: Callable[[str], None] | None = None,
-    on_end: Callable[[str, bool, tuple[str, ...], tuple[str, ...]], None] | None = None,
+    on_end: OnCheckEnd | None = None,
 ) -> BatchCheckResult:
     """Check multiple albums and return aggregated results.
 
@@ -47,59 +129,22 @@ def batch_check(
 
     The caller is responsible for managing the exiftool process lifecycle.
     """
-    passed = 0
-    warned = 0
-    failed_albums: list[Path] = []
-
-    for album_dir in albums:
-        album_name = display_fn(album_dir)
-
-        if on_start:
-            on_start(album_name)
-
-        result = album_check.run_album_check(
-            album_dir,
-            sips_available=sips_available,
-            exiftool=exiftool,
-            link_mode=link_mode,
-            checksum=checksum,
-            check_naming_flag=check_naming,
-        )
-
-        # Include external album ID in the label when available
-        id_check = result.album_id_check
-        album_label = (
-            f"{album_name} ({format_album_external_id(id_check.album_id)})"
-            if id_check is not None and id_check.album_id is not None
-            else album_name
-        )
-
-        album_ok = result.success and not result.has_fatal_warnings(
-            fatal_sidecar=fatal_sidecar, fatal_exif=fatal_exif
-        )
-        err_labels = (
-            *result.error_labels,
-            *result.fatal_warning_labels(
-                fatal_sidecar=fatal_sidecar, fatal_exif=fatal_exif
-            ),
-        )
-        warn_labels = result.non_fatal_warning_labels(
-            fatal_sidecar=fatal_sidecar, fatal_exif=fatal_exif
-        )
-
-        if album_ok:
-            if on_end:
-                on_end(album_label, True, (), warn_labels)
-            passed += 1
-            if result.has_warnings:
-                warned += 1
-        else:
-            if on_end:
-                on_end(album_label, False, err_labels, warn_labels)
-            failed_albums.append(album_dir)
-
+    opts = CheckOptions(
+        sips_available=sips_available,
+        exiftool=exiftool,
+        link_mode=link_mode,
+        checksum=checksum,
+        fatal_sidecar=fatal_sidecar,
+        fatal_exif=fatal_exif,
+        check_naming=check_naming,
+    )
+    outcomes = [
+        _check_one_safely(album_dir, display_fn(album_dir), opts, on_start, on_end)
+        for album_dir in albums
+    ]
     return BatchCheckResult(
-        passed=passed,
-        warned=warned,
-        failed_albums=failed_albums,
+        passed=sum(1 for o in outcomes if o.ok),
+        warned=sum(1 for o in outcomes if o.has_warnings),
+        failed_albums=tuple(o.album_dir for o in outcomes if not o.ok),
+        warned_albums=tuple(o.album_dir for o in outcomes if o.has_warnings),
     )

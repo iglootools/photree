@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Annotated
 
@@ -11,14 +10,14 @@ import typer
 from ...album.fix import FixValidationError
 from ...albums.cli.batch_ops.fix import run_batch_fix
 from ...albums.cli.ops import resolve_check_batch_albums
+from ...clihelpers.console import err_console
 from ...clihelpers.options import (
     DRY_RUN_OPTION,
-    LINK_MODE_OPTION,
+    FORCE_OPTION,
     RM_ORPHAN_OPTION,
     RM_UPSTREAM_OPTION,
 )
 from ...clihelpers.resolution import resolve_gallery_or_exit
-from ...fsprotocol import resolve_link_mode
 from . import gallery_app
 
 
@@ -28,7 +27,7 @@ def fix_cmd(
         Path | None,
         typer.Option(
             "--gallery-dir",
-            "-d",
+            "-g",
             help="Gallery root directory (or resolved from cwd via .photree/gallery.yaml).",
             exists=True,
             file_okay=False,
@@ -43,9 +42,9 @@ def fix_cmd(
         bool,
         typer.Option("--new-id", help="Regenerate album IDs (replaces existing IDs)."),
     ] = False,
-    link_mode: LINK_MODE_OPTION = None,
     rm_upstream: RM_UPSTREAM_OPTION = False,
     rm_orphan: RM_ORPHAN_OPTION = False,
+    force: FORCE_OPTION = False,
     dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """Fix all albums in the gallery."""
@@ -59,7 +58,10 @@ def fix_cmd(
             rm_orphan=rm_orphan,
         )
     except FixValidationError as exc:
-        typer.echo(str(exc), err=True)
+        err_console.print(
+            f"{exc}\nRun 'photree gallery fix --help' for the available fixes.",
+            markup=False,
+        )
         raise typer.Exit(code=1) from exc
 
     resolved = resolve_gallery_or_exit(gallery_dir)
@@ -70,9 +72,8 @@ def fix_cmd(
         display_base,
         fix_id=fix_id,
         new_id=new_id,
-        link_mode=resolve_link_mode(link_mode, resolved),
         rm_upstream=rm_upstream,
         rm_orphan=rm_orphan,
         dry_run=dry_run,
-        max_workers=os.cpu_count(),
+        force=force,
     )

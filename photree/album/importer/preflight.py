@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -14,29 +15,42 @@ from ...common.sysdeps import (
 )
 from ...config import load_config
 
-DEFAULT_IMAGE_CAPTURE_DIR = Path.home() / "Pictures" / "iPhone"
+
+def default_image_capture_dir(home: Path) -> Path:
+    """Where Image Capture puts an iPhone's files by default."""
+    return home / "Pictures" / "iPhone"
 
 
 def resolve_image_capture_dir(
     source: Path | None,
     config_path: str | None,
+    *,
+    home: Callable[[], Path] = Path.home,
 ) -> Path:
     """Resolve the Image Capture directory: CLI flag > config > default.
+
+    *home* is only called when neither the flag nor the config provides a
+    directory, so tests can drive the fallback without touching ``$HOME``.
 
     Raises :class:`~photree.config.ConfigError` on config file errors.
     """
     if source is not None:
+        # An explicit flag wins without reading a *searched-for* config, so a
+        # broken config file cannot block an import that does not need it. An
+        # explicit --config is still loaded: a path the user typed must not be
+        # silently ignored.
+        if config_path is not None:
+            load_config(config_path)
         return source
-
-    cfg = load_config(config_path)
-    if cfg.importer.image_capture_dir is not None:
-        return cfg.importer.image_capture_dir
-
-    return DEFAULT_IMAGE_CAPTURE_DIR
+    else:
+        configured = load_config(config_path).importer.image_capture_dir
+        return (
+            configured if configured is not None else default_image_capture_dir(home())
+        )
 
 
 _KNOWN_EXTENSIONS = frozenset({".heic", ".jpg", ".jpeg", ".png", ".mov", ".aae"})
-_IMG_PREFIX_THRESHOLD = 0.5  # at least 50% of files must start with IMG_
+IMG_PREFIX_THRESHOLD = 0.5  # at least 50% of files must start with IMG_
 
 
 class SelectionStatus(StrEnum):
@@ -94,7 +108,7 @@ class ImageCaptureDirCheck:
 
     @property
     def has_low_img_prefix_ratio(self) -> bool:
-        return self.img_prefix_ratio < _IMG_PREFIX_THRESHOLD
+        return self.img_prefix_ratio < IMG_PREFIX_THRESHOLD
 
     @property
     def has_subdirectories(self) -> bool:
@@ -134,10 +148,12 @@ def _check_import_tasks(album_dir: Path) -> tuple[SelectionStatus, bool]:
     tasks = discover_import_tasks(album_dir)
     ios_required = any(t.is_ios for t in tasks)
     if not tasks:
-        return SelectionStatus.NOT_FOUND, ios_required
-    if any(task_has_content(t) for t in tasks):
-        return SelectionStatus.OK, ios_required
-    return SelectionStatus.EMPTY, ios_required
+        status = SelectionStatus.NOT_FOUND
+    elif any(task_has_content(t) for t in tasks):
+        status = SelectionStatus.OK
+    else:
+        status = SelectionStatus.EMPTY
+    return status, ios_required
 
 
 def run_preflight(

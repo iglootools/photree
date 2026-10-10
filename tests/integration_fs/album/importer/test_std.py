@@ -6,8 +6,15 @@ from pathlib import Path
 
 import pytest
 
+from photree.album.check.std import DuplicateStem
 from photree.album.importer.album_import import run_import, validate_album_import
-from photree.album.importer.std import import_std_source, validate_std_task
+from photree.album.importer.collision import ArchiveCollision, ImportCollisionError
+from photree.album.importer.std import (
+    StdNoMediaError,
+    find_std_collision,
+    import_std_source,
+    validate_std_task,
+)
 from photree.album.importer.tasks import discover_import_tasks
 from photree.album.store.protocol import (
     ios_import_dir,
@@ -47,25 +54,27 @@ class TestValidateStdTask:
     def test_valid(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_std_staging(album, "nelu", orig=["a.jpg"], edit=["a.jpg"])
-        assert validate_std_task(_std_task(album, "nelu")) == []
+        assert validate_std_task(_std_task(album, "nelu")) == ()
 
     def test_empty_reports_error(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         (album / std_import_dir("nelu")).mkdir(parents=True)
         errors = validate_std_task(_std_task(album, "nelu"))
-        assert any("no media files" in e for e in errors)
+        assert errors == (StdNoMediaError(),)
 
     def test_duplicate_stems_rejected(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_std_staging(album, "nelu", orig=["a.jpg", "a.heic"])
         errors = validate_std_task(_std_task(album, "nelu"))
-        assert any("multiple media files" in e for e in errors)
+        assert errors == (
+            DuplicateStem(directory="orig", stem="a", files=("a.heic", "a.jpg")),
+        )
 
     def test_orphan_edit_allowed(self, tmp_path: Path) -> None:
         # An edit with no matching orig is allowed (matches existing std behavior).
         album = tmp_path / "album"
         _setup_std_staging(album, "nelu", orig=["a.jpg"], edit=["b.jpg"])
-        assert validate_std_task(_std_task(album, "nelu")) == []
+        assert validate_std_task(_std_task(album, "nelu")) == ()
 
 
 class TestImportStdSource:
@@ -117,8 +126,19 @@ class TestImportStdSource:
         (album / ms.orig_img_dir / "a.jpg").write_text("existing")
         _setup_std_staging(album, "nelu", orig=["a.jpg"])
 
-        with pytest.raises(ValueError, match="conflict"):
-            import_std_source(album, _std_task(album, "nelu"))
+        assert find_std_collision(album, _std_task(album, "nelu")) == (
+            ArchiveCollision(ms, ("a",))
+        )
+        with pytest.raises(ImportCollisionError) as exc_info:
+            run_import(
+                album_dir=album,
+                image_capture_dir=tmp_path / "nonexistent-ic",
+                convert_file=_noop_convert,
+            )
+        assert exc_info.value.media_source == ms
+        assert exc_info.value.keys == ("a",)
+        # Refused before any mutation: the staging dir is still there.
+        assert (album / std_import_dir("nelu") / "orig" / "a.jpg").exists()
 
 
 class TestRunImportStd:
@@ -174,4 +194,5 @@ class TestRunImportStd:
         _setup_std_staging(album, "nelu", orig=["a.jpg", "a.heic"])  # dup stems
         validation = validate_album_import(album, [])
         assert not validation.success
-        assert any("std:nelu" in e for e in validation.errors)
+        assert [i.media_source for i in validation.errors] == [std_media_source("nelu")]
+        assert isinstance(validation.errors[0].detail, DuplicateStem)

@@ -1,16 +1,28 @@
-"""Gallery face manifest I/O — load/save manifest, clusters, and checksums."""
+"""Gallery face manifest I/O — load/save manifest, clusters, and checksums.
+
+A file that exists but cannot be read raises
+:class:`~photree.fsprotocol.InvalidMetadataError` rather than reading as
+absent: a corrupt ``clusters.yaml`` treated as missing would trigger a silent
+full re-cluster that mints fresh cluster UUIDs and loses every identity.
+"""
 
 from __future__ import annotations
 
 import hashlib
 from pathlib import Path
 
-import yaml
+from pydantic import BaseModel
 
-from ...fsprotocol import PHOTREE_DIR
+from ...fsprotocol import (
+    PHOTREE_DIR,
+    load_yaml_mapping,
+    validate_metadata,
+    write_yaml,
+)
 from .protocol import (
     FACE_CHECKSUMS_FILE,
     FACE_CLUSTERS_FILE,
+    FACE_INDEX_FILE,
     FACE_MANIFEST_FILE,
     FACES_DIR,
     AlbumFaceChecksums,
@@ -41,8 +53,6 @@ def checksums_path(gallery_dir: Path) -> Path:
 
 
 def faiss_index_path(gallery_dir: Path) -> Path:
-    from .protocol import FACE_INDEX_FILE
-
     return gallery_faces_dir(gallery_dir) / FACE_INDEX_FILE
 
 
@@ -51,25 +61,16 @@ def faiss_index_path(gallery_dir: Path) -> Path:
 # ---------------------------------------------------------------------------
 
 
-def _load_yaml(path: Path, model_cls: type):  # type: ignore[type-arg]
-    """Load and validate a YAML file against a Pydantic model."""
-    if not path.is_file():
-        return None
-    with open(path) as f:
-        raw = yaml.safe_load(f)
-    return model_cls.model_validate(raw) if isinstance(raw, dict) else None
+def _load_yaml[M: BaseModel](path: Path, model_cls: type[M]) -> M | None:
+    """Load *path* as *model_cls*, or ``None`` when the file does not exist."""
+    raw = load_yaml_mapping(path)
+    return validate_metadata(path, model_cls, raw) if raw is not None else None
 
 
-def _save_yaml(path: Path, model: object) -> None:
-    """Save a Pydantic model to YAML."""
+def _save_yaml(path: Path, model: BaseModel) -> None:
+    """Save a Pydantic model to YAML (kebab-case aliases)."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        yaml.safe_dump(
-            model.model_dump(by_alias=True, mode="json"),  # type: ignore[union-attr]
-            default_flow_style=False,
-            sort_keys=False,
-        )
-    )
+    write_yaml(path, model.model_dump(by_alias=True, mode="json"))
 
 
 def load_manifest(gallery_dir: Path) -> FaceManifest | None:

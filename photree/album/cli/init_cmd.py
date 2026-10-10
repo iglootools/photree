@@ -7,11 +7,16 @@ from typing import Annotated
 
 import typer
 
+from ...clihelpers.console import err_console
+from ...common.formatting import indent
 from ...common.fs import display_path
-from ...fsprotocol import PHOTREE_DIR
 from ..id import format_album_external_id, generate_album_id
-from ..store.metadata import load_album_metadata, save_album_metadata
-from ..store.protocol import ALBUM_YAML, AlbumMetadata
+from ..store.metadata import (
+    album_metadata_path,
+    load_album_metadata,
+    save_album_metadata,
+)
+from ..store.protocol import AlbumMetadata
 from . import album_app
 
 
@@ -31,18 +36,20 @@ def init_cmd(
 ) -> None:
     """Initialize album metadata (.photree/album.yaml) with a new album ID."""
     cwd = Path.cwd()
+    album_yaml = album_metadata_path(album_dir)
+    # A corrupt album.yaml raises InvalidMetadataError (reported by the CLI
+    # entry point) rather than reading as "not initialized": writing a new ID
+    # over it would orphan every collection reference to the album.
     metadata = load_album_metadata(album_dir)
     if metadata is not None:
-        typer.echo(
-            f"Album already initialized: {format_album_external_id(metadata.id)}\n"
-            f"  {display_path(album_dir / PHOTREE_DIR / ALBUM_YAML, cwd)}",
-            err=True,
+        err_console.print(
+            f"Album already initialized: {format_album_external_id(metadata.id)}"
         )
+        err_console.print(indent(str(display_path(album_yaml, cwd))), markup=False)
         raise typer.Exit(code=1)
 
     generated_id = generate_album_id()
     save_album_metadata(album_dir, AlbumMetadata(id=generated_id))
-    album_yaml = album_dir / PHOTREE_DIR / ALBUM_YAML
     typer.echo(
         f"Created {display_path(album_yaml, cwd)}\n"
         f"Album ID: {format_album_external_id(generated_id)}"

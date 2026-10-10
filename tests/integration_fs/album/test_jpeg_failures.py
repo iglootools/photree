@@ -8,6 +8,7 @@ reported a full success and exited 0.
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from pathlib import Path
 
 import pytest
@@ -18,7 +19,7 @@ from photree.common.sips import SipsError
 
 def _write(path: Path, content: str = "data") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content)
+    path.write_text(content, encoding="utf-8")
 
 
 def _exploding_convert(src: Path, dst_dir: Path, *, dry_run: bool) -> Path | None:
@@ -109,8 +110,21 @@ class TestSipsError:
         # refresh_jpeg_dir's sequential path catches OSError; sips failures must
         # land in that net rather than escaping as an unrelated exception type.
         assert isinstance(
-            SipsError(path=Path("/x/a.HEIC"), returncode=1, stderr=""), Exception
+            SipsError(path=Path("/x/a.HEIC"), returncode=1, stderr=""), OSError
         )
+
+    def test_survives_propagating_through_a_context_manager(self) -> None:
+        # A frozen-dataclass exception raised FrozenInstanceError here, because
+        # contextmanager assigns __traceback__ while re-raising.
+        import contextlib
+
+        @contextlib.contextmanager
+        def passthrough() -> Generator[None, None, None]:
+            yield
+
+        with pytest.raises(SipsError) as info, passthrough():
+            raise SipsError(path=Path("/x/a.HEIC"), returncode=1, stderr="boom")
+        assert info.value.returncode == 1
 
 
 class TestRefreshPropagation:

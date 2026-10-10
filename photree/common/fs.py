@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import shutil
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
 
 
@@ -101,24 +101,32 @@ def partition_subdirectories(
     *base_dir* itself is never returned in either list. Returns
     ``([], [])`` when *base_dir* does not exist.
     """
-    if not base_dir.is_dir():
-        return ([], [])
 
-    matched: list[Path] = []
-    skipped: list[Path] = []
-
-    def walk(directory: Path) -> None:
+    def walk(directory: Path) -> tuple[list[Path], list[Path]]:
         if predicate(directory):
-            matched.append(directory)
-            return
-        skipped.append(directory)
-        for child in _visible_subdirs(directory):
-            walk(child)
+            return ([directory], [])
+        else:
+            matched, skipped = _merge_partitions(
+                walk(child) for child in _visible_subdirs(directory)
+            )
+            return (matched, [directory, *skipped])
 
-    for child in _visible_subdirs(base_dir):
-        walk(child)
+    return (
+        _merge_partitions(walk(child) for child in _visible_subdirs(base_dir))
+        if base_dir.is_dir()
+        else ([], [])
+    )
 
-    return (matched, skipped)
+
+def _merge_partitions(
+    parts: Iterable[tuple[list[Path], list[Path]]],
+) -> tuple[list[Path], list[Path]]:
+    """Concatenate ``(matched, skipped)`` pairs, preserving walk order."""
+    pairs = list(parts)
+    return (
+        [p for matched, _ in pairs for p in matched],
+        [p for _, skipped in pairs for p in skipped],
+    )
 
 
 def move_files(

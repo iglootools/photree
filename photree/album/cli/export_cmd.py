@@ -7,6 +7,7 @@ from typing import Annotated
 
 import typer
 
+from ...clihelpers.console import err_console
 from ...clihelpers.options import (
     ALBUM_LAYOUT_OPTION,
     CONFIG_OPTION,
@@ -15,6 +16,8 @@ from ...clihelpers.options import (
     SHARE_DIR_OPTION,
     SHARE_LAYOUT_OPTION,
 )
+from ...common.formatting import markup_escape
+from ...common.fs import display_path
 from ...config import ConfigError
 from ..exporter import output as export_output
 from ..exporter import single as album_export
@@ -24,7 +27,9 @@ from ..exporter.settings import (
     validate_export_settings,
 )
 from ..exporter.single import compute_target_dir as export_compute_target_dir
+from ..store.protocol import AlbumDatePrefixError
 from . import album_app
+from .helpers import format_config_error
 
 
 @album_app.command("export")
@@ -80,13 +85,33 @@ def export_cmd(
             config_path=config,
         )
         validate_export_settings(settings)
-    except (ExportSettingsError, ConfigError) as exc:
-        typer.echo(str(exc), err=True)
+    except ConfigError as exc:
+        # Configuration errors exit 2, like every other command reading config.
+        err_console.print(format_config_error(exc), markup=False)
+        raise typer.Exit(code=2) from exc
+    except ExportSettingsError as exc:
+        err_console.print(
+            export_output.format_export_settings_error(exc, Path.cwd(), "album export"),
+            markup=False,
+        )
         raise typer.Exit(code=1) from exc
 
-    target_dir = export_compute_target_dir(
-        settings.share_dir, album_dir.name, settings.share_layout
-    )
+    try:
+        target_dir = export_compute_target_dir(
+            settings.share_dir, album_dir.name, settings.share_layout
+        )
+    except AlbumDatePrefixError as exc:
+        err_console.print(
+            f"Cannot place album under the '{settings.share_layout}' share"
+            f" layout: {markup_escape(exc)}."
+        )
+        album_display = markup_escape(display_path(album_dir, Path.cwd()))
+        err_console.print(
+            "Rename the album to follow the naming convention, or run"
+            f" 'photree album export --album-dir \"{album_display}\"'"
+            " with '--share-layout flat'."
+        )
+        raise typer.Exit(code=1) from exc
 
     result = album_export.export_album(
         album_dir,

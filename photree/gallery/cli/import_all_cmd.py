@@ -12,6 +12,7 @@ from ...clihelpers.console import err_console
 from ...clihelpers.options import REIMPORT_OPTION
 from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...clihelpers.sysdeps import import_deps, require_system_deps
+from ...common.formatting import indent, markup_escape
 from ...common.fs import display_path
 from ...fsprotocol import (
     GALLERY_YAML,
@@ -20,6 +21,8 @@ from ...fsprotocol import (
     load_gallery_metadata,
     resolve_link_mode,
 )
+from ..cmd_handler.importer import BatchImportResult
+from ..import_plan import AlbumPlan
 from . import gallery_app
 from .ops import (
     build_index_or_exit,
@@ -93,7 +96,7 @@ def import_all_cmd(
     unless --reimport is given.
     """
     if base_dir is not None and album_dirs is not None:
-        typer.echo("--dir and --album-dir are mutually exclusive.", err=True)
+        err_console.print("--dir and --album-dir are mutually exclusive.")
         raise typer.Exit(code=1)
 
     require_system_deps(import_deps())
@@ -102,26 +105,12 @@ def import_all_cmd(
     resolved_lm = resolve_link_mode(link_mode, resolved_gallery)
     cwd = Path.cwd()
 
-    albums, non_albums = resolve_import_all_albums(base_dir, album_dirs)
-
-    if non_albums:
-        typer.echo(f"Skipped {len(non_albums)} non-album director(ies):")
-        for s in non_albums:
-            typer.echo(f"  {display_path(s, cwd)}")
-        typer.echo("")
-
-    if not albums:
-        typer.echo("No album directories found.")
-        raise typer.Exit(code=0)
-
+    albums = _resolve_albums_or_exit(base_dir, album_dirs, cwd)
     index = build_index_or_exit(resolved_gallery, cwd)
-
     import_plan = plan_imports_or_exit(
         albums, index, resolved_gallery, cwd, reimport=reimport
     )
-
-    if import_plan.skipped:
-        render_skipped(import_plan.skipped, cwd)
+    render_skipped(import_plan.skipped, cwd)
 
     to_import = import_plan.to_import
     if not to_import:
@@ -130,36 +119,87 @@ def import_all_cmd(
 
     typer.echo(f"Found {len(to_import)} album(s).\n")
     typer.echo("Import:")
-    imported, failed_sources = run_batch_import(
+    result = run_batch_import(
         to_import, resolved_gallery, resolved_lm, dry_run, max_workers=os.cpu_count()
     )
+    mutated = not dry_run and bool(result.imported)
+    check_failed = _post_import_check(to_import, result, cwd) if mutated else []
+    if mutated:
+        _cluster_faces(resolved_gallery)
 
-    if not dry_run and imported > 0:
-        typer.echo("\nPost-Import Check:")
-        imported_targets = [
-            plan.target for plan in to_import if plan.source not in failed_sources
-        ]
-        check_failed = run_batch_post_import_check(imported_targets, cwd)
-        if check_failed:
-            err_console.print("\nTo investigate failures:")
-            for target_dir in check_failed:
-                err_console.print(
-                    f'  photree album check --album-dir "{display_path(target_dir, cwd)}"'
-                )
+    _print_summary(result, check_failed, len(import_plan.skipped))
+    if result.failures or check_failed:
+        raise typer.Exit(code=1)
 
-    gallery_meta = load_gallery_metadata(resolved_gallery / PHOTREE_DIR / GALLERY_YAML)
-    if gallery_meta.faces_enabled and not dry_run and imported > 0:
+
+def _resolve_albums_or_exit(
+    base_dir: Path | None, album_dirs: list[Path] | None, cwd: Path
+) -> list[Path]:
+    """Resolve the source albums, reporting skipped non-album directories."""
+    albums, non_albums = resolve_import_all_albums(base_dir, album_dirs)
+    if non_albums:
+        typer.echo(
+            "\n".join(
+                [
+                    f"Skipped {len(non_albums)} non-album director(ies):",
+                    *(indent(str(display_path(s, cwd))) for s in non_albums),
+                    "",
+                ]
+            )
+        )
+    if not albums:
+        typer.echo("No album directories found.")
+        raise typer.Exit(code=0)
+    return albums
+
+
+def _post_import_check(
+    to_import: list[AlbumPlan], result: BatchImportResult, cwd: Path
+) -> list[Path]:
+    """Check every album that imported; return those that failed."""
+    typer.echo("\nPost-Import Check:")
+    imported = set(result.imported)
+    check_failed = run_batch_post_import_check(
+        [plan.target for plan in to_import if plan.source in imported], cwd
+    )
+    if check_failed:
+        err_console.print(
+            "\n".join(
+                [
+                    "\nTo investigate failures, run:",
+                    *(
+                        indent(
+                            markup_escape(
+                                "'photree album check --album-dir "
+                                f'"{display_path(target_dir, cwd)}"\''
+                            )
+                        )
+                        for target_dir in check_failed
+                    ),
+                ]
+            )
+        )
+    return check_failed
+
+
+def _cluster_faces(gallery_dir: Path) -> None:
+    """Refresh face clusters when the gallery has face detection enabled."""
+    gallery_meta = load_gallery_metadata(gallery_dir / PHOTREE_DIR / GALLERY_YAML)
+    if gallery_meta.faces_enabled:
         run_face_clustering(
-            resolved_gallery,
+            gallery_dir,
             distance_threshold=gallery_meta.face_cluster_threshold,
         )
 
-    skipped_note = (
-        f", {len(import_plan.skipped)} skipped" if import_plan.skipped else ""
-    )
-    typer.echo(
-        f"\nDone. {imported} album(s) imported, "
-        f"{len(failed_sources)} failed{skipped_note}."
-    )
-    if failed_sources:
-        raise typer.Exit(code=1)
+
+def _print_summary(
+    result: BatchImportResult, check_failed: list[Path], skipped: int
+) -> None:
+    """Print the tally: imports, import failures, check failures, and skips."""
+    parts = [
+        f"{len(result.imported)} album(s) imported",
+        f"{len(result.failures)} failed",
+        *([f"{len(check_failed)} failed post-import check"] if check_failed else []),
+        *([f"{skipped} skipped"] if skipped else []),
+    ]
+    typer.echo(f"\nDone. {', '.join(parts)}.")

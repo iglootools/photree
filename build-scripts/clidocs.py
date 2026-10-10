@@ -66,7 +66,11 @@ def main(
     expected = _build_file(generated)
 
     if check:
-        current = CLI_REFERENCE_MD.read_text() if CLI_REFERENCE_MD.exists() else ""
+        current = (
+            CLI_REFERENCE_MD.read_text(encoding="utf-8")
+            if CLI_REFERENCE_MD.exists()
+            else ""
+        )
         if current == expected:
             print("CLI reference is up to date.")
         else:
@@ -77,7 +81,7 @@ def main(
             )
             sys.exit(1)
     else:
-        CLI_REFERENCE_MD.write_text(expected)
+        CLI_REFERENCE_MD.write_text(expected, encoding="utf-8")
         print(f"Updated {CLI_REFERENCE_MD}")
 
 

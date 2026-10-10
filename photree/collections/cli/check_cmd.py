@@ -7,12 +7,27 @@ from typing import Annotated
 
 import typer
 
-from ...clihelpers.console import console
+from ...clihelpers.console import console, err_console
 from ...clihelpers.resolution import resolve_gallery_or_exit
-from ...collection.check import check_all_collections
-from ...common.formatting import CHECK, CROSS
+from ...collection.check import CollectionCheckResult, check_all_collections
+from ...common.formatting import CHECK, CROSS, indent, markup_escape
 from ...common.fs import display_path
 from . import collections_app
+
+
+def _format_result(result: CollectionCheckResult, cwd: Path) -> str:
+    """One check line, followed by the indented issues on failure (Rich markup)."""
+    name = markup_escape(display_path(result.collection_dir, cwd))
+    return (
+        f"{CHECK} {name}"
+        if result.success
+        else "\n".join(
+            [
+                f"{CROSS} {name}",
+                *(indent(markup_escape(i.message), 2) for i in result.issues),
+            ]
+        )
+    )
 
 
 @collections_app.command("check")
@@ -38,17 +53,25 @@ def check_cmd(
         typer.echo("No collections found.")
         return
 
-    failed = 0
     for result in results:
-        name = display_path(result.collection_dir, cwd)
-        if result.success:
-            console.print(f"{CHECK} {name}")
-        else:
-            failed += 1
-            console.print(f"{CROSS} {name}")
-            for issue in result.issues:
-                typer.echo(f"    {issue.message}")
+        console.print(_format_result(result, cwd))
 
-    typer.echo(f"\n{len(results)} collection(s) checked, {failed} with issues.")
+    failed = [r for r in results if not r.success]
+    typer.echo(f"\n{len(results)} collection(s) checked, {len(failed)} with issues.")
     if failed:
+        err_console.print(
+            "\n".join(
+                [
+                    "\nTo investigate failures:",
+                    *(
+                        indent(
+                            "photree collection check --collection-dir "
+                            f'"{display_path(r.collection_dir, cwd)}"'
+                        )
+                        for r in failed
+                    ),
+                ]
+            ),
+            markup=False,
+        )
         raise typer.Exit(code=1)

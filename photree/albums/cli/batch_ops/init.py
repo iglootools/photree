@@ -6,11 +6,10 @@ from pathlib import Path
 
 import typer
 
-from ....clihelpers.console import err_console
 from ....clihelpers.progress import BatchProgressBar
 from ...cmd_handler.init import batch_init
 from ..ops import make_display_fn
-from .failures import batch_failures_report, investigate_commands
+from .failures import exit_if_no_albums, exit_with_failures
 
 
 def run_batch_init(
@@ -21,13 +20,7 @@ def run_batch_init(
 ) -> None:
     """Shared implementation for albums init."""
     cwd = Path.cwd()
-
-    if not albums:
-        typer.echo("\nNo albums found.")
-        raise typer.Exit(code=0)
-
-    if display_base is not None:
-        typer.echo(f"\nFound {len(albums)} album(s).\n")
+    exit_if_no_albums(albums, display_base)
 
     with BatchProgressBar(
         total=len(albums), description="Initializing", done_description="init"
@@ -43,10 +36,7 @@ def run_batch_init(
         )
 
     typer.echo(
-        f"\nDone. {result.initialized} album(s) initialized, {len(result.failed_albums)} failed."
+        f"\nDone. {result.initialized} album(s) initialized, "
+        f"{len(result.failures)} failed."
     )
-
-    if result.failed_albums:
-        err_console.print(batch_failures_report(result.failures, cwd))
-        err_console.print(investigate_commands("init", result.failed_albums, cwd))
-        raise typer.Exit(code=1)
+    exit_with_failures(result.failures, "init", cwd)

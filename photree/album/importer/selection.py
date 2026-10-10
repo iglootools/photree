@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ...common.fs import list_files
-from .image_capture import _img_number
+from ..store.media_sources import ios_img_number
 
 
 @dataclass(frozen=True)
@@ -39,21 +39,22 @@ def read_selection_csv(csv_path: Path) -> list[str]:
         )
 
 
+def write_selection_csv(csv_path: Path, filenames: list[str]) -> None:
+    """Write *filenames* as a one-column, no-header CSV (the format read back)."""
+    with open(csv_path, "w", encoding="utf-8", newline="") as f:
+        csv.writer(f).writerows([name] for name in filenames)
+
+
 def _merge_selections(dir_files: list[str], csv_files: list[str]) -> tuple[str, ...]:
     """Merge selection filenames from both sources, deduplicating by image number.
 
     When the same image number appears in both sources, the directory entry
     is preferred (actual exported file is more canonical than a CSV row).
     """
-    seen: dict[str, str] = {}
-    # Dir entries first so they win on conflict
-    for f in dir_files:
-        num = _img_number(f)
-        seen.setdefault(num, f)
-    for f in csv_files:
-        num = _img_number(f)
-        seen.setdefault(num, f)
-    return tuple(sorted(seen.values()))
+    # Later keys overwrite earlier ones in a dict, so building it from the
+    # reversed sequence lets the first occurrence (dir entries first) win.
+    by_number = {ios_img_number(f): f for f in reversed([*dir_files, *csv_files])}
+    return tuple(sorted(by_number.values()))
 
 
 def read_selection(

@@ -22,13 +22,15 @@ from photree.collection.store.protocol import (
 from photree.fsprotocol import GalleryMetadata, save_gallery_metadata
 from photree.gallery.collection_refresh import (
     COLLECTIONS_DIR,
+    CollectionRefreshError,
+    CollectionRefreshErrorKind,
     refresh_collections,
 )
 
 
 def _write(path: Path, content: str = "data") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content)
+    path.write_text(content, encoding="utf-8")
 
 
 def _setup_gallery(tmp_path: Path) -> Path:
@@ -407,3 +409,102 @@ class TestDryRun:
         # Nothing should exist on disk
         collections = discover_collections(gallery)
         assert len(collections) == 0
+
+
+def _explicit_collection(gallery: Path, name: str) -> Path:
+    col_dir = gallery / COLLECTIONS_DIR / "2024" / name
+    col_dir.mkdir(parents=True)
+    save_collection_metadata(
+        col_dir,
+        CollectionMetadata(
+            id=generate_collection_id(),
+            members=CollectionMembers.MANUAL,
+            lifecycle=CollectionLifecycle.EXPLICIT,
+        ),
+    )
+    return col_dir
+
+
+class TestDryRunMatchesRealRun:
+    def test_dry_run_sees_title_sync_renames(self, tmp_path: Path) -> None:
+        """Regression: the dry run re-scanned disk and saw the unstripped series."""
+        gallery = _setup_gallery(tmp_path)
+        _setup_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
+        _setup_album(gallery, "2024-07-15 - 02 - Trip - Kayaking")
+        _explicit_collection(gallery, "2024-07 - Trip")
+
+        dry = refresh_collections(gallery, dry_run=True)
+
+        assert dry.success
+        assert len(dry.album_renames) == 2
+        # The explicit collection owns the series: no implicit one is planned.
+        assert dry.created == ()
+
+        real = refresh_collections(gallery)
+        assert real.album_renames == dry.album_renames
+        assert real.created == dry.created
+
+
+class TestRefreshErrors:
+    def test_naming_issues_are_carried(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        album_dir, _ = _setup_album(gallery, "2024-07-14 -  Double Space")
+
+        result = refresh_collections(gallery)
+
+        [error] = result.errors
+        assert error.kind is CollectionRefreshErrorKind.ALBUM_NAMING
+        assert error.path == album_dir
+        assert error.naming_issues
+
+    def test_title_sync_onto_existing_album_is_reported(self, tmp_path: Path) -> None:
+        """Regression: the rename raised an OSError traceback."""
+        gallery = _setup_gallery(tmp_path)
+        source, _ = _setup_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
+        occupied, _ = _setup_album(gallery, "2024-07-14 - 02 - Hiking")
+        # Make the stripped name collide with an existing directory.
+        stripped = source.parent / "2024-07-14 - 01 - Hiking"
+        stripped.mkdir()
+        _explicit_collection(gallery, "2024-07 - Trip")
+
+        result = refresh_collections(gallery)
+
+        assert result.errors == (
+            CollectionRefreshError(
+                CollectionRefreshErrorKind.ALBUM_RENAME_CONFLICT,
+                path=source,
+                target=stripped,
+            ),
+        )
+        assert source.is_dir()
+        assert occupied.is_dir()
+
+    def test_same_series_runs_on_same_date_conflict(self, tmp_path: Path) -> None:
+        """Regression: series A, B, A on one date built one name twice."""
+        gallery = _setup_gallery(tmp_path)
+        _setup_album(gallery, "2024-07-14 - 01 - Trip - Morning")
+        _setup_album(gallery, "2024-07-14 - 02 - Other - Noon")
+        _setup_album(gallery, "2024-07-14 - 03 - Trip - Evening")
+
+        result = refresh_collections(gallery)
+
+        assert result.errors == (
+            CollectionRefreshError(
+                CollectionRefreshErrorKind.SERIES_NAME_CONFLICT,
+                name="2024-07-14 - Trip",
+            ),
+        )
+        # Nothing was written: conflicts are detected on the whole plan.
+        assert discover_collections(gallery) == []
+
+    def test_uses_injected_collection_id(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        _setup_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
+        fixed_id = generate_collection_id()
+
+        result = refresh_collections(gallery, new_id=lambda: fixed_id)
+
+        assert result.success
+        [col_dir] = discover_collections(gallery)
+        meta = load_collection_metadata(col_dir)
+        assert meta is not None and meta.id == fixed_id

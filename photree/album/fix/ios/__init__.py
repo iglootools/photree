@@ -7,12 +7,18 @@ output formatting, exit codes) are handled by the caller.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 
+from ...store.protocol import MediaSource
 from .miscategorized import (
+    MiscategorizedAction,
     MiscategorizedDirResult,
+    MiscategorizedMoveConflictError,
     MiscategorizedResult,
+    fix_miscategorized,
     mv_miscategorized,
     rm_miscategorized,
     rm_miscategorized_safe,
@@ -27,7 +33,10 @@ __all__ = [
     "FixIosMiscategorizedResult",
     "FixIosResult",
     "FixIosValidationError",
+    "FixIosValidationErrorKind",
+    "MiscategorizedAction",
     "MiscategorizedDirResult",
+    "MiscategorizedMoveConflictError",
     "MiscategorizedResult",
     "PreferHigherQualityResult",
     "RmOrphanSidecarResult",
@@ -42,12 +51,63 @@ __all__ = [
 
 
 # ---------------------------------------------------------------------------
-# Aggregated fix-ios runner
+# Flag validation
 # ---------------------------------------------------------------------------
 
 
+class FixIosValidationErrorKind(StrEnum):
+    MUTUALLY_EXCLUSIVE = "mutually-exclusive"
+    NO_FIX_SPECIFIED = "no-fix-specified"
+
+
+_MISCATEGORIZED_FLAGS = (
+    "--rm-miscategorized",
+    "--rm-miscategorized-safe",
+    "--mv-miscategorized",
+)
+
+
 class FixIosValidationError(ValueError):
-    """Raised when fix-ios flag combinations are invalid."""
+    """Raised when fix-ios flag combinations are invalid.
+
+    ``flags`` lists the offending options (for ``MUTUALLY_EXCLUSIVE``). The
+    message carries no command advice: each CLI scope suggests its own help.
+    """
+
+    def __init__(
+        self, kind: FixIosValidationErrorKind, flags: tuple[str, ...] = ()
+    ) -> None:
+        self.kind = kind
+        self.flags = flags
+        super().__init__(
+            f"{', '.join(flags)} are mutually exclusive."
+            if kind == FixIosValidationErrorKind.MUTUALLY_EXCLUSIVE
+            else "No fix specified."
+        )
+
+
+def _miscategorized_action(
+    *, rm: bool, rm_safe: bool, mv: bool
+) -> MiscategorizedAction | None:
+    """Map the three mutually exclusive flags to an action (validated first)."""
+    match (rm, rm_safe, mv):
+        case (True, False, False):
+            return MiscategorizedAction.RM
+        case (False, True, False):
+            return MiscategorizedAction.RM_SAFE
+        case (False, False, True):
+            return MiscategorizedAction.MV
+        case (False, False, False):
+            return None
+        case _:
+            raise FixIosValidationError(
+                FixIosValidationErrorKind.MUTUALLY_EXCLUSIVE,
+                tuple(
+                    flag
+                    for flag, on in zip(_MISCATEGORIZED_FLAGS, (rm, rm_safe, mv))
+                    if on
+                ),
+            )
 
 
 def validate_fix_flags(
@@ -62,25 +122,23 @@ def validate_fix_flags(
 
     Raises :class:`FixIosValidationError` on invalid combinations.
     """
-    miscat_flags = sum([rm_miscategorized, rm_miscategorized_safe, mv_miscategorized])
-    if miscat_flags > 1:
-        raise FixIosValidationError(
-            "--rm-miscategorized, --rm-miscategorized-safe, and --mv-miscategorized "
-            "are mutually exclusive."
-        )
+    action = _miscategorized_action(
+        rm=rm_miscategorized, rm_safe=rm_miscategorized_safe, mv=mv_miscategorized
+    )
+    if not (rm_orphan_sidecar or prefer_higher_quality_when_dups or action):
+        raise FixIosValidationError(FixIosValidationErrorKind.NO_FIX_SPECIFIED)
 
-    any_fix = rm_orphan_sidecar or prefer_higher_quality_when_dups or miscat_flags > 0
-    if not any_fix:
-        raise FixIosValidationError(
-            "No fix specified. Run photree album fix-ios --help for available fixes."
-        )
+
+# ---------------------------------------------------------------------------
+# Aggregated fix-ios runner
+# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
 class FixIosMiscategorizedResult:
     """Aggregated result of miscategorized fix across media sources."""
 
-    action: str
+    action: MiscategorizedAction
     heic_from_orig: int
     heic_from_rendered: int
     mov_from_orig: int
@@ -89,19 +147,60 @@ class FixIosMiscategorizedResult:
 
 @dataclass(frozen=True)
 class FixIosResult:
-    """Aggregated result of all fix-ios operations on a single album."""
+    """Aggregated result of all fix-ios operations on a single album.
 
-    rm_orphan_sidecar_removed_by_dir: tuple[tuple[str, tuple[str, ...]], ...] = ()
-    prefer_higher_quality_removed_by_dir: tuple[tuple[str, tuple[str, ...]], ...] = ()
+    ``None`` means the operation was not requested; an empty value means it
+    ran and found nothing, which is reported as such.
+    """
+
+    rm_orphan_sidecar_removed_by_dir: tuple[tuple[str, tuple[str, ...]], ...] | None = (
+        None
+    )
+    prefer_higher_quality_removed_by_dir: (
+        tuple[tuple[str, tuple[str, ...]], ...] | None
+    ) = None
     miscategorized_result: FixIosMiscategorizedResult | None = None
+    no_ios_media_sources: bool = False
+
+
+def _run_miscategorized(
+    album_dir: Path,
+    media_sources: list[MediaSource],
+    action: MiscategorizedAction,
+    *,
+    dry_run: bool,
+) -> FixIosMiscategorizedResult:
+    results = [
+        fix_miscategorized(album_dir, ms, action=action, dry_run=dry_run)
+        for ms in media_sources
+    ]
+    return FixIosMiscategorizedResult(
+        action=action,
+        heic_from_orig=sum(len(r.heic.fixed_from_orig) for r in results),
+        heic_from_rendered=sum(len(r.heic.fixed_from_rendered) for r in results),
+        mov_from_orig=sum(len(r.mov.fixed_from_orig) for r in results),
+        mov_from_rendered=sum(len(r.mov.fixed_from_rendered) for r in results),
+    )
 
 
 # Aliases for use within run_fix_ios where parameter names shadow module functions
-_do_rm_orphan_sidecar = rm_orphan_sidecar
-_do_prefer_higher_quality = prefer_higher_quality_when_dups
-_do_rm_miscategorized = rm_miscategorized
-_do_rm_miscategorized_safe = rm_miscategorized_safe
-_do_mv_miscategorized = mv_miscategorized
+_rm_orphan_sidecar = rm_orphan_sidecar
+_prefer_higher_quality = prefer_higher_quality_when_dups
+
+
+def _removed_by_dir(
+    fix: Callable[..., PreferHigherQualityResult | RmOrphanSidecarResult],
+    album_dir: Path,
+    media_sources: list[MediaSource],
+    *,
+    dry_run: bool,
+) -> tuple[tuple[str, tuple[str, ...]], ...]:
+    """Run a per-source removal fix on every source and concatenate the results."""
+    return tuple(
+        entry
+        for ms in media_sources
+        for entry in fix(album_dir, ms, dry_run=dry_run).removed_by_dir
+    )
 
 
 def run_fix_ios(
@@ -117,65 +216,36 @@ def run_fix_ios(
     """Run selected fix-ios operations on a single album.
 
     Iterates over all iOS media sources, runs the requested operations,
-    and returns aggregated results. The caller handles output formatting
-    and progress bars via the optional callbacks.
+    and returns aggregated results. An album without iOS media sources is
+    reported through ``no_ios_media_sources`` rather than an empty result.
     """
     from ...store.media_sources_discovery import discover_media_sources
 
-    media_sources = [c for c in discover_media_sources(album_dir) if c.is_ios]
-
+    media_sources = [ms for ms in discover_media_sources(album_dir) if ms.is_ios]
     if not media_sources:
-        return FixIosResult()
+        return FixIosResult(no_ios_media_sources=True)
 
-    orphan_sidecar_by_dir: list[tuple[str, tuple[str, ...]]] = []
-    higher_quality_by_dir: list[tuple[str, tuple[str, ...]]] = []
-    miscat_result = None
-
-    if rm_orphan_sidecar:
-        for ms in media_sources:
-            result_meta = _do_rm_orphan_sidecar(album_dir, ms, dry_run=dry_run)
-            orphan_sidecar_by_dir.extend(result_meta.removed_by_dir)
-
-    if prefer_higher_quality_when_dups:
-        for ms in media_sources:
-            result_hq = _do_prefer_higher_quality(album_dir, ms, dry_run=dry_run)
-            higher_quality_by_dir.extend(result_hq.removed_by_dir)
-
-    miscat_action = (
-        "rm"
-        if rm_miscategorized
-        else "rm-safe"
-        if rm_miscategorized_safe
-        else "mv"
-        if mv_miscategorized
-        else None
+    action = _miscategorized_action(
+        rm=rm_miscategorized, rm_safe=rm_miscategorized_safe, mv=mv_miscategorized
     )
-    if miscat_action:
-        fix_fn = {
-            "rm": _do_rm_miscategorized,
-            "rm-safe": _do_rm_miscategorized_safe,
-            "mv": _do_mv_miscategorized,
-        }[miscat_action]
-        total_heic_from_orig = 0
-        total_heic_from_rendered = 0
-        total_mov_from_orig = 0
-        total_mov_from_rendered = 0
-        for ms in media_sources:
-            result_miscat = fix_fn(album_dir, ms, dry_run=dry_run)
-            total_heic_from_orig += len(result_miscat.heic.fixed_from_orig)
-            total_heic_from_rendered += len(result_miscat.heic.fixed_from_rendered)
-            total_mov_from_orig += len(result_miscat.mov.fixed_from_orig)
-            total_mov_from_rendered += len(result_miscat.mov.fixed_from_rendered)
-        miscat_result = FixIosMiscategorizedResult(
-            action=miscat_action,
-            heic_from_orig=total_heic_from_orig,
-            heic_from_rendered=total_heic_from_rendered,
-            mov_from_orig=total_mov_from_orig,
-            mov_from_rendered=total_mov_from_rendered,
-        )
-
     return FixIosResult(
-        rm_orphan_sidecar_removed_by_dir=tuple(orphan_sidecar_by_dir),
-        prefer_higher_quality_removed_by_dir=tuple(higher_quality_by_dir),
-        miscategorized_result=miscat_result,
+        rm_orphan_sidecar_removed_by_dir=(
+            _removed_by_dir(
+                _rm_orphan_sidecar, album_dir, media_sources, dry_run=dry_run
+            )
+            if rm_orphan_sidecar
+            else None
+        ),
+        prefer_higher_quality_removed_by_dir=(
+            _removed_by_dir(
+                _prefer_higher_quality, album_dir, media_sources, dry_run=dry_run
+            )
+            if prefer_higher_quality_when_dups
+            else None
+        ),
+        miscategorized_result=(
+            _run_miscategorized(album_dir, media_sources, action, dry_run=dry_run)
+            if action is not None
+            else None
+        ),
     )

@@ -17,6 +17,7 @@ from __future__ import annotations
 import csv
 from dataclasses import dataclass
 from datetime import datetime
+from enum import StrEnum
 from pathlib import Path
 
 from exiftool import ExifToolHelper  # type: ignore[import-untyped]
@@ -29,6 +30,7 @@ SELECTION_DIR = "to-import"
 SELECTION_CSV = "to-import.csv"
 
 _MEDIA_EXTENSIONS = IMG_EXTENSIONS | VID_EXTENSIONS
+_TIMESTAMP_FORMATS = ("%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d")
 
 
 @dataclass(frozen=True)
@@ -39,6 +41,27 @@ class SelectionEntry:
     date_hint: datetime | None = None
 
 
+class SelectionErrorKind(StrEnum):
+    """Why a selection row could not be used."""
+
+    INVALID_DATE = "invalid-date"
+
+
+@dataclass(frozen=True)
+class SelectionError:
+    """A selection row that cannot be used as written.
+
+    ``line`` is the 1-based line number in the CSV (the header is line 1),
+    so the user can jump straight to it.
+    """
+
+    kind: SelectionErrorKind
+    csv_path: Path
+    line: int
+    entry: str
+    value: str
+
+
 @dataclass(frozen=True)
 class CollectionSelectionSources:
     """Selection entries collected from both sources."""
@@ -46,39 +69,77 @@ class CollectionSelectionSources:
     dir_entries: tuple[SelectionEntry, ...]
     csv_entries: tuple[SelectionEntry, ...]
     merged: tuple[SelectionEntry, ...]
+    errors: tuple[SelectionError, ...] = ()
 
 
 def _parse_iso_timestamp(value: str) -> datetime | None:
-    """Parse an ISO timestamp string, returning None on failure."""
-    for fmt in ("%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"):
-        try:
-            return datetime.strptime(value, fmt)
-        except ValueError:
-            pass
-    return None
+    """Parse an ISO timestamp string, or ``None`` if no format matches."""
+    return next(
+        (
+            parsed
+            for fmt in _TIMESTAMP_FORMATS
+            for parsed in [_strptime_or_none(value, fmt)]
+            if parsed is not None
+        ),
+        None,
+    )
 
 
-def _read_csv(csv_path: Path) -> list[SelectionEntry]:
-    """Read a two-column CSV (entry, date) with header.
+def _strptime_or_none(value: str, fmt: str) -> datetime | None:
+    try:
+        return datetime.strptime(value, fmt)
+    except ValueError:
+        return None
 
-    Returns an empty list when the file does not exist or is empty.
-    """
+
+@dataclass(frozen=True)
+class _CsvRow:
+    line: int
+    entry: str
+    date: str  # "" when absent
+
+
+def _read_csv_rows(csv_path: Path) -> list[_CsvRow]:
+    """Rows with a non-empty entry; empty when the file does not exist."""
     if not csv_path.is_file():
         return []
     with open(csv_path, encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
         return [
-            SelectionEntry(
-                value=row["entry"].strip(),
-                date_hint=(
-                    _parse_iso_timestamp(row["date"].strip())
-                    if row.get("date", "").strip()
-                    else None
-                ),
+            _CsvRow(
+                line=reader.line_num,
+                entry=(row.get("entry") or "").strip(),
+                date=(row.get("date") or "").strip(),
             )
             for row in reader
-            if row.get("entry", "").strip()
+            if (row.get("entry") or "").strip()
         ]
+
+
+def _read_csv(
+    csv_path: Path,
+) -> tuple[list[SelectionEntry], list[SelectionError]]:
+    """Read a two-column CSV (entry, date) with header.
+
+    A date that matches none of the accepted formats is reported as a
+    :class:`SelectionError` rather than dropped: it was written to
+    disambiguate, so ignoring it could silently pick the wrong item.
+    """
+    rows = [
+        (row, _parse_iso_timestamp(row.date) if row.date else None)
+        for row in _read_csv_rows(csv_path)
+    ]
+    errors = [
+        SelectionError(
+            SelectionErrorKind.INVALID_DATE, csv_path, row.line, row.entry, row.date
+        )
+        for row, parsed in rows
+        if row.date and parsed is None
+    ]
+    entries = [
+        SelectionEntry(value=row.entry, date_hint=parsed) for row, parsed in rows
+    ]
+    return entries, errors
 
 
 def _is_media_file(filename: str) -> bool:
@@ -97,24 +158,33 @@ def _read_dir_entries(
     For non-media files, the filename is the entry with no date hint.
     """
     filenames = list_files(selection_dir)
-    if not filenames:
-        return []
-
     # Separate media files (need EXIF) from non-media (IDs, names)
     media_files = [f for f in filenames if _is_media_file(f)]
     non_media_files = [f for f in filenames if not _is_media_file(f)]
 
     # Read EXIF dates for media files in one batch
-    exif_dates: dict[str, datetime] = {}
-    if media_files:
-        media_paths = [selection_dir / f for f in media_files]
-        for path, ts in read_exif_timestamps_by_file(media_paths, exiftool=exiftool):
-            exif_dates[path.name] = ts
-
+    exif_dates = (
+        {
+            path.name: ts
+            for path, ts in read_exif_timestamps_by_file(
+                [selection_dir / f for f in media_files], exiftool=exiftool
+            )
+        }
+        if media_files
+        else {}
+    )
     return [
         *[SelectionEntry(value=f, date_hint=exif_dates.get(f)) for f in media_files],
         *[SelectionEntry(value=f) for f in non_media_files],
     ]
+
+
+def _dedupe(entries: list[SelectionEntry]) -> tuple[SelectionEntry, ...]:
+    """Deduplicate by value, keeping the first occurrence in order."""
+    # Reversed so the dict keeps the *first* entry per value; the index then
+    # restores the original order.
+    first = {e.value: (i, e) for i, e in reversed(list(enumerate(entries)))}
+    return tuple(e for _, e in sorted(first.values(), key=lambda pair: pair[0]))
 
 
 def read_selection(
@@ -124,22 +194,17 @@ def read_selection(
 ) -> CollectionSelectionSources:
     """Read selection entries from ``to-import/`` and ``to-import.csv``.
 
-    Entries are deduplicated by value (first occurrence wins).
-    For ``to-import/`` media files, EXIF dates are read into ``date_hint``.
+    Entries are deduplicated by value (first occurrence wins, dir entries
+    first). For ``to-import/`` media files, EXIF dates are read into
+    ``date_hint``. Unusable CSV rows are reported in ``errors``.
     """
     dir_entries = _read_dir_entries(collection_dir / SELECTION_DIR, exiftool=exiftool)
-    csv_entries = _read_csv(collection_dir / SELECTION_CSV)
-    # Deduplicate by value, preserving order (dir entries first)
-    seen: set[str] = set()
-    merged: list[SelectionEntry] = []
-    for entry in [*dir_entries, *csv_entries]:
-        if entry.value not in seen:
-            seen.add(entry.value)
-            merged.append(entry)
+    csv_entries, csv_errors = _read_csv(collection_dir / SELECTION_CSV)
     return CollectionSelectionSources(
         dir_entries=tuple(dir_entries),
         csv_entries=tuple(csv_entries),
-        merged=tuple(merged),
+        merged=_dedupe([*dir_entries, *csv_entries]),
+        errors=tuple(csv_errors),
     )
 
 
@@ -148,12 +213,6 @@ def has_selection(
 ) -> bool:
     """Return True if the collection has selection entries from either source."""
     # Quick check without EXIF reading
-    dir_files = list_files(collection_dir / SELECTION_DIR)
-    if dir_files:
-        return True
-    csv_path = collection_dir / SELECTION_CSV
-    if not csv_path.is_file():
-        return False
-    with open(csv_path, encoding="utf-8", newline="") as f:
-        reader = csv.DictReader(f)
-        return any(row.get("entry", "").strip() for row in reader)
+    return bool(list_files(collection_dir / SELECTION_DIR)) or bool(
+        _read_csv_rows(collection_dir / SELECTION_CSV)
+    )

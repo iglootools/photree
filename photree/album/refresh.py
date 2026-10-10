@@ -11,11 +11,12 @@ from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ..common.fs import list_files
 from ..fsprotocol import LinkMode
-from .jpeg import JpegConversionFailure
+from .id import generate_media_id
+from .jpeg import ConvertFile, JpegConversionFailure, convert_single_file
 
 if TYPE_CHECKING:
     from .faces.detect import FaceAnalyzerFactory
-from .id import generate_media_id
+    from .faces.refresh import FaceFailure
 from .store.media_metadata import (
     MediaMetadata,
     MediaSourceMediaMetadata,
@@ -40,14 +41,18 @@ class AlbumRefreshResult:
 
     Carries the per-file failures the refresh survived, so a caller can report
     them. A JPEG that failed to convert leaves a gap in ``{name}-jpg/`` that is
-    otherwise invisible until the next ``album check``.
+    otherwise invisible until the next ``album check``; an image whose face
+    detection failed is silently missing from face clustering.
+
+    Both fields are ``(media_source_name, failure)`` pairs.
     """
 
     jpeg_failures: tuple[tuple[str, JpegConversionFailure], ...] = ()
+    face_failures: tuple[tuple[str, FaceFailure], ...] = ()
 
     @property
     def success(self) -> bool:
-        return not self.jpeg_failures
+        return not self.jpeg_failures and not self.face_failures
 
 
 @dataclass(frozen=True)
@@ -100,6 +105,8 @@ class RefreshResult:
 def _reconcile(
     existing: dict[str, str],
     current_keys: set[str],
+    *,
+    new_id: Callable[[], str] = generate_media_id,
 ) -> ReconcileResult:
     """Reconcile existing UUID->key mappings against current keys on disk."""
     existing_keys = set(existing.values())
@@ -108,7 +115,7 @@ def _reconcile(
 
     updated = {
         **{uuid: key for uuid, key in existing.items() if key in current_keys},
-        **{generate_media_id(): key for key in new_keys},
+        **{new_id(): key for key in new_keys},
     }
 
     return ReconcileResult(
@@ -130,22 +137,34 @@ def _scan_keys(
     )
 
 
+def _media_extensions(ms: MediaSource) -> tuple[frozenset[str], frozenset[str]]:
+    """Return ``(image_extensions, video_extensions)`` for a media source."""
+    return (
+        (IOS_IMG_EXTENSIONS, IOS_VID_EXTENSIONS)
+        if ms.is_ios
+        else (IMG_EXTENSIONS, VID_EXTENSIONS)
+    )
+
+
 def _refresh_media_source(
     album_dir: Path,
     ms: MediaSource,
     existing_ms: MediaSourceMediaMetadata,
+    *,
+    new_id: Callable[[], str],
 ) -> tuple[MediaSourceMediaMetadata, MediaSourceRefreshResult]:
     """Refresh a single media source — returns updated metadata and result."""
-    img_ext = IOS_IMG_EXTENSIONS if ms.is_ios else IMG_EXTENSIONS
-    vid_ext = IOS_VID_EXTENSIONS if ms.is_ios else VID_EXTENSIONS
+    img_ext, vid_ext = _media_extensions(ms)
 
     img = _reconcile(
         existing_ms.images,
         _scan_keys(album_dir, ms.orig_img_dir, img_ext, ms.key_fn),
+        new_id=new_id,
     )
     vid = _reconcile(
         existing_ms.videos,
         _scan_keys(album_dir, ms.orig_vid_dir, vid_ext, ms.key_fn),
+        new_id=new_id,
     )
 
     return (
@@ -163,11 +182,12 @@ def refresh_media_metadata(
     album_dir: Path,
     *,
     dry_run: bool = False,
+    new_id: Callable[[], str] = generate_media_id,
 ) -> RefreshResult:
     """Scan archive directories and reconcile with ``.photree/media-ids/``.
 
-    Assigns new UUIDs to media files not yet tracked, removes stale entries
-    for files no longer on disk.
+    Assigns new UUIDs (from *new_id*) to media files not yet tracked, removes
+    stale entries for files no longer on disk.
     """
     existing = load_media_metadata(album_dir) or MediaMetadata()
     sources = discover_media_sources(album_dir)
@@ -179,6 +199,7 @@ def refresh_media_metadata(
                 album_dir,
                 ms,
                 existing.media_sources.get(ms.name, MediaSourceMediaMetadata()),
+                new_id=new_id,
             ),
         )
         for ms in sources
@@ -210,7 +231,7 @@ def refresh_album_derived_data(
     force_browsable: bool = False,
     force_jpeg: bool = False,
     force_exif_cache: bool = False,
-    convert_file: Callable[..., Path | None] | None = None,
+    convert_file: ConvertFile | None = None,
     redetect_faces: bool = False,
     refresh_face_thumbs: bool = False,
     dry_run: bool = False,
@@ -237,48 +258,31 @@ def refresh_album_derived_data(
     *analyzer_factory* is ``None``, face detection is skipped.
     """
     from ..fsprotocol import resolve_link_mode
-    from .check.media_metadata import check_media_metadata
     from .exif_cache.refresh import refresh_exif_cache
     from .faces.refresh import refresh_face_data
-    from .store.media_sources_discovery import discover_media_sources
 
     media_sources = discover_media_sources(album_dir)
-    resolved_link_mode = link_mode or resolve_link_mode(None, album_dir)
 
-    # 1. Browsable dirs (main-img, main-vid)
     _refresh_browsable_dirs(
         album_dir,
         media_sources,
-        link_mode=resolved_link_mode,
+        link_mode=link_mode or resolve_link_mode(None, album_dir),
         force=force_browsable,
         dry_run=dry_run,
     )
-
-    # 2. JPEG dirs (main-jpg)
     jpeg_failures = _refresh_jpeg_dirs(
         album_dir,
         media_sources,
         max_workers=max_workers,
-        convert_file=convert_file,
+        convert_file=convert_file or convert_single_file,
         force=force_jpeg,
         dry_run=dry_run,
     )
-
-    # 3. Media IDs
-    meta_check = check_media_metadata(album_dir, media_sources=media_sources)
-    if meta_check is None or not meta_check.in_sync:
-        refresh_media_metadata(album_dir, dry_run=dry_run)
-
-    # 4. EXIF cache — built-in per-file mtime gate
+    _refresh_media_ids_if_stale(album_dir, media_sources, dry_run=dry_run)
     refresh_exif_cache(
-        album_dir,
-        exiftool=exiftool,
-        force=force_exif_cache,
-        dry_run=dry_run,
+        album_dir, exiftool=exiftool, force=force_exif_cache, dry_run=dry_run
     )
-
-    # 5. Face detection — built-in per-file mtime gate
-    refresh_face_data(
+    faces = refresh_face_data(
         album_dir,
         analyzer_factory=analyzer_factory,
         redetect=redetect_faces,
@@ -286,62 +290,40 @@ def refresh_album_derived_data(
         dry_run=dry_run,
     )
 
-    return AlbumRefreshResult(jpeg_failures=jpeg_failures)
+    return AlbumRefreshResult(jpeg_failures=jpeg_failures, face_failures=faces.failures)
+
+
+def _refresh_media_ids_if_stale(
+    album_dir: Path, media_sources: list[MediaSource], *, dry_run: bool
+) -> None:
+    from .check.media_metadata import check_media_metadata
+
+    meta_check = check_media_metadata(album_dir, media_sources=media_sources)
+    if meta_check is None or not meta_check.in_sync:
+        refresh_media_metadata(album_dir, dry_run=dry_run)
 
 
 def _refresh_browsable_dirs(
     album_dir: Path,
-    media_sources: list,
+    media_sources: list[MediaSource],
     *,
     link_mode: LinkMode,
     force: bool,
     dry_run: bool,
 ) -> None:
-    """Conditionally refresh browsable dirs for all media sources."""
-    from .browsable import refresh_browsable_dir
-    from .live_photo import augment_browsable_img_with_live_photo_videos
-    from .store.protocol import (
-        IMG_EXTENSIONS,
-        IOS_IMG_EXTENSIONS,
-        IOS_VID_EXTENSIONS,
-        VID_EXTENSIONS,
-    )
+    """Conditionally refresh browsable dirs for all media sources.
 
+    Dry runs stop at the staleness check: nothing below it is called.
+    """
+    if dry_run:
+        return
     for ms in media_sources:
-        img_ext = IOS_IMG_EXTENSIONS if ms.is_ios else IMG_EXTENSIONS
-        vid_ext = IOS_VID_EXTENSIONS if ms.is_ios else VID_EXTENSIONS
-
-        # main-img
-        # SIM102 is suppressed below: staleness and the dry-run guard are separate
-        # concerns, and nesting them reads better than collapsing the two into a
-        # single boolean expression wrapped around a multi-line call.
-        if force or not _browsable_img_is_fresh(  # noqa: SIM102
+        img_ext, vid_ext = _media_extensions(ms)
+        if force or not _browsable_img_is_fresh(
             album_dir, ms, img_ext=img_ext, vid_ext=vid_ext, link_mode=link_mode
         ):
-            if not dry_run:
-                refresh_browsable_dir(
-                    album_dir / ms.orig_img_dir,
-                    album_dir / ms.edit_img_dir,
-                    album_dir / ms.img_dir,
-                    media_extensions=img_ext,
-                    key_fn=ms.key_fn,
-                    link_mode=link_mode,
-                    dry_run=dry_run,
-                )
-                # Augment with Live Photo companion videos (iOS only)
-                if ms.is_ios:
-                    augment_browsable_img_with_live_photo_videos(
-                        album_dir / ms.orig_img_dir,
-                        album_dir / ms.edit_img_dir,
-                        album_dir / ms.img_dir,
-                        vid_extensions=vid_ext,
-                        key_fn=ms.key_fn,
-                        link_mode=link_mode,
-                        dry_run=dry_run,
-                    )
-
-        # main-vid
-        if force or not _browsable_is_fresh(  # noqa: SIM102
+            _rebuild_browsable_img(album_dir, ms, img_ext, vid_ext, link_mode)
+        if force or not _browsable_is_fresh(
             album_dir,
             ms.orig_vid_dir,
             ms.edit_vid_dir,
@@ -350,16 +332,53 @@ def _refresh_browsable_dirs(
             key_fn=ms.key_fn,
             link_mode=link_mode,
         ):
-            if not dry_run:
-                refresh_browsable_dir(
-                    album_dir / ms.orig_vid_dir,
-                    album_dir / ms.edit_vid_dir,
-                    album_dir / ms.vid_dir,
-                    media_extensions=vid_ext,
-                    key_fn=ms.key_fn,
-                    link_mode=link_mode,
-                    dry_run=dry_run,
-                )
+            _rebuild_browsable_vid(album_dir, ms, vid_ext, link_mode)
+
+
+def _rebuild_browsable_img(
+    album_dir: Path,
+    ms: MediaSource,
+    img_ext: frozenset[str],
+    vid_ext: frozenset[str],
+    link_mode: LinkMode,
+) -> None:
+    """Rebuild ``{name}-img/``, plus Live Photo companion videos for iOS."""
+    from .browsable import refresh_browsable_dir
+    from .live_photo import augment_browsable_img_with_live_photo_videos
+
+    refresh_browsable_dir(
+        album_dir / ms.orig_img_dir,
+        album_dir / ms.edit_img_dir,
+        album_dir / ms.img_dir,
+        media_extensions=img_ext,
+        key_fn=ms.key_fn,
+        link_mode=link_mode,
+    )
+    if ms.is_ios:
+        augment_browsable_img_with_live_photo_videos(
+            album_dir / ms.orig_img_dir,
+            album_dir / ms.edit_img_dir,
+            album_dir / ms.img_dir,
+            vid_extensions=vid_ext,
+            key_fn=ms.key_fn,
+            link_mode=link_mode,
+            dry_run=False,
+        )
+
+
+def _rebuild_browsable_vid(
+    album_dir: Path, ms: MediaSource, vid_ext: frozenset[str], link_mode: LinkMode
+) -> None:
+    from .browsable import refresh_browsable_dir
+
+    refresh_browsable_dir(
+        album_dir / ms.orig_vid_dir,
+        album_dir / ms.edit_vid_dir,
+        album_dir / ms.vid_dir,
+        media_extensions=vid_ext,
+        key_fn=ms.key_fn,
+        link_mode=link_mode,
+    )
 
 
 def _browsable_is_fresh(
@@ -376,19 +395,17 @@ def _browsable_is_fresh(
     from .check.browsable import check_browsable_dir
 
     orig = album_dir / orig_subdir
-    if not orig.is_dir():
-        return True  # no archive → nothing to refresh
-
-    result = check_browsable_dir(
-        orig,
-        album_dir / edit_subdir,
-        album_dir / browsable_subdir,
-        media_extensions=extensions,
-        key_fn=key_fn,
-        link_mode=link_mode,
-        checksum=False,  # fast: file listing only, no content hashing
+    return not orig.is_dir() or (  # no archive → nothing to refresh
+        check_browsable_dir(
+            orig,
+            album_dir / edit_subdir,
+            album_dir / browsable_subdir,
+            media_extensions=extensions,
+            key_fn=key_fn,
+            link_mode=link_mode,
+            checksum=False,  # fast: file listing only, no content hashing
+        ).success
     )
-    return result.success
 
 
 def _browsable_img_is_fresh(
@@ -420,18 +437,17 @@ def _browsable_img_is_fresh(
         link_mode=link_mode,
         checksum=False,
     )
-
     if not ms.is_ios:
         return result.success
 
     # For iOS, filter Live Photo videos from the "extra" list and verify
     # they are all present in the browsable dir.
-    filtered = _filter_live_photo_extras(
-        result,
-        _live_photo_vid_filenames(album_dir, ms, img_ext, vid_ext),
+    live_videos = _live_photo_vid_filenames(album_dir, ms, img_ext, vid_ext)
+    browsable_files = frozenset(list_files(album_dir / ms.img_dir))
+    return (
+        _filter_live_photo_extras(result, live_videos).success
+        and live_videos <= browsable_files
     )
-    live_missing = _missing_live_photo_videos(album_dir, ms, img_ext, vid_ext)
-    return filtered.success and not live_missing
 
 
 def _live_photo_vid_filenames(
@@ -453,30 +469,12 @@ def _live_photo_vid_filenames(
     return frozenset(name for name, _ in videos)
 
 
-def _missing_live_photo_videos(
-    album_dir: Path,
-    ms: MediaSource,
-    img_ext: frozenset[str],
-    vid_ext: frozenset[str],
-) -> frozenset[str]:
-    """Return Live Photo video filenames expected but missing from browsable img."""
-    expected = _live_photo_vid_filenames(album_dir, ms, img_ext, vid_ext)
-    if not expected:
-        return frozenset()
-    browsable_files = (
-        set(list_files(album_dir / ms.img_dir))
-        if (album_dir / ms.img_dir).is_dir()
-        else set()
-    )
-    return frozenset(expected - browsable_files)
-
-
 def _refresh_jpeg_dirs(
     album_dir: Path,
-    media_sources: list,
+    media_sources: list[MediaSource],
     *,
     max_workers: int | None,
-    convert_file: Callable[..., Path | None] | None,
+    convert_file: ConvertFile,
     force: bool,
     dry_run: bool,
 ) -> tuple[tuple[str, JpegConversionFailure], ...]:
@@ -486,9 +484,7 @@ def _refresh_jpeg_dirs(
     converted, so the caller can report which source they belong to.
     """
     from .check.jpeg import check_jpeg_dir
-    from .jpeg import convert_single_file, refresh_jpeg_dir
-
-    converter = convert_file if convert_file is not None else convert_single_file
+    from .jpeg import refresh_jpeg_dir
 
     stale = [
         ms
@@ -509,7 +505,7 @@ def _refresh_jpeg_dirs(
             album_dir / ms.img_dir,
             album_dir / ms.jpg_dir,
             dry_run=dry_run,
-            convert_file=converter,
+            convert_file=convert_file,
             max_workers=max_workers,
         ).failed
     )

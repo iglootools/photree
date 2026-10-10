@@ -9,6 +9,7 @@ import typer
 
 from ...album.store.album_discovery import discover_albums
 from ...clihelpers.resolution import resolve_gallery_or_exit
+from ...common.formatting import indent
 from ...common.fs import display_path
 from ...fsprotocol import ALBUMS_DIR, GALLERY_YAML, PHOTREE_DIR, load_gallery_metadata
 from . import gallery_app
@@ -20,7 +21,7 @@ def show_cmd(
         Path | None,
         typer.Option(
             "--gallery-dir",
-            "-d",
+            "-g",
             help="Gallery root directory (or resolved from cwd via .photree/gallery.yaml).",
             exists=True,
             file_okay=False,
@@ -34,6 +35,12 @@ def show_cmd(
     metadata = load_gallery_metadata(resolved / PHOTREE_DIR / GALLERY_YAML)
     albums = discover_albums(resolved / ALBUMS_DIR)
 
-    typer.echo(f"Gallery: {display_path(resolved, cwd)}")
-    typer.echo(f"  link-mode: {metadata.link_mode}")
-    typer.echo(f"  albums: {len(albums)}")
+    typer.echo(
+        "\n".join(
+            [
+                f"Gallery: {display_path(resolved, cwd)}",
+                indent(f"link-mode: {metadata.link_mode}"),
+                indent(f"albums: {len(albums)}"),
+            ]
+        )
+    )

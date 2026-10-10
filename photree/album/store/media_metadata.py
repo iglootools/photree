@@ -13,10 +13,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import yaml
 from pydantic import Field
 
-from ...fsprotocol import PHOTREE_DIR, _BaseModel
+from ...fsprotocol import (
+    PHOTREE_DIR,
+    InvalidMetadataError,
+    _BaseModel,
+    load_yaml_mapping,
+    validate_metadata,
+    write_yaml,
+)
 from .protocol import MEDIA_IDS_DIR
 
 
@@ -50,19 +56,30 @@ def _source_path(album_dir: Path, source_name: str) -> Path:
     return _media_ids_dir(album_dir) / f"{source_name}.yaml"
 
 
+def _load_source_file(path: Path) -> MediaSourceMediaMetadata:
+    """Read one ``media-ids/{name}.yaml`` file that is known to exist."""
+    raw = load_yaml_mapping(path)
+    if raw is None:
+        # Only reachable if the file vanished between the glob and the read.
+        raise InvalidMetadataError(path, "file disappeared while reading")
+    return validate_metadata(path, MediaSourceMediaMetadata, raw)
+
+
 def load_media_metadata(album_dir: Path) -> MediaMetadata | None:
-    """Read per-source YAML files from ``.photree/media-ids/``."""
+    """Read per-source YAML files from ``.photree/media-ids/``.
+
+    Returns ``None`` when there is no media-ids file at all. A file that is
+    present but unreadable raises
+    :class:`~photree.fsprotocol.InvalidMetadataError` rather than being
+    skipped: dropping it would make the next refresh mint fresh UUIDs for every
+    media item of that source, breaking collection references.
+    """
     ids_dir = _media_ids_dir(album_dir)
-    if not ids_dir.is_dir():
-        return None
-
-    sources: dict[str, MediaSourceMediaMetadata] = {}
-    for path in sorted(ids_dir.glob("*.yaml")):
-        with open(path) as f:
-            raw = yaml.safe_load(f)
-        if isinstance(raw, dict):
-            sources[path.stem] = MediaSourceMediaMetadata.model_validate(raw)
-
+    sources = (
+        {path.stem: _load_source_file(path) for path in sorted(ids_dir.glob("*.yaml"))}
+        if ids_dir.is_dir()
+        else {}
+    )
     return MediaMetadata(media_sources=sources) if sources else None
 
 
@@ -78,10 +95,7 @@ def save_media_metadata(album_dir: Path, metadata: MediaMetadata) -> None:
 
     # Write each source
     for name, source_meta in metadata.media_sources.items():
-        _source_path(album_dir, name).write_text(
-            yaml.safe_dump(
-                source_meta.model_dump(by_alias=True, mode="json"),
-                default_flow_style=False,
-                sort_keys=False,
-            )
+        write_yaml(
+            _source_path(album_dir, name),
+            source_meta.model_dump(by_alias=True, mode="json"),
         )

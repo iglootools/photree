@@ -6,11 +6,10 @@ from pathlib import Path
 
 import typer
 
-from ....clihelpers.console import err_console
 from ....clihelpers.progress import BatchProgressBar
 from ...cmd_handler.refresh import batch_refresh
 from ..ops import make_display_fn
-from .failures import batch_failures_report, investigate_commands
+from .failures import exit_if_no_albums, exit_with_failures
 
 
 def run_batch_refresh(
@@ -26,13 +25,7 @@ def run_batch_refresh(
 ) -> None:
     """Shared implementation for albums refresh / gallery refresh."""
     cwd = Path.cwd()
-
-    if not albums:
-        typer.echo("\nNo albums found.")
-        raise typer.Exit(code=0)
-
-    if display_base is not None:
-        typer.echo(f"\nFound {len(albums)} album(s).\n")
+    exit_if_no_albums(albums, display_base)
 
     with BatchProgressBar(
         total=len(albums), description="Refreshing", done_description="refresh"
@@ -53,11 +46,6 @@ def run_batch_refresh(
         )
 
     typer.echo(
-        f"\nDone. {result.refreshed} album(s) refreshed,"
-        f" {len(result.failed_albums)} failed."
+        f"\nDone. {result.refreshed} album(s) refreshed, {len(result.failures)} failed."
     )
-
-    if result.failed_albums:
-        err_console.print(batch_failures_report(result.failures, cwd))
-        err_console.print(investigate_commands("refresh", result.failed_albums, cwd))
-        raise typer.Exit(code=1)
+    exit_with_failures(result.failures, "refresh", cwd)

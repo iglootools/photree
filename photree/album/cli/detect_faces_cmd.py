@@ -9,9 +9,15 @@ import typer
 
 from ...clihelpers.console import err_console
 from ...clihelpers.sysdeps import FACE_DETECTION_DEPS, require_system_deps
+from ...common.formatting import indent
 from ..faces.detect import memoized_face_analyzer_factory
-from ..faces.refresh import refresh_face_data
+from ..faces.refresh import (
+    FaceSourceRefreshResult,
+    format_face_failures,
+    refresh_face_data,
+)
 from . import album_app
+from .helpers import exit_on_media_source_conflict
 
 
 @album_app.command("detect-faces")
@@ -49,33 +55,39 @@ def detect_faces_cmd(
     """Run face detection on album images."""
     require_system_deps(FACE_DETECTION_DEPS)
 
-    result = refresh_face_data(
-        album_dir,
-        analyzer_factory=memoized_face_analyzer_factory(),
-        redetect=redetect,
-        refresh_thumbs=refresh_thumbs,
-        dry_run=dry_run,
-    )
+    with exit_on_media_source_conflict(Path.cwd()):
+        result = refresh_face_data(
+            album_dir,
+            analyzer_factory=memoized_face_analyzer_factory(),
+            redetect=redetect,
+            refresh_thumbs=refresh_thumbs,
+            dry_run=dry_run,
+        )
 
     if not result.by_media_source:
         typer.echo("No media sources with archives found.")
         raise typer.Exit(code=0)
 
     for ms_name, ms_result in result.by_media_source:
-        parts = [
-            f"{ms_result.processed} processed",
-            f"{ms_result.skipped} skipped",
-        ]
-        if ms_result.faces_detected:
-            parts.append(f"{ms_result.faces_detected} face(s)")
-        if ms_result.failed:
-            parts.append(f"{ms_result.failed} failed")
-        typer.echo(f"  {ms_name}: {', '.join(parts)}")
+        typer.echo(indent(f"{ms_name}: {_source_summary(ms_result)}"))
 
     if result.failures:
         err_console.print("\nFailed images:")
-        for ms_name, failure in result.failures:
-            err_console.print(
-                f"  {ms_name}/{failure.key} ({failure.stage}): {failure.reason}"
-            )
+        for line in format_face_failures(result.failures):
+            err_console.print(indent(line), markup=False)
         raise typer.Exit(code=1)
+
+
+def _source_summary(ms_result: FaceSourceRefreshResult) -> str:
+    return ", ".join(
+        [
+            f"{ms_result.processed} processed",
+            f"{ms_result.skipped} skipped",
+            *(
+                [f"{ms_result.faces_detected} face(s)"]
+                if ms_result.faces_detected
+                else []
+            ),
+            *([f"{ms_result.failed} failed"] if ms_result.failed else []),
+        ]
+    )

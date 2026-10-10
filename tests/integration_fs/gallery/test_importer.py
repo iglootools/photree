@@ -8,10 +8,12 @@ import pytest
 
 from photree.album.id import generate_album_id
 from photree.album.jpeg import copy_convert_single, noop_convert_single
+from photree.album.refresh import AlbumRefreshResult
 from photree.album.store.metadata import load_album_metadata, save_album_metadata
-from photree.album.store.protocol import AlbumMetadata
+from photree.album.store.protocol import AlbumDatePrefixError, AlbumMetadata
 from photree.fsprotocol import GalleryMetadata, LinkMode, save_gallery_metadata
 from photree.gallery.importer import (
+    TargetExistsError,
     compute_target_dir,
     import_album,
 )
@@ -19,7 +21,7 @@ from photree.gallery.importer import (
 
 def _write(path: Path, content: str = "data") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content)
+    path.write_text(content, encoding="utf-8")
 
 
 def _setup_gallery(tmp_path: Path) -> Path:
@@ -55,9 +57,19 @@ class TestComputeTargetDir:
         result = compute_target_dir(Path("/gallery"), "2023-01-01 - New Year")
         assert result == Path("/gallery/albums/2023/2023-01-01 - New Year")
 
+    def test_month_and_year_precision_albums(self) -> None:
+        # Valid names at every date precision land under their (start) year.
+        assert compute_target_dir(Path("/gallery"), "2024-07 - Summer") == Path(
+            "/gallery/albums/2024/2024-07 - Summer"
+        )
+        assert compute_target_dir(Path("/gallery"), "2024 - Family") == Path(
+            "/gallery/albums/2024/2024 - Family"
+        )
+
     def test_invalid_name_raises(self) -> None:
-        with pytest.raises(ValueError, match="YYYY-MM-DD"):
+        with pytest.raises(AlbumDatePrefixError) as exc_info:
             compute_target_dir(Path("/gallery"), "no-date-album")
+        assert exc_info.value.album_name == "no-date-album"
 
 
 class TestImportAlbum:
@@ -122,12 +134,13 @@ class TestImportAlbum:
         target = gallery / "albums" / "2024" / "2024-07-14 - Hiking"
         target.mkdir(parents=True)
 
-        with pytest.raises(ValueError, match="already exists"):
+        with pytest.raises(TargetExistsError) as exc_info:
             import_album(
                 source_dir=album,
                 gallery_dir=gallery,
                 convert_file=noop_convert_single,
             )
+        assert exc_info.value.target == target
 
     def test_dry_run_does_not_copy(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
@@ -192,3 +205,42 @@ class TestImportAlbum:
         assert "copy" in stage_names
         assert "id" in stage_names
         assert "refresh-derived" in stage_names
+
+    def test_failed_refresh_leaves_no_partial_album(self, tmp_path: Path) -> None:
+        """Regression: a half-built target was later skipped as "imported"."""
+        gallery = _setup_gallery(tmp_path)
+        album = tmp_path / "2024-07-14 - Hiking"
+        _setup_ios_album(album)
+
+        class RefreshFailed(Exception):
+            pass
+
+        def failing_refresh(*_args: object, **_kwargs: object) -> AlbumRefreshResult:
+            raise RefreshFailed
+
+        with pytest.raises(RefreshFailed):
+            import_album(
+                source_dir=album,
+                gallery_dir=gallery,
+                convert_file=noop_convert_single,
+                refresh=failing_refresh,
+            )
+
+        year_dir = gallery / "albums" / "2024"
+        assert list(year_dir.iterdir()) == []
+
+    def test_uses_injected_id(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        album = tmp_path / "2024-07-14 - Hiking"
+        _setup_ios_album(album)
+        fixed_id = generate_album_id()
+
+        result = import_album(
+            source_dir=album,
+            gallery_dir=gallery,
+            convert_file=noop_convert_single,
+            new_id=lambda: fixed_id,
+        )
+
+        meta = load_album_metadata(result.target_dir)
+        assert meta is not None and meta.id == fixed_id

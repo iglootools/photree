@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 
 import typer
@@ -11,86 +12,110 @@ from ....album.id import (
     format_image_external_id,
     format_video_external_id,
 )
+from ....album.store.media_metadata import (
+    MediaMetadata,
+    MediaSourceMediaMetadata,
+    load_media_metadata,
+)
 from ....album.store.metadata import load_album_metadata
+from ....clihelpers.options import OutputFormat
+from ....common.formatting import indent
 from ..ops import display_name
+from .sink import write_csv, write_text
+
+_CSV_HEADER = ("album_id", "media_source", "type", "id", "key")
+
+
+@dataclass(frozen=True)
+class _AlbumMedia:
+    name: str
+    album_ext_id: str  # "" when the album has no ID
+    media: MediaMetadata
+
+
+def _load(albums: list[Path], display_base: Path | None) -> list[_AlbumMedia]:
+    """Albums that have media IDs, in order."""
+    cwd = Path.cwd()
+    return [
+        _AlbumMedia(
+            display_name(album_dir, display_base, cwd),
+            format_album_external_id(meta.id) if meta is not None else "",
+            media,
+        )
+        for album_dir in albums
+        for media in [load_media_metadata(album_dir)]
+        if media is not None
+        for meta in [load_album_metadata(album_dir)]
+    ]
+
+
+def _csv_rows(albums: list[_AlbumMedia]) -> list[list[str]]:
+    return [
+        [album.album_ext_id, source_name, kind, fmt(mid), key]
+        for album in albums
+        for source_name, source in album.media.media_sources.items()
+        for kind, ids, fmt in (
+            ("image", source.images, format_image_external_id),
+            ("video", source.videos, format_video_external_id),
+        )
+        for mid, key in ids.items()
+    ]
+
+
+def _source_lines(source_name: str, source: MediaSourceMediaMetadata) -> list[str]:
+    """Unindented lines for one media source (nested levels indented here)."""
+    return [
+        f"{source_name}:",
+        *(
+            line
+            for label, ids, fmt in (
+                ("images", source.images, format_image_external_id),
+                ("videos", source.videos, format_video_external_id),
+            )
+            if ids
+            for line in [
+                indent(f"{label}:"),
+                *(indent(f"{fmt(mid)}: {key}", 2) for mid, key in ids.items()),
+            ]
+        ),
+    ]
+
+
+def _text_lines(albums: list[_AlbumMedia]) -> list[str]:
+    return [
+        line
+        for album in albums
+        if album.media.media_sources
+        for line in [
+            album.name,
+            *([indent(f"id: {album.album_ext_id}")] if album.album_ext_id else []),
+            *(
+                indent(source_line)
+                for name, source in album.media.media_sources.items()
+                for source_line in _source_lines(name, source)
+            ),
+        ]
+    ]
 
 
 def run_batch_list_media(
     albums: list[Path],
     display_base: Path | None,
     *,
-    output_format: str = "text",
+    output_format: OutputFormat = OutputFormat.TEXT,
     output_file: Path | None = None,
 ) -> None:
-    """Shared implementation for albums list-media / gallery list-media."""
-    import csv
+    """Shared implementation for albums list-media / gallery list-media.
 
-    from ....album.store.media_metadata import load_media_metadata
-    from ....clihelpers.csvout import csv_output
-
-    cwd = Path.cwd()
-
+    *output_file* applies to both formats.
+    """
     if not albums:
-        typer.echo("No albums found.", err=output_format == "csv")
+        typer.echo("No albums found.", err=output_format == OutputFormat.CSV)
         raise typer.Exit(code=0)
 
-    if output_format == "csv":
-        with csv_output(output_file) as out:
-            writer = csv.writer(out)
-            writer.writerow(["album_id", "media_source", "type", "id", "key"])
-            for album_dir in albums:
-                album_meta = load_album_metadata(album_dir)
-                album_ext_id = (
-                    format_album_external_id(album_meta.id)
-                    if album_meta is not None
-                    else ""
-                )
-                media_meta = load_media_metadata(album_dir)
-                if media_meta is None:
-                    continue
-                for source_name, source in media_meta.media_sources.items():
-                    for mid, key in source.images.items():
-                        writer.writerow(
-                            [
-                                album_ext_id,
-                                source_name,
-                                "image",
-                                format_image_external_id(mid),
-                                key,
-                            ]
-                        )
-                    for mid, key in source.videos.items():
-                        writer.writerow(
-                            [
-                                album_ext_id,
-                                source_name,
-                                "video",
-                                format_video_external_id(mid),
-                                key,
-                            ]
-                        )
-        return
-
-    for album_dir in albums:
-        name = display_name(album_dir, display_base, cwd)
-        album_meta = load_album_metadata(album_dir)
-        album_ext_id = (
-            format_album_external_id(album_meta.id) if album_meta is not None else ""
-        )
-        media_meta = load_media_metadata(album_dir)
-        if media_meta is None or not media_meta.media_sources:
-            continue
-
-        typer.echo(f"{name}")
-        if album_ext_id:
-            typer.echo(f"  id: {album_ext_id}")
-        for source_name, source in media_meta.media_sources.items():
-            typer.echo(f"  {source_name}:")
-            if source.images:
-                typer.echo("    images:")
-                for mid, key in source.images.items():
-                    typer.echo(f"      {format_image_external_id(mid)}: {key}")
-            if source.videos:
-                typer.echo("    videos:")
-                for mid, key in source.videos.items():
-                    typer.echo(f"      {format_video_external_id(mid)}: {key}")
+    loaded = _load(albums, display_base)
+    match output_format:
+        case OutputFormat.CSV:
+            write_csv(_CSV_HEADER, _csv_rows(loaded), output_file)
+        case OutputFormat.TEXT:
+            write_text(_text_lines(loaded), output_file)

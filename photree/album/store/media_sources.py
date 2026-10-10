@@ -12,6 +12,7 @@ convenience wrappers.
 from __future__ import annotations
 
 from collections.abc import Callable
+from itertools import groupby
 from pathlib import Path
 
 from ...common.fs import file_ext, list_files
@@ -44,12 +45,14 @@ def group_by_key(
     media_extensions: frozenset[str],
     key_fn: Callable[[str], str],
 ) -> dict[str, list[str]]:
-    """Group media files by a key extracted via *key_fn*."""
-    groups: dict[str, list[str]] = {}
-    for f in files:
-        if file_ext(f) in media_extensions:
-            groups.setdefault(key_fn(f), []).append(f)
-    return groups
+    """Group media files by a key extracted via *key_fn*.
+
+    Groups are ordered by key; within a group, files keep their input order
+    (the sort is stable), which :func:`pick_media_priority` relies on for its
+    fallback.
+    """
+    media = sorted((f for f in files if file_ext(f) in media_extensions), key=key_fn)
+    return {key: list(group) for key, group in groupby(media, key=key_fn)}
 
 
 def dedup_media_dict(
@@ -99,13 +102,13 @@ def ios_file_prefix(filename: str) -> str:
     ``IMG_E`` → ``'E'`` (edited), ``IMG_O`` → ``'O'`` (edited metadata),
     ``IMG_`` → ``''`` (original).
     """
-    lower = filename.lower()
-    if lower.startswith("img_e"):
-        return "E"
-    elif lower.startswith("img_o"):
-        return "O"
-    else:
-        return ""
+    match filename.lower()[:5]:
+        case "img_e":
+            return "E"
+        case "img_o":
+            return "O"
+        case _:
+            return ""
 
 
 def ios_dedup_media_dict(

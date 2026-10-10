@@ -8,7 +8,9 @@ actionable message printed before the first file is touched.
 
 from __future__ import annotations
 
+import shutil
 from collections.abc import Iterable
+from textwrap import dedent
 
 import typer
 
@@ -16,6 +18,7 @@ from ..common.formatting import CHECK, CROSS
 from ..common.sysdeps import (
     SystemDependency,
     SystemDependencyStatus,
+    WhichFn,
     check_system_dependencies,
     install_hint,
     missing_dependencies,
@@ -28,6 +31,10 @@ from .console import console, err_console
 # binary cannot leave one caller behind.
 EXIF_DEPS: tuple[SystemDependency, ...] = (SystemDependency.EXIFTOOL,)
 FACE_DETECTION_DEPS: tuple[SystemDependency, ...] = (SystemDependency.SIPS,)
+# The check commands need sips for the browsable/JPEG consistency checks.
+# exiftool is deliberately absent: EXIF validation is optional there and
+# degrades to a "checks skipped" line (see internals.md, System Dependencies).
+CHECK_DEPS: tuple[SystemDependency, ...] = (SystemDependency.SIPS,)
 
 
 def import_deps(*, skip_heic_to_jpeg: bool = False) -> tuple[SystemDependency, ...]:
@@ -72,17 +79,27 @@ def format_missing_troubleshoot(missing: Iterable[SystemDependency]) -> str:
     )
 
 
+_ABORT_MESSAGE = dedent("""\
+    Aborted before starting: install the missing system dependencies above and \
+    re-run. Nothing was modified.
+    Run 'photree check system' to re-verify.""")
+
+
 def require_system_deps(
     dependencies: Iterable[SystemDependency],
     *,
     header: str | None = "System Checks:",
+    abort_message: str | None = _ABORT_MESSAGE,
+    which: WhichFn = shutil.which,
 ) -> tuple[SystemDependencyStatus, ...]:
     """Print dependency check lines, exiting before any work if one is missing.
 
     Pass ``header=None`` when the caller already printed a section header
     (e.g. the import preflight block, which renders its own checks alongside).
+    Pass ``abort_message=None`` when the command *is* the diagnostic
+    (``check system``), so it does not tell the user to run itself.
     """
-    statuses = check_system_dependencies(dependencies)
+    statuses = check_system_dependencies(dependencies, which=which)
     if header is not None:
         typer.echo(header)
     console.print(format_statuses(statuses))
@@ -91,11 +108,8 @@ def require_system_deps(
     if missing:
         typer.echo("")
         err_console.print(format_missing_troubleshoot(missing))
-        err_console.print(
-            "\nAborted before starting: install the missing system dependencies "
-            "above and re-run. Nothing was modified.\n"
-            "Run 'photree check system' to re-verify."
-        )
+        if abort_message is not None:
+            err_console.print(f"\n{abort_message}")
         raise typer.Exit(code=1)
 
     return statuses

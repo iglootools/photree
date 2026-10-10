@@ -7,9 +7,12 @@ from pathlib import Path
 import pytest
 
 from photree.album.jpeg import noop_convert_single
+from photree.album.refresh import AlbumRefreshResult
 from photree.album.store.media_metadata import load_media_metadata
 from photree.album.store.metadata import load_album_metadata
 from photree.gallery.importer import (
+    TargetExistsError,
+    _swap_into_place,
     compute_target_dir,
     import_album,
     reimport_album,
@@ -18,7 +21,7 @@ from photree.gallery.importer import (
 
 def _write(path: Path, content: str = "data") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content)
+    path.write_text(content, encoding="utf-8")
 
 
 def _setup_gallery(tmp_path: Path) -> Path:
@@ -54,6 +57,14 @@ def _first_import(tmp_path: Path) -> tuple[Path, Path, Path]:
         source_dir=source, gallery_dir=gallery, convert_file=noop_convert_single
     )
     return gallery, source, result.target_dir
+
+
+class _RefreshFailed(Exception):
+    pass
+
+
+def _failing_refresh(*_args: object, **_kwargs: object) -> AlbumRefreshResult:
+    raise _RefreshFailed
 
 
 class TestReimportAlbum:
@@ -123,22 +134,18 @@ class TestReimportAlbum:
         assert not (target / "ios-main/orig-img/IMG_0099.HEIC").exists()
         assert (target / "ios-main/orig-img/IMG_0001.HEIC").is_file()
 
-    def test_atomic_on_refresh_failure(self, tmp_path: Path, monkeypatch) -> None:
+    def test_atomic_on_refresh_failure(self, tmp_path: Path) -> None:
         gallery, source, target = _first_import(tmp_path)
         original_id = load_album_metadata(target).id  # type: ignore[union-attr]
         _write(source / "ios-main/orig-img/IMG_0002.HEIC", "heic2")
 
-        def boom(*_args, **_kwargs):
-            raise RuntimeError("refresh failed")
-
-        monkeypatch.setattr("photree.album.refresh.refresh_album_derived_data", boom)
-
-        with pytest.raises(RuntimeError, match="refresh failed"):
+        with pytest.raises(_RefreshFailed):
             reimport_album(
                 source_dir=source,
                 gallery_dir=gallery,
                 existing_dir=target,
                 convert_file=noop_convert_single,
+                refresh=_failing_refresh,
             )
 
         # Original gallery copy is untouched, no staging/backup leftovers.
@@ -183,3 +190,40 @@ class TestReimportAlbum:
         assert new_target.is_dir()
         meta = load_album_metadata(new_target)
         assert meta is not None and meta.id == original_id
+
+    def test_rename_onto_occupied_name_is_refused(self, tmp_path: Path) -> None:
+        """Regression: the live album was moved aside, then the swap failed."""
+        gallery, source, target = _first_import(tmp_path)
+        occupied = compute_target_dir(gallery, "2024-07-14 - Hiking the Rockies")
+        _write(occupied / "ios-main/orig-img/IMG_0009.HEIC", "other album")
+        renamed = source.parent / occupied.name
+        source.rename(renamed)
+
+        with pytest.raises(TargetExistsError) as exc_info:
+            reimport_album(
+                source_dir=renamed,
+                gallery_dir=gallery,
+                existing_dir=target,
+                convert_file=noop_convert_single,
+            )
+
+        assert exc_info.value.target == occupied
+        assert (target / "ios-main/orig-img/IMG_0001.HEIC").is_file()
+        assert (occupied / "ios-main/orig-img/IMG_0009.HEIC").is_file()
+
+
+class TestSwapIntoPlace:
+    def test_restores_live_album_when_final_rename_fails(self, tmp_path: Path) -> None:
+        existing = tmp_path / "albums" / "2024" / "2024-07-14 - Hiking"
+        _write(existing / "live.txt", "live")
+        staging = tmp_path / "albums" / "2024" / ".2024-07-14 - Hiking.reimport"
+        _write(staging / "new.txt", "new")
+        # A non-empty directory at the target makes the final rename fail.
+        target = tmp_path / "albums" / "2024" / "2024-07-14 - Renamed"
+        _write(target / "occupant.txt", "occupant")
+
+        with pytest.raises(OSError):
+            _swap_into_place(existing, staging, target)
+
+        assert (existing / "live.txt").read_text(encoding="utf-8") == "live"
+        assert not (target.parent / ".2024-07-14 - Renamed.old").exists()

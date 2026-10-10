@@ -16,12 +16,12 @@ def _fake_convert(src: Path, dst_dir: Path, *, dry_run: bool) -> Path | None:
     if ext == ".heic":
         dst = dst_dir / Path(src.name).with_suffix(".jpg").name
         if not dry_run:
-            dst.write_text(src.read_text())
+            dst.write_text(src.read_text(encoding="utf-8"))
         return dst
     elif ext in {".jpg", ".jpeg"}:
         dst = dst_dir / src.name
         if not dry_run:
-            dst.write_text(src.read_text())
+            dst.write_text(src.read_text(encoding="utf-8"))
         return dst
     else:
         return None

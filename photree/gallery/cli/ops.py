@@ -8,6 +8,7 @@ argument parsing and orchestration.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
 
@@ -20,7 +21,8 @@ from ...album.store.album_discovery import discover_potential_albums
 from ...album.store.metadata import load_album_metadata
 from ...clihelpers.console import console, err_console
 from ...clihelpers.progress import BatchProgressBar, StageProgressBar
-from ...common.formatting import CHECK
+from ...common.exif import exiftool_session
+from ...common.formatting import CHECK, indent
 from ...common.fs import display_path
 from ...fsprotocol import LinkMode
 from .. import (
@@ -28,6 +30,7 @@ from .. import (
     MissingAlbumIdError,
     build_album_id_to_path_index,
 )
+from ..cmd_handler.importer import BatchImportResult
 from ..cmd_handler.importer import run_batch_import as _run_batch_import
 from ..cmd_handler.importer import run_single_import as _run_single_import
 from ..cmd_handler.post_import_check import (
@@ -40,7 +43,16 @@ from ..import_plan import (
     plan_imports,
 )
 from ..importer import AlbumImportResult
-from ..output import format_import_errors, format_skipped
+
+if TYPE_CHECKING:
+    from ..faces.face_refresh import GalleryFaceRefreshResult
+
+from ..output import (
+    format_import_error,
+    format_import_errors,
+    format_import_failure_labels,
+    format_skipped,
+)
 
 
 def build_index_or_exit(gallery_dir: Path, cwd: Path) -> AlbumIndex:
@@ -56,11 +68,15 @@ def build_index_or_exit(gallery_dir: Path, cwd: Path) -> AlbumIndex:
             progress.add_task("Building album index...", total=None)
             return build_album_id_to_path_index(gallery_dir)
     except MissingAlbumIdError as exc:
-        err_console.print("Albums with missing IDs found:")
-        for p in exc.albums:
-            err_console.print(f"  {display_path(p, cwd)}")
         err_console.print(
-            "\nRun 'photree gallery fix --id' to generate missing album IDs."
+            "\n".join(
+                [
+                    "Albums with missing IDs found:",
+                    *(indent(str(display_path(p, cwd))) for p in exc.albums),
+                    "\nRun 'photree gallery fix --id' to generate missing album IDs.",
+                ]
+            ),
+            markup=False,
         )
         raise typer.Exit(code=1) from exc
 
@@ -126,8 +142,10 @@ def run_single_import(
                 on_stage_end=progress.on_end,
                 max_workers=max_workers,
             )
-        except ValueError as exc:
-            err_console.print(str(exc))
+        except (ValueError, OSError) as exc:
+            # Same failure set as the batch import: the importer removes its
+            # staging copy, so nothing was placed in the gallery.
+            err_console.print(format_import_error(exc, Path.cwd()), markup=False)
             raise typer.Exit(code=1) from exc
     return result
 
@@ -144,25 +162,38 @@ def print_single_import_result(
             typer.echo(f"Album ID: {format_album_external_id(meta.id)}")
     typer.echo(f"Target: {display_path(result.target_dir, cwd)}")
 
-    if result.jpeg_failures:
-        from ...album.check.output import jpeg_failures_report
-
-        err_console.print(jpeg_failures_report(result.jpeg_failures))
+    if not result.complete:
         err_console.print(
-            "\nThe album imported, but those JPEGs are missing. Run "
-            f"'photree album refresh --refresh-jpeg --album-dir \"{display_path(result.target_dir, cwd)}\"'"
+            "The album imported, but its derived data is incomplete:\n"
+            + preflight_output.derived_failures_report(
+                result.jpeg_failures,
+                result.face_failures,
+                str(display_path(result.target_dir, cwd)),
+            )
         )
         raise typer.Exit(code=1)
 
     if not dry_run:
-        typer.echo("\nPost-Import Check:")
-        check_result = album_check.run_album_preflight(result.target_dir)
-        console.print(preflight_output.format_album_preflight_checks(check_result))
-        if not check_result.success:
-            err_console.print(
-                f'\nTo investigate: photree album check --album-dir "{display_path(result.target_dir, cwd)}"'
-            )
-            raise typer.Exit(code=1)
+        _post_import_check(result.target_dir, cwd)
+
+
+def _post_import_check(target_dir: Path, cwd: Path) -> None:
+    """Run the preflight check on a freshly imported album; exit 1 on failure."""
+    typer.echo("\nPost-Import Check:")
+    with exiftool_session() as exiftool:
+        check_result = album_check.run_album_preflight(
+            target_dir,
+            sips_available=album_check.check_sips_available(),
+            exiftool=exiftool,
+        )
+    console.print(preflight_output.format_album_preflight_checks(check_result))
+    if not check_result.success:
+        err_console.print(
+            "\nTo investigate, run 'photree album check --album-dir "
+            f'"{display_path(target_dir, cwd)}"\'.',
+            markup=False,
+        )
+        raise typer.Exit(code=1)
 
 
 # ---------------------------------------------------------------------------
@@ -196,27 +227,27 @@ def run_batch_import(
     dry_run: bool,
     *,
     max_workers: int | None = None,
-) -> tuple[int, list[Path]]:
-    """Execute batch import/reimport with progress bar.
-
-    Returns ``(imported_count, failed_sources)``.
-    """
+) -> BatchImportResult:
+    """Execute batch import/reimport with progress bar."""
+    cwd = Path.cwd()
     with BatchProgressBar(
         total=len(plans), description="Importing", done_description="import"
     ) as progress:
-        result = _run_batch_import(
+        return _run_batch_import(
             plans,
             gallery_dir,
             link_mode,
             dry_run,
             max_workers=max_workers,
             on_start=progress.on_start,
-            on_end=lambda name, success, errors: progress.on_end(
-                name, success=success, error_labels=errors
+            on_end=lambda name, failure: progress.on_end(
+                name,
+                success=failure is None,
+                error_labels=(
+                    format_import_failure_labels(failure, cwd) if failure else ()
+                ),
             ),
         )
-
-    return result.imported, result.failed_albums
 
 
 def run_batch_post_import_check(
@@ -234,6 +265,7 @@ def run_batch_post_import_check(
     ) as check_progress:
         check_failed = _run_batch_post_import_check(
             imported_targets,
+            sips_available=album_check.check_sips_available(),
             display_fn=lambda p: str(display_path(p, cwd)),
             on_start=check_progress.on_start,
             on_end=lambda name, success, errors: check_progress.on_end(
@@ -249,6 +281,18 @@ def run_batch_post_import_check(
 # ---------------------------------------------------------------------------
 
 
+def require_valid_threshold(threshold: float | None, option: str) -> None:
+    """Exit 1 unless *threshold* is unset or a cosine distance in [0.0, 1.0]."""
+    if threshold is not None and not 0.0 <= threshold <= 1.0:
+        err_console.print(
+            f"Invalid {option} {threshold}: expected a cosine distance between "
+            "0.0 and 1.0 (lower = stricter).\n"
+            f"Run 'photree gallery metadata set --help' for details.",
+            markup=False,
+        )
+        raise typer.Exit(code=1)
+
+
 def run_face_clustering(
     gallery_dir: Path,
     *,
@@ -256,10 +300,7 @@ def run_face_clustering(
     dry_run: bool = False,
     force_full: bool = False,
 ) -> None:
-    """Run gallery-wide face clustering with progress bar and output.
-
-    Raises :class:`typer.Exit` on clustering errors.
-    """
+    """Run gallery-wide face clustering with progress bar and output."""
     from ..faces.face_refresh import (
         STAGE_BUILD_INDEX,
         STAGE_CLUSTER,
@@ -287,22 +328,15 @@ def run_face_clustering(
             on_stage_end=progress.on_end,
         )
 
-    match result.mode:
-        case "none":
-            console.print(
-                f"{CHECK} face clustering (no changes —"
-                f" {result.total_faces} face(s),"
-                f" {result.total_clusters} cluster(s))"
-            )
-        case _:
-            console.print(
-                f"{CHECK} face clustering"
-                f" ({result.total_faces} face(s),"
-                f" {result.total_clusters} cluster(s),"
-                f" {result.mode})"
-            )
+    console.print(_face_clustering_line(result))
 
-    if not result.success:
-        for error in result.errors:
-            err_console.print(f"  error: {error.message}")
-        raise typer.Exit(code=1)
+
+def _face_clustering_line(result: GalleryFaceRefreshResult) -> str:
+    counts = f"{result.total_faces} face(s), {result.total_clusters} cluster(s)"
+    # Compared by value so this module needs no runtime import of face_refresh,
+    # which pulls in faiss and scikit-learn.
+    return (
+        f"{CHECK} face clustering (no changes — {counts})"
+        if result.mode == "none"
+        else f"{CHECK} face clustering ({counts}, {result.mode})"
+    )

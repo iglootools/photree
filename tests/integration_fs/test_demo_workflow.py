@@ -9,7 +9,7 @@ import os
 import shutil
 from pathlib import Path
 
-from photree.album.check import run_album_preflight
+from photree.album.check import check_sips_available, run_album_preflight
 from photree.album.exporter.single import compute_target_dir, export_album
 from photree.album.importer.album_import import run_import
 from photree.album.importer.testkit import seed_demo
@@ -18,6 +18,7 @@ from photree.album.store.album_discovery import is_album
 from photree.album.store.media_sources_discovery import discover_media_sources
 from photree.album.store.metadata import load_album_metadata
 from photree.album.store.protocol import ALBUM_YAML, MAIN_MEDIA_SOURCE
+from photree.common.exif import exiftool_session
 from photree.fsprotocol import (
     PHOTREE_DIR,
     SHARE_SENTINEL,
@@ -135,9 +136,14 @@ class TestDemoWorkflow:
         )
 
         # ── Check ────────────────────────────────────────────
-        preflight = run_album_preflight(
-            album_dir, link_mode=LinkMode.COPY, checksum=True
-        )
+        with exiftool_session() as exiftool:
+            preflight = run_album_preflight(
+                album_dir,
+                sips_available=check_sips_available(),
+                exiftool=exiftool,
+                link_mode=LinkMode.COPY,
+                checksum=True,
+            )
 
         assert preflight.media_source_summary.has_ios
         assert preflight.dir_check.success
