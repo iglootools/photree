@@ -14,17 +14,17 @@ from ...clihelpers.options import DRY_RUN_OPTION
 from ...clihelpers.progress import StageProgressBar, run_with_spinner
 from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...clihelpers.sysdeps import refresh_deps, require_system_deps
-from ...common.formatting import CHECK, indent
-from ...foundation.gallery_metadata import GALLERY_YAML, load_gallery_metadata
-from ...foundation.layout import PHOTREE_DIR
-from ..browsable_refresh import refresh_browsable as refresh_gallery_browsable
-from ..collection_refresh import (
+from ...collection.refresh import (
     STAGE_IMPLICIT_REFRESH,
     STAGE_SCAN_ALBUMS,
     STAGE_SMART_REFRESH,
     STAGE_TITLE_SYNC,
     refresh_collections,
 )
+from ...common.formatting import CHECK, indent
+from ...foundation.gallery_metadata import GALLERY_YAML, load_gallery_metadata
+from ...foundation.layout import PHOTREE_DIR
+from ..browsable_refresh import refresh_browsable as refresh_gallery_browsable
 from . import gallery_app
 from .ops import run_face_clustering
 from .refresh_output import (

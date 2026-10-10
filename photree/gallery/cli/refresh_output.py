@@ -15,6 +15,11 @@ from ...album.id import (
     format_video_external_id,
 )
 from ...collection.id import format_collection_external_id
+from ...collection.refresh.result import (
+    CollectionRefreshError,
+    CollectionRefreshErrorKind,
+    CollectionRefreshResult,
+)
 from ...common.formatting import indent
 from ...common.fs import display_path
 from ..browsable_refresh import (
@@ -22,11 +27,6 @@ from ..browsable_refresh import (
     BrowsableRefreshErrorKind,
     DanglingMember,
     DanglingMemberKind,
-)
-from ..collection_refresh import (
-    CollectionRefreshError,
-    CollectionRefreshErrorKind,
-    CollectionRefreshResult,
 )
 
 

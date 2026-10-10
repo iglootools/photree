@@ -1,4 +1,4 @@
-"""Tests for gallery collection refresh (implicit detection + smart materialization)."""
+"""Tests for collection refresh (implicit detection + smart materialization)."""
 
 from __future__ import annotations
 
@@ -8,6 +8,11 @@ from photree.album.id import generate_album_id
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.collection.id import generate_collection_id
+from photree.collection.refresh import refresh_collections
+from photree.collection.refresh.result import (
+    CollectionRefreshError,
+    CollectionRefreshErrorKind,
+)
 from photree.collection.store.collection_discovery import discover_collections
 from photree.collection.store.metadata import (
     load_collection_metadata,
@@ -20,12 +25,7 @@ from photree.collection.store.protocol import (
     CollectionStrategy,
 )
 from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
-from photree.gallery.collection_refresh import (
-    COLLECTIONS_DIR,
-    CollectionRefreshError,
-    CollectionRefreshErrorKind,
-    refresh_collections,
-)
+from photree.foundation.layout import COLLECTIONS_DIR
 
 
 def _write(path: Path, content: str = "data") -> None:

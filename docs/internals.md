@@ -276,7 +276,8 @@ virality.
 ### Collection Refresh
 
 `gallery refresh` runs the following phases for collections, after the
-album media refresh:
+album media refresh. They are implemented in `photree/collection/refresh/`
+(one module per phase, orchestrated by `refresh_collections`):
 
 #### Phase 1: Scan and Validate Albums
 

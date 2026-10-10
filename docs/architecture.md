@@ -29,6 +29,11 @@ photree follows a flat package layout with the following top-level modules:
   wrapper per operation plus `resolution`, `--dir` / `--album-dir` to an
   album list), and `albums/cli/` only the `albums` commands themselves, so
   `gallery/cli/` never imports `albums/cli/`.
+- `collection/refresh/` — collection membership refresh (album title sync,
+  implicit series collections, smart and chapter membership), one module per
+  phase. `gallery refresh` calls `refresh_collections`; the gallery package
+  keeps only gallery-level orchestration (media refresh, browsable tree,
+  faces).
 
 Within `album/`, media knowledge is split by concern: `album/formats.py`
 (recognized extensions and JPEG/priority rules), `album/store/media_source.py`

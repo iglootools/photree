@@ -28,7 +28,7 @@ accumulator form in two specific shapes, because the comprehension is harder
 to read, not easier:
 
 - **Loop-carried state.** Grouping a sorted sequence into contiguous runs
-  (`gallery/collection_refresh.py::_group_by_series`) needs the previous
+  (`collection/refresh/series.py::_group_contiguous_series`) needs the previous
   element to decide where the current group ends. Expressed as a
   comprehension it requires `itertools.groupby` plus a key function that
   closes over mutable state — strictly more machinery for the same result.

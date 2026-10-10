@@ -27,7 +27,7 @@ from ..collection.store.collection_discovery import discover_collections
 from ..collection.store.metadata import load_collection_metadata
 from ..collection.store.protocol import CollectionMetadata, CollectionStrategy
 from ..foundation.layout import ALBUMS_DIR, BROWSABLE_DIR, COLLECTIONS_DIR
-from .metadata_scan import read_or_none
+from ..foundation.metadata_io import read_or_none
 
 # ---------------------------------------------------------------------------
 # Result types
