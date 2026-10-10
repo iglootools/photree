@@ -68,7 +68,7 @@ photree gallery init
 photree gallery init --link-mode symlink
 
 # Initialize a specific directory
-photree gallery init -d ~/Pictures/albums
+photree gallery init -g ~/Pictures/albums
 ```
 
 The `link-mode` setting in `gallery.yaml` is used as the default for `refresh`,
@@ -213,7 +213,7 @@ for details.
 photree gallery check
 
 # Check a specific gallery
-photree gallery check -d ~/Pictures/gallery
+photree gallery check -g ~/Pictures/gallery
 
 # Disable checksum verification for faster checks
 photree gallery check --no-checksum

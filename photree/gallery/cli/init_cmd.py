@@ -25,8 +25,8 @@ def init_cmd(
     gallery_dir: Annotated[
         Path,
         typer.Option(
-            "--dir",
-            "-d",
+            "--gallery-dir",
+            "-g",
             help="Gallery root directory.",
             exists=True,
             file_okay=False,

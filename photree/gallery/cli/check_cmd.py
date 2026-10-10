@@ -41,7 +41,7 @@ def check_cmd(
         Path | None,
         typer.Option(
             "--gallery-dir",
-            "-d",
+            "-g",
             help="Gallery root directory (or resolved from cwd via .photree/gallery.yaml).",
             exists=True,
             file_okay=False,

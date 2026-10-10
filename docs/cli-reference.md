@@ -1049,7 +1049,7 @@ $ photree gallery check [OPTIONS]
 
 **Options**:
 
-* `-d, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--checksum / --no-checksum`: Enable/disable SHA-256 checksum verification (default: enabled).  [default: checksum]
 * `-W, --fatal-warnings`: Treat all warnings as errors (implies --fatal-sidecar).
 * `--fatal-sidecar`: Treat missing-sidecar warnings as errors.
@@ -1072,7 +1072,7 @@ $ photree gallery cluster-faces [OPTIONS]
 
 **Options**:
 
-* `-d, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--redetect`: Re-run face detection on all images (reuses cached thumbnails).
 * `--refresh-thumbs`: Refresh face detection thumbnails from originals.
@@ -1119,7 +1119,7 @@ $ photree gallery fix [OPTIONS]
 
 **Options**:
 
-* `-d, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--id`: Generate missing album IDs (.photree/album.yaml).
 * `--new-id`: Regenerate album IDs (replaces existing IDs).
 * `--link-mode <copy|hardlink|symlink>`: How to create main files: hardlink (default), symlink, or copy.
@@ -1141,7 +1141,7 @@ $ photree gallery fix-ios [OPTIONS]
 
 **Options**:
 
-* `-d, --gallery-dir <directory>`: Gallery root directory.
+* `-g, --gallery-dir <directory>`: Gallery root directory.
 * `--prefer-higher-quality-when-dups`: Delete lower-quality duplicates.
 * `--rm-orphan-sidecar`: Delete AAE sidecar files that have no matching media file.
 * `--rm-miscategorized`: Delete files in the wrong directory.
@@ -1207,7 +1207,7 @@ $ photree gallery init [OPTIONS]
 
 **Options**:
 
-* `-d, --dir <directory>`: Gallery root directory.  [default: .]
+* `-g, --gallery-dir <directory>`: Gallery root directory.  [default: .]
 * `--link-mode <copy|hardlink|symlink>`: Default link mode for refresh and other link-mode operations.  [default: hardlink]
 * `--help`: Show this message and exit.
 
@@ -1223,7 +1223,7 @@ $ photree gallery list-albums [OPTIONS]
 
 **Options**:
 
-* `-d, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--metadata / --no-metadata`: Show parsed album metadata and media sources (default: enabled).  [default: metadata]
 * `--format <text|csv>`: Output format.  [default: text]
 * `-o, --output <file>`: Write output to a file instead of stdout.
@@ -1241,7 +1241,7 @@ $ photree gallery list-collections [OPTIONS]
 
 **Options**:
 
-* `-d, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--metadata / --no-metadata`: Show parsed collection metadata (default: enabled).  [default: metadata]
 * `--format <text|csv>`: Output format.  [default: text]
 * `-o, --output <file>`: Write output to a file instead of stdout.
@@ -1259,7 +1259,7 @@ $ photree gallery list-media [OPTIONS]
 
 **Options**:
 
-* `-d, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--format <text|csv>`: Output format.  [default: text]
 * `-o, --output <file>`: Write output to a file instead of stdout.
 * `--help`: Show this message and exit.
@@ -1276,7 +1276,7 @@ $ photree gallery refresh [OPTIONS]
 
 **Options**:
 
-* `-d, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `--refresh-browsable`: Force rebuild all browsable directories (skip check gate).
 * `--refresh-jpeg`: Force rebuild all JPEG directories (skip check gate).
@@ -1306,7 +1306,7 @@ $ photree gallery rename-from-csv [OPTIONS] {csv_file}
 
 **Options**:
 
-* `-d, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `-n, --dry-run`: Show what would be renamed without making changes.
 * `--help`: Show this message and exit.
 
@@ -1322,7 +1322,7 @@ $ photree gallery show [OPTIONS]
 
 **Options**:
 
-* `-d, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--help`: Show this message and exit.
 
 ### `photree gallery stats`
@@ -1337,7 +1337,7 @@ $ photree gallery stats [OPTIONS]
 
 **Options**:
 
-* `-d, --gallery-dir <directory>`: Gallery root directory.
+* `-g, --gallery-dir <directory>`: Gallery root directory.
 * `--help`: Show this message and exit.
 
 ### `photree gallery metadata`
@@ -1370,7 +1370,7 @@ $ photree gallery metadata set [OPTIONS]
 
 **Options**:
 
-* `-d, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
+* `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--link-mode <copy|hardlink|symlink>`: Default link mode for refresh and other link-mode operations.
 * `--faces-enabled`: Enable face detection and clustering during gallery refresh.
 * `--face-cluster-threshold <float>`: Cosine distance threshold for face clustering (0.0-1.0).

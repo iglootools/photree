@@ -78,7 +78,7 @@ class TestGalleryCheckPhases:
         gallery = _setup_gallery(tmp_path)
         _dangling_collection(gallery)
 
-        result = runner.invoke(app, ["gallery", "check", "-d", str(gallery)])
+        result = runner.invoke(app, ["gallery", "check", "-g", str(gallery)])
 
         assert result.exit_code == 1
         assert "Collections:" in result.output
@@ -99,7 +99,7 @@ class TestFaceClusterThreshold:
                 "gallery",
                 "metadata",
                 "set",
-                "-d",
+                "-g",
                 str(gallery),
                 "--face-cluster-threshold",
                 value,
@@ -119,7 +119,7 @@ class TestFaceClusterThreshold:
                 "gallery",
                 "metadata",
                 "set",
-                "-d",
+                "-g",
                 str(gallery),
                 "--face-cluster-threshold",
                 "0.0",
@@ -137,7 +137,7 @@ class TestFaceClusterThreshold:
 
         result = runner.invoke(
             app,
-            ["gallery", "cluster-faces", "-d", str(gallery), "--threshold", "2"],
+            ["gallery", "cluster-faces", "-g", str(gallery), "--threshold", "2"],
         )
 
         assert result.exit_code == 1
@@ -247,7 +247,7 @@ class TestListCollections:
 
         result = runner.invoke(
             app,
-            ["gallery", "list-collections", "-d", str(gallery), "--format", "csv"],
+            ["gallery", "list-collections", "-g", str(gallery), "--format", "csv"],
         )
 
         assert result.exit_code == 0
@@ -258,7 +258,7 @@ class TestListCollections:
 
         result = runner.invoke(
             app,
-            ["gallery", "list-collections", "-d", str(gallery), "--format", "json"],
+            ["gallery", "list-collections", "-g", str(gallery), "--format", "json"],
         )
 
         assert result.exit_code == 2

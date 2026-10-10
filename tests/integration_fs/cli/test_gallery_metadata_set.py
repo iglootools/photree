@@ -32,7 +32,7 @@ class TestGalleryMetadataSet:
                 "gallery",
                 "metadata",
                 "set",
-                "-d",
+                "-g",
                 str(tmp_path),
                 "--link-mode",
                 "symlink",
@@ -51,7 +51,7 @@ class TestGalleryMetadataSet:
                 "gallery",
                 "metadata",
                 "set",
-                "-d",
+                "-g",
                 str(tmp_path),
                 "--link-mode",
                 "hardlink",
@@ -67,7 +67,7 @@ class TestGalleryMetadataSet:
                 "gallery",
                 "metadata",
                 "set",
-                "-d",
+                "-g",
                 str(tmp_path),
                 "--link-mode",
                 "symlink",
@@ -79,7 +79,7 @@ class TestGalleryMetadataSet:
         _init_gallery(tmp_path)
         result = runner.invoke(
             app,
-            ["gallery", "metadata", "set", "-d", str(tmp_path)],
+            ["gallery", "metadata", "set", "-g", str(tmp_path)],
         )
         assert result.exit_code == 1
         assert "No fields specified" in result.output
@@ -93,7 +93,7 @@ class TestGalleryMetadataSet:
                     "gallery",
                     "metadata",
                     "set",
-                    "-d",
+                    "-g",
                     str(tmp_path),
                     "--link-mode",
                     mode.value,

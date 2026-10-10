@@ -103,7 +103,7 @@ pause 3
 # ── Gallery ─────────────────────────────────────────────
 
 p "# Initialize a gallery"
-pe "mkdir -p \"$GALLERY\" && photree gallery init -d \"$GALLERY\" --link-mode symlink"
+pe "mkdir -p \"$GALLERY\" && photree gallery init -g \"$GALLERY\" --link-mode symlink"
 pause 3
 
 p "# Import the album into the gallery"
