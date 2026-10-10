@@ -38,6 +38,7 @@ dev = [
   # The `python = ">=3.12,<4.0"` marker this carried under poetry is subsumed by
   # [project] requires-python, so it is dropped rather than translated.
   "pydeps>=3.0.7",
+  "import-linter>=2.15,<3.0",
 ]
 
 [build-system]
@@ -141,3 +142,137 @@ pythonVersion = "3.12"
 # language servers resolve imports against it, since they inherit no shell activation.
 venvPath = "."
 venv = ".venv"
+
+# Module boundaries, enforced by `mise run import-check` (lint-imports). These contracts
+# are the source of truth for the layering described in docs/architecture.md ("Module
+# Boundaries"); change them deliberately, in the same commit as the restructuring that
+# motivates the change, and never by adding an ignore_imports entry to make a new edge pass.
+[tool.importlinter]
+root_package = "photree"
+# Needed so the contracts below can name typer, which is a CLI-only dependency.
+include_external_packages = true
+
+# Top-level packages, highest first. A package may import only from layers below it;
+# `|` separates siblings that must not import each other either.
+[[tool.importlinter.contracts]]
+name = "Top-level layering"
+type = "layers"
+layers = [
+  "photree.cli",
+  "photree.gallery | photree.demo | photree.check",
+  "photree.albums | photree.collections",
+  "photree.collection",
+  "photree.album",
+  # Sits below album because album/cli uses it; the contracts below keep it out of the
+  # domain modules of every package above it.
+  "photree.clihelpers",
+  "photree.config",
+  "photree.foundation",
+  "photree.dates | photree.common",
+]
+
+# Domain/core code never reaches the CLI layer, directly or indirectly. Every package is
+# listed by its non-CLI subpackages, because a package source would include its own cli/.
+# A new subpackage outside cli/ or batchcli/ belongs on this list.
+[[tool.importlinter.contracts]]
+name = "Domain code does not depend on the CLI layer"
+type = "forbidden"
+source_modules = [
+  "photree.dates",
+  "photree.common",
+  "photree.foundation",
+  "photree.config",
+  "photree.album.browsable",
+  "photree.album.check",
+  "photree.album.exif",
+  "photree.album.exif_cache",
+  "photree.album.exif_date_check",
+  "photree.album.exporter",
+  "photree.album.faces",
+  "photree.album.fix",
+  "photree.album.formats",
+  "photree.album.id",
+  "photree.album.importer",
+  "photree.album.jpeg",
+  "photree.album.live_photo",
+  "photree.album.media",
+  "photree.album.naming",
+  "photree.album.refresh",
+  "photree.album.staging",
+  "photree.album.stats",
+  "photree.album.store",
+  "photree.albums.cmd_handler",
+  "photree.albums.index",
+  "photree.albums.media_index",
+  "photree.albums.renamer",
+  "photree.collection.check",
+  "photree.collection.id",
+  "photree.collection.importer",
+  "photree.collection.init",
+  "photree.collection.naming",
+  "photree.collection.refresh",
+  "photree.collection.stats",
+  "photree.collection.store",
+  "photree.gallery.browsable_refresh",
+  "photree.gallery.cmd_handler",
+  "photree.gallery.faces",
+  "photree.gallery.import_plan",
+  "photree.gallery.importer",
+  "photree.gallery.index",
+  "photree.gallery.output",
+  "photree.gallery.stats",
+]
+forbidden_modules = [
+  "photree.cli",
+  "photree.*.cli",
+  "photree.albums.batchcli",
+  "photree.clihelpers",
+  "typer",
+]
+
+# The package __init__ modules themselves, which the contract above cannot list without
+# also covering each package's cli/ subpackage.
+[[tool.importlinter.contracts]]
+name = "Domain package roots do not depend on the CLI layer"
+type = "forbidden"
+as_packages = false
+source_modules = [
+  "photree.album",
+  "photree.albums",
+  "photree.collection",
+  "photree.gallery",
+]
+forbidden_modules = [
+  "photree.cli",
+  "photree.*.cli",
+  "photree.albums.batchcli",
+  "photree.clihelpers",
+  "typer",
+]
+
+# Direct-import allowlists, so a module added anywhere is covered without editing the
+# forbidden list above.
+[[tool.importlinter.contracts]]
+name = "Only CLI modules import clihelpers"
+type = "protected"
+protected_modules = ["photree.clihelpers"]
+allowed_importers = ["photree.cli", "photree.*.cli", "photree.albums.batchcli"]
+
+[[tool.importlinter.contracts]]
+name = "Only CLI modules import typer"
+type = "protected"
+protected_modules = ["typer"]
+allowed_importers = [
+  "photree.cli",
+  "photree.*.cli",
+  "photree.albums.batchcli",
+  "photree.clihelpers",
+]
+
+# The shared batch layer is albums/batchcli; the gallery command group must not reach into
+# the albums command group, and the shared layer must not depend on its own consumer.
+[[tool.importlinter.contracts]]
+name = "Command groups share batchcli, not each other"
+type = "forbidden"
+source_modules = ["photree.gallery.cli", "photree.albums.batchcli"]
+forbidden_modules = ["photree.albums.cli"]

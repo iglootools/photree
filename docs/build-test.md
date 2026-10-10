@@ -3,7 +3,7 @@
 Run automated tests and checks:
 ```bash
 # mise tasks
-mise run check              # Run all checks: format-check + lint + type-check + compat-check + lock-check + lock-check-uv + clidocs-check + depgraph-check
+mise run check              # Run all checks: format-check + lint + type-check + compat-check + boundaries-check + lock-check + lock-check-uv + clidocs-check + depgraph-check
 mise run check-all          # Run all checks: regular checks + all tests
 
 mise run test-all           # All tests (unit + integration)
@@ -15,6 +15,7 @@ mise run format-check       # ruff format --check (verifies only; what check run
 mise run lint               # ruff check
 mise run type-check         # pyright
 mise run compat-check       # vermin (enforce Python >=3.12 compatibility — see Python versions below)
+mise run boundaries-check   # import-linter (module boundary contracts in pyproject.toml — see architecture.md)
 
 mise run clidocs            # Regenerate CLI reference in docs/cli-reference.md
 mise run clidocs-check      # Check that CLI reference is up to date
@@ -31,6 +32,7 @@ uv run ruff format .                            # formatting
 uv run ruff check photree/ tests/               # linting
 uv run pyright photree/                         # type-checking
 uv run vermin --target=3.12- --no-tips --no-parse-comments photree/ tests/  # compat check
+uv run lint-imports                             # module boundaries
 uv run pytest tests/test_cli.py::TestVersionCommand::test_version_flag -v   # run a single test
 ```
 

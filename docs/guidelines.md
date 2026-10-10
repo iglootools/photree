@@ -18,6 +18,21 @@ For general coding, Python, and tooling guidelines, see the [common guidelines](
     `TYPE_CHECKING` for annotations: loading it at module level adds most of a
     second to every CLI invocation. `tests/unit/test_cli_startup_imports.py`
     fails if `import photree.cli` loads any of them.
+- **Module boundaries**
+  - The import-linter contracts in `pyproject.toml` (`[tool.importlinter]`) are
+    the source of truth for which package may import which;
+    [architecture.md — Module Boundaries](./architecture.md#module-boundaries)
+    explains them, and `mise run boundaries-check` (part of `mise run check`)
+    enforces them.
+  - When a change needs a new edge, decide whether it belongs: move the code
+    to the layer that may own it rather than bending the contract. If the
+    architecture itself changes, update the contracts deliberately, in the
+    same commit as the restructuring, together with the Module Boundaries
+    section. Do not add an `ignore_imports` entry to make an edge pass; if one
+    is truly unavoidable, comment why next to it.
+  - A new subpackage of `album/`, `albums/`, `collection/` or `gallery/` that
+    is not CLI code must be added to the source list of the "Domain code does
+    not depend on the CLI layer" contract.
 
 ### Documented exception: mutable accumulators in scan/group loops
 
@@ -182,7 +197,8 @@ Two call styles, matching what the command does:
 Probing PATH is the CLI layer's job. Library functions take the resolved
 statuses as a parameter and stay pure; output layers render them with
 `common/sysdeps_output.py`, never by importing `clihelpers` (only CLI modules
-— `*/cli/`, `albums/batchcli/`, `clihelpers/` — may import `clihelpers`).
+— `*/cli/`, `albums/batchcli/`, `clihelpers/` — may import `clihelpers`; an
+import-linter contract enforces this).
 
 ### Discoverability
 

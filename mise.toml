@@ -125,12 +125,13 @@ mise deps install uv --force
 """
 
 [tasks.check]
-description = "Run all checks (format-check, lint, type-check, compat-check, lock-check, lock-check-uv, clidocs-check, depgraph-check)"
+description = "Run all checks (format-check, lint, type-check, compat-check, boundaries-check, lock-check, lock-check-uv, clidocs-check, depgraph-check)"
 run = [
   { task = "format-check" },
   { task = "lint" },
   { task = "type-check" },
   { task = "compat-check" },
+  { task = "boundaries-check" },
   { task = "lock-check" },
   { task = "lock-check-uv" },
   { task = "clidocs-check" },
@@ -218,6 +219,12 @@ run = "uv run --no-sync pyright photree/ build-scripts/"
 [tasks.compat-check]
 description = "Verify no Python features above 3.12 are used"
 run = "uv run --no-sync vermin --target=3.12- --no-tips --no-parse-comments photree/ tests/"
+
+# The contracts live in pyproject.toml [tool.importlinter]; see docs/architecture.md
+# "Module Boundaries" for the layering they encode.
+[tasks.boundaries-check]
+description = "Check module boundaries (import-linter contracts in pyproject.toml)"
+run = "uv run --no-sync lint-imports"
 
 [tasks.lock-check]
 description = "Check that mise.lock is up to date"
