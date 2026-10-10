@@ -381,7 +381,9 @@ The rule that selects members:
   implicit collections.
 - **`chapter`** — like `date-range`, but chapter collections must not overlap
   in date range with any other chapter collection in the gallery (regardless
-  of which `collections/YYYY/` directory it lives in). Chapters partition a
+  of which `collections/YYYY/` directory it lives in). Ranges include both
+  ends, so two chapters sharing a single day overlap; consecutive chapters
+  end and start on adjacent days. Chapters partition a
   life into periods (e.g. "2019--2022 - Living in Montreal").
 
 ### Valid Combinations

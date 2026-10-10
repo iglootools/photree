@@ -405,9 +405,11 @@ def _check_chapter_no_overlap(
             for other_id, other in sorted(
                 lookup.chapters.items(), key=lambda item: item[1].dir_name
             )
+            # Ranges are inclusive of both ends, so sharing a single
+            # boundary day (2019-06-30 in both) is an overlap.
             if other_id != metadata.id
-            and mine.start < other.end
-            and other.start < mine.end
+            and mine.start <= other.end
+            and other.start <= mine.end
         ]
         if mine is not None
         else []

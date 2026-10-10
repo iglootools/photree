@@ -252,6 +252,27 @@ class TestCheckChapterOverlap:
         assert check_collection(montreal, lookup).success
         assert check_collection(toronto, lookup).success
 
+    def test_chapters_sharing_one_boundary_day_overlap(self, tmp_path: Path) -> None:
+        # Both ranges include 2019-06-30, so the life period is claimed twice.
+        gallery = _setup_gallery(tmp_path)
+        paris, _ = _setup_chapter(gallery, "2017", "2017-01-01--2019-06-30 - Paris")
+        _setup_chapter(gallery, "2019", "2019-06-30--2022-12-31 - Montreal")
+
+        result = check_collection(paris, build_gallery_lookup(gallery))
+
+        assert [i.code for i in result.issues] == ["chapter-date-overlap"]
+
+    def test_adjacent_chapters_pass(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        paris, _ = _setup_chapter(gallery, "2017", "2017-01-01--2019-06-29 - Paris")
+        montreal, _ = _setup_chapter(
+            gallery, "2019", "2019-06-30--2022-12-31 - Montreal"
+        )
+        lookup = build_gallery_lookup(gallery)
+
+        assert check_collection(paris, lookup).success
+        assert check_collection(montreal, lookup).success
+
     def test_date_range_collection_does_not_count_as_chapter(
         self, tmp_path: Path
     ) -> None:
