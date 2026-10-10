@@ -239,21 +239,21 @@ may live in different galleries takes a resolver instead
 
 ### Errors and Output
 
-- **Structured errors.** Errors are data: a frozen dataclass with a `kind`
-  enum and fields, or an exception class with attributes. The human message
-  is rendered in the output/CLI layer (with `display_path`), so tests assert
-  on kinds and fields rather than on prose.
-- **Exceptions are plain classes**, never `@dataclass(frozen=True)`: Python
-  assigns `__traceback__` while an exception propagates (e.g. through a
-  `@contextmanager`), which a frozen dataclass turns into
-  `FrozenInstanceError`.
-- **Indentation** is applied at the call site with `common.formatting.indent`;
-  formatting helpers return unindented lines.
-- **Escape user text in Rich markup.** Names, paths, filenames, reasons and
-  exception messages interpolated into a Rich markup string must go through
-  `common.formatting.markup_escape`, or the line must be printed with
-  `markup=False`, because Rich silently drops bracketed text such as
-  `[private]`.
+The shared rules apply as written: *Presentation at the Edges* and structured
+errors under *Testability* in the common
+[general.md](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md),
+and *Data Classes* (plain exception classes), *Errors* and *Console Output*
+in [python.md](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md).
+photree's helpers for them:
+
+- **Rendering errors**: formatters in each package's `output.py` (or the CLI
+  command) turn kinds and fields into messages, with paths through
+  `common.fs.display_path`.
+- **Indentation**: `common.formatting.indent` (`INDENT` is the unit).
+- **Escaping user text in Rich markup**: `common.formatting.markup_escape`.
+  Formatters that embed user text escape it themselves and are printed with
+  markup on; progress bars (`clihelpers/progress.py`) escape the labels they
+  are given, so callers pass plain text.
 - **Corrupt metadata is never "absent".** Read `.photree/*.yaml` through
   `foundation.metadata_io.load_yaml_mapping` / `validate_metadata`: `None` means the file
   does not exist, and anything present but unusable raises
