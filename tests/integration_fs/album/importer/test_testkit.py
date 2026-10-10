@@ -57,8 +57,10 @@ class TestSeedDemo:
         result = seed_demo(tmp_path)
 
         heic = result.image_capture_dir / "IMG_0001.HEIC"
-        # sips converts to real HEIC (larger than the 347-byte JPEG source)
-        assert heic.stat().st_size > 1000
+        # sips converts to real HEIC: an ISO-BMFF "ftyp" box with the heic brand,
+        # where the JPEG placeholder would start with the FF D8 SOI marker.
+        header = heic.read_bytes()[:12]
+        assert header[4:12] == b"ftypheic"
 
     def test_heic_files_keep_jpeg_content_without_sips(self, tmp_path: Path) -> None:
         result = seed_demo(tmp_path, which=lambda _name: None)
