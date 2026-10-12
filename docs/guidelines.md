@@ -21,13 +21,13 @@ For general coding, Python, and tooling guidelines, see the [common guidelines](
 - **Module boundaries**
   - The import-linter contracts in `pyproject.toml` (`[tool.importlinter]`) are
     the source of truth for which package may import which;
-    [architecture.md — Module Boundaries](./architecture.md#module-boundaries)
+    [architecture.md — Layering](./architecture.md#layering)
     explains them, and `mise run boundaries-check` (part of `mise run check`)
     enforces them.
   - When a change needs a new edge, decide whether it belongs: move the code
     to the layer that may own it rather than bending the contract. If the
     architecture itself changes, update the contracts deliberately, in the
-    same commit as the restructuring, together with the Module Boundaries
+    same commit as the restructuring, together with the Layering
     section. Do not add an `ignore_imports` entry to make an edge pass; if one
     is truly unavoidable, comment why next to it.
   - A new subpackage of `album/`, `albums/`, `collection/` or `gallery/` that
