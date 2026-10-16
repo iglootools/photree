@@ -143,10 +143,11 @@ pythonVersion = "3.12"
 venvPath = "."
 venv = ".venv"
 
-# Module boundaries, enforced by `mise run import-check` (lint-imports). These contracts
-# are the source of truth for the layering described in docs/architecture.md ("Module
-# Boundaries"); change them deliberately, in the same commit as the restructuring that
-# motivates the change, and never by adding an ignore_imports entry to make a new edge pass.
+# Module boundaries, enforced by `mise run boundaries-check` (part of `check`). These
+# contracts are the source of truth for the layering described in
+# docs/architecture.md#layering; change them deliberately, in the same commit as the
+# restructuring that motivates the change, and never by adding an ignore_imports entry to
+# make a new edge pass.
 [tool.importlinter]
 root_package = "photree"
 # Needed so the contracts below can name typer, which is a CLI-only dependency.

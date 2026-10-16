@@ -221,7 +221,7 @@ description = "Verify no Python features above 3.12 are used"
 run = "uv run --no-sync vermin --target=3.12- --no-tips --no-parse-comments photree/ tests/"
 
 # The contracts live in pyproject.toml [tool.importlinter]; see docs/architecture.md
-# "Module Boundaries" for the layering they encode.
+# "Layering" for the rules they encode.
 [tasks.boundaries-check]
 description = "Check module boundaries (import-linter contracts in pyproject.toml)"
 run = "uv run --no-sync lint-imports"
