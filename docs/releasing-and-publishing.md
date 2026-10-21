@@ -25,9 +25,22 @@ The following GitHub workflows are set up to automate the release and publishing
 
 ## PyPI Config
 
-[PyPI](https://pypi.org/) and [Test PyPI](https://test.pypi.org/) have been configured to allow the `photree` project to be published using OpenID Connect (OIDC) authentication:
-- Github project name: `iglootools/photree`
-- Workflow: `publish.yml`
-- Github Environment: `pypi` for production releases (to PyPI), `testpypi` for testing releases (to Test PyPI)
+[PyPI](https://pypi.org/) and [Test PyPI](https://test.pypi.org/) have been configured to allow the `photree` project to be published using OpenID Connect (OIDC) authentication, with a trusted publisher on each index:
+
+| Field | PyPI | Test PyPI |
+|---|---|---|
+| Owner | `iglootools` | `iglootools` |
+| Repository name | `photree` | `photree` |
+| Workflow name | `publish.yml` | `publish-test.yml` |
+| Environment name | `pypi` | `testpypi` |
+
+The workflow name is the filename of the workflow that uploads, so each index trusts a different
+file. A mismatch in any field is only reported when an upload is attempted, as an
+`invalid-publisher` error.
+
+Rehearse on Test PyPI after changing anything on the publish path (the workflows, the build
+backend, the build constraints, the trusted-publisher settings) with
+`gh workflow run publish-test.yml --ref main`. It publishes under a throwaway
+`<last release>.dev<timestamp>` version, so it can be repeated.
 
 Check [Publishing to PyPI with a Trusted Publisher](https://docs.pypi.org/trusted-publishers/) for more details on OIDC authentication.
