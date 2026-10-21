@@ -14,6 +14,7 @@
   [iglootools guidelines](https://github.com/iglootools/common/tree/main/guidelines).
   [docs/guidelines.md](docs/guidelines.md) records where it deviates from them, the rules it adds,
   and the checklists to run for specific kinds of change.
+  [docs/cli-conventions.md](docs/cli-conventions.md) covers how the command-line layer is built.
 
   ## Understanding the code
 
