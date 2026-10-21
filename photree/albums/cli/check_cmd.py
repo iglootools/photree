@@ -1,7 +1,5 @@
 """``photree albums check`` command."""
 
-from __future__ import annotations
-
 from typing import Annotated
 
 import typer

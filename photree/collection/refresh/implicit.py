@@ -1,7 +1,5 @@
 """Create, update, rename and delete implicit collections (refresh phase 3)."""
 
-from __future__ import annotations
-
 import shutil
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass

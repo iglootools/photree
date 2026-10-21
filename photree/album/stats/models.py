@@ -1,7 +1,5 @@
 """Stats data model — frozen dataclasses for album and gallery statistics."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from enum import StrEnum
 

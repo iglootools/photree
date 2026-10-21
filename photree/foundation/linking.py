@@ -1,7 +1,5 @@
 """How materialized files (browsable dirs, exports) reference their source."""
 
-from __future__ import annotations
-
 from enum import StrEnum
 
 

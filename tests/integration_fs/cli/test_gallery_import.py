@@ -6,8 +6,6 @@ The import/reimport happy paths are covered at the function level in
 ``test_importer.py`` / ``test_reimport.py``.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
 
 from typer.testing import CliRunner

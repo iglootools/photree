@@ -7,8 +7,6 @@ mint a fresh ID and silently orphan every collection reference to the old
 one.
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from pathlib import Path
 

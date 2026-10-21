@@ -42,7 +42,7 @@ class TestRunParallel:
         run_parallel(
             tasks,
             max_workers=1,
-            on_start=lambda k: started.append(k),
+            on_start=started.append,
             on_end=lambda k, s: ended.append((k, s)),
         )
 

@@ -7,8 +7,6 @@ the result with markup enabled. The exception is
 :func:`format_task_issue` embeds and escapes it.
 """
 
-from __future__ import annotations
-
 from collections.abc import Sequence
 from pathlib import Path
 from textwrap import dedent

@@ -8,8 +8,6 @@ model is never loaded. CLI composition-root tests stub the factory at the
 command boundary where needed.
 """
 
-from __future__ import annotations
-
 import os
 import stat
 from pathlib import Path

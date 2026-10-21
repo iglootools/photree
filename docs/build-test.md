@@ -3,7 +3,7 @@
 Run automated tests and checks:
 ```bash
 # mise tasks
-mise run check              # Run all checks: format-check + lint + type-check + compat-check + boundaries-check + lock-check + lock-check-uv + clidocs-check + depgraph-check
+mise run check              # Run all checks: format-check + lint + type-check + boundaries-check + lock-check + lock-check-uv + clidocs-check + depgraph-check
 mise run check-all          # Run all checks: regular checks + all tests
 
 mise run test-all           # All tests (unit + integration)
@@ -14,7 +14,6 @@ mise run format             # ruff format (rewrites files)
 mise run format-check       # ruff format --check (verifies only; what check runs)
 mise run lint               # ruff check
 mise run type-check         # pyright
-mise run compat-check       # vermin (enforce Python >=3.12 compatibility — see Python versions below)
 mise run boundaries-check   # import-linter (module boundary contracts in pyproject.toml — see architecture.md)
 
 mise run clidocs            # Regenerate CLI reference in docs/cli-reference.md
@@ -31,7 +30,6 @@ uv run pytest tests/ -v                         # All tests
 uv run ruff format .                            # formatting
 uv run ruff check photree/ tests/               # linting
 uv run pyright photree/                         # type-checking
-uv run vermin --target=3.12- --no-tips --no-parse-comments photree/ tests/  # compat check
 uv run lint-imports                             # module boundaries
 uv run pytest tests/test_cli.py::TestVersionCommand::test_version_flag -v   # run a single test
 ```
@@ -47,25 +45,23 @@ So `mise run install` is seldom needed explicitly, and `mise run reinstall` is f
 that automatic check cannot see — a `.venv` that is *dirty* rather than *stale*, e.g. after
 a manual `uv pip install`. Add or remove dependencies with `uv add` / `uv remove`.
 
-## Python versions
+## Python version
 
-Local development runs Python 3.14 (pinned in `mise.toml`), while the supported floor
-is 3.12 — the system `python3` on Ubuntu 24.04 LTS. Code must therefore not use any
-feature newer than 3.12, even though you are running 3.14. `mise run compat-check`
-(vermin) is what catches violations; ruff's and pyright's 3.12 targets catch some but
-not all of them.
+photree runs on one Python version, everywhere: the `python` pin in `mise.toml` is the
+local development version, the version CI tests (the `test` workflow has no version
+matrix), and the only version `requires-python` in `pyproject.toml` accepts. There is no
+older floor to stay compatible with, so code may use any feature of that version; ruff's
+`target-version` and pyright's `pythonVersion` are set to match.
 
-photree itself is macOS-only today (see [Installation](installation.md)), so the Ubuntu
-floor is about keeping the codebase portable rather than a platform we ship to — it
-matters if Linux support is added later, and it keeps the policy consistent across
-iglootools projects.
-
-CI currently tests only the 3.12 floor — the 3.14 matrix entry in
-`.github/workflows/test.yml` is commented out to save CI minutes.
-
-Raising the floor to 3.14 (Ubuntu 26.04 LTS) is under consideration; see the
-[Python Version Policy](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md#python-version-policy)
-for the full rationale and the list of knobs that must move together.
+The [Python Version Policy](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md#python-version-policy)
+is to target the latest stable CPython that every dependency ships wheels for.
+**Documented exception:** photree is on 3.14 rather than 3.15 because onnxruntime
+(pulled in by the face-detection stack) publishes no cp315 wheels, so `uv lock` cannot
+resolve on 3.15. Move to 3.15 when it does — check
+[onnxruntime's files on PyPI](https://pypi.org/project/onnxruntime/#files) for `cp315`
+wheels. Moving means changing, together: `[tools] python` in `mise.toml` (then
+`mise lock`), `requires-python`, ruff `target-version` and pyright `pythonVersion` in
+`pyproject.toml` (then `uv lock`).
 
 The `check-links` workflow runs a link checker against the documentation to catch broken links.
 It is scheduled to run weekly, but can also be triggered manually using `gh workflow run check-links.yml`.

@@ -1,7 +1,5 @@
 """Album storage protocol — the ``.photree/`` layout and the album metadata model."""
 
-from __future__ import annotations
-
 from pydantic import Field
 
 from ...foundation.model import PhotreeModel

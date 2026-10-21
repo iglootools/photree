@@ -1,7 +1,5 @@
 """Result and error types of a collection refresh."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path

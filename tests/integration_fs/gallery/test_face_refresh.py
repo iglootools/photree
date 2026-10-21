@@ -1,7 +1,5 @@
 """Tests for gallery face clustering refresh and its consistency check."""
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from pathlib import Path
 

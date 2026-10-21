@@ -4,8 +4,6 @@ Three tiers, in order: exact name, same title with overlapping members (the
 date range changed), identical members (the series title changed).
 """
 
-from __future__ import annotations
-
 from collections.abc import Mapping
 from dataclasses import dataclass
 

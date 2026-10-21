@@ -1,7 +1,5 @@
 """``albums list-media`` / ``gallery list-media`` wrapper."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from pathlib import Path
 

@@ -1,7 +1,5 @@
 """Group albums into contiguous series runs, one implicit collection each."""
 
-from __future__ import annotations
-
 from collections.abc import Iterable
 from dataclasses import dataclass
 

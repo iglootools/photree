@@ -1,7 +1,5 @@
 """Media metadata check — verify media-ids is in sync with directory structure."""
 
-from __future__ import annotations
-
 from collections import Counter
 from dataclasses import dataclass
 from enum import StrEnum

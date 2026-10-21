@@ -1,7 +1,5 @@
 """``photree gallery fix-ios`` command."""
 
-from __future__ import annotations
-
 from pathlib import Path
 from typing import Annotated
 

@@ -12,8 +12,6 @@ The ``date`` column is an optional ISO timestamp for disambiguation.
 entries. For media files, EXIF dates are read to populate the date hint.
 """
 
-from __future__ import annotations
-
 import csv
 from dataclasses import dataclass
 from datetime import datetime

@@ -1,7 +1,5 @@
 """CLI commands for ``photree collection metadata``."""
 
-from __future__ import annotations
-
 import typer
 
 collection_metadata_app = typer.Typer(

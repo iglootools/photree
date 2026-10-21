@@ -5,8 +5,6 @@ where files are stored: which extensions are images, videos, or iOS sidecars,
 which ones convert to JPEG, and which variant wins when several share a key.
 """
 
-from __future__ import annotations
-
 # All recognized media formats
 IMG_EXTENSIONS = frozenset({".dng", ".heic", ".heif", ".jpeg", ".jpg", ".png"})
 VID_EXTENSIONS = frozenset({".avi", ".mov", ".mp4", ".wmv"})

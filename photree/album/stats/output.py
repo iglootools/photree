@@ -4,8 +4,6 @@ Table cells are Rich markup: user-chosen names (media sources) are escaped
 with ``markup_escape``.
 """
 
-from __future__ import annotations
-
 from collections.abc import Sequence
 from dataclasses import dataclass
 

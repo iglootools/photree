@@ -5,8 +5,6 @@ names each kind lays out, and the key functions that identify a media item
 within a source (image number for iOS, filename stem for std).
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum

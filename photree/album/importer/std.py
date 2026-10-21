@@ -8,8 +8,6 @@ directories by filename stem. Unlike iOS, the files themselves are imported
 consumed (removed).
 """
 
-from __future__ import annotations
-
 import shutil
 from dataclasses import dataclass
 from pathlib import Path

@@ -1,7 +1,5 @@
 """Troubleshooting suggestions for album integrity issues."""
 
-from __future__ import annotations
-
 import shlex
 from collections import defaultdict
 from textwrap import dedent
@@ -155,7 +153,7 @@ def suggest_fixes(
 def _expand_date(d: str) -> str:
     """Expand a partial or range date to YYYY-MM-DD for exiftool."""
     # For ranges, use the start date
-    base = d.split("--")[0]
+    base = d.split("--", maxsplit=1)[0]
     match base.split("-"):
         case [year]:
             return f"{year}-01-01"

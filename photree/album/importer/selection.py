@@ -5,8 +5,6 @@ The staging dir is ``to-import-ios-<name>/`` and the CSV is
 entries are merged and deduplicated by image number.
 """
 
-from __future__ import annotations
-
 import csv
 from dataclasses import dataclass
 from pathlib import Path

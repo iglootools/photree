@@ -1,7 +1,5 @@
 """Album discovery — find album directories by scanning for metadata and media sources."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 from ...common.fs import matching_subdirectories, partition_subdirectories

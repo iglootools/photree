@@ -9,8 +9,6 @@ Each media source gets its own YAML file under ``.photree/media-ids/``:
       bruno.yaml
 """
 
-from __future__ import annotations
-
 from pathlib import Path
 
 from pydantic import Field

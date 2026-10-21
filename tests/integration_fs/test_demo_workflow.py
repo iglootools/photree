@@ -3,8 +3,6 @@
 Mirrors the demo.sh script with assertions at each stage.
 """
 
-from __future__ import annotations
-
 import os
 import shutil
 from pathlib import Path

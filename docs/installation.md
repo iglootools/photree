@@ -10,7 +10,7 @@ imports that do not rely on these macOS-specific tools.
 ## System Requirements
 
 - macOS
-- Python 3.12+
+- Python 3.14
 - `sips` (ships with macOS)
 - [exiftool](https://exiftool.org/)
 
@@ -61,6 +61,9 @@ Python clean:
 uv tool install photree
 ```
 
+photree requires Python 3.14. If no 3.14 interpreter is installed, uv downloads a managed one
+for the tool's environment, so this works regardless of your system Python.
+
 To upgrade to the latest version:
 
 ```bash
@@ -69,10 +72,12 @@ uv tool upgrade photree
 
 ## Install with pipx
 
-[pipx](https://pipx.pypa.io/) does the same thing, and is a fine alternative if you already have it:
+[pipx](https://pipx.pypa.io/) does the same thing, and is a fine alternative if you already have it.
+Unlike uv, pipx does not fetch an interpreter by default: it uses the Python it was installed with, so
+point it at a 3.14 interpreter explicitly unless that is already 3.14:
 
 ```bash
-pipx install photree
+pipx install --python python3.14 photree
 pipx upgrade photree
 ```
 

@@ -1,7 +1,5 @@
 """Tests for media metadata check logic."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 from photree.album.check.media_metadata import (

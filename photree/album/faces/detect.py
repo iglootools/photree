@@ -5,8 +5,6 @@ InsightFace for analysis. Supports CoreML execution provider on M-series
 Macs for Neural Engine acceleration.
 """
 
-from __future__ import annotations
-
 import contextlib
 import io
 import warnings
@@ -41,7 +39,7 @@ if TYPE_CHECKING:
 # detection is injected as a *factory* (not an instance) so the ~300 MB model
 # loads lazily — only once a refresh actually has images to process — and so a
 # single instance can be shared across albums in a batch.
-FaceAnalyzerFactory = Callable[[], "FaceAnalysis"]
+type FaceAnalyzerFactory = Callable[[], FaceAnalysis]
 
 
 # ---------------------------------------------------------------------------

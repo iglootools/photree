@@ -1,7 +1,5 @@
 """CSV output sink shared by the ``list-*`` commands."""
 
-from __future__ import annotations
-
 import sys
 from contextlib import AbstractContextManager, nullcontext
 from pathlib import Path

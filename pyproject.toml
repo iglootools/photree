@@ -2,9 +2,12 @@
 name = "photree"
 description = "Manage photos in a directory tree"
 readme = "README.md"
-# Floor is Ubuntu 24.04 LTS's python3; upper bound keeps installs off an untested
-# Python. See common/guidelines/coding/python.md "Python Version Policy".
-requires-python = ">=3.12,<3.15"
+# Floor == local dev == CI: the latest CPython every dependency ships wheels for. See
+# common/guidelines/coding/python.md "Python Version Policy". Documented exception: on 3.14
+# rather than 3.15 because onnxruntime publishes no cp315 wheels; move to 3.15 when it does
+# (check https://pypi.org/project/onnxruntime/#files). The upper bound keeps installs off an
+# untested Python.
+requires-python = ">=3.14,<3.15"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 authors = [{ name = "Sami Dalouche", email = "sami.dalouche@gmail.com" }]
@@ -15,7 +18,6 @@ dependencies = [
   "pyexiftool>=0.5.0,<1.0.0",
   "pydantic>=2.12.5,<3.0.0",
   "pyyaml>=6.0,<7.0",
-  "uuid6>=2024.7.10,<2026.0.0",
   "insightface>=2,<2.2",
   "onnxruntime>=1.28.0,<2.0",
   "opencv-python-headless>=5.0.0.93,<5.1",
@@ -30,11 +32,10 @@ photree = "photree.cli:main"
 
 [dependency-groups]
 dev = [
-  "ruff>=0.16,<0.17",
+  "ruff>=0.17,<0.18",
   "pyright>=1.1,<2.0",
   "pytest>=9.1.1,<10.0",
   "pytest-xdist>=3.8,<4.0",
-  "vermin>=1.8.0,<2.0",
   # The `python = ">=3.12,<4.0"` marker this carried under poetry is subsumed by
   # [project] requires-python, so it is dropped rather than translated.
   "pydeps>=3.0.7",
@@ -102,7 +103,7 @@ build-constraint-dependencies = [
 ]
 
 [tool.ruff]
-target-version = "py312"
+target-version = "py314"
 
 # Ruff 0.16 turned on a much larger default rule set (413 rules, up from 59). We take
 # the new defaults; the exceptions below are rules that conflict with a deliberate
@@ -120,7 +121,7 @@ ignore = [
   "BLE001",
 ]
 # PLW1514 (open/read_text/write_text without an explicit encoding) is still a preview
-# rule in ruff 0.16. explicit-preview-rules opts into that one rule alone, so the rest
+# rule in ruff 0.17. explicit-preview-rules opts into that one rule alone, so the rest
 # of the rule set keeps its stable behavior. It enforces the UTF-8-everywhere guideline:
 # without it the locale encoding is used silently. Drop the preview flags once ruff
 # stabilizes PLW1514.
@@ -137,7 +138,7 @@ filterwarnings = [
 ]
 
 [tool.pyright]
-pythonVersion = "3.12"
+pythonVersion = "3.14"
 # uv creates the project venv at .venv; restating it here is what lets editors and
 # language servers resolve imports against it, since they inherit no shell activation.
 venvPath = "."

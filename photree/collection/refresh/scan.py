@@ -5,8 +5,6 @@ metadata file read up front, so a refresh that will fail reports every
 problem at once and modifies nothing.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from pathlib import Path
 

@@ -7,8 +7,6 @@ already seen — which every function here takes and returns explicitly rather
 than mutating a shared set.
 """
 
-from __future__ import annotations
-
 import os
 from dataclasses import dataclass, replace
 from enum import StrEnum

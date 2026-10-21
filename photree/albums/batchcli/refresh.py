@@ -1,7 +1,5 @@
 """``albums refresh`` / ``gallery refresh`` wrapper."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import typer

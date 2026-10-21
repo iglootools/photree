@@ -1,11 +1,11 @@
 """Tests for album-specific EXIF helpers and generic common.exif functions."""
 
-from __future__ import annotations
-
 import shutil
 from datetime import datetime
 from pathlib import Path
 
+import cv2
+import numpy as np
 import pytest
 
 from photree.album.exif import TIMESTAMP_TAGS
@@ -184,9 +184,6 @@ class TestParseTimestamp:
 
 
 def _jpeg(path: Path, timestamp: str | None = "2024:07:20 13:55:20") -> Path:
-    import cv2
-    import numpy as np
-
     cv2.imwrite(str(path), np.zeros((8, 8, 3), dtype=np.uint8))
     if timestamp is not None:
         set_exif_date_time([path], timestamp.replace(":", "-", 2).replace(" ", "T"))

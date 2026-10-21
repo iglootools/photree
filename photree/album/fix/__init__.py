@@ -4,8 +4,6 @@ Unlike :mod:`fix.ios` which requires iOS media sources, these operations
 work with both iOS and std media sources.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path

@@ -1,7 +1,5 @@
 """Tests for album init and albums init CLI commands."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 from typer.testing import CliRunner

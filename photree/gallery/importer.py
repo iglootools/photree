@@ -10,8 +10,6 @@ stage has succeeded. A failure therefore never leaves a half-built album at the
 target name, where the next run would mistake it for an imported one.
 """
 
-from __future__ import annotations
-
 import shutil
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
@@ -191,7 +189,7 @@ class _StageScope:
 
 
 @contextmanager
-def _removed_on_failure(staging: Path) -> Generator[None, None, None]:
+def _removed_on_failure(staging: Path) -> Generator[None]:
     """Delete *staging* if the block raises, then re-raise."""
     try:
         yield

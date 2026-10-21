@@ -1,7 +1,5 @@
 """Face data I/O — load/save ``.npz`` arrays and ``.yaml`` state files."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from pathlib import Path
 

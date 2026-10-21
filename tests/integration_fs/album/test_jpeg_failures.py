@@ -6,15 +6,19 @@ planned file as converted *before* running the work and then threw away
 reported a full success and exited 0.
 """
 
-from __future__ import annotations
-
+import contextlib
 from collections.abc import Generator
 from pathlib import Path
 
 import pytest
 
+from photree.album.id import generate_album_id
 from photree.album.jpeg import convert_single_file, refresh_jpeg_dir
+from photree.album.refresh import refresh_album_derived_data
+from photree.album.store.metadata import save_album_metadata
+from photree.album.store.protocol import AlbumMetadata
 from photree.common.sips import SipsError
+from photree.foundation.linking import LinkMode
 
 
 def _write(path: Path, content: str = "data") -> None:
@@ -116,10 +120,8 @@ class TestSipsError:
     def test_survives_propagating_through_a_context_manager(self) -> None:
         # A frozen-dataclass exception raised FrozenInstanceError here, because
         # contextmanager assigns __traceback__ while re-raising.
-        import contextlib
-
         @contextlib.contextmanager
-        def passthrough() -> Generator[None, None, None]:
+        def passthrough() -> Generator[None]:
             yield
 
         with pytest.raises(SipsError) as info, passthrough():
@@ -129,12 +131,6 @@ class TestSipsError:
 
 class TestRefreshPropagation:
     def test_album_refresh_surfaces_the_failures(self, tmp_path: Path) -> None:
-        from photree.album.id import generate_album_id
-        from photree.album.refresh import refresh_album_derived_data
-        from photree.album.store.metadata import save_album_metadata
-        from photree.album.store.protocol import AlbumMetadata
-        from photree.foundation.linking import LinkMode
-
         album = tmp_path / "2024-07-14 - Hiking"
         _write(album / "ios-main" / "orig-img" / "IMG_0001.HEIC", "not really heic")
         save_album_metadata(album, AlbumMetadata(id=generate_album_id()))

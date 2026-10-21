@@ -5,8 +5,6 @@ verification. The cache is validated at write time during album refresh.
 Use ``--refresh-exif-cache`` on check commands to force a re-read.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from pathlib import Path
 

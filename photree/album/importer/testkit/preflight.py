@@ -1,7 +1,5 @@
 """Fake import preflight check results for demo and testing purposes."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 from ....common.sysdeps import SystemDependency, SystemDependencyStatus

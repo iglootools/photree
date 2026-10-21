@@ -5,8 +5,6 @@ domain output layers that fold dependency checks into a wider report (the
 import preflight, ``check`` troubleshooting).
 """
 
-from __future__ import annotations
-
 from collections.abc import Iterable
 
 from .formatting import CHECK, CROSS

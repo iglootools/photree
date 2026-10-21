@@ -5,8 +5,6 @@ iOS media-source integrity check that combines browsable, JPEG, and
 sidecar checks.
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum

@@ -6,8 +6,6 @@ mode too, and the gallery package imports from album: placing them here keeps
 the package graph acyclic.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
 
 from pydantic import Field

@@ -16,8 +16,6 @@ Stages live in their own modules: ``scan`` (phase 1), ``title_sync``
 module is the orchestrator.
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
@@ -50,7 +48,7 @@ class _Notifier:
     on_stage_end: Callable[[str], None] | None
 
     @contextmanager
-    def stage(self, name: str) -> Generator[None, None, None]:
+    def stage(self, name: str) -> Generator[None]:
         if self.on_stage_start is not None:
             self.on_stage_start(name)
         yield

@@ -1,7 +1,5 @@
 """``photree albums init`` command."""
 
-from __future__ import annotations
-
 from ...clihelpers.options import DRY_RUN_OPTION
 from ..batchcli.init import run_batch_init
 from ..batchcli.resolution import resolve_init_batch_albums

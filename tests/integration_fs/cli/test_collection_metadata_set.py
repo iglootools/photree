@@ -1,7 +1,5 @@
 """Tests for ``photree collection metadata set`` command."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 from typer.testing import CliRunner

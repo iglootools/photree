@@ -1,7 +1,5 @@
 """Tests for photree.album.faces.detect — analyzer factory injection."""
 
-from __future__ import annotations
-
 import pytest
 
 from photree.album.faces import detect

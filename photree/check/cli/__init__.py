@@ -1,7 +1,5 @@
 """CLI for ``photree check``."""
 
-from __future__ import annotations
-
 import typer
 
 check_app = typer.Typer(

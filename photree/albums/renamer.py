@@ -1,7 +1,5 @@
 """Batch album rename planning from CSV input."""
 
-from __future__ import annotations
-
 import unicodedata
 from collections import Counter
 from collections.abc import Mapping

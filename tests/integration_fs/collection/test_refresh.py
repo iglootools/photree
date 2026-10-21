@@ -1,7 +1,6 @@
 """Tests for collection refresh (implicit detection + smart materialization)."""
 
-from __future__ import annotations
-
+import shutil
 from pathlib import Path
 
 from photree.album.id import generate_album_id
@@ -204,8 +203,6 @@ class TestImplicitCollectionDetection:
         original_id = load_collection_metadata(collections[0]).id
 
         # Remove second album's series (rename it to drop series)
-        import shutil
-
         shutil.rmtree(album2)
 
         # Second refresh should update members, preserving ID

@@ -1,7 +1,5 @@
 """Tests for photree.gallery.importer.reimport_album."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import pytest
@@ -10,6 +8,11 @@ from photree.album.jpeg import noop_convert_single
 from photree.album.refresh import AlbumRefreshResult
 from photree.album.store.media_metadata import load_media_metadata
 from photree.album.store.metadata import load_album_metadata
+from photree.foundation.gallery_metadata import (
+    GalleryMetadata,
+    save_gallery_metadata,
+)
+from photree.foundation.linking import LinkMode
 from photree.gallery.importer import (
     TargetExistsError,
     _swap_into_place,
@@ -25,12 +28,6 @@ def _write(path: Path, content: str = "data") -> None:
 
 
 def _setup_gallery(tmp_path: Path) -> Path:
-    from photree.foundation.gallery_metadata import (
-        GalleryMetadata,
-        save_gallery_metadata,
-    )
-    from photree.foundation.linking import LinkMode
-
     gallery = tmp_path / "gallery"
     gallery.mkdir()
     save_gallery_metadata(gallery, GalleryMetadata(link_mode=LinkMode.HARDLINK))

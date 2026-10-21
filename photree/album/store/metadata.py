@@ -1,7 +1,5 @@
 """Album metadata I/O."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 from ...foundation.layout import PHOTREE_DIR

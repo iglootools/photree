@@ -1,7 +1,5 @@
 """Tests for ``photree collection import`` CLI command."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import pytest

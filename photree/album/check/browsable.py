@@ -4,8 +4,6 @@ Verifies that ``{name}-img/`` and ``{name}-vid/`` contain the correct files
 derived from the archive's orig and edited sources.
 """
 
-from __future__ import annotations
-
 import hashlib
 import os
 from collections.abc import Callable

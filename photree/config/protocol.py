@@ -1,7 +1,5 @@
 """Configuration data types."""
 
-from __future__ import annotations
-
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum

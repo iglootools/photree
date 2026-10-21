@@ -15,8 +15,6 @@ All progress bars support context manager usage::
     # .stop() called automatically
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from types import TracebackType
 from typing import Self

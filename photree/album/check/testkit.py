@@ -1,7 +1,5 @@
 """Fake check results for demo and testing purposes."""
 
-from __future__ import annotations
-
 from ..store.media_source import MAIN_MEDIA_SOURCE, std_media_source
 from . import (
     AlbumDirCheck,

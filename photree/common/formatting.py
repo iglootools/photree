@@ -3,8 +3,6 @@
 All constants use Rich markup and must be printed via ``console.print``.
 """
 
-from __future__ import annotations
-
 import textwrap
 
 from rich.markup import escape

@@ -4,8 +4,6 @@ Kept apart from :mod:`.refresh` so the check/import/refresh output layers can
 report failures without importing the face-detection stack at CLI startup.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from enum import StrEnum
 

@@ -5,8 +5,6 @@ file just like CSV ones. (It used to be silently ignored in text mode, so
 ``list -o out.txt`` printed to the terminal and left no file.)
 """
 
-from __future__ import annotations
-
 import csv
 from collections.abc import Iterable, Sequence
 from pathlib import Path

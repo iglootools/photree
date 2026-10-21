@@ -5,8 +5,6 @@ insightface, cv2, faiss and sklearn together used to add ~0.5 s to every
 the face pipeline; this test catches a module-level import creeping back in.
 """
 
-from __future__ import annotations
-
 import subprocess
 import sys
 

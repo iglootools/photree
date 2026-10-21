@@ -1,7 +1,5 @@
 """Tests for std (non-iOS) import: photree.album.importer.std and orchestration."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import pytest

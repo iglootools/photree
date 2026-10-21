@@ -1,7 +1,5 @@
 """``albums fix`` / ``albums fix-ios`` wrappers."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import typer

@@ -1,7 +1,5 @@
 """Multi-album indexing — ID→path mapping and duplicate detection."""
 
-from __future__ import annotations
-
 import itertools
 from collections.abc import Mapping
 from dataclasses import dataclass

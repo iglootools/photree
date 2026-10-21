@@ -1,7 +1,5 @@
 """Shared helpers for fix operations."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 from ..store.media_source import MediaSource

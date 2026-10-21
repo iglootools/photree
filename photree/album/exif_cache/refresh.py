@@ -1,7 +1,5 @@
 """EXIF cache refresh — scan browsable files, read EXIF for new/changed, save."""
 
-from __future__ import annotations
-
 from collections.abc import Mapping
 from contextlib import nullcontext
 from dataclasses import dataclass

@@ -4,8 +4,6 @@ Orchestrates directory-structure, integrity, JPEG, naming, and system
 checks for a single album.
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path

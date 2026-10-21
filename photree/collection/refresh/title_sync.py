@@ -5,8 +5,6 @@ albums' names; an implicit collection's title is added as the series of its
 series-less albums.
 """
 
-from __future__ import annotations
-
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 

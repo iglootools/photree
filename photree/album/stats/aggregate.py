@@ -1,7 +1,5 @@
 """Aggregation helpers for merging stats across media sources and albums."""
 
-from __future__ import annotations
-
 from collections.abc import Iterable
 
 from .models import (

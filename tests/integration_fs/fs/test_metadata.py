@@ -1,7 +1,5 @@
 """Tests for metadata models, ID helpers, and album detection."""
 
-from __future__ import annotations
-
 import uuid
 from pathlib import Path
 

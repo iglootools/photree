@@ -4,8 +4,6 @@ Generates realistic Image Capture directories and album selection folders
 following the conventions documented in docs/domain.md.
 """
 
-from __future__ import annotations
-
 import shutil
 import zlib
 from dataclasses import dataclass

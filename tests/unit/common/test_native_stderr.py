@@ -1,7 +1,5 @@
 """Tests for photree.common.native_stderr."""
 
-from __future__ import annotations
-
 import os
 
 import pytest
@@ -22,9 +20,13 @@ class TestFilterNativeStderr:
     def test_restores_stderr_when_block_raises(
         self, capfd: pytest.CaptureFixture[str]
     ) -> None:
-        with pytest.raises(RuntimeError), filter_native_stderr(lambda _: False):
-            os.write(2, b"before failure\n")
-            raise RuntimeError
+        def write_then_fail() -> None:
+            with filter_native_stderr(lambda _: False):
+                os.write(2, b"before failure\n")
+                raise RuntimeError
+
+        with pytest.raises(RuntimeError):
+            write_then_fail()
 
         os.write(2, b"after\n")
         assert capfd.readouterr().err == "before failure\nafter\n"

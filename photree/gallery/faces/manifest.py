@@ -6,8 +6,6 @@ absent: a corrupt ``clusters.yaml`` treated as missing would trigger a silent
 full re-cluster that mints fresh cluster UUIDs and loses every identity.
 """
 
-from __future__ import annotations
-
 import hashlib
 from pathlib import Path
 

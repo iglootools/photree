@@ -13,8 +13,6 @@ Usage:
     python build-scripts/depgraph.py --format ascii    # print ASCII art to stdout
 """
 
-from __future__ import annotations
-
 import enum
 import re
 import shutil
@@ -25,6 +23,7 @@ from textwrap import indent
 from typing import Annotated
 
 import typer
+from mermaid_ascii import parse_mermaid, render_ascii
 
 PACKAGE = "photree"
 ARCHITECTURE_MD = Path("docs/architecture.md")
@@ -110,8 +109,6 @@ def _dot_to_mermaid(dot: str) -> str:
 
 def _render_ascii(mermaid_src: str) -> str:
     """Render mermaid to ASCII via mermaid-ascii-diagrams."""
-    from mermaid_ascii import parse_mermaid, render_ascii
-
     diagram = parse_mermaid(mermaid_src)
     return render_ascii(diagram)
 
@@ -146,7 +143,7 @@ def _splice_section(file_content: str, section: str) -> str:
     )
 
 
-class GraphFormat(str, enum.Enum):
+class GraphFormat(enum.StrEnum):
     """Output format for the dependency graph."""
 
     MERMAID = "mermaid"

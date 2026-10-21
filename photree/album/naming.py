@@ -15,8 +15,6 @@ This module only inspects name strings: no filesystem access. EXIF date
 matching lives in :mod:`.exif_date_check`.
 """
 
-from __future__ import annotations
-
 import re
 from collections import defaultdict
 from dataclasses import dataclass

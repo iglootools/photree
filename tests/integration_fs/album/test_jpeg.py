@@ -102,7 +102,7 @@ class TestRefreshJpegDir:
             src_dir,
             dst_dir,
             convert_file=_fake_convert,
-            on_file_start=lambda f: started.append(f),
+            on_file_start=started.append,
             on_file_end=lambda f, s: ended.append((f, s)),
         )
 

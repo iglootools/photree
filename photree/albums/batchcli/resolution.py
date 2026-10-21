@@ -4,8 +4,6 @@ Turns the mutually exclusive ``--dir`` / ``--album-dir`` options into an
 album list; used by both ``albums`` and ``gallery`` CLI commands.
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from pathlib import Path
 

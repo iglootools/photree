@@ -1,7 +1,5 @@
 """``photree album fix-exif`` command."""
 
-from __future__ import annotations
-
 import shlex
 from dataclasses import dataclass
 from pathlib import Path

@@ -1,7 +1,5 @@
 """prefer-higher-quality-when-dups iOS fix operation."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from pathlib import Path
 

@@ -15,8 +15,6 @@ This module is pure: no filesystem access, no knowledge of albums or
 collections beyond the grammar they share.
 """
 
-from __future__ import annotations
-
 import calendar
 import re
 from datetime import date, datetime, timedelta

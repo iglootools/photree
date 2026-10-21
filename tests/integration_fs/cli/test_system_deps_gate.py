@@ -5,8 +5,6 @@ machine missing one fails the whole run up front instead of failing every
 album individually, halfway through.
 """
 
-from __future__ import annotations
-
 import os
 import stat
 from pathlib import Path

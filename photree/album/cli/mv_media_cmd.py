@@ -1,7 +1,5 @@
 """``photree album mv-media`` command."""
 
-from __future__ import annotations
-
 from pathlib import Path
 from typing import Annotated
 

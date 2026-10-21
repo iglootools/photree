@@ -1,7 +1,5 @@
 """Batch rename command handler."""
 
-from __future__ import annotations
-
 import csv as csv_mod
 from collections.abc import Mapping
 from dataclasses import dataclass

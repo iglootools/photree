@@ -1,7 +1,5 @@
 """Tests for collection metadata I/O."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import pytest
