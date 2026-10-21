@@ -2,11 +2,12 @@
 
   ## Getting started
 
-  - [docs/project-setup.md](docs/project-setup.md) — set up the toolchain, the editor, and the
-    iglootools Claude Code plugin
-  - [docs/build-test.md](docs/build-test.md) — unit and integration tests, formatting, linting,
-    and the checks CI runs
-  - [docs/release-publish.md](docs/release-publish.md) — cut a release and publish it to PyPI
+  - [docs/setup-development-environment.md](docs/setup-development-environment.md) — set up the
+    toolchain, the editor, and the iglootools Claude Code plugin
+  - [docs/building-and-testing.md](docs/building-and-testing.md) — unit and integration tests,
+    formatting, linting, the checks CI runs, and the GitHub settings the repository depends on
+  - [docs/releasing-and-publishing.md](docs/releasing-and-publishing.md) — cut a release and
+    publish it to PyPI
 
   ## Guidelines
 

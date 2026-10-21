@@ -72,7 +72,7 @@ It is scheduled to run weekly, but can also be triggered manually using `gh work
     - `release` workflow: will bump version according to conventional commit conventions, push tag, and create a Github release
     - `publish` workflow: will publish the new version to PyPI
 
-## Github Config
+## GitHub Config
 - **Protect `main` and the release tags with rulesets.** Configured as the shared
   [repository conventions](https://github.com/iglootools/common/blob/main/guidelines/project-setup/repository.md#protect-the-default-branch-and-release-tags)
   describe: `main` cannot be deleted or force-pushed, changes go through a pull request
