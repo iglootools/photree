@@ -1,15 +1,13 @@
 """Gallery-level face clustering refresh — scan, index, cluster, save."""
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING
+from uuid import uuid7
 
 import numpy as np
-from uuid6 import uuid7
 
 from ...album.faces.protocol import FACES_DIR
 from ...album.faces.store import load_face_data

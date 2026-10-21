@@ -1,7 +1,5 @@
 """Tests for photree.album.naming module."""
 
-from __future__ import annotations
-
 from photree.album.naming import (
     ParsedAlbumName,
     check_album_naming,

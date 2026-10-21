@@ -9,8 +9,6 @@ Keeping them on the album-level model is what made ``album`` import
 ``collection``, which imports ``album`` back.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from pathlib import Path
 

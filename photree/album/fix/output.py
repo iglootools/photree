@@ -1,7 +1,5 @@
 """User-facing output formatting for album fix commands."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 from .rm_upstream import RmUpstreamSkip, SignalSkipReason

@@ -12,8 +12,6 @@ parameters (defaulting to the real ones) so tests pass values instead of
 patching module state.
 """
 
-from __future__ import annotations
-
 import os
 import tomllib
 from collections.abc import Callable, Mapping

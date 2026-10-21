@@ -1,7 +1,5 @@
 """Regression tests for check state detection and integrity output."""
 
-from __future__ import annotations
-
 from dataclasses import replace
 from pathlib import Path
 

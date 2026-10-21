@@ -18,8 +18,6 @@ entirety regardless of album layout — except the ``archive`` layout, which
 copies only the archive dirs and ``.photree/`` metadata.
 """
 
-from __future__ import annotations
-
 import os
 import shutil
 from collections.abc import Callable, Iterator, Sequence

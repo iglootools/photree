@@ -5,8 +5,6 @@ extraction/writing helpers that are not specific to any album
 layout or naming convention.
 """
 
-from __future__ import annotations
-
 import json
 import shutil
 import subprocess
@@ -48,7 +46,7 @@ def try_start_exiftool(*, which: WhichFn = shutil.which) -> ExifToolHelper | Non
 @contextmanager
 def exiftool_session(
     *, enabled: bool = True, which: WhichFn = shutil.which
-) -> Generator[ExifToolHelper | None, None, None]:
+) -> Generator[ExifToolHelper | None]:
     """Yield a running exiftool helper (or ``None``), closing it on exit.
 
     ``None`` when *enabled* is false or exiftool is not installed. Use this

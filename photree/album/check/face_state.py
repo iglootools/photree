@@ -5,8 +5,6 @@ verification. The state is validated at write time during album refresh.
 Use ``album refresh --redetect-faces`` to force re-detection.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path

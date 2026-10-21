@@ -1,7 +1,5 @@
 """CLI commands for demo and development purposes."""
 
-from __future__ import annotations
-
 import tempfile
 from collections.abc import Callable
 from pathlib import Path
@@ -76,7 +74,7 @@ _SAMPLES: tuple[tuple[str, Callable[[], str]], ...] = (
     ),
     (
         "preflight_output.sips_troubleshoot()",
-        lambda: preflight_output.sips_troubleshoot(),
+        preflight_output.sips_troubleshoot,
     ),
     (
         "album_output.album_dir_check — album (all present)",

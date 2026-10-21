@@ -1,7 +1,5 @@
 """Tests for photree.album.importer.selection module."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 from photree.album.importer.selection import (

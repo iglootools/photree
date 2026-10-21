@@ -1,7 +1,5 @@
 """CLI command for ``photree check``."""
 
-from __future__ import annotations
-
 from ...clihelpers.sysdeps import require_system_deps
 from ...common.sysdeps import SystemDependency
 from . import check_app

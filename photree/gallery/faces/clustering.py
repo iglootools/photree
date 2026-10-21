@@ -1,7 +1,5 @@
 """Face clustering — FAISS index management, agglomerative clustering, medoid matching."""
 
-from __future__ import annotations
-
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 

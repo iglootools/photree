@@ -5,8 +5,6 @@ associated variants by key (image number for iOS, filename stem for std)
 and moves or deletes them.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path

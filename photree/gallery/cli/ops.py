@@ -5,8 +5,6 @@ used by gallery command modules. Extracted to keep command modules focused on
 argument parsing and orchestration.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import typer

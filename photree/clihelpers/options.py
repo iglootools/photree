@@ -1,7 +1,5 @@
 """Reusable Typer option definitions shared across CLI commands."""
 
-from __future__ import annotations
-
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated

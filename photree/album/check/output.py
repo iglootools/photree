@@ -10,8 +10,6 @@ source names, paths, filenames, issue messages) is escaped with
 result with markup enabled and must not escape it again.
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from textwrap import dedent

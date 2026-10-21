@@ -7,8 +7,6 @@ and grouping (by-year, all-time, by-chapter).
 Called by ``gallery refresh`` after album and collection refresh.
 """
 
-from __future__ import annotations
-
 import os
 import shutil
 from collections.abc import Callable, Mapping

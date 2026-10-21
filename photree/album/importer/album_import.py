@@ -5,9 +5,6 @@ into its target media source (iOS via :mod:`image_capture`, std via
 :mod:`std`), then refreshes all derived data once.
 """
 
-from __future__ import annotations
-
-import os
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -221,13 +218,13 @@ def _notify(callback: Callable[[str], None] | None, value: str) -> None:
 
 def _remove_empty_folders(root: Path) -> None:
     # Bottom-up so a parent emptied by removing its children goes too.
-    for dirpath in reversed([Path(d) for d, _, _ in os.walk(root)]):
+    for dirpath, _, _ in root.walk(top_down=False):
         if (
             dirpath != root
             and not dirpath.name.startswith(".")
-            and not os.listdir(dirpath)
+            and not any(dirpath.iterdir())
         ):
-            os.rmdir(dirpath)
+            dirpath.rmdir()
 
 
 def _require_tasks(album_dir: Path) -> list[ImportTask]:

@@ -1,7 +1,5 @@
 """Generic file utilities (not photree-specific)."""
 
-from __future__ import annotations
-
 import os
 import shutil
 from collections.abc import Callable, Iterable, Iterator

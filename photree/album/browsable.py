@@ -8,8 +8,6 @@ This is the same logic used during import (see importer.image_capture),
 extracted here so it can be reused by fix commands.
 """
 
-from __future__ import annotations
-
 import errno
 import os
 import shutil

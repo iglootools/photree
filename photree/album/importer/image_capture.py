@@ -4,8 +4,6 @@ See docs/domain.md for the Image Capture file structure and docs/internals.md
 for the album layout.
 """
 
-from __future__ import annotations
-
 import shutil
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass

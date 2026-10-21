@@ -1,7 +1,5 @@
 """Pydantic base model for photree's YAML metadata (kebab-case keys, frozen)."""
 
-from __future__ import annotations
-
 from pydantic import BaseModel, ConfigDict
 
 

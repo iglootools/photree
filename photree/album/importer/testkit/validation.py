@@ -1,7 +1,5 @@
 """Fake validation errors for demo and testing purposes."""
 
-from __future__ import annotations
-
 from ...check.std import DuplicateStem
 from ...store.media_source import ios_media_source, std_media_source
 from ..album_import import TaskIssue

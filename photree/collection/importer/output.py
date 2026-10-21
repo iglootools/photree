@@ -4,8 +4,6 @@ The importer reports structured data (kinds + fields); this module turns it
 into messages. Formatters return unindented lines — the caller indents.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
 
 from ...common.fs import display_path

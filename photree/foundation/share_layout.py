@@ -5,8 +5,6 @@ They live in the foundation layer (rather than in ``album.exporter``) so that
 album package.
 """
 
-from __future__ import annotations
-
 from enum import StrEnum
 
 

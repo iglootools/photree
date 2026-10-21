@@ -8,8 +8,6 @@ Live Photos are primarily an iOS feature. This module is only applied to
 iOS media sources.
 """
 
-from __future__ import annotations
-
 from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING

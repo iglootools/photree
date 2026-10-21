@@ -1,7 +1,5 @@
 """EXIF cache I/O — load/save per-media-source YAML cache files."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 from ...foundation.layout import PHOTREE_DIR

@@ -10,8 +10,6 @@ all pending entries. Matches are collected; ambiguous and unresolved
 entries are reported as errors.
 """
 
-from __future__ import annotations
-
 import re
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass

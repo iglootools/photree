@@ -1,7 +1,5 @@
 """Check for unexpected top-level directories in an album."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from pathlib import Path
 

@@ -1,10 +1,10 @@
 """CLI tests for ``photree album fix-exif``."""
 
-from __future__ import annotations
-
 import shutil
 from pathlib import Path
 
+import cv2
+import numpy as np
 import pytest
 from typer.testing import CliRunner
 
@@ -18,9 +18,6 @@ requires_exiftool = pytest.mark.skipif(
 
 
 def _jpeg(path: Path) -> Path:
-    import cv2
-    import numpy as np
-
     cv2.imwrite(str(path), np.zeros((8, 8, 3), dtype=np.uint8))
     return path
 

@@ -10,8 +10,6 @@ import`/`album init` assign an ID that gallery import preserves), or — as a
 fallback for an ID-less source — when its target directory already exists.
 """
 
-from __future__ import annotations
-
 import itertools
 from dataclasses import dataclass
 from enum import StrEnum

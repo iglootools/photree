@@ -8,8 +8,6 @@ An album may carry multiple import staging entries, one per media source:
   are imported directly (no selection matching, no Image Capture source).
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from pathlib import Path
 

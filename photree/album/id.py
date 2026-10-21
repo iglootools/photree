@@ -1,11 +1,7 @@
 """Album and media ID generation, formatting, and parsing."""
 
-from __future__ import annotations
-
 import uuid as _uuid
 from enum import StrEnum
-
-from uuid6 import uuid7
 
 from ..common.base58 import base58_decode, base58_encode
 
@@ -16,12 +12,12 @@ VIDEO_ID_PREFIX = "video"
 
 def generate_album_id() -> str:
     """Generate a new UUID v7 string for an album."""
-    return str(uuid7())
+    return str(_uuid.uuid7())
 
 
 def generate_media_id() -> str:
     """Generate a new UUID v7 string for a media item (image or video)."""
-    return str(uuid7())
+    return str(_uuid.uuid7())
 
 
 def format_external_id(type_prefix: str, internal_id: str) -> str:

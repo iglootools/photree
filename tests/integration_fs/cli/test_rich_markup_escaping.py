@@ -7,8 +7,6 @@ intentional markup (``✓``/``✗`` icons, colors). These pin the bracketed text
 to representative outputs of each command family.
 """
 
-from __future__ import annotations
-
 from io import StringIO
 from pathlib import Path
 

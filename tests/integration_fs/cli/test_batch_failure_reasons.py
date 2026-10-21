@@ -4,8 +4,7 @@ A batch that reports only which albums failed forces a per-album re-run to
 learn anything the batch already knew. These pin the reason to the output.
 """
 
-from __future__ import annotations
-
+import importlib
 from pathlib import Path
 
 import pytest
@@ -14,6 +13,8 @@ from typer.testing import CliRunner
 from photree.album.id import generate_album_id
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
+from photree.albums.batchcli.failures import batch_failures_report
+from photree.albums.cmd_handler import BatchFailure
 from photree.cli import app
 
 runner = CliRunner()
@@ -67,9 +68,6 @@ class TestBatchFailureReport:
     """The shared formatter pairs each album with its reason."""
 
     def test_formats_path_and_reason(self, tmp_path: Path) -> None:
-        from photree.albums.batchcli.failures import batch_failures_report
-        from photree.albums.cmd_handler import BatchFailure
-
         report = batch_failures_report(
             [BatchFailure(album_dir=tmp_path / "a", reason="disk on fire")], tmp_path
         )
@@ -89,8 +87,6 @@ class TestBatchFailureReport:
 )
 def test_every_handler_result_exposes_failures(handler_module: str) -> None:
     """Guard against a handler regressing to a bare list of paths."""
-    import importlib
-
     module = importlib.import_module(handler_module)
     result_cls = next(
         obj

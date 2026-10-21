@@ -1,7 +1,5 @@
 """Base58 encoding and decoding (Bitcoin alphabet)."""
 
-from __future__ import annotations
-
 import functools
 
 BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"

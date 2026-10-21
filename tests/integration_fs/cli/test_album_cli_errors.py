@@ -1,14 +1,19 @@
 """CLI regressions for album commands: corrupt metadata, structured errors,
 and copy-pasteable suggestions."""
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
 
+import photree.cli as cli_module
+from photree.album.exporter.settings import (
+    ExportSettingsError,
+    ExportSettingsErrorKind,
+    ResolvedExportSettings,
+    validate_export_settings,
+)
 from photree.album.importer import album_import
 from photree.album.importer.album_import import (
     AlbumImportResult,
@@ -19,7 +24,9 @@ from photree.album.store.media_source import std_media_source
 from photree.album.store.media_sources_discovery import MediaSourceConflictError
 from photree.cli import app
 from photree.foundation.layout import SHARE_SENTINEL
+from photree.foundation.linking import LinkMode
 from photree.foundation.metadata_io import InvalidMetadataError
+from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 
 runner = CliRunner()
 
@@ -240,8 +247,6 @@ def test_entry_point_reports_media_source_conflict(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """A conflict no command wrapped ends in a message and exit 1."""
-    import photree.cli as cli_module
-
     album = tmp_path / "2024-07-14 - Trip [private]"
 
     def _raise() -> None:
@@ -321,15 +326,6 @@ def test_export_missing_sentinel_suggests_quoted_relative_touch(
 
 
 def test_export_settings_error_is_structured(tmp_path: Path) -> None:
-    from photree.album.exporter.settings import (
-        ExportSettingsError,
-        ExportSettingsErrorKind,
-        ResolvedExportSettings,
-        validate_export_settings,
-    )
-    from photree.foundation.linking import LinkMode
-    from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
-
     with pytest.raises(ExportSettingsError) as exc_info:
         validate_export_settings(
             ResolvedExportSettings(

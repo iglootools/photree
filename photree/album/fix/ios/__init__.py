@@ -5,8 +5,6 @@ from sources, and returning a structured result. CLI concerns (progress bars,
 output formatting, exit codes) are handled by the caller.
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum

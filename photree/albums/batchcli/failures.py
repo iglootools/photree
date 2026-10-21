@@ -9,8 +9,6 @@ an album tagged ``[private]`` is printed as-is instead of being swallowed as
 a markup tag.
 """
 
-from __future__ import annotations
-
 from collections.abc import Iterable, Sequence
 from pathlib import Path
 

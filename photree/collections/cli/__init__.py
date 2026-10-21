@@ -1,7 +1,5 @@
 """CLI commands for the ``photree collections`` sub-app."""
 
-from __future__ import annotations
-
 import typer
 
 collections_app = typer.Typer(

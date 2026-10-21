@@ -1,7 +1,5 @@
 """Album-level face detection refresh — scan, diff, detect, merge, save."""
 
-from __future__ import annotations
-
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from functools import partial

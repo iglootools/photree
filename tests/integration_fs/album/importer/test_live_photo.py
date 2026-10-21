@@ -2,8 +2,12 @@
 
 from pathlib import Path
 
+import pytest
+
+from photree.album.check.ios import check_duplicate_numbers
 from photree.album.formats import IOS_IMG_EXTENSIONS, IOS_VID_EXTENSIONS
 from photree.album.importer.album_import import run_import
+from photree.album.importer.collision import ImportCollisionError
 from photree.album.importer.image_capture import (
     MediaType,
     plan_import,
@@ -15,6 +19,7 @@ from photree.album.live_photo import (
     detect_live_photo_keys,
 )
 from photree.album.staging import ios_import_dir
+from photree.album.stats.scan import count_live_photos
 from photree.album.store.media_source import ios_img_number, ios_media_source
 from photree.common.fs import list_files
 
@@ -374,10 +379,6 @@ class TestRunImportLivePhoto:
         existing.mkdir(parents=True)
         (existing / "IMG_0001.HEIC").write_text("existing")
 
-        import pytest
-
-        from photree.album.importer.collision import ImportCollisionError
-
         with pytest.raises(ImportCollisionError) as exc_info:
             run_import(
                 album_dir=album,
@@ -394,8 +395,6 @@ class TestRunImportLivePhoto:
 
 class TestCheckWithLivePhotos:
     def test_duplicate_numbers_allows_live_photo(self, tmp_path: Path) -> None:
-        from photree.album.check.ios import check_duplicate_numbers
-
         d = tmp_path / "orig-img"
         d.mkdir()
         (d / "IMG_0001.HEIC").write_text("img")
@@ -408,8 +407,6 @@ class TestCheckWithLivePhotos:
     def test_duplicate_numbers_still_flags_real_duplicates(
         self, tmp_path: Path
     ) -> None:
-        from photree.album.check.ios import check_duplicate_numbers
-
         d = tmp_path / "edit-img"
         d.mkdir()
         (d / "IMG_E0001.HEIC").write_text("img1")
@@ -429,8 +426,6 @@ class TestCheckWithLivePhotos:
 
 class TestLivePhotoStats:
     def test_count_live_photos(self, tmp_path: Path) -> None:
-        from photree.album.stats.scan import count_live_photos
-
         ms = ios_media_source("main")
         orig = tmp_path / ms.orig_img_dir
         orig.mkdir(parents=True)
@@ -442,8 +437,6 @@ class TestLivePhotoStats:
         assert count == 1
 
     def test_count_live_photos_no_archive(self, tmp_path: Path) -> None:
-        from photree.album.stats.scan import count_live_photos
-
         ms = ios_media_source("main")
         count = count_live_photos(tmp_path, ms, has_archive=False)
         assert count == 0

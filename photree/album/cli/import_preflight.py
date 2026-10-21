@@ -4,8 +4,6 @@ Public to the ``albums`` CLI (``albums import``, ``albums import-check``):
 both scopes run the same checks and abort the same way.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import typer

@@ -2,8 +2,6 @@
 config file (album/albums/gallery import and export, and the CLI entry point).
 """
 
-from __future__ import annotations
-
 from ..config import ConfigError
 
 

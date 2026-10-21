@@ -7,8 +7,6 @@ for progress notification, and return structured results.
 No module in this package imports ``typer``, ``rich``, or ``clihelpers``.
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path

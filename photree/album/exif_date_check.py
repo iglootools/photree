@@ -9,8 +9,6 @@ it to an album's files and resolves the upstream (archive) files an EXIF fix
 would have to touch.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path

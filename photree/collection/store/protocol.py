@@ -1,7 +1,5 @@
 """Collection protocol — models, constants, and enums."""
 
-from __future__ import annotations
-
 from enum import StrEnum
 
 from pydantic import Field

@@ -1,7 +1,5 @@
 """Fake stats data for demo and testing purposes."""
 
-from __future__ import annotations
-
 from ..store.media_source import MediaSourceType
 from .aggregate import media_source_type_stats, merge_media_source_type_stats
 from .models import (

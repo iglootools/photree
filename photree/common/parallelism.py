@@ -1,14 +1,9 @@
 """Generic parallel task execution via :class:`~concurrent.futures.ThreadPoolExecutor`."""
 
-from __future__ import annotations
-
 import os
 from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-from typing import TypeVar
-
-T = TypeVar("T")
 
 
 @dataclass(frozen=True)

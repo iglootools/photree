@@ -4,8 +4,6 @@ All functions build argument lists rather than shell strings to avoid quoting
 issues.
 """
 
-from __future__ import annotations
-
 import subprocess
 from pathlib import Path
 

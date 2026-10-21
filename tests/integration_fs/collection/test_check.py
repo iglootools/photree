@@ -1,7 +1,5 @@
 """Tests for collection check."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 from photree.album.id import generate_album_id, generate_media_id

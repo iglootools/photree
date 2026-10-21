@@ -1,7 +1,5 @@
 """``photree gallery metadata set`` command."""
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated

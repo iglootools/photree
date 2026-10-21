@@ -1,12 +1,19 @@
 """Tests for gallery-level operations: album ID indexing and rename planning."""
 
-from __future__ import annotations
-
+import unicodedata
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
-from photree.album.id import format_album_external_id, generate_album_id
+from photree.album.id import (
+    ALBUM_ID_PREFIX,
+    format_album_external_id,
+    generate_album_id,
+    parse_external_id,
+)
+from photree.album.naming import parse_album_name
+from photree.album.stats.testkit import ALBUMS_STATS
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.albums.index import (
@@ -17,6 +24,7 @@ from photree.albums.index import (
 from photree.albums.renamer import plan_renames_from_csv
 from photree.foundation.metadata_io import InvalidMetadataError
 from photree.gallery.index import build_album_id_to_path_index
+from photree.gallery.stats import compute_gallery_stats
 
 
 def _write(path: Path, content: str = "data") -> None:
@@ -156,8 +164,6 @@ class TestBuildAlbumIndex:
 class TestResolveAlbumPathById:
     def test_resolves_by_internal_id_from_external(self, tmp_path: Path) -> None:
         """External ID → parse to internal → resolve."""
-        from photree.album.id import ALBUM_ID_PREFIX, parse_external_id
-
         dir1, aid1 = _setup_album(tmp_path, "2024-06-15 - Trip")
         index = build_album_index([dir1])
         external_id = format_album_external_id(aid1)
@@ -257,14 +263,11 @@ class TestPlanRenamesFromCsv:
 
     def test_nfc_normalization_no_spurious_change(self, tmp_path: Path) -> None:
         """NFC-equivalent strings should not trigger a rename."""
-        import unicodedata
-
         index = self._make_index(tmp_path)
         aid = next(iter(index))
         ext_id = format_album_external_id(aid)
         # Get the current title and convert to NFC (should be identity)
         current_name = index[aid].name
-        from photree.album.naming import parse_album_name
 
         parsed = parse_album_name(current_name)
         assert parsed is not None
@@ -306,11 +309,6 @@ class TestGalleryStatsWithoutCache:
     """
 
     def test_no_album_cache_does_not_crash(self, tmp_path: Path) -> None:
-        from dataclasses import replace
-
-        from photree.album.stats.testkit import ALBUMS_STATS
-        from photree.gallery.stats import compute_gallery_stats
-
         gallery = tmp_path / "gallery"
         (gallery / ".photree").mkdir(parents=True)
 

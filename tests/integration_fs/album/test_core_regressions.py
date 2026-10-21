@@ -1,8 +1,6 @@
 """Regression tests for album-core bugs: stale derived files, EXIF cache paths,
 invalid dates, corrupt metadata, and media source name conflicts."""
 
-from __future__ import annotations
-
 from datetime import datetime
 from pathlib import Path
 

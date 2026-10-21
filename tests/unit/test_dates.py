@@ -1,7 +1,5 @@
 """Tests for photree.dates — the date grammar shared by albums and collections."""
 
-from __future__ import annotations
-
 from datetime import date, datetime
 
 import pytest

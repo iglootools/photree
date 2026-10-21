@@ -6,8 +6,6 @@ Commands that shell out to ``sips`` or ``exiftool`` call
 actionable message printed before the first file is touched.
 """
 
-from __future__ import annotations
-
 import shutil
 from collections.abc import Iterable
 from textwrap import dedent

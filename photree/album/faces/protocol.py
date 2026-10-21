@@ -1,7 +1,5 @@
 """Face detection protocol — constants, models, and type definitions."""
 
-from __future__ import annotations
-
 from pydantic import Field
 
 from ...foundation.model import PhotreeModel

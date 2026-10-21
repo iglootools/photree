@@ -1,7 +1,5 @@
 """Media source discovery — detect iOS and std media sources in an album."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 from ..formats import IMG_EXTENSIONS, VID_EXTENSIONS

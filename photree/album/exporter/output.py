@@ -1,7 +1,5 @@
 """User-facing messages for the exporter."""
 
-from __future__ import annotations
-
 import shlex
 from pathlib import Path
 

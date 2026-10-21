@@ -4,8 +4,6 @@ Verifies that ``{name}-jpg/`` mirrors ``{name}-img/`` with a JPEG
 counterpart for every file.
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path

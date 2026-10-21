@@ -1,7 +1,5 @@
 """``albums init`` / batch init wrapper."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import typer

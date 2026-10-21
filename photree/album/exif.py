@@ -5,8 +5,6 @@ and provides album-level convenience functions built on top of
 the generic EXIF helpers in :mod:`common.exif`.
 """
 
-from __future__ import annotations
-
 from datetime import datetime
 from pathlib import Path
 

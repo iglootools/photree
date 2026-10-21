@@ -1,7 +1,5 @@
 """Tests for media metadata models and I/O."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import yaml

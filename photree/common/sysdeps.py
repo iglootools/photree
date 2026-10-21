@@ -7,8 +7,6 @@ machine, not of the album being processed, so retrying it per item can only
 produce the same failure N times.
 """
 
-from __future__ import annotations
-
 import shutil
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass

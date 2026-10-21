@@ -7,8 +7,6 @@ on them back. It is a generic CLI concern (turn a resolution failure into a
 clean exit), not a gallery one.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import typer

@@ -5,8 +5,6 @@ galleries. All results are frozen dataclasses suitable for display via
 the output formatting layer.
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from itertools import groupby

@@ -1,7 +1,5 @@
 """User-facing output formatting for iOS fix commands."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 from .miscategorized import MiscategorizedAction

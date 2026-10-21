@@ -20,8 +20,6 @@ Every source is planned before anything is deleted, so a refusal leaves the
 album untouched.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path

@@ -1,7 +1,5 @@
 """``photree albums fix-ios`` command."""
 
-from __future__ import annotations
-
 import typer
 
 from ...album.fix.ios import FixIosValidationError, validate_fix_flags

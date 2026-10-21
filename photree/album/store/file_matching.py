@@ -9,8 +9,6 @@ Also includes iOS-specific (``ios_find_files_by_number``) and std-specific
 themselves live with :class:`~.media_source.MediaSource`.
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from itertools import groupby
 from pathlib import Path

@@ -1,7 +1,5 @@
 """Shared Rich console instances for CLI output."""
 
-from __future__ import annotations
-
 from collections.abc import Callable
 
 from rich.console import Console

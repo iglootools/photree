@@ -5,8 +5,6 @@ so a run where every album failed printed a success-shaped summary and exited
 0. These cover the reason reaching the user and the exit code reflecting it.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import pytest

@@ -5,8 +5,6 @@ relative to the working directory, and every error carries a copy-pasteable
 next step.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
 
 from ...album.id import (

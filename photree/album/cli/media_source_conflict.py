@@ -4,8 +4,6 @@ Public to the other CLI layers: the entry point (``photree.cli``) renders the
 same message when the error escapes a command.
 """
 
-from __future__ import annotations
-
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path

@@ -6,8 +6,6 @@ layer is responsible for printing them (see ``cli/ops.py``). The import
 failure helpers at the bottom return plain text instead.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
 
 from ..album.faces.failures import format_face_failures

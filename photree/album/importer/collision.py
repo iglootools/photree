@@ -7,8 +7,6 @@ key that the target archive already holds. The check runs before any mutation
 media source can never leave another source half-imported.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 
 from ..store.media_source import MediaSource

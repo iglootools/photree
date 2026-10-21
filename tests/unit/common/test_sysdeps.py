@@ -1,7 +1,5 @@
 """Tests for photree.common.sysdeps — external binary discovery."""
 
-from __future__ import annotations
-
 import pytest
 
 from photree.common.sysdeps import (

@@ -5,8 +5,6 @@ vs. manifest) and against the per-album face caches (checksums). Returns
 structured issues; the CLI layer renders them.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from pathlib import Path
 

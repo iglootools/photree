@@ -1,7 +1,5 @@
 """Tests for collection naming convention parsing."""
 
-from __future__ import annotations
-
 from photree.collection.naming import (
     ParsedCollectionName,
     parse_collection_name,

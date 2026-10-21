@@ -5,16 +5,16 @@ every command that refreshes derived data (album import, albums/gallery
 refresh, gallery import) reports it and exits 1 rather than claiming success.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
 
+import photree.gallery.importer as gallery_importer
 from photree.album.faces.failures import FaceFailure, FaceFailureStage
 from photree.album.importer import album_import
 from photree.album.importer.album_import import AlbumImportResult
+from photree.album.importer.batch import _result_failure
 from photree.album.refresh import AlbumRefreshResult
 from photree.albums.cmd_handler import refresh as refresh_handler
 from photree.albums.cmd_handler.refresh import batch_refresh
@@ -84,8 +84,6 @@ def test_gallery_import_exposes_face_failures(tmp_path: Path) -> None:
 def test_gallery_batch_import_reports_face_failures(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import photree.gallery.importer as gallery_importer
-
     album = tmp_path / "2024-07-14 - Hiking"
     target = tmp_path / "gallery/albums/2024" / album.name
 
@@ -146,8 +144,6 @@ def test_album_import_reports_face_failures_and_exits_1(
 
 
 def test_albums_batch_import_reports_every_partial_failure(tmp_path: Path) -> None:
-    from photree.album.importer.batch import _result_failure
-
     failure = _result_failure(
         tmp_path,
         AlbumImportResult(face_failures=_FACE_FAILURES),

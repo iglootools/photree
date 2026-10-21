@@ -10,8 +10,6 @@ Shared by the importer (which consumes the entries) and the album check
 album level rather than inside either.
 """
 
-from __future__ import annotations
-
 import re
 
 from .store.media_source import MediaSourceType
