@@ -179,7 +179,8 @@ run = [
 # Test Tasks
 [tasks.test-unit]
 description = "Run unit tests"
-run = "uv run --no-sync pytest tests/ --ignore=tests/integration_fs/ -v"
+# -n auto: unit tests are isolated (tmp_path, monkeypatch), so they parallelize cleanly.
+run = "uv run --no-sync pytest tests/ --ignore=tests/integration_fs/ -n auto -v"
 
 [tasks.test-integration-fs]
 description = "Run filesystem integration tests"
