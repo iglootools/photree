@@ -16,6 +16,11 @@
   and the checklists to run for specific kinds of change.
   [docs/cli-conventions.md](docs/cli-conventions.md) covers how the command-line layer is built.
 
+  Contributors follow the iglootools
+  [code of conduct](https://github.com/iglootools/.github/blob/main/CODE_OF_CONDUCT.md); report
+  vulnerabilities as the [security policy](https://github.com/iglootools/.github/blob/main/SECURITY.md)
+  describes.
+
   ## Understanding the code
 
   - [docs/domain.md](docs/domain.md) — galleries, albums, media sources, collections, naming conventions, IDs, and
