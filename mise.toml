@@ -154,7 +154,7 @@ run = [
 ]
 
 [tasks.ci-build]
-description = "Run all checks needed on CI"
+description = "Build the package and verify its version, as the publish workflows do on CI"
 run = [
   { task = "install" },
   { task = "build" },
@@ -245,7 +245,7 @@ run = [
 ]
 
 [tasks.demo-record]
-description = "Record the demo and convert to GIF"
+description = "Record the demo to demo/demo.cast"
 run = "./demo/record-demo.sh \"$(uv run --no-sync python -c 'import photree; print(photree.__version__)')\""
 
 [tasks.demo-upload]
