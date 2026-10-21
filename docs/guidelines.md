@@ -103,7 +103,23 @@ These checklists serve as a reminder for things to check when implementing new f
 - Keep Github workflows and mise tasks in sync with each other
 
 ### Documentation
-- Keep the documentation in sync with the codebase.
+
+Before calling a change done, update the documents its kind of change reaches:
+
+| Change | Update |
+|---|---|
+| CLI command, option or help text | `mise run clidocs` (cli-reference.md); usage.md for the workflow; features.md and the README summary for a new capability |
+| Config field, default or validation rule | config-reference.md (hand-written: no generator), config-examples/config.toml, usage.md "Configuration" |
+| Concept, entity, invariant, naming convention or ID format | domain.md |
+| On-disk layout, `.photree/*.yaml` format, refresh/import/export algorithm, external command invoked | internals.md |
+| New package or import edge | the contracts and architecture.md "Layering"; `mise run depgraph` |
+| System requirement (exiftool, sips, …) | installation.md (the probe itself goes in `photree check system`) |
+| mise task or CI workflow | building-and-testing.md |
+| Toolchain, editor or Claude Code setup | setup-development-environment.md |
+| Release or publish pipeline, trusted publisher | releasing-and-publishing.md |
+| GitHub repository setting | building-and-testing.md "GitHub Config" |
+| Major release | new scenarios in demo/demo.sh (see the Release Process) |
+| Renaming or moving a document | every reference to it: `git grep` the old name, including CLAUDE.md `@` imports and the README's absolute URLs |
 
 ### Tests
 - Ensure that all new functionality is covered by tests.
