@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Record the demo and convert to GIF.
+# Record the demo as an asciinema cast.
 #
 # Usage:
 #   ./demo/record-demo.sh [VERSION]
@@ -10,7 +10,9 @@
 #
 # Output:
 #   demo/demo.cast  — asciinema recording
-#   demo/demo.gif   — GIF for README
+#
+# The GIF conversion (demo/demo.gif, via agg) is commented out below: nothing consumes a GIF
+# today. Re-enable it together with adding the GIF to the demo workflow's artifact.
 
 set -euo pipefail
 IFS=$'\n\t'
@@ -51,4 +53,4 @@ asciinema rec \
 #     "$CAST" \
 #     "$GIF"
 
-echo "Done: $GIF"
+echo "Done: $CAST"
