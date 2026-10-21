@@ -26,6 +26,12 @@ jobs:
   bump-version:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      # Pushes the release tag and creates the GitHub release, both through GITHUB_TOKEN.
+      # Declared rather than inherited: without it this only works while the repository's
+      # default workflow token is read-write, and switching that default to read-only would
+      # make the tag push fail.
+      contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:

@@ -56,6 +56,10 @@ jobs:
       # which is the actual URL of the repository where the package is published
       url: https://pypi.org/p/photree/
     permissions:
+      # Declaring any permission zeroes the ones left out, so contents: read is listed
+      # explicitly for the checkout. The public repository would still clone anonymously
+      # without it, but a repository that later goes private would start failing at checkout.
+      contents: read
       id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

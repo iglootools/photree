@@ -41,6 +41,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read # actions/checkout; the job only reads and reports
     # No Python matrix: the supported version, the local development version and the CI
     # version are one and the same — the `python` pin in mise.toml — so CI tests exactly
     # what developers run. See docs/building-and-testing.md "Python version".
