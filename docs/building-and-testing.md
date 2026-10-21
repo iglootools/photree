@@ -71,6 +71,16 @@ It is scheduled to run weekly, but can also be triggered manually using `gh work
 - Let github workflows take care of the rest
     - `release` workflow: will bump version according to conventional commit conventions, push tag, and create a Github release
     - `publish` workflow: will publish the new version to PyPI
+    - `demo` workflow: records the demo and keeps it as the `demo-recording` artifact
+- When this is a major release, manually (nothing else prompts these):
+    - before triggering the release, add scenarios for what the release introduced to
+      `demo/demo.sh`, so the demo keeps showing what the tool is for
+    - once the release's `demo` workflow has succeeded, run `mise run demo-upload-latest`: it
+      uploads that recording to asciinema.org, repoints the asciicast embed at the top of
+      `README.md` at it, and commits that change (open a pull request for it, since `main` is
+      protected). CI cannot publish it: GitHub-hosted runners have no route to asciinema.org
+      (see `.github/workflows/demo.yml`). Between major releases, do the same when a release
+      visibly changes what the demo shows.
 
 ## GitHub Config
 - **Protect `main` and the release tags with rulesets.** Configured as the shared
