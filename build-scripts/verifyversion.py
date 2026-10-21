@@ -6,9 +6,11 @@ build that produces 0.0.0, rather than an error. The fallback is required — Re
 in the publish path would catch a mis-versioned artifact, and PyPI never allows a version
 number to be reused once taken.
 
-Routes into a fallback build: a shallow CI checkout without `fetch-tags`, a repository with
-no tags yet, or `uv build` without `--sdist --wheel` (which builds the wheel from the sdist,
-a directory with no `.git`).
+Routes into a fallback build: building from a source tree that cannot see the git history
+or tags — a shallow CI checkout without `fetch-tags`, a repository with no tags yet, an
+exported archive. Plain `uv build` is *not* one of them: it builds the wheel from the sdist,
+but hatchling writes the resolved version into the sdist's PKG-INFO and reads it back, so the
+wheel carries the right version (see the `build` task in mise.toml).
 
 Usage:
     python build-scripts/verifyversion.py              # check dist/
@@ -114,8 +116,7 @@ def main(
         )
         err_console.print(
             "\nCheck that the checkout has full history and tags "
-            "(fetch-depth: 0, fetch-tags: true) and that the build ran "
-            "`uv build --sdist --wheel`."
+            "(fetch-depth: 0, fetch-tags: true)."
         )
         sys.exit(1)
 
