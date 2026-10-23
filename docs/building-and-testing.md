@@ -61,7 +61,8 @@ resolve on 3.15. Move to 3.15 when it does — check
 [onnxruntime's files on PyPI](https://pypi.org/project/onnxruntime/#files) for `cp315`
 wheels. Moving means changing, together: `[tools] python` in `mise.toml` (then
 `mise lock`), `requires-python`, ruff `target-version` and pyright `pythonVersion` in
-`pyproject.toml` (then `uv lock`).
+`pyproject.toml` (then `uv lock`), and the `python` `allowedVersions` rule in
+`renovate.json`, which holds Renovate back from proposing 3.15 until then.
 
 The `check-links` workflow runs a link checker against the documentation to catch broken links.
 It is scheduled to run weekly, but can also be triggered manually using `gh workflow run check-links.yml`.
