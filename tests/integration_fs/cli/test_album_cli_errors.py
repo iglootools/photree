@@ -241,6 +241,33 @@ def test_import_refusal_is_reported_not_raised(
     assert expected in result.output
 
 
+def test_import_refuses_date_collision_with_sibling(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """album import runs the same light check as gallery import."""
+    _stub_system_deps(tmp_path / "bin", monkeypatch)
+    album = _std_staged_album(tmp_path)
+    sibling = tmp_path / "2024-07-14 - Dinner"
+    _write(sibling / "std-main/orig-img/DSC_0002.JPG")
+    _write(
+        sibling / ".photree/album.yaml", "id: 0192d4e1-7c3f-7b4a-8c5e-f6a7b8c9d0e1\n"
+    )
+    (tmp_path / "ic").mkdir()
+
+    def _must_not_run(**_: object) -> AlbumImportResult:
+        raise AssertionError("import ran despite the date collision")
+
+    monkeypatch.setattr(album_import, "run_import", _must_not_run)
+
+    result = runner.invoke(
+        app,
+        ["album", "import", "-a", str(album), "-s", str(tmp_path / "ic"), "--force"],
+    )
+
+    assert result.exit_code == 1
+    assert "date collision on 2024-07-14" in result.output
+
+
 def test_entry_point_reports_media_source_conflict(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

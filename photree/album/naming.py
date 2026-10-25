@@ -38,6 +38,11 @@ _KEBAB_SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 # A bare two-digit segment: the part number in "Series - XX - Title"
 _PART_SEGMENT_RE = re.compile(r"^\d{2}$")
 
+# A dash spaced on one side only ("01- Title", "Series -Title"): a " - "
+# separator missing a space, which would otherwise be read as title text and
+# silently drop a part number or series
+_LOPSIDED_SEPARATOR_RE = re.compile(r"\S+- \S*|\S* -\S+")
+
 # Date-like prefixes that predate the accepted forms (day ranges, enumerated
 # days, old-style dash-separated ranges). Matched only to give a better error
 # than "unparseable".
@@ -82,6 +87,7 @@ class NamingIssueCode(StrEnum):
     INVALID_TAG = "invalid-tag"
     PART_REQUIRES_DAY_DATE = "part-requires-day-date"
     NON_CANONICAL_SPACING = "non-canonical-spacing"
+    MALFORMED_SEPARATOR = "malformed-separator"
 
 
 @dataclass(frozen=True)
@@ -290,6 +296,19 @@ def _spacing_issues(album_name: str, parsed: ParsedAlbumName) -> list[NamingIssu
     )
 
 
+def _separator_issues(album_name: str) -> list[NamingIssue]:
+    """A `` - `` separator missing a space, e.g. ``01- Title``."""
+    without_tags, _ = _split_tags(album_name)
+    return [
+        NamingIssue(
+            NamingIssueCode.MALFORMED_SEPARATOR,
+            f'"{m.group(0)}" looks like a " - " separator missing a space '
+            "(part number or series would be read as title text)",
+        )
+        for m in _LOPSIDED_SEPARATOR_RE.finditer(without_tags)
+    ]
+
+
 def check_album_naming(album_name: str) -> tuple[NamingIssue, ...]:
     """Validate a single album name against naming conventions.
 
@@ -304,6 +323,7 @@ def check_album_naming(album_name: str) -> tuple[NamingIssue, ...]:
         *_length_issues(album_name),
         *(issue for tag in tags if (issue := _tag_issue(tag)) is not None),
         *_date_issues(parsed),
+        *_separator_issues(album_name),
         *_spacing_issues(album_name, parsed),
     )
 

@@ -32,6 +32,7 @@ from .image_capture import (
     ValidationWarning,
     ValidationWarningKind,
 )
+from .naming_gate import ImportNamingCheck
 from .preflight import (
     IMG_PREFIX_THRESHOLD,
     ImageCaptureDirCheck,
@@ -369,6 +370,35 @@ def format_task_issue(issue: TaskIssue) -> str:
     return markup_escape(
         f"[{ms.media_source_type}:{ms.name}] {_task_issue_message(issue.detail)}"
     )
+
+
+def naming_check_errors(check: ImportNamingCheck, cwd: Path) -> str:
+    """The light check failures blocking an import: names, then date collisions."""
+    lines = [
+        *(
+            line
+            for album, issues in check.naming_errors
+            for line in (
+                (
+                    f"{CROSS} {markup_escape(display_path(album, cwd))} — naming: "
+                    f"{len(issues)} issue(s)"
+                ),
+                *(indent(markup_escape(issue.message), 2) for issue in issues),
+            )
+        ),
+        *(
+            line
+            for album_date, names in check.date_collisions
+            for line in (
+                (
+                    f"{CROSS} date collision on {album_date} "
+                    "(add part numbers to disambiguate):"
+                ),
+                *(indent(markup_escape(name), 2) for name in names),
+            )
+        ),
+    ]
+    return "\n".join(lines)
 
 
 def validation_errors(album_name: str, errors: Sequence[TaskIssue]) -> str:

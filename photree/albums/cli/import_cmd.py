@@ -14,9 +14,14 @@ from ...album.importer.album_import import TaskIssue
 from ...album.importer.batch import ImportFailureStage
 from ...album.jpeg import convert_single_file, noop_convert_single
 from ...clihelpers.console import err_console
+from ...clihelpers.options import LINK_MODE_OPTION
 from ...clihelpers.progress import BatchProgressBar
 from ...common.formatting import indent
 from ...common.fs import display_path
+from ...foundation.gallery_metadata import (
+    resolve_gallery_metadata,
+    resolve_link_mode,
+)
 from ...foundation.linking import LinkMode
 from . import albums_app
 
@@ -43,8 +48,8 @@ def _run_import(
 ) -> batch.BatchResult:
     """Run the batch import behind a progress bar.
 
-    ``result.validation_failures`` is non-empty when validation refused the
-    batch, in which case nothing was imported.
+    ``result.refused`` is true when validation refused the batch, in which
+    case nothing was imported.
     """
     with BatchProgressBar(
         total=_count_candidates(albums_dir, album_dirs),
@@ -163,13 +168,7 @@ def import_cmd(
             help="Path to config file.",
         ),
     ] = None,
-    link_mode: Annotated[
-        LinkMode,
-        typer.Option(
-            "--link-mode",
-            help="How to create main files: hardlink (default), symlink, or copy.",
-        ),
-    ] = LinkMode.HARDLINK,
+    link_mode: LINK_MODE_OPTION = None,
     dry_run: Annotated[
         bool,
         typer.Option(
@@ -220,11 +219,16 @@ def import_cmd(
         scan_dir,
         album_dirs,
         ic_dir,
-        link_mode=link_mode,
+        link_mode=resolve_link_mode(link_mode, scan_dir or (album_dirs or [cwd])[0]),
         dry_run=dry_run,
         skip_heic_to_jpeg=skip_heic_to_jpeg,
     )
-    if result.validation_failures:
+    if not result.naming_check.success:
+        err_console.print(
+            "\nName check:\n"
+            + importer_output.naming_check_errors(result.naming_check, cwd)
+        )
+    if result.refused:
         err_console.print("\nAborted: validation failed. No imports were performed.")
         raise typer.Exit(code=1)
 
@@ -233,6 +237,17 @@ def import_cmd(
             result.imported, result.skipped, result.failed_count
         )
     )
+    if not dry_run:
+        _print_gallery_refresh_hint(result.scan.to_import)
     if result.failed:
         _report_failures(result, scan_dir if scan_dir is not None else cwd, cwd)
         raise typer.Exit(code=1)
+
+
+def _print_gallery_refresh_hint(imported: tuple[Path, ...]) -> None:
+    """Point at the gallery-level state an album import does not update."""
+    if any(resolve_gallery_metadata(a) is not None for a in imported):
+        typer.echo(
+            "\nSome albums are in a gallery: run 'photree gallery refresh' to update "
+            "face clusters and the browsable/ tree."
+        )

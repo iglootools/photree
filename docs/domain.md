@@ -112,6 +112,9 @@ Constraints:
 - 255 bytes maximum for the full directory name.
 - ` - ` (space-dash-space) is the field separator and must not appear inside
   Title or Series (a hyphenated word without surrounding spaces is fine).
+  A dash spaced on one side only (`01- Hiking`, `Canada Trip -Hiking`) is
+  rejected as a separator missing a space: it would otherwise be read as
+  title text, silently dropping the part number or series.
 - `@` is reserved for the location separator.
 - Spacing must be canonical.
 
@@ -140,7 +143,9 @@ Two non-private single-day albums on the same date must be told apart by part
 numbers. Two albums named `2024-07-14 - Hiking` and `2024-07-14 - Dinner` are a
 **date collision**; `2024-07-14 - 01 - Hiking` and `2024-07-14 - 02 - Dinner`
 are not. Collisions are detected across the whole gallery (and across an import
-batch) and block `gallery refresh` and `gallery import`.
+batch) and block `gallery refresh` and `gallery import`. `album import` and
+`albums import` block on them too, checked against the albums next to the one
+being imported (see [Light and Full Checks](#light-and-full-checks)).
 
 ### Private Albums
 
@@ -466,7 +471,8 @@ Both can be disabled per gallery (`faces-enabled`). See
 
 - **Light check** — names only: naming convention and date collisions. Fast,
   and used as a gate before anything that reorganizes the gallery
-  (`gallery refresh`, `gallery import`, `album import`).
+  (`gallery refresh`, `gallery import`) or fills an album (`album import`,
+  `albums import`).
 - **Full check** — the light check plus structure, metadata, integrity
   (checksums, browsable/archive consistency, JPEG completeness, duplicates),
   EXIF date matching, and cache state. Run by the `check` commands.

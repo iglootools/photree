@@ -7,10 +7,14 @@ from typing import Annotated
 import typer
 
 from ...clihelpers.console import console, err_console
-from ...clihelpers.options import CONFIG_OPTION
+from ...clihelpers.options import CONFIG_OPTION, LINK_MODE_OPTION
 from ...clihelpers.progress import StageProgressBar
 from ...common.exif import exiftool_session
 from ...common.fs import display_path, list_files
+from ...foundation.gallery_metadata import (
+    resolve_gallery_metadata,
+    resolve_link_mode,
+)
 from ...foundation.linking import LinkMode
 from ..check.output import derived_failures_report, format_naming_checks
 from ..exif_date_check import AlbumNamingResult, check_exif_date_match
@@ -25,9 +29,10 @@ from ..importer.album_import import (
     validate_album_import,
 )
 from ..importer.collision import ArchiveCollision, ImportCollisionError
+from ..importer.naming_gate import check_import_naming
 from ..importer.tasks import discover_import_tasks
 from ..jpeg import convert_single_file, noop_convert_single
-from ..naming import check_album_naming, parse_album_name
+from ..naming import parse_album_name
 from . import album_app
 from .import_preflight import run_import_preflight
 from .media_source_conflict import exit_on_media_source_conflict
@@ -57,13 +62,7 @@ def import_cmd(
         ),
     ] = None,
     config: CONFIG_OPTION = None,
-    link_mode: Annotated[
-        LinkMode,
-        typer.Option(
-            "--link-mode",
-            help="How to create main files: hardlink (default), symlink, or copy.",
-        ),
-    ] = LinkMode.HARDLINK,
+    link_mode: LINK_MODE_OPTION = None,
     dry_run: Annotated[
         bool,
         typer.Option(
@@ -120,7 +119,7 @@ def import_cmd(
         result = _run_import(
             album_dir,
             image_capture_dir,
-            link_mode=link_mode,
+            link_mode=resolve_link_mode(link_mode, album_dir),
             dry_run=dry_run,
             skip_heic_to_jpeg=skip_heic_to_jpeg,
         )
@@ -130,26 +129,24 @@ def import_cmd(
 
     if not dry_run:
         _post_import_exif_check(album_dir)
+        _print_gallery_refresh_hint(album_dir)
 
 
 def _require_valid_name(album_dir: Path, album_display: Path) -> None:
-    """Pre-import naming convention check (from the directory name alone)."""
-    naming_issues = check_album_naming(album_dir.name)
-    if not naming_issues:
+    """Pre-import light check: naming convention and date collisions.
+
+    The same check gates ``gallery import``; running it here surfaces a
+    problem while the album is being filled rather than when it reaches the
+    gallery.
+    """
+    check = check_import_naming([album_dir])
+    if check.success:
         return
-    typer.echo("\nNaming Convention Check:")
-    console.print(
-        format_naming_checks(
-            AlbumNamingResult(
-                parsed=parse_album_name(album_dir.name),
-                issues=naming_issues,
-                exif_check=None,
-            )
-        )
-    )
+    typer.echo("\nName Check:")
+    console.print(importer_output.naming_check_errors(check, Path.cwd()))
     err_console.print(
-        f"\nAlbum name does not follow naming conventions. Rename {album_display} "
-        "to the expected form shown above, then run "
+        f"\nAlbum name does not follow naming conventions or collides with "
+        f"another album's date. Rename {album_display} as shown above, then run "
         "'photree album import --album-dir \"<renamed-album-dir>\"'.",
         markup=False,
     )
@@ -260,4 +257,13 @@ def _post_import_exif_check(album_dir: Path) -> None:
             format_naming_checks(
                 AlbumNamingResult(parsed=parsed, issues=(), exif_check=exif_check)
             )
+        )
+
+
+def _print_gallery_refresh_hint(album_dir: Path) -> None:
+    """Point at the gallery-level state an album import does not update."""
+    if resolve_gallery_metadata(album_dir) is not None:
+        typer.echo(
+            "\nThis album is in a gallery: run 'photree gallery refresh' to update "
+            "face clusters and the browsable/ tree."
         )

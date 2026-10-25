@@ -198,8 +198,9 @@ ID), the import is refused even with `--reimport`; rename the source first.
 
 Validates all albums in the gallery. photree uses two validation levels:
 
-- **Light check** (naming only) — validates album directory names. Used
-  automatically as a gate before `gallery refresh` and `gallery import`.
+- **Light check** (naming only) — validates album directory names and date
+  collisions. Used automatically as a gate before `gallery refresh`,
+  `gallery import`, `album import` and `albums import`.
 - **Full check** — includes structure, integrity, checksums, EXIF dates,
   and cross-album collision detection. Used by the `check` commands below.
 
