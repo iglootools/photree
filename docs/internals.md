@@ -717,8 +717,18 @@ Used by:
 - `gallery refresh` — ensures all album names are parsable and
   collision-free before modifying any collections
 - `gallery import` / `gallery import-all` — validates naming before
-  importing an album into the gallery
-- `album import` — validates naming before importing Image Capture files
+  importing an album into the gallery; collisions are checked against the
+  gallery's post-import albums
+- `album import` / `albums import` — validates naming before importing any
+  staged media (all-or-nothing for a batch); collisions are checked against
+  the albums being imported and their sibling album directories
+  (`album/importer/naming_gate.py`)
+
+The two import paths see different peers. An album already in the gallery has
+the gallery albums of its year as siblings — every album a single-day date can
+collide with — so both checks agree. An album filled in a staging directory
+outside the gallery cannot see the gallery's albums, so a collision with one of
+them is only reported by `gallery import`.
 
 ### Full Check
 

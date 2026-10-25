@@ -294,7 +294,7 @@ $ photree album import [OPTIONS]
 * `-a, --album-dir <directory>`: Album directory (with to-import-{ios,std}-&lt;name&gt; staging dirs).  [default: .]
 * `-s, --source <directory>`: Image Capture output directory. Overrides config and default.
 * `-c, --config <str>`: Path to config file.
-* `--link-mode <copy|hardlink|symlink>`: How to create main files: hardlink (default), symlink, or copy.  [default: hardlink]
+* `--link-mode <copy|hardlink|symlink>`: How to create main files: hardlink (default), symlink, or copy.
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `-f, --force`: Skip preflight checks on the source directory.
 * `--skip-heic-to-jpeg`: Skip HEIC-to-JPEG conversion (and the sips availability check).
@@ -617,7 +617,7 @@ $ photree albums import [OPTIONS]
 * `-a, --album-dir <directory>`: Album directory to import (repeatable).
 * `-s, --source <directory>`: Image Capture output directory. Overrides config and default.
 * `-c, --config <str>`: Path to config file.
-* `--link-mode <copy|hardlink|symlink>`: How to create main files: hardlink (default), symlink, or copy.  [default: hardlink]
+* `--link-mode <copy|hardlink|symlink>`: How to create main files: hardlink (default), symlink, or copy.
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `-f, --force`: Skip preflight checks on the source directory.
 * `--skip-heic-to-jpeg`: Skip HEIC-to-JPEG conversion (and the sips availability check).

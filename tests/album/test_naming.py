@@ -382,6 +382,25 @@ class TestCheckAlbumNaming:
         codes = [i.code for i in issues]
         assert "non-canonical-spacing" in codes
 
+    def test_separator_missing_space_after_part(self) -> None:
+        # Parses as title "01- Hike" with no part number.
+        codes = [i.code for i in check_album_naming("2024-06-15 - 01- Hike")]
+        assert codes == ["malformed-separator"]
+
+    def test_separator_missing_space_before_title(self) -> None:
+        codes = [i.code for i in check_album_naming("2024-06-15 - 01 -Hike")]
+        assert codes == ["malformed-separator"]
+
+    def test_separator_missing_space_after_series(self) -> None:
+        # Parses as title "Rockies- Hike" with no series.
+        issues = check_album_naming("2024-06-15 - 01 - Rockies- Hike")
+        assert [i.code for i in issues] == ["malformed-separator"]
+        assert '"Rockies- Hike"' in issues[0].message
+
+    def test_hyphenated_words_are_fine(self) -> None:
+        assert check_album_naming("2024-06-15 - Saint-Jean - Hike") == ()
+        assert check_album_naming("2024-06--2024-08-15 - Summer Trip") == ()
+
     def test_parenthesized_content_is_fine(self) -> None:
         assert check_album_naming("2024-06-15 - Beach Day (bis)") == ()
         assert check_album_naming("2024-06-15 - Hiking (Day 2)") == ()

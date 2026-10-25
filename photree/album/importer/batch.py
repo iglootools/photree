@@ -1,7 +1,7 @@
 """Batch import across multiple album directories."""
 
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 from typing import NamedTuple, Protocol
@@ -19,6 +19,7 @@ from .album_import import (
     task_has_content,
     validate_album_import,
 )
+from .naming_gate import ImportNamingCheck, check_import_naming
 from .tasks import discover_import_tasks, has_import_tasks
 
 
@@ -80,14 +81,21 @@ class AlbumFailure(NamedTuple):
 class BatchResult:
     """Result of a batch import run.
 
-    *validation_failures* is non-empty when validation refused the batch, in
-    which case nothing was imported and *failed* is empty.
+    When the light check (*naming_check*) or the task validation
+    (*validation_failures*) refused the batch, nothing was imported and
+    *failed* is empty: see :attr:`refused`.
     """
 
     imported: int = 0
     failed: tuple[AlbumFailure, ...] = ()
     validation_failures: tuple[AlbumValidation, ...] = ()
+    naming_check: ImportNamingCheck = field(default_factory=ImportNamingCheck)
     scan: AlbumScan = AlbumScan()
+
+    @property
+    def refused(self) -> bool:
+        """Whether validation refused the batch before importing anything."""
+        return bool(self.validation_failures) or not self.naming_check.success
 
     @property
     def skipped(self) -> int:
@@ -104,7 +112,7 @@ class BatchResult:
 
     @property
     def success(self) -> bool:
-        return not self.failed and not self.validation_failures
+        return not self.failed and not self.refused
 
 
 def scan_albums(albums_dir: Path) -> AlbumScan:
@@ -313,8 +321,10 @@ def run_batch_import(
     Provide exactly one of *albums_dir* (scan immediate subdirectories) or
     *album_dirs* (explicit list of album directories).
 
-    Validates ALL albums before importing ANY. If any album fails validation,
-    no imports are performed and the failures are returned in
+    Validates ALL albums before importing ANY: first the light check (names
+    and date collisions, see :mod:`.naming_gate`), then the import tasks. If
+    any album fails, no imports are performed and the failures are returned
+    in :attr:`BatchResult.naming_check` or
     :attr:`BatchResult.validation_failures`.
 
     Callbacks are optional hooks for the CLI layer to print status:
@@ -326,6 +336,10 @@ def run_batch_import(
     """
     scan = _scan(albums_dir, album_dirs)
     _report_skips(scan, on_skipped)
+
+    naming_check = check_import_naming(scan.to_import)
+    if not naming_check.success:
+        return BatchResult(scan=scan, naming_check=naming_check)
 
     ic_files = list_files(image_capture_dir) if scan.to_import else []
     validation_failures = tuple(

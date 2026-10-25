@@ -70,7 +70,7 @@ class TestValidateAlbums:
     def test_all_valid(self, tmp_path: Path) -> None:
         albums_dir = tmp_path / "albums"
         albums_dir.mkdir()
-        _setup_album(albums_dir, "trip", ["IMG_0001.HEIC"])
+        _setup_album(albums_dir, "2024-07-01 - Trip", ["IMG_0001.HEIC"])
         ic_files = ["IMG_0001.HEIC", "IMG_0001.AAE"]
 
         scan = scan_albums(albums_dir)
@@ -81,14 +81,14 @@ class TestValidateAlbums:
     def test_fails_when_selection_has_no_ic_match(self, tmp_path: Path) -> None:
         albums_dir = tmp_path / "albums"
         albums_dir.mkdir()
-        _setup_album(albums_dir, "trip", ["IMG_9999.HEIC"])
+        _setup_album(albums_dir, "2024-07-01 - Trip", ["IMG_9999.HEIC"])
         ic_files = ["IMG_0001.HEIC"]
 
         scan = scan_albums(albums_dir)
         validations = validate_albums(scan.to_import, ic_files)
         failed = [v for v in validations if not v.success]
         assert len(failed) == 1
-        assert failed[0].album_dir.name == "trip"
+        assert failed[0].album_dir.name == "2024-07-01 - Trip"
         assert len(failed[0].errors) >= 1
 
 
@@ -100,8 +100,8 @@ class TestBatchImport:
             tmp_path,
             ["IMG_0001.HEIC", "IMG_0001.AAE", "IMG_0002.HEIC", "IMG_0002.AAE"],
         )
-        _setup_album(albums_dir, "trip-paris", ["IMG_0001.HEIC"])
-        _setup_album(albums_dir, "trip-london", ["IMG_0002.HEIC"])
+        _setup_album(albums_dir, "2024-07-02 - Paris", ["IMG_0001.HEIC"])
+        _setup_album(albums_dir, "2024-07-03 - London", ["IMG_0002.HEIC"])
         (albums_dir / "empty-album").mkdir()
         (albums_dir / "no-photos" / SEL_DIR).mkdir(parents=True)
 
@@ -112,10 +112,10 @@ class TestBatchImport:
         assert result.imported == 2
         assert result.skipped == 2
         assert (
-            albums_dir / "trip-paris" / "ios-main/orig-img" / "IMG_0001.HEIC"
+            albums_dir / "2024-07-02 - Paris" / "ios-main/orig-img" / "IMG_0001.HEIC"
         ).exists()
         assert (
-            albums_dir / "trip-london" / "ios-main/orig-img" / "IMG_0002.HEIC"
+            albums_dir / "2024-07-03 - London" / "ios-main/orig-img" / "IMG_0002.HEIC"
         ).exists()
         assert not (albums_dir / "empty-album" / "ios-main/orig-img").exists()
 
@@ -123,7 +123,7 @@ class TestBatchImport:
         albums_dir = tmp_path / "albums"
         albums_dir.mkdir()
         ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0001.HEIC", "IMG_0001.AAE"])
-        _setup_album(albums_dir, "trip", ["IMG_0001.HEIC"])
+        _setup_album(albums_dir, "2024-07-01 - Trip", ["IMG_0001.HEIC"])
 
         result = run_batch_import(
             albums_dir=albums_dir,
@@ -133,8 +133,8 @@ class TestBatchImport:
         )
 
         assert result.imported == 1
-        assert (albums_dir / "trip" / SEL_DIR).exists()
-        assert not (albums_dir / "trip" / "ios-main/orig-img").exists()
+        assert (albums_dir / "2024-07-01 - Trip" / SEL_DIR).exists()
+        assert not (albums_dir / "2024-07-01 - Trip" / "ios-main/orig-img").exists()
 
     def test_empty_parent_dir(self, tmp_path: Path) -> None:
         albums_dir = tmp_path / "albums"
@@ -153,8 +153,8 @@ class TestBatchImport:
             tmp_path,
             ["IMG_0001.HEIC", "IMG_0001.AAE", "IMG_0002.HEIC", "IMG_0002.AAE"],
         )
-        album_a = _setup_album(tmp_path, "trip-paris", ["IMG_0001.HEIC"])
-        album_b = _setup_album(tmp_path, "trip-london", ["IMG_0002.HEIC"])
+        album_a = _setup_album(tmp_path, "2024-07-02 - Paris", ["IMG_0001.HEIC"])
+        album_b = _setup_album(tmp_path, "2024-07-03 - London", ["IMG_0002.HEIC"])
 
         result = run_batch_import(
             album_dirs=[album_a, album_b],
@@ -171,8 +171,10 @@ class TestBatchImport:
         albums_dir = tmp_path / "albums"
         albums_dir.mkdir()
         ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0001.HEIC", "IMG_0001.AAE"])
-        _setup_album(albums_dir, "valid", ["IMG_0001.HEIC"])
-        _setup_album(albums_dir, "invalid", ["IMG_9999.HEIC"])  # no IC match
+        _setup_album(albums_dir, "2024-07-04 - Valid", ["IMG_0001.HEIC"])
+        _setup_album(
+            albums_dir, "2024-07-05 - Invalid", ["IMG_9999.HEIC"]
+        )  # no IC match
 
         validation_errors: list[str] = []
         result = run_batch_import(
@@ -184,19 +186,46 @@ class TestBatchImport:
 
         assert result.imported == 0  # nothing imported
         assert len(validation_errors) == 1
-        assert "invalid" in validation_errors
+        assert "2024-07-05 - Invalid" in validation_errors
         # The result itself records the refusal, not just the callback.
-        assert [v.album_dir.name for v in result.validation_failures] == ["invalid"]
+        assert [v.album_dir.name for v in result.validation_failures] == [
+            "2024-07-05 - Invalid"
+        ]
         assert not result.success
         # valid album should NOT have been processed either
-        assert not (albums_dir / "valid" / "ios-main/orig-img").exists()
+        assert not (albums_dir / "2024-07-04 - Valid" / "ios-main/orig-img").exists()
+
+    def test_aborts_all_on_naming_or_date_collision(self, tmp_path: Path) -> None:
+        albums_dir = tmp_path / "albums"
+        albums_dir.mkdir()
+        ic_dir = _setup_image_capture_dir(
+            tmp_path,
+            ["IMG_0001.HEIC", "IMG_0001.AAE", "IMG_0002.HEIC", "IMG_0002.AAE"],
+        )
+        _setup_album(albums_dir, "2024-07-01 - Hike", ["IMG_0001.HEIC"])
+        _setup_album(albums_dir, "2024-07-01 - Dinner", ["IMG_0002.HEIC"])
+        _setup_album(albums_dir, "2024-07-02 - 01- Beach", ["IMG_0002.HEIC"])
+
+        result = run_batch_import(
+            albums_dir=albums_dir, image_capture_dir=ic_dir, convert_file=_noop_convert
+        )
+
+        assert result.refused
+        assert result.imported == 0
+        assert [a.name for a, _ in result.naming_check.naming_errors] == [
+            "2024-07-02 - 01- Beach"
+        ]
+        assert result.naming_check.date_collisions == (
+            ("2024-07-01", ("2024-07-01 - Dinner", "2024-07-01 - Hike")),
+        )
+        assert not (albums_dir / "2024-07-01 - Hike" / "ios-main").exists()
 
     def test_empty_task_warns_with_descriptive_reason(self, tmp_path: Path) -> None:
         albums_dir = tmp_path / "albums"
         albums_dir.mkdir()
         ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0001.HEIC"])
         # std staging dir with files placed directly (not under orig/ or edit/)
-        stray = albums_dir / "trip" / std_import_dir("gabriela")
+        stray = albums_dir / "2024-07-01 - Trip" / std_import_dir("gabriela")
         stray.mkdir(parents=True)
         (stray / "photo.jpg").write_text("data")
         # album with no staging dir at all
@@ -215,8 +244,8 @@ class TestBatchImport:
         assert result.imported == 0
         by_name = {name: (reason, warn) for name, reason, warn in skips}
         # Empty staging dir → warning, with the offending dir named
-        assert by_name["trip"][1] is True
-        assert "to-import-std-gabriela" in by_name["trip"][0]
+        assert by_name["2024-07-01 - Trip"][1] is True
+        assert "to-import-std-gabriela" in by_name["2024-07-01 - Trip"][0]
         # No staging dir at all → plain skip, not a warning
         assert by_name["no-tasks"][1] is False
 
@@ -254,7 +283,7 @@ class TestBatchImportCsv:
         albums_dir = tmp_path / "albums"
         albums_dir.mkdir()
         ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0001.HEIC", "IMG_0001.AAE"])
-        _setup_album_csv(albums_dir, "csv-trip", ["IMG_0001.HEIC"])
+        _setup_album_csv(albums_dir, "2024-07-06 - CSV Trip", ["IMG_0001.HEIC"])
 
         result = run_batch_import(
             albums_dir=albums_dir, image_capture_dir=ic_dir, convert_file=_noop_convert
@@ -262,7 +291,7 @@ class TestBatchImportCsv:
 
         assert result.imported == 1
         assert (
-            albums_dir / "csv-trip" / "ios-main/orig-img" / "IMG_0001.HEIC"
+            albums_dir / "2024-07-06 - CSV Trip" / "ios-main/orig-img" / "IMG_0001.HEIC"
         ).exists()
         # CSV should be cleaned up
-        assert not (albums_dir / "csv-trip" / SEL_CSV).exists()
+        assert not (albums_dir / "2024-07-06 - CSV Trip" / SEL_CSV).exists()
