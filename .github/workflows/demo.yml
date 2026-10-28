@@ -55,7 +55,7 @@ jobs:
       - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # v5
         with:
           # renovate: datasource=github-releases depName=jdx/mise
-          version: 2026.10.9
+          version: 2026.10.10
       # pv: simulated typing (demo-magic). tree: directory listings shown in the demo.
       # exiftool: required by the import/refresh preflight gate (sips is shimmed in demo.sh).
       - name: Install demo dependencies
