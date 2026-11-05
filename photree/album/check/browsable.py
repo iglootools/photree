@@ -30,8 +30,8 @@ class WrongLinkMode:
     """A file with correct content but wrong link type."""
 
     filename: str
-    expected: str  # "hardlink", "symlink", or "copy"
-    actual: str  # "hardlink", "symlink", or "copy"
+    expected: LinkMode
+    actual: LinkMode
 
 
 @dataclass(frozen=True)
@@ -101,24 +101,17 @@ def _is_link_to(main_path: Path, source_path: Path) -> bool:
     )
 
 
-_LINK_MODE_NAMES: dict[LinkMode, str] = {
-    LinkMode.HARDLINK: "hardlink",
-    LinkMode.SYMLINK: "symlink",
-    LinkMode.COPY: "copy",
-}
-
-
-def _detect_actual_link_mode(main_path: Path, source_path: Path) -> str:
+def _detect_actual_link_mode(main_path: Path, source_path: Path) -> LinkMode:
     match (
         _is_symlink_to(main_path, source_path),
         _is_hardlink_to(main_path, source_path),
     ):
         case (True, _):
-            return "symlink"
+            return LinkMode.SYMLINK
         case (False, True):
-            return "hardlink"
+            return LinkMode.HARDLINK
         case _:
-            return "copy"
+            return LinkMode.COPY
 
 
 def _compare_file(
@@ -136,19 +129,18 @@ def _compare_file(
     verification is skipped (the link guarantees correctness).
     """
     actual = _detect_actual_link_mode(main_path, source_path)
-    expected = _LINK_MODE_NAMES[link_mode]
     wrong_lm = (
-        WrongLinkMode(filename=main_path.name, expected=expected, actual=actual)
-        if actual != expected
+        WrongLinkMode(filename=main_path.name, expected=link_mode, actual=actual)
+        if actual != link_mode
         else None
     )
     return _compare_content(main_path, source_path, actual, checksum), wrong_lm
 
 
 def _compare_content(
-    main_path: Path, source_path: Path, actual_link_mode: str, checksum: bool
+    main_path: Path, source_path: Path, actual_link_mode: LinkMode, checksum: bool
 ) -> FileComparison:
-    if actual_link_mode in ("hardlink", "symlink"):
+    if actual_link_mode in (LinkMode.HARDLINK, LinkMode.SYMLINK):
         return FileComparison(
             filename=main_path.name,
             expected_source=source_path.name,

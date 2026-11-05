@@ -2,6 +2,7 @@
 
 from collections.abc import Iterable
 from dataclasses import dataclass
+from itertools import groupby
 
 from ...dates import date_range
 from ..naming import (
@@ -52,33 +53,12 @@ def _group_contiguous_series(albums: Iterable[AlbumInfo]) -> list[_SeriesGroup]:
     series) produces separate groups. The same series title appearing in
     non-contiguous positions results in multiple groups.
     """
-    sorted_albums = sorted(albums, key=lambda a: a.path.name)
-
-    groups: list[_SeriesGroup] = []
-    current_series: str | None = None
-    current_run: list[AlbumInfo] = []
-
-    for album in sorted_albums:
-        if album.parsed.series is not None and album.parsed.series == current_series:
-            current_run.append(album)
-        else:
-            if current_series is not None and current_run:
-                groups.append(
-                    _SeriesGroup(series_title=current_series, albums=tuple(current_run))
-                )
-            if album.parsed.series is not None:
-                current_series = album.parsed.series
-                current_run = [album]
-            else:
-                current_series = None
-                current_run = []
-
-    if current_series is not None and current_run:
-        groups.append(
-            _SeriesGroup(series_title=current_series, albums=tuple(current_run))
-        )
-
-    return groups
+    by_name = sorted(albums, key=lambda a: a.path.name)
+    return [
+        _SeriesGroup(series_title=series, albums=tuple(run))
+        for series, run in groupby(by_name, key=lambda a: a.parsed.series)
+        if series is not None
+    ]
 
 
 @dataclass(frozen=True)
