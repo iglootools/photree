@@ -1,5 +1,3 @@
-"""``albums detect-faces`` wrapper."""
-
 from pathlib import Path
 
 import typer

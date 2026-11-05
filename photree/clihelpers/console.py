@@ -1,5 +1,3 @@
-"""Shared Rich console instances for CLI output."""
-
 from collections.abc import Callable
 
 from rich.console import Console

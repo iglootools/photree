@@ -1,5 +1,3 @@
-"""Batch album rename planning from CSV input."""
-
 import unicodedata
 from collections import Counter
 from collections.abc import Mapping
@@ -13,8 +11,6 @@ from ..album.naming import ParsedAlbumName, parse_album_name, reconstruct_name
 
 @dataclass(frozen=True)
 class RenameAction:
-    """A planned album directory rename."""
-
     album_path: Path
     current_name: str
     new_name: str
@@ -219,8 +215,6 @@ class RenameFailure:
 
 @dataclass(frozen=True)
 class RenameExecution:
-    """Outcome of :func:`execute_renames`."""
-
     renamed: int
     failure: RenameFailure | None = None
 

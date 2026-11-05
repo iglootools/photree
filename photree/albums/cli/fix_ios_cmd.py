@@ -1,5 +1,3 @@
-"""``photree albums fix-ios`` command."""
-
 import typer
 
 from ...album.fix.ios import FixIosValidationError, validate_fix_flags

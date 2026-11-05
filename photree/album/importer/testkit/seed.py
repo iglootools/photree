@@ -12,10 +12,6 @@ from pathlib import Path
 from ....common.sips import convert_to_heic
 from ....common.sysdeps import SystemDependency, WhichFn, is_available
 
-# ---------------------------------------------------------------------------
-# Minimal valid image generators (no external dependencies)
-# ---------------------------------------------------------------------------
-
 # Minimal valid 1x1 JPEG, generated with Pillow (quality 75). An earlier
 # hand-written byte list was truncated: libjpeg decoded it but printed
 # "Corrupt JPEG data: premature end of data segment" to stderr on every read.
@@ -42,7 +38,6 @@ _JPEG_BYTES = bytes.fromhex(
 
 
 def _make_png() -> bytes:
-    """Generate a minimal valid 1x1 white PNG."""
     # IHDR: 1x1, 8-bit RGB
     ihdr_data = b"\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00"
     ihdr_crc = zlib.crc32(b"IHDR" + ihdr_data).to_bytes(4, "big")
@@ -81,15 +76,8 @@ def _write(path: Path, data: bytes) -> None:
     path.write_bytes(data)
 
 
-# ---------------------------------------------------------------------------
-# Image Capture directory generation
-# ---------------------------------------------------------------------------
-
-
 @dataclass(frozen=True)
 class SeedResult:
-    """Result of seeding a demo environment."""
-
     base_dir: Path
     image_capture_dir: Path
     album_dir: Path
@@ -151,9 +139,7 @@ def _convert_placeholders_to_heic(ic_dir: Path) -> None:
 
 
 def _seed_image_capture(ic_dir: Path, *, which: WhichFn) -> None:
-    """Generate a realistic Image Capture directory from ``_IMAGE_CAPTURE_FILES``.
-
-    Covers HEIC photos with and without edits, ProRAW (DNG) with JPG edit,
+    """Covers HEIC photos with and without edits, ProRAW (DNG) with JPG edit,
     JPEG original (Most Compatible mode), PNG screenshot, MOV videos with and
     without edits, and Live Photos.
     """

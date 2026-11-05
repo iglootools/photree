@@ -1,5 +1,3 @@
-"""Tests for gallery-level operations: album ID indexing and rename planning."""
-
 import unicodedata
 from dataclasses import replace
 from pathlib import Path
@@ -63,11 +61,6 @@ def _albums_dir(gallery: Path) -> Path:
     return d
 
 
-# ---------------------------------------------------------------------------
-# TestBuildAlbumIdToPathIndex
-# ---------------------------------------------------------------------------
-
-
 class TestBuildAlbumIdToPathIndex:
     def test_empty_gallery(self, tmp_path: Path) -> None:
         index = build_album_id_to_path_index(tmp_path)
@@ -125,11 +118,6 @@ class TestBuildAlbumIdToPathIndex:
         assert aid in index.id_to_path
 
 
-# ---------------------------------------------------------------------------
-# TestBuildAlbumIndex
-# ---------------------------------------------------------------------------
-
-
 class TestBuildAlbumIndex:
     def test_empty_list(self) -> None:
         index = build_album_index([])
@@ -156,11 +144,6 @@ class TestBuildAlbumIndex:
         assert exc_info.value.path == photree_dir / "album.yaml"
 
 
-# ---------------------------------------------------------------------------
-# TestResolveAlbumPathById
-# ---------------------------------------------------------------------------
-
-
 class TestResolveAlbumPathById:
     def test_resolves_by_internal_id_from_external(self, tmp_path: Path) -> None:
         """External ID → parse to internal → resolve."""
@@ -182,11 +165,6 @@ class TestResolveAlbumPathById:
         with pytest.raises(AlbumIdNotFoundError) as info:
             resolve_album_path_by_id(index.id_to_path, unknown)
         assert info.value.album_id == unknown
-
-
-# ---------------------------------------------------------------------------
-# TestPlanRenamesFromCsv
-# ---------------------------------------------------------------------------
 
 
 class TestPlanRenamesFromCsv:

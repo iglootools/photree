@@ -44,10 +44,6 @@ from .protocol import (
 if TYPE_CHECKING:
     import faiss  # type: ignore[import-untyped]
 
-# ---------------------------------------------------------------------------
-# Stage constants
-# ---------------------------------------------------------------------------
-
 STAGE_SCAN_FACE_DATA = "scan-face-data"
 STAGE_BUILD_INDEX = "build-index"
 STAGE_CLUSTER = "cluster-faces"
@@ -61,10 +57,6 @@ FACE_REFRESH_STAGES = (
 )
 
 _POST_SCAN_STAGES = (STAGE_BUILD_INDEX, STAGE_CLUSTER, STAGE_SAVE)
-
-# ---------------------------------------------------------------------------
-# Result types
-# ---------------------------------------------------------------------------
 
 
 class FaceRefreshMode(StrEnum):
@@ -94,11 +86,6 @@ class GalleryFaceRefreshResult:
     new_faces: int = 0
     removed_faces: int = 0
     mode: FaceRefreshMode = FaceRefreshMode.NONE
-
-
-# ---------------------------------------------------------------------------
-# Internal data types
-# ---------------------------------------------------------------------------
 
 
 class _SourceStatus(StrEnum):
@@ -157,11 +144,6 @@ class _Run:
         for stage in stages:
             self.start(stage)
             self.end(stage)
-
-
-# ---------------------------------------------------------------------------
-# Main orchestrator
-# ---------------------------------------------------------------------------
 
 
 def refresh_face_clusters(
@@ -246,18 +228,12 @@ def _needs_full_recluster(
     force_full: bool,
     threshold: float,
 ) -> bool:
-    """Determine whether a full re-cluster is needed."""
     return (
         force_full
         or bool(changes.modified_sources or changes.removed_album_sources)
         or _is_stale_empty(changes, existing)
         or (existing is not None and existing.threshold != threshold)
     )
-
-
-# ---------------------------------------------------------------------------
-# Full re-cluster
-# ---------------------------------------------------------------------------
 
 
 def _run_full_cluster(
@@ -298,11 +274,6 @@ def _run_full_cluster(
         new_faces=sum(_count_faces(s.npz_path) for s in changes.new_sources),
         mode=FaceRefreshMode.FULL,
     )
-
-
-# ---------------------------------------------------------------------------
-# Incremental assignment
-# ---------------------------------------------------------------------------
 
 
 def _run_incremental(
@@ -371,11 +342,6 @@ def _assign_new_faces(
     )
     index.add(new_embeddings)  # type: ignore[call-arg]
     return np.concatenate([existing_labels, new_labels])
-
-
-# ---------------------------------------------------------------------------
-# Scanning and change detection
-# ---------------------------------------------------------------------------
 
 
 def _scan_face_data(gallery_dir: Path) -> _ChangeSet:
@@ -447,11 +413,6 @@ def _classify_source(
             return _SourceStatus.UNCHANGED
 
 
-# ---------------------------------------------------------------------------
-# Face data loading
-# ---------------------------------------------------------------------------
-
-
 def _collect_all_faces(
     sources: tuple[_AlbumFaceSource, ...],
 ) -> tuple[list[FaceReference], list[np.ndarray]]:
@@ -479,11 +440,6 @@ def _load_source_faces(
         for i in range(data.count)
     ]
     return (refs, data.embeddings)
-
-
-# ---------------------------------------------------------------------------
-# Cluster label / UUID helpers
-# ---------------------------------------------------------------------------
 
 
 def _recover_old_uuid_map(
@@ -583,11 +539,6 @@ def _build_cluster_list(
     ]
 
 
-# ---------------------------------------------------------------------------
-# Persistence
-# ---------------------------------------------------------------------------
-
-
 def _save_stage(
     run: _Run,
     index: faiss.IndexFlatIP,
@@ -611,14 +562,12 @@ def _save_stage(
 
 
 def _save_empty(run: _Run, sources: tuple[_AlbumFaceSource, ...]) -> None:
-    """Save empty clustering results."""
     save_manifest(run.gallery_dir, FaceManifest())
     save_clusters(run.gallery_dir, FaceClusteringResult(threshold=run.threshold))
     save_checksums(run.gallery_dir, _build_checksums(sources))
 
 
 def _build_checksums(sources: tuple[_AlbumFaceSource, ...]) -> AlbumFaceChecksums:
-    """Build checksums from a list of face sources."""
     return AlbumFaceChecksums(
         albums={
             album_id: {
@@ -632,7 +581,6 @@ def _build_checksums(sources: tuple[_AlbumFaceSource, ...]) -> AlbumFaceChecksum
 
 
 def _count_faces(npz_path: Path) -> int:
-    """Count the number of faces in a .npz file."""
     # ``keys`` is saved as an object array (see album/faces/store.py), which
     # numpy only reads back with pickling enabled; the file is our own cache.
     with np.load(npz_path, allow_pickle=True) as data:

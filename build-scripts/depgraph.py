@@ -80,18 +80,16 @@ def _dot_to_mermaid(dot: str) -> str:
     pydeps edges point from dependency to dependent (A -> B means "A is used by B"),
     so we reverse them to match the convention "B depends on A" (B --> A).
     """
-    # Extract node declarations: node_id [... label="name" ...]
     node_pattern = re.compile(r'^\s+(\w+)\s+\[.*?label="([^"]+)".*?\]', re.MULTILINE)
     nodes = {m.group(1): m.group(2) for m in node_pattern.finditer(dot)}
 
-    # Extract edges: dep -> dependent, reversed so the dependent depends on dep
     edge_pattern = re.compile(r"^\s+(\w+)\s+->\s+(\w+)", re.MULTILINE)
     edges = [
         (nodes.get(dependent, dependent), nodes.get(dep, dep))
         for dep, dependent in (m.groups() for m in edge_pattern.finditer(dot))
     ]
 
-    # Node declarations and edges, each sorted for determinism
+    # Sorted so regenerating is deterministic, which --check relies on.
     node_lines = [
         f'{label}["{label}/"]' if _is_package(label) else f'{label}["{label}"]'
         for label in (nodes[node_id] for node_id in sorted(nodes))
@@ -144,8 +142,6 @@ def _splice_section(file_content: str, section: str) -> str:
 
 
 class GraphFormat(enum.StrEnum):
-    """Output format for the dependency graph."""
-
     MERMAID = "mermaid"
     ASCII = "ascii"
 
@@ -171,7 +167,6 @@ def main(
     dot = _run_pydeps()
     mermaid = _dot_to_mermaid(dot)
 
-    # --format: print to stdout and exit
     if fmt is not None:
         match fmt:
             case GraphFormat.MERMAID:
@@ -180,7 +175,6 @@ def main(
                 print(_render_ascii(mermaid))
         return
 
-    # Default: update architecture.md (or --check)
     section = _build_section(mermaid)
     current = (
         ARCHITECTURE_MD.read_text(encoding="utf-8") if ARCHITECTURE_MD.exists() else ""

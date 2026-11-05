@@ -1,5 +1,3 @@
-"""Cross-album media index — duplicate media ID detection."""
-
 import itertools
 from pathlib import Path
 

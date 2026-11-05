@@ -1,5 +1,3 @@
-"""Tests for media metadata models and I/O."""
-
 from pathlib import Path
 
 import yaml
@@ -127,7 +125,6 @@ class TestMediaMetadata:
         album = tmp_path / "album"
         album.mkdir()
 
-        # Save with two sources
         save_media_metadata(
             album,
             MediaMetadata(
@@ -138,7 +135,6 @@ class TestMediaMetadata:
             ),
         )
 
-        # Save again with only main — bruno should be removed
         save_media_metadata(
             album,
             MediaMetadata(

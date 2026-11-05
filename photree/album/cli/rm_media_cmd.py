@@ -1,5 +1,3 @@
-"""``photree album rm-media`` command."""
-
 from pathlib import Path
 from typing import Annotated
 

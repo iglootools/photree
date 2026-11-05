@@ -1,5 +1,3 @@
-"""Tests for collection ID generation, formatting, and parsing."""
-
 import pytest
 
 from photree.album.id import InvalidExternalIdError

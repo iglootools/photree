@@ -15,17 +15,13 @@ from ..store.media_source import ios_img_number
 
 @dataclass(frozen=True)
 class SelectionSources:
-    """Selection filenames collected from both sources."""
-
     dir_files: tuple[str, ...]
     csv_files: tuple[str, ...]
     merged: tuple[str, ...]
 
 
 def read_selection_csv(csv_path: Path) -> list[str]:
-    """Read a one-column, no-header CSV of filenames.
-
-    Returns an empty list when the file does not exist or is empty.
+    """Returns an empty list when the file does not exist or is empty.
     Blank lines and leading/trailing whitespace are ignored.
     """
     if not csv_path.is_file():
@@ -44,9 +40,7 @@ def write_selection_csv(csv_path: Path, filenames: list[str]) -> None:
 
 
 def _merge_selections(dir_files: list[str], csv_files: list[str]) -> tuple[str, ...]:
-    """Merge selection filenames from both sources, deduplicating by image number.
-
-    When the same image number appears in both sources, the directory entry
+    """When the same image number appears in both sources, the directory entry
     is preferred (actual exported file is more canonical than a CSV row).
     """
     # Later keys overwrite earlier ones in a dict, so building it from the
@@ -59,9 +53,7 @@ def read_selection(
     selection_dir: Path | None,
     csv_path: Path | None,
 ) -> SelectionSources:
-    """Read selection filenames from a staging dir and/or a CSV.
-
-    Either source may be ``None`` (absent). Merges both with silent
+    """Either source may be ``None`` (absent). Merges both with silent
     deduplication by image number.
     """
     dir_files = list_files(selection_dir) if selection_dir is not None else []
@@ -78,5 +70,4 @@ def has_selection(
     selection_dir: Path | None,
     csv_path: Path | None,
 ) -> bool:
-    """Return True if the sources yield at least one selection entry."""
     return len(read_selection(selection_dir, csv_path).merged) > 0

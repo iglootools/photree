@@ -30,7 +30,6 @@ def detect_live_photo_keys(
     vid_extensions: frozenset[str],
     key_fn: KeyFn,
 ) -> frozenset[str]:
-    """Return keys that have both an image and a video file in *directory*."""
     if not directory.is_dir():
         return frozenset()
     files = list_files(directory)
@@ -45,9 +44,7 @@ def compute_live_photo_videos(
     vid_extensions: frozenset[str],
     key_fn: KeyFn,
 ) -> list[tuple[str, Path]]:
-    """Compute Live Photo video files for the browsable img directory.
-
-    For each video key in *orig_dir*, picks the edited variant from
+    """For each video key in *orig_dir*, picks the edited variant from
     *edit_dir* when available, otherwise the original.
 
     Returns ``(filename, source_dir)`` pairs sorted by filename.
@@ -85,10 +82,7 @@ def augment_browsable_img_with_live_photo_videos(
     link_mode: LinkMode,
     dry_run: bool,
 ) -> int:
-    """Place Live Photo companion videos into the browsable img directory.
-
-    Returns the number of video files placed.
-    """
+    """Returns the number of video files placed."""
     videos = compute_live_photo_videos(
         orig_img_dir, edit_img_dir, vid_extensions, key_fn
     )
@@ -106,9 +100,7 @@ def filter_live_photo_extras(
     browsable_check: BrowsableDirCheck,
     live_photo_vid_filenames: frozenset[str],
 ) -> BrowsableDirCheck:
-    """Return a new BrowsableDirCheck with Live Photo videos removed from extra.
-
-    Live Photo companion videos are expected in the browsable img dir even
+    """Live Photo companion videos are expected in the browsable img dir even
     though their extension is not an image extension, so a plain browsable
     check reports them as extra files.
     """

@@ -43,8 +43,6 @@ class AlbumInfo:
 
 @dataclass(frozen=True)
 class ExistingCollection:
-    """An existing collection on disk."""
-
     path: Path
     metadata: CollectionMetadata
     name: str
@@ -91,7 +89,6 @@ def _try_scan_collection(col_dir: Path) -> ExistingCollection | CollectionRefres
 def scan_existing_collections(
     gallery_dir: Path,
 ) -> tuple[tuple[ExistingCollection, ...], tuple[CollectionRefreshError, ...]]:
-    """Find all existing collections in the gallery."""
     results = [
         _try_scan_collection(d)
         for d in discover_collections(gallery_dir / COLLECTIONS_DIR)

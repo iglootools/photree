@@ -1,5 +1,3 @@
-"""Batch refresh command handler."""
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial
@@ -24,8 +22,6 @@ from . import (
 
 @dataclass(frozen=True)
 class BatchRefreshResult:
-    """Result of batch media metadata refresh."""
-
     refreshed: int
     failures: tuple[BatchFailure, ...] = ()
 

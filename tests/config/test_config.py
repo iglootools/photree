@@ -1,6 +1,4 @@
-"""Tests for photree.config module.
-
-The loader takes its environment (``environ``, ``home``, platformdirs
+"""The loader takes its environment (``environ``, ``home``, platformdirs
 lookups) as parameters, so these tests pass values instead of patching.
 """
 

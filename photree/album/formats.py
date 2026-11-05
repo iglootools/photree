@@ -5,16 +5,14 @@ where files are stored: which extensions are images, videos, or iOS sidecars,
 which ones convert to JPEG, and which variant wins when several share a key.
 """
 
-# All recognized media formats
 IMG_EXTENSIONS = frozenset({".dng", ".heic", ".heif", ".jpeg", ".jpg", ".png"})
 VID_EXTENSIONS = frozenset({".avi", ".mov", ".mp4", ".wmv"})
 
-# iOS-specific subsets (used by importer, iOS fixes, integrity checks)
 IOS_IMG_EXTENSIONS = frozenset({".dng", ".heic", ".heif", ".jpeg", ".jpg", ".png"})
 IOS_VID_EXTENSIONS = frozenset({".mov"})
 IOS_SIDECAR_EXTENSIONS = frozenset({".aae"})
 
-# JPEG conversion — formats sips can convert to JPEG
+# Formats sips can convert to JPEG.
 CONVERT_TO_JPEG_EXTENSIONS = frozenset({".dng", ".heic", ".heif"})
 COPY_AS_IS_TO_JPEG_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png"})
 

@@ -1,5 +1,3 @@
-"""``photree gallery list-media`` command."""
-
 from pathlib import Path
 from typing import Annotated
 

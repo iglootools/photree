@@ -21,10 +21,6 @@ from ..formats import (
 )
 from .media_source import ios_img_number
 
-# ---------------------------------------------------------------------------
-# Generic (key-function-parameterized) utilities
-# ---------------------------------------------------------------------------
-
 
 def pick_media_priority(candidates: list[str]) -> str:
     """Pick the highest-priority file from candidates (DNG > HEIC > others)."""
@@ -44,9 +40,7 @@ def group_by_key(
     media_extensions: frozenset[str],
     key_fn: Callable[[str], str],
 ) -> dict[str, list[str]]:
-    """Group media files by a key extracted via *key_fn*.
-
-    Groups are ordered by key; within a group, files keep their input order
+    """Groups are ordered by key; within a group, files keep their input order
     (the sort is stable), which :func:`pick_media_priority` relies on for its
     fallback.
     """
@@ -59,11 +53,7 @@ def dedup_media_dict(
     media_extensions: frozenset[str],
     key_fn: Callable[[str], str],
 ) -> dict[str, str]:
-    """Build a key->filename dict, preferring DNG > HEIC when duplicates exist.
-
-    Groups files by *key_fn* and picks the highest-quality format when
-    multiple variants share the same key.
-    """
+    """Build a key->filename dict, preferring DNG > HEIC when duplicates exist."""
     return {
         key: (pick_media_priority(candidates) if len(candidates) > 1 else candidates[0])
         for key, candidates in group_by_key(files, media_extensions, key_fn).items()
@@ -75,25 +65,16 @@ def find_files_by_key(
     directory: Path,
     key_fn: Callable[[str], str],
 ) -> list[str]:
-    """Find all files in *directory* whose key (via *key_fn*) is in *keys*."""
     return sorted(f for f in list_files(directory) if key_fn(f) in keys)
 
 
-# ---------------------------------------------------------------------------
-# iOS-specific convenience wrappers
-# ---------------------------------------------------------------------------
-
-
 def ios_is_media(filename: str) -> bool:
-    """Check if a filename has an iOS media extension (image or video)."""
     ext = file_ext(filename)
     return ext in IOS_IMG_EXTENSIONS or ext in IOS_VID_EXTENSIONS
 
 
 def ios_file_prefix(filename: str) -> str:
-    """Extract the prefix category of an iOS filename.
-
-    ``IMG_E`` → ``'E'`` (edited), ``IMG_O`` → ``'O'`` (edited metadata),
+    """``IMG_E`` → ``'E'`` (edited), ``IMG_O`` → ``'O'`` (edited metadata),
     ``IMG_`` → ``''`` (original).
     """
     match filename.lower()[:5]:
@@ -108,11 +89,6 @@ def ios_file_prefix(filename: str) -> str:
 def ios_dedup_media_dict(
     files: list[str], media_extensions: frozenset[str]
 ) -> dict[str, str]:
-    """Build a number->filename dict, preferring DNG > HEIC when duplicates exist.
-
-    iOS-specific convenience wrapper that uses :func:`ios_img_number` as the
-    key function.
-    """
     return dedup_media_dict(files, media_extensions, ios_img_number)
 
 
@@ -120,7 +96,6 @@ def ios_find_files_by_number(
     numbers: set[str],
     directory: Path,
 ) -> list[str]:
-    """Find all files in *directory* whose image number is in *numbers*."""
     return find_files_by_key(numbers, directory, ios_img_number)
 
 
@@ -128,5 +103,4 @@ def std_find_files_by_stem(
     stems: set[str],
     directory: Path,
 ) -> list[str]:
-    """Find all files in *directory* whose stem (name without extension) is in *stems*."""
     return sorted(f for f in list_files(directory) if Path(f).stem in stems)

@@ -1,5 +1,3 @@
-"""Typer CLI for photree."""
-
 import sys
 from pathlib import Path
 
@@ -18,7 +16,6 @@ __all__ = ["app", "main"]
 
 
 def main() -> None:
-    """Main CLI entry point."""
     try:
         app()
     except MissingSystemDependencyError as exc:

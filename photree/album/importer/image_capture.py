@@ -58,15 +58,8 @@ def _is_img_prefixed(filename: str) -> bool:
     return filename.lower().startswith("img_")
 
 
-# ---------------------------------------------------------------------------
-# Import plan — maps selection files to IC files
-# ---------------------------------------------------------------------------
-
-
 @dataclass(frozen=True)
 class SelectionMatch:
-    """A selection file and the IC files it resolves to."""
-
     selection_file: str
     img_number: str
     media_type: MediaType
@@ -79,10 +72,7 @@ class SelectionMatch:
 
     @property
     def routes_to_images(self) -> bool:
-        """Whether the match lands in the image dirs.
-
-        Live Photos always do: the image and its companion video are a unit.
-        """
+        """Live Photos always do: the image and its companion video are a unit."""
         return self.is_live_photo or self.media_type == MediaType.IMAGE
 
 
@@ -97,8 +87,6 @@ class DedupWarning:
 
 @dataclass(frozen=True)
 class ImportPlan:
-    """Result of planning an import — maps selection files to IC files."""
-
     matches: tuple[SelectionMatch, ...]
     unmatched: tuple[str, ...]
     dedup_warnings: tuple[DedupWarning, ...] = ()
@@ -120,9 +108,7 @@ class ValidationWarningKind(StrEnum):
 
 @dataclass(frozen=True)
 class ValidationError:
-    """A validation error for a specific selection file.
-
-    *files* are the Image Capture files involved (e.g. the colliding
+    """*files* are the Image Capture files involved (e.g. the colliding
     originals for ``MULTIPLE_ORIGINALS``).
     """
 
@@ -134,8 +120,6 @@ class ValidationError:
 
 @dataclass(frozen=True)
 class ValidationWarning:
-    """A non-fatal warning for a specific selection file."""
-
     selection_file: str
     kind: ValidationWarningKind
     file: str
@@ -143,9 +127,7 @@ class ValidationWarning:
 
 @dataclass(frozen=True)
 class IosSourceImportResult:
-    """Result of importing a single iOS media source.
-
-    *unprocessed* lists selection entries whose image number was imported but
+    """*unprocessed* lists selection entries whose image number was imported but
     that are still present in the staging dir or CSV after cleanup. A
     leftover entry would make the next ``album import`` collide with the
     media it already brought in, so a non-empty value is reported as a
@@ -165,7 +147,6 @@ def _group_by_number(files: Iterable[str]) -> dict[str, list[str]]:
 
 
 def _build_ic_index(image_capture_files: list[str]) -> dict[str, list[str]]:
-    """Index IC files by their numeric portion for fast lookup."""
     return _group_by_number(f for f in image_capture_files if _is_img_prefixed(f))
 
 
@@ -173,9 +154,7 @@ def _dedup_media_by_number(
     files: tuple[str, ...],
     is_primary: Callable[[str], bool],
 ) -> tuple[tuple[str, ...], tuple[DedupWarning, ...]]:
-    """Deduplicate media files by number, preferring DNG > HEIC > JPG/PNG.
-
-    Handles the iOS edge case where multiple format variants exist for the
+    """Handles the iOS edge case where multiple format variants exist for the
     same photo (e.g. IMG_E7658.JPG + IMG_E7658.HEIC). DNG (ProRAW) is
     preferred as the highest-quality format, followed by HEIC.
 
@@ -201,9 +180,7 @@ def _dedup_media_by_number(
 def _classify_ic_files(
     ic_files: list[str], media_type: MediaType
 ) -> tuple[tuple[str, ...], tuple[str, ...], tuple[DedupWarning, ...]]:
-    """Classify IC files into (orig, edited, dedup_warnings) based on media type.
-
-    Media files are deduplicated by number with HEIC priority to handle the
+    """Media files are deduplicated by number with HEIC priority to handle the
     undocumented iOS edge case of duplicate edited variants.
 
     Note: AAE sidecars for videos are unconfirmed but accepted
@@ -254,7 +231,6 @@ def _build_match(
     if not any(_is_media(f) for f in orig):
         return None, dedup_warnings
     else:
-        # Detect Live Photo: check if companion media type also exists
         comp_orig, comp_rendered, comp_dedup = _classify_ic_files(
             ic_files, _companion_type(media_type)
         )
@@ -288,11 +264,8 @@ def plan_import(
     selection_files: list[str],
     image_capture_files: list[str],
 ) -> ImportPlan:
-    """Build an import plan by matching selection files to IC files.
-
-    For each selection file, determines its media type and number, then finds
-    the corresponding original and edited files in the IC directory.
-    Selection files may be JPEG even if IC originals are HEIC — matching is by number.
+    """Selection files may be JPEG even if IC originals are HEIC: matching is by
+    number.
     """
     ic_index = _build_ic_index(image_capture_files)
     results = [
@@ -305,11 +278,6 @@ def plan_import(
         unmatched=tuple(sel_file for sel_file, m, _ in results if m is None),
         dedup_warnings=tuple(w for _, _, warnings in results for w in warnings),
     )
-
-
-# ---------------------------------------------------------------------------
-# Plan validation
-# ---------------------------------------------------------------------------
 
 
 def _error_if(
@@ -326,7 +294,6 @@ def _error_if(
 
 
 def _validate_companion(match: SelectionMatch) -> list[ValidationError]:
-    """Validate Live Photo companion files. Returns errors."""
     comp_media = [f for f in match.companion_orig_files if _is_media(f)]
     comp_rendered_media = [f for f in match.companion_rendered_files if _is_media(f)]
     return [
@@ -346,7 +313,6 @@ def _validate_companion(match: SelectionMatch) -> list[ValidationError]:
 
 
 def _match_errors(match: SelectionMatch) -> list[ValidationError]:
-    """Structural errors for a single selection match."""
     orig_media = [f for f in match.orig_files if _is_media(f)]
     rendered_media = [f for f in match.rendered_files if _is_media(f)]
     rendered_sidecars = [f for f in match.rendered_files if _is_sidecar(f)]
@@ -423,11 +389,6 @@ def validate_import_plan(
     return errors, warnings
 
 
-# ---------------------------------------------------------------------------
-# Archive collisions
-# ---------------------------------------------------------------------------
-
-
 def _archive_numbers(directory: Path) -> set[str]:
     return {
         ios_img_number(f)
@@ -439,9 +400,7 @@ def _archive_numbers(directory: Path) -> set[str]:
 def find_ios_collision(
     album_dir: Path, ms: MediaSource, plan: ImportPlan
 ) -> ArchiveCollision | None:
-    """Return the planned image numbers already present in *ms*'s archive.
-
-    Matched by image number regardless of extension. Live Photos are checked
+    """Matched by image number regardless of extension. Live Photos are checked
     against ``orig-img`` since both of their files land there.
     """
     incoming_img = {m.img_number for m in plan.matches if m.routes_to_images}
@@ -454,20 +413,12 @@ def find_ios_collision(
 
 
 def plan_ios_task(task: ImportTask, image_capture_files: list[str]) -> ImportPlan:
-    """Plan an iOS task from its merged selection."""
     sources = read_selection(task.selection_dir, task.selection_csv)
     return plan_import(list(sources.merged), image_capture_files)
 
 
-# ---------------------------------------------------------------------------
-# File operations
-# ---------------------------------------------------------------------------
-
-
 def _copy_files(src_dir: Path, dst_dir: Path, files: tuple[str, ...]) -> None:
-    """Copy *files*, creating *dst_dir* only when there is something to copy.
-
-    Creating directories on demand avoids empty leftovers (e.g. ``orig-img/``
+    """Creating directories on demand avoids empty leftovers (e.g. ``orig-img/``
     in a video-only album).
     """
     if files:
@@ -538,11 +489,6 @@ def _leftover_entries(
     )
 
 
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
-
-
 def import_ios_source(
     album_dir: Path,
     task: ImportTask,
@@ -551,9 +497,7 @@ def import_ios_source(
     *,
     dry_run: bool = False,
 ) -> IosSourceImportResult:
-    """Copy an iOS source's selected files from Image Capture into its archive.
-
-    Copies matched originals and edits into the ``ios-<name>/`` archive, then
+    """Copies matched originals and edits into the ``ios-<name>/`` archive, then
     removes processed selection entries from the staging dir and CSV.
 
     The archive collision check (:func:`find_ios_collision`) is the caller's

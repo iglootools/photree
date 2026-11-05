@@ -1,5 +1,3 @@
-"""Tests for photree.album.media module."""
-
 from pathlib import Path
 
 import pytest
@@ -22,7 +20,6 @@ PHOTREE_DIR = ".photree"
 
 
 def _setup_dir(path: Path, filenames: list[str]) -> Path:
-    """Create a directory with the given filenames."""
     path.mkdir(parents=True, exist_ok=True)
     for name in filenames:
         (path / name).write_text(f"data-{name}")
@@ -30,7 +27,6 @@ def _setup_dir(path: Path, filenames: list[str]) -> Path:
 
 
 def _names(directory: Path) -> set[str]:
-    """Return filenames (names only) in a directory."""
     if not directory.is_dir():
         return set()
     return {f.name for f in directory.iterdir() if f.is_file()}
@@ -77,11 +73,6 @@ def _setup_std_album(album: Path, media_source_name: str = "nelu") -> None:
     _setup_dir(album / f"{media_source_name}-jpg", ["sunset.jpg", "beach.png"])
 
 
-# ---------------------------------------------------------------------------
-# resolve_variants
-# ---------------------------------------------------------------------------
-
-
 class TestResolveVariants:
     def test_ios_image_resolves_all_dirs(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
@@ -109,7 +100,6 @@ class TestResolveVariants:
         assert "IMG_E0410.jpg" in all_files
 
     def test_ios_any_variant_resolves_same(self, tmp_path: Path) -> None:
-        """Specifying any variant file resolves the same set."""
         album = tmp_path / "album"
         _setup_ios_album(album)
 
@@ -219,11 +209,6 @@ class TestResolveVariants:
         assert "IMG_0411.jpg" in all_files
 
 
-# ---------------------------------------------------------------------------
-# move_media
-# ---------------------------------------------------------------------------
-
-
 class TestMoveMedia:
     def test_ios_moves_all_variants(self, tmp_path: Path) -> None:
         src = tmp_path / "src-album"
@@ -238,10 +223,9 @@ class TestMoveMedia:
         # Source dirs should be removed (empty after move)
         assert not (src / "ios-main/orig-img").exists()
         assert not (src / "ios-main/edit-img").exists()
-        assert not (src / "ios-main").exists()  # parent also removed
+        assert not (src / "ios-main").exists()
         assert not (src / "main-img").exists()
         assert not (src / "main-jpg").exists()
-        # Destination should have everything
         assert "IMG_0410.HEIC" in _names(dst / "ios-main/orig-img")
         assert "IMG_E0410.HEIC" in _names(dst / "ios-main/edit-img")
         assert "IMG_E0410.HEIC" in _names(dst / "main-img")
@@ -274,7 +258,6 @@ class TestMoveMedia:
         assert "sunset.heic" not in _names(src / "nelu-img")
         assert "sunset.heic" in _names(dst / "nelu-img")
         assert "sunset.jpg" in _names(dst / "nelu-jpg")
-        # beach files should stay
         assert "beach.png" in _names(src / "nelu-img")
 
     def test_dry_run_does_not_modify(self, tmp_path: Path) -> None:
@@ -287,10 +270,8 @@ class TestMoveMedia:
         result = move_media(src, dst, ["main-jpg/IMG_E0410.jpg"], dry_run=True)
 
         assert result.total > 0
-        # Source should be unchanged
         assert "IMG_0410.HEIC" in _names(src / "ios-main/orig-img")
         assert "IMG_E0410.jpg" in _names(src / "main-jpg")
-        # Destination should be empty
         assert not (dst / "main-jpg").is_dir()
 
     def test_creates_dest_directories(self, tmp_path: Path) -> None:
@@ -337,7 +318,6 @@ class TestMoveMedia:
         assert exc_info.value.kind == MediaOpErrorKind.MOVE_CONFLICT
         assert "main-jpg/IMG_E0410.jpg" in exc_info.value.conflicts
 
-        # Source should be unchanged — nothing was moved
         assert "IMG_0410.HEIC" in _names(src / "ios-main/orig-img")
 
     def test_refuses_on_same_number_different_extension(self, tmp_path: Path) -> None:
@@ -362,11 +342,6 @@ class TestMoveMedia:
         assert "ios-main/orig-img/IMG_0410.JPG" in exc_info.value.conflicts
 
 
-# ---------------------------------------------------------------------------
-# rm_media
-# ---------------------------------------------------------------------------
-
-
 class TestRmMedia:
     def test_ios_removes_all_variants(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
@@ -375,7 +350,6 @@ class TestRmMedia:
         result = rm_media(album, ["main-jpg/IMG_E0410.jpg"])
 
         assert result.total > 0
-        # Empty dirs should be removed
         assert not (album / "ios-main/orig-img").exists()
         assert not (album / "ios-main/edit-img").exists()
         assert not (album / "ios-main").exists()
@@ -391,7 +365,6 @@ class TestRmMedia:
         assert result.total > 0
         assert "sunset.heic" not in _names(album / "nelu-img")
         assert "sunset.jpg" not in _names(album / "nelu-jpg")
-        # beach files should stay
         assert "beach.png" in _names(album / "nelu-img")
 
     def test_dry_run_does_not_modify(self, tmp_path: Path) -> None:

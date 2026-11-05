@@ -25,8 +25,6 @@ from .protocol import MEDIA_IDS_DIR
 
 
 class MediaSourceMediaMetadata(PhotreeModel):
-    """ID mappings for a single media source (images and videos)."""
-
     images: dict[str, str] = Field(
         default_factory=dict,
         description="UUID -> key (image number for iOS, stem for std).",
@@ -38,8 +36,6 @@ class MediaSourceMediaMetadata(PhotreeModel):
 
 
 class MediaMetadata(PhotreeModel):
-    """Per-album media metadata — aggregation of all media sources."""
-
     media_sources: dict[str, MediaSourceMediaMetadata] = Field(
         default_factory=dict,
         description="Media source name -> media ID mappings.",
@@ -64,9 +60,7 @@ def _load_source_file(path: Path) -> MediaSourceMediaMetadata:
 
 
 def load_media_metadata(album_dir: Path) -> MediaMetadata | None:
-    """Read per-source YAML files from ``.photree/media-ids/``.
-
-    Returns ``None`` when there is no media-ids file at all. A file that is
+    """Returns ``None`` when there is no media-ids file at all. A file that is
     present but unreadable raises
     :class:`~photree.foundation.metadata_io.InvalidMetadataError` rather than being
     skipped: dropping it would make the next refresh mint fresh UUIDs for every
@@ -82,16 +76,13 @@ def load_media_metadata(album_dir: Path) -> MediaMetadata | None:
 
 
 def save_media_metadata(album_dir: Path, metadata: MediaMetadata) -> None:
-    """Write per-source YAML files to ``.photree/media-ids/``."""
     ids_dir = _media_ids_dir(album_dir)
     ids_dir.mkdir(parents=True, exist_ok=True)
 
-    # Remove sources that no longer exist
     existing_files = {p.stem for p in ids_dir.glob("*.yaml")}
     for stale in existing_files - set(metadata.media_sources.keys()):
         (ids_dir / f"{stale}.yaml").unlink()
 
-    # Write each source
     for name, source_meta in metadata.media_sources.items():
         write_yaml(
             _source_path(album_dir, name),

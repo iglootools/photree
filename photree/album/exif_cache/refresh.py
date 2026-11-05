@@ -1,5 +1,3 @@
-"""EXIF cache refresh — scan browsable files, read EXIF for new/changed, save."""
-
 from collections.abc import Mapping
 from contextlib import nullcontext
 from dataclasses import dataclass
@@ -16,15 +14,9 @@ from ..store.media_sources_discovery import discover_media_sources
 from .protocol import EXIF_CACHE_VERSION, ExifCache, ExifCacheEntry
 from .store import load_exif_cache, save_exif_cache
 
-# ---------------------------------------------------------------------------
-# Result types
-# ---------------------------------------------------------------------------
-
 
 @dataclass(frozen=True)
 class ExifCacheSourceResult:
-    """Result of refreshing EXIF cache for a single media source."""
-
     cached: int
     refreshed: int
     pruned: int
@@ -36,8 +28,6 @@ class ExifCacheSourceResult:
 
 @dataclass(frozen=True)
 class ExifCacheRefreshResult:
-    """Result of refreshing EXIF cache for an album."""
-
     by_media_source: tuple[tuple[str, ExifCacheSourceResult], ...]
 
     @property
@@ -49,11 +39,6 @@ class ExifCacheRefreshResult:
         return any(r.changed for _, r in self.by_media_source)
 
 
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
-
-
 def refresh_exif_cache(
     album_dir: Path,
     *,
@@ -61,9 +46,7 @@ def refresh_exif_cache(
     force: bool = False,
     dry_run: bool = False,
 ) -> ExifCacheRefreshResult:
-    """Refresh EXIF timestamp cache for all media sources in an album.
-
-    When *force* is True, re-read all files regardless of mtime.
+    """When *force* is True, re-read all files regardless of mtime.
     *exiftool* can be shared across albums in batch operations; when it is
     ``None`` a transient one is started (and closed) for this album.
     """
@@ -83,11 +66,6 @@ def refresh_exif_cache(
                 for ms in sources
             )
         )
-
-
-# ---------------------------------------------------------------------------
-# Per-source refresh
-# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -137,7 +115,6 @@ def _refresh_source(
     force: bool,
     dry_run: bool,
 ) -> ExifCacheSourceResult:
-    """Refresh EXIF cache for a single media source."""
     plan = _plan_source(album_dir, ms, force=force)
 
     if plan.is_noop:
@@ -187,15 +164,8 @@ def _apply_plan(
     )
 
 
-# ---------------------------------------------------------------------------
-# Scanning and diffing
-# ---------------------------------------------------------------------------
-
-
 def cache_key(subdir: str, filename: str) -> str:
-    """Return the cache key of a browsable file: ``{subdir}/{stem}``.
-
-    Scoped by directory so that ``main-jpg/clip.jpg`` and ``main-vid/clip.mp4``
+    """Scoped by directory so that ``main-jpg/clip.jpg`` and ``main-vid/clip.mp4``
     (same stem, different media) do not collide.
     """
     return f"{subdir}/{Path(filename).stem}"
@@ -219,7 +189,6 @@ def _keys_needing_refresh(
     album_dir: Path,
     cache: ExifCache,
 ) -> list[str]:
-    """Return keys whose EXIF timestamps need re-reading."""
     return sorted(
         key
         for key, rel_path in current_files.items()
@@ -228,16 +197,10 @@ def _keys_needing_refresh(
 
 
 def _needs_refresh(key: str, file_path: Path, cache: ExifCache) -> bool:
-    """Return True when a file's EXIF timestamp needs re-reading."""
     entry = cache.files.get(key)
     return entry is None or (
         file_path.is_file() and entry.mtime != file_path.stat().st_mtime
     )
-
-
-# ---------------------------------------------------------------------------
-# EXIF reading
-# ---------------------------------------------------------------------------
 
 
 def _read_exif_for_keys(
@@ -247,10 +210,8 @@ def _read_exif_for_keys(
     *,
     exiftool: ExifToolHelper | None,
 ) -> dict[str, ExifCacheEntry]:
-    """Batch-read EXIF timestamps for a set of keys."""
     files = [album_dir / current_files[key] for key in keys]
 
-    # Batch read via exiftool
     timestamps = _batch_read_timestamps(files, exiftool=exiftool)
 
     return {

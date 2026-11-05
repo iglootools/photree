@@ -1,21 +1,10 @@
-"""Collection protocol — models, constants, and enums."""
-
 from enum import StrEnum
 
 from pydantic import Field
 
 from ...foundation.model import PhotreeModel
 
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
-
 COLLECTION_YAML = "collection.yaml"
-
-
-# ---------------------------------------------------------------------------
-# Enums
-# ---------------------------------------------------------------------------
 
 
 class CollectionMembers(StrEnum):
@@ -40,10 +29,6 @@ class CollectionStrategy(StrEnum):
     ALBUM_SERIES = "album-series"
     CHAPTER = "chapter"
 
-
-# ---------------------------------------------------------------------------
-# Valid combination allowlist
-# ---------------------------------------------------------------------------
 
 _VALID_COMBINATIONS: set[
     tuple[CollectionMembers, CollectionLifecycle, CollectionStrategy]
@@ -77,11 +62,6 @@ def validate_collection_config(
             f"lifecycle={lifecycle.value}, strategy={strategy.value}. "
             f"See 'photree collection init --help' for valid combinations."
         )
-
-
-# ---------------------------------------------------------------------------
-# Metadata model
-# ---------------------------------------------------------------------------
 
 
 class CollectionMetadata(PhotreeModel):

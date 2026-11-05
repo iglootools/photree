@@ -15,10 +15,6 @@ STD_DIR_PREFIX = "std-"
 DEFAULT_MEDIA_SOURCE = "main"
 
 
-# ---------------------------------------------------------------------------
-# Key functions
-# ---------------------------------------------------------------------------
-
 KeyFn = Callable[[str], str]
 """Key-extraction function: maps a filename to a matching key."""
 
@@ -29,13 +25,7 @@ def ios_img_number(filename: str) -> str:
 
 
 def stem_key(filename: str) -> str:
-    """Extract filename stem (name without extension) as a matching key."""
     return Path(filename).stem
-
-
-# ---------------------------------------------------------------------------
-# MediaSource
-# ---------------------------------------------------------------------------
 
 
 class MediaSourceType(StrEnum):
@@ -78,9 +68,7 @@ class MediaSource:
 
     @property
     def key_fn(self) -> KeyFn:
-        """Key-extraction function for matching files across directories.
-
-        iOS sources match by image number (digits extracted from filename).
+        """iOS sources match by image number (digits extracted from filename).
         Std sources match by filename stem.
         """
         match self.media_source_type:
@@ -101,17 +89,14 @@ class MediaSource:
 
     @property
     def image_subdirs(self) -> tuple[str, ...]:
-        """Required image directories for this media source."""
         return (self.orig_img_dir, self.img_dir, self.jpg_dir)
 
     @property
     def video_subdirs(self) -> tuple[str, ...]:
-        """Required video directories for this media source."""
         return (self.orig_vid_dir, self.vid_dir)
 
     @property
     def required_subdirs(self) -> tuple[str, ...]:
-        """All required subdirectories (images + videos)."""
         return (*self.image_subdirs, *self.video_subdirs)
 
     @property
@@ -121,12 +106,10 @@ class MediaSource:
 
     @property
     def all_subdirs(self) -> tuple[str, ...]:
-        """All possible subdirectories for this media source."""
         return (*self.required_subdirs, *self.optional_subdirs)
 
 
 def ios_media_source(name: str) -> MediaSource:
-    """Create an iOS :class:`MediaSource`."""
     archive = f"{IOS_DIR_PREFIX}{name}"
     return MediaSource(
         name=name,
@@ -143,9 +126,7 @@ def ios_media_source(name: str) -> MediaSource:
 
 
 def std_media_source(name: str) -> MediaSource:
-    """Create a standard (non-iOS) :class:`MediaSource`.
-
-    The archive directory structure is identical to iOS
+    """The archive directory structure is identical to iOS
     (``orig-img/``, ``edit-img/``, ``orig-vid/``, ``edit-vid/``).
     Std sources match files by filename stem and skip iOS-specific
     integrity checks and fixes.

@@ -1,5 +1,3 @@
-"""Batch face-detection command handler."""
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial
@@ -19,8 +17,6 @@ from . import (
 
 @dataclass(frozen=True)
 class BatchDetectFacesResult:
-    """Result of batch face detection."""
-
     succeeded: int
     failures: tuple[BatchFailure, ...] = ()
 

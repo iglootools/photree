@@ -24,10 +24,6 @@ from .protocol import (
     FaceManifest,
 )
 
-# ---------------------------------------------------------------------------
-# Path helpers
-# ---------------------------------------------------------------------------
-
 
 def gallery_faces_dir(gallery_dir: Path) -> Path:
     """Return ``<gallery>/.photree/faces/``."""
@@ -48,11 +44,6 @@ def checksums_path(gallery_dir: Path) -> Path:
 
 def faiss_index_path(gallery_dir: Path) -> Path:
     return gallery_faces_dir(gallery_dir) / FACE_INDEX_FILE
-
-
-# ---------------------------------------------------------------------------
-# YAML I/O
-# ---------------------------------------------------------------------------
 
 
 def _load_yaml[M: BaseModel](path: Path, model_cls: type[M]) -> M | None:
@@ -89,11 +80,6 @@ def load_checksums(gallery_dir: Path) -> AlbumFaceChecksums | None:
 
 def save_checksums(gallery_dir: Path, checksums: AlbumFaceChecksums) -> None:
     _save_yaml(checksums_path(gallery_dir), checksums)
-
-
-# ---------------------------------------------------------------------------
-# Checksum computation
-# ---------------------------------------------------------------------------
 
 
 def compute_npz_checksum(npz_path: Path) -> str:

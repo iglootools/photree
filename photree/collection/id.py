@@ -1,5 +1,3 @@
-"""Collection ID generation, formatting, and parsing."""
-
 from uuid import uuid7
 
 from ..album.id import format_external_id, parse_external_id

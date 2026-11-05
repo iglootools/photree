@@ -1,5 +1,3 @@
-"""Tests for photree.gallery.import_plan."""
-
 from pathlib import Path
 
 from photree.album.id import generate_album_id
@@ -117,7 +115,6 @@ class TestPlanImportsErrors:
 
         assert result.has_errors
         assert result.clobber_conflicts
-        # No plan is produced for a clobber conflict.
         assert not result.to_import
 
     def test_collision_within_batch(self, tmp_path: Path) -> None:

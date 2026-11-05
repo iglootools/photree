@@ -1,5 +1,3 @@
-"""Tests for gallery browsable directory rendering."""
-
 from pathlib import Path
 
 from photree.album.id import generate_album_id, generate_media_id
@@ -67,7 +65,6 @@ class TestBrowsableRefreshAlbums:
         assert result.albums_rendered == 1
         assert result.symlinks_created > 0
 
-        # Check structure
         album_browsable = (
             gallery
             / BROWSABLE_DIR
@@ -79,7 +76,6 @@ class TestBrowsableRefreshAlbums:
         )
         assert (album_browsable / "main-jpg").is_symlink()
         assert (album_browsable / "main-vid").is_symlink()
-        # main-img should NOT be present
         assert not (album_browsable / "main-img").exists()
 
     def test_renders_private_album_under_private(self, tmp_path: Path) -> None:
@@ -100,7 +96,6 @@ class TestBrowsableRefreshAlbums:
         )
         assert (private_album / "main-jpg").is_symlink()
 
-        # Should NOT be under public
         public_path = gallery / BROWSABLE_DIR / "public" / "albums" / "by-year" / "2024"
         assert not public_path.exists()
 
@@ -121,7 +116,6 @@ class TestBrowsableRefreshAlbums:
             / "main-jpg"
         )
         target = link.resolve()
-        # Should resolve to the actual album's main-jpg
         assert target.name == "main-jpg"
         assert "albums" in str(target)
 

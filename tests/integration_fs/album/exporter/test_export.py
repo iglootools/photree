@@ -1,5 +1,3 @@
-"""Tests for the album export logic."""
-
 from pathlib import Path
 
 import pytest
@@ -25,7 +23,6 @@ def _setup_dir(path: Path, filenames: list[str]) -> Path:
 
 
 def _setup_ios_album(album_dir: Path) -> Path:
-    """Create a typical iOS album with orig, rendered, browsable dirs."""
     _setup_dir(
         album_dir / MAIN_MEDIA_SOURCE.orig_img_dir, ["IMG_0001.HEIC", "IMG_0002.HEIC"]
     )
@@ -149,13 +146,10 @@ class TestExportIosMainJpg:
         )
 
         assert result.album_type == "ios"
-        # main-jpg/ and main-vid/ exported
         assert (target / "main-jpg" / "IMG_E0001.JPEG").exists()
         assert (target / "main-jpg" / "IMG_0002.JPEG").exists()
         assert (target / "main-vid" / "IMG_E0010.MOV").exists()
-        # main-img/ should NOT be exported
         assert not (target / "main-img").exists()
-        # archival dirs should NOT be exported
         assert not (target / MAIN_MEDIA_SOURCE.orig_img_dir).exists()
         assert not (target / MAIN_MEDIA_SOURCE.edit_img_dir).exists()
         assert result.files_copied == 3
@@ -182,14 +176,10 @@ class TestExportIosMain:
         )
 
         assert result.album_type == "ios"
-        # main-img/ -> img/
         assert (target / "main-img" / "IMG_E0001.HEIC").exists()
         assert (target / "main-img" / "IMG_0002.HEIC").exists()
-        # main-jpg/ -> jpg/
         assert (target / "main-jpg" / "IMG_E0001.JPEG").exists()
-        # main-vid/ -> vid/
         assert (target / "main-vid" / "IMG_E0010.MOV").exists()
-        # orig and rendered should NOT be exported
         assert not (target / MAIN_MEDIA_SOURCE.orig_img_dir).exists()
         assert not (target / MAIN_MEDIA_SOURCE.edit_img_dir).exists()
         assert not (target / MAIN_MEDIA_SOURCE.orig_vid_dir).exists()
@@ -228,19 +218,15 @@ class TestExportIosAll:
             link_mode=LinkMode.COPY,
         )
 
-        # orig dirs copied
         assert (target / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.HEIC").exists()
         assert (target / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0002.HEIC").exists()
         assert (target / MAIN_MEDIA_SOURCE.orig_vid_dir / "IMG_0010.MOV").exists()
-        # rendered dirs copied
         assert (target / MAIN_MEDIA_SOURCE.edit_img_dir / "IMG_E0001.HEIC").exists()
         assert (target / MAIN_MEDIA_SOURCE.edit_vid_dir / "IMG_E0010.MOV").exists()
-        # main-jpg copied
         assert (target / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_E0001.JPEG").exists()
-        # main-img recreated (rendered preferred over orig)
+        # Rendered is preferred over orig.
         assert (target / MAIN_MEDIA_SOURCE.img_dir / "IMG_E0001.HEIC").exists()
         assert (target / MAIN_MEDIA_SOURCE.img_dir / "IMG_0002.HEIC").exists()
-        # main-vid recreated
         assert (target / MAIN_MEDIA_SOURCE.vid_dir / "IMG_E0010.MOV").exists()
         assert result.files_copied > 0
 
@@ -250,14 +236,12 @@ class TestExportIosAll:
 
         export_album(album_dir, target, album_layout=AlbumShareLayout.ALL)
 
-        # main-img files should be hardlinks to orig/rendered
         browsable_file = target / MAIN_MEDIA_SOURCE.img_dir / "IMG_0002.HEIC"
         orig_file = target / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0002.HEIC"
         assert browsable_file.stat().st_ino == orig_file.stat().st_ino
 
     def test_does_not_export_unmanaged(self, tmp_path: Path) -> None:
         album_dir = _setup_ios_album(tmp_path / "trip")
-        # Add an unmanaged file
         (album_dir / "notes.txt").write_text("my notes")
         (album_dir / "extra-dir").mkdir()
         (album_dir / "extra-dir" / "file.txt").write_text("extra")
@@ -305,13 +289,11 @@ class TestExportIosArchive:
         result = export_album(album_dir, target, album_layout=AlbumShareLayout.ARCHIVE)
 
         assert result.album_type == "ios"
-        # archive (orig + edit) copied
         assert (target / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.HEIC").exists()
         assert (target / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0002.HEIC").exists()
         assert (target / MAIN_MEDIA_SOURCE.edit_img_dir / "IMG_E0001.HEIC").exists()
         assert (target / MAIN_MEDIA_SOURCE.orig_vid_dir / "IMG_0010.MOV").exists()
         assert (target / MAIN_MEDIA_SOURCE.edit_vid_dir / "IMG_E0010.MOV").exists()
-        # derived browsable/JPEG dirs dropped
         assert not (target / MAIN_MEDIA_SOURCE.img_dir).exists()
         assert not (target / MAIN_MEDIA_SOURCE.jpg_dir).exists()
         assert not (target / MAIN_MEDIA_SOURCE.vid_dir).exists()
@@ -325,7 +307,6 @@ class TestExportIosArchive:
 
         assert (target / PHOTREE_DIR / "album.yaml").exists()
         assert (target / PHOTREE_DIR / "media-ids" / "main.yaml").exists()
-        # derived cache must NOT be copied
         assert not (target / PHOTREE_DIR / "cache").exists()
 
 
@@ -349,11 +330,9 @@ class TestExportStdArchive:
         result = export_album(album_dir, target, album_layout=AlbumShareLayout.ARCHIVE)
 
         assert result.album_type == "std"
-        # archive (orig + edit) copied
         assert (target / "std-dana" / "orig-img" / "photo1.heic").exists()
         assert (target / "std-dana" / "edit-img" / "photo1.heic").exists()
         assert (target / "std-dana" / "orig-vid" / "clip.mov").exists()
-        # derived browsable/JPEG dirs dropped
         assert not (target / "dana-img").exists()
         assert not (target / "dana-jpg").exists()
         assert (target / PHOTREE_DIR / "album.yaml").exists()
@@ -365,10 +344,8 @@ class TestExportStdArchive:
 
         export_album(album_dir, target, album_layout=AlbumShareLayout.ARCHIVE)
 
-        # iOS archive preserved, iOS browsable dropped
         assert (target / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.HEIC").exists()
         assert not (target / MAIN_MEDIA_SOURCE.jpg_dir).exists()
-        # std archive preserved, std browsable dropped
         assert (target / "std-dana" / "orig-img" / "photo1.heic").exists()
         assert not (target / "dana-jpg").exists()
 

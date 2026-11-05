@@ -1,5 +1,3 @@
-"""``photree albums list-media`` command."""
-
 from ...clihelpers.options import OUTPUT_FILE_OPTION, OUTPUT_FORMAT_OPTION, OutputFormat
 from ..batchcli.listmedia import run_batch_list_media
 from ..batchcli.resolution import resolve_check_batch_albums

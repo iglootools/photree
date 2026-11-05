@@ -1,5 +1,3 @@
-"""``photree gallery check`` command."""
-
 from pathlib import Path
 from typing import Annotated
 
@@ -92,11 +90,6 @@ def check_cmd(
         raise typer.Exit(code=1)
 
 
-# ---------------------------------------------------------------------------
-# Collection checks
-# ---------------------------------------------------------------------------
-
-
 def _check_collections(gallery_dir: Path, cwd: Path) -> bool:
     """Run collection checks and print results. Returns whether all passed."""
     col_results = run_with_spinner(
@@ -135,11 +128,6 @@ def _check_collections(gallery_dir: Path, cwd: Path) -> bool:
             markup=False,
         )
     return not failed
-
-
-# ---------------------------------------------------------------------------
-# Face cluster checks
-# ---------------------------------------------------------------------------
 
 
 def _check_faces(gallery_dir: Path, cwd: Path) -> bool:

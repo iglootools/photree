@@ -55,15 +55,9 @@ def _bullets(items: Sequence[str]) -> list[str]:
     return [indent(f"- {markup_escape(item)}") for item in items]
 
 
-# ---------------------------------------------------------------------------
-# System check output
-# ---------------------------------------------------------------------------
-
-
 def jpeg_failures_report(
     failures: tuple[tuple[str, JpegConversionFailure], ...],
 ) -> str:
-    """Format per-file JPEG conversion failures for a single album."""
     return "\n".join(
         [
             f"{CROSS} jpeg: {len(failures)} file(s) could not be converted",
@@ -78,7 +72,6 @@ def jpeg_failures_report(
 
 
 def face_failures_report(failures: tuple[tuple[str, FaceFailure], ...]) -> str:
-    """Format per-image face detection failures for a single album."""
     return "\n".join(
         [
             f"{CROSS} face detection failed for {len(failures)} image(s)",
@@ -95,9 +88,7 @@ def derived_failures_report(
     face_failures: tuple[tuple[str, FaceFailure], ...],
     album_dir: str,
 ) -> str:
-    """JPEG and face-detection failures of a refresh, each with its retry command.
-
-    Shared by every command that refreshes derived data (refresh, import,
+    """Shared by every command that refreshes derived data (refresh, import,
     gallery import), so a partial refresh reads — and is retried — the same
     way everywhere. Rich markup, with user text escaped.
     """
@@ -150,11 +141,6 @@ def exiftool_check(available: bool) -> str:
 
 def exiftool_troubleshoot() -> str:
     return format_missing_troubleshoot([SystemDependency.EXIFTOOL])
-
-
-# ---------------------------------------------------------------------------
-# Album-level output
-# ---------------------------------------------------------------------------
 
 
 def media_sources_check(summary: AlbumMediaSourceSummary) -> str:
@@ -246,18 +232,12 @@ def unexpected_dirs_check_line(check: UnexpectedDirsCheck) -> str:
         )
 
 
-# ---------------------------------------------------------------------------
-# Naming / EXIF output
-# ---------------------------------------------------------------------------
-
-
 def format_naming_checks(
     result: AlbumNamingResult,
     *,
     fatal_exif: bool = False,
     album_dir: str = ".",
 ) -> str:
-    """Format naming validation results."""
     return "\n".join(
         [
             *_format_naming_line(result),
@@ -304,7 +284,6 @@ def _format_exif_line(
 def _format_exif_mismatches(
     exif_check: ExifTimestampCheck, icon: str, album_dir: str
 ) -> list[str]:
-    """Format EXIF mismatch details with examples and fix suggestions."""
     n = len(exif_check.mismatches)
     max_examples = 5
     return (
@@ -354,11 +333,6 @@ def format_batch_naming_issues(result: BatchNamingResult) -> str:
         )
 
 
-# ---------------------------------------------------------------------------
-# Integrity output (was album/integrity/output.py)
-# ---------------------------------------------------------------------------
-
-
 def _issues_block(icon: str, label: str, issues: Sequence[str]) -> str:
     """*label* and *issues* are plain text, escaped here."""
     return "\n".join(
@@ -367,7 +341,6 @@ def _issues_block(icon: str, label: str, issues: Sequence[str]) -> str:
 
 
 def format_browsable_dir_check(label: str, check: BrowsableDirCheck) -> str:
-    """Format a main directory check result."""
     if check.success:
         return f"{CHECK} {markup_escape(label)}: {len(check.correct)} file(s) verified"
     else:
@@ -398,7 +371,6 @@ def format_browsable_dir_check(label: str, check: BrowsableDirCheck) -> str:
 
 
 def format_jpeg_check(check: JpegCheck, label: str) -> str:
-    """Format a JPEG directory check result."""
     if check.success:
         return f"{CHECK} {markup_escape(label)}: {len(check.present)} file(s) verified"
     else:
@@ -424,7 +396,6 @@ def format_sidecar_issue(issue: SidecarIssue) -> str:
 
 
 def format_sidecar_check(check: SidecarCheck, *, fatal_sidecar: bool = False) -> str:
-    """Format sidecar check result."""
     issues = [
         *(format_sidecar_issue(i) for i in check.orphan_sidecars),
         *(f"(info) {format_sidecar_issue(i)}" for i in check.missing_sidecars),
@@ -489,7 +460,6 @@ def format_miscategorized(files: tuple[MiscategorizedFile, ...]) -> str | None:
 
 
 def format_duplicate_stems(dups: tuple[DuplicateStem, ...]) -> str:
-    """Format duplicate stem issues of a std media source."""
     return (
         _issues_block(
             CROSS, "duplicate stems", [format_duplicate_stem(d) for d in dups]
@@ -518,7 +488,6 @@ def _format_ios_media_source_integrity(
     *,
     fatal_sidecar: bool,
 ) -> list[str]:
-    """Format integrity checks for a single iOS media source."""
     return [
         *_format_browsable_and_jpeg(ms, result, p),
         format_sidecar_check(result.sidecars, fatal_sidecar=fatal_sidecar),
@@ -533,9 +502,7 @@ def format_integrity_checks(
     *,
     fatal_sidecar: bool = False,
 ) -> str:
-    """Format all integrity check lines across media sources.
-
-    Single media source: no prefix (identical output to previous behavior).
+    """Single media source: no prefix (identical output to previous behavior).
     Multiple media sources: each section prefixed with ``[name]``.
     """
     multi = len(result.by_media_source) > 1
@@ -571,7 +538,6 @@ def _format_media_source_section(
 
 
 def format_jpeg_integrity_checks(result: AlbumJpegIntegrityResult) -> str:
-    """Format JPEG integrity checks across all media sources."""
     multi = len(result.by_media_source) > 1
     return "\n".join(
         format_jpeg_check(
@@ -580,11 +546,6 @@ def format_jpeg_integrity_checks(result: AlbumJpegIntegrityResult) -> str:
         )
         for ms, check in result.by_media_source
     )
-
-
-# ---------------------------------------------------------------------------
-# Face state output
-# ---------------------------------------------------------------------------
 
 
 def format_face_sync_issue(issue: FaceSyncIssue) -> str:
@@ -601,7 +562,6 @@ def format_face_sync_issue(issue: FaceSyncIssue) -> str:
 
 
 def format_face_state_check(check: FaceStateCheck) -> str:
-    """Format face state check results."""
     if check.success:
         return f"{CHECK} face state"
     else:
@@ -644,13 +604,7 @@ def _format_issue_group(
     )
 
 
-# ---------------------------------------------------------------------------
-# EXIF cache state output
-# ---------------------------------------------------------------------------
-
-
 def format_exif_cache_check(check: ExifCacheStateCheck) -> str:
-    """Format EXIF cache state check results."""
     if check.success:
         return f"{CHECK} exif cache"
     else:
@@ -669,11 +623,6 @@ def format_exif_cache_check(check: ExifCacheStateCheck) -> str:
                 ),
             ]
         )
-
-
-# ---------------------------------------------------------------------------
-# Preflight orchestration output
-# ---------------------------------------------------------------------------
 
 
 def format_album_preflight_checks(
@@ -957,13 +906,9 @@ def batch_check_summary(passed: int, failed: int, warned: int = 0) -> str:
     return f"\nDone. {', '.join(parts)}."
 
 
-# ---------------------------------------------------------------------------
-# Batch check output
-#
 # Rendering for a check lives here whatever its scope, next to the single-album
 # formatters above — the batch CLI wrapper composes these rather than building
 # its own strings, so there is one place to change how a check result reads.
-# ---------------------------------------------------------------------------
 
 
 def batch_system_checks(*, sips_available: bool, exiftool_available: bool) -> str:

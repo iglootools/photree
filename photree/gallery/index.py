@@ -1,5 +1,3 @@
-"""Gallery-specific album indexing — scan a gallery directory."""
-
 from pathlib import Path
 
 from ..album.store.album_discovery import discover_albums

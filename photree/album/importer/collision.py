@@ -24,8 +24,6 @@ class ArchiveCollision:
 
 
 class ImportCollisionError(ValueError):
-    """Raised when an import would overwrite keys already in the archive."""
-
     def __init__(self, media_source: MediaSource, keys: tuple[str, ...]) -> None:
         self.media_source = media_source
         self.keys = keys

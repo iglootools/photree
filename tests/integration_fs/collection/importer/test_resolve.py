@@ -1,5 +1,3 @@
-"""Tests for collection import member resolution."""
-
 from datetime import datetime
 from pathlib import Path
 
@@ -51,7 +49,6 @@ def _setup_gallery(tmp_path: Path) -> Path:
 def _setup_album(
     gallery: Path, name: str, album_id: str | None = None
 ) -> tuple[Path, str]:
-    """Create an album in the gallery with media sources."""
     album_dir = gallery / "albums" / "2024" / name
     _write(album_dir / "ios-main" / "orig-img" / "IMG_0001.HEIC")
     (album_dir / "main-img").mkdir(parents=True, exist_ok=True)

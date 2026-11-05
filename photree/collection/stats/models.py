@@ -1,5 +1,3 @@
-"""Collection stats data models."""
-
 from collections.abc import Mapping
 from dataclasses import dataclass
 
@@ -8,8 +6,6 @@ from ..store.protocol import CollectionLifecycle, CollectionMembers, CollectionS
 
 @dataclass(frozen=True)
 class CollectionStatsEntry:
-    """Stats for a single collection."""
-
     name: str
     members: CollectionMembers
     lifecycle: CollectionLifecycle
@@ -22,8 +18,6 @@ class CollectionStatsEntry:
 
 @dataclass(frozen=True)
 class GalleryCollectionStats:
-    """Aggregate collection stats for a gallery."""
-
     total: int
     by_combination: Mapping[
         tuple[CollectionMembers, CollectionLifecycle, CollectionStrategy], int

@@ -1,5 +1,3 @@
-"""``photree collection check`` command."""
-
 from pathlib import Path
 from typing import Annotated
 

@@ -1,5 +1,3 @@
-"""Album and media ID generation, formatting, and parsing."""
-
 import uuid as _uuid
 from enum import StrEnum
 
@@ -11,12 +9,10 @@ VIDEO_ID_PREFIX = "video"
 
 
 def generate_album_id() -> str:
-    """Generate a new UUID v7 string for an album."""
     return str(_uuid.uuid7())
 
 
 def generate_media_id() -> str:
-    """Generate a new UUID v7 string for a media item (image or video)."""
     return str(_uuid.uuid7())
 
 
@@ -26,8 +22,6 @@ def format_external_id(type_prefix: str, internal_id: str) -> str:
 
 
 class InvalidExternalIdKind(StrEnum):
-    """Why an external ID could not be parsed."""
-
     WRONG_PREFIX = "wrong-prefix"
     """No ``prefix_`` part, or a prefix other than the expected one."""
     MALFORMED = "malformed"
@@ -49,9 +43,7 @@ class InvalidExternalIdError(ValueError):
 
 
 def parse_external_id(external_id: str, expected_prefix: str) -> str:
-    """Convert ``prefix_base58`` external form back to a UUID string.
-
-    Raises :class:`InvalidExternalIdError` on a wrong prefix or an encoded
+    """Raises :class:`InvalidExternalIdError` on a wrong prefix or an encoded
     part that is not a base58-encoded UUID.
     """
     prefix, sep, encoded = external_id.partition("_")
@@ -71,25 +63,20 @@ def parse_external_id(external_id: str, expected_prefix: str) -> str:
 
 
 def format_album_external_id(internal_id: str) -> str:
-    """Convenience wrapper for album external IDs."""
     return format_external_id(ALBUM_ID_PREFIX, internal_id)
 
 
 def format_image_external_id(internal_id: str) -> str:
-    """Convenience wrapper for image external IDs."""
     return format_external_id(IMAGE_ID_PREFIX, internal_id)
 
 
 def format_video_external_id(internal_id: str) -> str:
-    """Convenience wrapper for video external IDs."""
     return format_external_id(VIDEO_ID_PREFIX, internal_id)
 
 
 def parse_image_external_id(external_id: str) -> str:
-    """Parse an image external ID back to a UUID string."""
     return parse_external_id(external_id, IMAGE_ID_PREFIX)
 
 
 def parse_video_external_id(external_id: str) -> str:
-    """Parse a video external ID back to a UUID string."""
     return parse_external_id(external_id, VIDEO_ID_PREFIX)

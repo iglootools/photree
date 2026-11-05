@@ -1,12 +1,6 @@
-"""Gallery face clustering protocol — models and constants."""
-
 from pydantic import Field
 
 from ...foundation.model import PhotreeModel
-
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
 
 FACES_DIR = "faces"
 """Subdirectory under gallery ``.photree/`` for face clustering data."""
@@ -18,11 +12,6 @@ FACE_CHECKSUMS_FILE = "album-checksums.yaml"
 
 DEFAULT_CLUSTER_THRESHOLD = 0.45
 """Default cosine distance threshold for face clustering."""
-
-
-# ---------------------------------------------------------------------------
-# Pydantic models
-# ---------------------------------------------------------------------------
 
 
 class FaceReference(PhotreeModel):

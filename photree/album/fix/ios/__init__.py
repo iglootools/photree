@@ -49,11 +49,6 @@ __all__ = [
 ]
 
 
-# ---------------------------------------------------------------------------
-# Flag validation
-# ---------------------------------------------------------------------------
-
-
 class FixIosValidationErrorKind(StrEnum):
     MUTUALLY_EXCLUSIVE = "mutually-exclusive"
     NO_FIX_SPECIFIED = "no-fix-specified"
@@ -67,9 +62,7 @@ _MISCATEGORIZED_FLAGS = (
 
 
 class FixIosValidationError(ValueError):
-    """Raised when fix-ios flag combinations are invalid.
-
-    ``flags`` lists the offending options (for ``MUTUALLY_EXCLUSIVE``). The
+    """``flags`` lists the offending options (for ``MUTUALLY_EXCLUSIVE``). The
     message carries no command advice: each CLI scope suggests its own help.
     """
 
@@ -117,10 +110,7 @@ def validate_fix_flags(
     rm_miscategorized_safe: bool,
     mv_miscategorized: bool,
 ) -> None:
-    """Validate fix-ios flag combinations.
-
-    Raises :class:`FixIosValidationError` on invalid combinations.
-    """
+    """Raises :class:`FixIosValidationError` on invalid combinations."""
     action = _miscategorized_action(
         rm=rm_miscategorized, rm_safe=rm_miscategorized_safe, mv=mv_miscategorized
     )
@@ -128,15 +118,8 @@ def validate_fix_flags(
         raise FixIosValidationError(FixIosValidationErrorKind.NO_FIX_SPECIFIED)
 
 
-# ---------------------------------------------------------------------------
-# Aggregated fix-ios runner
-# ---------------------------------------------------------------------------
-
-
 @dataclass(frozen=True)
 class FixIosMiscategorizedResult:
-    """Aggregated result of miscategorized fix across media sources."""
-
     action: MiscategorizedAction
     heic_from_orig: int
     heic_from_rendered: int
@@ -146,9 +129,7 @@ class FixIosMiscategorizedResult:
 
 @dataclass(frozen=True)
 class FixIosResult:
-    """Aggregated result of all fix-ios operations on a single album.
-
-    ``None`` means the operation was not requested; an empty value means it
+    """``None`` means the operation was not requested; an empty value means it
     ran and found nothing, which is reported as such.
     """
 
@@ -212,11 +193,8 @@ def run_fix_ios(
     rm_miscategorized_safe: bool = False,
     mv_miscategorized: bool = False,
 ) -> FixIosResult:
-    """Run selected fix-ios operations on a single album.
-
-    Iterates over all iOS media sources, runs the requested operations,
-    and returns aggregated results. An album without iOS media sources is
-    reported through ``no_ios_media_sources`` rather than an empty result.
+    """An album without iOS media sources is reported through
+    ``no_ios_media_sources`` rather than an empty result.
     """
     media_sources = [ms for ms in discover_media_sources(album_dir) if ms.is_ios]
     if not media_sources:

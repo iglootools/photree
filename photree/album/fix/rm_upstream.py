@@ -32,10 +32,6 @@ from ..store.file_matching import find_files_by_key
 from ..store.media_source import MediaSource
 from .helpers import _require_archive
 
-# ---------------------------------------------------------------------------
-# Results and errors
-# ---------------------------------------------------------------------------
-
 
 class MediaKind(StrEnum):
     IMAGES = "images"
@@ -43,8 +39,6 @@ class MediaKind(StrEnum):
 
 
 class SignalSkipReason(StrEnum):
-    """Why a browsable directory was not used as a deletion signal."""
-
     MISSING = "missing"  # the directory does not exist
     NO_EXPECTED_FILES = "no-expected-files"  # exists, but holds none it should
 
@@ -76,8 +70,6 @@ class RmUpstreamRefusedError(ValueError):
 
 @dataclass(frozen=True)
 class RmUpstreamHeicResult:
-    """Result of propagating image deletions."""
-
     removed_jpeg: tuple[str, ...]
     removed_browsable: tuple[str, ...]
     removed_rendered: tuple[str, ...]
@@ -86,24 +78,15 @@ class RmUpstreamHeicResult:
 
 @dataclass(frozen=True)
 class RmUpstreamMovResult:
-    """Result of propagating video deletions."""
-
     removed_rendered: tuple[str, ...]
     removed_orig: tuple[str, ...]
 
 
 @dataclass(frozen=True)
 class RmUpstreamResult:
-    """Result of propagating deletions from browsable dirs to archive dirs."""
-
     heic: RmUpstreamHeicResult
     mov: RmUpstreamMovResult
     skipped: tuple[RmUpstreamSkip, ...] = ()
-
-
-# ---------------------------------------------------------------------------
-# Planning
-# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -257,7 +240,6 @@ def _plan_videos(album_dir: Path, ms: MediaSource, *, force: bool) -> _Signal:
 def plan_rm_upstream(
     album_dir: Path, ms: MediaSource, *, force: bool = False
 ) -> RmUpstreamPlan:
-    """Compute what :func:`rm_upstream` would delete for one media source."""
     _require_archive(album_dir, ms)
     from_img, from_jpg = _plan_images(album_dir, ms, force=force)
     from_vid = _plan_videos(album_dir, ms, force=force)
@@ -281,11 +263,6 @@ def check_rm_upstream_plans(plans: list[RmUpstreamPlan], *, force: bool) -> None
     refusal = next((err for plan in plans if (err := plan.refusal()) is not None), None)
     if refusal is not None and not force:
         raise refusal
-
-
-# ---------------------------------------------------------------------------
-# Execution
-# ---------------------------------------------------------------------------
 
 
 def _delete_keys(
@@ -337,9 +314,7 @@ def rm_upstream(
     dry_run: bool = False,
     force: bool = False,
 ) -> RmUpstreamResult:
-    """Propagate deletions from browsable dirs to archive dirs.
-
-    Works for both iOS and std media sources.
+    """Works for both iOS and std media sources.
 
     Images: deletions detected from {name}-jpg or {name}-img are
     propagated to {name}-jpg, {name}-img, edit-img, and orig-img.

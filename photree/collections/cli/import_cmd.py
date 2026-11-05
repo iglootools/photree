@@ -1,5 +1,3 @@
-"""``photree collections import`` command."""
-
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated
@@ -218,7 +216,6 @@ def _run_one(
     exiftool: ExifToolHelper | None,
     cwd: Path,
 ) -> _ImportOutcome:
-    """Import one collection with progress reporting."""
     name = str(display_path(col_dir, cwd))
     progress.on_start(name)
     outcome = _import_one(

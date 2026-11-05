@@ -22,11 +22,6 @@ _EXIF_DATE_FORMAT = "%Y:%m:%d %H:%M:%S"
 _EXIF_DATE_TZ_FORMAT = "%Y:%m:%d %H:%M:%S%z"
 
 
-# ---------------------------------------------------------------------------
-# exiftool process management
-# ---------------------------------------------------------------------------
-
-
 def try_start_exiftool(*, which: WhichFn = shutil.which) -> ExifToolHelper | None:
     """Start a persistent exiftool process if the binary is installed.
 
@@ -60,11 +55,6 @@ def exiftool_session(
     finally:
         if et is not None:
             et.__exit__(None, None, None)
-
-
-# ---------------------------------------------------------------------------
-# Timestamp reading
-# ---------------------------------------------------------------------------
 
 
 def parse_timestamp(value: str) -> datetime | None:
@@ -159,11 +149,6 @@ def read_exif_timestamps_by_file(
     ]
 
 
-# ---------------------------------------------------------------------------
-# EXIF writing
-# ---------------------------------------------------------------------------
-
-
 class ExifToolError(OSError):
     """An ``exiftool`` invocation exited non-zero.
 
@@ -181,8 +166,6 @@ class ExifToolError(OSError):
 
 @dataclass(frozen=True)
 class ExifDateChange:
-    """Record of a single file's EXIF date change."""
-
     path: Path
     original: str
     new_value: str

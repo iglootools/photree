@@ -1,5 +1,3 @@
-"""Multi-album indexing — ID→path mapping and duplicate detection."""
-
 import itertools
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -10,8 +8,6 @@ from ..album.store.metadata import load_album_metadata
 
 @dataclass(frozen=True)
 class AlbumIndex:
-    """In-memory mapping of album IDs to their filesystem paths."""
-
     id_to_path: Mapping[str, Path]
     """Internal UUID → album path (first occurrence when duplicates exist)."""
 

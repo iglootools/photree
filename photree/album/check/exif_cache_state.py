@@ -16,8 +16,6 @@ from ..store.media_source import MediaSource
 
 @dataclass(frozen=True)
 class ExifCacheStateCheck:
-    """Result of EXIF cache state validation for an album."""
-
     missing_sources: tuple[str, ...]
 
     @property
@@ -33,9 +31,7 @@ def check_exif_cache_state(
     album_dir: Path,
     media_sources: list[MediaSource],
 ) -> ExifCacheStateCheck | None:
-    """Validate EXIF cache state for an album.
-
-    Returns ``None`` when there is nothing to check (no media source, or no
+    """Returns ``None`` when there is nothing to check (no media source, or no
     EXIF cache directory yet), and a check — successful or not — whenever the
     cache exists. Only checks that each media source has a cache file —
     trusts the cache content without per-file mtime verification.

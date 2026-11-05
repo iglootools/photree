@@ -25,10 +25,7 @@ def run_import_preflight(
     force: bool = False,
     skip_heic_to_jpeg: bool = False,
 ) -> Path:
-    """Run all preflight checks and resolve the Image Capture directory.
-
-    Prints all check lines first, then troubleshooting for failures at the end.
-    """
+    """Prints all check lines first, then troubleshooting for failures at the end."""
     try:
         image_capture_dir = resolve_image_capture_dir(source, config_path)
     except ConfigError as exc:

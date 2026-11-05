@@ -1,5 +1,3 @@
-"""Album metadata I/O."""
-
 from pathlib import Path
 
 from ...foundation.layout import PHOTREE_DIR
@@ -8,7 +6,6 @@ from .protocol import ALBUM_YAML, AlbumMetadata
 
 
 def album_metadata_path(album_dir: Path) -> Path:
-    """Return ``<album>/.photree/album.yaml``."""
     return album_dir / PHOTREE_DIR / ALBUM_YAML
 
 
@@ -25,7 +22,6 @@ def load_album_metadata(album_dir: Path) -> AlbumMetadata | None:
 
 
 def save_album_metadata(album_dir: Path, metadata: AlbumMetadata) -> None:
-    """Write :class:`AlbumMetadata` to ``.photree/album.yaml``."""
     path = album_metadata_path(album_dir)
     path.parent.mkdir(exist_ok=True)
     write_yaml(path, metadata.model_dump(by_alias=True, mode="json"))

@@ -63,7 +63,6 @@ _LINK_MODE_VERBS: dict[LinkMode, str] = {
 
 
 def place_file(src: Path, dst: Path, link_mode: LinkMode) -> None:
-    """Place a file into the browsable directory using the specified link mode."""
     match link_mode:
         case LinkMode.COPY:
             shutil.copy(src, dst)
@@ -84,8 +83,6 @@ def place_file(src: Path, dst: Path, link_mode: LinkMode) -> None:
 
 @dataclass(frozen=True)
 class RefreshBrowsableDirResult:
-    """Result of refreshing a single browsable directory."""
-
     copied: int
 
 
@@ -101,11 +98,7 @@ def refresh_browsable_dir(
     on_file_start: Callable[[str], None] | None = None,
     on_file_end: Callable[[str, bool], None] | None = None,
 ) -> RefreshBrowsableDirResult:
-    """Rebuild a browsable directory from orig and edited archive sources.
-
-    Clears the browsable directory and re-populates it with the best version
-    of each file (edited if available, otherwise original). The directory is
-    cleared even when the archive is empty or missing, so files of deleted
+    """The directory is cleared even when the archive is empty or missing, so files of deleted
     media do not survive the refresh.
     """
     files_to_copy = compute_browsable_files(

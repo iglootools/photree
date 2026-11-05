@@ -1,5 +1,3 @@
-"""Gallery import command handlers (single and batch)."""
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -109,8 +107,6 @@ class AlbumImportFailure:
 
 @dataclass(frozen=True)
 class BatchImportResult:
-    """Result of batch gallery import."""
-
     imported: tuple[Path, ...] = ()
     failures: tuple[AlbumImportFailure, ...] = ()
 

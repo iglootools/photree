@@ -50,7 +50,6 @@ def format_invalid_metadata(exc: InvalidMetadataError, cwd: Path) -> str:
 
 
 def resolve_gallery_or_exit(gallery_dir: Path | None) -> Path:
-    """Resolve gallery directory or exit with a clear error."""
     try:
         return resolve_gallery_dir(gallery_dir)
     except GalleryNotFoundError as exc:

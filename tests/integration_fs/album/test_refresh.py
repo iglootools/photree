@@ -1,5 +1,3 @@
-"""Tests for media metadata refresh logic."""
-
 from pathlib import Path
 
 from photree.album.id import generate_album_id
@@ -15,7 +13,6 @@ def _write(path: Path, content: str = "data") -> None:
 
 
 def _setup_ios_album(album_dir: Path) -> None:
-    """Create a minimal iOS album with orig-img and orig-vid files."""
     album_dir.mkdir(parents=True, exist_ok=True)
     save_album_metadata(album_dir, AlbumMetadata(id=generate_album_id()))
     _write(album_dir / "ios-main" / "orig-img" / "IMG_0410.HEIC")
@@ -26,7 +23,6 @@ def _setup_ios_album(album_dir: Path) -> None:
 
 
 def _setup_std_album(album_dir: Path, name: str = "nelu") -> None:
-    """Create a std media source with archive."""
     _write(album_dir / f"std-{name}" / "orig-img" / "DSC_1234.JPG")
     _write(album_dir / f"std-{name}" / "orig-img" / "DSC_5678.JPG")
     _write(album_dir / f"std-{name}" / "orig-vid" / "VID_001.MOV")
@@ -129,7 +125,6 @@ class TestRefreshNewFiles:
         assert meta_before is not None
         uuids_before = set(meta_before.media_sources["main"].images.keys())
 
-        # Add a new file
         _write(album / "ios-main" / "orig-img" / "IMG_0412.HEIC")
 
         result = refresh_media_metadata(album)
@@ -151,7 +146,6 @@ class TestRefreshRemovedFiles:
 
         refresh_media_metadata(album)
 
-        # Remove a file
         (album / "ios-main" / "orig-img" / "IMG_0410.HEIC").unlink()
 
         result = refresh_media_metadata(album)
@@ -173,7 +167,6 @@ class TestRefreshMixed:
 
         refresh_media_metadata(album)
 
-        # Remove one, add another
         (album / "ios-main" / "orig-img" / "IMG_0410.HEIC").unlink()
         _write(album / "ios-main" / "orig-img" / "IMG_0999.HEIC")
 

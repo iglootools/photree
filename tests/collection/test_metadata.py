@@ -1,5 +1,3 @@
-"""Tests for collection metadata I/O."""
-
 from pathlib import Path
 
 import pytest
@@ -88,7 +86,6 @@ class TestCollectionMetadata:
         assert (collection_dir / PHOTREE_DIR / COLLECTION_YAML).is_file()
 
     def test_kebab_case_yaml_keys(self, tmp_path: Path) -> None:
-        """Verify YAML uses kebab-case keys (not snake_case)."""
         collection_dir = tmp_path / "col"
         collection_dir.mkdir()
         metadata = CollectionMetadata(
@@ -101,7 +98,6 @@ class TestCollectionMetadata:
         assert "members:" in content
         assert "lifecycle:" in content
         assert "strategy:" in content
-        # No underscores in keys
         assert "collection_" not in content
 
 

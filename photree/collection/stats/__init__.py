@@ -1,5 +1,3 @@
-"""Collection stats computation."""
-
 from collections import Counter
 from pathlib import Path
 
@@ -13,7 +11,6 @@ from .models import CollectionStatsEntry, GalleryCollectionStats
 def compute_gallery_collection_stats(
     gallery_dir: Path,
 ) -> GalleryCollectionStats:
-    """Compute collection stats for the gallery."""
     entries = [
         CollectionStatsEntry(
             name=col_dir.name,

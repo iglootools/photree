@@ -58,7 +58,6 @@ def convert_to_jpeg(src: Path, dst: Path) -> None:
 
 
 def convert_to_heic(src: Path, dst: Path) -> None:
-    """Convert *src* to HEIC via ``sips``, writing to *dst*."""
     _run(["sips", "-s", "format", "heic", str(src), "--out", str(dst)], path=src)
 
 

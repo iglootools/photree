@@ -1,5 +1,3 @@
-"""Tests for photree.cli package."""
-
 import csv
 import io
 from pathlib import Path
@@ -39,7 +37,6 @@ def _setup_album(
 
 
 def _write_csv(path: Path, rows: list[dict[str, str]]) -> None:
-    """Write a list of dicts as a CSV file."""
     buf = io.StringIO()
     writer = csv.DictWriter(buf, fieldnames=list(rows[0].keys()))
     writer.writeheader()
@@ -60,11 +57,6 @@ class TestVersionCommand:
     def test_no_args_shows_help(self) -> None:
         result = runner.invoke(app, [])
         assert "photree" in result.output.lower()
-
-
-# ---------------------------------------------------------------------------
-# albums rename-from-csv
-# ---------------------------------------------------------------------------
 
 
 class TestAlbumsRenameFromCsv:
@@ -118,7 +110,6 @@ class TestAlbumsRenameFromCsv:
         )
         assert result.exit_code == 0
         assert "dry run" in result.output.lower()
-        # Original directory is unchanged
         assert (tmp_path / "2024-06-15 - Trip").is_dir()
 
     def test_no_changes(self, tmp_path: Path) -> None:

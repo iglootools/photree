@@ -306,6 +306,8 @@ class TestExifCachePaths:
 
 
 class TestCorruptMetadata:
+    """Corrupt metadata is never treated as absent."""
+
     def test_corrupt_media_ids_raises(self, tmp_path: Path) -> None:
         _write(tmp_path / "ios-main/orig-img/IMG_0001.HEIC")
         refresh_media_metadata(tmp_path)

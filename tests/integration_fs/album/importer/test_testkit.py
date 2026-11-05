@@ -1,5 +1,3 @@
-"""Tests for photree.album.importer.testkit module."""
-
 import shutil
 from pathlib import Path
 
@@ -14,7 +12,6 @@ class TestSeedDemo:
 
         assert result.image_capture_dir.is_dir()
         files = sorted(f.name for f in result.image_capture_dir.iterdir())
-        # All expected IC files present
         assert "IMG_0001.HEIC" in files
         assert "IMG_0001.AAE" in files
         assert "IMG_E0001.HEIC" in files
@@ -80,6 +77,5 @@ class TestSeedDemo:
 
         sel_files = {f.name for f in result.selection_dir.iterdir()}
         assert "IMG_0004.JPG" not in sel_files
-        # But it exists in IC
         ic_files = {f.name for f in result.image_capture_dir.iterdir()}
         assert "IMG_0004.JPG" in ic_files

@@ -1,5 +1,3 @@
-"""Batch post-import check command handler."""
-
 from collections.abc import Callable
 from pathlib import Path
 

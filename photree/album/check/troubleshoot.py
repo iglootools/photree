@@ -1,5 +1,3 @@
-"""Troubleshooting suggestions for album integrity issues."""
-
 import shlex
 from collections import defaultdict
 from textwrap import dedent
@@ -9,10 +7,6 @@ from ..exif_date_check import ExifMismatch
 from ..store.media_source import MediaSource
 from .ios import IosMediaSourceIntegrityResult
 from .std import StdMediaSourceIntegrityResult
-
-# ---------------------------------------------------------------------------
-# Integrity fixes
-# ---------------------------------------------------------------------------
 
 
 def _has_browsable_issues(
@@ -133,7 +127,6 @@ def suggest_fixes(
     album_dir_flag: str,
     media_source: MediaSource,
 ) -> list[str]:
-    """Suggest fix commands based on integrity check failures."""
     common = _common_suggestions(integrity, album_dir_flag, media_source)
     match integrity:
         case IosMediaSourceIntegrityResult():
@@ -143,11 +136,6 @@ def suggest_fixes(
                 *common,
                 *_std_suggestions(integrity, album_dir_flag, media_source),
             ]
-
-
-# ---------------------------------------------------------------------------
-# EXIF fixes
-# ---------------------------------------------------------------------------
 
 
 def _expand_date(d: str) -> str:
@@ -171,8 +159,7 @@ def _sh(path: str) -> str:
 def _fix_lines(
     items: list[ExifMismatch], *, exif_date: str, album_dir: str
 ) -> list[str]:
-    # Collect upstream source files for the exiftool fix command
-    # Exclude .AAE sidecars — they don't contain EXIF dates
+    # Exclude .AAE sidecars: they carry no EXIF dates.
     upstream = sorted(
         f for m in items for f in m.upstream_files if not f.lower().endswith(".aae")
     )

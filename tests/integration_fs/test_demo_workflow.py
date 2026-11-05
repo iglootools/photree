@@ -24,10 +24,7 @@ from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayo
 
 
 class TestDemoWorkflow:
-    """Full end-to-end workflow: seed → import → check → export."""
-
     def test_full_workflow(self, tmp_path: Path) -> None:
-        # ── Seed ─────────────────────────────────────────────
         result = seed_demo(tmp_path, album_name="2024-06-15 - Demo Album")
         ic_dir = result.image_capture_dir
         album_dir = result.album_dir
@@ -46,7 +43,6 @@ class TestDemoWorkflow:
         # IMG_0004 intentionally excluded from selection
         assert "IMG_0004.JPG" not in sel_files
 
-        # ── Import ───────────────────────────────────────────
         # Use noop converter on Linux where sips is unavailable
         converter = (
             convert_single_file
@@ -66,7 +62,6 @@ class TestDemoWorkflow:
         assert len(main_plan.unmatched) == 0
         assert len(import_result.unprocessed) == 0
 
-        # Album marker, metadata, and iOS directory structure created
         assert (album_dir / PHOTREE_DIR).is_dir()
         assert (album_dir / PHOTREE_DIR / ALBUM_YAML).is_file()
         assert load_album_metadata(album_dir) is not None
@@ -74,7 +69,6 @@ class TestDemoWorkflow:
         assert (album_dir / MAIN_MEDIA_SOURCE.archive_dir).is_dir()
         assert any(ms.is_ios for ms in discover_media_sources(album_dir))
 
-        # Originals imported
         assert (album_dir / MAIN_MEDIA_SOURCE.orig_img_dir).is_dir()
         orig_img_files = sorted(os.listdir(album_dir / MAIN_MEDIA_SOURCE.orig_img_dir))
         assert "IMG_0001.HEIC" in orig_img_files
@@ -87,7 +81,6 @@ class TestDemoWorkflow:
         assert "IMG_0009.HEIC" in orig_img_files
         assert "IMG_0009.MOV" in orig_img_files
 
-        # Edits imported
         assert (album_dir / MAIN_MEDIA_SOURCE.edit_img_dir).is_dir()
         edit_img_files = sorted(os.listdir(album_dir / MAIN_MEDIA_SOURCE.edit_img_dir))
         assert "IMG_E0001.HEIC" in edit_img_files
@@ -96,14 +89,12 @@ class TestDemoWorkflow:
         assert "IMG_E0009.HEIC" in edit_img_files
         assert "IMG_E0009.MOV" in edit_img_files
 
-        # Videos imported
         assert (album_dir / MAIN_MEDIA_SOURCE.orig_vid_dir).is_dir()
         assert "IMG_0006.MOV" in os.listdir(album_dir / MAIN_MEDIA_SOURCE.orig_vid_dir)
         assert "IMG_0007.MOV" in os.listdir(album_dir / MAIN_MEDIA_SOURCE.orig_vid_dir)
         assert (album_dir / MAIN_MEDIA_SOURCE.edit_vid_dir).is_dir()
         assert "IMG_E0007.MOV" in os.listdir(album_dir / MAIN_MEDIA_SOURCE.edit_vid_dir)
 
-        # Main directories created
         assert (album_dir / MAIN_MEDIA_SOURCE.img_dir).is_dir()
         assert (album_dir / MAIN_MEDIA_SOURCE.vid_dir).is_dir()
         assert (album_dir / MAIN_MEDIA_SOURCE.jpg_dir).is_dir()
@@ -124,13 +115,11 @@ class TestDemoWorkflow:
         assert "IMG_0006.MOV" in main_vid_files  # no edit
         assert "IMG_E0007.MOV" in main_vid_files  # edit preferred
 
-        # Selection files cleaned up
         assert (
             not (album_dir / "to-import-ios-main").exists()
             or len(os.listdir(album_dir / "to-import-ios-main")) == 0
         )
 
-        # ── Check ────────────────────────────────────────────
         with exiftool_session() as exiftool:
             preflight = run_album_check(
                 album_dir,
@@ -145,7 +134,6 @@ class TestDemoWorkflow:
         assert preflight.integrity is not None
         assert preflight.integrity.success
 
-        # ── Export (main-jpg) ─────────────────────────────────
         share_dir = tmp_path / "share"
         share_dir.mkdir()
         (share_dir / SHARE_SENTINEL).touch()
@@ -163,15 +151,12 @@ class TestDemoWorkflow:
         assert export_result.album_type == "ios"
         assert export_result.files_copied > 0
 
-        # Exported structure: main-jpg/ and main-vid/ (main-jpg layout)
         exported = target_dir
         assert not (exported / "main-img").exists()
         assert (exported / "main-jpg").is_dir()
         assert (exported / "main-vid").is_dir()
 
-        # iOS internal dirs should NOT be exported
         assert not (exported / MAIN_MEDIA_SOURCE.archive_dir).exists()
 
-        # Exported vid/ matches main-vid content
         exported_vid = sorted(os.listdir(exported / "main-vid"))
         assert exported_vid == main_vid_files

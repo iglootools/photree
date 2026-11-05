@@ -1,5 +1,3 @@
-"""``photree gallery rename-from-csv`` command."""
-
 from pathlib import Path
 from typing import Annotated
 
@@ -56,10 +54,8 @@ def rename_from_csv_cmd(
     resolved = resolve_gallery_or_exit(gallery_dir)
     cwd = Path.cwd()
 
-    # Build album index
     index = build_index_or_exit(resolved, cwd)
 
-    # Check for duplicate IDs in gallery
     if index.duplicates:
         err_console.print(
             "\n".join(

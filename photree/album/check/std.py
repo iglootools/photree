@@ -1,9 +1,3 @@
-"""Std (non-iOS) media source integrity checks.
-
-Validates browsable directory consistency, JPEG completeness, and
-duplicate filename stems for std media sources with archives.
-"""
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from itertools import groupby
@@ -38,10 +32,6 @@ def _stem(filename: str) -> str:
 def check_duplicate_stems(
     directory: Path, media_extensions: frozenset[str]
 ) -> tuple[DuplicateStem, ...]:
-    """Check for files with the same stem but different extensions.
-
-    E.g. ``photo1.heic`` + ``photo1.jpg`` in the same directory.
-    """
     media = sorted(
         (f for f in list_files(directory) if file_ext(f) in media_extensions),
         key=_stem,
@@ -55,8 +45,6 @@ def check_duplicate_stems(
 
 @dataclass(frozen=True)
 class StdMediaSourceIntegrityResult:
-    """Integrity check result for a single std media source."""
-
     browsable_img: BrowsableDirCheck
     browsable_vid: BrowsableDirCheck
     browsable_jpg: JpegCheck
@@ -87,9 +75,7 @@ def check_std_media_source_integrity(
     checksum: bool = True,
     on_file_checked: Callable[[str, bool], None] | None = None,
 ) -> StdMediaSourceIntegrityResult:
-    """Run integrity checks for a single std media source.
-
-    Only runs on std media sources that have an archive directory
+    """Only runs on std media sources that have an archive directory
     (``std-{name}/``) on disk.
     """
     if not ms.is_std:

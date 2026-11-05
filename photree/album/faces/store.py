@@ -1,5 +1,3 @@
-"""Face data I/O — load/save ``.npz`` arrays and ``.yaml`` state files."""
-
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -16,42 +14,26 @@ from .protocol import (
     FaceProcessingState,
 )
 
-# ---------------------------------------------------------------------------
-# Path helpers
-# ---------------------------------------------------------------------------
-
 
 def faces_dir(album_dir: Path) -> Path:
-    """Return ``<album>/.photree/cache/faces/``."""
     return album_dir / PHOTREE_DIR / FACES_DIR
 
 
 def state_path(album_dir: Path, media_source_name: str) -> Path:
-    """Return ``<album>/.photree/cache/faces/{name}.yaml``."""
     return faces_dir(album_dir) / f"{media_source_name}{FACES_STATE_SUFFIX}"
 
 
 def data_path(album_dir: Path, media_source_name: str) -> Path:
-    """Return ``<album>/.photree/cache/faces/{name}.npz``."""
     return faces_dir(album_dir) / f"{media_source_name}{FACES_DATA_SUFFIX}"
 
 
 def thumbs_dir(album_dir: Path, media_source_name: str) -> Path:
-    """Return ``<album>/.photree/cache/faces/{name}-thumbs/``."""
     return faces_dir(album_dir) / f"{media_source_name}{THUMBS_DIR_SUFFIX}"
-
-
-# ---------------------------------------------------------------------------
-# Face data arrays (.npz)
-# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
 class FaceData:
-    """In-memory representation of per-media-source face detection results.
-
-    All arrays have length ``N`` (total detected faces across all images).
-    """
+    """All arrays have length ``N`` (total detected faces across all images)."""
 
     keys: np.ndarray  # (N,) str — media key per face
     face_indices: np.ndarray  # (N,) int32 — 0-based face index within image
@@ -66,7 +48,6 @@ class FaceData:
 
     @staticmethod
     def empty() -> FaceData:
-        """Return an empty :class:`FaceData` with zero faces."""
         return FaceData(
             keys=np.array([], dtype=object),
             face_indices=np.array([], dtype=np.int32),
@@ -94,7 +75,6 @@ def load_face_data(album_dir: Path, media_source_name: str) -> FaceData | None:
 
 
 def save_face_data(album_dir: Path, media_source_name: str, data: FaceData) -> None:
-    """Write face data to ``.photree/cache/faces/{name}.npz``."""
     path = data_path(album_dir, media_source_name)
     path.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(
@@ -108,17 +88,10 @@ def save_face_data(album_dir: Path, media_source_name: str, data: FaceData) -> N
     )
 
 
-# ---------------------------------------------------------------------------
-# Processing state (.yaml)
-# ---------------------------------------------------------------------------
-
-
 def load_face_state(
     album_dir: Path, media_source_name: str
 ) -> FaceProcessingState | None:
-    """Load processing state from ``.photree/cache/faces/{name}.yaml``.
-
-    Returns ``None`` when absent; raises
+    """Returns ``None`` when absent; raises
     :class:`~photree.foundation.metadata_io.InvalidMetadataError` when present but corrupt
     (``--redetect-faces`` or deleting the file rebuilds it).
     """
@@ -132,19 +105,12 @@ def load_face_state(
 def save_face_state(
     album_dir: Path, media_source_name: str, state: FaceProcessingState
 ) -> None:
-    """Write processing state to ``.photree/cache/faces/{name}.yaml``."""
     path = state_path(album_dir, media_source_name)
     path.parent.mkdir(parents=True, exist_ok=True)
     write_yaml(path, state.model_dump(by_alias=True, mode="json"))
 
 
-# ---------------------------------------------------------------------------
-# Merge / filter helpers
-# ---------------------------------------------------------------------------
-
-
 def filter_face_data(data: FaceData, *, keep_keys: set[str]) -> FaceData:
-    """Return a new :class:`FaceData` containing only faces whose key is in *keep_keys*."""
     if data.count == 0:
         return data
     mask = np.isin(data.keys, list(keep_keys))
@@ -159,7 +125,6 @@ def filter_face_data(data: FaceData, *, keep_keys: set[str]) -> FaceData:
 
 
 def merge_face_data(existing: FaceData, new: FaceData) -> FaceData:
-    """Concatenate two :class:`FaceData` instances."""
     if existing.count == 0:
         return new
     if new.count == 0:

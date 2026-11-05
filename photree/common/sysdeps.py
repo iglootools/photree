@@ -48,7 +48,6 @@ def purpose(dependency: SystemDependency) -> str:
 
 
 def install_hint(dependency: SystemDependency) -> str:
-    """Return installation instructions for *dependency*."""
     return _INSTALL_HINT[dependency]
 
 
@@ -89,7 +88,6 @@ def check_system_dependencies(
 def missing_dependencies(
     statuses: Iterable[SystemDependencyStatus],
 ) -> tuple[SystemDependency, ...]:
-    """Return the dependencies among *statuses* that are not available."""
     return tuple(s.dependency for s in statuses if not s.available)
 
 

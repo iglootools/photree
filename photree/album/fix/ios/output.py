@@ -1,5 +1,3 @@
-"""User-facing output formatting for iOS fix commands."""
-
 from typing import TYPE_CHECKING
 
 from .miscategorized import MiscategorizedAction
@@ -77,10 +75,7 @@ def _miscategorized_line(mc: FixIosMiscategorizedResult) -> str:
 
 
 def format_fix_ios_result(result: FixIosResult) -> list[str]:
-    """Format a :class:`FixIosResult` into output lines.
-
-    Every requested operation produces a line, including "nothing found".
-    """
+    """Every requested operation produces a line, including "nothing found"."""
     sidecars = result.rm_orphan_sidecar_removed_by_dir
     dups = result.prefer_higher_quality_removed_by_dir
     miscategorized = result.miscategorized_result

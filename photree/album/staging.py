@@ -39,5 +39,4 @@ def std_import_dir(name: str) -> str:
 
 
 def is_import_staging_dir(name: str) -> bool:
-    """Return True for a ``to-import-{ios,std}-<name>`` staging directory."""
     return name.startswith((f"{TO_IMPORT_PREFIX}ios-", f"{TO_IMPORT_PREFIX}std-"))

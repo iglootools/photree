@@ -1,5 +1,3 @@
-"""Tests for photree.gallery.importer.reimport_album."""
-
 from pathlib import Path
 
 import pytest
@@ -74,7 +72,6 @@ class TestReimportAlbum:
         original_id = load_album_metadata(target).id  # type: ignore[union-attr]
         uuid_0001 = _uuid_for_key(target, "0001")
 
-        # Add a new image to the source.
         _write(source / "ios-main/orig-img/IMG_0002.HEIC", "heic2")
         _write(source / "main-img/IMG_0002.HEIC", "heic2")
 
@@ -104,7 +101,6 @@ class TestReimportAlbum:
         )
         uuid_0001 = _uuid_for_key(target, "0001")
 
-        # Remove 0002 from the source and reimport again.
         (source / "ios-main/orig-img/IMG_0002.HEIC").unlink()
         (source / "main-img/IMG_0002.HEIC").unlink()
         reimport_album(
@@ -149,7 +145,6 @@ class TestReimportAlbum:
                 refresh=_failing_refresh,
             )
 
-        # Original gallery copy is untouched, no staging/backup leftovers.
         meta = load_album_metadata(target)
         assert meta is not None and meta.id == original_id
         assert (target / "ios-main/orig-img/IMG_0001.HEIC").is_file()
@@ -168,7 +163,6 @@ class TestReimportAlbum:
             convert_file=noop_convert_single,
         )
 
-        # The new file was not propagated into the gallery.
         assert not (target / "ios-main/orig-img/IMG_0002.HEIC").exists()
 
     def test_rename_moves_album_and_keeps_id(self, tmp_path: Path) -> None:

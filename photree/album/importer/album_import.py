@@ -53,11 +53,6 @@ def import_stage_labels(tasks: Sequence[ImportTask]) -> dict[str, str]:
     }
 
 
-# ---------------------------------------------------------------------------
-# Validation
-# ---------------------------------------------------------------------------
-
-
 # What can be wrong with one import task. Errors are ValidationError,
 # StdValidationError and ArchiveCollision; ValidationWarning and DedupWarning
 # are informational.
@@ -72,16 +67,12 @@ TaskIssueDetail = (
 
 @dataclass(frozen=True)
 class TaskIssue:
-    """An issue found while validating the import task for *media_source*."""
-
     media_source: MediaSource
     detail: TaskIssueDetail
 
 
 @dataclass(frozen=True)
 class AlbumImportValidation:
-    """Aggregated validation for all of an album's import tasks."""
-
     album_dir: Path
     errors: tuple[TaskIssue, ...] = ()
     warnings: tuple[TaskIssue, ...] = ()
@@ -147,9 +138,7 @@ def validate_album_import(
     album_dir: Path,
     image_capture_files: list[str],
 ) -> AlbumImportValidation:
-    """Validate every import task in *album_dir* against *image_capture_files*.
-
-    iOS tasks use the selection→plan validation; std tasks use
+    """iOS tasks use the selection→plan validation; std tasks use
     :func:`photree.album.importer.std.validate_std_task`. Both also check for
     archive collisions, so every reason an import would be refused is known
     before anything is copied.
@@ -164,11 +153,6 @@ def validate_album_import(
         warnings=tuple(i for v in per_task for i in v.warnings),
         dedup_warnings=tuple(i for v in per_task for i in v.dedup_warnings),
     )
-
-
-# ---------------------------------------------------------------------------
-# Orchestration
-# ---------------------------------------------------------------------------
 
 
 class NoImportTasksError(FileNotFoundError):
@@ -193,8 +177,6 @@ class EmptyImageCaptureDirError(FileNotFoundError):
 
 @dataclass(frozen=True)
 class AlbumImportResult:
-    """Result of importing all of an album's tasks."""
-
     ios_results: tuple[IosSourceImportResult, ...] = ()
     std_results: tuple[StdImportResult, ...] = ()
     jpeg_failures: tuple[tuple[str, JpegConversionFailure], ...] = ()
@@ -318,7 +300,6 @@ def _run_task_stage(
     on_stage_start: Callable[[str], None] | None,
     on_stage_end: Callable[[str], None] | None,
 ) -> IosSourceImportResult | StdImportResult:
-    """Import one task as its own progress stage."""
     _notify(on_stage_start, _stage(task))
     result = _import_task(
         album_dir, task, image_capture_dir, image_capture_files, dry_run=dry_run
@@ -341,9 +322,7 @@ def run_import(
     analyzer_factory: FaceAnalyzerFactory | None = None,
     new_id: Callable[[], str] = generate_album_id,
 ) -> AlbumImportResult:
-    """Import all ``to-import-*`` tasks in *album_dir*, then refresh derived data.
-
-    Stages: one ``import-ios-<name>`` / ``import-std-<name>`` stage per task,
+    """Stages: one ``import-ios-<name>`` / ``import-std-<name>`` stage per task,
     then a final ``refresh-derived`` stage. The Image Capture directory is only
     consulted when at least one iOS task is present.
 
@@ -408,9 +387,7 @@ def _refresh_derived(
     exiftool: ExifToolHelper | None,
     analyzer_factory: FaceAnalyzerFactory | None,
 ) -> AlbumRefreshResult:
-    """Refresh all derived data once, as the ``refresh-derived`` stage.
-
-    Discovers every media source and builds browsable/JPEG/media-ids/EXIF
+    """Discovers every media source and builds browsable/JPEG/media-ids/EXIF
     cache/faces per source. Returns the refresh result, whose JPEG and face
     detection failures the import surfaces.
     """

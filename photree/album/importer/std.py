@@ -40,8 +40,6 @@ StdValidationError = StdNoMediaError | DuplicateStem
 
 @dataclass(frozen=True)
 class StdImportResult:
-    """Result of importing a single std media source."""
-
     media_source_name: str
     imported: int
     skipped_non_media: tuple[str, ...]
@@ -73,14 +71,11 @@ def _staged_media(task: ImportTask) -> list[str]:
 
 
 def has_media(task: ImportTask) -> bool:
-    """Return True if the std task's staging dir has at least one media file."""
     return bool(_staged_media(task))
 
 
 def validate_std_task(task: ImportTask) -> tuple[StdValidationError, ...]:
-    """Validate a std import task.
-
-    Mirrors existing std media source rules (see
+    """Mirrors existing std media source rules (see
     :func:`photree.album.check.std.check_std_media_source_integrity`):
     requires at least one media file, and rejects duplicate stems within
     ``orig/`` or ``edit/``. An ``edit/`` file with no matching ``orig/`` stem
@@ -96,7 +91,6 @@ def validate_std_task(task: ImportTask) -> tuple[StdValidationError, ...]:
 
 
 def _existing_archive_stems(album_dir: Path, ms: MediaSource) -> set[str]:
-    """Collect stems already present in a std source's archive directories."""
     return {
         Path(f).stem
         for subdir in (
@@ -111,7 +105,6 @@ def _existing_archive_stems(album_dir: Path, ms: MediaSource) -> set[str]:
 
 
 def find_std_collision(album_dir: Path, task: ImportTask) -> ArchiveCollision | None:
-    """Return the staged stems already present in the task's std archive."""
     ms = task.media_source
     incoming = {Path(f).stem for f in _staged_media(task)}
     collisions = sorted(incoming & _existing_archive_stems(album_dir, ms))
@@ -156,9 +149,7 @@ def import_std_source(
     *,
     dry_run: bool = False,
 ) -> StdImportResult:
-    """Import a std source's ``orig``/``edit`` files into its archive.
-
-    Splits each staging subfolder by extension into the archive's image/video
+    """Splits each staging subfolder by extension into the archive's image/video
     directories, then (on a non-dry run) removes the staging directory.
 
     The archive collision check (:func:`find_std_collision`) is the caller's
@@ -173,7 +164,6 @@ def import_std_source(
         for src, dst in media:
             dst.mkdir(parents=True, exist_ok=True)
             shutil.copy(src, dst / src.name)
-        # Consume the staging directory on success
         shutil.rmtree(staging)
 
     return StdImportResult(

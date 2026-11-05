@@ -141,7 +141,6 @@ def _read_csv(
 
 
 def _is_media_file(filename: str) -> bool:
-    """Check if a filename has a recognized media extension."""
     return file_ext(filename) in _MEDIA_EXTENSIONS
 
 
@@ -160,7 +159,6 @@ def _read_dir_entries(
     media_files = [f for f in filenames if _is_media_file(f)]
     non_media_files = [f for f in filenames if not _is_media_file(f)]
 
-    # Read EXIF dates for media files in one batch
     exif_dates = (
         {
             path.name: ts
@@ -209,7 +207,6 @@ def read_selection(
 def has_selection(
     collection_dir: Path,
 ) -> bool:
-    """Return True if the collection has selection entries from either source."""
     # Quick check without EXIF reading
     return bool(list_files(collection_dir / SELECTION_DIR)) or bool(
         _read_csv_rows(collection_dir / SELECTION_CSV)

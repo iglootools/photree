@@ -1,5 +1,3 @@
-"""rm-orphan-sidecar iOS fix operation."""
-
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -24,8 +22,6 @@ def _find_orphan_sidecars(directory: Path) -> list[str]:
 
 @dataclass(frozen=True)
 class RmOrphanSidecarResult:
-    """Result of removing orphan sidecars."""
-
     removed_by_dir: tuple[tuple[str, tuple[str, ...]], ...]
 
     @property
@@ -45,10 +41,7 @@ def rm_orphan_sidecar(
     *,
     dry_run: bool = False,
 ) -> RmOrphanSidecarResult:
-    """Remove AAE sidecar files that have no matching media file.
-
-    Scans orig-img/, edit-img/, orig-vid/, and edit-vid/.
-    """
+    """Scans orig-img/, edit-img/, orig-vid/, and edit-vid/."""
     require_ios(ms)
     directories = (
         album_dir / ms.orig_img_dir,

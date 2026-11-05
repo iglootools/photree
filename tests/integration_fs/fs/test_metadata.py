@@ -1,5 +1,3 @@
-"""Tests for metadata models, ID helpers, and album detection."""
-
 import uuid
 from pathlib import Path
 
@@ -52,7 +50,6 @@ def _write(path: Path, content: str = "data") -> None:
 
 
 def _mark_album(album_dir: Path) -> None:
-    """Create .photree/album.yaml with a generated ID."""
     save_album_metadata(album_dir, AlbumMetadata(id=generate_album_id()))
 
 

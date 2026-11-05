@@ -1,5 +1,3 @@
-"""Tests for executing planned album renames."""
-
 from pathlib import Path
 
 import pytest

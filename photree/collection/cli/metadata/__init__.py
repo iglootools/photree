@@ -1,5 +1,3 @@
-"""CLI commands for ``photree collection metadata``."""
-
 import typer
 
 collection_metadata_app = typer.Typer(

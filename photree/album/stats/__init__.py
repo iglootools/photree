@@ -1,10 +1,3 @@
-"""Album and gallery statistics computation.
-
-Computes disk usage, file counts, and content breakdowns for albums and
-galleries. All results are frozen dataclasses suitable for display via
-the output formatting layer.
-"""
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from itertools import groupby
@@ -62,11 +55,6 @@ __all__ = [
 ]
 
 _ZERO = SizeStats(file_count=0, apparent_bytes=0, on_disk_bytes=0)
-
-
-# ---------------------------------------------------------------------------
-# Per-media-source computation
-# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -135,9 +123,7 @@ def compute_media_source_stats(
     ms: MediaSource,
     seen_inodes: frozenset[InodeKey] = frozenset(),
 ) -> tuple[MediaSourceStats, frozenset[InodeKey]]:
-    """Compute stats for a single media source within an album.
-
-    *seen_inodes* are inodes already counted by earlier media sources of the
+    """*seen_inodes* are inodes already counted by earlier media sources of the
     same album; the updated set is returned for the next one.
     """
     has_archive = (album_dir / ms.archive_dir).is_dir()
@@ -165,11 +151,6 @@ def compute_media_source_stats(
     return stats, seen
 
 
-# ---------------------------------------------------------------------------
-# Per-album computation
-# ---------------------------------------------------------------------------
-
-
 class UnparseableAlbumNameError(ValueError):
     """Stats need the album year, parsed from a name that does not parse."""
 
@@ -179,7 +160,6 @@ class UnparseableAlbumNameError(ValueError):
 
 
 def _extract_year(album_name: str) -> str | None:
-    """Extract the start year from an album directory name."""
     parsed = parse_album_name(album_name)
     return parsed.date[:4] if parsed is not None else None
 
@@ -198,9 +178,7 @@ def _compute_all_media_source_stats(
 
 
 def compute_album_stats(album_dir: Path) -> AlbumStats:
-    """Compute stats for a single album.
-
-    Raises :class:`UnparseableAlbumNameError` when the album name cannot be
+    """Raises :class:`UnparseableAlbumNameError` when the album name cannot be
     parsed.
     """
     year = _extract_year(album_dir.name)
@@ -221,15 +199,9 @@ def compute_album_stats(album_dir: Path) -> AlbumStats:
     )
 
 
-# ---------------------------------------------------------------------------
-# Gallery computation
-# ---------------------------------------------------------------------------
-
-
 def albums_stats_from_album_stats(
     album_stats_list: list[AlbumStats],
 ) -> AlbumsStats:
-    """Build ``AlbumsStats`` from pre-computed per-album stats."""
     all_ms_names = sorted(
         {ms.name for a in album_stats_list for ms in a.by_media_source}
     )
@@ -266,10 +238,7 @@ def compute_albums_stats(
     *,
     on_album_done: Callable[[str], None] | None = None,
 ) -> AlbumsStats:
-    """Compute aggregated stats for a set of albums.
-
-    Raises :class:`ValueError` when any album name cannot be parsed.
-    """
+    """Raises :class:`ValueError` when any album name cannot be parsed."""
     album_stats_list = [
         _compute_and_notify(album_dir, on_album_done) for album_dir in albums
     ]

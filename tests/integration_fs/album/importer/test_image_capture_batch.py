@@ -1,5 +1,3 @@
-"""Tests for the image-capture batch import."""
-
 from pathlib import Path
 
 from photree.album.importer.batch import (
@@ -10,8 +8,8 @@ from photree.album.importer.batch import (
 )
 from photree.album.staging import ios_import_csv, ios_import_dir, std_import_dir
 
-SEL_DIR = ios_import_dir("main")  # to-import-ios-main
-SEL_CSV = ios_import_csv("main")  # to-import-ios-main.csv
+SEL_DIR = ios_import_dir("main")
+SEL_CSV = ios_import_csv("main")
 
 
 def _noop_convert(_src: Path, _dst_dir: Path, *, dry_run: bool) -> Path | None:
@@ -20,7 +18,6 @@ def _noop_convert(_src: Path, _dst_dir: Path, *, dry_run: bool) -> Path | None:
 
 
 def _setup_image_capture_dir(tmp_path: Path, filenames: list[str]) -> Path:
-    """Create a fake Image Capture directory with the given filenames."""
     ic_dir = tmp_path / "image_capture"
     ic_dir.mkdir(exist_ok=True)
     for name in filenames:
@@ -29,7 +26,6 @@ def _setup_image_capture_dir(tmp_path: Path, filenames: list[str]) -> Path:
 
 
 def _setup_album(parent: Path, album_name: str, selection_files: list[str]) -> Path:
-    """Create an album with a to-import/ subfolder under parent."""
     album = parent / album_name
     selection = album / SEL_DIR
     selection.mkdir(parents=True)
@@ -184,7 +180,7 @@ class TestBatchImport:
             convert_file=_noop_convert,
         )
 
-        assert result.imported == 0  # nothing imported
+        assert result.imported == 0
         assert len(validation_errors) == 1
         assert "2024-07-05 - Invalid" in validation_errors
         # The result itself records the refusal, not just the callback.
@@ -250,11 +246,6 @@ class TestBatchImport:
         assert by_name["no-tasks"][1] is False
 
 
-# ---------------------------------------------------------------------------
-# CSV-based album categorization and batch import
-# ---------------------------------------------------------------------------
-
-
 def _setup_album_csv(parent: Path, album_name: str, csv_entries: list[str]) -> Path:
     """Create an album with a to-import.csv file (no to-import/ dir)."""
     album = parent / album_name
@@ -293,5 +284,4 @@ class TestBatchImportCsv:
         assert (
             albums_dir / "2024-07-06 - CSV Trip" / "ios-main/orig-img" / "IMG_0001.HEIC"
         ).exists()
-        # CSV should be cleaned up
         assert not (albums_dir / "2024-07-06 - CSV Trip" / SEL_CSV).exists()

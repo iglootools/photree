@@ -1,12 +1,6 @@
-"""Face detection protocol — constants, models, and type definitions."""
-
 from pydantic import Field
 
 from ...foundation.model import PhotreeModel
-
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
 
 FACES_DIR = "cache/faces"
 """Subdirectory under ``.photree/`` for face detection cache (album-level)."""
@@ -30,14 +24,7 @@ DEFAULT_MODEL_VERSION = "1.0"
 EMBEDDING_DIM = 512
 
 
-# ---------------------------------------------------------------------------
-# Pydantic models — processing state (.yaml sidecar)
-# ---------------------------------------------------------------------------
-
-
 class FaceProcessedKey(PhotreeModel):
-    """Processing state for a single media key."""
-
     mtime: float = Field(description="File modification time at processing time.")
     file_name: str = Field(description="Original filename (for logging/debugging).")
     face_count: int = Field(description="Number of faces detected (0 = no faces).")

@@ -1,5 +1,3 @@
-"""Tests for unexpected directory detection in albums."""
-
 from pathlib import Path
 
 from photree.album.check.unexpected_dirs import check_unexpected_dirs

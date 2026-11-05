@@ -61,7 +61,6 @@ def import_tasks_check(
     empty: bool = False,
     cwd: Path | None = None,
 ) -> str:
-    """Format the import-tasks check line."""
     shown = _shown(album_dir, cwd)
     match (found, empty):
         case (False, _):
@@ -76,7 +75,6 @@ def import_tasks_check(
 
 
 def import_tasks_troubleshoot(album_dir: Path, *, cwd: Path | None = None) -> str:
-    """Troubleshooting info when no importable tasks are found."""
     shown = _shown(album_dir, cwd)
     return dedent(f"""\
         Create an import staging directory inside your album directory.
@@ -95,7 +93,6 @@ def import_tasks_troubleshoot(album_dir: Path, *, cwd: Path | None = None) -> st
 
 
 def _format_ic_dir_warnings(check: ImageCaptureDirCheck) -> list[str]:
-    """Format warning strings from a structured IC directory check."""
     return [
         *(
             [
@@ -140,7 +137,6 @@ def image_capture_dir_check_output(
     preflight_skipped: bool = False,
     cwd: Path | None = None,
 ) -> str:
-    """Format the image capture directory check line(s)."""
     shown = _shown(image_capture_dir, cwd)
     match (found, check, preflight_skipped):
         case (False, _, _):
@@ -169,13 +165,11 @@ def _import_tasks_line(result: ImportPreflightResult, cwd: Path | None) -> list[
 def format_preflight_checks(
     result: ImportPreflightResult, *, cwd: Path | None = None
 ) -> str:
-    """Format all preflight check lines from a result."""
     return "\n".join(
         [
-            # system dependencies (sips, exiftool)
             *([format_statuses(result.system_deps)] if result.system_deps else []),
             *_import_tasks_line(result, cwd),
-            # image capture dir (only meaningful when an iOS task is present)
+            # Only meaningful when an iOS task is present.
             *(
                 [
                     image_capture_dir_check_output(
@@ -238,11 +232,6 @@ def import_error(exc: NoImportTasksError | EmptyImageCaptureDirError, cwd: Path)
             )
 
 
-# ---------------------------------------------------------------------------
-# Batch
-# ---------------------------------------------------------------------------
-
-
 def batch_album_importing(album_name: str) -> str:
     return f"Importing: {markup_escape(album_name)}"
 
@@ -256,9 +245,7 @@ def batch_summary(imported: int, skipped: int, failed: int = 0) -> str:
 
 
 def batch_failures(failures: Sequence[AlbumFailure], base: Path) -> str:
-    """Format the per-album failure reasons of a batch import.
-
-    The reason is what the batch loop swallowed previously; without it a run
+    """The reason is what the batch loop swallowed previously; without it a run
     where every album failed was indistinguishable from one where every album
     was skipped.
     """
@@ -274,11 +261,6 @@ def batch_failures(failures: Sequence[AlbumFailure], base: Path) -> str:
             ),
         ]
     )
-
-
-# ---------------------------------------------------------------------------
-# Validation
-# ---------------------------------------------------------------------------
 
 
 def _ios_error_message(error: ValidationError) -> str:

@@ -24,13 +24,7 @@ def display_name(album_dir: Path, base_dir: Path | None, cwd: Path) -> str:
 
 
 def make_display_fn(display_base: Path | None, cwd: Path) -> Callable[[Path], str]:
-    """Create a display function for album paths."""
     return lambda album_dir: display_name(album_dir, display_base, cwd)
-
-
-# ---------------------------------------------------------------------------
-# Album resolution helpers
-# ---------------------------------------------------------------------------
 
 
 def resolve_check_batch_albums(
@@ -98,7 +92,6 @@ def _resolve_batch_albums_with(
     if album_dirs is not None:
         return (album_dirs, None)
 
-    # --dir mode (explicit or default)
     resolved_base = base_dir if base_dir is not None else Path.cwd()
     with Progress(
         SpinnerColumn(),

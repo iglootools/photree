@@ -21,9 +21,6 @@ from .unexpected_dirs import UnexpectedDirsCheck
 
 _STD_MEDIA_SOURCE = std_media_source("nelu")
 
-# ---------------------------------------------------------------------------
-# Browsable dir check fixtures
-# ---------------------------------------------------------------------------
 
 _BROWSABLE_OK = BrowsableDirCheck(
     correct=(
@@ -68,9 +65,6 @@ _BROWSABLE_FAILURES = BrowsableDirCheck(
     checksum_mismatches=(),
 )
 
-# ---------------------------------------------------------------------------
-# JPEG check fixtures
-# ---------------------------------------------------------------------------
 
 _JPEG_OK = JpegCheck(present=("IMG_E0001.jpg", "IMG_0002.PNG"), missing=(), extra=())
 
@@ -80,9 +74,6 @@ _JPEG_FAILURES = JpegCheck(
     extra=("ORPHAN.jpg",),
 )
 
-# ---------------------------------------------------------------------------
-# iOS media source integrity fixtures
-# ---------------------------------------------------------------------------
 
 IOS_INTEGRITY_OK = IosMediaSourceIntegrityResult(
     browsable_img=_BROWSABLE_OK,
@@ -116,9 +107,6 @@ IOS_INTEGRITY_FAILURES = IosMediaSourceIntegrityResult(
     ),
 )
 
-# ---------------------------------------------------------------------------
-# Std media source integrity fixtures
-# ---------------------------------------------------------------------------
 
 _STD_BROWSABLE_OK = BrowsableDirCheck(
     correct=(
@@ -166,9 +154,6 @@ STD_INTEGRITY_FAILURES = StdMediaSourceIntegrityResult(
     ),
 )
 
-# ---------------------------------------------------------------------------
-# Unified album integrity fixtures
-# ---------------------------------------------------------------------------
 
 INTEGRITY_OK = AlbumIntegrityResult(
     by_media_source=((MAIN_MEDIA_SOURCE, IOS_INTEGRITY_OK),)
@@ -185,9 +170,6 @@ INTEGRITY_MIXED_OK = AlbumIntegrityResult(
     )
 )
 
-# ---------------------------------------------------------------------------
-# JPEG album-wide integrity fixtures
-# ---------------------------------------------------------------------------
 
 JPEG_INTEGRITY_OK = AlbumJpegIntegrityResult(
     by_media_source=(
@@ -200,9 +182,6 @@ JPEG_INTEGRITY_FAILURES = AlbumJpegIntegrityResult(
     by_media_source=((MAIN_MEDIA_SOURCE, _JPEG_FAILURES),)
 )
 
-# ---------------------------------------------------------------------------
-# Preflight fixtures
-# ---------------------------------------------------------------------------
 
 _IOS_DIR_CHECK_OK = AlbumDirCheck(
     present=(

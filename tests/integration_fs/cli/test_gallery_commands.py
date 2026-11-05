@@ -1,5 +1,3 @@
-"""CLI tests for gallery commands: check phases, thresholds, export, listing."""
-
 from pathlib import Path
 
 import pytest

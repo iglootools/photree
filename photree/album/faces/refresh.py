@@ -1,5 +1,3 @@
-"""Album-level face detection refresh — scan, diff, detect, merge, save."""
-
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from functools import partial
@@ -45,15 +43,9 @@ if TYPE_CHECKING:
     # Annotation only: importing insightface costs ~0.3 s at CLI startup.
     from insightface.app import FaceAnalysis
 
-# ---------------------------------------------------------------------------
-# Result types
-# ---------------------------------------------------------------------------
-
 
 @dataclass(frozen=True)
 class FaceSourceRefreshResult:
-    """Result of refreshing face data for a single media source."""
-
     processed: int  # images successfully analysed (failures excluded)
     skipped: int  # images already up to date
     faces_detected: int
@@ -70,8 +62,6 @@ class FaceSourceRefreshResult:
 
 @dataclass(frozen=True)
 class FaceRefreshResult:
-    """Result of refreshing face data for an album."""
-
     by_media_source: tuple[tuple[str, FaceSourceRefreshResult], ...]
 
     @property
@@ -96,11 +86,6 @@ class FaceRefreshResult:
         )
 
 
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
-
-
 def refresh_face_data(
     album_dir: Path,
     *,
@@ -113,9 +98,7 @@ def refresh_face_data(
     on_source_start: Callable[[str], None] | None = None,
     on_source_end: Callable[[str, bool], None] | None = None,
 ) -> FaceRefreshResult:
-    """Scan album media sources and run face detection on new/changed images.
-
-    Face detection is an injected capability. When *analyzer_factory* is
+    """Face detection is an injected capability. When *analyzer_factory* is
     ``None`` no detector is available and face detection is skipped entirely;
     the composition root (CLI) is responsible for injecting one. The factory
     is invoked lazily — only once a source actually has images to process —
@@ -145,11 +128,6 @@ def refresh_face_data(
     ]
 
     return FaceRefreshResult(by_media_source=tuple(results))
-
-
-# ---------------------------------------------------------------------------
-# Per-source refresh orchestration
-# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -212,7 +190,6 @@ def _refresh_source(
     on_source_start: Callable[[str], None] | None,
     on_source_end: Callable[[str, bool], None] | None,
 ) -> FaceSourceRefreshResult:
-    """Refresh face data for a single media source."""
     if on_source_start:
         on_source_start(ms.name)
 
@@ -288,11 +265,6 @@ def _detect_and_save(
     )
 
 
-# ---------------------------------------------------------------------------
-# Scanning and diffing
-# ---------------------------------------------------------------------------
-
-
 def _scan_current_images(album_dir: Path, ms: MediaSource) -> dict[str, str]:
     """Scan ``orig-img/`` and return deduplicated ``{key: filename}`` mapping."""
     img_ext = IOS_IMG_EXTENSIONS if ms.is_ios else IMG_EXTENSIONS
@@ -313,7 +285,6 @@ def _keys_needing_processing(
     model_changed: bool,
     redetect: bool,
 ) -> list[str]:
-    """Return keys that need (re-)processing."""
     if redetect or model_changed:
         return sorted(current_files.keys())
 
@@ -330,17 +301,11 @@ def _needs_processing(
     orig_dir: Path,
     state: FaceProcessingState,
 ) -> bool:
-    """Return True when an image needs face detection."""
     entry = state.processed_keys.get(key)
     if entry is None:
         return True
     file_path = orig_dir / filename
     return file_path.is_file() and entry.mtime != file_path.stat().st_mtime
-
-
-# ---------------------------------------------------------------------------
-# Detection
-# ---------------------------------------------------------------------------
 
 
 def _run_detection(
@@ -353,10 +318,7 @@ def _run_detection(
     refresh_thumbs: bool,
     get_analyzer: Callable[[], FaceAnalysis],
 ) -> tuple[list[DetectedFace], dict[str, FaceProcessedKey], tuple[FaceFailure, ...]]:
-    """Generate thumbnails and run face detection.
-
-    Returns ``(new_faces, new_state_keys, failures)``.
-    """
+    """Returns ``(new_faces, new_state_keys, failures)``."""
     thumb_dir = thumbs_dir(album_dir, ms.name)
     thumb_results, thumb_failures = _generate_thumbnails(
         keys_to_process,
@@ -402,9 +364,7 @@ def _detect_single(
     orig_dir: Path,
     analyzer: FaceAnalysis,
 ) -> tuple[list[DetectedFace] | None, FaceProcessedKey | None, FaceFailure | None]:
-    """Run face detection on one thumbnail.
-
-    Detection is best-effort per image — one unreadable file must not abandon
+    """Detection is best-effort per image — one unreadable file must not abandon
     the album — but the reason is carried out rather than dropped, so the
     caller can tell the user which image failed and why.
     """
@@ -426,11 +386,6 @@ def _detect_single(
             None,
             FaceFailure(key=tr.key, stage=FaceFailureStage.DETECTION, reason=str(exc)),
         )
-
-
-# ---------------------------------------------------------------------------
-# Thumbnail generation
-# ---------------------------------------------------------------------------
 
 
 def _keys_needing_thumbnail(
@@ -574,13 +529,7 @@ def _reuse_thumbnail(
     )
 
 
-# ---------------------------------------------------------------------------
-# Persistence
-# ---------------------------------------------------------------------------
-
-
 def _delete_stale_thumbnails(thumb_dir: Path, stale_keys: set[str]) -> None:
-    """Remove thumbnails for keys no longer on disk."""
     for key in stale_keys:
         stale_thumb = thumb_dir / thumb_filename(key)
         if stale_thumb.is_file():
@@ -601,7 +550,6 @@ def _save_updated_state(
     model_name: str,
     model_version: str,
 ) -> None:
-    """Merge detection results with existing data and save to disk."""
     keep_keys = current_keys - set(keys_to_process) - stale_keys
 
     retained_data = filter_face_data(existing_data, keep_keys=keep_keys)
@@ -621,11 +569,6 @@ def _save_updated_state(
     save_face_state(album_dir, ms.name, updated_state)
 
 
-# ---------------------------------------------------------------------------
-# Result constructors
-# ---------------------------------------------------------------------------
-
-
 def _no_change_result(plan: _SourcePlan) -> FaceSourceRefreshResult:
     """Result when nothing is written: a no-op, or a dry run of *plan*."""
     return FaceSourceRefreshResult(
@@ -635,13 +578,7 @@ def _no_change_result(plan: _SourcePlan) -> FaceSourceRefreshResult:
     )
 
 
-# ---------------------------------------------------------------------------
-# Conversion helpers
-# ---------------------------------------------------------------------------
-
-
 def _faces_to_face_data(faces: list[DetectedFace]) -> FaceData:
-    """Convert a list of :class:`DetectedFace` to :class:`FaceData` arrays."""
     return FaceData(
         keys=np.array([f.key for f in faces], dtype=object),
         face_indices=np.array([f.face_index for f in faces], dtype=np.int32),

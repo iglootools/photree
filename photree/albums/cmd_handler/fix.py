@@ -1,5 +1,3 @@
-"""Batch fix command handler."""
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial
@@ -15,8 +13,6 @@ from . import BatchFailure, OnEnd, OnStart, failures_of, run_album_step
 
 @dataclass(frozen=True)
 class BatchFixResult:
-    """Result of batch album fixing."""
-
     fixed: int
     failures: tuple[BatchFailure, ...] = ()
     # (album display name, report) for each album whose fix had something to say
