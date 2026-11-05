@@ -1,5 +1,3 @@
-"""Tests for photree.album.check module."""
-
 import os
 from pathlib import Path
 
@@ -34,7 +32,6 @@ def _setup_ios_album(album: Path) -> None:
     _write(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.AAE", "aae-orig")
     _write(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0002.PNG", "png-orig")
 
-    # ios/edit-img: IMG_E0001.HEIC + IMG_O0001.AAE (rendered for 0001)
     _write(album / MAIN_MEDIA_SOURCE.edit_img_dir / "IMG_E0001.HEIC", "heic-rendered")
     _write(album / MAIN_MEDIA_SOURCE.edit_img_dir / "IMG_O0001.AAE", "aae-rendered")
 
@@ -42,14 +39,11 @@ def _setup_ios_album(album: Path) -> None:
     _write(album / MAIN_MEDIA_SOURCE.img_dir / "IMG_E0001.HEIC", "heic-rendered")
     _write(album / MAIN_MEDIA_SOURCE.img_dir / "IMG_0002.PNG", "png-orig")
 
-    # ios/orig-vid + main-vid: simple MOV
     _write(album / MAIN_MEDIA_SOURCE.orig_vid_dir / "IMG_0003.MOV", "mov-orig")
     _write(album / MAIN_MEDIA_SOURCE.vid_dir / "IMG_0003.MOV", "mov-orig")
 
-    # ios/edit-vid: empty
     (album / MAIN_MEDIA_SOURCE.edit_vid_dir).mkdir(parents=True, exist_ok=True)
 
-    # main-jpg: one for each main-img file
     _write(album / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_E0001.jpg", "jpeg-converted")
     _write(album / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_0002.PNG", "png-copied")
 
@@ -129,7 +123,6 @@ class TestCheckBrowsableDir:
     def test_size_mismatch_detected(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_ios_album(album)
-        # Corrupt the browsable file
         (album / MAIN_MEDIA_SOURCE.img_dir / "IMG_E0001.HEIC").write_text(
             "corrupted-different-size!!"
         )
@@ -148,8 +141,11 @@ class TestCheckBrowsableDir:
     def test_checksum_mismatch_detected(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_ios_album(album)
-        # Same size but different content
-        (album / MAIN_MEDIA_SOURCE.img_dir / "IMG_E0001.HEIC").write_text("heic-DIFFER")
+        # Same length as the source's "heic-rendered", so only the checksum can
+        # catch the change; a different length would be reported as a size mismatch.
+        (album / MAIN_MEDIA_SOURCE.img_dir / "IMG_E0001.HEIC").write_text(
+            "heic-RENDERED"
+        )
 
         result = check_browsable_dir(
             album / MAIN_MEDIA_SOURCE.orig_img_dir,
@@ -161,10 +157,28 @@ class TestCheckBrowsableDir:
             checksum=True,
         )
         assert not result.success
-        # Same length as "heic-rendered" (13 chars) vs "heic-DIFFER" (11 chars)
-        # Actually different size, so this is a size mismatch — let me fix the test data
-        # Use exact same length: "heic-rendered" is 13 chars
-        assert len(result.size_mismatches) > 0 or len(result.checksum_mismatches) > 0
+        assert result.size_mismatches == ()
+        assert len(result.checksum_mismatches) == 1
+
+    def test_same_size_change_passes_without_checksum(self, tmp_path: Path) -> None:
+        """The size check alone cannot see a same-length change; that is what
+        ``checksum=True`` pays for."""
+        album = tmp_path / "album"
+        _setup_ios_album(album)
+        (album / MAIN_MEDIA_SOURCE.img_dir / "IMG_E0001.HEIC").write_text(
+            "heic-RENDERED"
+        )
+
+        result = check_browsable_dir(
+            album / MAIN_MEDIA_SOURCE.orig_img_dir,
+            album / MAIN_MEDIA_SOURCE.edit_img_dir,
+            album / MAIN_MEDIA_SOURCE.img_dir,
+            media_extensions=IMG_EXTENSIONS,
+            key_fn=ios_img_number,
+            link_mode=LinkMode.COPY,
+            checksum=False,
+        )
+        assert result.success
 
 
 class TestCheckJpegDir:
