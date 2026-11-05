@@ -138,9 +138,11 @@ run = [
 
 [tasks.check-all]
 description = "Run all checks (format, lint, type-check, test)"
+# In parallel: the tests do not depend on the checks, and running them side by side hides
+# the test time behind the checks (pyright, depgraph) instead of adding to it. mise
+# prefixes each line with its task, so the interleaved output stays attributable.
 run = [
-  { task = "check" },
-  { task = "test-all" },
+  { tasks = ["check", "test-all"] },
 ]
 
 [tasks.ci-test]
@@ -185,10 +187,9 @@ run = "uv run --no-sync pytest tests/integration_fs/ -n auto"
 
 [tasks.test-all]
 description = "Run all tests"
-run = [
-  { task = "test-unit" },
-  { task = "test-integration-fs" },
-]
+# One pytest invocation rather than test-unit then test-integration-fs: each run pays
+# about 2s of xdist worker start-up before its first test.
+run = "uv run --no-sync pytest tests/ -n auto"
 
 [tasks.format]
 description = "Format code with ruff (rewrites files; see format-check to verify only)"
