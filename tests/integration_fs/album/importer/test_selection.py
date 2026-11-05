@@ -1,5 +1,3 @@
-"""Tests for photree.album.importer.selection module."""
-
 from pathlib import Path
 
 from photree.album.importer.selection import (
@@ -9,13 +7,8 @@ from photree.album.importer.selection import (
 )
 from photree.album.staging import ios_import_csv, ios_import_dir
 
-SEL_DIR = ios_import_dir("main")  # to-import-ios-main
-SEL_CSV = ios_import_csv("main")  # to-import-ios-main.csv
-
-
-# ---------------------------------------------------------------------------
-# read_selection_csv
-# ---------------------------------------------------------------------------
+SEL_DIR = ios_import_dir("main")
+SEL_CSV = ios_import_csv("main")
 
 
 class TestReadSelectionCsv:
@@ -45,11 +38,6 @@ class TestReadSelectionCsv:
         csv_path = tmp_path / SEL_CSV
         csv_path.write_text("")
         assert read_selection_csv(csv_path) == []
-
-
-# ---------------------------------------------------------------------------
-# read_selection
-# ---------------------------------------------------------------------------
 
 
 class TestReadSelection:
@@ -97,11 +85,6 @@ class TestReadSelection:
     def test_missing_paths_return_empty(self, tmp_path: Path) -> None:
         sources = read_selection(tmp_path / SEL_DIR, tmp_path / SEL_CSV)
         assert sources.merged == ()
-
-
-# ---------------------------------------------------------------------------
-# has_selection
-# ---------------------------------------------------------------------------
 
 
 class TestHasSelection:

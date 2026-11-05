@@ -1,5 +1,3 @@
-"""CLI for ``photree check``."""
-
 import typer
 
 check_app = typer.Typer(

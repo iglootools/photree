@@ -30,7 +30,6 @@ from ..dates import parse_year_prefix
 from ..foundation.layout import ALBUMS_DIR, PHOTREE_DIR
 from ..foundation.linking import LinkMode
 
-# Import stages
 STAGE_COPY = "copy"
 STAGE_ID = "id"
 STAGE_REFRESH_DERIVED = "refresh-derived"
@@ -53,8 +52,6 @@ class TargetExistsError(ValueError):
 
 @dataclass(frozen=True)
 class AlbumImportResult:
-    """Result of importing a single album into a gallery."""
-
     album_name: str
     target_dir: Path
     id_generated: bool
@@ -81,11 +78,6 @@ def compute_target_dir(gallery_dir: Path, album_name: str) -> Path:
 def _hidden_sibling(target_dir: Path, suffix: str) -> Path:
     """A dot-prefixed sibling of *target_dir*, invisible to album discovery."""
     return target_dir.parent / f".{target_dir.name}.{suffix}"
-
-
-# ---------------------------------------------------------------------------
-# Build pipeline (shared by import and reimport)
-# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -238,11 +230,6 @@ def _swap_into_place(existing_dir: Path, staging: Path, target_dir: Path) -> Non
         backup.rename(existing_dir)
         raise
     shutil.rmtree(backup)
-
-
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
 
 
 def import_album(

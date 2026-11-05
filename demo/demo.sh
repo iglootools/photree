@@ -31,7 +31,6 @@ SHARE="$DEMO_DIR/share"
 # Pause between commands so the viewer can read the output
 pause() { sleep "${1:-2}"; }
 
-# ── Setup ────────────────────────────────────────────────
 rm -rf "$DEMO_DIR"
 
 # On Linux (CI), create a fake sips shim that copies files instead of converting.
@@ -83,8 +82,6 @@ p "# Show the demo directory structure"
 pe "tree $DEMO_DIR"
 pause 3
 
-# ── Import ───────────────────────────────────────────────
-
 ALBUM="$DEMO_DIR/2024-06-15 - Demo Album"
 IC="$DEMO_DIR/image-capture"
 
@@ -108,13 +105,9 @@ p "# Browse the album after import"
 pe "tree ."
 pause 3
 
-# ── Check ────────────────────────────────────────────────
-
 p "# Check album integrity"
 pe "photree album check"
 pause 3
-
-# ── Gallery ─────────────────────────────────────────────
 
 p "# Initialize a gallery"
 pe "mkdir -p \"$GALLERY\" && photree gallery init -g \"$GALLERY\" --link-mode symlink"
@@ -136,13 +129,9 @@ p "# Check gallery integrity"
 pe "photree gallery check"
 pause 3
 
-# ── Stats ───────────────────────────────────────────────
-
 p "# Show gallery-wide statistics with per-year breakdown"
 pe "photree gallery stats"
 pause 3
-
-# ── Export ───────────────────────────────────────────────
 
 p "# Create a share directory with sentinel file"
 pe "mkdir -p \"$SHARE\" && touch \"$SHARE/.photree-share\""

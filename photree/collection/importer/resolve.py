@@ -40,10 +40,6 @@ from ...dates import is_valid_date, timestamp_in_range
 from ...foundation.layout import ALBUMS_DIR, COLLECTIONS_DIR
 from .selection import SelectionEntry
 
-# ---------------------------------------------------------------------------
-# Result types
-# ---------------------------------------------------------------------------
-
 
 class MemberType(StrEnum):
     """Kind of collection member an entry resolved to."""
@@ -56,8 +52,6 @@ class MemberType(StrEnum):
 
 @dataclass(frozen=True)
 class ResolvedMembers:
-    """Resolved members from selection entries."""
-
     albums: tuple[str, ...]
     collections: tuple[str, ...]
     images: tuple[str, ...]
@@ -101,8 +95,6 @@ class ResolutionWarning:
 
 @dataclass(frozen=True)
 class ResolutionResult:
-    """Full result of resolving selection entries."""
-
     members: ResolvedMembers
     errors: tuple[ResolutionError, ...]
     warnings: tuple[ResolutionWarning, ...] = ()
@@ -111,10 +103,6 @@ class ResolutionResult:
     def success(self) -> bool:
         return len(self.errors) == 0
 
-
-# ---------------------------------------------------------------------------
-# Entry classification helpers
-# ---------------------------------------------------------------------------
 
 _EXTERNAL_PREFIXES = {
     ALBUM_ID_PREFIX,
@@ -160,15 +148,8 @@ def _extract_media_key(filename: str) -> str:
         return Path(filename).stem
 
 
-# ---------------------------------------------------------------------------
-# Per-item scan data — abstracts album/collection on-disk details
-# ---------------------------------------------------------------------------
-
-
 @dataclass(frozen=True)
 class ScannedAlbum:
-    """Data extracted from a single album during gallery scan."""
-
     album_id: str
     dir_name: str
     album_date: str | None
@@ -178,8 +159,6 @@ class ScannedAlbum:
 
 @dataclass(frozen=True)
 class ScannedCollection:
-    """Data extracted from a single collection during gallery scan."""
-
     collection_id: str
     dir_name: str
 
@@ -203,7 +182,6 @@ def _scanned_album(album_dir: Path, meta: AlbumMetadata) -> ScannedAlbum:
 
 
 def _scan_albums(gallery_dir: Path) -> Iterator[ScannedAlbum]:
-    """Yield album data for each album in the gallery."""
     return (
         _scanned_album(album_dir, meta)
         for album_dir in discover_albums(gallery_dir / ALBUMS_DIR)
@@ -213,18 +191,12 @@ def _scan_albums(gallery_dir: Path) -> Iterator[ScannedAlbum]:
 
 
 def _scan_collections(gallery_dir: Path) -> Iterator[ScannedCollection]:
-    """Yield collection data for each collection in the gallery."""
     return (
         ScannedCollection(collection_id=meta.id, dir_name=col_dir.name)
         for col_dir in discover_collections(gallery_dir / COLLECTIONS_DIR)
         for meta in [load_collection_metadata(col_dir)]
         if meta is not None
     )
-
-
-# ---------------------------------------------------------------------------
-# Match tracking
-# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -394,11 +366,6 @@ def _group_by_entry(
     return {e.value: grouped.get(e.value, []) for e in entries}
 
 
-# ---------------------------------------------------------------------------
-# Result building
-# ---------------------------------------------------------------------------
-
-
 def _check_date_mismatch(entry: SelectionEntry, m: _Match) -> list[ResolutionWarning]:
     """Warn if a single-match media entry's date hint doesn't match the album date."""
     match (entry.date_hint, m.album_date):
@@ -430,7 +397,6 @@ def _resolve_entry(
 ) -> _Match | ResolutionError:
     """Resolve one entry to its single match, or the reason it has none."""
     is_media = _has_media_extension(entry.value)
-    # Apply date-hint filtering for media filenames with multiple matches
     candidates = (
         _filter_by_date_hint(entry_matches, entry.date_hint)
         if len(entry_matches) > 1 and entry.date_hint is not None and is_media
@@ -499,11 +465,6 @@ def _build_results(
         errors=tuple(o for o in outcomes if isinstance(o, ResolutionError)),
         warnings=tuple(w for e, m in resolved for w in _check_date_mismatch(e, m)),
     )
-
-
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
 
 
 def resolve_entries(

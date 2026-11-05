@@ -89,7 +89,6 @@ class TestAlbumsImportGate:
 
         assert result.exit_code == 1
         assert "exiftool" in result.output
-        # The staging entry is untouched and no archive was created.
         assert (album / SEL_DIR / "IMG_0001.HEIC").exists()
         assert not (album / "ios-main").exists()
 

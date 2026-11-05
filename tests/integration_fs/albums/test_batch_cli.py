@@ -1,5 +1,3 @@
-"""CLI behavior of the ``albums`` batch commands."""
-
 from pathlib import Path
 
 import pytest

@@ -1,5 +1,3 @@
-"""Tests for album init and albums init CLI commands."""
-
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -26,13 +24,7 @@ def _setup_media_source(album_dir: Path) -> None:
 
 
 def _mark_album(album_dir: Path) -> None:
-    """Create .photree/album.yaml with a generated ID."""
     save_album_metadata(album_dir, AlbumMetadata(id=generate_album_id()))
-
-
-# ---------------------------------------------------------------------------
-# album init
-# ---------------------------------------------------------------------------
 
 
 class TestAlbumInit:
@@ -51,7 +43,7 @@ class TestAlbumInit:
         runner.invoke(app, ["album", "init", "-a", str(album)])
         metadata = load_album_metadata(album)
         assert metadata is not None
-        assert metadata.id  # non-empty
+        assert metadata.id
 
     def test_fails_if_already_initialized(self, tmp_path: Path) -> None:
         album = tmp_path / "2024-07-14 - Hiking"
@@ -76,11 +68,6 @@ class TestAlbumInit:
         album.mkdir()
         runner.invoke(app, ["album", "init", "-a", str(album)])
         assert (album / PHOTREE_DIR / ALBUM_YAML).is_file()
-
-
-# ---------------------------------------------------------------------------
-# albums init
-# ---------------------------------------------------------------------------
 
 
 class TestAlbumsInit:

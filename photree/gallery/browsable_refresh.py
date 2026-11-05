@@ -27,10 +27,6 @@ from ..collection.store.protocol import CollectionMetadata, CollectionStrategy
 from ..foundation.layout import ALBUMS_DIR, BROWSABLE_DIR, COLLECTIONS_DIR
 from ..foundation.metadata_io import read_or_none
 
-# ---------------------------------------------------------------------------
-# Result types
-# ---------------------------------------------------------------------------
-
 
 class BrowsableRefreshErrorKind(StrEnum):
     """Why the browsable tree could not be (fully) rendered."""
@@ -53,8 +49,6 @@ class BrowsableRefreshErrorKind(StrEnum):
 
 @dataclass(frozen=True)
 class BrowsableRefreshError:
-    """An error encountered during browsable refresh."""
-
     kind: BrowsableRefreshErrorKind
     path: Path
     collection_id: str | None = None
@@ -84,8 +78,6 @@ class DanglingMember:
 
 @dataclass(frozen=True)
 class BrowsableRefreshResult:
-    """Result of a browsable refresh run."""
-
     albums_rendered: int = 0
     collections_rendered: int = 0
     symlinks_created: int = 0
@@ -95,11 +87,6 @@ class BrowsableRefreshResult:
     @property
     def success(self) -> bool:
         return len(self.errors) == 0
-
-
-# ---------------------------------------------------------------------------
-# Safety check
-# ---------------------------------------------------------------------------
 
 
 def _validate_browsable_dir(browsable_dir: Path) -> BrowsableRefreshError | None:
@@ -122,11 +109,6 @@ def _validate_browsable_dir(browsable_dir: Path) -> BrowsableRefreshError | None
         if regular_file is not None
         else None
     )
-
-
-# ---------------------------------------------------------------------------
-# Gallery scanning — data classes
-# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -183,11 +165,6 @@ def _image_dir(ms: MediaSource) -> str:
 
 def _video_dir(ms: MediaSource) -> str:
     return ms.vid_dir
-
-
-# ---------------------------------------------------------------------------
-# Gallery scanning
-# ---------------------------------------------------------------------------
 
 
 def _try_scan_album(album_dir: Path) -> _AlbumEntry | BrowsableRefreshError:
@@ -267,7 +244,6 @@ def _collection_entry(col_dir: Path, meta: CollectionMetadata) -> _CollectionEnt
 def _scan_collection_entries(
     gallery_dir: Path,
 ) -> tuple[dict[str, _CollectionEntry], tuple[BrowsableRefreshError, ...]]:
-    """Scan collections and build collection lookup."""
     loaded = [
         (col_dir, read_or_none(load_collection_metadata, col_dir))
         for col_dir in discover_collections(gallery_dir / COLLECTIONS_DIR)
@@ -317,11 +293,6 @@ def _dangling_members(
     )
 
 
-# ---------------------------------------------------------------------------
-# Symlink helpers
-# ---------------------------------------------------------------------------
-
-
 def _make_relative_symlink(target: Path, link: Path) -> None:
     """Create a relative symlink from *link* pointing to *target*."""
     link.parent.mkdir(parents=True, exist_ok=True)
@@ -338,11 +309,6 @@ def _symlink_dir_if_exists(src: Path, link: Path) -> int:
         return 0
 
 
-# ---------------------------------------------------------------------------
-# Album rendering
-# ---------------------------------------------------------------------------
-
-
 def _render_album(album: _AlbumEntry, target_dir: Path) -> int:
     """Render an album: symlinks to jpg + vid dirs. Returns symlink count."""
     album_target = target_dir / album.name
@@ -353,11 +319,6 @@ def _render_album(album: _AlbumEntry, target_dir: Path) -> int:
             *(ms.vid_dir for ms in album.media_sources),
         ]
     )
-
-
-# ---------------------------------------------------------------------------
-# Collection rendering — media helpers
-# ---------------------------------------------------------------------------
 
 
 def _matching_files(loc: _MediaLocation, pick_dir: _DirPicker) -> list[Path]:
@@ -397,11 +358,6 @@ def _render_media_files(
     for target, link in links:
         _make_relative_symlink(target, link)
     return len(links)
-
-
-# ---------------------------------------------------------------------------
-# Collection rendering (recursive)
-# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -471,13 +427,7 @@ def _render_collections(
     )
 
 
-# ---------------------------------------------------------------------------
-# Top-level rendering
-# ---------------------------------------------------------------------------
-
-
 def _collection_bucket(col: _CollectionEntry) -> tuple[str, str]:
-    """Determine the bucket path for a collection."""
     match col.strategy:
         case CollectionStrategy.CHAPTER:
             return ("by-chapter", "")
@@ -486,13 +436,11 @@ def _collection_bucket(col: _CollectionEntry) -> tuple[str, str]:
 
 
 def _album_target_dir(browsable_dir: Path, album: _AlbumEntry) -> Path:
-    """Compute the target directory for an album in the browsable tree."""
     visibility = "private" if album.private else "public"
     return browsable_dir / visibility / "albums" / "by-year" / album.year
 
 
 def _collection_target_dir(browsable_dir: Path, col: _CollectionEntry) -> Path:
-    """Compute the target directory for a collection in the browsable tree."""
     visibility = "private" if col.private else "public"
     bucket, sub_path = _collection_bucket(col)
     parts = [visibility, "collections", bucket, *([sub_path] if sub_path else [])]
@@ -514,11 +462,6 @@ def _render_all(
         frozenset(),
     )
     return album_symlinks + col_symlinks, errors
-
-
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
 
 
 def refresh_browsable(

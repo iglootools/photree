@@ -1,9 +1,3 @@
-"""Browsable directory consistency checks.
-
-Verifies that ``{name}-img/`` and ``{name}-vid/`` contain the correct files
-derived from the archive's orig and edited sources.
-"""
-
 import hashlib
 import os
 from collections.abc import Callable
@@ -15,15 +9,9 @@ from ...foundation.linking import LinkMode
 from ..store.file_matching import dedup_media_dict
 from ..store.media_source import KeyFn
 
-# ---------------------------------------------------------------------------
-# Data classes
-# ---------------------------------------------------------------------------
-
 
 @dataclass(frozen=True)
 class FileComparison:
-    """Result of comparing a main file against its expected source."""
-
     filename: str
     expected_source: str
     size_match: bool
@@ -33,8 +21,6 @@ class FileComparison:
 
 @dataclass(frozen=True)
 class MissingFile:
-    """A file expected in main but not found."""
-
     filename: str
     source_dir: str  # e.g. "edit-img" or "orig-img"
 
@@ -58,8 +44,6 @@ class WrongSource:
 
 @dataclass(frozen=True)
 class BrowsableDirCheck:
-    """Result of checking a browsable directory against archive orig/edited."""
-
     correct: tuple[FileComparison, ...]
     missing: tuple[MissingFile, ...]
     extra: tuple[str, ...]
@@ -91,11 +75,6 @@ class BrowsableDirCheck:
         return not self.size_mismatches and not self.checksum_mismatches
 
 
-# ---------------------------------------------------------------------------
-# Private helpers
-# ---------------------------------------------------------------------------
-
-
 def _file_size(path: Path) -> int:
     return path.stat().st_size
 
@@ -109,17 +88,14 @@ def _file_sha256(path: Path) -> str:
 
 
 def _is_hardlink_to(main_path: Path, source_path: Path) -> bool:
-    """Check whether *main_path* is a hardlink to *source_path* (same inode)."""
     return os.stat(main_path).st_ino == os.stat(source_path).st_ino
 
 
 def _is_symlink_to(main_path: Path, source_path: Path) -> bool:
-    """Check whether *main_path* is a symlink that resolves to *source_path*."""
     return main_path.is_symlink() and main_path.resolve() == source_path.resolve()
 
 
 def _is_link_to(main_path: Path, source_path: Path) -> bool:
-    """Check whether *main_path* is a hardlink or symlink to *source_path*."""
     return _is_symlink_to(main_path, source_path) or _is_hardlink_to(
         main_path, source_path
     )
@@ -133,7 +109,6 @@ _LINK_MODE_NAMES: dict[LinkMode, str] = {
 
 
 def _detect_actual_link_mode(main_path: Path, source_path: Path) -> str:
-    """Return the actual link mode of *main_path* relative to *source_path*."""
     match (
         _is_symlink_to(main_path, source_path),
         _is_hardlink_to(main_path, source_path),
@@ -153,9 +128,7 @@ def _compare_file(
     link_mode: LinkMode,
     checksum: bool,
 ) -> tuple[FileComparison, WrongLinkMode | None]:
-    """Compare a main file against its expected source.
-
-    Returns a ``(comparison, wrong_link_mode)`` tuple. If the file uses
+    """Returns a ``(comparison, wrong_link_mode)`` tuple. If the file uses
     the wrong link type, *wrong_link_mode* is set but the comparison may
     still succeed (content is correct, just the link type is wrong).
 
@@ -234,7 +207,6 @@ def _classify_expected_file(
     checksum: bool,
     on_file_checked: Callable[[str, bool], None] | None,
 ) -> _Classified:
-    """Classify a single expected file against the main directory."""
     classified = (
         _classify_comparison(
             *_compare_file(
@@ -250,11 +222,6 @@ def _classify_expected_file(
     if on_file_checked:
         on_file_checked(expected_name, classified.correct is not None)
     return classified
-
-
-# ---------------------------------------------------------------------------
-# Check function
-# ---------------------------------------------------------------------------
 
 
 def _expected_files(
@@ -307,9 +274,7 @@ def check_browsable_dir(
     checksum: bool = True,
     on_file_checked: Callable[[str, bool], None] | None = None,
 ) -> BrowsableDirCheck:
-    """Check that a browsable directory is consistent with orig/edited.
-
-    For each media key in orig_dir, the browsable_dir should contain
+    """For each media key in orig_dir, the browsable_dir should contain
     either the edited variant (if one exists in edit_dir) or the original.
     Files are matched using *key_fn* (image number for iOS, stem for std).
 

@@ -1,5 +1,3 @@
-"""Tests for photree.gallery.faces.clustering — FAISS and clustering logic."""
-
 from pathlib import Path
 
 import numpy as np
@@ -38,13 +36,10 @@ def _make_clustered_embeddings(
     labels_list: list[np.ndarray] = []
 
     for i, size in enumerate(cluster_sizes):
-        # Generate a random centroid
         centroid = rng.random(dim).astype(np.float32)
         centroid = centroid / np.linalg.norm(centroid)
-        # Add small noise around centroid
         noise = rng.normal(0, spread, (size, dim)).astype(np.float32)
         cluster = centroid + noise
-        # Re-normalize
         norms = np.linalg.norm(cluster, axis=1, keepdims=True)
         cluster = cluster / norms
         embeddings_list.append(cluster)
@@ -99,7 +94,6 @@ class TestClusterEmbeddings:
         emb, true_labels = _make_clustered_embeddings([5, 5, 5], spread=0.02)
         labels = cluster_embeddings(emb, distance_threshold=0.45)
 
-        # Faces within the same true cluster should have the same label
         for i in range(3):
             cluster_labels = labels[true_labels == i]
             assert len(set(cluster_labels)) == 1, (
@@ -131,7 +125,7 @@ class TestAssignToNearestCluster:
         new_labels = assign_to_nearest_cluster(
             index, true_labels, new_face, distance_threshold=0.45
         )
-        assert new_labels[0] == 0  # assigned to cluster 0
+        assert new_labels[0] == 0
 
     def test_creates_new_cluster_for_dissimilar(self) -> None:
         emb = _make_embeddings(5, seed=1)
@@ -162,7 +156,6 @@ class TestComputeMedoids:
         medoids = compute_medoids(emb, true_labels)
 
         assert set(medoids.keys()) == {0, 1}
-        # Each medoid should be within the correct cluster
         assert true_labels[medoids[0]] == 0
         assert true_labels[medoids[1]] == 1
 

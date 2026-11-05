@@ -1,5 +1,3 @@
-"""Tests for collection discovery."""
-
 from pathlib import Path
 
 from photree.collection.id import generate_collection_id

@@ -1,5 +1,3 @@
-"""Shared helpers for fix operations."""
-
 from pathlib import Path
 
 from ..store.media_source import MediaSource
@@ -31,9 +29,7 @@ class NotAnIosMediaSourceError(ValueError):
 
 
 def _require_archive(album_dir: Path, ms: MediaSource) -> None:
-    """Raise :class:`MissingArchiveError` if the archive directory is absent.
-
-    Archive-dependent operations (rebuilding or pruning browsable dirs)
+    """Archive-dependent operations (rebuilding or pruning browsable dirs)
     require the source's ``{archive}/`` directory; guarding here prevents
     destructive operations from running against an incomplete media source.
     """
@@ -42,6 +38,5 @@ def _require_archive(album_dir: Path, ms: MediaSource) -> None:
 
 
 def require_ios(ms: MediaSource) -> None:
-    """Raise :class:`NotAnIosMediaSourceError` unless *ms* is an iOS source."""
     if not ms.is_ios:
         raise NotAnIosMediaSourceError(ms.name)

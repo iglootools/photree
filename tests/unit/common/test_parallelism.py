@@ -1,5 +1,3 @@
-"""Tests for photree.common.parallelism module."""
-
 from photree.common.parallelism import run_parallel
 
 

@@ -33,10 +33,6 @@ def _rb(
     return RoleBreakdown(total=total, archive=archive, derived=derived)
 
 
-# ---------------------------------------------------------------------------
-# Media source stats
-# ---------------------------------------------------------------------------
-
 _IOS_MAIN = MediaSourceStats(
     name="main",
     media_source_type=MediaSourceType.IOS,
@@ -113,10 +109,6 @@ _PLAIN_NELU = MediaSourceStats(
 )
 
 
-# ---------------------------------------------------------------------------
-# Album stats
-# ---------------------------------------------------------------------------
-
 _AGGREGATE_ALBUM = AggregateStats(
     total=SizeStats(file_count=2028, apparent_bytes=_gb(54.5), on_disk_bytes=_gb(38.3)),
     archive=SizeStats(
@@ -176,9 +168,7 @@ ALBUM_STATS = AlbumStats(
 )
 
 
-# ---------------------------------------------------------------------------
-# Gallery stats (3 albums across 2 years)
-# ---------------------------------------------------------------------------
+# Gallery stats: 3 albums across 2 years.
 
 _ALBUM_2024_A = AlbumStats(
     album_name="2024-07-14 - 01 - Canada Trip - Hiking the Rockies",

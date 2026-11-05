@@ -1,5 +1,3 @@
-"""Result and error types of a collection refresh."""
-
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -53,8 +51,6 @@ class CollectionRefreshError:
 
 @dataclass(frozen=True)
 class CollectionRefreshResult:
-    """Result of a collection refresh run."""
-
     created: tuple[str, ...] = ()
     updated: tuple[str, ...] = ()
     renamed: tuple[tuple[str, str], ...] = ()  # (old_name, new_name)

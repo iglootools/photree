@@ -1,5 +1,3 @@
-"""Tests for photree.album.store.media_sources_discovery — media source discovery."""
-
 from pathlib import Path
 
 from photree.album.store.media_source import MediaSourceType, std_media_source
@@ -10,7 +8,6 @@ from photree.album.store.media_sources_discovery import (
 
 
 def _setup_dir(path: Path, filenames: list[str]) -> Path:
-    """Create a directory with the given filenames."""
     path.mkdir(parents=True, exist_ok=True)
     for name in filenames:
         (path / name).write_text(f"data-{name}")
@@ -22,11 +19,6 @@ def _ms_names_and_types(
 ) -> list[tuple[str, MediaSourceType]]:
     """Extract (name, type) pairs for easy assertion."""
     return [(ms.name, ms.media_source_type) for ms in sources]
-
-
-# ---------------------------------------------------------------------------
-# _is_std_source_dir
-# ---------------------------------------------------------------------------
 
 
 class TestIsStdSourceDir:
@@ -54,11 +46,6 @@ class TestIsStdSourceDir:
         f = tmp_path / "std-nelu"
         f.write_text("not a dir")
         assert _is_std_source_dir(f) is False
-
-
-# ---------------------------------------------------------------------------
-# discover_media_sources — std detection
-# ---------------------------------------------------------------------------
 
 
 class TestDiscoverMediaSourcesStd:
@@ -115,19 +102,12 @@ class TestDiscoverMediaSourcesStd:
         assert sources[0].name == "nelu"
 
 
-# ---------------------------------------------------------------------------
-# discover_media_sources — mixed albums
-# ---------------------------------------------------------------------------
-
-
 class TestDiscoverMediaSourcesMixed:
     def test_ios_plus_std_sources(self, tmp_path: Path) -> None:
         """Album with iOS main + std (bruno); browsable-only dirs are ignored."""
-        # iOS source: main
         _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC"])
         _setup_dir(tmp_path / "main-img", ["IMG_0001.HEIC"])
 
-        # Std source: bruno
         _setup_dir(tmp_path / "std-bruno/orig-img", ["sunset.heic"])
         _setup_dir(tmp_path / "bruno-img", ["sunset.heic"])
 
@@ -159,11 +139,6 @@ class TestDiscoverMediaSourcesMixed:
 
     def test_nonexistent_directory(self, tmp_path: Path) -> None:
         assert discover_media_sources(tmp_path / "nonexistent") == []
-
-
-# ---------------------------------------------------------------------------
-# std_media_source factory
-# ---------------------------------------------------------------------------
 
 
 class TestStdMediaSource:

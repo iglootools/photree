@@ -16,15 +16,9 @@ from .store.file_matching import find_files_by_key
 from .store.media_source import MediaSource
 from .store.media_sources_discovery import discover_media_sources
 
-# ---------------------------------------------------------------------------
-# Data structures
-# ---------------------------------------------------------------------------
-
 
 @dataclass(frozen=True)
 class MediaOpResult:
-    """Result of a move or remove operation."""
-
     files_by_dir: tuple[tuple[str, tuple[str, ...]], ...]
 
     @property
@@ -42,9 +36,7 @@ class MediaOpErrorKind(StrEnum):
 
 
 class MediaOpError(ValueError):
-    """A move/remove request that cannot be carried out.
-
-    Carries structured fields; :func:`format_media_op_error` renders them for
+    """Carries structured fields; :func:`format_media_op_error` renders them for
     the CLI with display paths. ``ValueError`` subclass for callers that
     already catch that.
     """
@@ -66,21 +58,10 @@ class MediaOpError(ValueError):
         super().__init__(f"{kind}: {album_dir.name}")
 
 
-# ---------------------------------------------------------------------------
-# Directory-to-media-source mapping
-# ---------------------------------------------------------------------------
-
-
 def _build_dir_to_media_source(
     media_sources: list[MediaSource],
 ) -> dict[str, MediaSource]:
-    """Map every media source subdirectory name to its media source."""
     return {d: ms for ms in media_sources for d in ms.all_subdirs}
-
-
-# ---------------------------------------------------------------------------
-# Variant resolution
-# ---------------------------------------------------------------------------
 
 
 def _is_video(filename: str) -> bool:
@@ -93,7 +74,6 @@ def _find_matching_files(
     keys: set[str],
     ms: MediaSource,
 ) -> list[str]:
-    """Find files in *album_dir/subdir* matching *keys* using *ms.key_fn*."""
     directory = album_dir / subdir
     if not directory.is_dir():
         return []
@@ -112,9 +92,7 @@ class _Target:
 def _locate(
     album_dir: Path, rel_path: str, dir_to_ms: dict[str, MediaSource]
 ) -> _Target:
-    """Map a relative path (``main-jpg/IMG_E3219.jpg``) to its media source and key.
-
-    Handles both flat (``main-jpg/file``) and nested
+    """Handles both flat (``main-jpg/file``) and nested
     (``ios-main/orig-img/file``) directories.
     """
     parts = Path(rel_path).parts
@@ -138,9 +116,7 @@ def resolve_variants(
     album_dir: Path,
     relative_paths: list[str],
 ) -> list[tuple[str, list[str]]]:
-    """Resolve all file variants for the given relative paths.
-
-    Returns ``[(subdir, [filename, ...])]`` with all variant files found
+    """Returns ``[(subdir, [filename, ...])]`` with all variant files found
     across the media source directory structure.
 
     Raises :class:`MediaOpError` when a path cannot be mapped to a media
@@ -171,18 +147,12 @@ def resolve_variants(
     ]
 
 
-# ---------------------------------------------------------------------------
-# Move / Remove
-# ---------------------------------------------------------------------------
-
-
 def _remove_empty_dirs(
     album_dir: Path,
     subdirs: list[str],
     *,
     dry_run: bool,
 ) -> None:
-    """Remove subdirectories that are now empty after a move/rm operation."""
     for subdir in subdirs:
         directory = album_dir / subdir
         if directory.is_dir() and not any(directory.iterdir()) and not dry_run:
@@ -198,10 +168,7 @@ def _check_move_conflicts(
     dest_album: Path,
     dest_dir_to_ms: dict[str, MediaSource],
 ) -> list[str]:
-    """Check for conflicts in the destination album before moving.
-
-    Returns a sorted list of conflicting file paths, empty if no conflicts.
-    """
+    """Returns a sorted list of conflicting file paths, empty if no conflicts."""
     return sorted(
         {
             f"{subdir}/{existing}"
@@ -221,9 +188,7 @@ def move_media(
     *,
     dry_run: bool = False,
 ) -> MediaOpResult:
-    """Move media files and all their variants from *source_album* to *dest_album*.
-
-    Raises :class:`MediaOpError` (``MOVE_CONFLICT``, with the conflicting
+    """Raises :class:`MediaOpError` (``MOVE_CONFLICT``, with the conflicting
     paths) before moving anything if the destination already holds files
     with the same key.
     """
@@ -253,7 +218,6 @@ def rm_media(
     *,
     dry_run: bool = False,
 ) -> MediaOpResult:
-    """Remove media files and all their variants from *album_dir*."""
     variants = resolve_variants(album_dir, relative_paths)
 
     for subdir, files in variants:
@@ -268,10 +232,6 @@ def _files_by_dir(
 ) -> tuple[tuple[str, tuple[str, ...]], ...]:
     return tuple((subdir, tuple(files)) for subdir, files in variants)
 
-
-# ---------------------------------------------------------------------------
-# Output formatting
-# ---------------------------------------------------------------------------
 
 _MAX_LISTED_CONFLICTS = 10
 

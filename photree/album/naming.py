@@ -22,17 +22,10 @@ from enum import StrEnum
 
 from ..dates import DATE_PREFIX_RE, is_day_precision, is_valid_date
 
-# ---------------------------------------------------------------------------
-# Regexes
-# ---------------------------------------------------------------------------
-
-# Matches "[tag1, tag2]" at the end of a name
 _TAGS_RE = re.compile(r"\s*\[([^\]]+)\]\s*$")
 
-# Prefix-style part number: "XX - rest"
 _PREFIX_PART_RE = re.compile(r"^(\d{2}) - (.+)$")
 
-# Kebab-case slug validation for tags
 _KEBAB_SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 # A bare two-digit segment: the part number in "Series - XX - Title"
@@ -55,19 +48,11 @@ _LEGACY_DATE_RE = re.compile(
     r") *- *"
 )
 
-# Valid tags (whitelist)
 VALID_TAGS = frozenset({"private"})
-
-
-# ---------------------------------------------------------------------------
-# Data classes
-# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
 class ParsedAlbumName:
-    """Parsed album name components."""
-
     date: str
     part: str | None
     private: bool
@@ -77,8 +62,6 @@ class ParsedAlbumName:
 
 
 class NamingIssueCode(StrEnum):
-    """Kinds of naming convention violation."""
-
     NAME_TOO_LONG = "name-too-long"
     INVALID_DATE_FORMAT = "invalid-date-format"
     INVALID_DATE = "invalid-date"
@@ -92,8 +75,6 @@ class NamingIssueCode(StrEnum):
 
 @dataclass(frozen=True)
 class NamingIssue:
-    """A single naming convention violation."""
-
     code: NamingIssueCode
     message: str
 
@@ -107,11 +88,6 @@ class BatchNamingResult:
     @property
     def success(self) -> bool:
         return not self.date_collisions
-
-
-# ---------------------------------------------------------------------------
-# Parsing
-# ---------------------------------------------------------------------------
 
 
 def _split_tags(name: str) -> tuple[str, tuple[str, ...]]:
@@ -161,10 +137,7 @@ def _split_location(raw_title: str) -> tuple[str, str | None]:
 
 
 def parse_album_name(name: str) -> ParsedAlbumName | None:
-    """Parse an album folder name into components.
-
-    Returns ``None`` if the name does not start with a valid date prefix.
-    """
+    """Returns ``None`` if the name does not start with a valid date prefix."""
     without_tags, tags = _split_tags(name)
     dm = DATE_PREFIX_RE.match(without_tags)
     if dm is None:
@@ -197,11 +170,6 @@ def reconstruct_name(parsed: ParsedAlbumName) -> str:
     ]
     name = " - ".join(parts)
     return f"{name} [private]" if parsed.private else name
-
-
-# ---------------------------------------------------------------------------
-# Naming validation
-# ---------------------------------------------------------------------------
 
 
 # Most Linux and macOS filesystems limit directory names to 255 bytes.
@@ -310,9 +278,7 @@ def _separator_issues(album_name: str) -> list[NamingIssue]:
 
 
 def check_album_naming(album_name: str) -> tuple[NamingIssue, ...]:
-    """Validate a single album name against naming conventions.
-
-    This only inspects the name string — no filesystem access needed.
+    """This only inspects the name string — no filesystem access needed.
     Suitable as a pre-import check.
     """
     parsed = parse_album_name(album_name)
@@ -328,17 +294,10 @@ def check_album_naming(album_name: str) -> tuple[NamingIssue, ...]:
     )
 
 
-# ---------------------------------------------------------------------------
-# Batch checks
-# ---------------------------------------------------------------------------
-
-
 def check_batch_date_collisions(
     albums: list[tuple[str, ParsedAlbumName]],
 ) -> BatchNamingResult:
-    """Check for date collisions across non-private albums.
-
-    Flags groups of albums on the same single-day date whose part numbers
+    """Flags groups of albums on the same single-day date whose part numbers
     do not disambiguate them: either some album lacks a part, or two
     albums share the same part value.
 

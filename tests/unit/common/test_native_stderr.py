@@ -1,5 +1,3 @@
-"""Tests for photree.common.native_stderr."""
-
 import os
 
 import pytest

@@ -232,11 +232,6 @@ class BatchProgressBar(_LazyProgress):
         )
 
 
-# ---------------------------------------------------------------------------
-# Transient spinner for slow one-off operations
-# ---------------------------------------------------------------------------
-
-
 def run_with_spinner[T](description: str, fn: Callable[[], T]) -> T:
     """Run *fn* with a transient spinner showing plain-text *description*."""
     with Progress(

@@ -1,5 +1,3 @@
-"""Tests for ``photree gallery metadata set`` command."""
-
 from pathlib import Path
 
 from typer.testing import CliRunner

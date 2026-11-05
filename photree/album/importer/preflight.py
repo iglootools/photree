@@ -1,5 +1,3 @@
-"""Pre-flight validation for import commands."""
-
 import os
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -61,8 +59,6 @@ class SelectionStatus(StrEnum):
 
 @dataclass(frozen=True)
 class ImportPreflightResult:
-    """Structured result of all import preflight checks."""
-
     system_deps: tuple[SystemDependencyStatus, ...]
     selection_status: SelectionStatus | None  # None if no album_dir provided
     selection_path: Path | None  # album dir (holds the to-import-* entries)
@@ -70,7 +66,7 @@ class ImportPreflightResult:
     image_capture_dir_found: bool
     image_capture_dir_check: ImageCaptureDirCheck | None  # None if not found or force
     image_capture_dir_preflight_skipped: bool
-    ios_import_required: bool  # whether an Image Capture source is needed
+    ios_import_required: bool
 
     @property
     def missing_system_deps(self) -> tuple[SystemDependency, ...]:
@@ -91,8 +87,6 @@ class ImportPreflightResult:
 
 @dataclass(frozen=True)
 class ImageCaptureDirCheck:
-    """Structured result of checking an Image Capture source directory."""
-
     has_media_files: bool
     img_prefixed_count: int
     total_file_count: int
@@ -138,10 +132,7 @@ def check_image_capture_dir(path: Path) -> ImageCaptureDirCheck:
 
 
 def _check_import_tasks(album_dir: Path) -> tuple[SelectionStatus, bool]:
-    """Check import-task status for *album_dir*.
-
-    Returns ``(status, ios_import_required)``.
-    """
+    """Returns ``(status, ios_import_required)``."""
     tasks = discover_import_tasks(album_dir)
     ios_required = any(t.is_ios for t in tasks)
     if not tasks:
@@ -160,9 +151,7 @@ def run_preflight(
     album_dir: Path | None = None,
     force: bool = False,
 ) -> ImportPreflightResult:
-    """Run all import preflight checks and return structured results.
-
-    *system_deps* is probed by the caller rather than here, so this stays a
+    """*system_deps* is probed by the caller rather than here, so this stays a
     pure function of the filesystem it is handed — PATH is the CLI layer's
     business, and tests can drive every branch without touching it.
     """

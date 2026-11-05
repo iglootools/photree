@@ -1,5 +1,3 @@
-"""Media source discovery — detect iOS and std media sources in an album."""
-
 from pathlib import Path
 
 from ..formats import IMG_EXTENSIONS, VID_EXTENSIONS
@@ -49,7 +47,6 @@ class MediaSourceConflictError(ValueError):
 
 
 def _archive_names(album_dir: Path) -> tuple[frozenset[str], frozenset[str]]:
-    """Return ``(ios_names, std_names)`` of the archives found in *album_dir*."""
     if not album_dir.is_dir():
         return frozenset(), frozenset()
     subdirs = [d for d in album_dir.iterdir() if d.is_dir()]
@@ -88,9 +85,7 @@ def has_any_media_source(album_dir: Path) -> bool:
 
 
 def discover_media_sources(album_dir: Path) -> list[MediaSource]:
-    """Discover all media sources in an album.
-
-    Scans for:
+    """Scans for:
     1. iOS media sources: ``ios-{name}/`` with ``orig-img/`` or ``orig-vid/``
     2. Std media sources: ``std-{name}/`` with ``orig-img/`` or ``orig-vid/``
 
@@ -118,9 +113,7 @@ _MEDIA_EXTENSIONS = IMG_EXTENSIONS | VID_EXTENSIONS
 
 
 def discover_browsable_media_files(album_dir: Path) -> list[Path]:
-    """Collect all media files from an album's browsable directories.
-
-    Searches all media sources' ``{name}-jpg/`` and ``{name}-vid/``
+    """Searches all media sources' ``{name}-jpg/`` and ``{name}-vid/``
     directories. Falls back to recursive search from the album root
     when no media sources are found.
     """

@@ -1,5 +1,3 @@
-"""Tests for album-specific EXIF helpers and generic common.exif functions."""
-
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -30,11 +28,6 @@ requires_exiftool = pytest.mark.skipif(
 def _extract_timestamp(metadata: dict[str, object]) -> datetime | None:
     """Test helper: extract_timestamp bound to the project's tag priority."""
     return extract_timestamp(metadata, TIMESTAMP_TAGS)
-
-
-# ---------------------------------------------------------------------------
-# extract_timestamp (with project's TIMESTAMP_TAGS)
-# ---------------------------------------------------------------------------
 
 
 class TestExtractTimestamp:
@@ -117,11 +110,6 @@ class TestExtractTimestamp:
         assert ts.date() == datetime(2024, 7, 20).date()
 
 
-# ---------------------------------------------------------------------------
-# try_start_exiftool (from common.exif)
-# ---------------------------------------------------------------------------
-
-
 class TestTryStartExiftool:
     def test_returns_none_when_not_installed(self) -> None:
         assert try_start_exiftool(which=lambda _name: None) is None
@@ -143,19 +131,9 @@ class TestExiftoolSession:
             assert et is None
 
 
-# ---------------------------------------------------------------------------
-# read_exif_timestamps (from common.exif)
-# ---------------------------------------------------------------------------
-
-
 class TestReadExifTimestamps:
     def test_empty_files(self) -> None:
         assert read_exif_timestamps([], TIMESTAMP_TAGS) == []
-
-
-# ---------------------------------------------------------------------------
-# parse_timestamp — naive wall-clock policy
-# ---------------------------------------------------------------------------
 
 
 class TestParseTimestamp:
@@ -176,11 +154,6 @@ class TestParseTimestamp:
 
     def test_unparseable(self) -> None:
         assert parse_timestamp("nope") is None
-
-
-# ---------------------------------------------------------------------------
-# EXIF writing (real exiftool)
-# ---------------------------------------------------------------------------
 
 
 def _jpeg(path: Path, timestamp: str | None = "2024:07:20 13:55:20") -> Path:

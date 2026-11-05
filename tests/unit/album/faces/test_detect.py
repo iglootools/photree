@@ -1,5 +1,3 @@
-"""Tests for photree.album.faces.detect — analyzer factory injection."""
-
 import pytest
 
 from photree.album.faces import detect
@@ -7,7 +5,6 @@ from photree.album.faces import detect
 
 class TestMemoizedFaceAnalyzerFactory:
     def test_loads_lazily_and_caches(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """The factory builds the analyzer on first call and reuses it after."""
         calls = 0
         sentinel = object()
 

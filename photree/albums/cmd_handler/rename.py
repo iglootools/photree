@@ -1,5 +1,3 @@
-"""Batch rename command handler."""
-
 import csv as csv_mod
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -49,7 +47,6 @@ def batch_rename_from_csv(
             row_count=len(rows), actions=(), errors=errors, renamed=0
         )
 
-    # Raises RenameCollisionError on collision
     check_rename_collisions(actions)
     if dry_run:
         return BatchRenameResult(len(rows), actions, errors=(), renamed=0)

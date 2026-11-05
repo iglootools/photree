@@ -1,5 +1,3 @@
-"""Configuration data types."""
-
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -80,8 +78,6 @@ class ImporterConfig:
 
 @dataclass(frozen=True)
 class ExporterProfile:
-    """A named exporter profile."""
-
     share_dir: Path
     share_layout: ShareDirectoryLayout = ShareDirectoryLayout.FLAT
     album_layout: AlbumShareLayout = AlbumShareLayout.BROWSABLE_JPG
@@ -100,7 +96,5 @@ class ExporterConfig:
 
 @dataclass(frozen=True)
 class PhotreeConfig:
-    """Application configuration."""
-
     importer: ImporterConfig = ImporterConfig()
     exporter: ExporterConfig = ExporterConfig()

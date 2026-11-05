@@ -46,7 +46,6 @@ class TestFindDuplicateMediaIds:
         _setup_ios_album(album1)
         _setup_ios_album(album2)
 
-        # Use the same UUID in both albums
         shared_id = generate_media_id()
         for album_dir in [album1, album2]:
             save_media_metadata(

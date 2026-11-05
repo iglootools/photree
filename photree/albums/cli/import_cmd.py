@@ -1,5 +1,3 @@
-"""``photree albums import`` command."""
-
 import os
 from pathlib import Path
 from typing import Annotated

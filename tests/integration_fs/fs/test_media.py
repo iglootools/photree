@@ -1,5 +1,3 @@
-"""Tests for photree.album.store.file_matching (generic key-function-based matching)."""
-
 from pathlib import Path
 
 from photree.album.formats import IMG_EXTENSIONS, VID_EXTENSIONS
@@ -13,16 +11,10 @@ from photree.album.store.media_source import ios_img_number, stem_key
 
 
 def _setup_dir(path: Path, filenames: list[str]) -> Path:
-    """Create a directory with the given filenames."""
     path.mkdir(parents=True, exist_ok=True)
     for name in filenames:
         (path / name).write_text(f"data-{name}")
     return path
-
-
-# ---------------------------------------------------------------------------
-# group_by_key
-# ---------------------------------------------------------------------------
 
 
 class TestGroupByKey:
@@ -57,11 +49,6 @@ class TestGroupByKey:
         assert result == {"clip": ["clip.mov", "clip.mp4"]}
 
 
-# ---------------------------------------------------------------------------
-# dedup_media_dict
-# ---------------------------------------------------------------------------
-
-
 class TestDedupMediaDict:
     def test_dedup_by_img_number_prefers_heic(self) -> None:
         files = ["IMG_0001.HEIC", "IMG_0001.JPG"]
@@ -92,11 +79,6 @@ class TestDedupMediaDict:
         files = ["sunset.heic", "sunset.aae"]
         result = dedup_media_dict(files, IMG_EXTENSIONS, stem_key)
         assert result == {"sunset": "sunset.heic"}
-
-
-# ---------------------------------------------------------------------------
-# find_files_by_key
-# ---------------------------------------------------------------------------
 
 
 class TestFindFilesByKey:
@@ -132,11 +114,6 @@ class TestFindFilesByKey:
     def test_missing_directory(self, tmp_path: Path) -> None:
         result = find_files_by_key({"sunset"}, tmp_path / "nonexistent", stem_key)
         assert result == []
-
-
-# ---------------------------------------------------------------------------
-# pick_media_priority
-# ---------------------------------------------------------------------------
 
 
 class TestPickMediaPriority:

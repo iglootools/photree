@@ -1,5 +1,3 @@
-"""rm-orphan fix operation."""
-
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -14,7 +12,6 @@ def _extract_keys(
     media_extensions: frozenset[str],
     key_fn: KeyFn,
 ) -> set[str]:
-    """Return the set of keys present in an orig directory."""
     return {key_fn(f) for f in list_files(directory) if file_ext(f) in media_extensions}
 
 
@@ -29,8 +26,6 @@ def _find_orphan_files(
 
 @dataclass(frozen=True)
 class RmOrphanDirResult:
-    """Result of removing orphans for one media type."""
-
     removed_by_dir: tuple[tuple[str, tuple[str, ...]], ...]
 
     @property
@@ -40,8 +35,6 @@ class RmOrphanDirResult:
 
 @dataclass(frozen=True)
 class RmOrphanResult:
-    """Result of removing orphaned files."""
-
     heic: RmOrphanDirResult
     mov: RmOrphanDirResult
 
@@ -87,9 +80,7 @@ def rm_orphan(
     *,
     dry_run: bool = False,
 ) -> RmOrphanResult:
-    """Remove edited and browsable files that have no corresponding orig file.
-
-    Works for both iOS and std media sources.
+    """Works for both iOS and std media sources.
 
     Images: files in edit-img, {name}-img, and {name}-jpg whose
     key is not present in orig-img are deleted.

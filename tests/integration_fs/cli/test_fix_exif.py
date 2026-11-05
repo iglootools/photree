@@ -1,5 +1,3 @@
-"""CLI tests for ``photree album fix-exif``."""
-
 import shutil
 from pathlib import Path
 

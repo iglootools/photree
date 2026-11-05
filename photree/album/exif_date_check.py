@@ -33,10 +33,6 @@ from .store.media_sources_discovery import (
     discover_media_sources,
 )
 
-# ---------------------------------------------------------------------------
-# Data classes
-# ---------------------------------------------------------------------------
-
 
 @dataclass(frozen=True)
 class ExifMismatch:
@@ -50,8 +46,6 @@ class ExifMismatch:
 
 @dataclass(frozen=True)
 class ExifTimestampCheck:
-    """Result of validating EXIF timestamps against album date."""
-
     album_date: str
     total_files: int
     mismatches: tuple[ExifMismatch, ...]
@@ -85,11 +79,6 @@ class AlbumNamingResult:
         return self.exif_check is not None and not self.exif_check.matches
 
 
-# ---------------------------------------------------------------------------
-# EXIF date match
-# ---------------------------------------------------------------------------
-
-
 def _upstream_dirs(ms: MediaSource, *, is_video: bool) -> tuple[str, ...]:
     """Directories holding the files an EXIF fix must touch for one item."""
     match (ms.is_ios, is_video):
@@ -110,14 +99,10 @@ def _resolve_upstream_files(
     file_path: Path,
     media_sources: list[MediaSource],
 ) -> tuple[tuple[str, ...], bool]:
-    """Find upstream source files for a browsable file.
-
-    Returns ``(upstream_relative_paths, is_ios)``.
-    """
+    """Returns ``(upstream_relative_paths, is_ios)``."""
     dir_part = str(file_path.relative_to(album_dir).parent)
     filename = file_path.name
 
-    # Find the media source that owns this directory
     ms = next(
         (m for m in media_sources if dir_part in (m.jpg_dir, m.vid_dir, m.img_dir)),
         None,
@@ -182,9 +167,7 @@ def check_exif_date_match(
     exiftool: ExifToolHelper | None = None,
     part: str | None = None,
 ) -> ExifTimestampCheck | None:
-    """Check EXIF timestamps of all media files against the album date.
-
-    Reads from the EXIF cache when available and fresh. Falls back to
+    """Reads from the EXIF cache when available and fresh. Falls back to
     exiftool when the cache is missing or stale.
 
     Returns ``None`` if no media files found or no timestamps could be read,
@@ -210,17 +193,11 @@ def check_exif_date_match(
     )
 
 
-# ---------------------------------------------------------------------------
-# EXIF cache integration
-# ---------------------------------------------------------------------------
-
-
 def _read_timestamps_from_cache_or_exiftool(
     album_dir: Path,
     *,
     exiftool: ExifToolHelper | None,
 ) -> list[tuple[Path, datetime]]:
-    """Read timestamps from EXIF cache if fresh, else fall back to exiftool."""
     cached = _try_read_from_cache(album_dir)
     if cached is not None:
         return cached
@@ -232,9 +209,7 @@ def _read_timestamps_from_cache_or_exiftool(
 
 
 def _try_read_from_cache(album_dir: Path) -> list[tuple[Path, datetime]] | None:
-    """Try to read all timestamps from the EXIF cache.
-
-    Returns ``None`` if any media source has no cache file, or one written in
+    """Returns ``None`` if any media source has no cache file, or one written in
     an older layout (see ``exif_cache.protocol.EXIF_CACHE_VERSION``). An empty
     cache file (written for sources with no browsable files) is valid.
 

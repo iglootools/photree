@@ -1,5 +1,3 @@
-"""``photree album fix`` command."""
-
 from pathlib import Path
 from typing import Annotated
 

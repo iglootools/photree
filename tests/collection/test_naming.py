@@ -1,5 +1,3 @@
-"""Tests for collection naming convention parsing."""
-
 from photree.collection.naming import (
     ParsedCollectionName,
     parse_collection_name,

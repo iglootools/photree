@@ -1,5 +1,3 @@
-"""Stats data model — frozen dataclasses for album and gallery statistics."""
-
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -34,8 +32,6 @@ class RoleBreakdown:
 
 @dataclass(frozen=True)
 class FormatStats:
-    """Per-extension file statistics."""
-
     extension: str  # e.g. ".heic", ".mov"
     file_count: int
     apparent_bytes: int
@@ -46,8 +42,6 @@ class FormatStats:
 
 @dataclass(frozen=True)
 class MediaSourceStats:
-    """Statistics for a single media source within an album."""
-
     name: str
     media_source_type: MediaSourceType
     total: SizeStats
@@ -76,9 +70,7 @@ class MediaSourceTypeStats:
 
 @dataclass(frozen=True)
 class AggregateStats:
-    """Common aggregate fields shared between album-level and gallery-level stats.
-
-    Extracted so the same aggregation logic and output formatting code can be
+    """Extracted so the same aggregation logic and output formatting code can be
     reused at both levels and for per-year breakdowns.
     """
 
@@ -99,8 +91,6 @@ class AggregateStats:
 
 @dataclass(frozen=True)
 class AlbumStats:
-    """Statistics for a single album."""
-
     album_name: str
     album_year: str
     by_media_source: tuple[MediaSourceStats, ...]
@@ -110,8 +100,6 @@ class AlbumStats:
 
 @dataclass(frozen=True)
 class YearStats:
-    """Gallery statistics for a single year."""
-
     year: str
     album_count: int
     aggregate: AggregateStats

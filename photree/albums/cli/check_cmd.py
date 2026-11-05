@@ -1,5 +1,3 @@
-"""``photree albums check`` command."""
-
 from typing import Annotated
 
 import typer

@@ -1,5 +1,3 @@
-"""Aggregation helpers for merging stats across media sources and albums."""
-
 from collections.abc import Iterable
 
 from .models import (
@@ -13,7 +11,6 @@ from .models import (
 
 
 def merge_size_stats(stats: Iterable[SizeStats]) -> SizeStats:
-    """Sum ``SizeStats`` fields across multiple instances."""
     stats_list = list(stats)
     return SizeStats(
         file_count=sum(s.file_count for s in stats_list),
@@ -23,7 +20,6 @@ def merge_size_stats(stats: Iterable[SizeStats]) -> SizeStats:
 
 
 def merge_role_breakdowns(breakdowns: Iterable[RoleBreakdown]) -> RoleBreakdown:
-    """Sum ``RoleBreakdown`` fields across multiple instances."""
     bd_list = list(breakdowns)
     return RoleBreakdown(
         total=merge_size_stats(b.total for b in bd_list),
@@ -96,7 +92,6 @@ def merge_media_source_type_stats(
 def aggregate_media_sources(
     sources: Iterable[MediaSourceStats],
 ) -> AggregateStats:
-    """Build an ``AggregateStats`` from per-media-source stats."""
     source_list = list(sources)
     return AggregateStats(
         total=merge_size_stats(ms.total for ms in source_list),
@@ -116,7 +111,6 @@ def aggregate_media_sources(
 
 
 def merge_aggregates(aggregates: Iterable[AggregateStats]) -> AggregateStats:
-    """Merge multiple ``AggregateStats`` (e.g. from albums into gallery)."""
     agg_list = list(aggregates)
     return AggregateStats(
         total=merge_size_stats(a.total for a in agg_list),

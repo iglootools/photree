@@ -1,5 +1,3 @@
-"""``photree albums rename-from-csv`` command."""
-
 from pathlib import Path
 from typing import Annotated
 

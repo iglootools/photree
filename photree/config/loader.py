@@ -171,11 +171,6 @@ def _expand_user(value: str, home: Path) -> Path:
             return Path(os.path.expanduser(value))
 
 
-# ---------------------------------------------------------------------------
-# Sections
-# ---------------------------------------------------------------------------
-
-
 def _parse_profile(name: str, section: object, home: Path) -> ExporterProfile:
     """Parse a single ``[exporter.profiles.<name>]`` table."""
     table = _as_table(section, field="exporter.profiles", profile=name)

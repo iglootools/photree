@@ -1,5 +1,3 @@
-"""Collection metadata I/O."""
-
 from pathlib import Path
 
 from ...foundation.layout import PHOTREE_DIR

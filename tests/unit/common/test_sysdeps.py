@@ -1,5 +1,3 @@
-"""Tests for photree.common.sysdeps — external binary discovery."""
-
 import pytest
 
 from photree.common.sysdeps import (

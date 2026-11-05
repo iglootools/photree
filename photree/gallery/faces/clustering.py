@@ -13,10 +13,6 @@ from .protocol import DEFAULT_CLUSTER_THRESHOLD
 if TYPE_CHECKING:
     import faiss  # type: ignore[import-untyped]
 
-# ---------------------------------------------------------------------------
-# FAISS index management
-# ---------------------------------------------------------------------------
-
 
 def build_faiss_index(embeddings: np.ndarray) -> faiss.IndexFlatIP:
     """Build a FAISS inner-product index from L2-normalized embeddings.
@@ -33,7 +29,6 @@ def build_faiss_index(embeddings: np.ndarray) -> faiss.IndexFlatIP:
 
 
 def save_faiss_index(index: faiss.IndexFlatIP, path: Path) -> None:
-    """Serialize a FAISS index to disk."""
     import faiss  # type: ignore[import-untyped]
 
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -47,11 +42,6 @@ def load_faiss_index(path: Path) -> faiss.IndexFlatIP | None:
     if not path.is_file():
         return None
     return cast(faiss.IndexFlatIP, faiss.read_index(str(path)))
-
-
-# ---------------------------------------------------------------------------
-# Agglomerative clustering
-# ---------------------------------------------------------------------------
 
 
 def cluster_embeddings(
@@ -115,11 +105,6 @@ def _build_sparse_connectivity(embeddings: np.ndarray, *, k: int) -> object:
                 connectivity[j, i] = 1
 
     return connectivity.tocsr()
-
-
-# ---------------------------------------------------------------------------
-# Incremental assignment
-# ---------------------------------------------------------------------------
 
 
 def assign_to_nearest_cluster(

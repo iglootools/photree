@@ -1,5 +1,3 @@
-"""Tests for photree.album.importer.tasks discovery."""
-
 from pathlib import Path
 
 from photree.album.importer.tasks import (

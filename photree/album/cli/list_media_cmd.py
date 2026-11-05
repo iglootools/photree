@@ -1,5 +1,3 @@
-"""``photree album list-media`` command."""
-
 import csv
 from pathlib import Path
 from typing import Annotated

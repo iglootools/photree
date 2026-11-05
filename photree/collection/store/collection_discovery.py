@@ -1,5 +1,3 @@
-"""Collection discovery — find collection directories by scanning for metadata."""
-
 from pathlib import Path
 
 from ...common.fs import matching_subdirectories

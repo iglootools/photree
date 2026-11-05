@@ -1,5 +1,3 @@
-"""Core import logic — resolve and merge members into a collection."""
-
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -42,8 +40,6 @@ class CollectionImportError(Exception):
 
 @dataclass(frozen=True)
 class CollectionImportResult:
-    """Result of importing members into a single collection."""
-
     collection_dir: Path
     collection_id: str
     members: ResolvedMembers

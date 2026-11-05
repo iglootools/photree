@@ -33,9 +33,7 @@ InodeKey = tuple[int, int]
 
 
 def scan_directory_size(directory: Path) -> SizeStats:
-    """Recursively compute file count and total size of a directory.
-
-    Does not deduplicate inodes — face storage directories do not
+    """Does not deduplicate inodes — face storage directories do not
     contain hardlinks.
     """
     sizes = (
@@ -50,15 +48,8 @@ def scan_directory_size(directory: Path) -> SizeStats:
     )
 
 
-# ---------------------------------------------------------------------------
-# File info extraction
-# ---------------------------------------------------------------------------
-
-
 @dataclass(frozen=True)
 class _FileInfo:
-    """Stat result for a single file, and whether its inode is new."""
-
     ext: str
     size: int
     is_new_inode: bool
@@ -67,10 +58,7 @@ class _FileInfo:
 def _stat_files(
     directory: Path, seen_inodes: frozenset[InodeKey]
 ) -> tuple[tuple[_FileInfo, ...], frozenset[InodeKey]]:
-    """Stat every file of *directory*, flagging inodes not in *seen_inodes*.
-
-    Returns the infos and the updated set of seen inodes.
-    """
+    """Returns the infos and the updated set of seen inodes."""
     # Documented exception (docs/guidelines.md): loop-carried state — whether
     # an inode is new depends on the files stat'ed before it.
     infos: list[_FileInfo] = []
@@ -120,11 +108,6 @@ def _format_stats(infos: tuple[_FileInfo, ...]) -> tuple[FormatStats, ...]:
     )
 
 
-# ---------------------------------------------------------------------------
-# Directory scanning
-# ---------------------------------------------------------------------------
-
-
 class _Category(StrEnum):
     IMAGE = "image"
     VIDEO = "video"
@@ -133,7 +116,6 @@ class _Category(StrEnum):
 
 
 def _classify_ext(ext: str) -> _Category:
-    """Classify a file extension into a media category."""
     match ext:
         case _ if ext in IMG_EXTENSIONS:
             return _Category.IMAGE
@@ -170,9 +152,7 @@ def categorize_size_stats(
     directory: Path,
     seen_inodes: frozenset[InodeKey] = frozenset(),
 ) -> tuple[DirStats, frozenset[InodeKey]]:
-    """Scan a directory and split results into images / videos / sidecars.
-
-    Returns the stats and the updated set of seen inodes, to pass to the next
+    """Returns the stats and the updated set of seen inodes, to pass to the next
     directory of the same album.
     """
     infos, seen = _stat_files(directory, seen_inodes)
@@ -191,17 +171,11 @@ def categorize_size_stats(
     )
 
 
-# ---------------------------------------------------------------------------
-# Format role tagging
-# ---------------------------------------------------------------------------
-
-
 def tag_format_role(
     fmts: tuple[FormatStats, ...],
     *,
     role: StorageRole,
 ) -> tuple[FormatStats, ...]:
-    """Set archive_bytes or derived_bytes on format stats based on role."""
     match role:
         case StorageRole.ARCHIVE:
             return tuple(replace(fs, archive_bytes=fs.apparent_bytes) for fs in fmts)
@@ -211,17 +185,10 @@ def tag_format_role(
             return fmts
 
 
-# ---------------------------------------------------------------------------
-# Unique media counting
-# ---------------------------------------------------------------------------
-
-
 def count_unique_pictures(
     album_dir: Path, ms: MediaSource, *, has_archive: bool
 ) -> int:
-    """Count unique pictures using the source's key function.
-
-    When the archive directory exists on disk, counts from ``orig-img/``;
+    """When the archive directory exists on disk, counts from ``orig-img/``;
     otherwise falls back to the browsable ``{name}-img/`` directory.
     """
     directory = ms.orig_img_dir if has_archive else ms.img_dir
@@ -233,9 +200,7 @@ def count_unique_pictures(
 
 
 def count_unique_videos(album_dir: Path, ms: MediaSource, *, has_archive: bool) -> int:
-    """Count unique videos using the source's key function.
-
-    When the archive directory exists on disk, counts from ``orig-vid/``;
+    """When the archive directory exists on disk, counts from ``orig-vid/``;
     otherwise falls back to the browsable ``{name}-vid/`` directory.
     """
     directory = ms.orig_vid_dir if has_archive else ms.vid_dir

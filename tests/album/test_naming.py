@@ -1,5 +1,3 @@
-"""Tests for photree.album.naming module."""
-
 from photree.album.naming import (
     ParsedAlbumName,
     check_album_naming,
@@ -7,10 +5,6 @@ from photree.album.naming import (
     parse_album_name,
     reconstruct_name,
 )
-
-# ---------------------------------------------------------------------------
-# parse_album_name
-# ---------------------------------------------------------------------------
 
 
 class TestParseAlbumName:
@@ -206,11 +200,6 @@ class TestParseAlbumName:
         assert result.location is None
 
 
-# ---------------------------------------------------------------------------
-# reconstruct_name
-# ---------------------------------------------------------------------------
-
-
 class TestReconstructName:
     def test_simple(self) -> None:
         parsed = ParsedAlbumName(
@@ -325,11 +314,6 @@ class TestReconstructName:
             parsed = parse_album_name(name)
             assert parsed is not None, f"failed to parse: {name}"
             assert reconstruct_name(parsed) == name, f"roundtrip failed: {name}"
-
-
-# ---------------------------------------------------------------------------
-# check_album_naming
-# ---------------------------------------------------------------------------
 
 
 class TestCheckAlbumNaming:
@@ -459,11 +443,6 @@ class TestCheckAlbumNaming:
         issues = check_album_naming("2024-06--2024-08-15 - 01 - Summer Trip")
         codes = [i.code for i in issues]
         assert "part-requires-day-date" in codes
-
-
-# ---------------------------------------------------------------------------
-# check_batch_date_collisions
-# ---------------------------------------------------------------------------
 
 
 class TestCheckBatchDateCollisions:

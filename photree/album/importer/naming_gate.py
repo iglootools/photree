@@ -23,8 +23,6 @@ from ..store.album_discovery import discover_albums
 
 @dataclass(frozen=True)
 class ImportNamingCheck:
-    """Naming issues and date collisions blocking an import."""
-
     naming_errors: tuple[tuple[Path, tuple[NamingIssue, ...]], ...] = ()
     date_collisions: tuple[tuple[str, tuple[str, ...]], ...] = ()
 
@@ -63,7 +61,6 @@ def _date_collisions(
 
 
 def check_import_naming(albums: Sequence[Path]) -> ImportNamingCheck:
-    """Run the light check over the albums about to be imported."""
     return ImportNamingCheck(
         naming_errors=tuple(
             (a, issues) for a in albums if (issues := check_album_naming(a.name))

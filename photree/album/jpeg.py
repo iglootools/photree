@@ -21,10 +21,6 @@ from ..common.parallelism import ParallelResult, run_parallel
 from ..common.sips import convert_to_jpeg
 from .formats import CONVERT_TO_JPEG_EXTENSIONS, COPY_AS_IS_TO_JPEG_EXTENSIONS
 
-# ---------------------------------------------------------------------------
-# Classification
-# ---------------------------------------------------------------------------
-
 
 class JpegAction(StrEnum):
     """What producing the JPEG variant of a browsable image involves."""
@@ -35,7 +31,6 @@ class JpegAction(StrEnum):
 
 
 def jpeg_action(filename: str) -> JpegAction:
-    """Classify *filename* by how its JPEG variant is produced."""
     match file_ext(filename):
         case ext if ext in CONVERT_TO_JPEG_EXTENSIONS:
             return JpegAction.CONVERT
@@ -54,11 +49,6 @@ def jpeg_name(filename: str) -> str | None:
             return filename
         case JpegAction.SKIP:
             return None
-
-
-# ---------------------------------------------------------------------------
-# Single-file converters
-# ---------------------------------------------------------------------------
 
 
 class ConvertFile(Protocol):
@@ -118,24 +108,15 @@ def copy_convert_single(src: Path, dst_dir: Path, *, dry_run: bool) -> Path | No
     return _produce_jpeg(src, dst_dir, dry_run=dry_run, convert=shutil.copy)
 
 
-# ---------------------------------------------------------------------------
-# Directory refresh
-# ---------------------------------------------------------------------------
-
-
 @dataclass(frozen=True)
 class JpegConversionFailure:
-    """A single file that could not be converted or copied."""
-
     filename: str
     reason: str
 
 
 @dataclass(frozen=True)
 class RefreshResult:
-    """Result of a batch JPEG refresh.
-
-    *converted* and *copied* count files that actually landed in the
+    """*converted* and *copied* count files that actually landed in the
     destination; a file that raised is counted in *failed* instead.
     """
 
@@ -167,9 +148,7 @@ def refresh_jpeg_dir(
     convert_file: ConvertFile = convert_single_file,
     max_workers: int | None = None,
 ) -> RefreshResult:
-    """Delete contents of *dst_dir* and re-convert all files from *src_dir*.
-
-    The destination is cleared even when the source is empty or missing, so
+    """The destination is cleared even when the source is empty or missing, so
     JPEGs of deleted images do not survive the refresh.
 
     Calls ``on_file_start(filename)`` before and ``on_file_end(filename, success)``

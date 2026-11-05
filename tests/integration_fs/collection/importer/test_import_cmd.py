@@ -1,5 +1,3 @@
-"""Tests for ``photree collection import`` CLI command."""
-
 from pathlib import Path
 
 import pytest
@@ -43,7 +41,6 @@ def _write(path: Path, content: str = "data") -> None:
 
 
 def _write_csv(path: Path, entries: list[str]) -> None:
-    """Write a collection to-import.csv with header."""
     lines = ["entry,date", *[f"{e}," for e in entries]]
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -106,7 +103,6 @@ class TestCollectionImportCmd:
         assert loaded is not None
         assert album_id in loaded.albums
 
-        # CSV should be deleted
         assert not (col_dir / SELECTION_CSV).exists()
 
     def test_import_from_dir(self, tmp_path: Path) -> None:
@@ -133,7 +129,6 @@ class TestCollectionImportCmd:
         loaded = load_collection_metadata(col_dir)
         assert loaded is not None
         assert album_id in loaded.albums
-        # Selection dir should be cleaned up
         assert not sel_dir.exists()
 
     def test_import_fails_on_unresolved(self, tmp_path: Path) -> None:
@@ -182,7 +177,6 @@ class TestCollectionImportCmd:
         loaded = load_collection_metadata(col_dir)
         assert loaded is not None
         assert loaded.albums == []
-        # CSV should NOT be deleted
         assert (col_dir / SELECTION_CSV).exists()
 
     def test_import_merges_with_existing(self, tmp_path: Path) -> None:

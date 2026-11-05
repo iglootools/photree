@@ -1,5 +1,3 @@
-"""Album discovery — find album directories by scanning for metadata and media sources."""
-
 from pathlib import Path
 
 from ...common.fs import matching_subdirectories, partition_subdirectories
@@ -9,9 +7,7 @@ from .protocol import ALBUM_YAML
 
 
 def is_album(directory: Path) -> bool:
-    """Check if a directory is a photree album.
-
-    A directory is an album if it contains ``.photree/album.yaml``
+    """A directory is an album if it contains ``.photree/album.yaml``
     **and** at least one media source (iOS or std).
     """
     return (directory / PHOTREE_DIR / ALBUM_YAML).is_file() and has_any_media_source(
@@ -20,17 +16,12 @@ def is_album(directory: Path) -> bool:
 
 
 def has_media_sources(directory: Path) -> bool:
-    """Check if a directory has at least one media source.
-
-    Unlike :func:`is_album`, this does **not** require ``.photree/album.yaml``.
-    """
+    """Unlike :func:`is_album`, this does **not** require ``.photree/album.yaml``."""
     return has_any_media_source(directory)
 
 
 def discover_albums(base_dir: Path) -> list[Path]:
-    """Recursively discover album directories under *base_dir*.
-
-    A directory is considered an album when it contains:
+    """A directory is considered an album when it contains:
     1. A ``.photree/album.yaml`` file (album metadata), **and**
     2. At least one media source archive (``ios-{name}/`` or ``std-{name}/``)
 
@@ -40,9 +31,7 @@ def discover_albums(base_dir: Path) -> list[Path]:
 
 
 def discover_potential_albums(base_dir: Path) -> tuple[list[Path], list[Path]]:
-    """Recursively discover potential albums under *base_dir*.
-
-    Returns ``(albums, skipped)``:
+    """Returns ``(albums, skipped)``:
 
     - *albums*: subdirectories with at least one media source. Recursion
       stops at each match.

@@ -1,5 +1,3 @@
-"""Tests for photree.album.fix module (generic fix operations for all source types)."""
-
 from pathlib import Path
 
 import pytest
@@ -15,7 +13,6 @@ STD = std_media_source("nelu")
 
 
 def _setup_dir(path: Path, filenames: list[str]) -> Path:
-    """Create a directory with the given filenames."""
     path.mkdir(parents=True, exist_ok=True)
     for name in filenames:
         (path / name).write_text(f"data-{name}")
@@ -23,7 +20,6 @@ def _setup_dir(path: Path, filenames: list[str]) -> Path:
 
 
 def _names(directory: Path) -> set[str]:
-    """Return filenames (names only) in a directory."""
     if not directory.is_dir():
         return set()
     return {f.name for f in directory.iterdir() if f.is_file()}
@@ -39,7 +35,6 @@ def _noop_convert(*args: object, **kwargs: object) -> None:
 
 class TestRmOrphanStd:
     def test_removes_orphan_edit_and_browsable(self, tmp_path: Path) -> None:
-        """Files in edit/browsable with no orig counterpart are removed."""
         _setup_dir(tmp_path / "std-nelu/orig-img", ["sunset.heic"])
         _setup_dir(
             tmp_path / "std-nelu/edit-img",
@@ -99,14 +94,8 @@ class TestRmOrphanStd:
         assert result.heic.total == 0
 
 
-# ---------------------------------------------------------------------------
-# rm_upstream — std sources
-# ---------------------------------------------------------------------------
-
-
 class TestRmUpstreamStd:
     def test_removes_upstream_when_jpeg_deleted(self, tmp_path: Path) -> None:
-        """Deleting from nelu-jpg propagates to all upstream dirs."""
         _setup_dir(tmp_path / "std-nelu/orig-img", ["sunset.heic"])
         _setup_dir(tmp_path / "std-nelu/edit-img", ["sunset.jpg"])
         _setup_dir(tmp_path / "nelu-img", ["sunset.jpg"])
@@ -136,7 +125,6 @@ class TestRmUpstreamStd:
         assert "beach.png" not in _names(tmp_path / "std-nelu/orig-img")
 
     def test_removes_upstream_when_browsable_img_deleted(self, tmp_path: Path) -> None:
-        """Deleting from nelu-img propagates to jpeg and upstream dirs."""
         _setup_dir(tmp_path / "std-nelu/orig-img", ["sunset.heic", "beach.png"])
         # User deleted sunset from nelu-img
         _setup_dir(tmp_path / "nelu-img", ["beach.png"])
@@ -195,6 +183,5 @@ class TestRmUpstreamStd:
         result = rm_upstream(tmp_path, STD, dry_run=True, force=True)
 
         assert result.heic.removed_browsable == ("sunset.heic",)
-        # Files still exist
         assert "sunset.heic" in _names(tmp_path / "std-nelu/orig-img")
         assert "sunset.heic" in _names(tmp_path / "nelu-img")

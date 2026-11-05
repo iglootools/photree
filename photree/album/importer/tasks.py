@@ -24,9 +24,7 @@ from ..store.media_source import (
 
 @dataclass(frozen=True)
 class ImportTask:
-    """A single import task targeting one media source.
-
-    iOS tasks carry ``selection_dir`` and/or ``selection_csv`` (a filename
+    """iOS tasks carry ``selection_dir`` and/or ``selection_csv`` (a filename
     selection list). Std tasks carry ``staging_dir`` (files imported directly).
     """
 
@@ -61,10 +59,7 @@ def _staging_dirs(album_dir: Path, kind: MediaSourceType) -> dict[str, Path]:
 
 
 def discover_import_tasks(album_dir: Path) -> list[ImportTask]:
-    """Discover all import tasks in *album_dir*.
-
-    Returns tasks sorted with ``main`` first, then by name, iOS before std.
-    """
+    """Returns tasks sorted with ``main`` first, then by name, iOS before std."""
     ios_dirs = _staging_dirs(album_dir, MediaSourceType.IOS)
     std_dirs = _staging_dirs(album_dir, MediaSourceType.STD)
     ios_csvs = {
@@ -98,5 +93,4 @@ def discover_import_tasks(album_dir: Path) -> list[ImportTask]:
 
 
 def has_import_tasks(album_dir: Path) -> bool:
-    """Return True if *album_dir* has at least one ``to-import-*`` entry."""
     return bool(discover_import_tasks(album_dir))

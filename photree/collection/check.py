@@ -36,10 +36,6 @@ from .store.protocol import (
     validate_collection_config,
 )
 
-# ---------------------------------------------------------------------------
-# Result types
-# ---------------------------------------------------------------------------
-
 
 class CollectionIssueCode(StrEnum):
     """Kind of a collection check issue (a StrEnum, so it compares to str)."""
@@ -66,27 +62,18 @@ class CollectionIssueCode(StrEnum):
 
 @dataclass(frozen=True)
 class CollectionCheckIssue:
-    """A single check issue."""
-
     code: CollectionIssueCode
     message: str
 
 
 @dataclass(frozen=True)
 class CollectionCheckResult:
-    """Result of checking a single collection."""
-
     collection_dir: Path
     issues: tuple[CollectionCheckIssue, ...]
 
     @property
     def success(self) -> bool:
         return len(self.issues) == 0
-
-
-# ---------------------------------------------------------------------------
-# Gallery index (lightweight, built once per check run)
-# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -184,7 +171,6 @@ def _media_owners(albums: list[_AlbumEntry], *, videos: bool) -> dict[str, str]:
 
 
 def build_gallery_lookup(gallery_dir: Path) -> _GalleryLookup:
-    """Build a lightweight lookup for collection checks."""
     albums = _scan_albums(gallery_dir)
     collections = _scan_collections(gallery_dir)
     image_owners = _media_owners(albums, videos=False)
@@ -207,11 +193,6 @@ def build_gallery_lookup(gallery_dir: Path) -> _GalleryLookup:
             if rng is not None
         },
     )
-
-
-# ---------------------------------------------------------------------------
-# Check functions
-# ---------------------------------------------------------------------------
 
 
 def _fmt_album(aid: str) -> str:
@@ -249,7 +230,6 @@ _MEDIA_FORMATTERS: dict[str, Callable[[str], str]] = {
 def _check_missing_ids(
     ids: list[str], known: frozenset[str], code: CollectionIssueCode, label: str
 ) -> list[CollectionCheckIssue]:
-    """Check that all IDs in *ids* exist in *known*."""
     fmt = _MEDIA_FORMATTERS.get(label, str)
     return [
         CollectionCheckIssue(code, f"{label} {fmt(mid)} not found in gallery")
@@ -261,7 +241,6 @@ def _check_missing_ids(
 def _check_member_existence(
     metadata: CollectionMetadata, lookup: _GalleryLookup
 ) -> list[CollectionCheckIssue]:
-    """Check all member IDs exist in the gallery."""
     return [
         *_check_missing_ids(
             metadata.albums,
@@ -291,7 +270,6 @@ def _check_member_existence(
 
 
 def _date_outside_range(member_date: str, col_start: date, col_end: date) -> bool:
-    """Check if a member's date range falls outside the collection's range."""
     rng = date_range(member_date)
     return rng is not None and not range_contains((col_start, col_end), rng)
 
@@ -301,7 +279,6 @@ def _check_date_coverage(
     metadata: CollectionMetadata,
     lookup: _GalleryLookup,
 ) -> list[CollectionCheckIssue]:
-    """Check collection date range covers all contained albums/collections."""
     parsed_date = parse_collection_name(collection_dir.name).date
     # Dateless (or unparseable) collections have no range to check.
     col_range = date_range(parsed_date) if parsed_date is not None else None
@@ -538,7 +515,6 @@ def check_collection(
     collection_dir: Path,
     lookup: _GalleryLookup,
 ) -> CollectionCheckResult:
-    """Run all checks on a single collection."""
     match _load_for_check(collection_dir):
         case CollectionCheckIssue() as issue:
             issues: tuple[CollectionCheckIssue, ...] = (issue,)
@@ -550,7 +526,6 @@ def check_collection(
 def check_all_collections(
     gallery_dir: Path,
 ) -> list[CollectionCheckResult]:
-    """Check all collections in the gallery."""
     lookup = build_gallery_lookup(gallery_dir)
     return [
         check_collection(col_dir, lookup)

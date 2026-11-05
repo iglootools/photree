@@ -39,17 +39,14 @@ _IgnoreFn = Callable[[str, list[str]], set[str]]
 
 
 def _browsable_jpg_dirs(ms: MediaSource) -> tuple[str, ...]:
-    """JPEG + video directories for the ``browsable-jpg`` layout."""
     return (ms.jpg_dir, ms.vid_dir)
 
 
 def _browsable_dirs(ms: MediaSource) -> tuple[str, ...]:
-    """Browsable directories for the ``browsable`` layout."""
     return (ms.img_dir, ms.jpg_dir, ms.vid_dir)
 
 
 def _archive_dirs(ms: MediaSource) -> tuple[str, ...]:
-    """Archive directories (originals + edits) for the ``archive`` layout."""
     return (
         ms.orig_img_dir,
         ms.orig_vid_dir,
@@ -74,8 +71,6 @@ class ExportedAlbumType(StrEnum):
 
 @dataclass(frozen=True)
 class ExportResult:
-    """Result of exporting a single album."""
-
     album_name: str
     album_type: ExportedAlbumType
     files_copied: int
@@ -86,7 +81,6 @@ def compute_target_dir(
     album_name: str,
     share_layout: ShareDirectoryLayout,
 ) -> Path:
-    """Compute the export target directory for an album."""
     match share_layout:
         case ShareDirectoryLayout.FLAT:
             return share_dir / album_name
@@ -99,10 +93,7 @@ def compute_target_dir(
 
 
 def _copy_dir(src: Path, dst: Path) -> int:
-    """Copy the files directly in *src* to *dst*, creating *dst* if needed.
-
-    Returns the number of files copied.
-    """
+    """Returns the number of files copied."""
     if not src.is_dir():
         return 0
     else:
@@ -118,12 +109,10 @@ def _copy_dirs(album_dir: Path, target_dir: Path, subdirs: Sequence[str]) -> int
 
 
 def _is_dotfile(name: str) -> bool:
-    """Check if a filename is a dotfile (starts with ``'.'``)."""
     return name.startswith(".")
 
 
 def _ignore_dotfiles(_directory: str, contents: list[str]) -> set[str]:
-    """``shutil.copytree`` ignore function that skips dotfiles."""
     return {name for name in contents if _is_dotfile(name)}
 
 
@@ -140,9 +129,7 @@ def _files_to_copy(src: Path, ignore: _IgnoreFn) -> Iterator[Path]:
 
 
 def _copytree(src: Path, dst: Path, *, ignore: _IgnoreFn = _ignore_dotfiles) -> int:
-    """Recursively copy a directory tree, skipping dotfiles by default.
-
-    Returns the number of files copied from *src* — not the number of files in
+    """Returns the number of files copied from *src* — not the number of files in
     *dst*, which also counts what a previous export left there.
     """
     if not src.is_dir():
@@ -154,7 +141,6 @@ def _copytree(src: Path, dst: Path, *, ignore: _IgnoreFn = _ignore_dotfiles) -> 
 
 
 def _export_plain(album_dir: Path, target_dir: Path) -> int:
-    """Export an album without archives by copying everything."""
     return _copytree(album_dir, target_dir)
 
 
@@ -164,7 +150,6 @@ def _export_dirs(
     media_sources: Sequence[MediaSource],
     dirs_of: Callable[[MediaSource], tuple[str, ...]],
 ) -> int:
-    """Copy the *dirs_of* each media source."""
     target_dir.mkdir(parents=True, exist_ok=True)
     return sum(_copy_dirs(album_dir, target_dir, dirs_of(ms)) for ms in media_sources)
 
@@ -285,9 +270,7 @@ def export_album(
     album_layout: AlbumShareLayout = AlbumShareLayout.BROWSABLE_JPG,
     link_mode: LinkMode = LinkMode.HARDLINK,
 ) -> ExportResult:
-    """Export a single album to *target_dir*.
-
-    The caller is responsible for computing *target_dir* (e.g. via
+    """The caller is responsible for computing *target_dir* (e.g. via
     :func:`compute_target_dir`).
     Albums with archives (iOS or std) are exported according to *album_layout*.
     """

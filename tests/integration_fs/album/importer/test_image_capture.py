@@ -1,5 +1,3 @@
-"""Tests for photree.album.importer.image_capture module."""
-
 import os
 from pathlib import Path
 
@@ -27,8 +25,8 @@ from photree.album.store.media_source import std_media_source
 from photree.common.fs import list_files
 from photree.foundation.linking import LinkMode
 
-SEL_DIR = ios_import_dir("main")  # to-import-ios-main
-SEL_CSV = ios_import_csv("main")  # to-import-ios-main.csv
+SEL_DIR = ios_import_dir("main")
+SEL_CSV = ios_import_csv("main")
 STAGE_IMPORT_IOS_MAIN = "import-ios-main"
 
 
@@ -38,7 +36,6 @@ def _noop_convert(_src: Path, _dst_dir: Path, *, dry_run: bool) -> Path | None:
 
 
 def _setup_image_capture_dir(tmp_path: Path, filenames: list[str]) -> Path:
-    """Create a fake Image Capture directory with the given filenames."""
     ic_dir = tmp_path / "image_capture"
     ic_dir.mkdir()
     for name in filenames:
@@ -47,7 +44,6 @@ def _setup_image_capture_dir(tmp_path: Path, filenames: list[str]) -> Path:
 
 
 def _setup_album(tmp_path: Path, selection_files: list[str]) -> Path:
-    """Create an album directory with a to-import-ios-main/ subfolder."""
     album = tmp_path / "album"
     selection = album / SEL_DIR
     selection.mkdir(parents=True)
@@ -62,11 +58,6 @@ def _setup_album_csv(tmp_path: Path, csv_entries: list[str]) -> Path:
     album.mkdir(parents=True)
     (album / SEL_CSV).write_text("\n".join(csv_entries) + "\n")
     return album
-
-
-# ---------------------------------------------------------------------------
-# plan_import
-# ---------------------------------------------------------------------------
 
 
 class TestPlanImport:
@@ -146,11 +137,6 @@ class TestPlanImport:
         assert "IMG_0115.AAE" in plan.matches[0].orig_files
 
 
-# ---------------------------------------------------------------------------
-# validate_import_plan
-# ---------------------------------------------------------------------------
-
-
 class TestValidateImportPlan:
     def test_valid_plan_no_errors(self) -> None:
         plan = plan_import(
@@ -218,11 +204,9 @@ class TestValidateImportPlan:
         # No validation errors (dedup resolved it)
         errors, _warnings = validate_import_plan(plan)
         assert not any(e.kind == ValidationErrorKind.MULTIPLE_ORIGINALS for e in errors)
-        # Dedup warning on the plan
         assert DedupWarning("0410", kept="IMG_0410.HEIC", dropped="IMG_0410.JPG") in (
             plan.dedup_warnings
         )
-        # Only HEIC in the match
         assert len(plan.matches) == 1
         orig_media = [
             f for f in plan.matches[0].orig_files if f.endswith((".HEIC", ".JPG"))
@@ -287,11 +271,6 @@ class TestPlanImportProRaw:
         assert orig_media == ["IMG_0235.DNG"]
 
 
-# ---------------------------------------------------------------------------
-# run_import
-# ---------------------------------------------------------------------------
-
-
 class TestRunImport:
     def test_copies_orig_and_rendered_images(self, tmp_path: Path) -> None:
         album = _setup_album(tmp_path, ["IMG_0410.HEIC"])
@@ -311,10 +290,8 @@ class TestRunImport:
 
         assert isinstance(result, AlbumImportResult)
         assert result.unprocessed == ()
-        # orig
         assert (album / "ios-main/orig-img" / "IMG_0410.HEIC").exists()
         assert (album / "ios-main/orig-img" / "IMG_0410.AAE").exists()
-        # rendered
         assert (album / "ios-main/edit-img" / "IMG_E0410.HEIC").exists()
         assert (album / "ios-main/edit-img" / "IMG_O0410.AAE").exists()
         # browsable should have rendered version (not orig)
@@ -451,7 +428,6 @@ class TestRunImport:
         album = _setup_album(tmp_path, ["IMG_0410.HEIC"])
         ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0410.HEIC", "IMG_0410.AAE"])
 
-        # First import succeeds
         run_import(
             album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
         )
@@ -485,12 +461,10 @@ class TestRunImportLinkMode:
             album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
         )
 
-        # Browsable should be hardlinked to rendered
         browsable = album / "main-img" / "IMG_E0410.HEIC"
         rendered = album / "ios-main/edit-img" / "IMG_E0410.HEIC"
         assert os.stat(browsable).st_ino == os.stat(rendered).st_ino
 
-        # Orig files should be copies (not hardlinks to IC dir)
         orig = album / "ios-main/orig-img" / "IMG_0410.HEIC"
         ic_file = ic_dir / "IMG_0410.HEIC"
         assert os.stat(orig).st_ino != os.stat(ic_file).st_ino
@@ -531,11 +505,6 @@ class TestRunImportLinkMode:
         assert os.stat(browsable).st_ino != os.stat(orig).st_ino
 
 
-# ---------------------------------------------------------------------------
-# run_import with to-import.csv
-# ---------------------------------------------------------------------------
-
-
 class TestRunImportCsv:
     def test_import_from_csv_only(self, tmp_path: Path) -> None:
         album = _setup_album_csv(tmp_path, ["IMG_0410.HEIC"])
@@ -547,7 +516,6 @@ class TestRunImportCsv:
 
         assert result.unprocessed == ()
         assert (album / "ios-main/orig-img" / "IMG_0410.HEIC").exists()
-        # CSV should be deleted after successful import
         assert not (album / SEL_CSV).exists()
 
     def test_import_from_both_sources(self, tmp_path: Path) -> None:
@@ -569,7 +537,6 @@ class TestRunImportCsv:
         assert result.unprocessed == ()
         assert (album / "ios-main/orig-img" / "IMG_0410.HEIC").exists()
         assert (album / "ios-main/orig-img" / "IMG_0411.HEIC").exists()
-        # Both sources cleaned up
         assert not (album / SEL_DIR).exists()
         assert not (album / SEL_CSV).exists()
 
@@ -578,11 +545,8 @@ class TestRunImportCsv:
         album = _setup_album_csv(tmp_path, ["IMG_0410.HEIC", "IMG_9999.HEIC"])
         ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0410.HEIC", "IMG_0410.AAE"])
 
-        # Plan will have an unmatched entry — import should still work
-        # but we need to check CSV is kept. However, the import itself
-        # will succeed for matched files. Unmatched go to plan.unmatched
-        # which triggers a validation error in the CLI layer but not in
-        # run_import itself. The CSV has one unprocessed entry so it stays.
+        # IMG_9999 has no IC match. Rejecting unmatched entries is the CLI layer's
+        # job, so run_import itself still imports the matched files.
         run_import(
             album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
         )
@@ -613,11 +577,6 @@ class TestRunImportCsv:
         # The CSV row names the same number in another format: it was
         # imported too, so the CSV is consumed rather than left behind.
         assert not (album / SEL_CSV).exists()
-
-
-# ---------------------------------------------------------------------------
-# Selection cleanup by image number (regression)
-# ---------------------------------------------------------------------------
 
 
 class TestSelectionCleanupByNumber:
@@ -665,11 +624,6 @@ class TestSelectionCleanupByNumber:
         assert result.unprocessed == ()
         assert not (album / SEL_DIR).exists()
         assert not (album / SEL_CSV).exists()
-
-
-# ---------------------------------------------------------------------------
-# Collisions are refused before any mutation (regression)
-# ---------------------------------------------------------------------------
 
 
 class TestCollisionBeforeMutation:

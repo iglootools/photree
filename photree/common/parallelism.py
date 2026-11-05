@@ -56,7 +56,6 @@ def _run_task[T](
     on_start: Callable[[str], None] | None,
     on_end: Callable[[str, bool], None] | None,
 ) -> ParallelResult[T]:
-    """Execute a single task, calling optional callbacks."""
     if on_start:
         on_start(key)
     try:

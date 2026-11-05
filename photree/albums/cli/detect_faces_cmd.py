@@ -1,5 +1,3 @@
-"""``photree albums detect-faces`` command."""
-
 from typing import Annotated
 
 import typer

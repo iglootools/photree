@@ -1,5 +1,3 @@
-"""Tests for album refresh CLI command."""
-
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -29,7 +27,6 @@ def _setup_album(album_dir: Path, *, images: bool = True) -> None:
     _write(album_dir / "ios-main" / "orig-vid" / "IMG_0115.MOV")
     _write(album_dir / "main-vid" / "IMG_0115.MOV")
     if images:
-        # Archive, browsable and JPEG, all in sync
         _write(album_dir / "ios-main" / "orig-img" / "IMG_0410.HEIC")
         _write(album_dir / "ios-main" / "orig-img" / "IMG_0411.HEIC")
         _write(album_dir / "main-img" / "IMG_0410.HEIC")

@@ -1,5 +1,3 @@
-"""prefer-higher-quality-when-dups iOS fix operation."""
-
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -34,8 +32,6 @@ def _find_lower_quality_dups_in_dir(
 
 @dataclass(frozen=True)
 class PreferHigherQualityResult:
-    """Result of removing lower-quality duplicates."""
-
     removed_by_dir: tuple[tuple[str, tuple[str, ...]], ...]
 
     @property
@@ -55,9 +51,7 @@ def prefer_higher_quality_when_dups(
     *,
     dry_run: bool = False,
 ) -> PreferHigherQualityResult:
-    """Delete lower-quality duplicates when multiple formats exist for the same number.
-
-    Scans all image subdirectories. For each image number that has multiple
+    """Scans all image subdirectories. For each image number that has multiple
     format variants, keeps the single highest-quality file (DNG > HEIC > others)
     and deletes the rest.
     """

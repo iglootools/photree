@@ -58,8 +58,6 @@ type FaceClusterIssue = (
 
 @dataclass(frozen=True)
 class FaceClusterCheck:
-    """Outcome of :func:`check_face_clusters`."""
-
     clusters: FaceClusteringResult
     issues: tuple[FaceClusterIssue, ...]
 

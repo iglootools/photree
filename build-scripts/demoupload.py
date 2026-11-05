@@ -113,7 +113,6 @@ def _list_runs(branch: str | None) -> list[WorkflowRun]:
 
 
 def _view_run(run_id: str) -> WorkflowRun:
-    """Summary of one run, by id."""
     output = _capture(["gh", "run", "view", run_id, "--json", _RUN_FIELDS])
     return WorkflowRun.from_json(json.loads(output))
 
@@ -213,7 +212,6 @@ def parse_recording_url(upload_output: str) -> str | None:
 
 
 def render_embed(url: str) -> str:
-    """The README's asciicast embed for *url*."""
     return f"[![asciicast]({url}.svg)]({url})"
 
 

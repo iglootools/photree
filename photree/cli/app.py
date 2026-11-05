@@ -1,5 +1,3 @@
-"""CLI app and sub-app definitions."""
-
 import importlib.metadata
 from typing import Annotated
 

@@ -1,5 +1,3 @@
-"""Tests for photree.common.fs directory walking helpers."""
-
 from pathlib import Path
 
 from photree.common.fs import partition_subdirectories

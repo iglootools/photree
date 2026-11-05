@@ -42,11 +42,6 @@ if TYPE_CHECKING:
 type FaceAnalyzerFactory = Callable[[], FaceAnalysis]
 
 
-# ---------------------------------------------------------------------------
-# InsightFace model management
-# ---------------------------------------------------------------------------
-
-
 _PREFERRED_PROVIDERS = ("CoreMLExecutionProvider", "CPUExecutionProvider")
 
 
@@ -113,15 +108,8 @@ def memoized_face_analyzer_factory(
     return factory
 
 
-# ---------------------------------------------------------------------------
-# Thumbnail generation via sips
-# ---------------------------------------------------------------------------
-
-
 @dataclass(frozen=True)
 class ThumbnailResult:
-    """Result of generating a thumbnail for one image."""
-
     key: str
     file_name: str
     thumb_path: Path
@@ -139,19 +127,14 @@ def generate_thumbnail(
     *,
     max_dimension: int = THUMB_MAX_DIMENSION,
 ) -> ThumbnailResult:
-    """Generate a resized JPEG thumbnail via ``sips``.
-
-    Returns a :class:`ThumbnailResult` with original and thumbnail dimensions.
-    """
+    """Generate a resized JPEG thumbnail via ``sips``."""
     dst.parent.mkdir(parents=True, exist_ok=True)
 
-    # Read original dimensions before resize
     orig_width, orig_height = get_dimensions(src)
 
-    # Convert + resize to JPEG thumbnail
     resize_to_jpeg(src, dst, max_dimension=max_dimension)
 
-    # Read actual thumbnail dimensions (may differ due to aspect ratio)
+    # May differ from the requested size because of the aspect ratio.
     thumb_width, thumb_height = get_dimensions(dst)
 
     return ThumbnailResult(
@@ -165,15 +148,8 @@ def generate_thumbnail(
     )
 
 
-# ---------------------------------------------------------------------------
-# Face analysis on a single image
-# ---------------------------------------------------------------------------
-
-
 @dataclass(frozen=True)
 class DetectedFace:
-    """A single detected face from one image."""
-
     key: str
     face_index: int
     det_score: float
@@ -217,9 +193,7 @@ def detect_faces(
     image_path: Path,
     analyzer: FaceAnalysis,
 ) -> list[DetectedFace]:
-    """Run InsightFace on a single image, returning detected faces.
-
-    Returns an empty list when no faces are found. Raises
+    """Returns an empty list when no faces are found. Raises
     :class:`UnreadableThumbnailError` when the image cannot be read.
     """
     # Imported here, not at module level: cv2 costs ~0.14 s at CLI startup.
@@ -245,11 +219,6 @@ def detect_faces(
         for i, face in enumerate(faces)
         if getattr(face, "embedding", None) is not None
     ]
-
-
-# ---------------------------------------------------------------------------
-# Thumbnail path helpers
-# ---------------------------------------------------------------------------
 
 
 def thumb_filename(key: str) -> str:

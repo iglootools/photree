@@ -1,5 +1,3 @@
-"""Tests for photree.gallery.importer module."""
-
 from pathlib import Path
 
 import pytest
@@ -25,7 +23,6 @@ def _write(path: Path, content: str = "data") -> None:
 
 
 def _setup_gallery(tmp_path: Path) -> Path:
-    """Create a gallery directory with .photree/gallery.yaml."""
     gallery = tmp_path / "gallery"
     gallery.mkdir()
     save_gallery_metadata(gallery, GalleryMetadata(link_mode=LinkMode.HARDLINK))
@@ -33,7 +30,6 @@ def _setup_gallery(tmp_path: Path) -> Path:
 
 
 def _setup_ios_album(album: Path) -> None:
-    """Create a minimal iOS album."""
     _write(album / "ios-main/orig-img/IMG_0001.HEIC", "heic-data")
     _write(album / "ios-main/orig-img/IMG_0001.AAE", "aae-data")
     _write(album / "main-img/IMG_0001.HEIC", "heic-data")
@@ -43,7 +39,6 @@ def _setup_ios_album(album: Path) -> None:
 
 
 def _setup_std_album(album: Path) -> None:
-    """Create a minimal std album."""
     _write(album / "nelu-img/sunset.heic", "heic-data")
     _write(album / "nelu-jpg/sunset.jpg", "jpg-data")
 

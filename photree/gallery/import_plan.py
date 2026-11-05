@@ -43,8 +43,6 @@ class ImportAction(StrEnum):
 
 @dataclass(frozen=True)
 class AlbumPlan:
-    """Planned action for a single source album."""
-
     source: Path
     action: ImportAction
     target: Path
@@ -111,7 +109,6 @@ class GalleryImportPlan:
 def _find_source_duplicate_ids(
     source_metas: list[tuple[Path, AlbumMetadata]],
 ) -> tuple[SourceDuplicate, ...]:
-    """Find source albums in the batch that share the same ID."""
     sorted_sources = sorted(source_metas, key=lambda t: t[1].id)
     grouped = {
         aid: [p for p, _ in group]

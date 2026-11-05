@@ -1,5 +1,3 @@
-"""Batch export across multiple album directories."""
-
 import shutil
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -21,16 +19,12 @@ class ExportFailure(NamedTuple):
 
 @dataclass(frozen=True)
 class BatchExportResult:
-    """Result of a batch export run."""
-
     exported: int = 0
     failed: tuple[ExportFailure, ...] = ()
 
 
 def discover_albums(base_dir: Path) -> list[Path]:
-    """Discover all album directories under *base_dir*.
-
-    Returns photree albums (recursively, via ``fs.discover_albums``) plus
+    """Returns photree albums (recursively, via ``fs.discover_albums``) plus
     immediate subdirectories that are not already covered — i.e. plain
     directories without ``.photree/album.yaml`` that can be exported as-is.
     """
@@ -75,7 +69,6 @@ def _export_one(
     on_exported: Callable[[str], None] | None,
     on_error: Callable[[str, str], None] | None,
 ) -> ExportFailure | None:
-    """Export one album, reporting the outcome through the callbacks."""
     album_name = album_dir.name
     if on_exporting:
         on_exporting(album_name)
@@ -114,9 +107,7 @@ def run_batch_export(
     on_exported: Callable[[str], None] | None = None,
     on_error: Callable[[str, str], None] | None = None,
 ) -> BatchExportResult:
-    """Export multiple albums to *share_dir*.
-
-    Provide exactly one of *base_dir* (discover albums) or *album_dirs*
+    """Provide exactly one of *base_dir* (discover albums) or *album_dirs*
     (explicit list).
 
     Callbacks are optional hooks for the CLI layer:

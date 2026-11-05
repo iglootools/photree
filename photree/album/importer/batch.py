@@ -1,5 +1,3 @@
-"""Batch import across multiple album directories."""
-
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -31,8 +29,6 @@ class OnSkipped(Protocol):
 
 @dataclass(frozen=True)
 class AlbumScan:
-    """Result of scanning a parent directory for importable albums."""
-
     no_selection: tuple[Path, ...] = ()
     empty_selection: tuple[Path, ...] = ()
     to_import: tuple[Path, ...] = ()
@@ -40,8 +36,6 @@ class AlbumScan:
 
 @dataclass(frozen=True)
 class AlbumValidation:
-    """Validation result for a single album (aggregated across its tasks)."""
-
     album_dir: Path
     errors: tuple[TaskIssue, ...] = ()
 
@@ -79,9 +73,7 @@ class AlbumFailure(NamedTuple):
 
 @dataclass(frozen=True)
 class BatchResult:
-    """Result of a batch import run.
-
-    When the light check (*naming_check*) or the task validation
+    """When the light check (*naming_check*) or the task validation
     (*validation_failures*) refused the batch, nothing was imported and
     *failed* is empty: see :attr:`refused`.
     """
@@ -94,7 +86,6 @@ class BatchResult:
 
     @property
     def refused(self) -> bool:
-        """Whether validation refused the batch before importing anything."""
         return bool(self.validation_failures) or not self.naming_check.success
 
     @property
@@ -116,7 +107,6 @@ class BatchResult:
 
 
 def scan_albums(albums_dir: Path) -> AlbumScan:
-    """Scan immediate subdirectories for importable albums."""
     subdirs = sorted(p for p in albums_dir.iterdir() if p.is_dir())
     return categorize_albums(subdirs)
 
@@ -144,9 +134,7 @@ def _empty_task_reason(album_dir: Path) -> str:
 
 
 def categorize_albums(album_dirs: Sequence[Path]) -> AlbumScan:
-    """Categorize album directories by their ``to-import-*`` state.
-
-    - ``no_selection``: no ``to-import-*`` entry at all.
+    """- ``no_selection``: no ``to-import-*`` entry at all.
     - ``empty_selection``: has ``to-import-*`` entries but nothing to import.
     - ``to_import``: has at least one non-empty task.
     """
@@ -167,7 +155,6 @@ def validate_albums(
     albums: list[Path] | tuple[Path, ...],
     image_capture_files: list[str],
 ) -> list[AlbumValidation]:
-    """Validate all albums' import tasks against the IC file list."""
     return [
         AlbumValidation(
             album_dir=album_dir,
@@ -175,11 +162,6 @@ def validate_albums(
         )
         for album_dir in albums
     ]
-
-
-# ---------------------------------------------------------------------------
-# Batch run
-# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -267,7 +249,6 @@ def _result_failure(album_dir: Path, result: AlbumImportResult) -> AlbumFailure 
 def _import_one(
     album_dir: Path, options: _ImportOptions, callbacks: _Callbacks
 ) -> AlbumFailure | None:
-    """Import one album, reporting the outcome through *callbacks*."""
     if callbacks.on_importing:
         callbacks.on_importing(album_dir.name)
     try:
@@ -316,9 +297,7 @@ def run_batch_import(
     max_workers: int | None = None,
     analyzer_factory: FaceAnalyzerFactory | None = None,
 ) -> BatchResult:
-    """Run import for all albums with at least one non-empty import task.
-
-    Provide exactly one of *albums_dir* (scan immediate subdirectories) or
+    """Provide exactly one of *albums_dir* (scan immediate subdirectories) or
     *album_dirs* (explicit list of album directories).
 
     Validates ALL albums before importing ANY: first the light check (names

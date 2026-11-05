@@ -1,5 +1,3 @@
-"""Tests for iOS Live Photo support in import and browsable workflows."""
-
 from pathlib import Path
 
 import pytest
@@ -23,12 +21,7 @@ from photree.album.stats.scan import count_live_photos
 from photree.album.store.media_source import ios_img_number, ios_media_source
 from photree.common.fs import list_files
 
-SEL_DIR = ios_import_dir("main")  # to-import-ios-main
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+SEL_DIR = ios_import_dir("main")
 
 
 def _write(path: Path, data: str = "data") -> None:
@@ -51,11 +44,6 @@ def _setup_album(tmp_path: Path, selection: list[str]) -> Path:
     for f in selection:
         (sel_dir / f).write_text("data")
     return album
-
-
-# ---------------------------------------------------------------------------
-# detect_live_photo_keys
-# ---------------------------------------------------------------------------
 
 
 class TestDetectLivePhotoKeys:
@@ -101,11 +89,6 @@ class TestDetectLivePhotoKeys:
         assert keys == frozenset()
 
 
-# ---------------------------------------------------------------------------
-# compute_live_photo_videos
-# ---------------------------------------------------------------------------
-
-
 class TestComputeLivePhotoVideos:
     def test_picks_original_when_no_edit(self, tmp_path: Path) -> None:
         orig = tmp_path / "orig"
@@ -130,11 +113,6 @@ class TestComputeLivePhotoVideos:
             orig, edit, IOS_VID_EXTENSIONS, ios_img_number
         )
         assert videos == [("IMG_E0001.MOV", edit)]
-
-
-# ---------------------------------------------------------------------------
-# plan_import — Live Photo detection
-# ---------------------------------------------------------------------------
 
 
 class TestPlanImportLivePhoto:
@@ -214,11 +192,6 @@ class TestPlanImportLivePhoto:
         assert "IMG_0001.MOV" in plan.unmatched
 
 
-# ---------------------------------------------------------------------------
-# run_import — Live Photo file routing
-# ---------------------------------------------------------------------------
-
-
 class TestRunImportLivePhoto:
     def test_image_selection_routes_both_to_orig_img(self, tmp_path: Path) -> None:
         ic = _setup_ic(
@@ -239,7 +212,6 @@ class TestRunImportLivePhoto:
         assert "IMG_0001.MOV" in orig_img_files
         assert "IMG_0001.AAE" in orig_img_files
 
-        # orig-vid should NOT contain Live Photo video
         orig_vid = album / ms.orig_vid_dir
         assert not orig_vid.exists() or "IMG_0001.MOV" not in list_files(orig_vid)
 
@@ -347,7 +319,6 @@ class TestRunImportLivePhoto:
         assert "IMG_E0001.MOV" in edit_img
 
     def test_standalone_video_still_goes_to_orig_vid(self, tmp_path: Path) -> None:
-        """Non-Live-Photo videos are routed to orig-vid as before."""
         ic = _setup_ic(tmp_path, ["IMG_0001.MOV"])
         album = _setup_album(tmp_path, ["IMG_0001.MOV"])
 
@@ -361,7 +332,6 @@ class TestRunImportLivePhoto:
         orig_vid_files = list_files(album / ms.orig_vid_dir)
         assert "IMG_0001.MOV" in orig_vid_files
 
-        # orig-img should not contain the standalone video
         orig_img = album / ms.orig_img_dir
         assert not orig_img.exists() or "IMG_0001.MOV" not in list_files(orig_img)
 
@@ -388,11 +358,6 @@ class TestRunImportLivePhoto:
         assert exc_info.value.keys == ("0001",)
 
 
-# ---------------------------------------------------------------------------
-# iOS integrity check with Live Photos
-# ---------------------------------------------------------------------------
-
-
 class TestCheckWithLivePhotos:
     def test_duplicate_numbers_allows_live_photo(self, tmp_path: Path) -> None:
         d = tmp_path / "orig-img"
@@ -417,11 +382,6 @@ class TestCheckWithLivePhotos:
         assert [(d.img_number, d.files) for d in dupes] == [
             ("0001", ("IMG_E0001.HEIC", "IMG_E0001.JPG"))
         ]
-
-
-# ---------------------------------------------------------------------------
-# Stats
-# ---------------------------------------------------------------------------
 
 
 class TestLivePhotoStats:

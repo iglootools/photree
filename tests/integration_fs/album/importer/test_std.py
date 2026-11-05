@@ -30,7 +30,6 @@ def _setup_std_staging(
     orig: list[str] | None = None,
     edit: list[str] | None = None,
 ) -> Path:
-    """Create a to-import-std-<name>/ staging dir with orig/ and edit/ files."""
     staging = album / std_import_dir(name)
     for sub, files in (("orig", orig or []), ("edit", edit or [])):
         if files:
@@ -158,11 +157,9 @@ class TestRunImportStd:
     def test_mixed_ios_and_std_in_one_run(self, tmp_path: Path) -> None:
         album = tmp_path / "2024-01-01 - Trip"
         album.mkdir()
-        # iOS selection
         sel = album / ios_import_dir("main")
         sel.mkdir(parents=True)
         (sel / "IMG_0001.HEIC").write_text("data")
-        # std staging
         _setup_std_staging(album, "nelu", orig=["photo.jpg"])
 
         ic_dir = tmp_path / "ic"
@@ -178,7 +175,6 @@ class TestRunImportStd:
         assert len(result.std_results) == 1
         assert (album / "ios-main/orig-img" / "IMG_0001.HEIC").exists()
         assert (album / "std-nelu/orig-img" / "photo.jpg").exists()
-        # Both browsable dirs built
         assert "IMG_0001.HEIC" in list_files(album / "main-img")
         assert "photo.jpg" in list_files(album / "nelu-img")
 

@@ -1,5 +1,3 @@
-"""Tests for photree.album.faces.store module."""
-
 from pathlib import Path
 
 import numpy as np

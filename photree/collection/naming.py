@@ -18,32 +18,16 @@ from dataclasses import dataclass
 
 from ..dates import DATE_PREFIX_RE, parse_year_prefix
 
-# ---------------------------------------------------------------------------
-# Regexes
-# ---------------------------------------------------------------------------
-
 # Matches "[tag1, tag2]" at the end of a name (same as album naming)
 _TAGS_RE = re.compile(r"\s*\[([^\]]+)\]\s*$")
 
 
-# ---------------------------------------------------------------------------
-# Data classes
-# ---------------------------------------------------------------------------
-
-
 @dataclass(frozen=True)
 class ParsedCollectionName:
-    """Parsed collection name components."""
-
     date: str | None
     title: str
     location: str | None = None
     private: bool = False
-
-
-# ---------------------------------------------------------------------------
-# Parsing
-# ---------------------------------------------------------------------------
 
 
 def parse_collection_name(name: str) -> ParsedCollectionName:
@@ -52,7 +36,6 @@ def parse_collection_name(name: str) -> ParsedCollectionName:
     Unlike album names, the date prefix is optional. A name without a
     recognized date prefix is treated as a dateless collection.
     """
-    # Step 1: extract tags from end
     remaining = name
     private = False
     tags_match = _TAGS_RE.search(remaining)
@@ -61,7 +44,6 @@ def parse_collection_name(name: str) -> ParsedCollectionName:
         private = "private" in raw_tags
         remaining = remaining[: tags_match.start()]
 
-    # Step 2: extract date prefix (optional)
     dm = DATE_PREFIX_RE.match(remaining)
     if dm is not None:
         collection_date: str | None = dm.group(1)
@@ -70,7 +52,6 @@ def parse_collection_name(name: str) -> ParsedCollectionName:
         collection_date = None
         body = remaining
 
-    # Step 3: extract location from " @ " separator
     location: str | None = None
     if " @ " in body:
         title, location = body.split(" @ ", 1)
@@ -88,7 +69,6 @@ def parse_collection_name(name: str) -> ParsedCollectionName:
 
 
 def reconstruct_collection_name(parsed: ParsedCollectionName) -> str:
-    """Build the canonical collection name from parsed components."""
     title_with_location = (
         f"{parsed.title} @ {parsed.location}"
         if parsed.location is not None

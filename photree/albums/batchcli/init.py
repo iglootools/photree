@@ -1,5 +1,3 @@
-"""``albums init`` / batch init wrapper."""
-
 from pathlib import Path
 
 import typer
@@ -16,7 +14,6 @@ def run_batch_init(
     *,
     dry_run: bool = False,
 ) -> None:
-    """Shared implementation for albums init."""
     cwd = Path.cwd()
     exit_if_no_albums(albums, display_base)
 

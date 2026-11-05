@@ -1,5 +1,3 @@
-"""Tests for collection check."""
-
 from pathlib import Path
 
 from photree.album.id import generate_album_id, generate_media_id

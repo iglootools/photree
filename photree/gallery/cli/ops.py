@@ -83,11 +83,6 @@ def build_index_or_exit(gallery_dir: Path, cwd: Path) -> AlbumIndex:
         raise typer.Exit(code=1) from exc
 
 
-# ---------------------------------------------------------------------------
-# Single album import helpers
-# ---------------------------------------------------------------------------
-
-
 def plan_imports_or_exit(
     albums: list[Path],
     index: AlbumIndex,
@@ -105,7 +100,6 @@ def plan_imports_or_exit(
 
 
 def render_skipped(plans: list[AlbumPlan], cwd: Path) -> None:
-    """Print already-imported albums that were skipped."""
     if not plans:
         return
     console.print(format_skipped(plans, cwd))
@@ -199,11 +193,6 @@ def _post_import_check(target_dir: Path, cwd: Path) -> None:
         raise typer.Exit(code=1)
 
 
-# ---------------------------------------------------------------------------
-# Batch import helpers
-# ---------------------------------------------------------------------------
-
-
 def resolve_import_all_albums(
     base_dir: Path | None,
     album_dirs: list[Path] | None,
@@ -281,11 +270,6 @@ def run_batch_post_import_check(
         )
 
     return check_failed
-
-
-# ---------------------------------------------------------------------------
-# Face clustering helper
-# ---------------------------------------------------------------------------
 
 
 def require_valid_threshold(threshold: float | None, option: str) -> None:

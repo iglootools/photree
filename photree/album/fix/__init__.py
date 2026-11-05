@@ -48,19 +48,12 @@ __all__ = [
 ]
 
 
-# ---------------------------------------------------------------------------
-# Flag validation
-# ---------------------------------------------------------------------------
-
-
 class FixValidationErrorKind(StrEnum):
     NO_FIX_SPECIFIED = "no-fix-specified"
 
 
 class FixValidationError(ValueError):
-    """Raised when fix flag combinations are invalid.
-
-    The message carries no command advice: each CLI scope (album, albums,
+    """The message carries no command advice: each CLI scope (album, albums,
     gallery) suggests its own ``--help``.
     """
 
@@ -76,23 +69,13 @@ def validate_fix_flags(
     rm_upstream: bool,
     rm_orphan: bool,
 ) -> None:
-    """Validate fix flag combinations.
-
-    Raises :class:`FixValidationError` when no fix is specified.
-    """
+    """Raises :class:`FixValidationError` when no fix is specified."""
     if not (fix_id or new_id or rm_upstream or rm_orphan):
         raise FixValidationError(FixValidationErrorKind.NO_FIX_SPECIFIED)
 
 
-# ---------------------------------------------------------------------------
-# Aggregated fix runner
-# ---------------------------------------------------------------------------
-
-
 @dataclass(frozen=True)
 class FixRmUpstreamResult:
-    """Aggregated result of rm-upstream across media sources."""
-
     heic_jpeg: int
     heic_browsable: int
     heic_rendered: int
@@ -116,9 +99,7 @@ class FixRmUpstreamResult:
 
 @dataclass(frozen=True)
 class FixResult:
-    """Aggregated result of all fix operations on a single album.
-
-    ``None`` means the operation was not requested; an empty value means it
+    """``None`` means the operation was not requested; an empty value means it
     ran and found nothing, which is reported as such.
     """
 
@@ -157,12 +138,7 @@ def run_fix(
     rm_orphan_flag: bool = False,
     force: bool = False,
 ) -> FixResult:
-    """Run selected fix operations on a single album.
-
-    Iterates over all media sources, runs the requested operations, and
-    returns aggregated results. Works for both iOS and std media sources.
-
-    *force* lets rm-upstream use empty browsable dirs as deletion signals and
+    """*force* lets rm-upstream use empty browsable dirs as deletion signals and
     delete every item of an archive (see :mod:`.rm_upstream`).
     """
     media_sources = discover_media_sources(album_dir)

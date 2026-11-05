@@ -1,5 +1,3 @@
-"""User-facing messages for the exporter."""
-
 import shlex
 from pathlib import Path
 

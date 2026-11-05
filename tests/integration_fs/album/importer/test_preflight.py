@@ -1,5 +1,3 @@
-"""Tests for photree.album.importer.preflight module."""
-
 from pathlib import Path
 
 import pytest

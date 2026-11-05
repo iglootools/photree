@@ -61,7 +61,6 @@ class TestValidationGate:
         )
 
         assert result.exit_code == 1
-        # Nothing was imported.
         assert not (gallery / "albums").exists()
 
     def test_bad_name_aborts(self, tmp_path: Path) -> None:

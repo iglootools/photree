@@ -1,5 +1,3 @@
-"""``photree gallery cluster-faces`` command."""
-
 from pathlib import Path
 from typing import Annotated
 

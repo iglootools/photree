@@ -20,10 +20,6 @@ from photree.dates import (
     timestamp_on_day,
 )
 
-# ---------------------------------------------------------------------------
-# Grammar
-# ---------------------------------------------------------------------------
-
 
 class TestDatePrefixRe:
     @pytest.mark.parametrize(
@@ -53,11 +49,6 @@ class TestIsDayPrecision:
     @pytest.mark.parametrize("spec", ["2024", "2024-07", "2024-07-14--2024-07-15"])
     def test_not_day(self, spec: str) -> None:
         assert is_day_precision(spec) is False
-
-
-# ---------------------------------------------------------------------------
-# Ranges
-# ---------------------------------------------------------------------------
 
 
 class TestDateRange:
@@ -128,14 +119,7 @@ class TestRangesOverlap:
         )
 
 
-# ---------------------------------------------------------------------------
-# timestamp_in_range / timestamp_on_day
-# ---------------------------------------------------------------------------
-
-
 class TestTimestampInRange:
-    # --- Single day ---
-
     def test_exact_match(self) -> None:
         assert timestamp_in_range(datetime(2024, 6, 15, 10, 30), "2024-06-15") is True
 
@@ -149,8 +133,6 @@ class TestTimestampInRange:
 
     def test_day_before_rejected(self) -> None:
         assert timestamp_in_range(datetime(2024, 6, 14, 23, 59), "2024-06-15") is False
-
-    # --- Date ranges (exclusive end) ---
 
     def test_range_within(self) -> None:
         assert (
@@ -177,8 +159,6 @@ class TestTimestampInRange:
             is False
         )
 
-    # --- Year precision ---
-
     def test_year_any_day(self) -> None:
         assert timestamp_in_range(datetime(2024, 7, 15, 10, 0), "2024") is True
 
@@ -188,8 +168,6 @@ class TestTimestampInRange:
     def test_year_next_year_rejected(self) -> None:
         # Jan 1 of next year is exclusive
         assert timestamp_in_range(datetime(2025, 1, 1, 0, 0), "2024") is False
-
-    # --- Month precision ---
 
     def test_month_any_day(self) -> None:
         assert timestamp_in_range(datetime(2024, 6, 20, 10, 0), "2024-06") is True
@@ -220,11 +198,6 @@ class TestTimestampOnDay:
         assert (
             timestamp_on_day(datetime(2024, 7, 15, 10, 0), "2024-06--2024-08") is True
         )
-
-
-# ---------------------------------------------------------------------------
-# Name prefixes
-# ---------------------------------------------------------------------------
 
 
 class TestParseYearPrefix:

@@ -1,5 +1,3 @@
-"""``photree collection metadata set`` command."""
-
 from pathlib import Path
 from typing import Annotated
 

@@ -31,7 +31,6 @@ def _compute_date_string(dates: list[str]) -> str:
 
 
 def _build_collection_name(series_title: str, album_dates: list[str]) -> str:
-    """Build the canonical collection name for a series."""
     date_str = _compute_date_string(album_dates)
     raw_name = f"{date_str} - {series_title}" if date_str else series_title
     return reconstruct_collection_name(parse_collection_name(raw_name))
@@ -61,15 +60,12 @@ def _group_contiguous_series(albums: Iterable[AlbumInfo]) -> list[_SeriesGroup]:
 
     for album in sorted_albums:
         if album.parsed.series is not None and album.parsed.series == current_series:
-            # Continue the current run
             current_run.append(album)
         else:
-            # Flush previous run
             if current_series is not None and current_run:
                 groups.append(
                     _SeriesGroup(series_title=current_series, albums=tuple(current_run))
                 )
-            # Start new run (or reset if no series)
             if album.parsed.series is not None:
                 current_series = album.parsed.series
                 current_run = [album]
@@ -77,7 +73,6 @@ def _group_contiguous_series(albums: Iterable[AlbumInfo]) -> list[_SeriesGroup]:
                 current_series = None
                 current_run = []
 
-    # Flush final run
     if current_series is not None and current_run:
         groups.append(
             _SeriesGroup(series_title=current_series, albums=tuple(current_run))

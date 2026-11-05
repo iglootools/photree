@@ -1,5 +1,3 @@
-"""Collection stats output formatting."""
-
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
@@ -47,7 +45,6 @@ def format_collections_overview(stats: GalleryCollectionStats) -> Panel:
 
 
 def format_collections_table(stats: GalleryCollectionStats) -> Table:
-    """Per-collection summary table."""
     table = Table(title="Collections", box=_TABLE_BOX)
     table.add_column("Name")
     table.add_column("Members")

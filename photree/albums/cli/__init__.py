@@ -1,5 +1,3 @@
-"""CLI commands for the ``photree albums`` sub-app."""
-
 from pathlib import Path
 from typing import Annotated
 
@@ -11,10 +9,6 @@ albums_app = typer.Typer(
     no_args_is_help=True,
 )
 
-
-# ---------------------------------------------------------------------------
-# Shared option patterns
-# ---------------------------------------------------------------------------
 
 DIR_OPTION = typer.Option(
     "--dir",
@@ -34,7 +28,6 @@ ALBUM_DIR_OPTION = typer.Option(
     resolve_path=True,
 )
 
-# Type aliases for annotated option types
 DirOption = Annotated[Path | None, DIR_OPTION]
 AlbumDirOption = Annotated[list[Path] | None, ALBUM_DIR_OPTION]
 

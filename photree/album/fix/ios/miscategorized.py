@@ -1,5 +1,3 @@
-"""Miscategorized files iOS fix operations (rm / mv)."""
-
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -11,8 +9,6 @@ from ..helpers import require_ios
 
 
 class MiscategorizedAction(StrEnum):
-    """What to do with a file found in the wrong archive directory."""
-
     RM = "rm"  # delete it
     RM_SAFE = "rm-safe"  # delete it only if it already exists in the right dir
     MV = "mv"  # move it to the right dir
@@ -38,9 +34,7 @@ def _find_miscategorized(
     orig_dir: Path,
     edit_dir: Path,
 ) -> tuple[list[str], list[str]]:
-    """Find miscategorized files.
-
-    Returns (edited_in_orig, orig_in_edit) -- files that are in the wrong dir.
+    """Returns (edited_in_orig, orig_in_edit) -- files that are in the wrong dir.
     Edited files are those with IMG_E or IMG_O prefix.
     Original files are those without E/O prefix.
     """
@@ -55,16 +49,12 @@ def _find_miscategorized(
 
 @dataclass(frozen=True)
 class MiscategorizedDirResult:
-    """Result of fixing miscategorized files for one media type pair."""
-
     fixed_from_orig: tuple[str, ...]
     fixed_from_rendered: tuple[str, ...]
 
 
 @dataclass(frozen=True)
 class MiscategorizedResult:
-    """Result of fixing miscategorized files."""
-
     heic: MiscategorizedDirResult
     mov: MiscategorizedDirResult
 
@@ -98,7 +88,6 @@ def _fix_miscategorized_pair(
     action: MiscategorizedAction,
     dry_run: bool,
 ) -> MiscategorizedDirResult:
-    """Fix miscategorized files for one orig/edit pair."""
     edited_in_orig, orig_in_edit = _find_miscategorized(orig_dir, edit_dir)
 
     match action:
@@ -131,9 +120,7 @@ def fix_miscategorized(
     action: MiscategorizedAction,
     dry_run: bool = False,
 ) -> MiscategorizedResult:
-    """Apply *action* to files in the wrong directory, for images and videos.
-
-    Raises :class:`~..helpers.NotAnIosMediaSourceError` for std sources, and
+    """Raises :class:`~..helpers.NotAnIosMediaSourceError` for std sources, and
     :class:`MiscategorizedMoveConflictError` when a move would overwrite.
     """
     require_ios(ms)
@@ -183,7 +170,6 @@ def mv_miscategorized(
     *,
     dry_run: bool = False,
 ) -> MiscategorizedResult:
-    """Move files that are in the wrong directory to the correct one."""
     return fix_miscategorized(
         album_dir, ms, action=MiscategorizedAction.MV, dry_run=dry_run
     )

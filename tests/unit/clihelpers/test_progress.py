@@ -1,5 +1,3 @@
-"""Tests for photree.clihelpers.progress result lines."""
-
 import pytest
 
 from photree.clihelpers.progress import BatchProgressBar, StageProgressBar

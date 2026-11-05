@@ -25,10 +25,6 @@ from .models import (
     YearStats,
 )
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
 _UNITS = ("B", "KiB", "MiB", "GiB", "TiB")
 
 _SIZE_STYLE = "cyan"
@@ -48,7 +44,6 @@ def _format_bytes(n: int) -> str:
 
 
 def _format_count(n: int) -> str:
-    """Format an integer with thousands separators."""
     return f"{n:,}"
 
 
@@ -60,7 +55,6 @@ def _media_source_type_summary(
 
 
 def _space_saved(agg: AggregateStats) -> tuple[int, float]:
-    """Compute absolute and percentage space saved from optimization."""
     saved = agg.total.apparent_bytes - agg.total.on_disk_bytes
     pct = (
         (saved / agg.total.apparent_bytes * 100)
@@ -71,7 +65,6 @@ def _space_saved(agg: AggregateStats) -> tuple[int, float]:
 
 
 def _size_columns(table: Table) -> None:
-    """Add the standard On-Disk / Size / Archive / Browsable / Derived / Cache column group."""
     table.add_column("On-Disk", justify="right", style=_SIZE_STYLE)
     table.add_column("Size", justify="right", style=_SIZE_STYLE)
     table.add_column("Archive", justify="right", style=_SIZE_STYLE)
@@ -83,7 +76,6 @@ def _size_columns(table: Table) -> None:
 def _size_cells(
     total: int, on_disk: int, archive: int, derived: int, cache: int = 0
 ) -> tuple[str, str, str, str, str, str]:
-    """Return (on_disk, size, archive, browsable, derived, cache) formatted strings."""
     browsable = total - archive - derived - cache
     return (
         _format_bytes(on_disk),
@@ -98,7 +90,6 @@ def _size_cells(
 def _bold_size_cells(
     total: int, on_disk: int, archive: int, derived: int, cache: int = 0
 ) -> tuple[str, str, str, str, str, str]:
-    """Like ``_size_cells`` but wrapped in bold markup."""
     browsable = total - archive - derived - cache
     return (
         f"[bold]{_format_bytes(on_disk)}[/bold]",
@@ -109,10 +100,6 @@ def _bold_size_cells(
         f"[bold]{_format_bytes(cache)}[/bold]",
     )
 
-
-# ---------------------------------------------------------------------------
-# Legend
-# ---------------------------------------------------------------------------
 
 _LEGEND_TERM_WIDTH = 13
 _LEGEND_ENTRIES = (
@@ -159,11 +146,6 @@ LEGEND = Text.from_markup(
         ]
     )
 )
-
-
-# ---------------------------------------------------------------------------
-# Shared aggregate tables
-# ---------------------------------------------------------------------------
 
 
 def _cache_bytes(cache: SizeStats | None) -> int:
@@ -250,7 +232,6 @@ def _overview_panel(
     unique_media_source_names: tuple[str, ...] | None = None,
     cache_storage: SizeStats | None = None,
 ) -> Panel:
-    """Key-value overview wrapped in a Panel."""
     table = Table(show_header=False, box=None, padding=(0, 2))
     table.add_column("Key", style="bold")
     table.add_column("Value", justify="right")
@@ -372,7 +353,6 @@ def _source_type_table(agg: AggregateStats) -> Table:
 def _per_media_source_table(
     media_sources: tuple[MediaSourceStats, ...],
 ) -> Table:
-    """One row per media source."""
     table = Table(title="By Media Source", box=_TABLE_BOX)
     table.add_column("Source")
     table.add_column("Type")
@@ -430,7 +410,6 @@ def _format_aggregate_tables(
     media_sources: tuple[MediaSourceStats, ...] | None = None,
     cache_storage: SizeStats | None = None,
 ) -> list[Panel | Table | Text]:
-    """Build the shared set of tables from ``AggregateStats``."""
     sep = Text("")
     return [
         _overview_panel(
@@ -450,11 +429,6 @@ def _format_aggregate_tables(
         sep,
         _format_table(agg, cache_storage=cache_storage),
     ]
-
-
-# ---------------------------------------------------------------------------
-# Year breakdown table (gallery only)
-# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -487,7 +461,6 @@ def _year_row(ys: YearStats) -> _YearRow:
 
 
 def _year_table(by_year: tuple[YearStats, ...]) -> Table:
-    """Per-year summary table for gallery stats."""
     table = Table(title="By Year", box=_TABLE_BOX)
     table.add_column("Year")
     table.add_column("Albums", justify="right")
@@ -533,13 +506,7 @@ def _add_year_total_row(table: Table, rows: list[_YearRow]) -> None:
     )
 
 
-# ---------------------------------------------------------------------------
-# Public formatting functions
-# ---------------------------------------------------------------------------
-
-
 def format_album_stats(stats: AlbumStats) -> Group:
-    """Format album-level statistics as a Rich renderable."""
     return with_legend(
         _format_aggregate_tables(
             stats.aggregate,
@@ -573,10 +540,8 @@ def albums_stats_renderables(
 
 
 def with_legend(renderables: Sequence[RenderableType]) -> Group:
-    """Close a stats report with the shared legend."""
     return Group(*renderables, Text(""), LEGEND)
 
 
 def format_albums_stats(stats: AlbumsStats) -> Group:
-    """Format statistics for a set of albums as a Rich renderable."""
     return with_legend(albums_stats_renderables(stats))

@@ -1,5 +1,3 @@
-"""``photree albums stats`` command."""
-
 from ..batchcli.resolution import resolve_check_batch_albums
 from ..batchcli.stats import run_batch_stats
 from . import AlbumDirOption, DirOption, albums_app

@@ -1,5 +1,3 @@
-"""Tests for media metadata check logic."""
-
 from pathlib import Path
 
 from photree.album.check.media_metadata import (
@@ -72,7 +70,6 @@ class TestMediaMetadataCheckNewFiles:
         _setup_ios_album(album)
         refresh_media_metadata(album)
 
-        # Add a new file
         _write(album / "ios-main" / "orig-img" / "IMG_0412.HEIC")
 
         result = check_media_metadata(

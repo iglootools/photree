@@ -1,5 +1,3 @@
-"""``photree albums import-check`` command."""
-
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated

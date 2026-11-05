@@ -1,5 +1,3 @@
-"""Tests for the batch album export."""
-
 from pathlib import Path
 
 from photree.album.exporter.batch import (
@@ -19,7 +17,6 @@ def _setup_dir(path: Path, filenames: list[str]) -> Path:
 
 
 def _setup_ios_album(album_dir: Path) -> Path:
-    """Create a minimal iOS album."""
     _setup_dir(album_dir / MAIN_MEDIA_SOURCE.orig_img_dir, ["IMG_0001.HEIC"])
     _setup_dir(album_dir / MAIN_MEDIA_SOURCE.img_dir, ["IMG_0001.HEIC"])
     _setup_dir(album_dir / MAIN_MEDIA_SOURCE.jpg_dir, ["IMG_0001.JPEG"])
@@ -130,9 +127,7 @@ class TestBatchExport:
         )
 
         assert result.exported == 2
-        # iOS album uses main-jpg layout
         assert (share_dir / "ios-album" / "main-jpg" / "IMG_0001.JPEG").exists()
-        # Other album copies everything
         assert (share_dir / "plain-album" / "photo.jpg").exists()
 
     def test_albums_share_layout(self, tmp_path: Path) -> None:
@@ -195,5 +190,4 @@ class TestBatchExport:
         target = share_dir / "2024-06" / "2024-06-15 - Vacation"
         assert (target / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.HEIC").exists()
         assert (target / ".photree" / "album.yaml").exists()
-        # derived dirs dropped
         assert not (target / MAIN_MEDIA_SOURCE.jpg_dir).exists()

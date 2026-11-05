@@ -1,5 +1,3 @@
-"""``photree album fix-exif`` command."""
-
 import shlex
 from dataclasses import dataclass
 from pathlib import Path

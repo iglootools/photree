@@ -1,5 +1,3 @@
-"""Tests for photree.album.stats module."""
-
 import os
 from pathlib import Path
 
@@ -28,10 +26,6 @@ from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.foundation.layout import PHOTREE_DIR
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
 
 def _write(path: Path, content: str = "data") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -45,7 +39,6 @@ def _make_album(album: Path) -> None:
 
 
 def _setup_ios_album(album: Path) -> None:
-    """Create a well-formed iOS album with a .photree marker."""
     _make_album(album)
 
     ms = MAIN_MEDIA_SOURCE
@@ -79,11 +72,6 @@ def _setup_ios_album(album: Path) -> None:
     _write(album / ms.jpg_dir / "IMG_0002.PNG", "c" * 80)
 
 
-# ---------------------------------------------------------------------------
-# categorize_size_stats
-# ---------------------------------------------------------------------------
-
-
 class TestCategorizeSizeStats:
     def test_categorizes_by_type(self, tmp_path: Path) -> None:
         _write(tmp_path / "a.heic", "x" * 50)
@@ -113,11 +101,6 @@ class TestCategorizeSizeStats:
         assert second.images.apparent_bytes == 50
         # The caller's set is not mutated: scanning again from scratch counts it.
         assert fresh.images.on_disk_bytes == 50
-
-
-# ---------------------------------------------------------------------------
-# Unique media counting
-# ---------------------------------------------------------------------------
 
 
 class TestUniqueMediaCounting:
@@ -166,11 +149,6 @@ class TestUniqueMediaCounting:
         assert count_unique_videos(album, ms, has_archive=True) == 2
 
 
-# ---------------------------------------------------------------------------
-# Year extraction
-# ---------------------------------------------------------------------------
-
-
 class TestExtractYear:
     def test_full_date(self) -> None:
         assert _extract_year("2024-07-14 - Title") == "2024"
@@ -186,11 +164,6 @@ class TestExtractYear:
 
     def test_unparseable(self) -> None:
         assert _extract_year("not a valid name") is None
-
-
-# ---------------------------------------------------------------------------
-# Aggregation helpers
-# ---------------------------------------------------------------------------
 
 
 class TestMergeSizeStats:
@@ -228,11 +201,6 @@ class TestMergeFormatStats:
         assert result[1].extension == ".aae"
 
 
-# ---------------------------------------------------------------------------
-# compute_media_source_stats
-# ---------------------------------------------------------------------------
-
-
 class TestComputeMediaSourceStats:
     def test_ios_source(self, tmp_path: Path) -> None:
         album = tmp_path / "2024-07-14 - Test"
@@ -257,7 +225,6 @@ class TestComputeMediaSourceStats:
 
         # RoleBreakdown: images in archive should include HEIC+PNG from orig/edit
         assert result.images.archive.file_count > 0
-        # Derived images should be the jpg dir contents
         assert result.images.derived.file_count == 2  # IMG_E0001.jpg + IMG_0002.PNG
 
     def test_std_source_without_archive(self, tmp_path: Path) -> None:
@@ -335,11 +302,6 @@ class TestComputeMediaSourceStats:
         assert result.archive.file_count == 1
 
 
-# ---------------------------------------------------------------------------
-# compute_album_stats
-# ---------------------------------------------------------------------------
-
-
 class TestComputeAlbumStats:
     def test_single_ios_source(self, tmp_path: Path) -> None:
         album = tmp_path / "2024-07-14 - Hiking"
@@ -404,11 +366,6 @@ class TestComputeAlbumStats:
         assert (
             result.aggregate.total.on_disk_bytes < result.aggregate.total.apparent_bytes
         )
-
-
-# ---------------------------------------------------------------------------
-# albums_stats_from_album_stats
-# ---------------------------------------------------------------------------
 
 
 class TestGalleryStats:

@@ -1,9 +1,3 @@
-"""Album check modules.
-
-Orchestrates directory-structure, integrity, JPEG, naming, and system
-checks for a single album.
-"""
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -37,7 +31,6 @@ from .system import (
 )
 from .unexpected_dirs import UnexpectedDirsCheck, check_unexpected_dirs
 
-# Union of per-media-source integrity results
 MediaSourceIntegrityResult = (
     IosMediaSourceIntegrityResult | StdMediaSourceIntegrityResult
 )
@@ -45,8 +38,6 @@ MediaSourceIntegrityResult = (
 
 @dataclass(frozen=True)
 class AlbumMediaSourceSummary:
-    """Summary of media sources discovered in an album."""
-
     media_sources: tuple[MediaSource, ...]
 
     @property
@@ -75,17 +66,13 @@ class AlbumMediaSourceSummary:
 
 @dataclass(frozen=True)
 class AlbumIdCheck:
-    """Result of checking whether an album has a valid ID."""
-
     has_id: bool
     album_id: str | None = None
 
 
 @dataclass(frozen=True)
 class AlbumIntegrityResult:
-    """Unified integrity check result across all media sources in an album.
-
-    Each media source gets a type-appropriate check (iOS or std).
+    """Each media source gets a type-appropriate check (iOS or std).
     The album can have both iOS and std media sources simultaneously.
     """
 
@@ -125,8 +112,6 @@ class AlbumIntegrityResult:
 
 @dataclass(frozen=True)
 class AlbumPreflightResult:
-    """Structured result of all album preflight checks."""
-
     sips_available: bool
     exiftool_available: bool
     media_source_summary: AlbumMediaSourceSummary
@@ -271,11 +256,6 @@ class AlbumPreflightResult:
         )
 
 
-# ---------------------------------------------------------------------------
-# Integrity check orchestrator
-# ---------------------------------------------------------------------------
-
-
 def check_album_integrity(
     album_dir: Path,
     *,
@@ -284,10 +264,6 @@ def check_album_integrity(
     on_file_checked: Callable[[str, bool], None] | None = None,
     media_sources: list[MediaSource],
 ) -> AlbumIntegrityResult:
-    """Run integrity checks for all media sources in an album.
-
-    Dispatches to iOS or std checks based on each media source's type.
-    """
     return AlbumIntegrityResult(
         by_media_source=tuple(
             (
@@ -332,11 +308,6 @@ def _check_media_source_integrity(
             )
 
 
-# ---------------------------------------------------------------------------
-# Album check orchestrator
-# ---------------------------------------------------------------------------
-
-
 def run_album_check(
     album_dir: Path,
     *,
@@ -347,9 +318,7 @@ def run_album_check(
     check_naming_flag: bool = True,
     on_file_checked: Callable[[str, bool], None] | None = None,
 ) -> AlbumPreflightResult:
-    """Run album-specific checks grouped by category.
-
-    Accepts ``sips_available`` and ``exiftool`` as parameters so
+    """Accepts ``sips_available`` and ``exiftool`` as parameters so
     system checks can be done once for batch operations.
 
     An iOS/std media source name clash is reported as a failed check (see
@@ -367,12 +336,10 @@ def run_album_check(
         )
     media_sources = discover_media_sources(album_dir)
 
-    # Structure: album identity, directory layout, media metadata
     summary, album_id, dir_check, unexpected_dirs, media_meta = _check_structure(
         album_dir, media_sources
     )
 
-    # Media: file integrity, JPEG completeness
     integrity, jpeg_check = _check_media(
         album_dir,
         media_sources,
@@ -381,10 +348,8 @@ def run_album_check(
         on_file_checked=on_file_checked,
     )
 
-    # Naming: convention + EXIF timestamp match
     naming = _check_naming(album_dir, exiftool, check_naming_flag)
 
-    # Cache: face state, EXIF cache state
     face_state, exif_cache_state = _check_cache(album_dir, media_sources)
 
     return AlbumPreflightResult(
@@ -440,7 +405,6 @@ def _check_structure(
     UnexpectedDirsCheck,
     MediaMetadataCheck | None,
 ]:
-    """Structure checks: album ID, directories, media sources, media metadata."""
     summary = AlbumMediaSourceSummary(media_sources=tuple(media_sources))
     metadata = load_album_metadata(album_dir)
     album_id = AlbumIdCheck(
@@ -465,7 +429,6 @@ def _check_media(
     checksum: bool,
     on_file_checked: Callable[[str, bool], None] | None,
 ) -> tuple[AlbumIntegrityResult | None, AlbumJpegIntegrityResult | None]:
-    """Media checks: file integrity + JPEG completeness."""
     integrity = (
         check_album_integrity(
             album_dir,
@@ -490,7 +453,6 @@ def _check_naming(
     exiftool: ExifToolHelper | None,
     check_naming_flag: bool,
 ) -> AlbumNamingResult | None:
-    """Naming checks: convention + EXIF timestamp match."""
     if not check_naming_flag:
         return None
     else:
@@ -512,7 +474,6 @@ def _check_naming(
 def _check_cache(
     album_dir: Path, media_sources: list[MediaSource]
 ) -> tuple[FaceStateCheck | None, ExifCacheStateCheck | None]:
-    """Cache checks: face state + EXIF cache state."""
     return (
         check_face_state(album_dir, media_sources=media_sources),
         check_exif_cache_state(album_dir, media_sources=media_sources),
@@ -520,5 +481,4 @@ def _check_cache(
 
 
 def discover_archive_albums(base_dir: Path) -> list[Path]:
-    """Recursively discover albums with archive directories under *base_dir*."""
     return discover_albums(base_dir)

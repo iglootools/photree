@@ -1,10 +1,3 @@
-"""iOS-specific media source integrity checks.
-
-Covers duplicate image numbers, miscategorized files, and the full
-iOS media-source integrity check that combines browsable, JPEG, and
-sidecar checks.
-"""
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
@@ -24,10 +17,6 @@ from ...store.media_source import MediaSource, ios_img_number
 from ..browsable import BrowsableDirCheck, check_browsable_dir
 from ..jpeg import JpegCheck, check_jpeg_dir
 from .sidecar import SidecarCheck, check_sidecars
-
-# ---------------------------------------------------------------------------
-# Data classes
-# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -61,8 +50,6 @@ class MiscategorizedFile:
 
 @dataclass(frozen=True)
 class IosMediaSourceIntegrityResult:
-    """Integrity check result for a single iOS media source."""
-
     browsable_img: BrowsableDirCheck
     browsable_vid: BrowsableDirCheck
     browsable_jpg: JpegCheck
@@ -91,11 +78,6 @@ class IosMediaSourceIntegrityResult:
         return bool(self.sidecars.missing_sidecars)
 
 
-# ---------------------------------------------------------------------------
-# Check functions
-# ---------------------------------------------------------------------------
-
-
 def _duplicate_key(
     filename: str, img_extensions: frozenset[str]
 ) -> tuple[str, str, str]:
@@ -113,9 +95,7 @@ def check_duplicate_numbers(
     media_extensions: frozenset[str],
     img_extensions: frozenset[str] = frozenset(),
 ) -> tuple[DuplicateNumber, ...]:
-    """Check for duplicate media file numbers within the same prefix category.
-
-    IMG_7552.HEIC + IMG_E7552.HEIC sharing number 7552 is normal (original + edited).
+    """IMG_7552.HEIC + IMG_E7552.HEIC sharing number 7552 is normal (original + edited).
     IMG_E7658.HEIC + IMG_E7658.JPG sharing number 7658 within the same 'E' prefix is a duplicate.
     IMG_0410.HEIC + IMG_0410.MOV sharing number 0410 with different media types
     is a Live Photo, not a duplicate.
@@ -138,9 +118,7 @@ def check_miscategorized_files(
     orig_dir: Path,
     edit_dir: Path,
 ) -> tuple[MiscategorizedFile, ...]:
-    """Check for edited files in orig dirs and original files in edit dirs.
-
-    Orig dirs should contain only original files (IMG_XXXX prefix).
+    """Orig dirs should contain only original files (IMG_XXXX prefix).
     Edit dirs should contain only edited files (IMG_E/IMG_O prefix).
     """
     orig_files = list_files(orig_dir)
@@ -177,7 +155,6 @@ def check_miscategorized_files(
 def _detect_live_photo_vid_filenames(
     album_dir: Path, ms: MediaSource
 ) -> frozenset[str]:
-    """Return expected Live Photo video filenames for an iOS media source."""
     live_keys = detect_live_photo_keys(
         album_dir / ms.orig_img_dir,
         IOS_IMG_EXTENSIONS,
@@ -204,7 +181,6 @@ def _check_browsable(
     checksum: bool,
     on_file_checked: Callable[[str, bool], None] | None,
 ) -> tuple[BrowsableDirCheck, BrowsableDirCheck]:
-    """Browsable img + vid checks for an iOS source."""
     img = check_browsable_dir(
         album_dir / ms.orig_img_dir,
         album_dir / ms.edit_img_dir,
@@ -262,7 +238,6 @@ def check_ios_media_source_integrity(
     checksum: bool = True,
     on_file_checked: Callable[[str, bool], None] | None = None,
 ) -> IosMediaSourceIntegrityResult:
-    """Run all integrity checks for a single iOS media source."""
     if not ms.is_ios:
         raise ValueError(f"media source '{ms.name}' is not an iOS media source")
 

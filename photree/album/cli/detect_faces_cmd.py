@@ -1,5 +1,3 @@
-"""``photree album detect-faces`` command."""
-
 from pathlib import Path
 from typing import Annotated
 

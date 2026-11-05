@@ -1,5 +1,3 @@
-"""``photree gallery list-collections`` command."""
-
 import csv
 from pathlib import Path
 from typing import Annotated
@@ -81,11 +79,6 @@ def list_collections_cmd(
             _list_text(collections, cwd, metadata)
 
 
-# ---------------------------------------------------------------------------
-# CSV
-# ---------------------------------------------------------------------------
-
-
 def _member_counts(meta: CollectionMetadata | None) -> list[int]:
     return (
         [len(meta.albums), len(meta.collections), len(meta.images), len(meta.videos)]
@@ -118,11 +111,6 @@ def _list_csv(collections: list[Path], cwd: Path, output_file: Path | None) -> N
         writer = csv.writer(out)
         writer.writerow(_CSV_HEADER)
         writer.writerows(_csv_row(col_dir, cwd) for col_dir in collections)
-
-
-# ---------------------------------------------------------------------------
-# Text
-# ---------------------------------------------------------------------------
 
 
 def _name_line(parsed: ParsedCollectionName) -> str:

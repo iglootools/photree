@@ -20,10 +20,6 @@ import re
 from datetime import date, datetime, timedelta
 from enum import StrEnum
 
-# ---------------------------------------------------------------------------
-# Grammar
-# ---------------------------------------------------------------------------
-
 _SINGLE_DATE = r"\d{4}(?:-\d{2}(?:-\d{2})?)?"
 
 _DATE_SPEC = rf"{_SINGLE_DATE}(?:--{_SINGLE_DATE})?"
@@ -31,7 +27,6 @@ _DATE_SPEC = rf"{_SINGLE_DATE}(?:--{_SINGLE_DATE})?"
 DATE_PREFIX_RE = re.compile(rf"^({_DATE_SPEC}) - ")
 """Matches the ``DATE - `` prefix of a name; group 1 is the date spec."""
 
-# Single-day date: exactly YYYY-MM-DD (no range, no lower precision)
 _DAY_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 # The year / month a name starts with, at any precision: "2024 - ...",
@@ -41,11 +36,6 @@ _MONTH_PREFIX_RE = re.compile(r"^(\d{4}-\d{2})(?!\d)")
 
 DateRange = tuple[date, date]
 """An inclusive ``(first day, last day)`` range."""
-
-
-# ---------------------------------------------------------------------------
-# Errors
-# ---------------------------------------------------------------------------
 
 
 class InvalidDateError(ValueError):
@@ -83,11 +73,6 @@ class DatePrefixError(ValueError):
         )
         self.name = name
         self.kind = kind
-
-
-# ---------------------------------------------------------------------------
-# Specs and ranges
-# ---------------------------------------------------------------------------
 
 
 def is_day_precision(spec: str) -> bool:
@@ -151,11 +136,6 @@ def ranges_overlap(a: DateRange, b: DateRange) -> bool:
     return a[0] <= b[1] and b[0] <= a[1]
 
 
-# ---------------------------------------------------------------------------
-# Timestamps
-# ---------------------------------------------------------------------------
-
-
 def timestamp_in_range(timestamp: datetime, spec: str) -> bool:
     """Whether *timestamp* falls within the range denoted by *spec*.
 
@@ -186,11 +166,6 @@ def timestamp_on_day(timestamp: datetime, spec: str) -> bool:
     day to match). Callers validate *spec* first.
     """
     return not is_day_precision(spec) or (timestamp.date() == date.fromisoformat(spec))
-
-
-# ---------------------------------------------------------------------------
-# Name prefixes
-# ---------------------------------------------------------------------------
 
 
 def parse_year_prefix(name: str) -> str:

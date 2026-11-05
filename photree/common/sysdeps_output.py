@@ -21,7 +21,6 @@ def format_status(status: SystemDependencyStatus) -> str:
 
 
 def format_statuses(statuses: Iterable[SystemDependencyStatus]) -> str:
-    """Format all dependency check lines, one per line."""
     return "\n".join(format_status(s) for s in statuses)
 
 

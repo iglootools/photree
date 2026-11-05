@@ -1,5 +1,3 @@
-"""``photree album import-check`` command."""
-
 from pathlib import Path
 from typing import Annotated
 

@@ -1,5 +1,3 @@
-"""User-facing output formatting for album fix commands."""
-
 from typing import TYPE_CHECKING
 
 from .rm_upstream import RmUpstreamSkip, SignalSkipReason
@@ -76,7 +74,6 @@ def _rm_upstream_lines(ru: FixRmUpstreamResult) -> list[str]:
 
 
 def format_fix_result(result: FixResult) -> list[str]:
-    """Format a :class:`FixResult` into output lines."""
     return [
         *(
             ["No media sources found; nothing to fix."]

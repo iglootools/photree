@@ -49,7 +49,6 @@ def import_deps(*, skip_heic_to_jpeg: bool = False) -> tuple[SystemDependency, .
 
 
 def refresh_deps() -> tuple[SystemDependency, ...]:
-    """External binaries a derived-data refresh needs."""
     return import_deps()
 
 

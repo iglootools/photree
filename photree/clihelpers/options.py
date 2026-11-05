@@ -1,5 +1,3 @@
-"""Reusable Typer option definitions shared across CLI commands."""
-
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated
@@ -8,10 +6,6 @@ import typer
 
 from ..foundation.linking import LinkMode
 from ..foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
-
-# ---------------------------------------------------------------------------
-# Listing output options
-# ---------------------------------------------------------------------------
 
 
 class OutputFormat(StrEnum):
@@ -40,10 +34,6 @@ OUTPUT_FILE_OPTION = Annotated[
         resolve_path=True,
     ),
 ]
-
-# ---------------------------------------------------------------------------
-# Check options
-# ---------------------------------------------------------------------------
 
 CHECKSUM_OPTION = Annotated[
     bool,
@@ -101,10 +91,6 @@ CHECK_EXIF_DATE_MATCH_OPTION = Annotated[
         help="Enable/disable EXIF timestamp vs album date validation (default: enabled).",
     ),
 ]
-
-# ---------------------------------------------------------------------------
-# Fix-ios options
-# ---------------------------------------------------------------------------
 
 LINK_MODE_OPTION = Annotated[
     LinkMode | None,
@@ -189,10 +175,6 @@ MV_MISCATEGORIZED_OPTION = Annotated[
     ),
 ]
 
-# ---------------------------------------------------------------------------
-# Common options
-# ---------------------------------------------------------------------------
-
 DRY_RUN_OPTION = Annotated[
     bool,
     typer.Option(
@@ -210,10 +192,6 @@ REIMPORT_OPTION = Annotated[
         ),
     ),
 ]
-
-# ---------------------------------------------------------------------------
-# Export options
-# ---------------------------------------------------------------------------
 
 SHARE_DIR_OPTION = Annotated[
     Path | None,

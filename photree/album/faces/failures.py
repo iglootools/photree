@@ -9,8 +9,6 @@ from enum import StrEnum
 
 
 class FaceFailureStage(StrEnum):
-    """Pipeline stage at which an image failed."""
-
     THUMBNAIL = "thumbnail"
     DETECTION = "detection"
 

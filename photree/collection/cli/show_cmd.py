@@ -1,5 +1,3 @@
-"""``photree collection show`` command."""
-
 from pathlib import Path
 
 import typer

@@ -98,11 +98,6 @@ def format_skipped(plans: list[AlbumPlan], cwd: Path) -> str:
     )
 
 
-# ---------------------------------------------------------------------------
-# Import execution failures
-# ---------------------------------------------------------------------------
-
-
 def format_import_error(exc: ValueError | OSError, cwd: Path) -> str:
     """Describe an import that raised, with paths relative to *cwd*.
 

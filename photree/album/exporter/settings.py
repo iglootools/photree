@@ -1,5 +1,3 @@
-"""Export settings resolution and validation."""
-
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -11,8 +9,6 @@ from ...foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 
 
 class ExportSettingsErrorKind(StrEnum):
-    """Why export settings could not be used."""
-
     UNKNOWN_PROFILE = "unknown-profile"
     NO_SHARE_DIR = "no-share-dir"
     ALBUMS_LAYOUT_NEEDS_ALL = "albums-layout-needs-all"
@@ -20,9 +16,7 @@ class ExportSettingsErrorKind(StrEnum):
 
 
 class ExportSettingsError(ValueError):
-    """Raised when export settings are invalid or incomplete.
-
-    Carries the failure as data (*kind* plus the fields relevant to it) so the
+    """Carries the failure as data (*kind* plus the fields relevant to it) so the
     CLI renders paths relative to the cwd; ``str()`` is a plain fallback.
     """
 
@@ -45,8 +39,6 @@ class ExportSettingsError(ValueError):
 
 @dataclass(frozen=True)
 class ResolvedExportSettings:
-    """Fully resolved export settings."""
-
     share_dir: Path
     share_layout: ShareDirectoryLayout
     album_layout: AlbumShareLayout
@@ -112,10 +104,7 @@ def resolve_export_settings(
 
 
 def validate_export_settings(settings: ResolvedExportSettings) -> None:
-    """Validate resolved settings, checking sentinel and layout constraints.
-
-    Raises :class:`ExportSettingsError` on validation failure.
-    """
+    """Raises :class:`ExportSettingsError` on validation failure."""
     if (
         settings.share_layout == ShareDirectoryLayout.ALBUMS
         and settings.album_layout != AlbumShareLayout.ALL

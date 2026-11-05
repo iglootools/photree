@@ -1,5 +1,3 @@
-"""CLI commands for demo and development purposes."""
-
 import tempfile
 from collections.abc import Callable
 from pathlib import Path

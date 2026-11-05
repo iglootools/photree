@@ -1,5 +1,3 @@
-"""Media metadata check — verify media-ids is in sync with directory structure."""
-
 from collections import Counter
 from dataclasses import dataclass
 from enum import StrEnum
@@ -18,10 +16,6 @@ from ..store.media_metadata import (
     load_media_metadata,
 )
 from ..store.media_source import KeyFn, MediaSource
-
-# ---------------------------------------------------------------------------
-# Intermediate types
-# ---------------------------------------------------------------------------
 
 
 class MediaType(StrEnum):
@@ -46,15 +40,8 @@ class DuplicateId:
     count: int
 
 
-# ---------------------------------------------------------------------------
-# Check result
-# ---------------------------------------------------------------------------
-
-
 @dataclass(frozen=True)
 class MediaMetadataCheck:
-    """Result of checking media metadata against the directory structure."""
-
     has_media_metadata: bool
     image_count: int = 0
     video_count: int = 0
@@ -75,18 +62,12 @@ class MediaMetadataCheck:
         )
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
 def _scan_keys(
     album_dir: Path,
     directory: str,
     extensions: frozenset[str],
     key_fn: KeyFn,
 ) -> set[str]:
-    """Scan a directory and return the set of deduped media keys."""
     return set(
         dedup_media_dict(list_files(album_dir / directory), extensions, key_fn).keys()
     )
@@ -98,10 +79,7 @@ def _diff_keys(
     ms_name: str,
     media_type: MediaType,
 ) -> tuple[tuple[UnmatchedKey, ...], tuple[UnmatchedKey, ...]]:
-    """Compute new and stale keys for a single media type.
-
-    Returns ``(new_entries, stale_entries)`` as sorted tuples.
-    """
+    """Returns ``(new_entries, stale_entries)`` as sorted tuples."""
     new = tuple(
         UnmatchedKey(ms_name, media_type, k) for k in sorted(disk_keys - existing_keys)
     )
@@ -125,7 +103,6 @@ def _check_media_source(
     ms: MediaSource,
     existing_ms: MediaSourceMediaMetadata,
 ) -> _SourceCheckResult:
-    """Check a single media source against its on-disk files."""
     img_ext = IOS_IMG_EXTENSIONS if ms.is_ios else IMG_EXTENSIONS
     vid_ext = IOS_VID_EXTENSIONS if ms.is_ios else VID_EXTENSIONS
 
@@ -174,18 +151,12 @@ def _stale_source_result(
 
 
 def _find_duplicate_ids(uuids: list[str]) -> tuple[DuplicateId, ...]:
-    """Detect UUIDs that appear more than once."""
     counts = Counter(uuids)
     return tuple(
         DuplicateId(uuid=uuid, count=count)
         for uuid, count in sorted(counts.items())
         if count > 1
     )
-
-
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
 
 
 def check_media_metadata(
@@ -199,7 +170,6 @@ def check_media_metadata(
 
     discovered_names = {ms.name for ms in media_sources}
 
-    # Check discovered media sources against metadata
     source_results = [
         _check_media_source(
             album_dir,

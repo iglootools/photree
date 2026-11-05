@@ -1,5 +1,3 @@
-"""Tests for photree.album.faces.refresh module — change detection logic."""
-
 import shutil
 from pathlib import Path
 
@@ -36,7 +34,6 @@ def _make_ios_source(album_dir: Path) -> None:
 
 class TestAnalyzerInjection:
     def test_no_factory_skips_detection(self, tmp_path: Path) -> None:
-        """With no injected factory, face detection is skipped entirely."""
         _make_ios_source(tmp_path)
 
         result = refresh_face_data(tmp_path, analyzer_factory=None)
@@ -54,8 +51,6 @@ class TestAnalyzerInjection:
         def _factory():
             raise AssertionError("analyzer factory should not be invoked")
 
-        # Placeholder bytes can't be converted to a thumbnail, so detection is
-        # skipped before the factory is ever called.
         refresh_face_data(tmp_path, analyzer_factory=_factory)
 
 

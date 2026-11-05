@@ -1,5 +1,3 @@
-"""``photree album check`` command."""
-
 from contextlib import nullcontext
 from pathlib import Path
 from typing import Annotated

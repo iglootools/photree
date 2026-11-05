@@ -1,5 +1,3 @@
-"""Tests for photree.album.jpeg module."""
-
 from pathlib import Path
 
 from photree.album.jpeg import (

@@ -1,5 +1,3 @@
-"""Tests for photree.album.browsable module."""
-
 import os
 from pathlib import Path
 
@@ -10,7 +8,6 @@ from photree.foundation.linking import LinkMode
 
 
 def _setup_dir(path: Path, filenames: list[str]) -> Path:
-    """Create a directory with the given filenames."""
     path.mkdir(parents=True, exist_ok=True)
     for name in filenames:
         (path / name).write_text(f"data-{name}")
@@ -259,10 +256,8 @@ class TestRefreshBrowsableDirLinkMode:
 
         browsable_file = browsable / "IMG_0001.HEIC"
         assert browsable_file.is_symlink()
-        # Target should be relative
         target = os.readlink(browsable_file)
         assert not os.path.isabs(target)
-        # Should resolve to the original file
         assert browsable_file.resolve() == (orig / "IMG_0001.HEIC").resolve()
 
     def test_copy_mode_creates_independent_copy(self, tmp_path: Path) -> None:

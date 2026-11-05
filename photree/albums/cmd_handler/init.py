@@ -1,5 +1,3 @@
-"""Batch init command handler."""
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial
@@ -20,8 +18,6 @@ from . import (
 
 @dataclass(frozen=True)
 class BatchInitResult:
-    """Result of batch album initialization."""
-
     initialized: int
     failures: tuple[BatchFailure, ...] = ()
 

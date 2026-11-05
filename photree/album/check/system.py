@@ -8,10 +8,8 @@ from ...common.sysdeps import SystemDependency, is_available
 
 
 def check_sips_available() -> bool:
-    """Check whether the macOS ``sips`` tool is on PATH."""
     return is_available(SystemDependency.SIPS)
 
 
 def check_exiftool_available() -> bool:
-    """Check whether ``exiftool`` is on PATH."""
     return is_available(SystemDependency.EXIFTOOL)

@@ -1,10 +1,3 @@
-"""Album-specific EXIF conventions and helpers.
-
-Defines project-specific tag priority and media extension sets,
-and provides album-level convenience functions built on top of
-the generic EXIF helpers in :mod:`common.exif`.
-"""
-
 from datetime import datetime
 from pathlib import Path
 
@@ -36,17 +29,11 @@ from ..common.exif import (
 TIMESTAMP_TAGS = ["CreationDate", "DateTimeOriginal", "CreateDate"]
 
 
-# ---------------------------------------------------------------------------
-# Wrappers that bind TIMESTAMP_TAGS
-# ---------------------------------------------------------------------------
-
-
 def read_exif_timestamps_by_file(
     files: list[Path],
     *,
     exiftool: ExifToolHelper | None = None,
 ) -> list[tuple[Path, datetime]]:
-    """Read ``(file, timestamp)`` pairs using the project's tag priority."""
     return _generic_read_by_file(files, TIMESTAMP_TAGS, exiftool=exiftool)
 
 
@@ -54,9 +41,7 @@ def set_exif_date(
     files: list[Path],
     date: str,
 ) -> tuple[ExifDateChange, ...]:
-    """Set the date portion of EXIF timestamps using the project's tag priority.
-
-    Returns one change per file actually rewritten (see
+    """Returns one change per file actually rewritten (see
     :func:`common.exif.write_exif_date`).
     """
     return write_exif_date(files, date, TIMESTAMP_TAGS)

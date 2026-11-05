@@ -1,12 +1,6 @@
-"""EXIF cache protocol — constants and models."""
-
 from pydantic import Field
 
 from ...foundation.model import PhotreeModel
-
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
 
 EXIF_CACHE_DIR = "cache/exif"
 """Subdirectory under ``.photree/`` for EXIF timestamp cache."""
@@ -23,14 +17,7 @@ refresh.
 """
 
 
-# ---------------------------------------------------------------------------
-# Pydantic models
-# ---------------------------------------------------------------------------
-
-
 class ExifCacheEntry(PhotreeModel):
-    """Cached EXIF timestamp for a single media file."""
-
     mtime: float = Field(description="File modification time at cache time.")
     file_name: str = Field(
         description=(

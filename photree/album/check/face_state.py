@@ -43,8 +43,6 @@ class FaceSyncIssue:
 
 @dataclass(frozen=True)
 class FaceStateCheck:
-    """Result of face state validation for an album."""
-
     model_mismatch: bool
     npz_yaml_sync_errors: tuple[FaceSyncIssue, ...]
 
@@ -64,9 +62,7 @@ def check_face_state(
     model_version: str = DEFAULT_MODEL_VERSION,
     media_sources: list[MediaSource],
 ) -> FaceStateCheck | None:
-    """Validate face detection state for an album.
-
-    Returns ``None`` if no face data exists. Trusts the state without
+    """Returns ``None`` if no face data exists. Trusts the state without
     per-file mtime verification — the state is validated at write time
     during album refresh.
     """
@@ -92,11 +88,6 @@ def check_face_state(
         )
 
 
-# ---------------------------------------------------------------------------
-# Per-source check
-# ---------------------------------------------------------------------------
-
-
 @dataclass(frozen=True)
 class _SourceCheck:
     model_mismatch: bool
@@ -110,7 +101,6 @@ def _check_source(
     model_name: str,
     model_version: str,
 ) -> _SourceCheck:
-    """Validate face state for a single media source."""
     state = load_face_state(album_dir, ms.name)
     face_data = load_face_data(album_dir, ms.name)
     match (state, face_data):
@@ -130,11 +120,6 @@ def _check_source(
                 ),
                 npz_yaml_sync_errors=_check_npz_yaml_sync(ms.name, s, face_data),
             )
-
-
-# ---------------------------------------------------------------------------
-# .npz / .yaml sync check
-# ---------------------------------------------------------------------------
 
 
 def _check_npz_yaml_sync(

@@ -1,5 +1,3 @@
-"""Refresh album derived data — media IDs, EXIF cache, face detection."""
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -48,9 +46,7 @@ from .store.media_sources_discovery import discover_media_sources
 
 @dataclass(frozen=True)
 class AlbumRefreshResult:
-    """Outcome of :func:`refresh_album_derived_data`.
-
-    Carries the per-file failures the refresh survived, so a caller can report
+    """Carries the per-file failures the refresh survived, so a caller can report
     them. A JPEG that failed to convert leaves a gap in ``{name}-jpg/`` that is
     otherwise invisible until the next ``album check``; an image whose face
     detection failed is silently missing from face clustering.
@@ -68,8 +64,6 @@ class AlbumRefreshResult:
 
 @dataclass(frozen=True)
 class ReconcileResult:
-    """Result of reconciling existing UUID->key mappings against disk."""
-
     updated: dict[str, str]
     new_count: int
     removed_count: int
@@ -77,8 +71,6 @@ class ReconcileResult:
 
 @dataclass(frozen=True)
 class MediaSourceRefreshResult:
-    """Result of refreshing media metadata for a single media source."""
-
     new_images: int
     new_videos: int
     removed_images: int
@@ -96,8 +88,6 @@ class MediaSourceRefreshResult:
 
 @dataclass(frozen=True)
 class RefreshResult:
-    """Result of refreshing media metadata for an album."""
-
     by_media_source: tuple[tuple[str, MediaSourceRefreshResult], ...]
 
     @property
@@ -119,7 +109,6 @@ def _reconcile(
     *,
     new_id: Callable[[], str] = generate_media_id,
 ) -> ReconcileResult:
-    """Reconcile existing UUID->key mappings against current keys on disk."""
     existing_keys = set(existing.values())
     new_keys = sorted(current_keys - existing_keys)
     stale_keys = existing_keys - current_keys
@@ -142,7 +131,6 @@ def _scan_keys(
     extensions: frozenset[str],
     key_fn: KeyFn,
 ) -> set[str]:
-    """Scan a directory and return the set of deduped media keys."""
     return set(
         dedup_media_dict(list_files(album_dir / directory), extensions, key_fn).keys()
     )
@@ -164,7 +152,6 @@ def _refresh_media_source(
     *,
     new_id: Callable[[], str],
 ) -> tuple[MediaSourceMediaMetadata, MediaSourceRefreshResult]:
-    """Refresh a single media source — returns updated metadata and result."""
     img_ext, vid_ext = _media_extensions(ms)
 
     img = _reconcile(
@@ -195,9 +182,7 @@ def refresh_media_metadata(
     dry_run: bool = False,
     new_id: Callable[[], str] = generate_media_id,
 ) -> RefreshResult:
-    """Scan archive directories and reconcile with ``.photree/media-ids/``.
-
-    Assigns new UUIDs (from *new_id*) to media files not yet tracked, removes
+    """Assigns new UUIDs (from *new_id*) to media files not yet tracked, removes
     stale entries for files no longer on disk.
     """
     existing = load_media_metadata(album_dir) or MediaMetadata()
@@ -227,11 +212,6 @@ def refresh_media_metadata(
     )
 
 
-# ---------------------------------------------------------------------------
-# Composite refresh — all derived album data
-# ---------------------------------------------------------------------------
-
-
 def refresh_album_derived_data(
     album_dir: Path,
     *,
@@ -247,9 +227,7 @@ def refresh_album_derived_data(
     refresh_face_thumbs: bool = False,
     dry_run: bool = False,
 ) -> AlbumRefreshResult:
-    """Refresh all derived album data in a single pipeline.
-
-    Runs 5 steps in order, each gated by a check to skip when up-to-date:
+    """Runs 5 steps in order, each gated by a check to skip when up-to-date:
 
     1. **Browsable dirs** (main-img, main-vid) — gated by
        ``check_browsable_dir`` (no checksum, fast file-listing check).
@@ -319,10 +297,7 @@ def _refresh_browsable_dirs(
     force: bool,
     dry_run: bool,
 ) -> None:
-    """Conditionally refresh browsable dirs for all media sources.
-
-    Dry runs stop at the staleness check: nothing below it is called.
-    """
+    """Dry runs stop at the staleness check: nothing below it is called."""
     if dry_run:
         return
     for ms in media_sources:
@@ -395,7 +370,6 @@ def _browsable_is_fresh(
     key_fn: KeyFn,
     link_mode: LinkMode,
 ) -> bool:
-    """Return True if a browsable directory is consistent with its archive sources."""
     orig = album_dir / orig_subdir
     return not orig.is_dir() or (  # no archive → nothing to refresh
         check_browsable_dir(
@@ -418,9 +392,7 @@ def _browsable_img_is_fresh(
     vid_ext: frozenset[str],
     link_mode: LinkMode,
 ) -> bool:
-    """Return True if the browsable img dir is consistent with archive sources.
-
-    For iOS media sources, accounts for Live Photo companion videos that
+    """For iOS media sources, accounts for Live Photo companion videos that
     are expected to be present in the browsable img dir alongside images.
     """
     orig = album_dir / ms.orig_img_dir
@@ -455,7 +427,6 @@ def _live_photo_vid_filenames(
     img_ext: frozenset[str],
     vid_ext: frozenset[str],
 ) -> frozenset[str]:
-    """Return expected Live Photo video filenames for a media source."""
     orig = album_dir / ms.orig_img_dir
     live_keys = detect_live_photo_keys(orig, img_ext, vid_ext, ms.key_fn)
     if not live_keys:
@@ -475,9 +446,7 @@ def _refresh_jpeg_dirs(
     force: bool,
     dry_run: bool,
 ) -> tuple[tuple[str, JpegConversionFailure], ...]:
-    """Conditionally refresh JPEG dirs for all media sources.
-
-    Returns ``(media_source_name, failure)`` pairs for files that could not be
+    """Returns ``(media_source_name, failure)`` pairs for files that could not be
     converted, so the caller can report which source they belong to.
     """
     stale = [

@@ -28,7 +28,6 @@ from .series import SeriesTarget, series_targets
 
 
 def _collection_target_dir(gallery_dir: Path, name: str) -> Path:
-    """Compute the target directory for a collection."""
     match parse_collection_year(name):
         case None:
             return gallery_dir / COLLECTIONS_DIR / name
@@ -113,7 +112,6 @@ def _create_implicit(
     dry_run: bool,
     new_id: Callable[[], str],
 ) -> ImplicitChanges:
-    """Create a new implicit collection."""
     target_dir = _collection_target_dir(gallery_dir, target.collection_name)
     if target_dir.exists():
         return ImplicitChanges(

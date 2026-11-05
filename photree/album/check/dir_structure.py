@@ -1,8 +1,3 @@
-"""Album directory structure checks.
-
-Verifies that expected subdirectories are present for each media source.
-"""
-
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -11,8 +6,6 @@ from ..store.media_source import MAIN_MEDIA_SOURCE, MediaSource
 
 @dataclass(frozen=True)
 class AlbumDirCheck:
-    """Result of checking an album directory for expected subdirectories."""
-
     present: tuple[str, ...]
     missing: tuple[str, ...]
     optional_present: tuple[str, ...] = ()
@@ -24,7 +17,6 @@ class AlbumDirCheck:
 
 
 def _has_any(album_dir: Path, group: tuple[str, ...]) -> bool:
-    """Check if any directory in a group is present."""
     return any((album_dir / d).is_dir() for d in group)
 
 
@@ -32,12 +24,7 @@ def check_album_dir_structure(
     album_dir: Path,
     media_sources: list[MediaSource],
 ) -> AlbumDirCheck:
-    """Check which expected album subdirectories are present in *album_dir*.
-
-    Iterates over all media sources (iOS and std) and checks each media
-    source's directory groups independently.  Results are aggregated.
-
-    Per media source, at least one directory group must be fully present:
+    """Per media source, at least one directory group must be fully present:
     - Image group: ``{archive}/orig-img``, ``{name}-img``, ``{name}-jpg``
     - Video group: ``{archive}/orig-vid``, ``{name}-vid``
 
@@ -46,7 +33,6 @@ def check_album_dir_structure(
     Optional directories (``edit-img``, ``edit-vid``) are always informational.
     """
     if not media_sources:
-        # No media sources found — report missing for main media source
         return AlbumDirCheck(
             present=(),
             missing=MAIN_MEDIA_SOURCE.required_subdirs,
@@ -62,7 +48,6 @@ def check_album_dir_structure(
 
 
 def _check_media_source_dirs(album_dir: Path, ms: MediaSource) -> AlbumDirCheck:
-    """Directory check for one media source (see :func:`check_album_dir_structure`)."""
     # A group counts as "in use" as soon as one of its dirs exists; all of
     # its dirs are then required. Unused groups are reported as optional.
     image_used = _has_any(album_dir, ms.image_subdirs)
@@ -89,10 +74,7 @@ def check_album_dir(
     album_dir: Path,
     expected: tuple[str, ...] = MAIN_MEDIA_SOURCE.all_subdirs,
 ) -> AlbumDirCheck:
-    """Check which expected subdirectories are present in *album_dir*.
-
-    Used by import commands to check specific directories (e.g. SELECTION_DIR).
-    """
+    """Used by import commands to check specific directories (e.g. SELECTION_DIR)."""
     return AlbumDirCheck(
         present=tuple(d for d in expected if (album_dir / d).is_dir()),
         missing=tuple(d for d in expected if not (album_dir / d).is_dir()),
