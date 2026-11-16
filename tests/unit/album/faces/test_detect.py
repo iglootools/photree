@@ -1,10 +1,20 @@
+from collections.abc import Iterator
+
 import pytest
+from pytest import MonkeyPatch  # noqa: TID251 -- pending, see docs/guidelines.md (Tests)
 
 from photree.album.faces import detect
 
 
+@pytest.fixture
+def monkeypatch() -> Iterator[MonkeyPatch]:
+    """Patching is allowed in this file only: see docs/guidelines.md (Tests)."""
+    with MonkeyPatch.context() as patch:
+        yield patch
+
+
 class TestMemoizedFaceAnalyzerFactory:
-    def test_loads_lazily_and_caches(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_loads_lazily_and_caches(self, monkeypatch: MonkeyPatch) -> None:
         calls = 0
         sentinel = object()
 

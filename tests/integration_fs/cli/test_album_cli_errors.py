@@ -1,10 +1,11 @@
 """CLI regressions for album commands: corrupt metadata, structured errors,
 and copy-pasteable suggestions."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
+from pytest import MonkeyPatch  # noqa: TID251 -- pending, see docs/guidelines.md (Tests)
 from typer.testing import CliRunner
 
 import photree.cli as cli_module
@@ -27,6 +28,14 @@ from photree.foundation.layout import SHARE_SENTINEL
 from photree.foundation.linking import LinkMode
 from photree.foundation.metadata_io import InvalidMetadataError
 from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
+
+
+@pytest.fixture
+def monkeypatch() -> Iterator[MonkeyPatch]:
+    """Patching is allowed in this file only: see docs/guidelines.md (Tests)."""
+    with MonkeyPatch.context() as patch:
+        yield patch
+
 
 runner = CliRunner()
 
@@ -186,7 +195,7 @@ def test_export_unplaceable_name_is_reported(tmp_path: Path) -> None:
     assert "--share-layout flat" in result.output
 
 
-def _stub_system_deps(bin_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def _stub_system_deps(bin_dir: Path, monkeypatch: MonkeyPatch) -> None:
     """Put no-op sips/exiftool stubs on PATH so the preflight gate passes."""
     bin_dir.mkdir()
     for name in ("sips", "exiftool"):
@@ -217,7 +226,7 @@ def _std_staged_album(tmp_path: Path) -> Path:
 )
 def test_import_refusal_is_reported_not_raised(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: MonkeyPatch,
     error: Callable[[Path], Exception],
     expected: str,
 ) -> None:
@@ -242,7 +251,7 @@ def test_import_refusal_is_reported_not_raised(
 
 
 def test_import_refuses_date_collision_with_sibling(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
     """album import runs the same light check as gallery import."""
     _stub_system_deps(tmp_path / "bin", monkeypatch)
@@ -270,7 +279,7 @@ def test_import_refuses_date_collision_with_sibling(
 
 def test_entry_point_reports_media_source_conflict(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: MonkeyPatch,
     chdir: Callable[[Path], None],
     capsys: pytest.CaptureFixture[str],
 ) -> None:

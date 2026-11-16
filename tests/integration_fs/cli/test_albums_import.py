@@ -5,14 +5,24 @@ so a run where every album failed printed a success-shaped summary and exited
 0. These cover the reason reaching the user and the exit code reflecting it.
 """
 
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from pytest import MonkeyPatch  # noqa: TID251 -- pending, see docs/guidelines.md (Tests)
 from typer.testing import CliRunner
 
 from photree.album.staging import ios_import_dir
 from photree.albums.cli import import_cmd as albums_import_cmd
 from photree.cli import app
+
+
+@pytest.fixture
+def monkeypatch() -> Iterator[MonkeyPatch]:
+    """Patching is allowed in this file only: see docs/guidelines.md (Tests)."""
+    with MonkeyPatch.context() as patch:
+        yield patch
+
 
 runner = CliRunner()
 
@@ -88,7 +98,7 @@ class TestFailureReporting:
         assert "0 album(s) imported, 1 failed, 1 skipped." in result.output
 
     def test_all_succeeding_exits_zero(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+        self, tmp_path: Path, monkeypatch: MonkeyPatch
     ) -> None:
         # The fixture HEIC is not a real image, so face detection would fail
         # (and now, rightly, fail the album): disable it for this test.

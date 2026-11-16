@@ -5,9 +5,11 @@ every command that refreshes derived data (album import, albums/gallery
 refresh, gallery import) reports it and exits 1 rather than claiming success.
 """
 
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from pytest import MonkeyPatch  # noqa: TID251 -- pending, see docs/guidelines.md (Tests)
 from typer.testing import CliRunner
 
 import photree.gallery.importer as gallery_importer
@@ -26,6 +28,14 @@ from photree.gallery.import_plan import AlbumPlan, ImportAction
 from photree.gallery.importer import AlbumImportResult as GalleryImportResult
 from photree.gallery.importer import import_album
 from photree.gallery.output import format_import_failure_labels
+
+
+@pytest.fixture
+def monkeypatch() -> Iterator[MonkeyPatch]:
+    """Patching is allowed in this file only: see docs/guidelines.md (Tests)."""
+    with MonkeyPatch.context() as patch:
+        yield patch
+
 
 runner = CliRunner()
 
@@ -51,7 +61,7 @@ def _refresh_with_face_failures(*_: object, **__: object) -> AlbumRefreshResult:
 
 
 def test_batch_refresh_counts_face_failures_as_failed(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
     album = _ios_album(tmp_path / "2024-07-14 - Hiking")
     monkeypatch.setattr(
@@ -82,7 +92,7 @@ def test_gallery_import_exposes_face_failures(tmp_path: Path) -> None:
 
 
 def test_gallery_batch_import_reports_face_failures(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
     album = tmp_path / "2024-07-14 - Hiking"
     target = tmp_path / "gallery/albums/2024" / album.name
@@ -115,7 +125,7 @@ def test_gallery_batch_import_reports_face_failures(
 
 
 def test_album_import_reports_face_failures_and_exits_1(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()

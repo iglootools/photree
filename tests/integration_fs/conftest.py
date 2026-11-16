@@ -10,15 +10,17 @@ command boundary where needed.
 
 import os
 import stat
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from pytest import MonkeyPatch  # noqa: TID251 -- pending, see docs/guidelines.md (Tests)
 
 pytestmark = pytest.mark.integration_fs
 
 
 @pytest.fixture
-def stub_sips_on_path(tmp_path_factory, monkeypatch: pytest.MonkeyPatch) -> Path:
+def stub_sips_on_path(tmp_path_factory) -> Iterator[Path]:
     """Put a deliberately-failing ``sips`` stub at the front of PATH.
 
     Import/refresh CLI commands gate on ``sips`` before doing any work, but
@@ -29,13 +31,14 @@ def stub_sips_on_path(tmp_path_factory, monkeypatch: pytest.MonkeyPatch) -> Path
     The stub exits non-zero: a test that unexpectedly does reach conversion
     fails loudly instead of silently producing a corrupt JPEG.
     """
-    return _stub_binary_on_path("sips", tmp_path_factory, monkeypatch)
+    with MonkeyPatch.context() as patch:
+        yield _stub_binary_on_path("sips", tmp_path_factory, patch)
 
 
 def _stub_binary_on_path(
     name: str,
     tmp_path_factory: pytest.TempPathFactory,
-    monkeypatch: pytest.MonkeyPatch,
+    patch: MonkeyPatch,
 ) -> Path:
     bin_dir = tmp_path_factory.mktemp(f"stub-{name}-bin")
     stub = bin_dir / name
@@ -43,5 +46,5 @@ def _stub_binary_on_path(
         f'#!/bin/sh\necho "stub {name}: not expected to be invoked" >&2\nexit 1\n'
     )
     stub.chmod(stub.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
-    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+    patch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
     return stub

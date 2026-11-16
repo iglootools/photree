@@ -123,6 +123,36 @@ Before calling a change done, update the documents its kind of change reaches:
 
 ### Tests
 - Ensure that all new functionality is covered by tests.
+- **Test without patching**, as the common
+  [Mocks](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#mocks)
+  and [Tests](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md#tests)
+  rules describe: put the decision in a decider tested with plain values, or take the
+  dependency as a parameter with the real default (as `import_album(refresh=...)` and
+  `run_preflight(system_deps=...)` already do) and pass a fake. Patching is reserved for
+  the three exceptions those rules define: **(a)** a wrapped third-party boundary,
+  **(b)** a fault no real resource can produce, **(c)** process-global state.
+- **Enforced** by pytest and ruff. `tests/conftest.py` replaces the `monkeypatch`
+  fixture with one that fails the test, and ruff's `TID251` bans `unittest.mock` and
+  `pytest.MonkeyPatch`, the only ways left to patch. A file in the table below imports
+  `from pytest import MonkeyPatch  # noqa: TID251 -- <category>` and defines its own
+  `monkeypatch` fixture over `MonkeyPatch.context()`, in the test module itself: one in
+  a `conftest.py` would re-enable patching for the whole directory. Ruff's `RUF100`
+  fails on a `noqa` that is no longer needed. `monkeypatch.chdir` is replaced by the
+  `chdir` fixture in `tests/conftest.py`.
+
+  The **pending** rows predate the rule: the guard stops new patches while these are
+  converted. Converting one means removing its row and its `noqa` in the same change.
+
+  | File | What is replaced | Category | Why, and when to retire it |
+  |---|---|---|---|
+  | `tests/integration_fs/album/importer/test_preflight.py` | `PATH`, emptied | (c) | The test asserts that `run_preflight` does not read `PATH`, since its caller owns the probing. Changing the process's `PATH` is the only way to show that. |
+  | `tests/integration_fs/cli/test_album_cli_errors.py` | `album_import.run_import`, `cli.app`; `sips` / `exiftool` stubs on `PATH` | pending | Inject the import through the CLI's dependencies, and the tool lookup through a `which` / `environ` seam. |
+  | `tests/integration_fs/cli/test_albums_import.py` | `memoized_face_analyzer_factory` | pending | Inject the face analyzer factory into the batch import command. |
+  | `tests/integration_fs/cli/test_gallery_commands.py` | `run_batch_import`, `run_batch_post_import_check` | pending | The test is about how their outcomes drive the exit code: a decider over `BatchImportResult` and the check result, tested with plain values. |
+  | `tests/integration_fs/cli/test_system_deps_gate.py` | stubs on `PATH` | pending | Pass `which` / `environ` to the system-dependency probe. |
+  | `tests/integration_fs/conftest.py` | a failing `sips` stub on `PATH` | pending | Same seam as the system-dependency probe. |
+  | `tests/integration_fs/test_face_failure_propagation.py` | `refresh_album_derived_data`, `import_album`, `run_import`; stubs on `PATH` | pending | Inject them as `import_album(refresh=...)` already does in the same file. |
+  | `tests/unit/album/faces/test_detect.py` | `create_face_analyzer` | pending | Pass the analyzer constructor to `memoized_face_analyzer_factory`. |
 
 ### New Concepts (e.g., collections, future entity types)
 

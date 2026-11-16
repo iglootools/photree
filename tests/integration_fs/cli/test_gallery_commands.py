@@ -1,7 +1,8 @@
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
+from pytest import MonkeyPatch  # noqa: TID251 -- pending, see docs/guidelines.md (Tests)
 from typer.testing import CliRunner
 
 from photree.album.id import generate_album_id
@@ -27,6 +28,14 @@ from photree.gallery.cmd_handler.importer import (
     AlbumImportFailure,
     BatchImportResult,
 )
+
+
+@pytest.fixture
+def monkeypatch() -> Iterator[MonkeyPatch]:
+    """Patching is allowed in this file only: see docs/guidelines.md (Tests)."""
+    with MonkeyPatch.context() as patch:
+        yield patch
+
 
 runner = CliRunner()
 
@@ -142,7 +151,7 @@ class TestFaceClusterThreshold:
 
 class TestImportAllExitCode:
     def test_post_import_check_failure_exits_1(
-        self, tmp_path: Path, stub_sips_on_path: Path, monkeypatch: pytest.MonkeyPatch
+        self, tmp_path: Path, stub_sips_on_path: Path, monkeypatch: MonkeyPatch
     ) -> None:
         """Regression: post-import check failures did not affect the exit code."""
         gallery = _setup_gallery(tmp_path)
@@ -171,7 +180,7 @@ class TestImportAllExitCode:
         )
 
     def test_import_failure_is_counted(
-        self, tmp_path: Path, stub_sips_on_path: Path, monkeypatch: pytest.MonkeyPatch
+        self, tmp_path: Path, stub_sips_on_path: Path, monkeypatch: MonkeyPatch
     ) -> None:
         gallery = _setup_gallery(tmp_path)
         source = tmp_path / "incoming" / "2024-07-14 - Hiking"
