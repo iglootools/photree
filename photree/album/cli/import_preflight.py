@@ -10,6 +10,7 @@ import typer
 
 from ...clihelpers.config_errors import format_config_error
 from ...clihelpers.console import console, err_console
+from ...clihelpers.runtime import Runtime
 from ...clihelpers.sysdeps import import_deps
 from ...common.sysdeps import check_system_dependencies
 from ...config import ConfigError
@@ -24,10 +25,18 @@ def run_import_preflight(
     album_dir: Path | None = None,
     force: bool = False,
     skip_heic_to_jpeg: bool = False,
+    runtime: Runtime,
 ) -> Path:
-    """Prints all check lines first, then troubleshooting for failures at the end."""
+    """Prints all check lines first, then troubleshooting for failures at the end.
+
+    Reads the machine (binaries, home, config file, working directory) only
+    through *runtime*.
+    """
+    cwd = runtime.cwd()
     try:
-        image_capture_dir = resolve_image_capture_dir(source, config_path)
+        image_capture_dir = resolve_image_capture_dir(
+            source, config_path, home=runtime.home, load=runtime.load_config
+        )
     except ConfigError as exc:
         err_console.print(format_config_error(exc), markup=False)
         raise typer.Exit(code=2) from exc
@@ -38,19 +47,18 @@ def run_import_preflight(
     result = run_preflight(
         image_capture_dir,
         system_deps=check_system_dependencies(
-            import_deps(skip_heic_to_jpeg=skip_heic_to_jpeg)
+            import_deps(skip_heic_to_jpeg=skip_heic_to_jpeg),
+            which=runtime.which,
         ),
         album_dir=album_dir,
         force=force,
     )
 
     typer.echo("Preflight Checks:")
-    console.print(importer_output.format_preflight_checks(result, cwd=Path.cwd()))
+    console.print(importer_output.format_preflight_checks(result, cwd=cwd))
 
     if not result.success:
-        troubleshoot = importer_output.format_preflight_troubleshoot(
-            result, cwd=Path.cwd()
-        )
+        troubleshoot = importer_output.format_preflight_troubleshoot(result, cwd=cwd)
         if troubleshoot:
             typer.echo("")
             err_console.print(troubleshoot)

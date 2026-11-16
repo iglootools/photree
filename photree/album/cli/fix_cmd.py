@@ -10,6 +10,7 @@ from ...clihelpers.options import (
     RM_ORPHAN_OPTION,
     RM_UPSTREAM_OPTION,
 )
+from ...clihelpers.runtime import runtime_of
 from ...common.fs import display_path
 from .. import fix as album_fixes
 from ..fix import FixValidationError, MissingArchiveError, RmUpstreamRefusedError
@@ -23,6 +24,7 @@ from .media_source_conflict import exit_on_media_source_conflict
 
 @album_app.command("fix")
 def fix_cmd(
+    ctx: typer.Context,
     album_dir: Annotated[
         Path,
         typer.Option(
@@ -90,6 +92,7 @@ def fix_cmd(
             rm_orphan=rm_orphan,
             force=force,
             dry_run=dry_run,
+            cwd=runtime_of(ctx).cwd(),
         )
 
 
@@ -116,8 +119,8 @@ def _run_archive_fixes(
     rm_orphan: bool,
     force: bool,
     dry_run: bool,
+    cwd: Path,
 ) -> None:
-    cwd = Path.cwd()
     with exit_on_media_source_conflict(cwd):
         try:
             result = album_fixes.run_fix(

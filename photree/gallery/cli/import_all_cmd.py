@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from typing import Annotated
 
@@ -7,9 +6,11 @@ import typer
 from ...clihelpers.console import err_console
 from ...clihelpers.options import REIMPORT_OPTION
 from ...clihelpers.resolution import resolve_gallery_or_exit
+from ...clihelpers.runtime import runtime_of
 from ...clihelpers.sysdeps import import_deps, require_system_deps
 from ...common.formatting import indent, markup_escape
 from ...common.fs import display_path
+from ...common.sysdeps import WhichFn
 from ...foundation.gallery_metadata import (
     GALLERY_YAML,
     load_gallery_metadata,
@@ -19,6 +20,7 @@ from ...foundation.layout import PHOTREE_DIR
 from ...foundation.linking import LinkMode
 from ..cmd_handler.importer import BatchImportResult
 from ..import_plan import AlbumPlan
+from ..output import format_import_all_summary, import_all_failed
 from . import gallery_app
 from .ops import (
     build_index_or_exit,
@@ -33,6 +35,7 @@ from .ops import (
 
 @gallery_app.command("import-all")
 def import_all_cmd(
+    ctx: typer.Context,
     base_dir: Annotated[
         Path | None,
         typer.Option(
@@ -91,15 +94,17 @@ def import_all_cmd(
     JPEGs, and runs gallery-wide checks. Already-imported albums are skipped
     unless --reimport is given.
     """
+    runtime = runtime_of(ctx)
+    cwd = runtime.cwd()
+    which = runtime.which
     if base_dir is not None and album_dirs is not None:
         err_console.print("--dir and --album-dir are mutually exclusive.")
         raise typer.Exit(code=1)
 
-    require_system_deps(import_deps())
+    require_system_deps(import_deps(), which=which)
 
-    resolved_gallery = resolve_gallery_or_exit(gallery_dir)
+    resolved_gallery = resolve_gallery_or_exit(gallery_dir, cwd=cwd)
     resolved_lm = resolve_link_mode(link_mode, resolved_gallery)
-    cwd = Path.cwd()
 
     albums = _resolve_albums_or_exit(base_dir, album_dirs, cwd)
     index = build_index_or_exit(resolved_gallery, cwd)
@@ -116,17 +121,27 @@ def import_all_cmd(
     typer.echo(f"Found {len(to_import)} album(s).\n")
     typer.echo("Import:")
     result = run_batch_import(
-        to_import, resolved_gallery, resolved_lm, dry_run, max_workers=os.cpu_count()
+        to_import,
+        resolved_gallery,
+        resolved_lm,
+        dry_run,
+        max_workers=runtime.cpu_count(),
+        which=which,
+        cwd=cwd,
     )
     mutated = not dry_run and bool(result.imported)
     check_failed = (
-        _post_import_check(to_import, result, resolved_gallery, cwd) if mutated else []
+        _post_import_check(to_import, result, resolved_gallery, cwd, which=which)
+        if mutated
+        else []
     )
     if mutated:
         _cluster_faces(resolved_gallery)
 
-    _print_summary(result, check_failed, len(import_plan.skipped))
-    if result.failures or check_failed:
+    typer.echo(
+        "\n" + format_import_all_summary(result, check_failed, len(import_plan.skipped))
+    )
+    if import_all_failed(result, check_failed):
         raise typer.Exit(code=1)
 
 
@@ -134,7 +149,7 @@ def _resolve_albums_or_exit(
     base_dir: Path | None, album_dirs: list[Path] | None, cwd: Path
 ) -> list[Path]:
     """Resolve the source albums, reporting skipped non-album directories."""
-    albums, non_albums = resolve_import_all_albums(base_dir, album_dirs)
+    albums, non_albums = resolve_import_all_albums(base_dir, album_dirs, cwd=cwd)
     if non_albums:
         typer.echo(
             "\n".join(
@@ -156,6 +171,8 @@ def _post_import_check(
     result: BatchImportResult,
     gallery_dir: Path,
     cwd: Path,
+    *,
+    which: WhichFn,
 ) -> list[Path]:
     """Check every album that imported; return those that failed."""
     typer.echo("\nPost-Import Check:")
@@ -164,6 +181,7 @@ def _post_import_check(
         [plan.target for plan in to_import if plan.source in imported],
         gallery_dir,
         cwd,
+        which=which,
     )
     if check_failed:
         err_console.print(
@@ -193,16 +211,3 @@ def _cluster_faces(gallery_dir: Path) -> None:
             gallery_dir,
             distance_threshold=gallery_meta.face_cluster_threshold,
         )
-
-
-def _print_summary(
-    result: BatchImportResult, check_failed: list[Path], skipped: int
-) -> None:
-    """Print the tally: imports, import failures, check failures, and skips."""
-    parts = [
-        f"{len(result.imported)} album(s) imported",
-        f"{len(result.failures)} failed",
-        *([f"{len(check_failed)} failed post-import check"] if check_failed else []),
-        *([f"{skipped} skipped"] if skipped else []),
-    ]
-    typer.echo(f"\nDone. {', '.join(parts)}.")

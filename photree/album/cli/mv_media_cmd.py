@@ -4,6 +4,7 @@ from typing import Annotated
 import typer
 
 from ...clihelpers.console import err_console
+from ...clihelpers.runtime import runtime_of
 from ...common.fs import display_path
 from .. import media
 from . import album_app
@@ -12,6 +13,7 @@ from .media_source_conflict import exit_on_media_source_conflict
 
 @album_app.command("mv-media")
 def mv_media_cmd(
+    ctx: typer.Context,
     source_album: Annotated[
         Path,
         typer.Option(
@@ -55,7 +57,7 @@ def mv_media_cmd(
     (iOS) or filename stem (std) across the media source's directory structure
     and moves them all. Any variant file can be used to identify the media.
     """
-    cwd = Path.cwd()
+    cwd = runtime_of(ctx).cwd()
     with exit_on_media_source_conflict(cwd):
         try:
             result = media.move_media(source_album, dest_album, files, dry_run=dry_run)

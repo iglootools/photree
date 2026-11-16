@@ -3,6 +3,7 @@ from typing import Annotated
 
 import typer
 
+from ...clihelpers.runtime import runtime_of
 from ...common.formatting import indent
 from ...common.fs import display_path
 from ..id import format_album_external_id
@@ -15,6 +16,7 @@ from .media_source_conflict import exit_on_media_source_conflict
 
 @album_app.command("show")
 def show_cmd(
+    ctx: typer.Context,
     album_dir: Annotated[
         Path,
         typer.Option(
@@ -28,7 +30,7 @@ def show_cmd(
     ] = Path("."),
 ) -> None:
     """Display album metadata and parsed name."""
-    cwd = Path.cwd()
+    cwd = runtime_of(ctx).cwd()
     metadata = load_album_metadata(album_dir)
     with exit_on_media_source_conflict(cwd):
         media_sources = discover_media_sources(album_dir)

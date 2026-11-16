@@ -12,6 +12,7 @@ from ...clihelpers.options import (
     RM_MISCATEGORIZED_SAFE_OPTION,
     RM_ORPHAN_SIDECAR_OPTION,
 )
+from ...clihelpers.runtime import runtime_of
 from ...common.fs import display_path
 from ..fix.ios import (
     FixIosValidationError,
@@ -26,6 +27,7 @@ from .media_source_conflict import exit_on_media_source_conflict
 
 @album_app.command("fix-ios")
 def fix_ios_cmd(
+    ctx: typer.Context,
     album_dir: Annotated[
         Path,
         typer.Option(
@@ -82,7 +84,7 @@ def fix_ios_cmd(
         )
         raise typer.Exit(code=1) from exc
 
-    cwd = Path.cwd()
+    cwd = runtime_of(ctx).cwd()
     with exit_on_media_source_conflict(cwd):
         try:
             result = run_fix_ios(album_dir, dry_run=dry_run, **flags)

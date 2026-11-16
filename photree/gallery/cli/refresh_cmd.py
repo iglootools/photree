@@ -9,6 +9,7 @@ from ...clihelpers.console import console, err_console
 from ...clihelpers.options import DRY_RUN_OPTION
 from ...clihelpers.progress import StageProgressBar, run_with_spinner
 from ...clihelpers.resolution import resolve_gallery_or_exit
+from ...clihelpers.runtime import runtime_of
 from ...clihelpers.sysdeps import refresh_deps, require_system_deps
 from ...collection.refresh import (
     STAGE_IMPLICIT_REFRESH,
@@ -33,6 +34,7 @@ from .refresh_output import (
 
 @gallery_app.command("refresh")
 def refresh_cmd(
+    ctx: typer.Context,
     gallery_dir: Annotated[
         Path | None,
         typer.Option(
@@ -82,11 +84,13 @@ def refresh_cmd(
     ] = False,
 ) -> None:
     """Refresh all derived data, face clusters, and collections for the gallery."""
-    require_system_deps(refresh_deps())
+    runtime = runtime_of(ctx)
+    cwd = runtime.cwd()
+    which = runtime.which
+    require_system_deps(refresh_deps(), which=which)
 
-    resolved = resolve_gallery_or_exit(gallery_dir)
-    cwd = Path.cwd()
-    albums, display_base = resolve_check_batch_albums(resolved, None)
+    resolved = resolve_gallery_or_exit(gallery_dir, cwd=cwd)
+    albums, display_base = resolve_check_batch_albums(resolved, None, cwd=cwd)
     run_batch_refresh(
         albums,
         display_base,
@@ -96,6 +100,7 @@ def refresh_cmd(
         force_exif_cache=refresh_exif_cache,
         redetect_faces=redetect_faces,
         refresh_face_thumbs=refresh_face_thumbs,
+        runtime=runtime,
     )
     # Face clustering runs before the collection refresh so cluster data is
     # available to it.

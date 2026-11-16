@@ -97,6 +97,7 @@ def refresh_face_data(
     dry_run: bool = False,
     on_source_start: Callable[[str], None] | None = None,
     on_source_end: Callable[[str, bool], None] | None = None,
+    max_workers: int | None = None,
 ) -> FaceRefreshResult:
     """Face detection is an injected capability. When *analyzer_factory* is
     ``None`` no detector is available and face detection is skipped entirely;
@@ -122,6 +123,7 @@ def refresh_face_data(
                 dry_run=dry_run,
                 on_source_start=on_source_start,
                 on_source_end=on_source_end,
+                max_workers=max_workers,
             ),
         )
         for ms in sources
@@ -189,6 +191,7 @@ def _refresh_source(
     dry_run: bool,
     on_source_start: Callable[[str], None] | None,
     on_source_end: Callable[[str, bool], None] | None,
+    max_workers: int | None,
 ) -> FaceSourceRefreshResult:
     if on_source_start:
         on_source_start(ms.name)
@@ -211,6 +214,7 @@ def _refresh_source(
             refresh_thumbs=refresh_thumbs,
             model_name=model_name,
             model_version=model_version,
+            max_workers=max_workers,
         )
     )
 
@@ -228,6 +232,7 @@ def _detect_and_save(
     refresh_thumbs: bool,
     model_name: str,
     model_version: str,
+    max_workers: int | None,
 ) -> FaceSourceRefreshResult:
     """Run detection for the planned keys, then persist the merged results."""
     new_faces, new_state_keys, failures = _run_detection(
@@ -238,6 +243,7 @@ def _detect_and_save(
         existing_state=plan.existing_state,
         refresh_thumbs=refresh_thumbs or plan.model_changed,
         get_analyzer=get_analyzer,
+        max_workers=max_workers,
     )
 
     _delete_stale_thumbnails(thumbs_dir(album_dir, ms.name), set(plan.stale_keys))
@@ -317,6 +323,7 @@ def _run_detection(
     existing_state: FaceProcessingState,
     refresh_thumbs: bool,
     get_analyzer: Callable[[], FaceAnalysis],
+    max_workers: int | None,
 ) -> tuple[list[DetectedFace], dict[str, FaceProcessedKey], tuple[FaceFailure, ...]]:
     """Returns ``(new_faces, new_state_keys, failures)``."""
     thumb_dir = thumbs_dir(album_dir, ms.name)
@@ -327,6 +334,7 @@ def _run_detection(
         thumb_dir,
         existing_state=existing_state,
         regenerate=refresh_thumbs,
+        max_workers=max_workers,
     )
 
     # No thumbnails means nothing to detect (e.g. only stale keys to prune) —
@@ -411,6 +419,8 @@ def _generate_new_thumbnails(
     current_files: Mapping[str, str],
     orig_dir: Path,
     thumb_dir: Path,
+    *,
+    max_workers: int | None,
 ) -> list[ParallelResult[ThumbnailResult]]:
     """Generate thumbnails for *keys* in parallel (sips is CPU-bound)."""
     tasks: list[tuple[str, Callable[[], ThumbnailResult]]] = [
@@ -426,7 +436,7 @@ def _generate_new_thumbnails(
         )
         for key in keys
     ]
-    return run_parallel(tasks) if tasks else []
+    return run_parallel(tasks, max_workers=max_workers) if tasks else []
 
 
 def _thumbnail_failure(key: str, reason: str) -> FaceFailure:
@@ -441,6 +451,7 @@ def _generate_thumbnails(
     *,
     existing_state: FaceProcessingState,
     regenerate: bool,
+    max_workers: int | None,
 ) -> tuple[list[ThumbnailResult], tuple[FaceFailure, ...]]:
     """Generate (or reuse) thumbnails for *keys*.
 
@@ -459,7 +470,7 @@ def _generate_thumbnails(
         regenerate=regenerate,
     )
     generated = _generate_new_thumbnails(
-        needs_thumb, current_files, orig_dir, thumb_dir
+        needs_thumb, current_files, orig_dir, thumb_dir, max_workers=max_workers
     )
     reused = [
         _reuse_thumbnail(

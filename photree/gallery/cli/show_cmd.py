@@ -5,6 +5,7 @@ import typer
 
 from ...album.store.album_discovery import discover_albums
 from ...clihelpers.resolution import resolve_gallery_or_exit
+from ...clihelpers.runtime import runtime_of
 from ...common.formatting import indent
 from ...common.fs import display_path
 from ...foundation.gallery_metadata import GALLERY_YAML, load_gallery_metadata
@@ -14,6 +15,7 @@ from . import gallery_app
 
 @gallery_app.command("show")
 def show_cmd(
+    ctx: typer.Context,
     gallery_dir: Annotated[
         Path | None,
         typer.Option(
@@ -27,8 +29,9 @@ def show_cmd(
     ] = None,
 ) -> None:
     """Display gallery metadata."""
-    resolved = resolve_gallery_or_exit(gallery_dir)
-    cwd = Path.cwd()
+    runtime = runtime_of(ctx)
+    cwd = runtime.cwd()
+    resolved = resolve_gallery_or_exit(gallery_dir, cwd=cwd)
     metadata = load_gallery_metadata(resolved / PHOTREE_DIR / GALLERY_YAML)
     albums = discover_albums(resolved / ALBUMS_DIR)
 

@@ -5,24 +5,13 @@ so a run where every album failed printed a success-shaped summary and exited
 0. These cover the reason reaching the user and the exit code reflecting it.
 """
 
-from collections.abc import Iterator
 from pathlib import Path
 
-import pytest
-from pytest import MonkeyPatch  # noqa: TID251 -- pending, see docs/guidelines.md (Tests)
 from typer.testing import CliRunner
 
 from photree.album.staging import ios_import_dir
-from photree.albums.cli import import_cmd as albums_import_cmd
 from photree.cli import app
-
-
-@pytest.fixture
-def monkeypatch() -> Iterator[MonkeyPatch]:
-    """Patching is allowed in this file only: see docs/guidelines.md (Tests)."""
-    with MonkeyPatch.context() as patch:
-        yield patch
-
+from tests.fakes import ALL_DEPS_RUNTIME
 
 runner = CliRunner()
 
@@ -34,21 +23,19 @@ def _write(path: Path, content: str = "data") -> None:
     path.write_text(content, encoding="utf-8")
 
 
-def _image_capture_dir(tmp_path: Path) -> Path:
+def _image_capture_dir(
+    tmp_path: Path, names: tuple[str, ...] = ("IMG_0001.HEIC", "IMG_0001.AAE")
+) -> Path:
     ic_dir = tmp_path / "image_capture"
-    for name in ("IMG_0001.HEIC", "IMG_0001.AAE"):
+    for name in names:
         _write(ic_dir / name)
     return ic_dir
 
 
-def _staged_album(parent: Path, name: str) -> Path:
+def _staged_album(parent: Path, name: str, selected: str = "IMG_0001.HEIC") -> Path:
     album = parent / name
-    _write(album / SEL_DIR / "IMG_0001.HEIC")
+    _write(album / SEL_DIR / selected)
     return album
-
-
-def _no_faces() -> None:
-    """Analyzer factory stand-in: ``None`` skips face detection."""
 
 
 def _invoke(albums_dir: Path, ic_dir: Path):
@@ -63,6 +50,7 @@ def _invoke(albums_dir: Path, ic_dir: Path):
             str(ic_dir),
             "--skip-heic-to-jpeg",
         ],
+        obj=ALL_DEPS_RUNTIME,
     )
 
 
@@ -97,20 +85,15 @@ class TestFailureReporting:
 
         assert "0 album(s) imported, 1 failed, 1 skipped." in result.output
 
-    def test_all_succeeding_exits_zero(
-        self, tmp_path: Path, monkeypatch: MonkeyPatch
-    ) -> None:
-        # The fixture HEIC is not a real image, so face detection would fail
-        # (and now, rightly, fail the album): disable it for this test.
-        monkeypatch.setattr(
-            albums_import_cmd, "memoized_face_analyzer_factory", _no_faces
-        )
-        ic_dir = _image_capture_dir(tmp_path)
+    def test_all_succeeding_exits_zero(self, tmp_path: Path) -> None:
+        # A fake HEIC would fail face detection (and, rightly, the album): a
+        # standalone video gives face detection nothing to do.
+        ic_dir = _image_capture_dir(tmp_path, ("IMG_0001.MOV",))
         albums_dir = tmp_path / "albums"
-        album = _staged_album(albums_dir, "2024-07-14 - Hiking")
+        album = _staged_album(albums_dir, "2024-07-14 - Hiking", "IMG_0001.MOV")
 
         result = _invoke(albums_dir, ic_dir)
 
         assert result.exit_code == 0
         assert "0 failed" in result.output
-        assert (album / "ios-main" / "orig-img" / "IMG_0001.HEIC").exists()
+        assert (album / "ios-main" / "orig-vid" / "IMG_0001.MOV").exists()

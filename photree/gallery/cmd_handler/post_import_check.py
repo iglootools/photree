@@ -1,3 +1,4 @@
+import shutil
 from collections.abc import Callable
 from pathlib import Path
 
@@ -5,6 +6,7 @@ from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ...album import check as album_check
 from ...common.exif import exiftool_session
+from ...common.sysdeps import WhichFn
 from ...foundation.linking import LinkMode
 
 
@@ -16,13 +18,14 @@ def run_batch_post_import_check(
     display_fn: Callable[[Path], str] = lambda p: p.name,
     on_start: Callable[[str], None] | None = None,
     on_end: Callable[[str, bool, tuple[str, ...]], None] | None = None,
+    which: WhichFn = shutil.which,
 ) -> list[Path]:
     """Run post-import checks on imported albums.
 
     *sips_available* is probed and *link_mode* resolved by the caller (the CLI
     layer owns PATH and gallery lookups). Returns the list of albums that failed checking.
     """
-    with exiftool_session() as exiftool:
+    with exiftool_session(which=which) as exiftool:
         passed = [
             _check_one(
                 target_dir,

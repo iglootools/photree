@@ -6,6 +6,7 @@ import typer
 
 from ....clihelpers.console import err_console
 from ....clihelpers.resolution import resolve_gallery_or_exit
+from ....clihelpers.runtime import runtime_of
 from ....common.formatting import indent
 from ....common.fs import display_path
 from ....foundation.gallery_metadata import (
@@ -22,6 +23,7 @@ from . import gallery_metadata_app
 
 @gallery_metadata_app.command("set")
 def set_cmd(
+    ctx: typer.Context,
     gallery_dir: Annotated[
         Path | None,
         typer.Option(
@@ -56,6 +58,8 @@ def set_cmd(
     ] = None,
 ) -> None:
     """Update gallery metadata fields."""
+    runtime = runtime_of(ctx)
+    cwd = runtime.cwd()
     requested = {
         field: value
         for field, value in {
@@ -73,7 +77,7 @@ def set_cmd(
         raise typer.Exit(code=1)
     require_valid_threshold(face_cluster_threshold, "--face-cluster-threshold")
 
-    resolved = resolve_gallery_or_exit(gallery_dir)
+    resolved = resolve_gallery_or_exit(gallery_dir, cwd=cwd)
     gallery_yaml_path = resolved / PHOTREE_DIR / GALLERY_YAML
     current = load_gallery_metadata(gallery_yaml_path)
     updated = current.model_copy(update=requested)
@@ -86,7 +90,7 @@ def set_cmd(
     typer.echo(
         "\n".join(
             [
-                f"Updated {display_path(gallery_yaml_path, Path.cwd())}",
+                f"Updated {display_path(gallery_yaml_path, cwd)}",
                 *(indent(line) for line in _changed_fields(current, updated)),
             ]
         )

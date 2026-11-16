@@ -16,11 +16,13 @@ from ...clihelpers.options import (
     RM_ORPHAN_SIDECAR_OPTION,
 )
 from ...clihelpers.resolution import resolve_gallery_or_exit
+from ...clihelpers.runtime import runtime_of
 from . import gallery_app
 
 
 @gallery_app.command("fix-ios")
 def fix_ios_cmd(
+    ctx: typer.Context,
     gallery_dir: Annotated[
         Path | None,
         typer.Option(
@@ -40,6 +42,8 @@ def fix_ios_cmd(
     dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """Apply fix-ios to all iOS albums in the gallery."""
+    runtime = runtime_of(ctx)
+    cwd = runtime.cwd()
     try:
         validate_fix_flags(
             rm_orphan_sidecar=rm_orphan_sidecar,
@@ -54,8 +58,8 @@ def fix_ios_cmd(
             markup=False,
         )
         raise typer.Exit(code=1) from exc
-    resolved = resolve_gallery_or_exit(gallery_dir)
-    albums, display_base = resolve_batch_albums(resolved, None)
+    resolved = resolve_gallery_or_exit(gallery_dir, cwd=cwd)
+    albums, display_base = resolve_batch_albums(resolved, None, cwd=cwd)
     run_batch_fix_ios(
         albums,
         display_base,
@@ -65,4 +69,5 @@ def fix_ios_cmd(
         rm_miscategorized=rm_miscategorized,
         rm_miscategorized_safe=rm_miscategorized_safe,
         mv_miscategorized=mv_miscategorized,
+        cwd=cwd,
     )

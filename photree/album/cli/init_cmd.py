@@ -4,6 +4,7 @@ from typing import Annotated
 import typer
 
 from ...clihelpers.console import err_console
+from ...clihelpers.runtime import runtime_of
 from ...common.formatting import indent
 from ...common.fs import display_path
 from ..id import format_album_external_id, generate_album_id
@@ -18,6 +19,7 @@ from . import album_app
 
 @album_app.command("init")
 def init_cmd(
+    ctx: typer.Context,
     album_dir: Annotated[
         Path,
         typer.Option(
@@ -31,7 +33,7 @@ def init_cmd(
     ] = Path("."),
 ) -> None:
     """Initialize album metadata (.photree/album.yaml) with a new album ID."""
-    cwd = Path.cwd()
+    cwd = runtime_of(ctx).cwd()
     album_yaml = album_metadata_path(album_dir)
     # A corrupt album.yaml raises InvalidMetadataError (reported by the CLI
     # entry point) rather than reading as "not initialized": writing a new ID

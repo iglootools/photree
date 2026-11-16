@@ -137,12 +137,12 @@ def run_batch_list_albums(
     metadata: bool = True,
     output_format: OutputFormat = OutputFormat.TEXT,
     output_file: Path | None = None,
+    cwd: Path,
 ) -> None:
     """Shared implementation for list-albums / albums list.
 
     *output_file* applies to both formats.
     """
-    cwd = Path.cwd()
     if not albums:
         typer.echo("No albums found.", err=output_format == OutputFormat.CSV)
         raise typer.Exit(code=0)

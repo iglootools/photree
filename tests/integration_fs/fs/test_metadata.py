@@ -330,7 +330,7 @@ class TestIsAlbum:
 class TestResolveGalleryDir:
     def test_explicit_dir_with_gallery_yaml(self, tmp_path: Path) -> None:
         save_gallery_metadata(tmp_path, GalleryMetadata())
-        assert resolve_gallery_dir(tmp_path) == tmp_path
+        assert resolve_gallery_dir(tmp_path, start_dir=tmp_path) == tmp_path
 
     def test_explicit_dir_without_gallery_yaml_raises(self, tmp_path: Path) -> None:
         with pytest.raises(GalleryNotFoundError) as info:

@@ -14,11 +14,13 @@ from ...clihelpers.options import (
     RM_UPSTREAM_OPTION,
 )
 from ...clihelpers.resolution import resolve_gallery_or_exit
+from ...clihelpers.runtime import runtime_of
 from . import gallery_app
 
 
 @gallery_app.command("fix")
 def fix_cmd(
+    ctx: typer.Context,
     gallery_dir: Annotated[
         Path | None,
         typer.Option(
@@ -44,6 +46,8 @@ def fix_cmd(
     dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """Fix all albums in the gallery."""
+    runtime = runtime_of(ctx)
+    cwd = runtime.cwd()
     try:
         validate_fix_flags(
             fix_id=fix_id,
@@ -58,8 +62,8 @@ def fix_cmd(
         )
         raise typer.Exit(code=1) from exc
 
-    resolved = resolve_gallery_or_exit(gallery_dir)
-    albums, display_base = resolve_check_batch_albums(resolved, None)
+    resolved = resolve_gallery_or_exit(gallery_dir, cwd=cwd)
+    albums, display_base = resolve_check_batch_albums(resolved, None, cwd=cwd)
 
     run_batch_fix(
         albums,
@@ -70,4 +74,5 @@ def fix_cmd(
         rm_orphan=rm_orphan,
         dry_run=dry_run,
         force=force,
+        cwd=cwd,
     )

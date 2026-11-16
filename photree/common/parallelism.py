@@ -29,20 +29,22 @@ def run_parallel[T](
     max_workers: int | None = None,
     on_start: Callable[[str], None] | None = None,
     on_end: Callable[[str, bool], None] | None = None,
+    cpu_count: Callable[[], int | None] = os.cpu_count,
 ) -> list[ParallelResult[T]]:
     """Run *tasks* in parallel via :class:`ThreadPoolExecutor`.
 
     Each task is a ``(key, callable)`` pair. The callable's return value
     is captured in :attr:`ParallelResult.value` on success.
 
-    *max_workers* defaults to :func:`os.cpu_count`. Callbacks
+    *max_workers* defaults to *cpu_count* (the machine's): commands pass their
+    runtime's instead. Callbacks
     *on_start*/*on_end* are called from worker threads — callers must
     ensure thread-safety (Rich progress bars are thread-safe).
     """
     if not tasks:
         return []
 
-    workers = max_workers or os.cpu_count() or 4
+    workers = max_workers or cpu_count() or 4
     with ThreadPoolExecutor(max_workers=workers) as pool:
         futures = [
             pool.submit(_run_task, key, fn, on_start, on_end) for key, fn in tasks

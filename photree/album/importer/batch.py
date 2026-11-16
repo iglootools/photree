@@ -4,6 +4,8 @@ from enum import StrEnum
 from pathlib import Path
 from typing import NamedTuple, Protocol
 
+from exiftool import ExifToolHelper  # type: ignore[import-untyped]
+
 from ...common.fs import list_files
 from ...foundation.linking import LinkMode
 from ..faces.detect import FaceAnalyzerFactory
@@ -172,6 +174,7 @@ class _ImportOptions:
     convert_file: ConvertFile
     max_workers: int | None
     analyzer_factory: FaceAnalyzerFactory | None
+    exiftool: ExifToolHelper | None
 
 
 @dataclass(frozen=True)
@@ -262,6 +265,7 @@ def _import_one(
                 convert_file=options.convert_file,
                 max_workers=options.max_workers,
                 analyzer_factory=options.analyzer_factory,
+                exiftool=options.exiftool,
             ),
         )
     # OSError rather than FileNotFoundError alone: a batch should report
@@ -296,6 +300,7 @@ def run_batch_import(
     convert_file: ConvertFile = convert_single_file,
     max_workers: int | None = None,
     analyzer_factory: FaceAnalyzerFactory | None = None,
+    exiftool: ExifToolHelper | None = None,
 ) -> BatchResult:
     """Provide exactly one of *albums_dir* (scan immediate subdirectories) or
     *album_dirs* (explicit list of album directories).
@@ -312,6 +317,9 @@ def run_batch_import(
     - ``on_skipped(album_name, reason, warn=...)`` — called for each skipped album
     - ``on_error(album_name, error)`` — called when an album import fails
     - ``on_validation_error(album_name, errors)`` — called when validation fails
+
+    *exiftool* is shared across the albums; ``None`` lets each album's EXIF
+    cache refresh start its own.
     """
     scan = _scan(albums_dir, album_dirs)
     _report_skips(scan, on_skipped)
@@ -337,6 +345,7 @@ def run_batch_import(
             convert_file=convert_file,
             max_workers=max_workers,
             analyzer_factory=analyzer_factory,
+            exiftool=exiftool,
         )
         callbacks = _Callbacks(on_importing, on_imported, on_error)
         outcomes = [_import_one(d, options, callbacks) for d in scan.to_import]

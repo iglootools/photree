@@ -71,10 +71,9 @@ def run_batch_rename_from_csv(
     csv_file: Path,
     *,
     dry_run: bool = False,
+    cwd: Path,
 ) -> None:
     """Shared implementation for gallery rename-from-csv / albums rename-from-csv."""
-    cwd = Path.cwd()
-
     try:
         result = batch_rename_from_csv(index, csv_file, dry_run=dry_run)
     except RenameCollisionError as exc:

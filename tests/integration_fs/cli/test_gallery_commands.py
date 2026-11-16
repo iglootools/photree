@@ -1,8 +1,7 @@
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
-from pytest import MonkeyPatch  # noqa: TID251 -- pending, see docs/guidelines.md (Tests)
 from typer.testing import CliRunner
 
 from photree.album.id import generate_album_id
@@ -23,19 +22,12 @@ from photree.foundation.gallery_metadata import (
     save_gallery_metadata,
 )
 from photree.foundation.layout import PHOTREE_DIR, SHARE_SENTINEL
-from photree.gallery.cli import import_all_cmd
 from photree.gallery.cmd_handler.importer import (
     AlbumImportFailure,
     BatchImportResult,
 )
-
-
-@pytest.fixture
-def monkeypatch() -> Iterator[MonkeyPatch]:
-    """Patching is allowed in this file only: see docs/guidelines.md (Tests)."""
-    with MonkeyPatch.context() as patch:
-        yield patch
-
+from photree.gallery.output import format_import_all_summary, import_all_failed
+from tests.fakes import ALL_DEPS_RUNTIME
 
 runner = CliRunner()
 
@@ -77,13 +69,15 @@ def _dangling_collection(gallery: Path) -> Path:
 
 class TestGalleryCheckPhases:
     def test_collections_are_checked_when_there_are_no_albums(
-        self, tmp_path: Path, stub_sips_on_path: Path
+        self, tmp_path: Path
     ) -> None:
         """Regression: "no albums" exited 0 before the collection phase ran."""
         gallery = _setup_gallery(tmp_path)
         _dangling_collection(gallery)
 
-        result = runner.invoke(app, ["gallery", "check", "-g", str(gallery)])
+        result = runner.invoke(
+            app, ["gallery", "check", "-g", str(gallery)], obj=ALL_DEPS_RUNTIME
+        )
 
         assert result.exit_code == 1
         assert "Collections:" in result.output
@@ -135,71 +129,51 @@ class TestFaceClusterThreshold:
         meta = load_gallery_metadata(gallery / PHOTREE_DIR / GALLERY_YAML)
         assert meta.face_cluster_threshold == 0.0
 
-    def test_cluster_faces_rejects_out_of_range(
-        self, tmp_path: Path, stub_sips_on_path: Path
-    ) -> None:
+    def test_cluster_faces_rejects_out_of_range(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
 
         result = runner.invoke(
             app,
             ["gallery", "cluster-faces", "-g", str(gallery), "--threshold", "2"],
+            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 1
         assert not (gallery / PHOTREE_DIR / "faces").exists()
 
 
-class TestImportAllExitCode:
-    def test_post_import_check_failure_exits_1(
-        self, tmp_path: Path, stub_sips_on_path: Path, monkeypatch: MonkeyPatch
-    ) -> None:
+class TestImportAllOutcome:
+    """How the import and post-import check outcomes drive import-all's exit."""
+
+    def test_post_import_check_failure_fails_the_run(self, tmp_path: Path) -> None:
         """Regression: post-import check failures did not affect the exit code."""
-        gallery = _setup_gallery(tmp_path)
         source = tmp_path / "incoming" / "2024-07-14 - Hiking"
-        _write(source / "ios-main" / "orig-img" / "IMG_0001.HEIC")
-        target = gallery / "albums" / "2024" / source.name
-        # Stand-ins for the real import/check, which need sips and the face
-        # model: this test is about how their outcomes drive the exit code.
-        monkeypatch.setattr(
-            import_all_cmd,
-            "run_batch_import",
-            lambda *_a, **_k: BatchImportResult(imported=(source,)),
-        )
-        monkeypatch.setattr(
-            import_all_cmd, "run_batch_post_import_check", lambda *_a: [target]
+        target = tmp_path / "gallery" / "albums" / "2024" / source.name
+        result = BatchImportResult(imported=(source,))
+
+        assert import_all_failed(result, [target])
+        assert format_import_all_summary(result, [target], 0) == (
+            "Done. 1 album(s) imported, 0 failed, 1 failed post-import check."
         )
 
-        result = runner.invoke(
-            app,
-            ["gallery", "import-all", "-d", str(source.parent), "-g", str(gallery)],
-        )
-
-        assert result.exit_code == 1
-        assert "1 album(s) imported, 0 failed, 1 failed post-import check" in (
-            result.output
-        )
-
-    def test_import_failure_is_counted(
-        self, tmp_path: Path, stub_sips_on_path: Path, monkeypatch: MonkeyPatch
-    ) -> None:
-        gallery = _setup_gallery(tmp_path)
+    def test_import_failure_fails_the_run(self, tmp_path: Path) -> None:
         source = tmp_path / "incoming" / "2024-07-14 - Hiking"
-        _write(source / "ios-main" / "orig-img" / "IMG_0001.HEIC")
-        monkeypatch.setattr(
-            import_all_cmd,
-            "run_batch_import",
-            lambda *_a, **_k: BatchImportResult(
-                failures=(AlbumImportFailure(source, OSError("disk full")),)
-            ),
+        result = BatchImportResult(
+            failures=(AlbumImportFailure(source, OSError("disk full")),)
         )
 
-        result = runner.invoke(
-            app,
-            ["gallery", "import-all", "-d", str(source.parent), "-g", str(gallery)],
+        assert import_all_failed(result, [])
+        assert format_import_all_summary(result, [], 0) == (
+            "Done. 0 album(s) imported, 1 failed."
         )
 
-        assert result.exit_code == 1
-        assert "0 album(s) imported, 1 failed" in result.output
+    def test_clean_run_succeeds_and_counts_skips(self, tmp_path: Path) -> None:
+        result = BatchImportResult(imported=(tmp_path / "2024-07-14 - Hiking",))
+
+        assert not import_all_failed(result, [])
+        assert format_import_all_summary(result, [], 2) == (
+            "Done. 1 album(s) imported, 0 failed, 2 skipped."
+        )
 
 
 class TestExport:

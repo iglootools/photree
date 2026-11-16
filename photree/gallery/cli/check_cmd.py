@@ -17,6 +17,7 @@ from ...clihelpers.options import (
 )
 from ...clihelpers.progress import run_with_spinner
 from ...clihelpers.resolution import resolve_gallery_or_exit
+from ...clihelpers.runtime import runtime_of
 from ...collection.check import check_all_collections
 from ...common.formatting import CHECK, CROSS, indent, markup_escape
 from ...common.fs import display_path
@@ -33,6 +34,7 @@ from . import gallery_app
 
 @gallery_app.command("check")
 def check_cmd(
+    ctx: typer.Context,
     gallery_dir: Annotated[
         Path | None,
         typer.Option(
@@ -65,8 +67,10 @@ def check_cmd(
     one fails, so one invocation reports every problem; the exit code is 1 if
     any phase failed.
     """
-    resolved = resolve_gallery_or_exit(gallery_dir)
-    albums, display_base = resolve_check_batch_albums(resolved, None)
+    runtime = runtime_of(ctx)
+    cwd = runtime.cwd()
+    resolved = resolve_gallery_or_exit(gallery_dir, cwd=cwd)
+    albums, display_base = resolve_check_batch_albums(resolved, None, cwd=cwd)
     albums_ok = run_batch_check(
         albums,
         display_base,
@@ -78,9 +82,10 @@ def check_cmd(
         check_date_part_collision=check_date_part_collision,
         check_exif_date_match=check_exif_date_match,
         refresh_exif_cache=refresh_exif_cache,
+        which=runtime.which,
         exit_on_failure=False,
+        cwd=cwd,
     )
-    cwd = Path.cwd()
     results = [
         albums_ok,
         _check_collections(resolved, cwd),

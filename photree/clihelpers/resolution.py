@@ -49,9 +49,13 @@ def format_invalid_metadata(exc: InvalidMetadataError, cwd: Path) -> str:
     )
 
 
-def resolve_gallery_or_exit(gallery_dir: Path | None) -> Path:
+def resolve_gallery_or_exit(
+    gallery_dir: Path | None,
+    *,
+    cwd: Path,
+) -> Path:
     try:
-        return resolve_gallery_dir(gallery_dir)
+        return resolve_gallery_dir(gallery_dir, start_dir=cwd)
     except GalleryNotFoundError as exc:
-        err_console.print(format_gallery_not_found(exc, Path.cwd()), markup=False)
+        err_console.print(format_gallery_not_found(exc, cwd), markup=False)
         raise typer.Exit(code=1) from exc

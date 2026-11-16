@@ -5,6 +5,7 @@ import typer
 
 from ...clihelpers.console import console, err_console
 from ...clihelpers.resolution import resolve_gallery_or_exit
+from ...clihelpers.runtime import runtime_of
 from ...collection.check import CollectionCheckResult, check_all_collections
 from ...common.formatting import CHECK, CROSS, indent, markup_escape
 from ...common.fs import display_path
@@ -28,6 +29,7 @@ def _format_result(result: CollectionCheckResult, cwd: Path) -> str:
 
 @collections_app.command("check")
 def check_cmd(
+    ctx: typer.Context,
     gallery_dir: Annotated[
         Path | None,
         typer.Option(
@@ -41,8 +43,8 @@ def check_cmd(
     ] = None,
 ) -> None:
     """Check all collections in the gallery."""
-    cwd = Path.cwd()
-    resolved_gallery = resolve_gallery_or_exit(gallery_dir)
+    cwd = runtime_of(ctx).cwd()
+    resolved_gallery = resolve_gallery_or_exit(gallery_dir, cwd=cwd)
     results = check_all_collections(resolved_gallery)
 
     if not results:

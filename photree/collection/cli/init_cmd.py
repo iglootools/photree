@@ -4,6 +4,7 @@ from typing import Annotated
 import typer
 
 from ...clihelpers.console import err_console
+from ...clihelpers.runtime import runtime_of
 from ...common.formatting import indent
 from ...common.fs import display_path
 from ...foundation.layout import PHOTREE_DIR
@@ -22,6 +23,7 @@ from .options import COLLECTION_DIR_OPTION
 
 @collection_app.command("init")
 def init_cmd(
+    ctx: typer.Context,
     collection_dir: COLLECTION_DIR_OPTION = Path("."),
     members: Annotated[
         CollectionMembers,
@@ -46,7 +48,7 @@ def init_cmd(
     ] = CollectionStrategy.IMPORT,
 ) -> None:
     """Initialize collection metadata (.photree/collection.yaml)."""
-    cwd = Path.cwd()
+    cwd = runtime_of(ctx).cwd()
     collection_yaml = display_path(collection_dir / PHOTREE_DIR / COLLECTION_YAML, cwd)
 
     validation_error = validate_collection_config(members, lifecycle, strategy)

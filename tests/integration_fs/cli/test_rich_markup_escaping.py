@@ -35,6 +35,7 @@ from photree.collection.store.protocol import (
 from photree.common.formatting import CHECK, markup_escape
 from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 from photree.foundation.linking import LinkMode
+from tests.fakes import ALL_DEPS_RUNTIME
 
 runner = CliRunner()
 
@@ -133,7 +134,7 @@ class TestAlbumsBatchFailures:
 
 class TestAlbumCheck:
     def test_preflight_and_troubleshoot_keep_brackets(
-        self, tmp_path: Path, stub_sips_on_path: Path, chdir: Callable[[Path], None]
+        self, tmp_path: Path, chdir: Callable[[Path], None]
     ) -> None:
         album = _album(tmp_path, PRIVATE_ALBUM)
         # A second media source makes every media line carry a "[name] " prefix.
@@ -150,6 +151,7 @@ class TestAlbumCheck:
                 "--no-check-exif-date-match",
                 "--no-checksum",
             ],
+            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 1
@@ -160,22 +162,20 @@ class TestAlbumCheck:
 
 
 class TestGalleryImport:
-    def test_naming_error_keeps_bracketed_tag(
-        self, tmp_path: Path, stub_sips_on_path: Path
-    ) -> None:
+    def test_naming_error_keeps_bracketed_tag(self, tmp_path: Path) -> None:
         gallery = _gallery(tmp_path)
         source = _album(tmp_path / "src", "2024-07-14 - Hiking [secret]")
 
         result = runner.invoke(
-            app, ["gallery", "import", "-a", str(source), "-g", str(gallery)]
+            app,
+            ["gallery", "import", "-a", str(source), "-g", str(gallery)],
+            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 1
         assert "2024-07-14 - Hiking [secret] — naming:" in result.output
 
-    def test_skipped_listing_keeps_private_tag(
-        self, tmp_path: Path, stub_sips_on_path: Path
-    ) -> None:
+    def test_skipped_listing_keeps_private_tag(self, tmp_path: Path) -> None:
         gallery = _gallery(tmp_path)
         album_id = generate_album_id()
         target = gallery / "albums" / "2024" / PRIVATE_ALBUM
@@ -186,7 +186,9 @@ class TestGalleryImport:
         save_album_metadata(source, AlbumMetadata(id=album_id))
 
         result = runner.invoke(
-            app, ["gallery", "import", "-a", str(source), "-g", str(gallery)]
+            app,
+            ["gallery", "import", "-a", str(source), "-g", str(gallery)],
+            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 0

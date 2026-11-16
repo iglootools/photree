@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Annotated
 
@@ -24,9 +24,10 @@ from ...clihelpers.options import (
     SHARE_LAYOUT_OPTION,
 )
 from ...clihelpers.progress import BatchProgressBar
+from ...clihelpers.runtime import runtime_of
 from ...common.formatting import indent
 from ...common.fs import display_path
-from ...config import ConfigError
+from ...config import ConfigError, PhotreeConfig
 from ...foundation.linking import LinkMode
 from ...foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 from . import AlbumDirOption, albums_app
@@ -34,6 +35,7 @@ from . import AlbumDirOption, albums_app
 
 @albums_app.command("export")
 def export_cmd(
+    ctx: typer.Context,
     base_dir: Annotated[
         Path | None,
         typer.Option(
@@ -58,6 +60,8 @@ def export_cmd(
     Either scan --dir for albums or provide explicit album directories via
     --album-dir (repeatable). The two options are mutually exclusive.
     """
+    runtime = runtime_of(ctx)
+    cwd = runtime.cwd()
     if base_dir is not None and album_dirs is not None:
         err_console.print(
             "--dir and --album-dir are mutually exclusive.\n"
@@ -72,8 +76,9 @@ def export_cmd(
         album_layout=album_layout,
         link_mode=link_mode,
         config=config,
+        cwd=cwd,
+        load=runtime.load_config,
     )
-    cwd = Path.cwd()
     scan_dir = None if album_dirs is not None else (base_dir or cwd)
     albums = (
         list(album_dirs)
@@ -99,6 +104,8 @@ def _resolve_settings_or_exit(
     album_layout: AlbumShareLayout | None,
     link_mode: LinkMode | None,
     config: str | None,
+    cwd: Path,
+    load: Callable[[str | None], PhotreeConfig],
 ) -> ResolvedExportSettings:
     """Resolve and validate export settings; config errors exit 2, others 1."""
     try:
@@ -109,6 +116,7 @@ def _resolve_settings_or_exit(
             album_layout=album_layout,
             link_mode=link_mode,
             config_path=config,
+            load=load,
         )
         validate_export_settings(settings)
     except ConfigError as exc:
@@ -116,9 +124,7 @@ def _resolve_settings_or_exit(
         raise typer.Exit(code=2) from exc
     except ExportSettingsError as exc:
         err_console.print(
-            export_output.format_export_settings_error(
-                exc, Path.cwd(), "albums export"
-            ),
+            export_output.format_export_settings_error(exc, cwd, "albums export"),
             markup=False,
         )
         raise typer.Exit(code=1) from exc

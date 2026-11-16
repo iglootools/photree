@@ -5,6 +5,7 @@ import typer
 
 from ...clihelpers.console import console, err_console
 from ...clihelpers.resolution import resolve_gallery_or_exit
+from ...clihelpers.runtime import runtime_of
 from ...common.formatting import CHECK, CROSS, indent, markup_escape
 from ...common.fs import display_path
 from ..check import build_gallery_lookup, check_collection
@@ -14,6 +15,7 @@ from .options import COLLECTION_DIR_OPTION
 
 @collection_app.command("check")
 def check_cmd(
+    ctx: typer.Context,
     collection_dir: COLLECTION_DIR_OPTION = Path("."),
     gallery_dir: Annotated[
         Path | None,
@@ -28,8 +30,8 @@ def check_cmd(
     ] = None,
 ) -> None:
     """Check collection integrity (member existence, date coverage)."""
-    cwd = Path.cwd()
-    resolved_gallery = resolve_gallery_or_exit(gallery_dir)
+    cwd = runtime_of(ctx).cwd()
+    resolved_gallery = resolve_gallery_or_exit(gallery_dir, cwd=cwd)
     lookup = build_gallery_lookup(resolved_gallery)
     result = check_collection(collection_dir, lookup)
 

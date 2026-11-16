@@ -21,6 +21,7 @@ from ...clihelpers.progress import BatchProgressBar, StageProgressBar
 from ...common.exif import exiftool_session
 from ...common.formatting import CHECK, indent
 from ...common.fs import display_path
+from ...common.sysdeps import WhichFn
 from ...foundation.gallery_metadata import resolve_link_mode
 from ...foundation.linking import LinkMode
 from .. import (
@@ -124,6 +125,8 @@ def run_single_import(
     dry_run: bool,
     *,
     max_workers: int | None = None,
+    which: WhichFn,
+    cwd: Path,
 ) -> AlbumImportResult:
     """Execute a single album import/reimport with stage progress bar."""
     typer.echo("Reimport:" if plan.action is ImportAction.REIMPORT else "Import:")
@@ -137,11 +140,12 @@ def run_single_import(
                 on_stage_start=progress.on_start,
                 on_stage_end=progress.on_end,
                 max_workers=max_workers,
+                which=which,
             )
         except (ValueError, OSError) as exc:
             # Same failure set as the batch import: the importer removes its
             # staging copy, so nothing was placed in the gallery.
-            err_console.print(format_import_error(exc, Path.cwd()), markup=False)
+            err_console.print(format_import_error(exc, cwd), markup=False)
             raise typer.Exit(code=1) from exc
     return result
 
@@ -150,6 +154,8 @@ def print_single_import_result(
     result: AlbumImportResult,
     cwd: Path,
     dry_run: bool,
+    *,
+    which: WhichFn,
 ) -> None:
     """Display import result and run post-import preflight check."""
     if not dry_run:
@@ -170,16 +176,17 @@ def print_single_import_result(
         raise typer.Exit(code=1)
 
     if not dry_run:
-        _post_import_check(result.target_dir, cwd)
+        _post_import_check(result.target_dir, cwd, which=which)
 
 
-def _post_import_check(target_dir: Path, cwd: Path) -> None:
+def _post_import_check(target_dir: Path, cwd: Path, *, which: WhichFn) -> None:
     """Run the preflight check on a freshly imported album; exit 1 on failure."""
     typer.echo("\nPost-Import Check:")
-    with exiftool_session() as exiftool:
+    with exiftool_session(which=which) as exiftool:
         check_result = album_check.run_album_check(
             target_dir,
-            sips_available=album_check.check_sips_available(),
+            # The import gate (import_deps) already required sips.
+            sips_available=True,
             exiftool=exiftool,
             link_mode=resolve_link_mode(None, target_dir),
         )
@@ -196,6 +203,8 @@ def _post_import_check(target_dir: Path, cwd: Path) -> None:
 def resolve_import_all_albums(
     base_dir: Path | None,
     album_dirs: list[Path] | None,
+    *,
+    cwd: Path,
 ) -> tuple[list[Path], list[Path]]:
     """Resolve album list for batch import from --dir or --album-dir.
 
@@ -208,7 +217,7 @@ def resolve_import_all_albums(
     if album_dirs is not None:
         return (album_dirs, [])
 
-    scan_dir = base_dir if base_dir is not None else Path.cwd()
+    scan_dir = base_dir if base_dir is not None else cwd
     return discover_potential_albums(scan_dir)
 
 
@@ -219,9 +228,10 @@ def run_batch_import(
     dry_run: bool,
     *,
     max_workers: int | None = None,
+    which: WhichFn,
+    cwd: Path,
 ) -> BatchImportResult:
     """Execute batch import/reimport with progress bar."""
-    cwd = Path.cwd()
     with BatchProgressBar(
         total=len(plans), description="Importing", done_description="import"
     ) as progress:
@@ -231,6 +241,7 @@ def run_batch_import(
             link_mode,
             dry_run,
             max_workers=max_workers,
+            which=which,
             on_start=progress.on_start,
             on_end=lambda name, failure: progress.on_end(
                 name,
@@ -246,6 +257,8 @@ def run_batch_post_import_check(
     imported_targets: list[Path],
     gallery_dir: Path,
     cwd: Path,
+    *,
+    which: WhichFn,
 ) -> list[Path]:
     """Run post-import checks on all imported albums.
 
@@ -261,7 +274,9 @@ def run_batch_post_import_check(
         check_failed = _run_batch_post_import_check(
             imported_targets,
             link_mode=resolve_link_mode(None, gallery_dir),
-            sips_available=album_check.check_sips_available(),
+            # The import gate (import_deps) already required sips.
+            sips_available=True,
+            which=which,
             display_fn=lambda p: str(display_path(p, cwd)),
             on_start=check_progress.on_start,
             on_end=lambda name, success, errors: check_progress.on_end(

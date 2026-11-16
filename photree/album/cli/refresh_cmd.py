@@ -5,6 +5,7 @@ import typer
 
 from ...clihelpers.console import console, err_console
 from ...clihelpers.progress import run_with_spinner
+from ...clihelpers.runtime import runtime_of
 from ...clihelpers.sysdeps import refresh_deps, require_system_deps
 from ...common.exif import exiftool_session
 from ...common.formatting import CHECK
@@ -19,6 +20,7 @@ from .media_source_conflict import exit_on_media_source_conflict
 
 @album_app.command("refresh")
 def refresh_cmd(
+    ctx: typer.Context,
     album_dir: Annotated[
         Path,
         typer.Option(
@@ -71,10 +73,12 @@ def refresh_cmd(
     ] = False,
 ) -> None:
     """Refresh all derived album data (browsable, JPEG, media IDs, EXIF cache, faces)."""
-    require_system_deps(refresh_deps())
+    runtime = runtime_of(ctx)
+    cwd = runtime.cwd()
+    which = runtime.which
+    require_system_deps(refresh_deps(), which=which)
 
-    cwd = Path.cwd()
-    with exiftool_session() as exiftool, exit_on_media_source_conflict(cwd):
+    with exiftool_session(which=which) as exiftool, exit_on_media_source_conflict(cwd):
         result = run_with_spinner(
             "Refreshing album...",
             lambda: refresh_album_derived_data(
@@ -88,6 +92,7 @@ def refresh_cmd(
                 redetect_faces=redetect_faces,
                 refresh_face_thumbs=refresh_face_thumbs,
                 dry_run=dry_run,
+                max_workers=runtime.cpu_count(),
             ),
         )
 

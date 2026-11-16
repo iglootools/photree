@@ -131,6 +131,26 @@ Before calling a change done, update the documents its kind of change reaches:
   `run_preflight(system_deps=...)` already do) and pass a fake. Patching is reserved for
   the three exceptions those rules define: **(a)** a wrapped third-party boundary,
   **(b)** a fault no real resource can produce, **(c)** process-global state.
+  photree's building blocks for it:
+  - **Deciders**, such as `import_problems` (album import), `import_failure_of` and
+    `import_all_failed` (gallery import), tested with real result objects.
+  - **The CLI runtime** (`photree/clihelpers/runtime.py`): everything a command reads
+    from the machine or the process: `which` (installed binaries), `cwd`, `home`,
+    `environ`, the platform config directories, and `cpu_count`; `load_config` loads
+    the config file from them. Commands read them with `runtime_of(ctx)` and pass the
+    values on; `main()` hands the real one to the app, and tests pass a fake as
+    `CliRunner.invoke(..., obj=...)`. Below the commands, nothing reads the
+    environment: CLI helpers take `cwd` (or the runtime) as a parameter, and a domain
+    function that would otherwise read it takes a keyword parameter defaulting to the
+    real value (`which=shutil.which`, `load=load_config`, `cpu_count=os.cpu_count`)
+    that the command overrides. `cwd` stays the process's working directory, since the
+    OS resolves relative arguments against it: tests change it with the `chdir`
+    fixture. Album operations a command runs are album-level ports, on
+    `AlbumRuntime` (`photree/album/cli/runtime.py`), since `clihelpers` sits below
+    `album`: `album_runtime_of(ctx)` widens the shared runtime with the real ones.
+  - **Fakes**, in `tests/fakes.py`: `fake_runtime(*present)` (only *present* binaries
+    installed, a home that does not exist, an empty environment, no config file),
+    `ALL_DEPS_RUNTIME`, `fake_which`, and `fake_album_runtime(*present, run_import=...)`.
 - **Enforced** by pytest and ruff. `tests/conftest.py` replaces the `monkeypatch`
   fixture with one that fails the test, and ruff's `TID251` bans `unittest.mock` and
   `pytest.MonkeyPatch`, the only ways left to patch. A file in the table below imports
@@ -140,19 +160,9 @@ Before calling a change done, update the documents its kind of change reaches:
   fails on a `noqa` that is no longer needed. `monkeypatch.chdir` is replaced by the
   `chdir` fixture in `tests/conftest.py`.
 
-  The **pending** rows predate the rule: the guard stops new patches while these are
-  converted. Converting one means removing its row and its `noqa` in the same change.
-
   | File | What is replaced | Category | Why, and when to retire it |
   |---|---|---|---|
   | `tests/integration_fs/album/importer/test_preflight.py` | `PATH`, emptied | (c) | The test asserts that `run_preflight` does not read `PATH`, since its caller owns the probing. Changing the process's `PATH` is the only way to show that. |
-  | `tests/integration_fs/cli/test_album_cli_errors.py` | `album_import.run_import`, `cli.app`; `sips` / `exiftool` stubs on `PATH` | pending | Inject the import through the CLI's dependencies, and the tool lookup through a `which` / `environ` seam. |
-  | `tests/integration_fs/cli/test_albums_import.py` | `memoized_face_analyzer_factory` | pending | Inject the face analyzer factory into the batch import command. |
-  | `tests/integration_fs/cli/test_gallery_commands.py` | `run_batch_import`, `run_batch_post_import_check` | pending | The test is about how their outcomes drive the exit code: a decider over `BatchImportResult` and the check result, tested with plain values. |
-  | `tests/integration_fs/cli/test_system_deps_gate.py` | stubs on `PATH` | pending | Pass `which` / `environ` to the system-dependency probe. |
-  | `tests/integration_fs/conftest.py` | a failing `sips` stub on `PATH` | pending | Same seam as the system-dependency probe. |
-  | `tests/integration_fs/test_face_failure_propagation.py` | `refresh_album_derived_data`, `import_album`, `run_import`; stubs on `PATH` | pending | Inject them as `import_album(refresh=...)` already does in the same file. |
-  | `tests/unit/album/faces/test_detect.py` | `create_face_analyzer` | pending | Pass the analyzer constructor to `memoized_face_analyzer_factory`. |
 
 ### New Concepts (e.g., collections, future entity types)
 

@@ -4,6 +4,7 @@ from typing import Annotated
 import typer
 
 from ...clihelpers.console import err_console
+from ...clihelpers.runtime import runtime_of
 from ...clihelpers.sysdeps import FACE_DETECTION_DEPS, require_system_deps
 from ...common.formatting import indent
 from ..faces.detect import memoized_face_analyzer_factory
@@ -15,6 +16,7 @@ from .media_source_conflict import exit_on_media_source_conflict
 
 @album_app.command("detect-faces")
 def detect_faces_cmd(
+    ctx: typer.Context,
     album_dir: Annotated[
         Path,
         typer.Option(
@@ -46,15 +48,17 @@ def detect_faces_cmd(
     ] = False,
 ) -> None:
     """Run face detection on album images."""
-    require_system_deps(FACE_DETECTION_DEPS)
+    runtime = runtime_of(ctx)
+    require_system_deps(FACE_DETECTION_DEPS, which=runtime.which)
 
-    with exit_on_media_source_conflict(Path.cwd()):
+    with exit_on_media_source_conflict(runtime.cwd()):
         result = refresh_face_data(
             album_dir,
             analyzer_factory=memoized_face_analyzer_factory(),
             redetect=redetect,
             refresh_thumbs=refresh_thumbs,
             dry_run=dry_run,
+            max_workers=runtime.cpu_count(),
         )
 
     if not result.by_media_source:

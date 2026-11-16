@@ -30,9 +30,9 @@ def run_batch_fix(
     rm_orphan: bool = False,
     dry_run: bool = False,
     force: bool = False,
+    cwd: Path,
 ) -> None:
     """Shared implementation for gallery fix / albums fix."""
-    cwd = Path.cwd()
     exit_if_no_albums(albums, display_base)
 
     with BatchProgressBar(
@@ -82,9 +82,9 @@ def run_batch_fix_ios(
     rm_miscategorized: bool = False,
     rm_miscategorized_safe: bool = False,
     mv_miscategorized: bool = False,
+    cwd: Path,
 ) -> None:
     """Shared implementation for gallery fix-ios / albums fix-ios."""
-    cwd = Path.cwd()
     exit_if_no_albums(albums, display_base, noun="iOS album")
 
     with BatchProgressBar(

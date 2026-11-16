@@ -11,11 +11,13 @@ from ...clihelpers.options import (
     OutputFormat,
 )
 from ...clihelpers.resolution import resolve_gallery_or_exit
+from ...clihelpers.runtime import runtime_of
 from . import gallery_app
 
 
 @gallery_app.command("list-media")
 def list_media_cmd(
+    ctx: typer.Context,
     gallery_dir: Annotated[
         Path | None,
         typer.Option(
@@ -31,11 +33,14 @@ def list_media_cmd(
     output_file: OUTPUT_FILE_OPTION = None,
 ) -> None:
     """List all media items across all albums in the gallery."""
-    resolved = resolve_gallery_or_exit(gallery_dir)
-    albums, display_base = resolve_check_batch_albums(resolved, None)
+    runtime = runtime_of(ctx)
+    cwd = runtime.cwd()
+    resolved = resolve_gallery_or_exit(gallery_dir, cwd=cwd)
+    albums, display_base = resolve_check_batch_albums(resolved, None, cwd=cwd)
     run_batch_list_media(
         albums,
         display_base,
         output_format=output_format,
         output_file=output_file,
+        cwd=cwd,
     )

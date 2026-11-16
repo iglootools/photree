@@ -1,8 +1,9 @@
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ...config import load_config
+from ...config import PhotreeConfig, load_config
 from ...foundation.layout import SHARE_SENTINEL
 from ...foundation.linking import LinkMode
 from ...foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
@@ -53,8 +54,11 @@ def resolve_export_settings(
     album_layout: AlbumShareLayout | None,
     link_mode: LinkMode | None,
     config_path: str | None,
+    load: Callable[[str | None], PhotreeConfig] = load_config,
 ) -> ResolvedExportSettings:
     """Resolve export settings: CLI flags > profile > defaults.
+
+    *load* loads the config file (the CLI passes its runtime's).
 
     Raises :class:`ExportSettingsError` on invalid or incomplete settings.
     Raises :class:`~photree.config.ConfigError` on config file errors.
@@ -64,7 +68,7 @@ def resolve_export_settings(
     # ignoring a path the user typed (missing file, typo) would hide the mistake.
     profile = None
     cfg = (
-        load_config(config_path)
+        load(config_path)
         if profile_name is not None or config_path is not None
         else None
     )

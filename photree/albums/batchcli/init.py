@@ -13,8 +13,8 @@ def run_batch_init(
     display_base: Path | None,
     *,
     dry_run: bool = False,
+    cwd: Path,
 ) -> None:
-    cwd = Path.cwd()
     exit_if_no_albums(albums, display_base)
 
     with BatchProgressBar(

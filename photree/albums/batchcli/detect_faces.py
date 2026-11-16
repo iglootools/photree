@@ -15,9 +15,10 @@ def run_batch_detect_faces(
     redetect: bool = False,
     refresh_thumbs: bool = False,
     dry_run: bool = False,
+    cwd: Path,
+    max_workers: int | None,
 ) -> None:
     """Run face detection on *albums*, print a summary, exit 1 on any failure."""
-    cwd = Path.cwd()
     exit_if_no_albums(albums, display_base)
 
     with BatchProgressBar(
@@ -31,6 +32,7 @@ def run_batch_detect_faces(
             refresh_thumbs=refresh_thumbs,
             dry_run=dry_run,
             display_fn=make_display_fn(display_base, cwd),
+            max_workers=max_workers,
             on_start=progress.on_start,
             on_end=lambda name, success, errors: progress.on_end(
                 name, success=success, error_labels=errors

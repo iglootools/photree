@@ -13,6 +13,7 @@ from ...clihelpers.options import (
     SHARE_DIR_OPTION,
     SHARE_LAYOUT_OPTION,
 )
+from ...clihelpers.runtime import runtime_of
 from ...common.formatting import markup_escape
 from ...common.fs import display_path
 from ...config import ConfigError
@@ -30,6 +31,7 @@ from . import album_app
 
 @album_app.command("export")
 def export_cmd(
+    ctx: typer.Context,
     album_dir: Annotated[
         Path,
         typer.Option(
@@ -71,6 +73,8 @@ def export_cmd(
     dropped — regenerable via 'photree albums refresh'. Space-efficient for
     backups to destinations without hardlink/symlink support (e.g. MEGA).
     """
+    runtime = runtime_of(ctx)
+    cwd = runtime.cwd()
     try:
         settings = resolve_export_settings(
             profile_name=profile,
@@ -79,6 +83,7 @@ def export_cmd(
             album_layout=album_layout,
             link_mode=link_mode,
             config_path=config,
+            load=runtime.load_config,
         )
         validate_export_settings(settings)
     except ConfigError as exc:
@@ -87,7 +92,7 @@ def export_cmd(
         raise typer.Exit(code=2) from exc
     except ExportSettingsError as exc:
         err_console.print(
-            export_output.format_export_settings_error(exc, Path.cwd(), "album export"),
+            export_output.format_export_settings_error(exc, cwd, "album export"),
             markup=False,
         )
         raise typer.Exit(code=1) from exc
@@ -101,7 +106,7 @@ def export_cmd(
             f"Cannot place album under the '{settings.share_layout}' share"
             f" layout: {markup_escape(exc)}."
         )
-        album_display = markup_escape(display_path(album_dir, Path.cwd()))
+        album_display = markup_escape(display_path(album_dir, cwd))
         err_console.print(
             "Rename the album to follow the naming convention, or run"
             f" 'photree album export --album-dir \"{album_display}\"'"

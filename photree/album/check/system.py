@@ -4,12 +4,14 @@ Thin album-facing wrappers over :mod:`photree.common.sysdeps`, which owns the
 dependency list, purposes, and install hints.
 """
 
-from ...common.sysdeps import SystemDependency, is_available
+import shutil
+
+from ...common.sysdeps import SystemDependency, WhichFn, is_available
 
 
-def check_sips_available() -> bool:
-    return is_available(SystemDependency.SIPS)
+def check_sips_available(*, which: WhichFn = shutil.which) -> bool:
+    return is_available(SystemDependency.SIPS, which=which)
 
 
-def check_exiftool_available() -> bool:
-    return is_available(SystemDependency.EXIFTOOL)
+def check_exiftool_available(*, which: WhichFn = shutil.which) -> bool:
+    return is_available(SystemDependency.EXIFTOOL, which=which)

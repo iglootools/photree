@@ -3,6 +3,7 @@ from pathlib import Path
 import typer
 
 from ...clihelpers.console import err_console
+from ...clihelpers.runtime import runtime_of
 from ...common.formatting import indent
 from ...common.fs import display_path
 from ...foundation.layout import PHOTREE_DIR
@@ -36,9 +37,11 @@ def format_collection_details(
 
 
 @collection_app.command("show")
-def show_cmd(collection_dir: COLLECTION_DIR_OPTION = Path(".")) -> None:
+def show_cmd(
+    ctx: typer.Context, collection_dir: COLLECTION_DIR_OPTION = Path(".")
+) -> None:
     """Display collection metadata and parsed name."""
-    cwd = Path.cwd()
+    cwd = runtime_of(ctx).cwd()
     metadata = load_collection_metadata(collection_dir)
     if metadata is None:
         yaml_path = display_path(collection_dir / PHOTREE_DIR / COLLECTION_YAML, cwd)

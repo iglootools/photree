@@ -1,3 +1,4 @@
+import shutil
 from collections.abc import Mapping
 from contextlib import nullcontext
 from dataclasses import dataclass
@@ -8,6 +9,7 @@ from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ...common.exif import exiftool_session, extract_timestamp, get_metadata
 from ...common.fs import list_files
+from ...common.sysdeps import WhichFn
 from ..exif import TIMESTAMP_TAGS
 from ..store.media_source import MediaSource
 from ..store.media_sources_discovery import discover_media_sources
@@ -45,16 +47,22 @@ def refresh_exif_cache(
     exiftool: ExifToolHelper | None = None,
     force: bool = False,
     dry_run: bool = False,
+    which: WhichFn = shutil.which,
 ) -> ExifCacheRefreshResult:
     """When *force* is True, re-read all files regardless of mtime.
     *exiftool* can be shared across albums in batch operations; when it is
-    ``None`` a transient one is started (and closed) for this album.
+    ``None`` a transient one is started (and closed) for this album, if
+    *which* finds the binary.
     """
     sources = discover_media_sources(album_dir)
     if not sources:
         return ExifCacheRefreshResult(by_media_source=())
 
-    with nullcontext(exiftool) if exiftool is not None else exiftool_session() as et:
+    with (
+        nullcontext(exiftool)
+        if exiftool is not None
+        else exiftool_session(which=which) as et
+    ):
         return ExifCacheRefreshResult(
             by_media_source=tuple(
                 (

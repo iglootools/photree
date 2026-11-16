@@ -1,31 +1,20 @@
-from collections.abc import Iterator
-
-import pytest
-from pytest import MonkeyPatch  # noqa: TID251 -- pending, see docs/guidelines.md (Tests)
+from typing import Any
 
 from photree.album.faces import detect
 
 
-@pytest.fixture
-def monkeypatch() -> Iterator[MonkeyPatch]:
-    """Patching is allowed in this file only: see docs/guidelines.md (Tests)."""
-    with MonkeyPatch.context() as patch:
-        yield patch
-
-
 class TestMemoizedFaceAnalyzerFactory:
-    def test_loads_lazily_and_caches(self, monkeypatch: MonkeyPatch) -> None:
+    def test_loads_lazily_and_caches(self) -> None:
         calls = 0
         sentinel = object()
 
-        def _fake_create(model_name: str = "buffalo_l") -> object:
+        def _fake_create(model_name: str) -> Any:
             nonlocal calls
             calls += 1
+            assert model_name == "buffalo_l"
             return sentinel
 
-        monkeypatch.setattr(detect, "create_face_analyzer", _fake_create)
-
-        factory = detect.memoized_face_analyzer_factory()
+        factory = detect.memoized_face_analyzer_factory(create=_fake_create)
         # Not built until first invocation.
         assert calls == 0
 

@@ -130,7 +130,7 @@ Where each concern lives, ordered by the layers above, from the base up:
 | Base | `dates`, `common/` | `dates`: the date grammar shared by album and collection names (specs, inclusive ranges, containment/overlap, timestamp matching). `common/`: filesystem, EXIF and `sips` wrappers, system dependency list, formatting, parallelism |
 | Foundation | `foundation/` | The types every other package builds on: `model` (`PhotreeModel` YAML base), `metadata_io` (YAML read/validate/write, `InvalidMetadataError`), `layout` (`.photree`, `albums`, `collections`, `browsable`, share sentinel names), `linking` (`LinkMode`), `share_layout` (export layout enums), `gallery_metadata` (`gallery.yaml` and gallery resolution) |
 | Config | `config/` | The user config file: models (`protocol.py`) and loader |
-| CLI helpers | `clihelpers/` | CLI-only infrastructure: console, options, progress bars, gallery resolution, the system dependency gate, config error rendering |
+| CLI helpers | `clihelpers/` | CLI-only infrastructure: console, options, progress bars, gallery resolution, the system dependency gate, the command runtime (`runtime.py`, the ports tests replace), config error rendering |
 | Album | `album/` | Everything about a single album, described below |
 | Collection | `collection/` | Everything about a single collection, described below |
 | Batch | `albums/`, `collections/` | Operations over a set of albums or collections, no gallery needed |

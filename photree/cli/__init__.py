@@ -1,11 +1,12 @@
 import sys
-from pathlib import Path
+from collections.abc import Callable
 
 from ..album.cli.media_source_conflict import format_media_source_conflict
 from ..album.store.media_sources_discovery import MediaSourceConflictError
 from ..clihelpers.config_errors import format_config_error
 from ..clihelpers.console import err_console
 from ..clihelpers.resolution import format_invalid_metadata
+from ..clihelpers.runtime import Runtime
 from ..common.sysdeps import MissingSystemDependencyError
 from ..common.sysdeps_output import format_missing_troubleshoot
 from ..config import ConfigError
@@ -15,9 +16,14 @@ from .app import app
 __all__ = ["app", "main"]
 
 
-def main() -> None:
+def main(*, run: Callable[..., object] = app, runtime: Runtime | None = None) -> None:
+    """The console entry point: runs *run* (the app) with *runtime* (the real
+    one by default) as every command's ``ctx.obj``, turning the domain errors
+    no command handled into a message and an exit code instead of a traceback.
+    """
+    resolved = runtime if runtime is not None else Runtime()
     try:
-        app()
+        run(obj=resolved)
     except MissingSystemDependencyError as exc:
         # Safety net for code paths not fronted by require_system_deps: without
         # it a missing binary surfaces as an unhandled traceback.
@@ -29,12 +35,14 @@ def main() -> None:
         # Safety net for any store read not handled closer to the command: a
         # corrupt metadata file must stop the run legibly, never be treated as
         # absent (which would mint new IDs) nor surface as a traceback.
-        err_console.print(format_invalid_metadata(exc, Path.cwd()), markup=False)
+        err_console.print(format_invalid_metadata(exc, resolved.cwd()), markup=False)
         sys.exit(1)
     except MediaSourceConflictError as exc:
         # Safety net for media source discovery not wrapped by the command: an
         # iOS/std name clash is a user-fixable album problem, not a traceback.
-        err_console.print(format_media_source_conflict(exc, Path.cwd()), markup=False)
+        err_console.print(
+            format_media_source_conflict(exc, resolved.cwd()), markup=False
+        )
         sys.exit(1)
     except ConfigError as exc:
         # Safety net for config reads not handled by the command: an invalid

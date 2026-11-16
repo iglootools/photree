@@ -22,7 +22,11 @@ from ..album.faces.detect import FaceAnalyzerFactory
 from ..album.faces.failures import FaceFailure
 from ..album.id import generate_album_id
 from ..album.jpeg import ConvertFile, JpegConversionFailure
-from ..album.refresh import AlbumRefreshResult, refresh_album_derived_data
+from ..album.refresh import (
+    AlbumRefreshResult,
+    RefreshFn,
+    refresh_album_derived_data,
+)
 from ..album.store.media_metadata import load_media_metadata, save_media_metadata
 from ..album.store.metadata import load_album_metadata, save_album_metadata
 from ..album.store.protocol import AlbumMetadata
@@ -34,7 +38,6 @@ STAGE_COPY = "copy"
 STAGE_ID = "id"
 STAGE_REFRESH_DERIVED = "refresh-derived"
 
-type RefreshFn = Callable[..., AlbumRefreshResult]
 type JpegFailures = tuple[tuple[str, JpegConversionFailure], ...]
 type FaceFailures = tuple[tuple[str, FaceFailure], ...]
 
