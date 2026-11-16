@@ -3,7 +3,7 @@
 Run automated tests and checks:
 ```bash
 # mise tasks
-mise run check              # Run all checks: format-check + lint + type-check + boundaries-check + lock-check + lock-check-uv + clidocs-check + depgraph-check
+mise run check              # Run all checks: format-check + lint + lint-shell + type-check + boundaries-check + lock-check + lock-check-uv + clidocs-check + depgraph-check
 mise run check-all          # Run all checks: regular checks + all tests
 
 mise run test-all           # All tests (unit + integration)
@@ -13,6 +13,7 @@ mise run test-integration-fs # Filesystem integration tests (full workflow)
 mise run format             # ruff format (rewrites files)
 mise run format-check       # ruff format --check (verifies only; what check runs)
 mise run lint               # ruff check
+mise run lint-shell         # shellcheck on the tracked shell scripts
 mise run type-check         # pyright
 mise run boundaries-check   # import-linter (module boundary contracts in pyproject.toml — see architecture.md)
 
@@ -28,10 +29,10 @@ mise run lock-check-uv      # Check uv.lock is consistent with pyproject.toml
 # Running tools directly
 uv run pytest tests/ -v                         # All tests
 uv run ruff format .                            # formatting
-uv run ruff check photree/ tests/               # linting
-uv run pyright photree/                         # type-checking
+uv run ruff check photree/ tests/ build-scripts/   # linting
+uv run pyright photree/ build-scripts/             # type-checking
 uv run lint-imports                             # module boundaries
-uv run pytest tests/test_cli.py::TestVersionCommand::test_version_flag -v   # run a single test
+uv run pytest tests/integration_fs/cli/test_cli.py::TestVersionCommand::test_version_flag -v   # run a single test
 ```
 
 `uv run` is the prefix to use rather than a bare `pytest`/`ruff`. It resolves the
@@ -138,12 +139,33 @@ It is scheduled to run weekly, but can also be triggered manually using `gh work
 
   `test` must keep running on every pull request (no `paths` filter on its workflow), or a
   pull request it skips can never be merged.
-- Settings > Advanced Security > Enable Dependency graph
-- Set up the following Github secrets:
-    - `ASCIINEMA_INSTALL_ID`:
-        1. Execute `asciinema auth` in your terminal
-        2. Click the suggested link
-        3. store the content of `~/.local/state/asciinema/install-id` in the `ASCIINEMA_INSTALL_ID` secret
+- **Keep the dependency graph on.** Dependabot security updates (below) read it to find
+  vulnerable dependencies. GitHub enables it on every public repository and offers no switch
+  to turn it off there, so there is nothing to apply while the repository stays public; on a
+  private one, enable it under Settings > Advanced Security. Verify that
+  GitHub can export it:
+
+    ```bash
+    gh api repos/iglootools/photree/dependency-graph/sbom -q '.sbom.name'
+    # expect: com.github.iglootools/photree   (a 404 means the graph is off)
+    ```
+- **Set the `ASCIINEMA_INSTALL_ID` Actions secret.** The `demo` workflow's upload steps use
+  it to publish the recording under the project's asciinema.org account (they are commented
+  out for now, uploads going through `mise run demo-upload-latest`; the workflow explains
+  why, and the secret stays set so they can be re-enabled). Run `asciinema auth` and open
+  the link it prints to tie the local install id to the account, then store it:
+
+    ```bash
+    gh secret set ASCIINEMA_INSTALL_ID -R iglootools/photree < ~/.local/state/asciinema/install-id
+    gh secret list -R iglootools/photree   # expect a line starting with ASCIINEMA_INSTALL_ID
+    ```
+
+    A secret's value cannot be read back, only its name and update date, so `gh secret list`
+    is as far as verification goes.
+- **The `pypi` and `testpypi` environments**, which the publish workflows run in and the
+  PyPI trusted publishers name, are release configuration: they are recorded, with the
+  publisher settings that must match them, in
+  [Releasing and Publishing › PyPI Config](releasing-and-publishing.md#pypi-config).
 - **Enable Dependabot security updates.** These are *repository settings*, and
   [.github/dependabot.yml](../.github/dependabot.yml) cannot switch them on — that file only
   shapes the resulting PRs and restricts Dependabot to the security half
