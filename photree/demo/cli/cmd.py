@@ -45,6 +45,11 @@ demo_app = typer.Typer(
 )
 
 
+# The samples below render fixed paths: a fixed working directory (outside
+# them, so they print as given) keeps the output the same wherever it runs.
+_SAMPLE_CWD = Path("/home/demo")
+
+
 def _panel(title: str, content: str) -> None:
     console.print(
         Panel(
@@ -167,47 +172,55 @@ _SAMPLES: tuple[tuple[str, Callable[[], str]], ...] = (
     (
         "importer_output.import_tasks_check (ok)",
         lambda: importer_output.import_tasks_check(
-            Path("/albums/trip-paris"), found=True
+            Path("/albums/trip-paris"), found=True, cwd=_SAMPLE_CWD
         ),
     ),
     (
         "importer_output.import_tasks_check (not found)",
         lambda: importer_output.import_tasks_check(
-            Path("/albums/trip-paris"), found=False
+            Path("/albums/trip-paris"), found=False, cwd=_SAMPLE_CWD
         ),
     ),
     (
         "importer_output.import_tasks_check (empty)",
         lambda: importer_output.import_tasks_check(
-            Path("/albums/trip-paris"), found=True, empty=True
+            Path("/albums/trip-paris"), found=True, empty=True, cwd=_SAMPLE_CWD
         ),
     ),
     (
         "importer_output.import_tasks_troubleshoot",
-        lambda: importer_output.import_tasks_troubleshoot(Path("/albums/trip-paris")),
+        lambda: importer_output.import_tasks_troubleshoot(
+            Path("/albums/trip-paris"), cwd=_SAMPLE_CWD
+        ),
     ),
     (
         "importer_output.image_capture_dir_check_output (not found)",
         lambda: importer_output.image_capture_dir_check_output(
-            Path("~/Pictures/iPhone"), found=False
+            Path("~/Pictures/iPhone"), found=False, cwd=_SAMPLE_CWD
         ),
     ),
     (
         "importer_output.image_capture_dir_check_output (warnings)",
         lambda: importer_output.image_capture_dir_check_output(
-            Path("~/Pictures/iPhone"), found=True, check=IC_CHECK_WARNINGS
+            Path("~/Pictures/iPhone"),
+            found=True,
+            check=IC_CHECK_WARNINGS,
+            cwd=_SAMPLE_CWD,
         ),
     ),
     (
         "importer_output.image_capture_dir_check_output (ok)",
         lambda: importer_output.image_capture_dir_check_output(
-            Path("~/Pictures/iPhone"), found=True, check=IC_CHECK_OK
+            Path("~/Pictures/iPhone"), found=True, check=IC_CHECK_OK, cwd=_SAMPLE_CWD
         ),
     ),
     (
         "importer_output.image_capture_dir_check_output (preflight skipped)",
         lambda: importer_output.image_capture_dir_check_output(
-            Path("~/Pictures/iPhone"), found=True, preflight_skipped=True
+            Path("~/Pictures/iPhone"),
+            found=True,
+            preflight_skipped=True,
+            cwd=_SAMPLE_CWD,
         ),
     ),
     (
@@ -216,23 +229,31 @@ _SAMPLES: tuple[tuple[str, Callable[[], str]], ...] = (
     ),
     (
         "importer_output.format_preflight_checks (all ok)",
-        lambda: importer_output.format_preflight_checks(IMPORT_PREFLIGHT_OK),
+        lambda: importer_output.format_preflight_checks(
+            IMPORT_PREFLIGHT_OK, cwd=_SAMPLE_CWD
+        ),
     ),
     (
         "importer_output.format_preflight_checks (failures)",
-        lambda: importer_output.format_preflight_checks(IMPORT_PREFLIGHT_FAILURES),
+        lambda: importer_output.format_preflight_checks(
+            IMPORT_PREFLIGHT_FAILURES, cwd=_SAMPLE_CWD
+        ),
     ),
     (
         "importer_output.format_preflight_troubleshoot (failures)",
         lambda: (
-            importer_output.format_preflight_troubleshoot(IMPORT_PREFLIGHT_FAILURES)
+            importer_output.format_preflight_troubleshoot(
+                IMPORT_PREFLIGHT_FAILURES, cwd=_SAMPLE_CWD
+            )
             or "(none)"
         ),
     ),
     (
         "importer_output.format_preflight_troubleshoot (all ok — returns None)",
         lambda: (
-            importer_output.format_preflight_troubleshoot(IMPORT_PREFLIGHT_OK)
+            importer_output.format_preflight_troubleshoot(
+                IMPORT_PREFLIGHT_OK, cwd=_SAMPLE_CWD
+            )
             or "(none)"
         ),
     ),

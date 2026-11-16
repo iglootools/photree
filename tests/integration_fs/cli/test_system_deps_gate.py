@@ -5,13 +5,8 @@ machine missing one fails the whole run up front instead of failing every
 album individually, halfway through.
 """
 
-import os
-import stat
-from collections.abc import Iterator
 from pathlib import Path
 
-import pytest
-from pytest import MonkeyPatch  # noqa: TID251 -- pending, see docs/guidelines.md (Tests)
 from typer.testing import CliRunner
 
 from photree.album.id import generate_album_id
@@ -22,38 +17,11 @@ from photree.cli import app
 from photree.common.sysdeps import SystemDependency
 from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 from photree.foundation.linking import LinkMode
-
-
-@pytest.fixture
-def monkeypatch() -> Iterator[MonkeyPatch]:
-    """Patching is allowed in this file only: see docs/guidelines.md (Tests)."""
-    with MonkeyPatch.context() as patch:
-        yield patch
-
+from tests.fakes import fake_runtime
 
 runner = CliRunner()
 
 SEL_DIR = ios_import_dir("main")
-
-
-@pytest.fixture
-def only_deps(tmp_path_factory, monkeypatch: MonkeyPatch):
-    """Return a factory that restricts PATH to the named dependencies.
-
-    PATH is the real input the gate reads, so shaping it exercises the
-    production code path rather than patching over it.
-    """
-
-    def _configure(*present: SystemDependency) -> Path:
-        bin_dir = tmp_path_factory.mktemp("only-deps-bin")
-        for dependency in present:
-            stub = bin_dir / str(dependency)
-            stub.write_text("#!/bin/sh\nexit 0\n")
-            stub.chmod(stub.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
-        monkeypatch.setenv("PATH", str(bin_dir))
-        return bin_dir
-
-    return _configure
 
 
 def _write(path: Path, content: str = "data") -> None:
@@ -85,9 +53,9 @@ def _gallery(tmp_path: Path) -> Path:
 
 class TestAlbumsImportGate:
     def test_missing_exiftool_aborts_before_importing_anything(
-        self, tmp_path: Path, only_deps
+        self, tmp_path: Path
     ) -> None:
-        only_deps(SystemDependency.SIPS)
+        runtime = fake_runtime(SystemDependency.SIPS)
         ic_dir = _image_capture_dir(tmp_path)
         albums_dir = tmp_path / "albums"
         album = _staged_album(albums_dir, "2024-07-14 - Hiking")
@@ -95,6 +63,7 @@ class TestAlbumsImportGate:
         result = runner.invoke(
             app,
             ["albums", "import", "-d", str(albums_dir), "-s", str(ic_dir)],
+            obj=runtime,
         )
 
         assert result.exit_code == 1
@@ -102,8 +71,8 @@ class TestAlbumsImportGate:
         assert (album / SEL_DIR / "IMG_0001.HEIC").exists()
         assert not (album / "ios-main").exists()
 
-    def test_missing_sips_aborts(self, tmp_path: Path, only_deps) -> None:
-        only_deps(SystemDependency.EXIFTOOL)
+    def test_missing_sips_aborts(self, tmp_path: Path) -> None:
+        runtime = fake_runtime(SystemDependency.EXIFTOOL)
         ic_dir = _image_capture_dir(tmp_path)
         albums_dir = tmp_path / "albums"
         album = _staged_album(albums_dir, "2024-07-14 - Hiking")
@@ -111,16 +80,15 @@ class TestAlbumsImportGate:
         result = runner.invoke(
             app,
             ["albums", "import", "-d", str(albums_dir), "-s", str(ic_dir)],
+            obj=runtime,
         )
 
         assert result.exit_code == 1
         assert "sips" in result.output
         assert not (album / "ios-main").exists()
 
-    def test_skip_heic_to_jpeg_drops_the_sips_requirement(
-        self, tmp_path: Path, only_deps
-    ) -> None:
-        only_deps(SystemDependency.EXIFTOOL)
+    def test_skip_heic_to_jpeg_drops_the_sips_requirement(self, tmp_path: Path) -> None:
+        runtime = fake_runtime(SystemDependency.EXIFTOOL)
         ic_dir = _image_capture_dir(tmp_path)
         albums_dir = tmp_path / "albums"
         _staged_album(albums_dir, "2024-07-14 - Hiking")
@@ -137,6 +105,7 @@ class TestAlbumsImportGate:
                 "--skip-heic-to-jpeg",
                 "--dry-run",
             ],
+            obj=runtime,
         )
 
         assert result.exit_code == 0
@@ -144,13 +113,13 @@ class TestAlbumsImportGate:
 
 
 class TestAlbumImportGate:
-    def test_missing_exiftool_aborts(self, tmp_path: Path, only_deps) -> None:
-        only_deps(SystemDependency.SIPS)
+    def test_missing_exiftool_aborts(self, tmp_path: Path) -> None:
+        runtime = fake_runtime(SystemDependency.SIPS)
         ic_dir = _image_capture_dir(tmp_path)
         album = _staged_album(tmp_path / "albums", "2024-07-14 - Hiking")
 
         result = runner.invoke(
-            app, ["album", "import", "-a", str(album), "-s", str(ic_dir)]
+            app, ["album", "import", "-a", str(album), "-s", str(ic_dir)], obj=runtime
         )
 
         assert result.exit_code == 1
@@ -160,9 +129,9 @@ class TestAlbumImportGate:
 
 class TestGalleryImportGate:
     def test_import_all_aborts_before_touching_the_gallery(
-        self, tmp_path: Path, only_deps
+        self, tmp_path: Path
     ) -> None:
-        only_deps(SystemDependency.SIPS)
+        runtime = fake_runtime(SystemDependency.SIPS)
         gallery = _gallery(tmp_path)
         base = tmp_path / "incoming"
         source = base / "2024-07-14 - Hiking"
@@ -170,7 +139,9 @@ class TestGalleryImportGate:
         save_album_metadata(source, AlbumMetadata(id=generate_album_id()))
 
         result = runner.invoke(
-            app, ["gallery", "import-all", "-d", str(base), "-g", str(gallery)]
+            app,
+            ["gallery", "import-all", "-d", str(base), "-g", str(gallery)],
+            obj=runtime,
         )
 
         assert result.exit_code == 1
@@ -179,37 +150,31 @@ class TestGalleryImportGate:
 
 
 class TestRefreshGate:
-    def test_album_refresh_aborts(self, tmp_path: Path, only_deps) -> None:
-        only_deps(SystemDependency.SIPS)
+    def test_album_refresh_aborts(self, tmp_path: Path) -> None:
+        runtime = fake_runtime(SystemDependency.SIPS)
         album = tmp_path / "2024-07-14 - Hiking"
         _write(album / "ios-main/orig-img/IMG_0001.HEIC")
         save_album_metadata(album, AlbumMetadata(id=generate_album_id()))
 
-        result = runner.invoke(app, ["album", "refresh", "-a", str(album)])
+        result = runner.invoke(app, ["album", "refresh", "-a", str(album)], obj=runtime)
 
         assert result.exit_code == 1
         assert "exiftool" in result.output
 
 
 class TestCheckSystemCmd:
-    def test_reports_missing_dependencies(self, only_deps) -> None:
-        only_deps()
+    def test_reports_missing_dependencies(self) -> None:
+        runtime = fake_runtime()
 
-        result = runner.invoke(app, ["check", "system"])
+        result = runner.invoke(app, ["check", "system"], obj=runtime)
 
         assert result.exit_code == 1
         assert "sips" in result.output
         assert "exiftool" in result.output
 
-    def test_passes_when_all_present(self, only_deps) -> None:
-        only_deps(*SystemDependency)
+    def test_passes_when_all_present(self) -> None:
+        runtime = fake_runtime(*SystemDependency)
 
-        result = runner.invoke(app, ["check", "system"])
+        result = runner.invoke(app, ["check", "system"], obj=runtime)
 
         assert result.exit_code == 0
-
-
-def test_path_fixture_shapes_the_real_probe(only_deps) -> None:
-    """Guard the fixture itself: PATH really is what the gate reads."""
-    bin_dir = only_deps(SystemDependency.EXIFTOOL)
-    assert os.environ["PATH"] == str(bin_dir)

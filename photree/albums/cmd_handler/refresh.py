@@ -1,3 +1,4 @@
+import shutil
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial
@@ -7,8 +8,13 @@ from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ...album.faces.detect import FaceAnalyzerFactory, memoized_face_analyzer_factory
 from ...album.faces.failures import format_face_failures
-from ...album.refresh import AlbumRefreshResult, refresh_album_derived_data
+from ...album.refresh import (
+    AlbumRefreshResult,
+    RefreshFn,
+    refresh_album_derived_data,
+)
 from ...common.exif import exiftool_session
+from ...common.sysdeps import WhichFn
 from ...foundation.linking import LinkMode
 from . import (
     AlbumStepError,
@@ -38,6 +44,7 @@ class _RefreshOptions:
     force_exif_cache: bool
     redetect_faces: bool
     refresh_face_thumbs: bool
+    max_workers: int | None
 
 
 def _refresh_one(
@@ -46,8 +53,9 @@ def _refresh_one(
     opts: _RefreshOptions,
     exiftool: ExifToolHelper | None,
     analyzer_factory: FaceAnalyzerFactory,
+    refresh: RefreshFn,
 ) -> None:
-    result = refresh_album_derived_data(
+    result = refresh(
         album_dir,
         link_mode=link_mode_for(album_dir),
         exiftool=exiftool,
@@ -58,6 +66,7 @@ def _refresh_one(
         redetect_faces=opts.redetect_faces,
         refresh_face_thumbs=opts.refresh_face_thumbs,
         dry_run=opts.dry_run,
+        max_workers=opts.max_workers,
     )
     # A JPEG that failed to convert leaves a gap in {name}-jpg/, and an image
     # whose face detection failed is missing from clustering. The album
@@ -96,6 +105,9 @@ def batch_refresh(
     display_fn: Callable[[Path], str] = lambda p: p.name,
     on_start: OnStart = None,
     on_end: OnEnd = None,
+    refresh: RefreshFn = refresh_album_derived_data,
+    which: WhichFn = shutil.which,
+    max_workers: int | None = None,
 ) -> BatchRefreshResult:
     """Refresh all derived data for multiple albums.
 
@@ -109,6 +121,8 @@ def batch_refresh(
     (from ``gallery.yaml``), since albums of one batch need not share a
     gallery. It is called inside the album's step, so a corrupt
     ``gallery.yaml`` fails that album rather than the batch.
+
+    *refresh* refreshes one album; tests pass a fake. *which* finds exiftool.
     """
     opts = _RefreshOptions(
         dry_run,
@@ -117,9 +131,10 @@ def batch_refresh(
         force_exif_cache,
         redetect_faces,
         refresh_face_thumbs,
+        max_workers,
     )
     analyzer_factory = memoized_face_analyzer_factory()
-    with exiftool_session() as exiftool:
+    with exiftool_session(which=which) as exiftool:
         outcomes = [
             run_album_step(
                 album_dir,
@@ -130,6 +145,7 @@ def batch_refresh(
                     opts,
                     exiftool,
                     analyzer_factory,
+                    refresh,
                 ),
                 name=display_fn(album_dir),
                 on_start=on_start,

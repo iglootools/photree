@@ -6,7 +6,6 @@ Commands that shell out to ``sips`` or ``exiftool`` call
 actionable message printed before the first file is touched.
 """
 
-import shutil
 from collections.abc import Iterable
 from textwrap import dedent
 
@@ -63,7 +62,7 @@ def require_system_deps(
     *,
     header: str | None = "System Checks:",
     abort_message: str | None = _ABORT_MESSAGE,
-    which: WhichFn = shutil.which,
+    which: WhichFn,
 ) -> tuple[SystemDependencyStatus, ...]:
     """Print dependency check lines, exiting before any work if one is missing.
 
@@ -71,6 +70,9 @@ def require_system_deps(
     (e.g. the import preflight block, which renders its own checks alongside).
     Pass ``abort_message=None`` when the command *is* the diagnostic
     (``check system``), so it does not tell the user to run itself.
+
+    *which* is the command runtime's (:func:`~photree.clihelpers.runtime.runtime_of`),
+    so a test can shape what is installed without touching ``PATH``.
     """
     statuses = check_system_dependencies(dependencies, which=which)
     if header is not None:

@@ -10,6 +10,7 @@ from ...clihelpers.options import (
     RM_ORPHAN_OPTION,
     RM_UPSTREAM_OPTION,
 )
+from ...clihelpers.runtime import runtime_of
 from ..batchcli.fix import run_batch_fix
 from ..batchcli.resolution import resolve_check_batch_albums
 from . import AlbumDirOption, DirOption, albums_app
@@ -17,6 +18,7 @@ from . import AlbumDirOption, DirOption, albums_app
 
 @albums_app.command("fix")
 def fix_cmd(
+    ctx: typer.Context,
     base_dir: DirOption = None,
     album_dirs: AlbumDirOption = None,
     fix_id: Annotated[
@@ -33,6 +35,8 @@ def fix_cmd(
     dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """Fix all albums under a directory or from an explicit list."""
+    runtime = runtime_of(ctx)
+    cwd = runtime.cwd()
     try:
         validate_fix_flags(
             fix_id=fix_id,
@@ -47,7 +51,7 @@ def fix_cmd(
         )
         raise typer.Exit(code=1) from exc
 
-    albums, display_base = resolve_check_batch_albums(base_dir, album_dirs)
+    albums, display_base = resolve_check_batch_albums(base_dir, album_dirs, cwd=cwd)
 
     run_batch_fix(
         albums,
@@ -58,4 +62,5 @@ def fix_cmd(
         rm_orphan=rm_orphan,
         dry_run=dry_run,
         force=force,
+        cwd=cwd,
     )

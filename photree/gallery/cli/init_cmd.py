@@ -4,6 +4,7 @@ from typing import Annotated
 import typer
 
 from ...clihelpers.console import err_console
+from ...clihelpers.runtime import runtime_of
 from ...common.formatting import indent
 from ...common.fs import display_path
 from ...foundation.gallery_metadata import (
@@ -18,6 +19,7 @@ from . import gallery_app
 
 @gallery_app.command("init")
 def init_cmd(
+    ctx: typer.Context,
     gallery_dir: Annotated[
         Path,
         typer.Option(
@@ -38,17 +40,18 @@ def init_cmd(
     ] = LinkMode.HARDLINK,
 ) -> None:
     """Initialize gallery metadata (.photree/gallery.yaml)."""
+    runtime = runtime_of(ctx)
+    cwd = runtime.cwd()
     gallery_yaml = gallery_dir / PHOTREE_DIR / GALLERY_YAML
     if gallery_yaml.is_file():
         err_console.print(
-            f"Gallery already initialized: {display_path(gallery_yaml, Path.cwd())}\n"
+            f"Gallery already initialized: {display_path(gallery_yaml, cwd)}\n"
             "Use 'photree gallery metadata set' to change settings.",
             markup=False,
         )
         raise typer.Exit(code=1)
 
     save_gallery_metadata(gallery_dir, GalleryMetadata(link_mode=link_mode))
-    cwd = Path.cwd()
     is_cwd = gallery_dir.resolve() == cwd.resolve()
     # The short gallery flag differs between commands (``-g`` for import and
     # export, ``-d`` for check and stats); the long form works for all.

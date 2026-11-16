@@ -1,3 +1,4 @@
+import shutil
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -6,6 +7,7 @@ from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ...album.faces.detect import FaceAnalyzerFactory, memoized_face_analyzer_factory
 from ...common.exif import exiftool_session
+from ...common.sysdeps import WhichFn
 from ...foundation.linking import LinkMode
 from .. import importer as gallery_importer
 from ..import_plan import AlbumPlan, ImportAction
@@ -68,6 +70,7 @@ def run_single_import(
     on_stage_start: Callable[[str], None] | None = None,
     on_stage_end: Callable[[str], None] | None = None,
     max_workers: int | None = None,
+    which: WhichFn = shutil.which,
 ) -> AlbumImportResult:
     """Execute a single album import/reimport with optional stage callbacks.
 
@@ -75,7 +78,7 @@ def run_single_import(
     (loaded lazily, only if a source has images to detect).
     Raises :class:`ValueError` or :class:`OSError` on import errors.
     """
-    with exiftool_session() as exiftool:
+    with exiftool_session(which=which) as exiftool:
         return _execute_plan(
             plan,
             gallery_dir,
@@ -138,11 +141,22 @@ def _import_one(
         )
     except (ValueError, OSError) as exc:
         return AlbumImportFailure(source=plan.source, error=exc)
+    return import_failure_of(plan.source, result)
+
+
+def import_failure_of(
+    source: Path, result: AlbumImportResult
+) -> AlbumImportFailure | None:
+    """The failure of an album that imported, ``None`` when it is complete.
+
+    An album whose JPEGs or face detection partly failed is in the gallery,
+    but reported as failed so the batch does not exit 0 on a partial result.
+    """
     return (
         None
         if result.complete
         else AlbumImportFailure(
-            source=plan.source,
+            source=source,
             jpeg_failures=result.jpeg_failures,
             face_failures=result.face_failures,
         )
@@ -158,6 +172,7 @@ def run_batch_import(
     on_start: Callable[[str], None] | None = None,
     on_end: Callable[[str, AlbumImportFailure | None], None] | None = None,
     max_workers: int | None = None,
+    which: WhichFn = shutil.which,
 ) -> BatchImportResult:
     """Import/reimport multiple albums into a gallery.
 
@@ -168,7 +183,7 @@ def run_batch_import(
     continues.
     """
     analyzer_factory = memoized_face_analyzer_factory()
-    with exiftool_session() as exiftool:
+    with exiftool_session(which=which) as exiftool:
         outcomes = [
             _notified(
                 plan.source.name,

@@ -89,6 +89,8 @@ def create_face_analyzer(
 
 def memoized_face_analyzer_factory(
     model_name: str = DEFAULT_MODEL_NAME,
+    *,
+    create: Callable[[str], FaceAnalysis] = create_face_analyzer,
 ) -> FaceAnalyzerFactory:
     """Return a factory that builds the analyzer once and caches it.
 
@@ -96,13 +98,15 @@ def memoized_face_analyzer_factory(
     The model loads on the first call (i.e. when a source actually has images
     to detect) and the same instance is reused on every subsequent call, so a
     batch refresh shares one analyzer and a no-op refresh loads nothing.
+
+    *create* builds the analyzer; tests pass a fake instead of loading the model.
     """
     cached: FaceAnalysis | None = None
 
     def factory() -> FaceAnalysis:
         nonlocal cached
         if cached is None:
-            cached = create_face_analyzer(model_name)
+            cached = create(model_name)
         return cached
 
     return factory

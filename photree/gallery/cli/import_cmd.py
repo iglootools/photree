@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from typing import Annotated
 
@@ -6,6 +5,7 @@ import typer
 
 from ...clihelpers.options import REIMPORT_OPTION
 from ...clihelpers.resolution import resolve_gallery_or_exit
+from ...clihelpers.runtime import runtime_of
 from ...clihelpers.sysdeps import import_deps, require_system_deps
 from ...foundation.gallery_metadata import (
     GALLERY_YAML,
@@ -28,6 +28,7 @@ from .ops import (
 
 @gallery_app.command("import")
 def import_cmd(
+    ctx: typer.Context,
     album_dir: Annotated[
         Path,
         typer.Option(
@@ -68,10 +69,12 @@ def import_cmd(
     reimport: REIMPORT_OPTION = False,
 ) -> None:
     """Import an existing album directory into the gallery."""
-    require_system_deps(import_deps())
-    resolved_gallery = resolve_gallery_or_exit(gallery_dir)
+    runtime = runtime_of(ctx)
+    cwd = runtime.cwd()
+    which = runtime.which
+    require_system_deps(import_deps(), which=which)
+    resolved_gallery = resolve_gallery_or_exit(gallery_dir, cwd=cwd)
     resolved_lm = resolve_link_mode(link_mode, resolved_gallery)
-    cwd = Path.cwd()
     index = build_index_or_exit(resolved_gallery, cwd)
 
     import_plan = plan_imports_or_exit(
@@ -84,9 +87,15 @@ def import_cmd(
         raise typer.Exit(code=0)
 
     result = run_single_import(
-        plan, resolved_gallery, resolved_lm, dry_run, max_workers=os.cpu_count()
+        plan,
+        resolved_gallery,
+        resolved_lm,
+        dry_run,
+        max_workers=runtime.cpu_count(),
+        which=which,
+        cwd=cwd,
     )
-    print_single_import_result(result, cwd, dry_run)
+    print_single_import_result(result, cwd, dry_run, which=which)
 
     gallery_meta = load_gallery_metadata(resolved_gallery / PHOTREE_DIR / GALLERY_YAML)
     if gallery_meta.faces_enabled and not dry_run:

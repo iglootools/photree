@@ -31,9 +31,13 @@ class _AlbumMedia:
     media: MediaMetadata
 
 
-def _load(albums: list[Path], display_base: Path | None) -> list[_AlbumMedia]:
+def _load(
+    albums: list[Path],
+    display_base: Path | None,
+    *,
+    cwd: Path,
+) -> list[_AlbumMedia]:
     """Albums that have media IDs, in order."""
-    cwd = Path.cwd()
     return [
         _AlbumMedia(
             display_name(album_dir, display_base, cwd),
@@ -102,6 +106,7 @@ def run_batch_list_media(
     *,
     output_format: OutputFormat = OutputFormat.TEXT,
     output_file: Path | None = None,
+    cwd: Path,
 ) -> None:
     """Shared implementation for albums list-media / gallery list-media.
 
@@ -111,7 +116,7 @@ def run_batch_list_media(
         typer.echo("No albums found.", err=output_format == OutputFormat.CSV)
         raise typer.Exit(code=0)
 
-    loaded = _load(albums, display_base)
+    loaded = _load(albums, display_base, cwd=cwd)
     match output_format:
         case OutputFormat.CSV:
             write_csv(_CSV_HEADER, _csv_rows(loaded), output_file)

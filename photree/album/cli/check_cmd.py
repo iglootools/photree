@@ -15,8 +15,10 @@ from ...clihelpers.options import (
     FATAL_WARNINGS_OPTION,
 )
 from ...clihelpers.progress import SilentProgressBar
+from ...clihelpers.runtime import runtime_of
 from ...common.exif import exiftool_session
 from ...common.fs import count_unique_media_numbers, display_path
+from ...common.sysdeps import WhichFn
 from ...foundation.gallery_metadata import resolve_link_mode
 from .. import (
     check as album_check,
@@ -39,6 +41,7 @@ from .media_source_conflict import format_media_source_conflict
 
 @album_app.command("check")
 def check_cmd(
+    ctx: typer.Context,
     album_dir: Annotated[
         Path,
         typer.Option(
@@ -66,16 +69,19 @@ def check_cmd(
     ] = False,
 ) -> None:
     """Check system prerequisites, album directory structure, and file integrity."""
-    cwd = Path.cwd()
+    runtime = runtime_of(ctx)
+    cwd = runtime.cwd()
+    which = runtime.which
     _require_no_media_source_conflict(album_dir, cwd)
     if refresh_exif_cache:
-        refresh_album_exif_cache(album_dir)
+        refresh_album_exif_cache(album_dir, which=which)
 
     result = _run_check(
         album_dir,
         checksum=checksum,
         check_naming=check_naming,
         check_exif_date_match=check_exif_date_match,
+        which=which,
     )
 
     fatal_sidecar = fatal_warnings or fatal_sidecar_arg
@@ -137,6 +143,7 @@ def _run_check(
     checksum: bool,
     check_naming: bool,
     check_exif_date_match: bool,
+    which: WhichFn,
 ) -> album_check.AlbumPreflightResult:
     file_count = _count_media_items(album_dir)
     progress_cm = (
@@ -145,12 +152,12 @@ def _run_check(
         else nullcontext(None)
     )
     with (
-        exiftool_session(enabled=check_exif_date_match) as exiftool,
+        exiftool_session(enabled=check_exif_date_match, which=which) as exiftool,
         progress_cm as progress,
     ):
         return album_check.run_album_check(
             album_dir,
-            sips_available=album_check.check_sips_available(),
+            sips_available=album_check.check_sips_available(which=which),
             exiftool=exiftool,
             link_mode=resolve_link_mode(None, album_dir),
             checksum=checksum,

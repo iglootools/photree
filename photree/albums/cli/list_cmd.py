@@ -3,6 +3,7 @@ from typing import Annotated
 import typer
 
 from ...clihelpers.options import OUTPUT_FILE_OPTION, OUTPUT_FORMAT_OPTION, OutputFormat
+from ...clihelpers.runtime import runtime_of
 from ..batchcli.listing import run_batch_list_albums
 from ..batchcli.resolution import resolve_check_batch_albums
 from . import AlbumDirOption, DirOption, albums_app
@@ -10,6 +11,7 @@ from . import AlbumDirOption, DirOption, albums_app
 
 @albums_app.command("list")
 def list_cmd(
+    ctx: typer.Context,
     base_dir: DirOption = None,
     album_dirs: AlbumDirOption = None,
     metadata: Annotated[
@@ -23,11 +25,14 @@ def list_cmd(
     output_file: OUTPUT_FILE_OPTION = None,
 ) -> None:
     """List all discovered albums with their metadata and media sources."""
-    albums, display_base = resolve_check_batch_albums(base_dir, album_dirs)
+    runtime = runtime_of(ctx)
+    cwd = runtime.cwd()
+    albums, display_base = resolve_check_batch_albums(base_dir, album_dirs, cwd=cwd)
     run_batch_list_albums(
         albums,
         display_base,
         metadata=metadata,
         output_format=output_format,
         output_file=output_file,
+        cwd=cwd,
     )

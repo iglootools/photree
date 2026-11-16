@@ -16,6 +16,7 @@ from photree.album.store.protocol import AlbumMetadata
 from photree.albums.batchcli.failures import batch_failures_report
 from photree.albums.cmd_handler import BatchFailure
 from photree.cli import app
+from tests.fakes import ALL_DEPS_RUNTIME
 
 runner = CliRunner()
 
@@ -47,16 +48,16 @@ class TestBatchInit:
 
 
 class TestBatchRefresh:
-    def test_jpeg_failure_reason_reaches_the_summary(
-        self, tmp_path: Path, stub_sips_on_path: Path
-    ) -> None:
+    def test_jpeg_failure_reason_reaches_the_summary(self, tmp_path: Path) -> None:
         # A .HEIC whose bytes are not HEIC: sips rejects it on macOS, and the
-        # stub exits non-zero everywhere else.
+        # is missing (FileNotFoundError) everywhere else.
         album = tmp_path / "2024-07-14 - Hiking"
         _write(album / "ios-main" / "orig-img" / "IMG_0001.HEIC", "not heic")
         save_album_metadata(album, AlbumMetadata(id=generate_album_id()))
 
-        result = runner.invoke(app, ["albums", "refresh", "-d", str(tmp_path)])
+        result = runner.invoke(
+            app, ["albums", "refresh", "-d", str(tmp_path)], obj=ALL_DEPS_RUNTIME
+        )
 
         assert result.exit_code == 1
         assert "Failed albums:" in result.output

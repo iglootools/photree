@@ -9,7 +9,7 @@ from ...common.sysdeps import (
     SystemDependencyStatus,
     missing_dependencies,
 )
-from ...config import load_config
+from ...config import PhotreeConfig, load_config
 from .album_import import task_has_content
 from .tasks import discover_import_tasks
 
@@ -24,11 +24,13 @@ def resolve_image_capture_dir(
     config_path: str | None,
     *,
     home: Callable[[], Path] = Path.home,
+    load: Callable[[str | None], PhotreeConfig] = load_config,
 ) -> Path:
     """Resolve the Image Capture directory: CLI flag > config > default.
 
     *home* is only called when neither the flag nor the config provides a
     directory, so tests can drive the fallback without touching ``$HOME``.
+    *load* loads the config file (the CLI passes its runtime's).
 
     Raises :class:`~photree.config.ConfigError` on config file errors.
     """
@@ -38,10 +40,10 @@ def resolve_image_capture_dir(
         # explicit --config is still loaded: a path the user typed must not be
         # silently ignored.
         if config_path is not None:
-            load_config(config_path)
+            load(config_path)
         return source
     else:
-        configured = load_config(config_path).importer.image_capture_dir
+        configured = load(config_path).importer.image_capture_dir
         return (
             configured if configured is not None else default_image_capture_dir(home())
         )

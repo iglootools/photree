@@ -4,6 +4,7 @@ from typing import Annotated
 import typer
 
 from ....clihelpers.console import err_console
+from ....clihelpers.runtime import runtime_of
 from ....common.formatting import indent
 from ....common.fs import display_path
 from ....foundation.layout import PHOTREE_DIR
@@ -78,6 +79,7 @@ def _format_changes(
 
 @collection_metadata_app.command("set")
 def set_cmd(
+    ctx: typer.Context,
     collection_dir: COLLECTION_DIR_OPTION = Path("."),
     members: Annotated[
         CollectionMembers | None,
@@ -109,7 +111,7 @@ def set_cmd(
         )
         raise typer.Exit(code=1)
 
-    cwd = Path.cwd()
+    cwd = runtime_of(ctx).cwd()
     current = _load_or_exit(collection_dir, cwd)
     updated = _apply_settings(current, members, lifecycle, strategy)
     if updated == current:

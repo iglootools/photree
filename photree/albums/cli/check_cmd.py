@@ -11,6 +11,7 @@ from ...clihelpers.options import (
     FATAL_SIDECAR_OPTION,
     FATAL_WARNINGS_OPTION,
 )
+from ...clihelpers.runtime import runtime_of
 from ..batchcli.check import run_batch_check
 from ..batchcli.resolution import resolve_check_batch_albums
 from . import AlbumDirOption, DirOption, albums_app
@@ -18,6 +19,7 @@ from . import AlbumDirOption, DirOption, albums_app
 
 @albums_app.command("check")
 def check_cmd(
+    ctx: typer.Context,
     base_dir: DirOption = None,
     album_dirs: AlbumDirOption = None,
     checksum: CHECKSUM_OPTION = True,
@@ -36,7 +38,9 @@ def check_cmd(
     ] = False,
 ) -> None:
     """Check all albums under a directory or from an explicit list."""
-    albums, display_base = resolve_check_batch_albums(base_dir, album_dirs)
+    runtime = runtime_of(ctx)
+    cwd = runtime.cwd()
+    albums, display_base = resolve_check_batch_albums(base_dir, album_dirs, cwd=cwd)
     run_batch_check(
         albums,
         display_base,
@@ -48,4 +52,6 @@ def check_cmd(
         check_date_part_collision=check_date_part_collision,
         check_exif_date_match=check_exif_date_match,
         refresh_exif_cache=refresh_exif_cache,
+        which=runtime.which,
+        cwd=cwd,
     )

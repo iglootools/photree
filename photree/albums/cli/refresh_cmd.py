@@ -3,6 +3,7 @@ from typing import Annotated
 import typer
 
 from ...clihelpers.options import DRY_RUN_OPTION
+from ...clihelpers.runtime import runtime_of
 from ...clihelpers.sysdeps import refresh_deps, require_system_deps
 from ..batchcli.refresh import run_batch_refresh
 from ..batchcli.resolution import resolve_check_batch_albums
@@ -11,6 +12,7 @@ from . import AlbumDirOption, DirOption, albums_app
 
 @albums_app.command("refresh")
 def refresh_cmd(
+    ctx: typer.Context,
     base_dir: DirOption = None,
     album_dirs: AlbumDirOption = None,
     dry_run: DRY_RUN_OPTION = False,
@@ -51,9 +53,12 @@ def refresh_cmd(
     ] = False,
 ) -> None:
     """Refresh all derived album data for multiple albums."""
-    require_system_deps(refresh_deps())
+    runtime = runtime_of(ctx)
+    cwd = runtime.cwd()
+    which = runtime.which
+    require_system_deps(refresh_deps(), which=which)
 
-    albums, display_base = resolve_check_batch_albums(base_dir, album_dirs)
+    albums, display_base = resolve_check_batch_albums(base_dir, album_dirs, cwd=cwd)
     run_batch_refresh(
         albums,
         display_base,
@@ -63,4 +68,5 @@ def refresh_cmd(
         force_exif_cache=refresh_exif_cache,
         redetect_faces=redetect_faces,
         refresh_face_thumbs=refresh_face_thumbs,
+        runtime=runtime,
     )

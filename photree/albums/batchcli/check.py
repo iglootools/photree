@@ -18,6 +18,7 @@ from ...clihelpers.console import console, err_console
 from ...clihelpers.progress import BatchProgressBar, run_with_spinner
 from ...clihelpers.sysdeps import CHECK_DEPS, EXIF_DEPS, require_system_deps
 from ...common.exif import exiftool_session
+from ...common.sysdeps import WhichFn
 from ...foundation.gallery_metadata import resolve_link_mode
 from ..cmd_handler import BatchFailure, failures_of, run_album_step
 from ..cmd_handler.check import BatchCheckResult, batch_check
@@ -79,6 +80,8 @@ def run_batch_check(
     check_exif_date_match: bool = True,
     refresh_exif_cache: bool = False,
     exit_on_failure: bool = True,
+    which: WhichFn,
+    cwd: Path,
 ) -> bool:
     """Shared implementation for gallery check / albums check.
 
@@ -88,7 +91,6 @@ def run_batch_check(
     back and keep going (``gallery check`` then checks collections too). A
     missing ``sips`` always exits: it is a property of the machine.
     """
-    cwd = Path.cwd()
     flags = _CheckFlags(
         checksum,
         fatal_warnings,
@@ -98,7 +100,9 @@ def run_batch_check(
         check_date_part_collision,
     )
     # --refresh-exif-cache cannot degrade without exiftool, so it is required.
-    require_system_deps((*CHECK_DEPS, *EXIF_DEPS) if refresh_exif_cache else CHECK_DEPS)
+    require_system_deps(
+        (*CHECK_DEPS, *EXIF_DEPS) if refresh_exif_cache else CHECK_DEPS, which=which
+    )
     checked = _run_per_album_checks(
         albums,
         display_base,
@@ -106,6 +110,7 @@ def run_batch_check(
         cwd,
         check_exif_date_match=check_exif_date_match,
         refresh_exif_cache=refresh_exif_cache,
+        which=which,
     )
     if checked is None:
         typer.echo("\nNo albums found.")
@@ -131,13 +136,16 @@ def _run_per_album_checks(
     *,
     check_exif_date_match: bool,
     refresh_exif_cache: bool,
+    which: WhichFn,
 ) -> tuple[BatchCheckResult, tuple[BatchFailure, ...]] | None:
     """Optionally refresh EXIF caches, then check each album.
 
     Returns ``None`` when there are no albums. The exiftool process lives
     exactly as long as this call, so no exit path can leak it.
     """
-    with exiftool_session(enabled=check_exif_date_match or refresh_exif_cache) as et:
+    with exiftool_session(
+        enabled=check_exif_date_match or refresh_exif_cache, which=which
+    ) as et:
         if not refresh_exif_cache:
             console.print(preflight_output.exiftool_check(et is not None))
         if not albums:

@@ -1,23 +1,23 @@
-import os
 from pathlib import Path
 from typing import Annotated
 
 import typer
+from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ...clihelpers.console import console, err_console
 from ...clihelpers.options import CONFIG_OPTION, LINK_MODE_OPTION
 from ...clihelpers.progress import StageProgressBar
 from ...common.exif import exiftool_session
 from ...common.fs import display_path, list_files
+from ...common.sysdeps import WhichFn
 from ...foundation.gallery_metadata import (
     resolve_gallery_metadata,
     resolve_link_mode,
 )
 from ...foundation.linking import LinkMode
-from ..check.output import derived_failures_report, format_naming_checks
+from ..check.output import format_naming_checks
 from ..exif_date_check import AlbumNamingResult, check_exif_date_match
 from ..faces.detect import memoized_face_analyzer_factory
-from ..importer import album_import
 from ..importer import output as importer_output
 from ..importer.album_import import (
     AlbumImportResult,
@@ -34,10 +34,12 @@ from ..naming import parse_album_name
 from . import album_app
 from .import_preflight import run_import_preflight
 from .media_source_conflict import exit_on_media_source_conflict
+from .runtime import RunImportFn, album_runtime_of
 
 
 @album_app.command("import")
 def import_cmd(
+    ctx: typer.Context,
     album_dir: Annotated[
         Path,
         typer.Option(
@@ -100,37 +102,55 @@ def import_cmd(
     2. image-capture-dir from config file
     3. Default: ~/Pictures/iPhone
     """
+    runtime = album_runtime_of(ctx)
+    cwd = runtime.cwd()
+    which = runtime.which
     image_capture_dir = run_import_preflight(
         source,
         config,
         album_dir=album_dir,
         force=force,
         skip_heic_to_jpeg=skip_heic_to_jpeg,
+        runtime=runtime,
     )
-    album_display = display_path(album_dir, Path.cwd())
+    album_display = display_path(album_dir, cwd)
 
-    _require_valid_name(album_dir, album_display)
+    _require_valid_name(album_dir, album_display, cwd=cwd)
     _require_valid_tasks(album_dir, image_capture_dir, album_display)
 
     typer.echo("\nImport:")
-    with exit_on_media_source_conflict(Path.cwd()):
+    with (
+        exiftool_session(which=which) as exiftool,
+        exit_on_media_source_conflict(cwd),
+    ):
         result = _run_import(
             album_dir,
             image_capture_dir,
             link_mode=resolve_link_mode(link_mode, album_dir),
             dry_run=dry_run,
             skip_heic_to_jpeg=skip_heic_to_jpeg,
+            exiftool=exiftool,
+            max_workers=runtime.cpu_count(),
+            cwd=cwd,
+            run_import=runtime.run_import,
         )
 
-    if _report_import_problems(result, album_display):
+    problems = importer_output.import_problems(result, str(album_display))
+    if problems is not None:
+        err_console.print(problems)
         raise typer.Exit(code=1)
 
     if not dry_run:
-        _post_import_exif_check(album_dir)
+        _post_import_exif_check(album_dir, which=which)
         _print_gallery_refresh_hint(album_dir)
 
 
-def _require_valid_name(album_dir: Path, album_display: Path) -> None:
+def _require_valid_name(
+    album_dir: Path,
+    album_display: Path,
+    *,
+    cwd: Path,
+) -> None:
     """Pre-import light check: naming convention and date collisions.
 
     The same check gates ``gallery import``; running it here surfaces a
@@ -141,7 +161,7 @@ def _require_valid_name(album_dir: Path, album_display: Path) -> None:
     if check.success:
         return
     typer.echo("\nName Check:")
-    console.print(importer_output.naming_check_errors(check, Path.cwd()))
+    console.print(importer_output.naming_check_errors(check, cwd))
     err_console.print(
         f"\nAlbum name does not follow naming conventions or collides with "
         f"another album's date. Rename {album_display} as shown above, then run "
@@ -186,11 +206,15 @@ def _run_import(
     link_mode: LinkMode,
     dry_run: bool,
     skip_heic_to_jpeg: bool,
+    exiftool: ExifToolHelper | None,
+    max_workers: int | None,
+    cwd: Path,
+    run_import: RunImportFn,
 ) -> AlbumImportResult:
     labels = import_stage_labels(discover_import_tasks(album_dir))
     with StageProgressBar(total=len(labels), labels=labels) as progress:
         try:
-            return album_import.run_import(
+            return run_import(
                 album_dir=album_dir,
                 image_capture_dir=image_capture_dir,
                 link_mode=link_mode,
@@ -200,14 +224,15 @@ def _run_import(
                 convert_file=(
                     noop_convert_single if skip_heic_to_jpeg else convert_single_file
                 ),
-                max_workers=os.cpu_count(),
+                max_workers=max_workers,
+                exiftool=exiftool,
                 analyzer_factory=memoized_face_analyzer_factory(),
             )
         # The pre-validation above makes these unlikely, but run_import
         # re-checks them itself (the Image Capture directory may have emptied,
         # or the archive changed, in between): report, never a traceback.
         except (NoImportTasksError, EmptyImageCaptureDirError) as exc:
-            err_console.print(importer_output.import_error(exc, Path.cwd()))
+            err_console.print(importer_output.import_error(exc, cwd))
             raise typer.Exit(code=1) from exc
         except ImportCollisionError as exc:
             err_console.print(
@@ -219,33 +244,12 @@ def _run_import(
             raise typer.Exit(code=1) from exc
 
 
-def _report_import_problems(result: AlbumImportResult, album_display: Path) -> bool:
-    """Report every problem of a finished import; return whether there was one.
-
-    JPEG failures, face detection failures, and unprocessed selection files
-    are independent: reporting only the first would hide the others until the
-    next run.
-    """
-    if result.jpeg_failures or result.face_failures:
-        err_console.print(
-            "The media imported, but its derived data is incomplete:\n"
-            + derived_failures_report(
-                result.jpeg_failures, result.face_failures, str(album_display)
-            )
-        )
-    if result.unprocessed:
-        err_console.print(
-            importer_output.unprocessed_selection_files(result.unprocessed)
-        )
-    return bool(result.jpeg_failures or result.face_failures or result.unprocessed)
-
-
-def _post_import_exif_check(album_dir: Path) -> None:
+def _post_import_exif_check(album_dir: Path, *, which: WhichFn) -> None:
     """Warn (without failing the import) when EXIF dates disagree with the name."""
     parsed = parse_album_name(album_dir.name)
     if parsed is None:
         return
-    with exiftool_session() as exiftool:
+    with exiftool_session(which=which) as exiftool:
         if exiftool is None:
             return
         exif_check = check_exif_date_match(album_dir, parsed.date, exiftool=exiftool)

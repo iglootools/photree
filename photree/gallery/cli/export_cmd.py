@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated
 
@@ -24,9 +25,10 @@ from ...clihelpers.options import (
 )
 from ...clihelpers.progress import BatchProgressBar
 from ...clihelpers.resolution import resolve_gallery_or_exit
+from ...clihelpers.runtime import runtime_of
 from ...common.formatting import indent
 from ...common.fs import display_path
-from ...config import ConfigError
+from ...config import ConfigError, PhotreeConfig
 from ...foundation.layout import ALBUMS_DIR
 from ...foundation.linking import LinkMode
 from ...foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
@@ -35,6 +37,7 @@ from . import gallery_app
 
 @gallery_app.command("export")
 def export_cmd(
+    ctx: typer.Context,
     base_dir: Annotated[
         Path | None,
         typer.Option(
@@ -86,6 +89,8 @@ def export_cmd(
     or provide explicit album directories via --album-dir (repeatable). The
     three options are mutually exclusive.
     """
+    runtime = runtime_of(ctx)
+    cwd = runtime.cwd()
     given = [
         flag
         for flag, value in (
@@ -106,12 +111,14 @@ def export_cmd(
         album_layout=album_layout,
         link_mode=link_mode,
         config=config,
+        cwd=cwd,
+        load=runtime.load_config,
     )
-    albums = _resolve_albums(base_dir, album_dirs, gallery_dir)
+    albums = _resolve_albums(base_dir, album_dirs, gallery_dir, cwd=cwd)
     if not albums:
         typer.echo("No albums found.")
         raise typer.Exit(code=0)
-    _export(albums, settings, Path.cwd())
+    _export(albums, settings, cwd)
 
 
 def _resolve_settings_or_exit(
@@ -122,6 +129,8 @@ def _resolve_settings_or_exit(
     album_layout: AlbumShareLayout | None,
     link_mode: LinkMode | None,
     config: str | None,
+    cwd: Path,
+    load: Callable[[str | None], PhotreeConfig],
 ) -> ResolvedExportSettings:
     """Resolve and validate export settings; a bad config file exits 2."""
     try:
@@ -132,6 +141,7 @@ def _resolve_settings_or_exit(
             album_layout=album_layout,
             link_mode=link_mode,
             config_path=config,
+            load=load,
         )
         validate_export_settings(settings)
     except ConfigError as exc:
@@ -139,9 +149,7 @@ def _resolve_settings_or_exit(
         raise typer.Exit(code=2) from exc
     except ExportSettingsError as exc:
         err_console.print(
-            _export_output.format_export_settings_error(
-                exc, Path.cwd(), "gallery export"
-            ),
+            _export_output.format_export_settings_error(exc, cwd, "gallery export"),
             markup=False,
         )
         raise typer.Exit(code=1) from exc
@@ -149,7 +157,11 @@ def _resolve_settings_or_exit(
 
 
 def _resolve_albums(
-    base_dir: Path | None, album_dirs: list[Path] | None, gallery_dir: Path | None
+    base_dir: Path | None,
+    album_dirs: list[Path] | None,
+    gallery_dir: Path | None,
+    *,
+    cwd: Path,
 ) -> list[Path]:
     """Albums to export: explicit list, a --dir scan, or the whole gallery."""
     match base_dir, album_dirs:
@@ -158,7 +170,7 @@ def _resolve_albums(
         case Path() as scan_dir, None:
             return _batch.discover_albums(scan_dir)
         case _:
-            gallery = resolve_gallery_or_exit(gallery_dir)
+            gallery = resolve_gallery_or_exit(gallery_dir, cwd=cwd)
             return discover_albums(gallery / ALBUMS_DIR)
 
 

@@ -84,17 +84,15 @@ class GalleryNotFoundError(ValueError):
         )
 
 
-def resolve_gallery_dir(
-    explicit: Path | None, *, start_dir: Path | None = None
-) -> Path:
+def resolve_gallery_dir(explicit: Path | None, *, start_dir: Path) -> Path:
     """Resolve the gallery root directory.
 
-    Resolution order: explicit path > walk up from *start_dir* (or cwd)
-    looking for ``.photree/gallery.yaml``.
+    Resolution order: explicit path > walk up from *start_dir* (the CLI passes
+    its working directory) looking for ``.photree/gallery.yaml``.
 
     Raises :class:`GalleryNotFoundError` if no gallery metadata is found.
     """
-    current = (start_dir or Path.cwd()).resolve()
+    current = start_dir.resolve()
     if explicit is not None:
         if not (explicit / PHOTREE_DIR / GALLERY_YAML).is_file():
             raise GalleryNotFoundError(explicit=explicit, searched_from=current)

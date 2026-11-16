@@ -14,9 +14,10 @@ from textwrap import dedent
 from ...common.formatting import CHECK, CROSS, indent, markup_escape
 from ...common.fs import display_path
 from ...common.sysdeps_output import format_missing_troubleshoot, format_statuses
-from ..check.output import format_duplicate_stem
+from ..check.output import derived_failures_report, format_duplicate_stem
 from ..check.std import DuplicateStem
 from .album_import import (
+    AlbumImportResult,
     AlbumImportValidation,
     EmptyImageCaptureDirError,
     NoImportTasksError,
@@ -44,9 +45,9 @@ from .std import StdNoMediaError
 _MAX_COLLISIONS_SHOWN = 10
 
 
-def _shown(path: Path, cwd: Path | None) -> str:
-    """*path* relative to *cwd* (default: the process cwd), escaped for Rich."""
-    return markup_escape(display_path(path, cwd if cwd is not None else Path.cwd()))
+def _shown(path: Path, cwd: Path) -> str:
+    """*path* relative to *cwd*, escaped for Rich."""
+    return markup_escape(display_path(path, cwd))
 
 
 def _bullets(items: Sequence[str]) -> str:
@@ -59,7 +60,7 @@ def import_tasks_check(
     *,
     found: bool,
     empty: bool = False,
-    cwd: Path | None = None,
+    cwd: Path,
 ) -> str:
     shown = _shown(album_dir, cwd)
     match (found, empty):
@@ -74,7 +75,7 @@ def import_tasks_check(
             return f"{CHECK} import tasks: {shown}"
 
 
-def import_tasks_troubleshoot(album_dir: Path, *, cwd: Path | None = None) -> str:
+def import_tasks_troubleshoot(album_dir: Path, *, cwd: Path) -> str:
     shown = _shown(album_dir, cwd)
     return dedent(f"""\
         Create an import staging directory inside your album directory.
@@ -135,7 +136,7 @@ def image_capture_dir_check_output(
     found: bool,
     check: ImageCaptureDirCheck | None = None,
     preflight_skipped: bool = False,
-    cwd: Path | None = None,
+    cwd: Path,
 ) -> str:
     shown = _shown(image_capture_dir, cwd)
     match (found, check, preflight_skipped):
@@ -150,7 +151,7 @@ def image_capture_dir_check_output(
             return f"{CHECK} image capture directory: {shown}"
 
 
-def _import_tasks_line(result: ImportPreflightResult, cwd: Path | None) -> list[str]:
+def _import_tasks_line(result: ImportPreflightResult, cwd: Path) -> list[str]:
     match (result.selection_status, result.selection_path):
         case (SelectionStatus.OK, Path() as path):
             return [import_tasks_check(path, found=True, cwd=cwd)]
@@ -162,9 +163,7 @@ def _import_tasks_line(result: ImportPreflightResult, cwd: Path | None) -> list[
             return []
 
 
-def format_preflight_checks(
-    result: ImportPreflightResult, *, cwd: Path | None = None
-) -> str:
+def format_preflight_checks(result: ImportPreflightResult, *, cwd: Path) -> str:
     return "\n".join(
         [
             *([format_statuses(result.system_deps)] if result.system_deps else []),
@@ -188,7 +187,7 @@ def format_preflight_checks(
 
 
 def format_preflight_troubleshoot(
-    result: ImportPreflightResult, *, cwd: Path | None = None
+    result: ImportPreflightResult, *, cwd: Path
 ) -> str | None:
     """Format troubleshooting info for failed checks. Returns None if no failures."""
     missing_deps = result.missing_system_deps
@@ -416,3 +415,27 @@ def unprocessed_selection_files(files: tuple[str, ...]) -> str:
             _bullets([markup_escape(f) for f in files]),
         ]
     )
+
+
+def import_problems(result: AlbumImportResult, album_display: str) -> str | None:
+    """Every problem of a finished import, ``None`` when there is none.
+
+    A problem makes ``album import`` exit 1. JPEG failures, face detection
+    failures, and unprocessed selection files are independent: reporting only
+    the first would hide the others until the next run.
+    """
+    derived = (
+        [
+            "The media imported, but its derived data is incomplete:\n"
+            + derived_failures_report(
+                result.jpeg_failures, result.face_failures, album_display
+            )
+        ]
+        if result.jpeg_failures or result.face_failures
+        else []
+    )
+    unprocessed = (
+        [unprocessed_selection_files(result.unprocessed)] if result.unprocessed else []
+    )
+    blocks = [*derived, *unprocessed]
+    return "\n".join(blocks) if blocks else None

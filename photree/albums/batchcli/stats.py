@@ -49,6 +49,7 @@ def run_batch_stats(
     display_base: Path | None,
     *,
     render: Callable[[stats_models.AlbumsStats], RenderableType] | None = None,
+    cwd: Path,
 ) -> None:
     """Shared implementation for gallery stats / albums stats.
 
@@ -56,7 +57,6 @@ def run_batch_stats(
     collection table — without this module knowing what a gallery is. The
     dependency runs gallery -> albums, never back.
     """
-    cwd = Path.cwd()
     if not albums:
         typer.echo("No albums found.")
         raise typer.Exit(code=0)

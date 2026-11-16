@@ -1,21 +1,18 @@
 """CLI regressions for album commands: corrupt metadata, structured errors,
 and copy-pasteable suggestions."""
 
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
-from pytest import MonkeyPatch  # noqa: TID251 -- pending, see docs/guidelines.md (Tests)
 from typer.testing import CliRunner
 
-import photree.cli as cli_module
 from photree.album.exporter.settings import (
     ExportSettingsError,
     ExportSettingsErrorKind,
     ResolvedExportSettings,
     validate_export_settings,
 )
-from photree.album.importer import album_import
 from photree.album.importer.album_import import (
     AlbumImportResult,
     EmptyImageCaptureDirError,
@@ -23,19 +20,13 @@ from photree.album.importer.album_import import (
 from photree.album.importer.collision import ImportCollisionError
 from photree.album.store.media_source import std_media_source
 from photree.album.store.media_sources_discovery import MediaSourceConflictError
-from photree.cli import app
+from photree.cli import app, main
+from photree.common.sysdeps import SystemDependency
 from photree.foundation.layout import SHARE_SENTINEL
 from photree.foundation.linking import LinkMode
 from photree.foundation.metadata_io import InvalidMetadataError
 from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
-
-
-@pytest.fixture
-def monkeypatch() -> Iterator[MonkeyPatch]:
-    """Patching is allowed in this file only: see docs/guidelines.md (Tests)."""
-    with MonkeyPatch.context() as patch:
-        yield patch
-
+from tests.fakes import ALL_DEPS_RUNTIME, fake_album_runtime
 
 runner = CliRunner()
 
@@ -195,16 +186,6 @@ def test_export_unplaceable_name_is_reported(tmp_path: Path) -> None:
     assert "--share-layout flat" in result.output
 
 
-def _stub_system_deps(bin_dir: Path, monkeypatch: MonkeyPatch) -> None:
-    """Put no-op sips/exiftool stubs on PATH so the preflight gate passes."""
-    bin_dir.mkdir()
-    for name in ("sips", "exiftool"):
-        stub = bin_dir / name
-        stub.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
-        stub.chmod(0o755)
-    monkeypatch.setenv("PATH", str(bin_dir))
-
-
 def _std_staged_album(tmp_path: Path) -> Path:
     album = tmp_path / "2024-07-14 - Trip"
     _write(album / "to-import-std-nelu/orig/DSC_0001.JPG")
@@ -226,23 +207,25 @@ def _std_staged_album(tmp_path: Path) -> Path:
 )
 def test_import_refusal_is_reported_not_raised(
     tmp_path: Path,
-    monkeypatch: MonkeyPatch,
     error: Callable[[Path], Exception],
     expected: str,
 ) -> None:
-    """run_import's own refusals end in a message and exit 1, not a traceback."""
-    _stub_system_deps(tmp_path / "bin", monkeypatch)
+    """run_import's own refusals end in a message and exit 1, not a traceback.
+
+    The pre-validation refuses both first, so only a change between the two
+    (the Image Capture directory emptied, the archive written to) reaches
+    run_import's re-check: a fault no real resource produces at that point.
+    """
     album = _std_staged_album(tmp_path)
     (tmp_path / "ic").mkdir()
 
     def _refuse(**_: object) -> AlbumImportResult:
         raise error(album)
 
-    monkeypatch.setattr(album_import, "run_import", _refuse)
-
     result = runner.invoke(
         app,
         ["album", "import", "-a", str(album), "-s", str(tmp_path / "ic"), "--force"],
+        obj=fake_album_runtime(*SystemDependency, run_import=_refuse),
     )
 
     assert result.exit_code == 1
@@ -250,11 +233,8 @@ def test_import_refusal_is_reported_not_raised(
     assert expected in result.output
 
 
-def test_import_refuses_date_collision_with_sibling(
-    tmp_path: Path, monkeypatch: MonkeyPatch
-) -> None:
+def test_import_refuses_date_collision_with_sibling(tmp_path: Path) -> None:
     """album import runs the same light check as gallery import."""
-    _stub_system_deps(tmp_path / "bin", monkeypatch)
     album = _std_staged_album(tmp_path)
     sibling = tmp_path / "2024-07-14 - Dinner"
     _write(sibling / "std-main/orig-img/DSC_0002.JPG")
@@ -263,37 +243,34 @@ def test_import_refuses_date_collision_with_sibling(
     )
     (tmp_path / "ic").mkdir()
 
-    def _must_not_run(**_: object) -> AlbumImportResult:
-        raise AssertionError("import ran despite the date collision")
-
-    monkeypatch.setattr(album_import, "run_import", _must_not_run)
-
     result = runner.invoke(
         app,
         ["album", "import", "-a", str(album), "-s", str(tmp_path / "ic"), "--force"],
+        obj=ALL_DEPS_RUNTIME,
     )
 
     assert result.exit_code == 1
     assert "date collision on 2024-07-14" in result.output
+    # Refused before importing anything: the staging entry is left as it was.
+    assert not (album / "std-nelu").exists()
+    assert (album / "to-import-std-nelu/orig/DSC_0001.JPG").is_file()
 
 
 def test_entry_point_reports_media_source_conflict(
     tmp_path: Path,
-    monkeypatch: MonkeyPatch,
     chdir: Callable[[Path], None],
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """A conflict no command wrapped ends in a message and exit 1."""
     album = tmp_path / "2024-07-14 - Trip [private]"
 
-    def _raise() -> None:
+    def _raise(**_: object) -> None:
         raise MediaSourceConflictError(album, ("main",))
 
-    monkeypatch.setattr(cli_module, "app", _raise)
     chdir(tmp_path)
 
     with pytest.raises(SystemExit) as exc_info:
-        cli_module.main()
+        main(run=_raise)
 
     assert exc_info.value.code == 1
     err = capsys.readouterr().err

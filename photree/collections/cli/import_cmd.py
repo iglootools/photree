@@ -8,6 +8,7 @@ from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 from ...clihelpers.console import console, err_console
 from ...clihelpers.progress import BatchProgressBar
 from ...clihelpers.resolution import format_invalid_metadata, resolve_gallery_or_exit
+from ...clihelpers.runtime import runtime_of
 from ...clihelpers.sysdeps import EXIF_DEPS, require_system_deps
 from ...collection.importer.import_members import (
     CollectionImportError,
@@ -23,6 +24,7 @@ from ...collection.store.collection_discovery import discover_collections
 from ...common.exif import exiftool_session
 from ...common.formatting import indent
 from ...common.fs import display_path
+from ...common.sysdeps import WhichFn
 from ...foundation.metadata_io import InvalidMetadataError
 from . import collections_app
 
@@ -121,6 +123,7 @@ def _print_summary(
 
 @collections_app.command("import")
 def import_cmd(
+    ctx: typer.Context,
     collections_dir: Annotated[
         Path | None,
         typer.Option(
@@ -164,6 +167,9 @@ def import_cmd(
     ] = False,
 ) -> None:
     """Batch import members for multiple collections."""
+    runtime = runtime_of(ctx)
+    cwd = runtime.cwd()
+    which = runtime.which
     if collections_dir is not None and collection_dirs is not None:
         err_console.print(
             "--dir and --collection-dir are mutually exclusive.\n"
@@ -172,28 +178,34 @@ def import_cmd(
         raise typer.Exit(code=1)
 
     # Selection entries are resolved to media items by EXIF timestamp.
-    require_system_deps(EXIF_DEPS)
+    require_system_deps(EXIF_DEPS, which=which)
 
-    cwd = Path.cwd()
-    resolved_gallery = resolve_gallery_or_exit(gallery_dir)
+    resolved_gallery = resolve_gallery_or_exit(gallery_dir, cwd=cwd)
     candidates = _resolve_candidates(collections_dir, collection_dirs, resolved_gallery)
     if not candidates:
         typer.echo("No collections found.")
         raise typer.Exit(code=0)
 
-    outcomes, skipped = _import_all(candidates, resolved_gallery, dry_run, cwd)
+    outcomes, skipped = _import_all(
+        candidates, resolved_gallery, dry_run, cwd, which=which
+    )
     _print_summary(outcomes, skipped, dry_run=dry_run, cwd=cwd)
 
 
 def _import_all(
-    candidates: list[Path], gallery_dir: Path, dry_run: bool, cwd: Path
+    candidates: list[Path],
+    gallery_dir: Path,
+    dry_run: bool,
+    cwd: Path,
+    *,
+    which: WhichFn,
 ) -> tuple[list[_ImportOutcome], int]:
     """Import every candidate that has a selection; returns outcomes + skip count."""
     # has_selection is evaluated once per collection: it reads the CSV.
     selected = {d: has_selection(d) for d in candidates}
     skipped = [d for d in candidates if not selected[d]]
     with (
-        exiftool_session() as exiftool,
+        exiftool_session(which=which) as exiftool,
         BatchProgressBar(
             total=len(candidates), description="Importing", done_description="import"
         ) as progress,

@@ -5,6 +5,7 @@ from pathlib import Path
 import typer
 
 from ...clihelpers.progress import BatchProgressBar
+from ...clihelpers.runtime import Runtime
 from ...foundation.gallery_metadata import resolve_link_mode
 from ..cmd_handler.refresh import batch_refresh
 from .failures import exit_if_no_albums, exit_with_failures
@@ -21,9 +22,10 @@ def run_batch_refresh(
     force_exif_cache: bool = False,
     redetect_faces: bool = False,
     refresh_face_thumbs: bool = False,
+    runtime: Runtime,
 ) -> None:
     """Shared implementation for albums refresh / gallery refresh."""
-    cwd = Path.cwd()
+    cwd = runtime.cwd()
     exit_if_no_albums(albums, display_base)
 
     with BatchProgressBar(
@@ -39,6 +41,8 @@ def run_batch_refresh(
             redetect_faces=redetect_faces,
             refresh_face_thumbs=refresh_face_thumbs,
             display_fn=make_display_fn(display_base, cwd),
+            which=runtime.which,
+            max_workers=runtime.cpu_count(),
             on_start=progress.on_start,
             on_end=lambda name, success, errors: progress.on_end(
                 name, success=success, error_labels=errors

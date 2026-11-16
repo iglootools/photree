@@ -13,7 +13,7 @@ from ..album.id import format_album_external_id
 from ..album.naming import NamingIssue
 from ..common.formatting import CROSS, WARNING, indent, markup_escape
 from ..common.fs import display_path
-from .cmd_handler.importer import AlbumImportFailure
+from .cmd_handler.importer import AlbumImportFailure, BatchImportResult
 from .import_plan import AlbumPlan, ClobberConflict, GalleryImportPlan, SourceDuplicate
 from .importer import TargetExistsError
 
@@ -130,3 +130,21 @@ def format_import_failure_labels(
         ),
         *format_face_failures(failure.face_failures),
     )
+
+
+def format_import_all_summary(
+    result: BatchImportResult, check_failed: list[Path], skipped: int
+) -> str:
+    """The ``gallery import-all`` tally: imports, failures, check failures, skips."""
+    parts = [
+        f"{len(result.imported)} album(s) imported",
+        f"{len(result.failures)} failed",
+        *([f"{len(check_failed)} failed post-import check"] if check_failed else []),
+        *([f"{skipped} skipped"] if skipped else []),
+    ]
+    return f"Done. {', '.join(parts)}."
+
+
+def import_all_failed(result: BatchImportResult, check_failed: list[Path]) -> bool:
+    """Whether ``gallery import-all`` exits 1: an import or a post-import check failed."""
+    return bool(result.failures or check_failed)

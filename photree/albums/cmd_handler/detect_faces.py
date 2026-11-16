@@ -32,6 +32,7 @@ def _detect_one(
     redetect: bool,
     refresh_thumbs: bool,
     dry_run: bool,
+    max_workers: int | None,
 ) -> None:
     result = refresh_face_data(
         album_dir,
@@ -39,6 +40,7 @@ def _detect_one(
         redetect=redetect,
         refresh_thumbs=refresh_thumbs,
         dry_run=dry_run,
+        max_workers=max_workers,
     )
     # Per-image failures leave the album's face data incomplete: a failure.
     if result.failures:
@@ -57,6 +59,7 @@ def batch_detect_faces(
     display_fn: Callable[[Path], str] = lambda p: p.name,
     on_start: OnStart = None,
     on_end: OnEnd = None,
+    max_workers: int | None = None,
 ) -> BatchDetectFacesResult:
     """Run face detection on multiple albums with one shared (lazy) model.
 
@@ -69,6 +72,7 @@ def batch_detect_faces(
         redetect=redetect,
         refresh_thumbs=refresh_thumbs,
         dry_run=dry_run,
+        max_workers=max_workers,
     )
     outcomes = [
         run_album_step(

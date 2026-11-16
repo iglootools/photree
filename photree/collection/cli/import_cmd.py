@@ -7,6 +7,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from ...clihelpers.console import console, err_console
 from ...clihelpers.resolution import resolve_gallery_or_exit
+from ...clihelpers.runtime import runtime_of
 from ...clihelpers.sysdeps import EXIF_DEPS, require_system_deps
 from ...common.exif import exiftool_session
 from ...common.formatting import indent
@@ -82,6 +83,7 @@ def _print_result(result: CollectionImportResult, *, dry_run: bool, cwd: Path) -
 
 @collection_app.command("import")
 def import_cmd(
+    ctx: typer.Context,
     collection_dir: Annotated[
         Path,
         typer.Option(
@@ -114,12 +116,14 @@ def import_cmd(
     ] = False,
 ) -> None:
     """Import members into a collection from to-import/ or to-import.csv."""
+    runtime = runtime_of(ctx)
+    cwd = runtime.cwd()
+    which = runtime.which
     # Selection entries are resolved to media items by EXIF timestamp.
-    require_system_deps(EXIF_DEPS)
+    require_system_deps(EXIF_DEPS, which=which)
 
-    cwd = Path.cwd()
-    resolved_gallery = resolve_gallery_or_exit(gallery_dir)
-    with exiftool_session() as exiftool:
+    resolved_gallery = resolve_gallery_or_exit(gallery_dir, cwd=cwd)
+    with exiftool_session(which=which) as exiftool:
         result = _run_import(
             collection_dir,
             resolved_gallery,

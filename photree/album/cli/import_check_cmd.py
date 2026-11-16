@@ -4,12 +4,14 @@ from typing import Annotated
 import typer
 
 from ...clihelpers.options import CONFIG_OPTION
+from ...clihelpers.runtime import runtime_of
 from . import album_app
 from .import_preflight import run_import_preflight
 
 
 @album_app.command("import-check")
 def import_check_cmd(
+    ctx: typer.Context,
     album_dir: Annotated[
         Path,
         typer.Option(
@@ -34,4 +36,4 @@ def import_check_cmd(
     config: CONFIG_OPTION = None,
 ) -> None:
     """Check that system prerequisites for import commands are met."""
-    run_import_preflight(source, config, album_dir=album_dir)
+    run_import_preflight(source, config, album_dir=album_dir, runtime=runtime_of(ctx))

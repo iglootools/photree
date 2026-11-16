@@ -275,6 +275,7 @@ def refresh_album_derived_data(
         redetect=redetect_faces,
         refresh_thumbs=refresh_face_thumbs,
         dry_run=dry_run,
+        max_workers=max_workers,
     )
 
     return AlbumRefreshResult(jpeg_failures=jpeg_failures, face_failures=faces.failures)
@@ -472,3 +473,7 @@ def _refresh_jpeg_dirs(
             max_workers=max_workers,
         ).failed
     )
+
+
+# What callers that refresh an album take, so a test can pass a fake refresh.
+type RefreshFn = Callable[..., AlbumRefreshResult]

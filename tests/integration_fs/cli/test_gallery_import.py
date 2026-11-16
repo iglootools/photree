@@ -16,6 +16,7 @@ from photree.album.store.protocol import AlbumMetadata
 from photree.cli import app
 from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 from photree.foundation.linking import LinkMode
+from tests.fakes import ALL_DEPS_RUNTIME
 
 runner = CliRunner()
 
@@ -76,9 +77,7 @@ class TestValidationGate:
 
 
 class TestSkip:
-    def test_already_imported_is_skipped(
-        self, tmp_path: Path, stub_sips_on_path: Path
-    ) -> None:
+    def test_already_imported_is_skipped(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
         _place_gallery_album(
             gallery, "2024-07-14 - Hiking", album_id=generate_album_id()
@@ -86,7 +85,9 @@ class TestSkip:
         source = _make_source(tmp_path / "src", "2024-07-14 - Hiking")
 
         result = runner.invoke(
-            app, ["gallery", "import", "-a", str(source), "-g", str(gallery)]
+            app,
+            ["gallery", "import", "-a", str(source), "-g", str(gallery)],
+            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 0
@@ -113,9 +114,7 @@ class TestClobberGuard:
 
 
 class TestDryRun:
-    def test_dry_run_imports_nothing(
-        self, tmp_path: Path, stub_sips_on_path: Path
-    ) -> None:
+    def test_dry_run_imports_nothing(self, tmp_path: Path) -> None:
         # No face-model stubbing needed: the analyzer factory is injected
         # lazily and dry-run never reaches face detection.
         gallery = _setup_gallery(tmp_path)
@@ -125,6 +124,7 @@ class TestDryRun:
         result = runner.invoke(
             app,
             ["gallery", "import-all", "-d", str(base), "-g", str(gallery), "--dry-run"],
+            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 0

@@ -9,6 +9,7 @@ from ...album.importer.album_import import task_has_content
 from ...album.importer.tasks import discover_import_tasks
 from ...clihelpers.console import err_console
 from ...clihelpers.progress import BatchProgressBar
+from ...clihelpers.runtime import runtime_of
 from ...common.formatting import indent
 from ...common.fs import display_path
 from . import albums_app
@@ -74,6 +75,7 @@ def _report_not_ready(not_ready: list[tuple[Path, NotReadyReason]], cwd: Path) -
 
 @albums_app.command("import-check")
 def import_check_cmd(
+    ctx: typer.Context,
     albums_dir: Annotated[
         Path | None,
         typer.Option(
@@ -120,6 +122,8 @@ def import_check_cmd(
     Runs shared preflight checks (sips, Image Capture directory) once, then
     checks each album for non-empty to-import-{ios,std}-<name> staging entries.
     """
+    runtime = runtime_of(ctx)
+    cwd = runtime.cwd()
     if albums_dir is not None and album_dirs is not None:
         err_console.print(
             "--dir and --album-dir are mutually exclusive.\n"
@@ -128,9 +132,8 @@ def import_check_cmd(
         raise typer.Exit(code=1)
 
     # Shared preflight (sips + IC directory, no per-album selection check)
-    run_import_preflight(source, config)
+    run_import_preflight(source, config, runtime=runtime)
 
-    cwd = Path.cwd()
     scan_dir = albums_dir if albums_dir is not None else cwd
     albums = (
         album_dirs

@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from typing import Annotated
 
@@ -14,8 +13,11 @@ from ...album.jpeg import convert_single_file, noop_convert_single
 from ...clihelpers.console import err_console
 from ...clihelpers.options import LINK_MODE_OPTION
 from ...clihelpers.progress import BatchProgressBar
+from ...clihelpers.runtime import runtime_of
+from ...common.exif import exiftool_session
 from ...common.formatting import indent
 from ...common.fs import display_path
+from ...common.sysdeps import WhichFn
 from ...foundation.gallery_metadata import (
     resolve_gallery_metadata,
     resolve_link_mode,
@@ -43,17 +45,22 @@ def _run_import(
     link_mode: LinkMode,
     dry_run: bool,
     skip_heic_to_jpeg: bool,
+    which: WhichFn,
+    max_workers: int | None,
 ) -> batch.BatchResult:
     """Run the batch import behind a progress bar.
 
     ``result.refused`` is true when validation refused the batch, in which
     case nothing was imported.
     """
-    with BatchProgressBar(
-        total=_count_candidates(albums_dir, album_dirs),
-        description="Importing",
-        done_description="import",
-    ) as progress:
+    with (
+        exiftool_session(which=which) as exiftool,
+        BatchProgressBar(
+            total=_count_candidates(albums_dir, album_dirs),
+            description="Importing",
+            done_description="import",
+        ) as progress,
+    ):
 
         def on_validation_error(name: str, errors: list[TaskIssue]) -> None:
             progress.stop()
@@ -75,8 +82,9 @@ def _run_import(
             convert_file=noop_convert_single
             if skip_heic_to_jpeg
             else convert_single_file,
-            max_workers=os.cpu_count(),
+            max_workers=max_workers,
             analyzer_factory=memoized_face_analyzer_factory(),
+            exiftool=exiftool,
         )
     return result
 
@@ -126,6 +134,7 @@ def _report_failures(result: batch.BatchResult, base: Path, cwd: Path) -> None:
 
 @albums_app.command("import")
 def import_cmd(
+    ctx: typer.Context,
     albums_dir: Annotated[
         Path | None,
         typer.Option(
@@ -199,6 +208,9 @@ def import_cmd(
     exclusive. Albums without any staging entry (or with only empty ones)
     are skipped.
     """
+    runtime = runtime_of(ctx)
+    cwd = runtime.cwd()
+    which = runtime.which
     if albums_dir is not None and album_dirs is not None:
         err_console.print(
             "--dir and --album-dir are mutually exclusive.\n"
@@ -207,11 +219,14 @@ def import_cmd(
         raise typer.Exit(code=1)
 
     ic_dir = run_import_preflight(
-        source, config, force=force, skip_heic_to_jpeg=skip_heic_to_jpeg
+        source,
+        config,
+        force=force,
+        skip_heic_to_jpeg=skip_heic_to_jpeg,
+        runtime=runtime,
     )
     typer.echo("\nImport:")
 
-    cwd = Path.cwd()
     scan_dir = None if album_dirs is not None else (albums_dir or cwd)
     result = _run_import(
         scan_dir,
@@ -220,6 +235,8 @@ def import_cmd(
         link_mode=resolve_link_mode(link_mode, scan_dir or (album_dirs or [cwd])[0]),
         dry_run=dry_run,
         skip_heic_to_jpeg=skip_heic_to_jpeg,
+        which=which,
+        max_workers=runtime.cpu_count(),
     )
     if not result.naming_check.success:
         err_console.print(

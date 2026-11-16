@@ -5,39 +5,20 @@ every command that refreshes derived data (album import, albums/gallery
 refresh, gallery import) reports it and exits 1 rather than claiming success.
 """
 
-from collections.abc import Iterator
 from pathlib import Path
 
-import pytest
-from pytest import MonkeyPatch  # noqa: TID251 -- pending, see docs/guidelines.md (Tests)
-from typer.testing import CliRunner
-
-import photree.gallery.importer as gallery_importer
 from photree.album.faces.failures import FaceFailure, FaceFailureStage
-from photree.album.importer import album_import
 from photree.album.importer.album_import import AlbumImportResult
 from photree.album.importer.batch import _result_failure
+from photree.album.importer.output import import_problems
 from photree.album.refresh import AlbumRefreshResult
-from photree.albums.cmd_handler import refresh as refresh_handler
 from photree.albums.cmd_handler.refresh import batch_refresh
-from photree.cli import app
 from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 from photree.foundation.linking import LinkMode
-from photree.gallery.cmd_handler.importer import _import_one
-from photree.gallery.import_plan import AlbumPlan, ImportAction
+from photree.gallery.cmd_handler.importer import import_failure_of
 from photree.gallery.importer import AlbumImportResult as GalleryImportResult
 from photree.gallery.importer import import_album
 from photree.gallery.output import format_import_failure_labels
-
-
-@pytest.fixture
-def monkeypatch() -> Iterator[MonkeyPatch]:
-    """Patching is allowed in this file only: see docs/guidelines.md (Tests)."""
-    with MonkeyPatch.context() as patch:
-        yield patch
-
-
-runner = CliRunner()
 
 _FACE_FAILURES = (
     ("main", FaceFailure("0001", FaceFailureStage.DETECTION, "model exploded")),
@@ -60,15 +41,14 @@ def _refresh_with_face_failures(*_: object, **__: object) -> AlbumRefreshResult:
     return AlbumRefreshResult(face_failures=_FACE_FAILURES)
 
 
-def test_batch_refresh_counts_face_failures_as_failed(
-    tmp_path: Path, monkeypatch: MonkeyPatch
-) -> None:
+def test_batch_refresh_counts_face_failures_as_failed(tmp_path: Path) -> None:
     album = _ios_album(tmp_path / "2024-07-14 - Hiking")
-    monkeypatch.setattr(
-        refresh_handler, "refresh_album_derived_data", _refresh_with_face_failures
-    )
 
-    result = batch_refresh([album], link_mode_for=lambda _: LinkMode.HARDLINK)
+    result = batch_refresh(
+        [album],
+        link_mode_for=lambda _: LinkMode.HARDLINK,
+        refresh=_refresh_with_face_failures,
+    )
 
     assert result.refreshed == 0
     assert result.failed_albums == (album,)
@@ -91,30 +71,17 @@ def test_gallery_import_exposes_face_failures(tmp_path: Path) -> None:
     assert result.target_dir.is_dir(), "the album imported despite the failure"
 
 
-def test_gallery_batch_import_reports_face_failures(
-    tmp_path: Path, monkeypatch: MonkeyPatch
-) -> None:
+def test_gallery_batch_import_reports_face_failures(tmp_path: Path) -> None:
     album = tmp_path / "2024-07-14 - Hiking"
-    target = tmp_path / "gallery/albums/2024" / album.name
 
-    def _import(**_: object) -> GalleryImportResult:
-        return GalleryImportResult(
+    failure = import_failure_of(
+        album,
+        GalleryImportResult(
             album_name=album.name,
-            target_dir=target,
+            target_dir=tmp_path / "gallery/albums/2024" / album.name,
             id_generated=False,
             face_failures=_FACE_FAILURES,
-        )
-
-    monkeypatch.setattr(gallery_importer, "import_album", _import)
-
-    failure = _import_one(
-        AlbumPlan(album, ImportAction.NEW, target),
-        tmp_path / "gallery",
-        LinkMode.HARDLINK,
-        False,
-        exiftool=None,
-        analyzer_factory=lambda: None,  # type: ignore[arg-type,return-value]
-        max_workers=None,
+        ),
     )
 
     assert failure is not None
@@ -124,33 +91,35 @@ def test_gallery_batch_import_reports_face_failures(
     )
 
 
-def test_album_import_reports_face_failures_and_exits_1(
-    tmp_path: Path, monkeypatch: MonkeyPatch
-) -> None:
-    bin_dir = tmp_path / "bin"
-    bin_dir.mkdir()
-    for name in ("sips", "exiftool"):
-        stub = bin_dir / name
-        stub.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
-        stub.chmod(0o755)
-    monkeypatch.setenv("PATH", str(bin_dir))
-    album = tmp_path / "2024-07-14 - Trip"
-    _write(album / "to-import-std-nelu/orig/DSC_0001.JPG")
-    (tmp_path / "ic").mkdir()
+def test_gallery_batch_import_complete_album_is_not_a_failure(tmp_path: Path) -> None:
+    album = tmp_path / "2024-07-14 - Hiking"
 
-    def _import(**_: object) -> AlbumImportResult:
-        return AlbumImportResult(face_failures=_FACE_FAILURES)
-
-    monkeypatch.setattr(album_import, "run_import", _import)
-
-    result = runner.invoke(
-        app,
-        ["album", "import", "-a", str(album), "-s", str(tmp_path / "ic"), "--force"],
+    assert (
+        import_failure_of(
+            album,
+            GalleryImportResult(
+                album_name=album.name,
+                target_dir=tmp_path / "gallery/albums/2024" / album.name,
+                id_generated=False,
+            ),
+        )
+        is None
     )
 
-    assert result.exit_code == 1
-    assert "main/0001 (detection): model exploded" in result.output
-    assert "photree album detect-faces" in result.output
+
+def test_album_import_reports_face_failures() -> None:
+    """A problem report is what makes ``album import`` exit 1."""
+    report = import_problems(
+        AlbumImportResult(face_failures=_FACE_FAILURES), "2024-07-14 - Trip"
+    )
+
+    assert report is not None
+    assert "main/0001 (detection): model exploded" in report
+    assert "photree album detect-faces" in report
+
+
+def test_album_import_without_problems_has_no_report() -> None:
+    assert import_problems(AlbumImportResult(), "2024-07-14 - Trip") is None
 
 
 def test_albums_batch_import_reports_every_partial_failure(tmp_path: Path) -> None:

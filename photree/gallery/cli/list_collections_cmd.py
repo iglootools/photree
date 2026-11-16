@@ -12,6 +12,7 @@ from ...clihelpers.options import (
     OutputFormat,
 )
 from ...clihelpers.resolution import resolve_gallery_or_exit
+from ...clihelpers.runtime import runtime_of
 from ...collection.id import format_collection_external_id
 from ...collection.naming import ParsedCollectionName, parse_collection_name
 from ...collection.store.collection_discovery import discover_collections
@@ -41,6 +42,7 @@ _CSV_HEADER = [
 
 @gallery_app.command("list-collections")
 def list_collections_cmd(
+    ctx: typer.Context,
     gallery_dir: Annotated[
         Path | None,
         typer.Option(
@@ -63,8 +65,9 @@ def list_collections_cmd(
     output_file: OUTPUT_FILE_OPTION = None,
 ) -> None:
     """List all collections in the gallery."""
-    resolved = resolve_gallery_or_exit(gallery_dir)
-    cwd = Path.cwd()
+    runtime = runtime_of(ctx)
+    cwd = runtime.cwd()
+    resolved = resolve_gallery_or_exit(gallery_dir, cwd=cwd)
     collections = discover_collections(resolved / COLLECTIONS_DIR)
 
     match output_format, collections:

@@ -7,6 +7,7 @@ import typer
 from ...clihelpers.console import err_console
 from ...clihelpers.csvout import csv_output
 from ...clihelpers.options import OUTPUT_FILE_OPTION, OUTPUT_FORMAT_OPTION, OutputFormat
+from ...clihelpers.runtime import runtime_of
 from ...common.formatting import indent
 from ...common.fs import display_path
 from ..id import (
@@ -25,6 +26,7 @@ from . import album_app
 
 @album_app.command("list-media")
 def list_media_cmd(
+    ctx: typer.Context,
     album_dir: Annotated[
         Path,
         typer.Option(
@@ -40,7 +42,7 @@ def list_media_cmd(
     output_file: OUTPUT_FILE_OPTION = None,
 ) -> None:
     """List all media items in an album."""
-    cwd = Path.cwd()
+    cwd = runtime_of(ctx).cwd()
     album_meta = load_album_metadata(album_dir)
     album_ext_id = (
         format_album_external_id(album_meta.id) if album_meta is not None else ""

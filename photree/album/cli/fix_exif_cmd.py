@@ -6,6 +6,7 @@ from typing import Annotated
 import typer
 
 from ...clihelpers.console import console, err_console
+from ...clihelpers.runtime import runtime_of
 from ...clihelpers.sysdeps import EXIF_DEPS, require_system_deps
 from ...common import exif as common_exif
 from ...common.formatting import CHECK, indent, markup_escape
@@ -126,6 +127,7 @@ def _report_exiftool_error(exc: common_exif.ExifToolError, cwd: Path) -> None:
 
 @album_app.command("fix-exif")
 def fix_exif_cmd(
+    ctx: typer.Context,
     set_date: Annotated[
         str | None,
         typer.Option(
@@ -175,13 +177,14 @@ def fix_exif_cmd(
 
     --shift-time shifts all date tags by N hours.
     """
+    runtime = runtime_of(ctx)
+    cwd = runtime.cwd()
     operation = _select_operation(set_date, set_date_time, shift_date, shift_time)
     if not files:
         raise _fail("No files specified.")
     _validate_operation(operation)
-    require_system_deps(EXIF_DEPS)
+    require_system_deps(EXIF_DEPS, which=runtime.which)
 
-    cwd = Path.cwd()
     try:
         lines = _apply(operation, [Path(f) for f in files], cwd)
     except common_exif.ExifToolError as exc:

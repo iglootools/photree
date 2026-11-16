@@ -10,6 +10,7 @@ from ...clihelpers.options import (
     RM_MISCATEGORIZED_SAFE_OPTION,
     RM_ORPHAN_SIDECAR_OPTION,
 )
+from ...clihelpers.runtime import runtime_of
 from ..batchcli.fix import run_batch_fix_ios
 from ..batchcli.resolution import resolve_batch_albums
 from . import AlbumDirOption, DirOption, albums_app
@@ -17,6 +18,7 @@ from . import AlbumDirOption, DirOption, albums_app
 
 @albums_app.command("fix-ios")
 def fix_ios_cmd(
+    ctx: typer.Context,
     base_dir: DirOption = None,
     album_dirs: AlbumDirOption = None,
     prefer_higher_quality_when_dups: PREFER_HIGHER_QUALITY_OPTION = False,
@@ -27,6 +29,8 @@ def fix_ios_cmd(
     dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """Apply fix-ios to all iOS albums under a directory or from an explicit list."""
+    runtime = runtime_of(ctx)
+    cwd = runtime.cwd()
     try:
         validate_fix_flags(
             rm_orphan_sidecar=rm_orphan_sidecar,
@@ -42,7 +46,7 @@ def fix_ios_cmd(
         )
         raise typer.Exit(code=1) from exc
 
-    albums, display_base = resolve_batch_albums(base_dir, album_dirs)
+    albums, display_base = resolve_batch_albums(base_dir, album_dirs, cwd=cwd)
     run_batch_fix_ios(
         albums,
         display_base,
@@ -52,4 +56,5 @@ def fix_ios_cmd(
         rm_miscategorized=rm_miscategorized,
         rm_miscategorized_safe=rm_miscategorized_safe,
         mv_miscategorized=mv_miscategorized,
+        cwd=cwd,
     )

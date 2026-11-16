@@ -98,11 +98,12 @@ def get_metadata(
     tags: list[str],
     *,
     exiftool: ExifToolHelper | None = None,
+    which: WhichFn = shutil.which,
 ) -> list[dict[str, object]]:
     """Fetch *tags* for *files* via exiftool.
 
     Raises :class:`~photree.common.sysdeps.MissingSystemDependencyError` when no
-    helper is supplied and the binary is absent — ``ExifToolHelper()`` would
+    helper is supplied and *which* does not find the binary — ``ExifToolHelper()`` would
     otherwise surface a bare ``FileNotFoundError`` that reads like a missing
     media file rather than a missing tool.
     """
@@ -112,7 +113,7 @@ def get_metadata(
     if exiftool is not None:
         return exiftool.get_tags(str_files, tags)  # type: ignore[no-any-return]
     else:
-        require((SystemDependency.EXIFTOOL,))
+        require((SystemDependency.EXIFTOOL,), which=which)
         with ExifToolHelper() as et:
             return et.get_tags(str_files, tags)  # type: ignore[no-any-return]
 

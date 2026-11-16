@@ -7,6 +7,7 @@ from ...albums.batchcli.refresh import run_batch_refresh
 from ...albums.batchcli.resolution import resolve_check_batch_albums
 from ...clihelpers.options import DRY_RUN_OPTION
 from ...clihelpers.resolution import resolve_gallery_or_exit
+from ...clihelpers.runtime import runtime_of
 from ...clihelpers.sysdeps import (
     FACE_DETECTION_DEPS,
     refresh_deps,
@@ -20,6 +21,7 @@ from .ops import require_valid_threshold, run_face_clustering
 
 @gallery_app.command("cluster-faces")
 def cluster_faces_cmd(
+    ctx: typer.Context,
     gallery_dir: Annotated[
         Path | None,
         typer.Option(
@@ -55,23 +57,28 @@ def cluster_faces_cmd(
     ] = None,
 ) -> None:
     """Run face detection and clustering on all albums in the gallery."""
+    runtime = runtime_of(ctx)
+    cwd = runtime.cwd()
+    which = runtime.which
     # --redetect / --refresh-thumbs run a full album refresh first, which also
     # rebuilds the EXIF cache — so those flags widen the requirement set.
     require_system_deps(
-        refresh_deps() if (redetect or refresh_thumbs) else FACE_DETECTION_DEPS
+        refresh_deps() if (redetect or refresh_thumbs) else FACE_DETECTION_DEPS,
+        which=which,
     )
 
     require_valid_threshold(threshold, "--threshold")
-    resolved = resolve_gallery_or_exit(gallery_dir)
+    resolved = resolve_gallery_or_exit(gallery_dir, cwd=cwd)
 
     if redetect or refresh_thumbs:
-        albums, display_base = resolve_check_batch_albums(resolved, None)
+        albums, display_base = resolve_check_batch_albums(resolved, None, cwd=cwd)
         run_batch_refresh(
             albums,
             display_base,
             dry_run=dry_run,
             redetect_faces=redetect,
             refresh_face_thumbs=refresh_thumbs,
+            runtime=runtime,
         )
 
     gallery_meta = load_gallery_metadata(resolved / PHOTREE_DIR / GALLERY_YAML)

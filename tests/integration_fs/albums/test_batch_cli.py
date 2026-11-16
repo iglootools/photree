@@ -13,6 +13,7 @@ from photree.albums.cli.import_cmd import retry_commands
 from photree.albums.cmd_handler import AlbumStepError, run_album_step
 from photree.albums.cmd_handler.stats import batch_stats
 from photree.cli import app
+from tests.fakes import ALL_DEPS_RUNTIME, ALL_DEPS_WHICH
 
 runner = CliRunner()
 
@@ -99,9 +100,7 @@ class TestList:
 
 
 class TestRunBatchCheck:
-    def test_failures_counted_once_and_no_exit(
-        self, tmp_path: Path, stub_sips_on_path: Path
-    ) -> None:
+    def test_failures_counted_once_and_no_exit(self, tmp_path: Path) -> None:
         # Two albums colliding on the same date (cross-album failure) that are
         # also structurally incomplete (per-album failure). Regression: they
         # were counted twice and ``passed`` was never decremented.
@@ -111,6 +110,8 @@ class TestRunBatchCheck:
         passed = run_batch_check(
             [a, b],
             tmp_path,
+            which=ALL_DEPS_WHICH,
+            cwd=tmp_path,
             checksum=False,
             check_exif_date_match=False,
             exit_on_failure=False,
@@ -118,30 +119,36 @@ class TestRunBatchCheck:
 
         assert passed is False
 
-    def test_exit_on_failure_raises(
-        self, tmp_path: Path, stub_sips_on_path: Path
-    ) -> None:
+    def test_exit_on_failure_raises(self, tmp_path: Path) -> None:
         a, _ = _album(tmp_path, "2024-07-14 - Hiking")
         b, _ = _album(tmp_path, "2024-07-14 - Dinner")
 
         with pytest.raises(typer.Exit) as exc_info:
             run_batch_check(
-                [a, b], tmp_path, checksum=False, check_exif_date_match=False
+                [a, b],
+                tmp_path,
+                which=ALL_DEPS_WHICH,
+                cwd=tmp_path,
+                checksum=False,
+                check_exif_date_match=False,
             )
 
         assert exc_info.value.exit_code == 1
 
-    def test_no_albums_returns_true_without_exit(
-        self, tmp_path: Path, stub_sips_on_path: Path
-    ) -> None:
+    def test_no_albums_returns_true_without_exit(self, tmp_path: Path) -> None:
         assert (
             run_batch_check(
-                [], tmp_path, check_exif_date_match=False, exit_on_failure=False
+                [],
+                tmp_path,
+                which=ALL_DEPS_WHICH,
+                cwd=tmp_path,
+                check_exif_date_match=False,
+                exit_on_failure=False,
             )
             is True
         )
 
-    def test_summary_counts(self, tmp_path: Path, stub_sips_on_path: Path) -> None:
+    def test_summary_counts(self, tmp_path: Path) -> None:
         _album(tmp_path, "2024-07-14 - Hiking")
         _album(tmp_path, "2024-07-14 - Dinner")
 
@@ -155,6 +162,7 @@ class TestRunBatchCheck:
                 "--no-checksum",
                 "--no-check-exif-date-match",
             ],
+            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 1
@@ -204,9 +212,7 @@ class TestBatchStats:
 
 
 class TestImportCheck:
-    def test_reports_reason_per_album(
-        self, tmp_path: Path, stub_sips_on_path: Path
-    ) -> None:
+    def test_reports_reason_per_album(self, tmp_path: Path) -> None:
         albums_dir = tmp_path / "albums"
         (albums_dir / "2024-07-14 - Hiking").mkdir(parents=True)
         source = tmp_path / "ic"
@@ -216,6 +222,7 @@ class TestImportCheck:
         result = runner.invoke(
             app,
             ["albums", "import-check", "-d", str(albums_dir), "-s", str(source)],
+            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 1

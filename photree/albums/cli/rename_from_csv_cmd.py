@@ -6,6 +6,7 @@ import typer
 from ...album.id import format_album_external_id
 from ...clihelpers.console import err_console
 from ...clihelpers.options import DRY_RUN_OPTION
+from ...clihelpers.runtime import runtime_of
 from ...common.formatting import indent
 from ...common.fs import display_path
 from ..batchcli.rename import run_batch_rename_from_csv
@@ -16,6 +17,7 @@ from . import AlbumDirOption, DirOption, albums_app
 
 @albums_app.command("rename-from-csv")
 def rename_from_csv_cmd(
+    ctx: typer.Context,
     csv_file: Annotated[
         Path,
         typer.Argument(
@@ -36,9 +38,11 @@ def rename_from_csv_cmd(
     where a mutable field changed are renamed. Immutable fields (date, part,
     tags) are preserved from the current on-disk album name.
     """
-    albums, _ = resolve_check_batch_albums(base_dir, album_dirs)
-    index = _build_index_or_exit(albums, Path.cwd())
-    run_batch_rename_from_csv(index.id_to_path, csv_file, dry_run=dry_run)
+    runtime = runtime_of(ctx)
+    cwd = runtime.cwd()
+    albums, _ = resolve_check_batch_albums(base_dir, album_dirs, cwd=cwd)
+    index = _build_index_or_exit(albums, cwd)
+    run_batch_rename_from_csv(index.id_to_path, csv_file, dry_run=dry_run, cwd=cwd)
 
 
 def _build_index_or_exit(albums: list[Path], cwd: Path) -> AlbumIndex:

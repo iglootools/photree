@@ -669,6 +669,12 @@ failure N times — worse, it does so after some albums have already been
 written. The gate prints a check line per dependency, then install
 instructions for whatever is missing, and exits 1 having modified nothing.
 
+Every lookup a command makes (the gate, the import preflight, the `sips`
+availability passed to checks, each exiftool session) uses the `which` of the
+command's runtime (`photree/clihelpers/runtime.py`), so all of them agree on
+what is installed. Commands whose gate already required a binary do not probe
+for it again: the gallery post-import checks take `sips` as available.
+
 | Command | Requires |
 |---|---|
 | `album import`, `albums import` | `sips` + `exiftool` (`sips` dropped by `--skip-heic-to-jpeg`) |
