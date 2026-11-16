@@ -7,6 +7,7 @@ intentional markup (``✓``/``✗`` icons, colors). These pin the bracketed text
 to representative outputs of each command family.
 """
 
+from collections.abc import Callable
 from io import StringIO
 from pathlib import Path
 
@@ -116,10 +117,10 @@ class TestProgressBars:
 
 class TestAlbumsBatchFailures:
     def test_failed_album_listing_keeps_private_tag(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+        self, tmp_path: Path, chdir: Callable[[Path], None]
     ) -> None:
         _album(tmp_path, PRIVATE_ALBUM)
-        monkeypatch.chdir(tmp_path)
+        chdir(tmp_path)
 
         result = runner.invoke(app, ["albums", "init", "-d", str(tmp_path)])
 
@@ -132,12 +133,12 @@ class TestAlbumsBatchFailures:
 
 class TestAlbumCheck:
     def test_preflight_and_troubleshoot_keep_brackets(
-        self, tmp_path: Path, stub_sips_on_path: Path, monkeypatch: pytest.MonkeyPatch
+        self, tmp_path: Path, stub_sips_on_path: Path, chdir: Callable[[Path], None]
     ) -> None:
         album = _album(tmp_path, PRIVATE_ALBUM)
         # A second media source makes every media line carry a "[name] " prefix.
         _write(album / "std-nelu" / "orig-img" / "DSC_0001.JPG")
-        monkeypatch.chdir(tmp_path)
+        chdir(tmp_path)
 
         result = runner.invoke(
             app,
@@ -194,7 +195,7 @@ class TestGalleryImport:
 
 class TestCollectionCheck:
     def test_success_line_keeps_private_tag(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+        self, tmp_path: Path, chdir: Callable[[Path], None]
     ) -> None:
         gallery = _gallery(tmp_path)
         collection = gallery / "collections" / "Best of [private]"
@@ -203,7 +204,7 @@ class TestCollectionCheck:
             runner.invoke(app, ["collection", "init", "-c", str(collection)]).exit_code
             == 0
         )
-        monkeypatch.chdir(gallery)
+        chdir(gallery)
 
         result = runner.invoke(
             app, ["collection", "check", "-c", str(collection), "-g", str(gallery)]

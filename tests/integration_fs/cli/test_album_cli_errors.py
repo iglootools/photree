@@ -97,11 +97,11 @@ def test_rm_upstream_refusal_suggests_force(tmp_path: Path) -> None:
 
 
 def test_rm_media_error_uses_relative_path(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, chdir: Callable[[Path], None]
 ) -> None:
     album = tmp_path / "album"
     _write(album / "ios-main/orig-img/IMG_0001.HEIC")
-    monkeypatch.chdir(tmp_path)
+    chdir(tmp_path)
 
     result = runner.invoke(
         app, ["album", "rm-media", "--album-dir", str(album), "unknown/IMG_0001.jpg"]
@@ -271,6 +271,7 @@ def test_import_refuses_date_collision_with_sibling(
 def test_entry_point_reports_media_source_conflict(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    chdir: Callable[[Path], None],
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """A conflict no command wrapped ends in a message and exit 1."""
@@ -280,7 +281,7 @@ def test_entry_point_reports_media_source_conflict(
         raise MediaSourceConflictError(album, ("main",))
 
     monkeypatch.setattr(cli_module, "app", _raise)
-    monkeypatch.chdir(tmp_path)
+    chdir(tmp_path)
 
     with pytest.raises(SystemExit) as exc_info:
         cli_module.main()
@@ -325,12 +326,12 @@ def test_gallery_fix_invalid_flags_suggest_help(tmp_path: Path) -> None:
 
 
 def test_export_missing_sentinel_suggests_quoted_relative_touch(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, chdir: Callable[[Path], None]
 ) -> None:
     album = tmp_path / "2024-07-14 - Trip"
     _write(album / "main-jpg/IMG_0001.jpg")
     (tmp_path / "my share").mkdir()
-    monkeypatch.chdir(tmp_path)
+    chdir(tmp_path)
 
     result = runner.invoke(
         app,

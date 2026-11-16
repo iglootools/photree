@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -194,7 +195,7 @@ class TestImportAllExitCode:
 
 class TestExport:
     def test_exports_gallery_albums_by_default(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+        self, tmp_path: Path, chdir: Callable[[Path], None]
     ) -> None:
         """Regression: --gallery-dir was ignored and the cwd was scanned."""
         gallery = _setup_gallery(tmp_path)
@@ -204,7 +205,7 @@ class TestExport:
         (share / SHARE_SENTINEL).touch()
         elsewhere = tmp_path / "elsewhere"
         elsewhere.mkdir()
-        monkeypatch.chdir(elsewhere)
+        chdir(elsewhere)
 
         result = runner.invoke(
             app,
@@ -234,11 +235,11 @@ class TestExport:
 
 class TestListCollections:
     def test_paths_are_relative_to_cwd(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+        self, tmp_path: Path, chdir: Callable[[Path], None]
     ) -> None:
         gallery = _setup_gallery(tmp_path)
         col_dir = _dangling_collection(gallery)
-        monkeypatch.chdir(tmp_path)
+        chdir(tmp_path)
 
         result = runner.invoke(
             app,
