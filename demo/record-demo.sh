@@ -5,8 +5,10 @@
 #   ./demo/record-demo.sh [VERSION]
 #
 # Requirements:
-#   brew install asciinema agg pv   # macOS
-#   # or: pip install asciinema && cargo install agg
+#   mise install                    # asciinema and agg, pinned in mise.toml [tools]
+#   brew install pv tree exiftool   # macOS, not managed by mise: pv for the simulated typing,
+#                                   # tree for the directory listings, exiftool for the
+#                                   # import preflight (the demo workflow installs the same)
 #
 # Output:
 #   demo/demo.cast  — asciinema recording
