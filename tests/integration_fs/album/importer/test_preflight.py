@@ -1,6 +1,8 @@
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from pytest import MonkeyPatch  # noqa: TID251 -- (c) PATH emptied, to show preflight does not read it, see docs/guidelines.md (Tests)
 
 from photree.album.importer.preflight import (
     check_image_capture_dir,
@@ -10,6 +12,13 @@ from photree.album.importer.preflight import (
 from photree.clihelpers.sysdeps import import_deps, refresh_deps
 from photree.common.sysdeps import SystemDependency, SystemDependencyStatus
 from photree.config import ConfigError, ConfigErrorKind
+
+
+@pytest.fixture
+def monkeypatch() -> Iterator[MonkeyPatch]:
+    """Patching is allowed in this file only: see docs/guidelines.md (Tests)."""
+    with MonkeyPatch.context() as patch:
+        yield patch
 
 
 def _populate(path: Path, filenames: list[str]) -> None:

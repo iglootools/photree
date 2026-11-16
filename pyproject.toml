@@ -127,9 +127,19 @@ ignore = [
 # of the rule set keeps its stable behavior. It enforces the UTF-8-everywhere guideline:
 # without it the locale encoding is used silently. Drop the preview flags once ruff
 # stabilizes PLW1514.
+#
+# TID251: tests inject fakes through parameters instead of patching (docs/guidelines.md,
+# Tests). unittest.mock is banned, and so is pytest.MonkeyPatch: tests/conftest.py
+# replaces the monkeypatch fixture with one that fails, so the class is the only way
+# left to patch. Each documented exception carries `# noqa: TID251` on its import, and
+# RUF100 reports a noqa that is no longer needed.
 preview = true
 explicit-preview-rules = true
-extend-select = ["PLW1514"]
+extend-select = ["PLW1514", "RUF100", "TID251"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"unittest.mock".msg = "Inject a fake through a parameter instead of patching (docs/guidelines.md, Tests)."
+"pytest.MonkeyPatch".msg = "Inject a fake through a parameter instead of patching (docs/guidelines.md, Tests)."
 
 [tool.pytest.ini_options]
 markers = [

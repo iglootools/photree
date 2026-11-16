@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -99,12 +100,12 @@ class TestGalleryMetadataSet:
             assert loaded.link_mode == mode
 
     def test_resolves_gallery_from_cwd(
-        self, tmp_path: Path, monkeypatch: object
+        self, tmp_path: Path, chdir: Callable[[Path], None]
     ) -> None:
         _init_gallery(tmp_path, LinkMode.HARDLINK)
         child = tmp_path / "subdir"
         child.mkdir()
-        monkeypatch.chdir(child)  # type: ignore[union-attr]
+        chdir(child)
         result = runner.invoke(
             app,
             ["gallery", "metadata", "set", "--link-mode", "copy"],

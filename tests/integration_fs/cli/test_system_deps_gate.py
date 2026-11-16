@@ -7,9 +7,11 @@ album individually, halfway through.
 
 import os
 import stat
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from pytest import MonkeyPatch  # noqa: TID251 -- pending, see docs/guidelines.md (Tests)
 from typer.testing import CliRunner
 
 from photree.album.id import generate_album_id
@@ -21,13 +23,21 @@ from photree.common.sysdeps import SystemDependency
 from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 from photree.foundation.linking import LinkMode
 
+
+@pytest.fixture
+def monkeypatch() -> Iterator[MonkeyPatch]:
+    """Patching is allowed in this file only: see docs/guidelines.md (Tests)."""
+    with MonkeyPatch.context() as patch:
+        yield patch
+
+
 runner = CliRunner()
 
 SEL_DIR = ios_import_dir("main")
 
 
 @pytest.fixture
-def only_deps(tmp_path_factory, monkeypatch: pytest.MonkeyPatch):
+def only_deps(tmp_path_factory, monkeypatch: MonkeyPatch):
     """Return a factory that restricts PATH to the named dependencies.
 
     PATH is the real input the gate reads, so shaping it exercises the
