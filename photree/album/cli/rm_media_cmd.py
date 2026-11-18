@@ -7,11 +7,11 @@ from ...clihelpers.console import err_console
 from ...clihelpers.runtime import runtime_of
 from ...common.fs import display_path
 from .. import media
-from . import album_app
+from . import app
 from .media_source_conflict import exit_on_media_source_conflict
 
 
-@album_app.command("rm-media")
+@app.command("rm-media")
 def rm_media_cmd(
     ctx: typer.Context,
     album_dir: Annotated[

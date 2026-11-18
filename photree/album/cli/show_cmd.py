@@ -10,11 +10,11 @@ from ..id import format_album_external_id
 from ..naming import ParsedAlbumName, parse_album_name
 from ..store.media_sources_discovery import discover_media_sources
 from ..store.metadata import load_album_metadata
-from . import album_app
+from . import app
 from .media_source_conflict import exit_on_media_source_conflict
 
 
-@album_app.command("show")
+@app.command("show")
 def show_cmd(
     ctx: typer.Context,
     album_dir: Annotated[

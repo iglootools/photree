@@ -26,7 +26,7 @@ from ...common.formatting import indent
 from ...common.fs import display_path
 from ...common.sysdeps import WhichFn
 from ...foundation.metadata_io import InvalidMetadataError
-from . import collections_app
+from . import app
 
 
 @dataclass(frozen=True)
@@ -121,7 +121,7 @@ def _print_summary(
         raise typer.Exit(code=1)
 
 
-@collections_app.command("import")
+@app.command("import")
 def import_cmd(
     ctx: typer.Context,
     collections_dir: Annotated[

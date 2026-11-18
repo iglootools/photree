@@ -30,10 +30,10 @@ from ...common.fs import display_path
 from ...config import ConfigError, PhotreeConfig
 from ...foundation.linking import LinkMode
 from ...foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
-from . import AlbumDirOption, albums_app
+from . import AlbumDirOption, app
 
 
-@albums_app.command("export")
+@app.command("export")
 def export_cmd(
     ctx: typer.Context,
     base_dir: Annotated[

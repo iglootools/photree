@@ -23,7 +23,7 @@ from ...foundation.gallery_metadata import (
     resolve_link_mode,
 )
 from ...foundation.linking import LinkMode
-from . import albums_app
+from . import app
 
 
 def _count_candidates(albums_dir: Path | None, album_dirs: list[Path] | None) -> int:
@@ -132,7 +132,7 @@ def _report_failures(result: batch.BatchResult, base: Path, cwd: Path) -> None:
     )
 
 
-@albums_app.command("import")
+@app.command("import")
 def import_cmd(
     ctx: typer.Context,
     albums_dir: Annotated[

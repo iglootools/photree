@@ -14,10 +14,10 @@ from ...foundation.gallery_metadata import (
 )
 from ...foundation.layout import PHOTREE_DIR
 from ...foundation.linking import LinkMode
-from . import gallery_app
+from . import app
 
 
-@gallery_app.command("init")
+@app.command("init")
 def init_cmd(
     ctx: typer.Context,
     gallery_dir: Annotated[

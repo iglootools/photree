@@ -15,11 +15,11 @@ from ...clihelpers.sysdeps import (
 )
 from ...foundation.gallery_metadata import GALLERY_YAML, load_gallery_metadata
 from ...foundation.layout import PHOTREE_DIR
-from . import gallery_app
+from . import app
 from .ops import require_valid_threshold, run_face_clustering
 
 
-@gallery_app.command("cluster-faces")
+@app.command("cluster-faces")
 def cluster_faces_cmd(
     ctx: typer.Context,
     gallery_dir: Annotated[

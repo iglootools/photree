@@ -10,11 +10,11 @@ from ...common.formatting import indent
 from ..faces.detect import memoized_face_analyzer_factory
 from ..faces.failures import format_face_failures
 from ..faces.refresh import FaceSourceRefreshResult, refresh_face_data
-from . import album_app
+from . import app
 from .media_source_conflict import exit_on_media_source_conflict
 
 
-@album_app.command("detect-faces")
+@app.command("detect-faces")
 def detect_faces_cmd(
     ctx: typer.Context,
     album_dir: Annotated[

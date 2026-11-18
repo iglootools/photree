@@ -38,7 +38,7 @@ from ...album.stats.output import format_album_stats, format_albums_stats
 from ...album.stats.testkit import ALBUM_STATS, ALBUMS_STATS
 from ...clihelpers.console import console
 
-demo_app = typer.Typer(
+app = typer.Typer(
     name="demo",
     help="Demo commands for development.",
     no_args_is_help=True,
@@ -284,7 +284,7 @@ _SAMPLES: tuple[tuple[str, Callable[[], str]], ...] = (
 )
 
 
-@demo_app.command("output")
+@app.command("output")
 def output_cmd() -> None:
     """Display all output/troubleshoot functions with fake data."""
     for title, render in _SAMPLES:
@@ -368,7 +368,7 @@ def _commands_panel(result: SeedResult, album_name: str) -> Panel:
     )
 
 
-@demo_app.command("seed")
+@app.command("seed")
 def seed_cmd(
     base_dir: Annotated[
         Path | None,

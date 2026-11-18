@@ -10,11 +10,11 @@ from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...clihelpers.runtime import runtime_of
 from ...common.formatting import indent
 from ...common.fs import display_path
-from . import gallery_app
+from . import app
 from .ops import build_index_or_exit
 
 
-@gallery_app.command("rename-from-csv")
+@app.command("rename-from-csv")
 def rename_from_csv_cmd(
     ctx: typer.Context,
     csv_file: Annotated[

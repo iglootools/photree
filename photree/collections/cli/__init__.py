@@ -1,6 +1,6 @@
 import typer
 
-collections_app = typer.Typer(
+app = typer.Typer(
     name="collections",
     help="Batch operations on multiple collections.",
     no_args_is_help=True,

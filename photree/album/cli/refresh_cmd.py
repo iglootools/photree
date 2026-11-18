@@ -14,11 +14,11 @@ from ...foundation.gallery_metadata import resolve_link_mode
 from ..check.output import derived_failures_report
 from ..faces.detect import memoized_face_analyzer_factory
 from ..refresh import AlbumRefreshResult, refresh_album_derived_data
-from . import album_app
+from . import app
 from .media_source_conflict import exit_on_media_source_conflict
 
 
-@album_app.command("refresh")
+@app.command("refresh")
 def refresh_cmd(
     ctx: typer.Context,
     album_dir: Annotated[

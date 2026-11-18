@@ -10,10 +10,10 @@ from ...common.formatting import indent
 from ...common.fs import display_path
 from ...foundation.gallery_metadata import GALLERY_YAML, load_gallery_metadata
 from ...foundation.layout import ALBUMS_DIR, PHOTREE_DIR
-from . import gallery_app
+from . import app
 
 
-@gallery_app.command("show")
+@app.command("show")
 def show_cmd(
     ctx: typer.Context,
     gallery_dir: Annotated[

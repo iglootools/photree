@@ -3,7 +3,7 @@ from typing import Annotated
 
 import typer
 
-albums_app = typer.Typer(
+app = typer.Typer(
     name="albums",
     help="Batch operations on multiple albums.",
     no_args_is_help=True,

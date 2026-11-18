@@ -24,7 +24,7 @@ from ..importer.output import (
     format_resolution_warning,
     format_result_errors,
 )
-from . import collection_app
+from . import app
 
 
 def _run_import(
@@ -81,7 +81,7 @@ def _print_result(result: CollectionImportResult, *, dry_run: bool, cwd: Path) -
     typer.echo("\nDry run — no changes made." if dry_run else "Import complete.")
 
 
-@collection_app.command("import")
+@app.command("import")
 def import_cmd(
     ctx: typer.Context,
     collection_dir: Annotated[

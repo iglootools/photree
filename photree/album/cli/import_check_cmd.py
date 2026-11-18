@@ -5,11 +5,11 @@ import typer
 
 from ...clihelpers.options import CONFIG_OPTION
 from ...clihelpers.runtime import runtime_of
-from . import album_app
+from . import app
 from .import_preflight import run_import_preflight
 
 
-@album_app.command("import-check")
+@app.command("import-check")
 def import_check_cmd(
     ctx: typer.Context,
     album_dir: Annotated[

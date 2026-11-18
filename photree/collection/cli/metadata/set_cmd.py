@@ -18,7 +18,7 @@ from ...store.protocol import (
     validate_collection_config,
 )
 from ..options import COLLECTION_DIR_OPTION
-from . import collection_metadata_app
+from . import app
 
 
 def _load_or_exit(collection_dir: Path, cwd: Path) -> CollectionMetadata:
@@ -77,7 +77,7 @@ def _format_changes(
     ]
 
 
-@collection_metadata_app.command("set")
+@app.command("set")
 def set_cmd(
     ctx: typer.Context,
     collection_dir: COLLECTION_DIR_OPTION = Path("."),

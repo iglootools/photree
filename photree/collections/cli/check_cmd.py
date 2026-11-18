@@ -9,7 +9,7 @@ from ...clihelpers.runtime import runtime_of
 from ...collection.check import CollectionCheckResult, check_all_collections
 from ...common.formatting import CHECK, CROSS, indent, markup_escape
 from ...common.fs import display_path
-from . import collections_app
+from . import app
 
 
 def _format_result(result: CollectionCheckResult, cwd: Path) -> str:
@@ -27,7 +27,7 @@ def _format_result(result: CollectionCheckResult, cwd: Path) -> str:
     )
 
 
-@collections_app.command("check")
+@app.command("check")
 def check_cmd(
     ctx: typer.Context,
     gallery_dir: Annotated[

@@ -31,13 +31,13 @@ from ..importer.naming_gate import check_import_naming
 from ..importer.tasks import discover_import_tasks
 from ..jpeg import convert_single_file, noop_convert_single
 from ..naming import parse_album_name
-from . import album_app
+from . import app
 from .import_preflight import run_import_preflight
 from .media_source_conflict import exit_on_media_source_conflict
 from .runtime import RunImportFn, album_runtime_of
 
 
-@album_app.command("import")
+@app.command("import")
 def import_cmd(
     ctx: typer.Context,
     album_dir: Annotated[

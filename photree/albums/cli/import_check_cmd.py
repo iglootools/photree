@@ -12,7 +12,7 @@ from ...clihelpers.progress import BatchProgressBar
 from ...clihelpers.runtime import runtime_of
 from ...common.formatting import indent
 from ...common.fs import display_path
-from . import albums_app
+from . import app
 
 
 class NotReadyReason(StrEnum):
@@ -73,7 +73,7 @@ def _report_not_ready(not_ready: list[tuple[Path, NotReadyReason]], cwd: Path) -
     )
 
 
-@albums_app.command("import-check")
+@app.command("import-check")
 def import_check_cmd(
     ctx: typer.Context,
     albums_dir: Annotated[

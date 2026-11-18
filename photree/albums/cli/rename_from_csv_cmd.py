@@ -12,10 +12,10 @@ from ...common.fs import display_path
 from ..batchcli.rename import run_batch_rename_from_csv
 from ..batchcli.resolution import resolve_check_batch_albums
 from ..index import AlbumIndex, MissingAlbumIdError, build_album_index
-from . import AlbumDirOption, DirOption, albums_app
+from . import AlbumDirOption, DirOption, app
 
 
-@albums_app.command("rename-from-csv")
+@app.command("rename-from-csv")
 def rename_from_csv_cmd(
     ctx: typer.Context,
     csv_file: Annotated[

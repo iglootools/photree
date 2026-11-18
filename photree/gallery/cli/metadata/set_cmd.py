@@ -18,10 +18,10 @@ from ....foundation.gallery_metadata import (
 from ....foundation.layout import PHOTREE_DIR
 from ....foundation.linking import LinkMode
 from ..ops import require_valid_threshold
-from . import gallery_metadata_app
+from . import app
 
 
-@gallery_metadata_app.command("set")
+@app.command("set")
 def set_cmd(
     ctx: typer.Context,
     gallery_dir: Annotated[

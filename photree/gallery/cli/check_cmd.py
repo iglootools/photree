@@ -29,10 +29,10 @@ from ..faces.check import (
     FaceCountMismatch,
     check_face_clusters,
 )
-from . import gallery_app
+from . import app
 
 
-@gallery_app.command("check")
+@app.command("check")
 def check_cmd(
     ctx: typer.Context,
     gallery_dir: Annotated[

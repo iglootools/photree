@@ -13,10 +13,10 @@ from ...clihelpers.options import (
 from ...clihelpers.runtime import runtime_of
 from ..batchcli.fix import run_batch_fix
 from ..batchcli.resolution import resolve_check_batch_albums
-from . import AlbumDirOption, DirOption, albums_app
+from . import AlbumDirOption, DirOption, app
 
 
-@albums_app.command("fix")
+@app.command("fix")
 def fix_cmd(
     ctx: typer.Context,
     base_dir: DirOption = None,

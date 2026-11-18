@@ -3,10 +3,10 @@ import typer
 from ...clihelpers.runtime import runtime_of
 from ..batchcli.resolution import resolve_check_batch_albums
 from ..batchcli.stats import run_batch_stats
-from . import AlbumDirOption, DirOption, albums_app
+from . import AlbumDirOption, DirOption, app
 
 
-@albums_app.command("stats")
+@app.command("stats")
 def stats_cmd(
     ctx: typer.Context,
     base_dir: DirOption = None,

@@ -7,10 +7,10 @@ from ...clihelpers.runtime import runtime_of
 from ...clihelpers.sysdeps import refresh_deps, require_system_deps
 from ..batchcli.refresh import run_batch_refresh
 from ..batchcli.resolution import resolve_check_batch_albums
-from . import AlbumDirOption, DirOption, albums_app
+from . import AlbumDirOption, DirOption, app
 
 
-@albums_app.command("refresh")
+@app.command("refresh")
 def refresh_cmd(
     ctx: typer.Context,
     base_dir: DirOption = None,

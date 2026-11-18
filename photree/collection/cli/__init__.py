@@ -1,14 +1,14 @@
 import typer
 
-collection_app = typer.Typer(
+app = typer.Typer(
     name="collection",
     help="Collection management commands.",
     no_args_is_help=True,
 )
 
-from .metadata import collection_metadata_app
+from . import metadata
 
-collection_app.add_typer(collection_metadata_app)
+app.add_typer(metadata.app)
 
 from . import (  # noqa: F401 — imported for command registration side effects
     check_cmd,

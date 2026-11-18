@@ -18,11 +18,11 @@ from ..fix.output import format_fix_result
 from ..id import format_album_external_id, generate_album_id
 from ..store.metadata import load_album_metadata, save_album_metadata
 from ..store.protocol import AlbumMetadata
-from . import album_app
+from . import app
 from .media_source_conflict import exit_on_media_source_conflict
 
 
-@album_app.command("fix")
+@app.command("fix")
 def fix_cmd(
     ctx: typer.Context,
     album_dir: Annotated[

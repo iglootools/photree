@@ -1,14 +1,14 @@
 import typer
 
-gallery_app = typer.Typer(
+app = typer.Typer(
     name="gallery",
     help="Batch operations on multiple albums.",
     no_args_is_help=True,
 )
 
-from .metadata import gallery_metadata_app
+from . import metadata
 
-gallery_app.add_typer(gallery_metadata_app)
+app.add_typer(metadata.app)
 
 from . import (  # noqa: F401 — imported for command registration side effects
     check_cmd,

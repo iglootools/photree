@@ -14,10 +14,10 @@ from ...clihelpers.options import (
 from ...clihelpers.runtime import runtime_of
 from ..batchcli.check import run_batch_check
 from ..batchcli.resolution import resolve_check_batch_albums
-from . import AlbumDirOption, DirOption, albums_app
+from . import AlbumDirOption, DirOption, app
 
 
-@albums_app.command("check")
+@app.command("check")
 def check_cmd(
     ctx: typer.Context,
     base_dir: DirOption = None,

@@ -3,13 +3,13 @@ from typing import Annotated
 
 import typer
 
-from ..album.cli import album_app
-from ..albums.cli import albums_app
-from ..check.cli import check_app
-from ..collection.cli import collection_app
-from ..collections.cli import collections_app
-from ..demo.cli.cmd import demo_app
-from ..gallery.cli import gallery_app
+from ..album import cli as album
+from ..albums import cli as albums
+from ..check import cli as check
+from ..collection import cli as collection
+from ..collections import cli as collections
+from ..demo.cli import cmd as demo
+from ..gallery import cli as gallery
 
 
 def _version_callback(value: bool) -> None:
@@ -41,10 +41,10 @@ def _main(
     pass
 
 
-app.add_typer(album_app)
-app.add_typer(albums_app)
-app.add_typer(check_app)
-app.add_typer(collection_app)
-app.add_typer(collections_app)
-app.add_typer(demo_app)
-app.add_typer(gallery_app)
+app.add_typer(album.app)
+app.add_typer(albums.app)
+app.add_typer(check.app)
+app.add_typer(collection.app)
+app.add_typer(collections.app)
+app.add_typer(demo.app)
+app.add_typer(gallery.app)

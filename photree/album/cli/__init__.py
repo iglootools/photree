@@ -1,6 +1,6 @@
 import typer
 
-album_app = typer.Typer(
+app = typer.Typer(
     name="album",
     help="Album management commands.",
     no_args_is_help=True,

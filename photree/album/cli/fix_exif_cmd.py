@@ -12,7 +12,7 @@ from ...common import exif as common_exif
 from ...common.formatting import CHECK, indent, markup_escape
 from ...common.fs import display_path
 from .. import exif as album_exif
-from . import album_app
+from . import app
 
 
 @dataclass(frozen=True)
@@ -125,7 +125,7 @@ def _report_exiftool_error(exc: common_exif.ExifToolError, cwd: Path) -> None:
     )
 
 
-@album_app.command("fix-exif")
+@app.command("fix-exif")
 def fix_exif_cmd(
     ctx: typer.Context,
     set_date: Annotated[

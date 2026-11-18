@@ -4,10 +4,10 @@ from ...clihelpers.options import DRY_RUN_OPTION
 from ...clihelpers.runtime import runtime_of
 from ..batchcli.init import run_batch_init
 from ..batchcli.resolution import resolve_init_batch_albums
-from . import AlbumDirOption, DirOption, albums_app
+from . import AlbumDirOption, DirOption, app
 
 
-@albums_app.command("init")
+@app.command("init")
 def init_cmd(
     ctx: typer.Context,
     base_dir: DirOption = None,

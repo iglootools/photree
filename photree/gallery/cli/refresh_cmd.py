@@ -22,7 +22,7 @@ from ...common.formatting import CHECK, indent
 from ...foundation.gallery_metadata import GALLERY_YAML, load_gallery_metadata
 from ...foundation.layout import PHOTREE_DIR
 from ..browsable_refresh import refresh_browsable as refresh_gallery_browsable
-from . import gallery_app
+from . import app
 from .ops import run_face_clustering
 from .refresh_output import (
     format_browsable_error,
@@ -32,7 +32,7 @@ from .refresh_output import (
 )
 
 
-@gallery_app.command("refresh")
+@app.command("refresh")
 def refresh_cmd(
     ctx: typer.Context,
     gallery_dir: Annotated[
