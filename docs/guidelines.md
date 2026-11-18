@@ -133,7 +133,7 @@ Before calling a change done, update the documents its kind of change reaches:
 | Release or publish pipeline, trusted publisher | releasing-and-publishing.md |
 | GitHub repository setting | building-and-testing.md "GitHub Config" |
 | Major release | new scenarios in demo/demo.sh (see the Release Process) |
-| Renaming or moving a document | every reference to it: `git grep` the old name, including CLAUDE.md `@` imports and the README's absolute URLs |
+| Renaming or moving a document | every reference to it: `git grep` the old name, including the AGENTS.md links and the README's absolute URLs |
 
 ### Tests
 - Ensure that all new functionality is covered by tests.
