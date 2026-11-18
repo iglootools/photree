@@ -30,7 +30,7 @@ from ...common.fs import display_path
 from ...config import ConfigError, PhotreeConfig
 from ...foundation.linking import LinkMode
 from ...foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
-from . import AlbumDirOption, app
+from . import ALBUM_DIR_OPTION, app
 
 
 @app.command("export")
@@ -47,7 +47,7 @@ def export_cmd(
             resolve_path=True,
         ),
     ] = None,
-    album_dirs: AlbumDirOption = None,
+    album_dirs: ALBUM_DIR_OPTION = None,
     share_dir: SHARE_DIR_OPTION = None,
     profile: PROFILE_OPTION = None,
     config: CONFIG_OPTION = None,

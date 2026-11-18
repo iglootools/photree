@@ -12,7 +12,7 @@ from ...common.fs import display_path
 from ..batchcli.rename import run_batch_rename_from_csv
 from ..batchcli.resolution import resolve_check_batch_albums
 from ..index import AlbumIndex, MissingAlbumIdError, build_album_index
-from . import AlbumDirOption, DirOption, app
+from . import ALBUM_DIR_OPTION, DIR_OPTION, app
 
 
 @app.command("rename-from-csv")
@@ -27,8 +27,8 @@ def rename_from_csv_cmd(
             resolve_path=True,
         ),
     ],
-    base_dir: DirOption = None,
-    album_dirs: AlbumDirOption = None,
+    base_dir: DIR_OPTION = None,
+    album_dirs: ALBUM_DIR_OPTION = None,
     dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """Rename albums from a CSV file (from list --format csv, edited).

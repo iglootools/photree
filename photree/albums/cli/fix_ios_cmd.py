@@ -13,14 +13,14 @@ from ...clihelpers.options import (
 from ...clihelpers.runtime import runtime_of
 from ..batchcli.fix import run_batch_fix_ios
 from ..batchcli.resolution import resolve_batch_albums
-from . import AlbumDirOption, DirOption, app
+from . import ALBUM_DIR_OPTION, DIR_OPTION, app
 
 
 @app.command("fix-ios")
 def fix_ios_cmd(
     ctx: typer.Context,
-    base_dir: DirOption = None,
-    album_dirs: AlbumDirOption = None,
+    base_dir: DIR_OPTION = None,
+    album_dirs: ALBUM_DIR_OPTION = None,
     prefer_higher_quality_when_dups: PREFER_HIGHER_QUALITY_OPTION = False,
     rm_orphan_sidecar: RM_ORPHAN_SIDECAR_OPTION = False,
     rm_miscategorized: RM_MISCATEGORIZED_OPTION = False,
