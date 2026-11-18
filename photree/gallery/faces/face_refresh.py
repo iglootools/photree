@@ -106,7 +106,7 @@ class _AlbumFaceSource:
 class _ChangeSet:
     new_sources: tuple[_AlbumFaceSource, ...]
     modified_sources: tuple[_AlbumFaceSource, ...]
-    removed_album_sources: tuple[tuple[str, str], ...]  # (album_id, media_source)
+    removed_album_sources: tuple[tuple[str, str], ...]  # album ID, then media source
     unchanged_sources: tuple[_AlbumFaceSource, ...]
 
     @property
