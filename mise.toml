@@ -102,13 +102,14 @@ description = "Install dependencies"
 run = "mise deps install uv"
 
 [tasks.check]
-description = "Run all checks (format-check, lint, lint-shell, type-check, boundaries-check, lock-check, lock-check-uv, toc-check, clidocs-check, depgraph-check)"
+description = "Run all checks (format-check, lint, lint-shell, type-check, boundaries-check, dead-code-check, lock-check, lock-check-uv, toc-check, clidocs-check, depgraph-check)"
 run = [
   { task = "format-check" },
   { task = "lint" },
   { task = "lint-shell" },
   { task = "type-check" },
   { task = "boundaries-check" },
+  { task = "dead-code-check" },
   { task = "lock-check" },
   { task = "lock-check-uv" },
   { task = "toc-check" },
@@ -198,6 +199,10 @@ run = "uv run --no-sync pyright photree/"
 [tasks.boundaries-check]
 description = "Check module boundaries (import-linter contracts in pyproject.toml)"
 run = "uv run --no-sync lint-imports"
+
+[tasks.dead-code-check]
+description = "Check for unused code (deadcode, configured in pyproject.toml)"
+run = "uv run --no-sync deadcode photree tests"
 
 # The uv.lock counterpart of lock-check, and the replacement for `poetry check --lock`:
 # asserts uv.lock is consistent with pyproject.toml. Distinct from UV_LOCKED in CI, which

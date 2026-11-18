@@ -44,7 +44,7 @@ _LEGACY_DATE_RE = re.compile(
     r"\d{4}-\d{2}-\d{2}-\d{4}-\d{2}-\d{2}"  # YYYY-MM-DD-YYYY-MM-DD (old range)
     r"|\d{4}-\d{2}-\d{2}-\d{2}-\d{2}"  # YYYY-MM-DD-MM-DD
     r"|\d{4}-\d{2}-\d{2}-\d{2}"  # YYYY-MM-DD-DD
-    r"|\d{4}-\d{2}-\d{2}(?:,\d{2})+"  # YYYY-MM-DD,DD (enumerated)
+    r"|\d{4}-\d{2}-\d{2}(?:,\d{2})+"  # YYYY-MM-DD,DD,... an enumerated list of days
     r") *- *"
 )
 

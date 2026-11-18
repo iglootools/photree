@@ -19,7 +19,9 @@ class FaceReference(PhotreeModel):
 
     album_id: str = Field(description="Album internal UUID.")
     media_source: str = Field(description="Media source name (e.g. 'main').")
-    media_key: str = Field(description="Media key (image number or filename stem).")
+    media_key: str = Field(  # noqa: DC06 -- written to the manifest file, read by no code
+        description="Media key (image number or filename stem)."
+    )
     face_index: int = Field(description="0-based face index within the image.")
 
 

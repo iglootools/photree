@@ -65,10 +65,6 @@ class FaceRefreshResult:
     by_media_source: tuple[tuple[str, FaceSourceRefreshResult], ...]
 
     @property
-    def total_processed(self) -> int:
-        return sum(r.processed for _, r in self.by_media_source)
-
-    @property
     def total_faces(self) -> int:
         return sum(r.faces_detected for _, r in self.by_media_source)
 

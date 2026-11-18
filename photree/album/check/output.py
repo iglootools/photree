@@ -139,10 +139,6 @@ def exiftool_check(available: bool) -> str:
         return f"{CHECK} exiftool (not found, EXIF checks skipped)"
 
 
-def exiftool_troubleshoot() -> str:
-    return format_missing_troubleshoot([SystemDependency.EXIFTOOL])
-
-
 def media_sources_check(summary: AlbumMediaSourceSummary) -> str:
     if not summary.media_sources:
         return f"{CROSS} media sources: none detected"
@@ -909,15 +905,6 @@ def batch_check_summary(passed: int, failed: int, warned: int = 0) -> str:
 # Rendering for a check lives here whatever its scope, next to the single-album
 # formatters above — the batch CLI wrapper composes these rather than building
 # its own strings, so there is one place to change how a check result reads.
-
-
-def batch_system_checks(*, sips_available: bool, exiftool_available: bool) -> str:
-    """The system-dependency block printed once before a batch check.
-
-    Unlike the import/refresh gate, a check degrades rather than aborts when
-    exiftool is absent, so this reports both rather than failing on either.
-    """
-    return "\n".join([sips_check(sips_available), exiftool_check(exiftool_available)])
 
 
 def duplicate_ids_report(

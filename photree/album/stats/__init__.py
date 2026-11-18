@@ -219,7 +219,6 @@ def albums_stats_from_album_stats(
 
     return AlbumsStats(
         album_count=len(album_stats_list),
-        by_album=tuple(album_stats_list),
         aggregate=merge_aggregates(a.aggregate for a in album_stats_list),
         unique_media_source_names=tuple(all_ms_names),
         by_year=by_year,

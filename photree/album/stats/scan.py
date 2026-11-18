@@ -145,9 +145,6 @@ class DirStats:
         return merge_size_stats([self.images, self.videos, self.sidecars])
 
 
-EMPTY_DIR_STATS = DirStats(images=_ZERO, videos=_ZERO, sidecars=_ZERO, by_format=())
-
-
 def categorize_size_stats(
     directory: Path,
     seen_inodes: frozenset[InodeKey] = frozenset(),

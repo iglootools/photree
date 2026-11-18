@@ -53,9 +53,9 @@ class CollectionRefreshError:
 class CollectionRefreshResult:
     created: tuple[str, ...] = ()
     updated: tuple[str, ...] = ()
-    renamed: tuple[tuple[str, str], ...] = ()  # (old_name, new_name)
+    renamed: tuple[tuple[str, str], ...] = ()  # old name, then new name
     deleted: tuple[str, ...] = ()
-    album_renames: tuple[tuple[str, str], ...] = ()  # (old_name, new_name)
+    album_renames: tuple[tuple[str, str], ...] = ()  # old name, then new name
     errors: tuple[CollectionRefreshError, ...] = ()
 
     @property

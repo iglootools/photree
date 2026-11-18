@@ -68,14 +68,3 @@ def _check_media_source_dirs(album_dir: Path, ms: MediaSource) -> AlbumDirCheck:
         optional_present=tuple(d for d in optional if (album_dir / d).is_dir()),
         optional_absent=tuple(d for d in optional if not (album_dir / d).is_dir()),
     )
-
-
-def check_album_dir(
-    album_dir: Path,
-    expected: tuple[str, ...] = MAIN_MEDIA_SOURCE.all_subdirs,
-) -> AlbumDirCheck:
-    """Used by import commands to check specific directories (e.g. SELECTION_DIR)."""
-    return AlbumDirCheck(
-        present=tuple(d for d in expected if (album_dir / d).is_dir()),
-        missing=tuple(d for d in expected if not (album_dir / d).is_dir()),
-    )

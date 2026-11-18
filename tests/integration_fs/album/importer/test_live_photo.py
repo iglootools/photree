@@ -24,11 +24,6 @@ from photree.common.fs import list_files
 SEL_DIR = ios_import_dir("main")
 
 
-def _write(path: Path, data: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(data, encoding="utf-8")
-
-
 def _setup_ic(tmp_path: Path, filenames: list[str]) -> Path:
     ic = tmp_path / "ic"
     ic.mkdir()

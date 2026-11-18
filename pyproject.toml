@@ -40,6 +40,7 @@ dev = [
   # [project] requires-python, so it is dropped rather than translated.
   "pydeps>=3.0.7",
   "import-linter>=2.15,<3.0",
+  "deadcode>=2.7.0,<3.0",
   # The shared build, docs and check commands (guidelines/project-setup/iglootools-cli.md in
   # iglootools/common). Pinned to the release tag; uv.lock records the commit it resolved to.
   "iglootools @ git+https://github.com/iglootools/common@v1.25.0",
@@ -114,6 +115,8 @@ target-version = "py314"
 # the new defaults; the exceptions below are rules that conflict with a deliberate
 # design decision in this codebase rather than rules we have not gotten around to.
 [tool.ruff.lint]
+# deadcode's `# noqa: DCxx` markers, which RUF100 would otherwise report as unused.
+external = ["DC"]
 ignore = [
   # Photo capture times are naive wall-clock instants: EXIF DateTimeOriginal carries
   # no offset, so attaching a tzinfo would invent information we do not have. DTZ005
@@ -158,6 +161,20 @@ pythonVersion = "3.14"
 # language servers resolve imports against it, since they inherit no shell activation.
 venvPath = "."
 venv = ".venv"
+
+# Unused code, enforced by `mise run dead-code-check` (part of `check`). Each entry is code
+# that runs without being named in the project, so the scan cannot see it used.
+[tool.deadcode]
+ignore-names-if-decorated-with = [
+  "@*.command", "@*.callback",            # Typer registers commands by decorator
+  "@pytest.fixture",                      # pytest injects fixtures by parameter name
+  "@field_validator", "@model_validator", # Pydantic calls them while validating
+]
+ignore-names = [
+  "main",                                 # the [project.scripts] entry point
+  "model_config",                         # read by Pydantic
+  "pytestmark",                           # read by pytest
+]
 
 # Module boundaries, enforced by `mise run boundaries-check` (part of `check`). These
 # contracts are the source of truth for the layering described in

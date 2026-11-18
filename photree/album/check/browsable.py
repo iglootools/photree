@@ -63,17 +63,6 @@ class BrowsableDirCheck:
             and not self.checksum_mismatches
         )
 
-    @property
-    def files_match_sources(self) -> bool:
-        """True when every present file matches its archival source.
-
-        Unlike :attr:`success`, missing and extra files are tolerated —
-        only content mismatches (size or checksum) are considered a
-        failure. This catches the case where a browsable file has been
-        corrupted or replaced with different content.
-        """
-        return not self.size_mismatches and not self.checksum_mismatches
-
 
 def _file_size(path: Path) -> int:
     return path.stat().st_size
@@ -93,12 +82,6 @@ def _is_hardlink_to(main_path: Path, source_path: Path) -> bool:
 
 def _is_symlink_to(main_path: Path, source_path: Path) -> bool:
     return main_path.is_symlink() and main_path.resolve() == source_path.resolve()
-
-
-def _is_link_to(main_path: Path, source_path: Path) -> bool:
-    return _is_symlink_to(main_path, source_path) or _is_hardlink_to(
-        main_path, source_path
-    )
 
 
 def _detect_actual_link_mode(main_path: Path, source_path: Path) -> LinkMode:

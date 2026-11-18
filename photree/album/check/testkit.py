@@ -163,14 +163,6 @@ INTEGRITY_FAILURES = AlbumIntegrityResult(
     by_media_source=((MAIN_MEDIA_SOURCE, IOS_INTEGRITY_FAILURES),)
 )
 
-INTEGRITY_MIXED_OK = AlbumIntegrityResult(
-    by_media_source=(
-        (MAIN_MEDIA_SOURCE, IOS_INTEGRITY_OK),
-        (_STD_MEDIA_SOURCE, STD_INTEGRITY_OK),
-    )
-)
-
-
 JPEG_INTEGRITY_OK = AlbumJpegIntegrityResult(
     by_media_source=(
         (MAIN_MEDIA_SOURCE, _JPEG_OK),

@@ -3,7 +3,7 @@
 Run automated tests and checks:
 ```bash
 # mise tasks
-mise run check              # Run all checks: format-check + lint + lint-shell + type-check + boundaries-check + lock-check + lock-check-uv + clidocs-check + depgraph-check
+mise run check              # Run all checks: format-check + lint + lint-shell + type-check + boundaries-check + dead-code-check + lock-check + lock-check-uv + clidocs-check + depgraph-check
 mise run check-all          # Run all checks: regular checks + all tests
 
 mise run test-all           # All tests (unit + integration)
@@ -16,6 +16,7 @@ mise run lint               # ruff check
 mise run lint-shell         # shellcheck on the tracked shell scripts
 mise run type-check         # pyright
 mise run boundaries-check   # import-linter (module boundary contracts in pyproject.toml — see architecture.md)
+mise run dead-code-check    # deadcode (unused functions, classes, constants; config in pyproject.toml)
 
 mise run clidocs            # Regenerate CLI reference in docs/cli-reference.md
 mise run clidocs-check      # Check that CLI reference is up to date

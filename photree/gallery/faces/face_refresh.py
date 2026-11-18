@@ -84,7 +84,6 @@ class GalleryFaceRefreshResult:
     total_faces: int = 0
     total_clusters: int = 0
     new_faces: int = 0
-    removed_faces: int = 0
     mode: FaceRefreshMode = FaceRefreshMode.NONE
 
 
@@ -107,7 +106,7 @@ class _AlbumFaceSource:
 class _ChangeSet:
     new_sources: tuple[_AlbumFaceSource, ...]
     modified_sources: tuple[_AlbumFaceSource, ...]
-    removed_album_sources: tuple[tuple[str, str], ...]  # (album_id, media_source)
+    removed_album_sources: tuple[tuple[str, str], ...]  # album ID, then media source
     unchanged_sources: tuple[_AlbumFaceSource, ...]
 
     @property

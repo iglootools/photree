@@ -243,8 +243,8 @@ class TestComputeMediaSourceStats:
         assert result.unique_pictures == 2
         assert result.unique_videos == 1
         assert result.archive == SizeStats(0, 0, 0)  # no archive dir on disk
-        assert result.original.file_count == 3  # img(2) + vid(1)
-        assert result.derived.file_count == 2  # jpg(2)
+        assert result.original.file_count == 3  # 2 images + 1 video
+        assert result.derived.file_count == 2  # 2 JPEGs
 
     def test_std_source_with_archive(self, tmp_path: Path) -> None:
         album = tmp_path / "2024-07-14 - Test"
@@ -281,9 +281,9 @@ class TestComputeMediaSourceStats:
         assert result.media_source_type == MediaSourceType.STD
         assert result.unique_pictures == 2  # from orig-img
         assert result.unique_videos == 1  # from orig-vid
-        assert result.archive.file_count == 3  # orig-img(2) + orig-vid(1)
-        assert result.original.file_count == 3  # img(2) + vid(1)
-        assert result.derived.file_count == 2  # jpg(2)
+        assert result.archive.file_count == 3  # 2 original images + 1 original video
+        assert result.original.file_count == 3  # 2 images + 1 video
+        assert result.derived.file_count == 2  # 2 JPEGs
         # On-disk should be less than apparent due to hardlinks
         assert result.total.on_disk_bytes < result.total.apparent_bytes
 

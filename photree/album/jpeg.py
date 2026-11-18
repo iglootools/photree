@@ -58,7 +58,7 @@ class ConvertFile(Protocol):
     Implementations must be safe to call from worker threads.
     """
 
-    def __call__(
+    def __call__(  # noqa: DC02 -- a Protocol member, called through ConvertFile
         self, src: Path, dst_dir: Path, /, *, dry_run: bool
     ) -> Path | None: ...
 

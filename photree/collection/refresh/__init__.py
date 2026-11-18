@@ -34,13 +34,6 @@ STAGE_TITLE_SYNC = "title-sync"
 STAGE_IMPLICIT_REFRESH = "implicit-refresh"
 STAGE_SMART_REFRESH = "smart-refresh"
 
-REFRESH_STAGES = (
-    STAGE_SCAN_ALBUMS,
-    STAGE_TITLE_SYNC,
-    STAGE_IMPLICIT_REFRESH,
-    STAGE_SMART_REFRESH,
-)
-
 
 @dataclass(frozen=True)
 class _Notifier:
