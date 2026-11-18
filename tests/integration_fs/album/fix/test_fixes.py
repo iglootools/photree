@@ -25,11 +25,6 @@ def _names(directory: Path) -> set[str]:
     return {f.name for f in directory.iterdir() if f.is_file()}
 
 
-def _noop_convert(*args: object, **kwargs: object) -> None:
-    """Stub for convert_file that does nothing (avoids calling sips)."""
-    return
-
-
 # ---------------------------------------------------------------------------
 
 

@@ -86,12 +86,6 @@ def ios_file_prefix(filename: str) -> str:
             return ""
 
 
-def ios_dedup_media_dict(
-    files: list[str], media_extensions: frozenset[str]
-) -> dict[str, str]:
-    return dedup_media_dict(files, media_extensions, ios_img_number)
-
-
 def ios_find_files_by_number(
     numbers: set[str],
     directory: Path,

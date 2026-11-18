@@ -117,7 +117,6 @@ class AlbumsStats:
     """
 
     album_count: int
-    by_album: tuple[AlbumStats, ...]
     aggregate: AggregateStats
     unique_media_source_names: tuple[str, ...]
     by_year: tuple[YearStats, ...]

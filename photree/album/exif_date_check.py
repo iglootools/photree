@@ -47,7 +47,6 @@ class ExifMismatch:
 @dataclass(frozen=True)
 class ExifTimestampCheck:
     album_date: str
-    total_files: int
     mismatches: tuple[ExifMismatch, ...]
     no_exact_album_date_match: bool = False
 
@@ -185,7 +184,6 @@ def check_exif_date_match(
 
     return ExifTimestampCheck(
         album_date=album_date,
-        total_files=len(file_timestamps),
         mismatches=_exif_mismatches(album_dir, file_timestamps, album_date),
         no_exact_album_date_match=_no_exact_album_date_match(
             file_timestamps, album_date, part

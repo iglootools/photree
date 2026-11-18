@@ -100,14 +100,6 @@ LINK_MODE_OPTION = Annotated[
     ),
 ]
 
-LINK_MODE_REQUIRED_OPTION = Annotated[
-    LinkMode,
-    typer.Option(
-        "--link-mode",
-        help="How to create main files: hardlink, symlink, or copy.",
-    ),
-]
-
 RM_UPSTREAM_OPTION = Annotated[
     bool,
     typer.Option(

@@ -33,10 +33,6 @@ class ExifCacheRefreshResult:
     by_media_source: tuple[tuple[str, ExifCacheSourceResult], ...]
 
     @property
-    def total_refreshed(self) -> int:
-        return sum(r.refreshed for _, r in self.by_media_source)
-
-    @property
     def changed(self) -> bool:
         return any(r.changed for _, r in self.by_media_source)
 

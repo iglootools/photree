@@ -84,7 +84,6 @@ class GalleryFaceRefreshResult:
     total_faces: int = 0
     total_clusters: int = 0
     new_faces: int = 0
-    removed_faces: int = 0
     mode: FaceRefreshMode = FaceRefreshMode.NONE
 
 

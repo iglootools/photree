@@ -95,10 +95,6 @@ class RefreshResult:
         return sum(r.new_images + r.new_videos for _, r in self.by_media_source)
 
     @property
-    def total_removed(self) -> int:
-        return sum(r.removed_images + r.removed_videos for _, r in self.by_media_source)
-
-    @property
     def changed(self) -> bool:
         return any(r.changed for _, r in self.by_media_source)
 

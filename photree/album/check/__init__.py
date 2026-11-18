@@ -45,18 +45,6 @@ class AlbumMediaSourceSummary:
         return any(ms.is_ios for ms in self.media_sources)
 
     @property
-    def has_std(self) -> bool:
-        return any(ms.is_std for ms in self.media_sources)
-
-    @property
-    def ios_media_sources(self) -> tuple[MediaSource, ...]:
-        return tuple(ms for ms in self.media_sources if ms.is_ios)
-
-    @property
-    def std_media_sources(self) -> tuple[MediaSource, ...]:
-        return tuple(ms for ms in self.media_sources if ms.is_std)
-
-    @property
     def description(self) -> str:
         """Human-readable summary, e.g. ``main (ios), bruno (std)``."""
         return ", ".join(

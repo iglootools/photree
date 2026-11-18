@@ -318,7 +318,6 @@ _GALLERY_AGGREGATE = AggregateStats(
 
 ALBUMS_STATS = AlbumsStats(
     album_count=3,
-    by_album=(_ALBUM_2024_A, _ALBUM_2024_B, _ALBUM_2025),
     aggregate=_GALLERY_AGGREGATE,
     unique_media_source_names=("main", "nelu"),
     by_year=(
