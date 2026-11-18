@@ -102,7 +102,7 @@ description = "Install dependencies"
 run = "mise deps install uv"
 
 [tasks.check]
-description = "Run all checks (format-check, lint, lint-shell, type-check, boundaries-check, lock-check, lock-check-uv, clidocs-check, depgraph-check)"
+description = "Run all checks (format-check, lint, lint-shell, type-check, boundaries-check, lock-check, lock-check-uv, toc-check, clidocs-check, depgraph-check)"
 run = [
   { task = "format-check" },
   { task = "lint" },
@@ -111,6 +111,7 @@ run = [
   { task = "boundaries-check" },
   { task = "lock-check" },
   { task = "lock-check-uv" },
+  { task = "toc-check" },
   { task = "clidocs-check" },
   { task = "depgraph-check" },
 ]
@@ -238,6 +239,14 @@ run = [
   { task = "clidocs" },
   { task = "depgraph" },
 ]
+
+[tasks.toc]
+description = "Regenerate the tables of contents in the Markdown docs (add one with --add <file>)"
+run = "uv run --no-sync iglootools docs toc"
+
+[tasks.toc-check]
+description = "Check that the Markdown tables of contents are up to date (fix with `mise run toc`)"
+run = "uv run --no-sync iglootools docs toc --check"
 
 [tasks.clidocs]
 description = "Regenerate CLI reference in docs/cli-reference.md"
