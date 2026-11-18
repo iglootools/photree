@@ -15,7 +15,7 @@ STD_DIR_PREFIX = "std-"
 DEFAULT_MEDIA_SOURCE = "main"
 
 
-KeyFn = Callable[[str], str]
+type KeyFn = Callable[[str], str]
 """Key-extraction function: maps a filename to a matching key."""
 
 

@@ -14,7 +14,7 @@ from enum import StrEnum
 from textwrap import dedent
 
 # Injected rather than called directly so tests can probe a synthetic PATH.
-WhichFn = Callable[[str], str | None]
+type WhichFn = Callable[[str], str | None]
 
 
 class SystemDependency(StrEnum):
