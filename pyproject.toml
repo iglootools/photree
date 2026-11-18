@@ -40,6 +40,9 @@ dev = [
   # [project] requires-python, so it is dropped rather than translated.
   "pydeps>=3.0.7",
   "import-linter>=2.15,<3.0",
+  # The shared build, docs and check commands (guidelines/project-setup/iglootools-cli.md in
+  # iglootools/common). Pinned to the release tag; uv.lock records the commit it resolved to.
+  "iglootools @ git+https://github.com/iglootools/common@v1.24.0",
 ]
 
 [build-system]
@@ -64,7 +67,7 @@ fallback-version = "0.0.0"
 packages = ["photree"]
 
 # Hatchling's sdist default is "every file not ignored by the VCS", which would ship
-# tests/, docs/, demo/, build-scripts/, .github/ and the lockfiles. Poetry shipped the
+# tests/, docs/, demo/, .github/ and the lockfiles. Poetry shipped the
 # package plus README/LICENSE/pyproject.toml; this keeps that shape.
 [tool.hatch.build.targets.sdist]
 only-include = ["photree"]

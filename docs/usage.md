@@ -1,5 +1,21 @@
 # Usage
 
+<!-- toc -->
+**On this page**
+
+- [Installation](#installation)
+- [Configuration](#configuration)
+  - [Config file location](#config-file-location)
+  - [Config file format](#config-file-format)
+- [Gallery](#gallery)
+  - [Initialize Gallery](#initialize-gallery)
+  - [Import Media into an Album](#import-media-into-an-album)
+  - [Import Albums into Gallery](#import-albums-into-gallery)
+  - [Check Albums](#check-albums)
+  - [Collections](#collections)
+  - [Export Albums](#export-albums)
+<!-- tocstop -->
+
 ## Installation
 
 See [Installation instructions](./installation.md)

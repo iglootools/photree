@@ -29,8 +29,8 @@ mise run lock-check-uv      # Check uv.lock is consistent with pyproject.toml
 # Running tools directly
 uv run pytest tests/ -v                         # All tests
 uv run ruff format .                            # formatting
-uv run ruff check photree/ tests/ build-scripts/   # linting
-uv run pyright photree/ build-scripts/             # type-checking
+uv run ruff check photree/ tests/                   # linting
+uv run pyright photree/                            # type-checking
 uv run lint-imports                             # module boundaries
 uv run pytest tests/integration_fs/cli/test_cli.py::TestVersionCommand::test_version_flag -v   # run a single test
 ```
@@ -45,6 +45,15 @@ Dependencies install themselves: `[deps.uv]` in `mise.toml` runs `uv sync` befor
 So `mise run install` is seldom needed explicitly, and `mise run reinstall` is for the case
 that automatic check cannot see — a `.venv` that is *dirty* rather than *stale*, e.g. after
 a manual `uv pip install`. Add or remove dependencies with `uv add` / `uv remove`.
+
+<!-- toc -->
+**On this page**
+
+- [Python version](#python-version)
+- [Release Process](#release-process)
+- [GitHub Config](#github-config)
+- [Renovate](#renovate)
+<!-- tocstop -->
 
 ## Python version
 

@@ -68,7 +68,27 @@ run = "uv sync"
 
 [tasks.build-verify]
 description = "Fail if the built wheel carries the 0.0.0 fallback version"
-run = "uv run --no-sync python build-scripts/verifyversion.py"
+run = "uv run --no-sync iglootools python verify-version"
+
+[tasks.build]
+description = "Build the sdist and wheel into an emptied dist/"
+run = "uv run --no-sync iglootools python build"
+
+[tasks.clean]
+description = "Delete build artifacts and Python bytecode outside .venv"
+run = "uv run --no-sync iglootools python clean"
+
+[tasks.reinstall]
+description = "Delete .venv and reinstall dependencies from scratch"
+run = "uv run --no-sync iglootools python reinstall"
+
+[tasks.lint-shell]
+description = "Lint the tracked shell scripts with shellcheck"
+run = "uv run --no-sync iglootools shell lint"
+
+[tasks.lock-check]
+description = "Check that mise.lock is up to date with mise.toml"
+run = "uv run --no-sync iglootools mise lock-check"
 
 [tasks.publish]
 description = "Publish to PyPI (requires authentication)"
@@ -82,7 +102,7 @@ description = "Install dependencies"
 run = "mise deps install uv"
 
 [tasks.check]
-description = "Run all checks (format-check, lint, lint-shell, type-check, boundaries-check, lock-check, lock-check-uv, clidocs-check, depgraph-check)"
+description = "Run all checks (format-check, lint, lint-shell, type-check, boundaries-check, lock-check, lock-check-uv, toc-check, clidocs-check, depgraph-check)"
 run = [
   { task = "format-check" },
   { task = "lint" },
@@ -91,6 +111,7 @@ run = [
   { task = "boundaries-check" },
   { task = "lock-check" },
   { task = "lock-check-uv" },
+  { task = "toc-check" },
   { task = "clidocs-check" },
   { task = "depgraph-check" },
 ]
@@ -166,11 +187,11 @@ run = "uv run --no-sync ruff format --check ."
 
 [tasks.lint]
 description = "Run ruff linting"
-run = "uv run --no-sync ruff check photree/ tests/ build-scripts/"
+run = "uv run --no-sync ruff check photree/ tests/"
 
 [tasks.type-check]
 description = "Run pyright type checking"
-run = "uv run --no-sync pyright photree/ build-scripts/"
+run = "uv run --no-sync pyright photree/"
 
 # The contracts live in pyproject.toml [tool.importlinter]; see docs/architecture.md
 # "Layering" for the rules they encode.
@@ -194,7 +215,7 @@ run = [
 
 [tasks.demo-record]
 description = "Record the demo to demo/demo.cast"
-run = "./demo/record-demo.sh \"$(uv run --no-sync python -c 'import photree; print(photree.__version__)')\""
+run = "uv run --no-sync iglootools demo record"
 
 [tasks.demo-upload]
 description = "Upload the locally recorded demo to asciinema.org"
@@ -210,7 +231,7 @@ run = "asciinema upload demo/demo.cast"
 #   mise run demo-upload-latest -- --no-readme   # upload only
 [tasks.demo-upload-latest]
 description = "Download the demo recorded by CI and upload it to asciinema.org"
-run = "uv run --no-sync python build-scripts/demoupload.py"
+run = "uv run --no-sync iglootools demo upload"
 
 [tasks.reference-doc]
 description = "Regenerate the reference documentation"
@@ -219,26 +240,34 @@ run = [
   { task = "depgraph" },
 ]
 
+[tasks.toc]
+description = "Regenerate the tables of contents in the Markdown docs (add one with --add <file>)"
+run = "uv run --no-sync iglootools docs toc"
+
+[tasks.toc-check]
+description = "Check that the Markdown tables of contents are up to date (fix with `mise run toc`)"
+run = "uv run --no-sync iglootools docs toc --check"
+
 [tasks.clidocs]
 description = "Regenerate CLI reference in docs/cli-reference.md"
-run = "uv run --no-sync python build-scripts/clidocs.py"
+run = "uv run --no-sync iglootools docs cli"
 
 [tasks.clidocs-check]
 description = "Check that CLI reference in docs/cli-reference.md is up to date"
-run = "uv run --no-sync python build-scripts/clidocs.py --check"
+run = "uv run --no-sync iglootools docs cli --check"
 
 [tasks.depgraph]
 description = "Regenerate Module Overview in docs/architecture.md"
-run = "uv run --no-sync python build-scripts/depgraph.py"
+run = "uv run --no-sync iglootools docs depgraph"
 
 [tasks.depgraph-check]
 description = "Check that Module Overview in docs/architecture.md is up to date"
-run = "uv run --no-sync python build-scripts/depgraph.py --check"
+run = "uv run --no-sync iglootools docs depgraph --check"
 
 [tasks.depgraph-ascii]
 description = "Generate module dependency graph (ASCII art)"
-run = "uv run --no-sync python build-scripts/depgraph.py --format ascii"
+run = "uv run --no-sync iglootools docs depgraph --format ascii"
 
 [tasks.depgraph-mermaid]
 description = "Print module dependency graph (mermaid syntax) to stdout"
-run = "uv run --no-sync python build-scripts/depgraph.py --format mermaid"
+run = "uv run --no-sync iglootools docs depgraph --format mermaid"

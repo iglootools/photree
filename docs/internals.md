@@ -7,6 +7,59 @@ and face clustering.
 For the concepts themselves — galleries, albums, media sources, media items,
 collections, naming conventions, identifiers — see [domain.md](./domain.md).
 
+<!-- toc -->
+**On this page**
+
+- [Gallery Directory Layout](#gallery-directory-layout)
+  - [Gallery Import Behavior](#gallery-import-behavior)
+  - [Gallery Resolution](#gallery-resolution)
+- [Album On-Disk Layout](#album-on-disk-layout)
+  - [Album Detection](#album-detection)
+  - [Media Sources](#media-sources)
+  - [Directory Structure](#directory-structure)
+  - [Browsable Directories](#browsable-directories)
+- [Import Staging Directories](#import-staging-directories)
+  - [iOS staging (`to-import-ios-<name>/`, `to-import-ios-<name>.csv`)](#ios-staging-to-import-ios-name-to-import-ios-namecsv)
+  - [Std staging (`to-import-std-<name>/`)](#std-staging-to-import-std-name)
+- [Collections](#collections)
+  - [Collection Refresh](#collection-refresh)
+  - [Collection Directory Layout](#collection-directory-layout)
+- [Browsable Directory](#browsable-directory)
+  - [Structure](#structure)
+  - [Rendering Rules](#rendering-rules)
+  - [Refresh Strategy](#refresh-strategy)
+  - [Cycle Detection](#cycle-detection)
+- [Metadata Files](#metadata-files)
+  - [Album Metadata (`.photree/album.yaml`)](#album-metadata-photreealbumyaml)
+  - [Media Metadata (`.photree/media-ids/`)](#media-metadata-photreemedia-ids)
+  - [Collection Metadata (`.photree/collection.yaml`)](#collection-metadata-photreecollectionyaml)
+  - [Gallery Metadata (`.photree/gallery.yaml`)](#gallery-metadata-photreegalleryyaml)
+  - [Editing Metadata](#editing-metadata)
+  - [Absent vs Corrupt Metadata](#absent-vs-corrupt-metadata)
+- [EXIF Metadata](#exif-metadata)
+  - [Usage](#usage)
+  - [Why exiftool / PyExifTool](#why-exiftool--pyexiftool)
+  - [Supported File Formats](#supported-file-formats)
+- [System Dependencies](#system-dependencies)
+  - [Fail-fast gate](#fail-fast-gate)
+  - [Defense in depth](#defense-in-depth)
+- [Album Validation Levels](#album-validation-levels)
+  - [Light Check (naming + cross-album)](#light-check-naming--cross-album)
+  - [Full Check](#full-check)
+- [EXIF Timestamp Cache](#exif-timestamp-cache)
+  - [Storage Layout](#storage-layout)
+  - [Cache Schema](#cache-schema)
+  - [Cache Lifecycle](#cache-lifecycle)
+  - [Change Detection](#change-detection)
+- [Face Detection and Clustering Pipeline](#face-detection-and-clustering-pipeline)
+  - [Overview](#overview)
+  - [InsightFace Pipeline (per image)](#insightface-pipeline-per-image)
+  - [Album-Level Storage](#album-level-storage)
+  - [Gallery-Level Storage](#gallery-level-storage)
+  - [CLI Commands](#cli-commands)
+  - [Gallery Configuration](#gallery-configuration)
+<!-- tocstop -->
+
 ## Gallery Directory Layout
 
 A gallery is a directory containing `.photree/gallery.yaml` and an `albums/`
