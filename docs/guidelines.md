@@ -4,6 +4,20 @@ A set of [implementation checklists](#implementation-checklists) serve as a remi
 
 For general coding, Python, and tooling guidelines, see the [common guidelines](https://github.com/iglootools/common).
 
+<!-- toc -->
+**On this page**
+
+- [Coding](#coding)
+  - [Documented exception: mutable accumulators in scan/group loops](#documented-exception-mutable-accumulators-in-scangroup-loops)
+  - [Errors and Output](#errors-and-output)
+- [Area conventions](#area-conventions)
+- [Implementation Checklists](#implementation-checklists)
+  - [Build and CI](#build-and-ci)
+  - [Documentation](#documentation)
+  - [Tests](#tests)
+  - [New Concepts (e.g., collections, future entity types)](#new-concepts-eg-collections-future-entity-types)
+<!-- tocstop -->
+
 ## Coding
 - **Naming Conventions**
   - `kebab-case` for CLI commands

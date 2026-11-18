@@ -1,5 +1,18 @@
 # Installation
 
+<!-- toc -->
+**On this page**
+
+- [Supported Platforms](#supported-platforms)
+- [System Requirements](#system-requirements)
+  - [exiftool](#exiftool)
+  - [Verifying prerequisites](#verifying-prerequisites)
+  - [When a dependency is missing](#when-a-dependency-is-missing)
+- [Install with uv](#install-with-uv)
+- [Install with pipx](#install-with-pipx)
+- [Shell Completion](#shell-completion)
+<!-- tocstop -->
+
 ## Supported Platforms
 
 photree currently requires **macOS** due to its dependency on `sips` (Scriptable

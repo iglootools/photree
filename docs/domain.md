@@ -9,6 +9,40 @@ algorithms behind refresh, import, and face clustering, see
 [internals.md](./internals.md). For step-by-step workflows, see
 [usage.md](./usage.md).
 
+<!-- toc -->
+**On this page**
+
+- [Overview](#overview)
+- [Gallery](#gallery)
+- [Album](#album)
+  - [Album Naming](#album-naming)
+  - [Date Collisions](#date-collisions)
+  - [Private Albums](#private-albums)
+- [Media Source](#media-source)
+  - [Archive, Browsable, and Derived](#archive-browsable-and-derived)
+- [Media Item](#media-item)
+  - [Variants](#variants)
+  - [iOS Variants (Image Capture)](#ios-variants-image-capture)
+- [Importing](#importing)
+- [Collection](#collection)
+  - [Collection Naming](#collection-naming)
+  - [Members](#members)
+  - [Lifecycle](#lifecycle)
+  - [Strategy](#strategy)
+  - [Valid Combinations](#valid-combinations)
+  - [Private Tag Virality](#private-tag-virality)
+- [Identifiers](#identifiers)
+- [Browsable Tree](#browsable-tree)
+- [Faces](#faces)
+- [Validation](#validation)
+  - [Light and Full Checks](#light-and-full-checks)
+  - [EXIF Date Matching](#exif-date-matching)
+- [Linking and Exporting](#linking-and-exporting)
+  - [Link Mode](#link-mode)
+  - [Share Directory and Export Profiles](#share-directory-and-export-profiles)
+- [Glossary](#glossary)
+<!-- tocstop -->
+
 ## Overview
 
 ```

@@ -46,6 +46,15 @@ So `mise run install` is seldom needed explicitly, and `mise run reinstall` is f
 that automatic check cannot see — a `.venv` that is *dirty* rather than *stale*, e.g. after
 a manual `uv pip install`. Add or remove dependencies with `uv add` / `uv remove`.
 
+<!-- toc -->
+**On this page**
+
+- [Python version](#python-version)
+- [Release Process](#release-process)
+- [GitHub Config](#github-config)
+- [Renovate](#renovate)
+<!-- tocstop -->
+
 ## Python version
 
 photree runs on one Python version, everywhere: the `python` pin in `mise.toml` is the

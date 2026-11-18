@@ -5,6 +5,24 @@ conventions, progress and error reporting, and where CLI code ends and the domai
 [guidelines.md](./guidelines.md#area-conventions) lists the paths these conventions govern;
 read this before changing any of them, or adding a command anywhere.
 
+<!-- toc -->
+**On this page**
+
+- [Framework](#framework)
+- [Command Hierarchy](#command-hierarchy)
+- [Standard Operations](#standard-operations)
+- [Option Conventions](#option-conventions)
+- [Progress Indicators](#progress-indicators)
+- [Icons and Result Formatting](#icons-and-result-formatting)
+- [Error Handling and Exit Codes](#error-handling-and-exit-codes)
+- [System Dependencies](#system-dependencies)
+- [Discoverability](#discoverability)
+- [CSV Output](#csv-output)
+- [Ambient Gallery Lookups](#ambient-gallery-lookups)
+- [Batch Operation Architecture](#batch-operation-architecture)
+- [Validation Levels](#validation-levels)
+<!-- tocstop -->
+
 ### Framework
 
 Use `typer` for CLI implementation. Rich console instances for formatted

@@ -1,5 +1,23 @@
 # Features
 
+<!-- toc -->
+**On this page**
+
+- [Import from macOS Image Capture](#import-from-macos-image-capture)
+- [Media Sources](#media-sources)
+- [Album Naming Conventions](#album-naming-conventions)
+- [Album Integrity Checks](#album-integrity-checks)
+- [Album Optimization](#album-optimization)
+- [Album Fixes](#album-fixes)
+- [Gallery Commands](#gallery-commands)
+- [Collections](#collections)
+- [Face Detection and Clustering](#face-detection-and-clustering)
+- [Album and Gallery Statistics](#album-and-gallery-statistics)
+- [Export to Shared Directories](#export-to-shared-directories)
+- [Configuration](#configuration)
+- [Supported Formats](#supported-formats)
+<!-- tocstop -->
+
 ## Import from macOS Image Capture
 
 Import photos and videos from an iOS device via macOS Image Capture into an organized album directory.
