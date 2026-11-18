@@ -41,6 +41,7 @@ algorithms behind refresh, import, and face clustering, see
   - [Link Mode](#link-mode)
   - [Share Directory and Export Profiles](#share-directory-and-export-profiles)
 - [Glossary](#glossary)
+  - [Abbreviations in the code](#abbreviations-in-the-code)
 <!-- tocstop -->
 
 ## Overview
@@ -582,3 +583,15 @@ link mode in the config file. See [usage.md — Export Albums](./usage.md#export
 | Smart collection | Collection whose members are computed by `gallery refresh` |
 | Staging entry | `to-import-{ios,std}-<name>` input to `album import` |
 | Variant | One file representation of a media item (original, edited, browsable, JPEG) |
+
+### Abbreviations in the code
+
+These are the only abbreviations the code uses for domain terms; spell anything else out.
+
+| Abbreviation | Stands for |
+|---|---|
+| `ms` | media source |
+| `std` | a standard (non-iOS) media source, as in `std-<name>/` |
+| `img` / `vid` | image / video, as in the `<name>-img/` and `<name>-vid/` browsable directories |
+| `col` | collection |
+| `meta` | metadata |
