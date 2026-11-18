@@ -29,8 +29,8 @@ mise run lock-check-uv      # Check uv.lock is consistent with pyproject.toml
 # Running tools directly
 uv run pytest tests/ -v                         # All tests
 uv run ruff format .                            # formatting
-uv run ruff check photree/ tests/ build-scripts/   # linting
-uv run pyright photree/ build-scripts/             # type-checking
+uv run ruff check photree/ tests/                   # linting
+uv run pyright photree/                            # type-checking
 uv run lint-imports                             # module boundaries
 uv run pytest tests/integration_fs/cli/test_cli.py::TestVersionCommand::test_version_flag -v   # run a single test
 ```
