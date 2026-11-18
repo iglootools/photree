@@ -67,18 +67,18 @@ def resolve_export_settings(
     # when a profile is named. An explicit --config is always loaded: silently
     # ignoring a path the user typed (missing file, typo) would hide the mistake.
     profile = None
-    cfg = (
+    loaded_config = (
         load(config_path)
         if profile_name is not None or config_path is not None
         else None
     )
-    if cfg is not None and profile_name is not None:
-        profile = cfg.exporter.profiles.get(profile_name)
+    if loaded_config is not None and profile_name is not None:
+        profile = loaded_config.exporter.profiles.get(profile_name)
         if profile is None:
             raise ExportSettingsError(
                 ExportSettingsErrorKind.UNKNOWN_PROFILE,
                 profile=profile_name,
-                available_profiles=tuple(sorted(cfg.exporter.profiles)),
+                available_profiles=tuple(sorted(loaded_config.exporter.profiles)),
             )
 
     resolved_share_dir = share_dir or (profile.share_dir if profile else None)
