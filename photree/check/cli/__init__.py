@@ -1,6 +1,6 @@
 import typer
 
-check_app = typer.Typer(
+app = typer.Typer(
     name="check",
     help="System prerequisite checks.",
     no_args_is_help=True,

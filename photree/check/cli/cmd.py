@@ -3,10 +3,10 @@ import typer
 from ...clihelpers.runtime import runtime_of
 from ...clihelpers.sysdeps import require_system_deps
 from ...common.sysdeps import SystemDependency
-from . import check_app
+from . import app
 
 
-@check_app.command("system")
+@app.command("system")
 def check_system_cmd(ctx: typer.Context) -> None:
     """Check that all system prerequisites are met."""
     # Same probe and output as the per-command gate, minus the header and the

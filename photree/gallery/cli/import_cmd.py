@@ -15,7 +15,7 @@ from ...foundation.gallery_metadata import (
 from ...foundation.layout import PHOTREE_DIR
 from ...foundation.linking import LinkMode
 from ..import_plan import ImportAction
-from . import gallery_app
+from . import app
 from .ops import (
     build_index_or_exit,
     plan_imports_or_exit,
@@ -26,7 +26,7 @@ from .ops import (
 )
 
 
-@gallery_app.command("import")
+@app.command("import")
 def import_cmd(
     ctx: typer.Context,
     album_dir: Annotated[

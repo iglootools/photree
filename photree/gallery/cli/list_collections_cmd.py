@@ -21,7 +21,7 @@ from ...collection.store.protocol import CollectionMetadata
 from ...common.formatting import indent
 from ...common.fs import display_path
 from ...foundation.layout import COLLECTIONS_DIR
-from . import gallery_app
+from . import app
 
 _CSV_HEADER = [
     "id",
@@ -40,7 +40,7 @@ _CSV_HEADER = [
 ]
 
 
-@gallery_app.command("list-collections")
+@app.command("list-collections")
 def list_collections_cmd(
     ctx: typer.Context,
     gallery_dir: Annotated[

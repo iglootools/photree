@@ -14,10 +14,10 @@ from ..store.metadata import (
     save_album_metadata,
 )
 from ..store.protocol import AlbumMetadata
-from . import album_app
+from . import app
 
 
-@album_app.command("init")
+@app.command("init")
 def init_cmd(
     ctx: typer.Context,
     album_dir: Annotated[

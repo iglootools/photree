@@ -17,11 +17,11 @@ from ..store.protocol import (
     CollectionStrategy,
     validate_collection_config,
 )
-from . import collection_app
+from . import app
 from .options import COLLECTION_DIR_OPTION
 
 
-@collection_app.command("init")
+@app.command("init")
 def init_cmd(
     ctx: typer.Context,
     collection_dir: COLLECTION_DIR_OPTION = Path("."),

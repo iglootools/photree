@@ -11,7 +11,7 @@ from ..id import format_collection_external_id
 from ..naming import ParsedCollectionName, parse_collection_name
 from ..store.metadata import load_collection_metadata
 from ..store.protocol import COLLECTION_YAML, CollectionMetadata
-from . import collection_app
+from . import app
 from .options import COLLECTION_DIR_OPTION
 
 
@@ -36,7 +36,7 @@ def format_collection_details(
     ]
 
 
-@collection_app.command("show")
+@app.command("show")
 def show_cmd(
     ctx: typer.Context, collection_dir: COLLECTION_DIR_OPTION = Path(".")
 ) -> None:

@@ -35,7 +35,7 @@ from ..store.media_source import MediaSource
 from ..store.media_sources_discovery import discover_media_sources
 from ..store.protocol import CACHE_DIR
 
-_IgnoreFn = Callable[[str, list[str]], set[str]]
+type _IgnoreFn = Callable[[str, list[str]], set[str]]
 
 
 def _browsable_jpg_dirs(ms: MediaSource) -> tuple[str, ...]:

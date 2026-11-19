@@ -21,10 +21,10 @@ from ..store.media_metadata import (
     load_media_metadata,
 )
 from ..store.metadata import load_album_metadata
-from . import album_app
+from . import app
 
 
-@album_app.command("list-media")
+@app.command("list-media")
 def list_media_cmd(
     ctx: typer.Context,
     album_dir: Annotated[

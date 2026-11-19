@@ -1,6 +1,6 @@
 import typer
 
-collection_metadata_app = typer.Typer(
+app = typer.Typer(
     name="metadata",
     help="Collection metadata management.",
     no_args_is_help=True,

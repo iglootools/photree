@@ -26,10 +26,10 @@ from ..exporter.settings import (
     validate_export_settings,
 )
 from ..exporter.single import compute_target_dir as export_compute_target_dir
-from . import album_app
+from . import app
 
 
-@album_app.command("export")
+@app.command("export")
 def export_cmd(
     ctx: typer.Context,
     album_dir: Annotated[

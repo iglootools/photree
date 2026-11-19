@@ -34,7 +34,7 @@ _DAY_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _YEAR_PREFIX_RE = re.compile(r"^(\d{4})(?!\d)")
 _MONTH_PREFIX_RE = re.compile(r"^(\d{4}-\d{2})(?!\d)")
 
-DateRange = tuple[date, date]
+type DateRange = tuple[date, date]
 """An inclusive ``(first day, last day)`` range."""
 
 

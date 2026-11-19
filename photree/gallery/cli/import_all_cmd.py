@@ -21,7 +21,7 @@ from ...foundation.linking import LinkMode
 from ..cmd_handler.importer import BatchImportResult
 from ..import_plan import AlbumPlan
 from ..output import format_import_all_summary, import_all_failed
-from . import gallery_app
+from . import app
 from .ops import (
     build_index_or_exit,
     plan_imports_or_exit,
@@ -33,7 +33,7 @@ from .ops import (
 )
 
 
-@gallery_app.command("import-all")
+@app.command("import-all")
 def import_all_cmd(
     ctx: typer.Context,
     base_dir: Annotated[

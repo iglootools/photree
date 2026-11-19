@@ -3,33 +3,36 @@ from typing import Annotated
 
 import typer
 
-albums_app = typer.Typer(
+app = typer.Typer(
     name="albums",
     help="Batch operations on multiple albums.",
     no_args_is_help=True,
 )
 
 
-DIR_OPTION = typer.Option(
-    "--dir",
-    "-d",
-    help="Base directory to recursively scan for albums.",
-    exists=True,
-    file_okay=False,
-    resolve_path=True,
-)
+DIR_OPTION = Annotated[
+    Path | None,
+    typer.Option(
+        "--dir",
+        "-d",
+        help="Base directory to recursively scan for albums.",
+        exists=True,
+        file_okay=False,
+        resolve_path=True,
+    ),
+]
 
-ALBUM_DIR_OPTION = typer.Option(
-    "--album-dir",
-    "-a",
-    help="Album directory (repeatable).",
-    exists=True,
-    file_okay=False,
-    resolve_path=True,
-)
-
-DirOption = Annotated[Path | None, DIR_OPTION]
-AlbumDirOption = Annotated[list[Path] | None, ALBUM_DIR_OPTION]
+ALBUM_DIR_OPTION = Annotated[
+    list[Path] | None,
+    typer.Option(
+        "--album-dir",
+        "-a",
+        help="Album directory (repeatable).",
+        exists=True,
+        file_okay=False,
+        resolve_path=True,
+    ),
+]
 
 from . import (  # noqa: F401 — imported for command registration side effects
     check_cmd,

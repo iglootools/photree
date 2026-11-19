@@ -28,7 +28,7 @@ from .models import FormatStats, SizeStats, StorageRole
 
 _ZERO = SizeStats(file_count=0, apparent_bytes=0, on_disk_bytes=0)
 
-InodeKey = tuple[int, int]
+type InodeKey = tuple[int, int]
 """``(st_dev, st_ino)`` — identifies a file's storage across hardlinks."""
 
 

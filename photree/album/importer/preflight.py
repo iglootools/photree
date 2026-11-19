@@ -55,7 +55,7 @@ IMG_PREFIX_THRESHOLD = 0.5  # at least 50% of files must start with IMG_
 
 class SelectionStatus(StrEnum):
     OK = "ok"
-    NOT_FOUND = "not_found"
+    NOT_FOUND = "not-found"
     EMPTY = "empty"
 
 

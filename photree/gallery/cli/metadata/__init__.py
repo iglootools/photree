@@ -1,6 +1,6 @@
 import typer
 
-gallery_metadata_app = typer.Typer(
+app = typer.Typer(
     name="metadata",
     help="Gallery metadata management.",
     no_args_is_help=True,

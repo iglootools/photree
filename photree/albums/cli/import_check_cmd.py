@@ -12,14 +12,22 @@ from ...clihelpers.progress import BatchProgressBar
 from ...clihelpers.runtime import runtime_of
 from ...common.formatting import indent
 from ...common.fs import display_path
-from . import albums_app
+from . import app
 
 
 class NotReadyReason(StrEnum):
-    """Why an album cannot be imported yet (also its progress-line label)."""
+    """Why an album cannot be imported yet."""
 
-    NO_STAGING = "no to-import-* staging entries"
-    EMPTY_STAGING = "to-import-* staging entries are empty"
+    NO_STAGING = "no-staging"
+    EMPTY_STAGING = "empty-staging"
+
+
+def _format_not_ready_reason(reason: NotReadyReason) -> str:
+    match reason:
+        case NotReadyReason.NO_STAGING:
+            return "no to-import-* staging entries"
+        case NotReadyReason.EMPTY_STAGING:
+            return "to-import-* staging entries are empty"
 
 
 def _not_ready_reason(album_dir: Path) -> NotReadyReason | None:
@@ -41,7 +49,7 @@ def _check_album(
     progress.on_end(
         album_dir.name,
         success=reason is None,
-        error_labels=(reason,) if reason is not None else (),
+        error_labels=(_format_not_ready_reason(reason),) if reason is not None else (),
     )
     return album_dir, reason
 
@@ -52,7 +60,10 @@ def _report_not_ready(not_ready: list[tuple[Path, NotReadyReason]], cwd: Path) -
             [
                 "\nNot ready:",
                 *(
-                    indent(f"{display_path(album, cwd)}\n{indent(reason)}")
+                    indent(
+                        f"{display_path(album, cwd)}\n"
+                        f"{indent(_format_not_ready_reason(reason))}"
+                    )
                     for album, reason in not_ready
                 ),
                 (
@@ -73,7 +84,7 @@ def _report_not_ready(not_ready: list[tuple[Path, NotReadyReason]], cwd: Path) -
     )
 
 
-@albums_app.command("import-check")
+@app.command("import-check")
 def import_check_cmd(
     ctx: typer.Context,
     albums_dir: Annotated[

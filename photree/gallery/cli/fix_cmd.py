@@ -15,10 +15,10 @@ from ...clihelpers.options import (
 )
 from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...clihelpers.runtime import runtime_of
-from . import gallery_app
+from . import app
 
 
-@gallery_app.command("fix")
+@app.command("fix")
 def fix_cmd(
     ctx: typer.Context,
     gallery_dir: Annotated[

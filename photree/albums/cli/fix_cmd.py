@@ -13,14 +13,14 @@ from ...clihelpers.options import (
 from ...clihelpers.runtime import runtime_of
 from ..batchcli.fix import run_batch_fix
 from ..batchcli.resolution import resolve_check_batch_albums
-from . import AlbumDirOption, DirOption, albums_app
+from . import ALBUM_DIR_OPTION, DIR_OPTION, app
 
 
-@albums_app.command("fix")
+@app.command("fix")
 def fix_cmd(
     ctx: typer.Context,
-    base_dir: DirOption = None,
-    album_dirs: AlbumDirOption = None,
+    base_dir: DIR_OPTION = None,
+    album_dirs: ALBUM_DIR_OPTION = None,
     fix_id: Annotated[
         bool,
         typer.Option("--id", help="Generate missing album IDs (.photree/album.yaml)."),

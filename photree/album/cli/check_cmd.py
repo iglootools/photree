@@ -35,11 +35,11 @@ from ..store.media_sources_discovery import (
     discover_media_sources,
     find_media_source_conflicts,
 )
-from . import album_app
+from . import app
 from .media_source_conflict import format_media_source_conflict
 
 
-@album_app.command("check")
+@app.command("check")
 def check_cmd(
     ctx: typer.Context,
     album_dir: Annotated[

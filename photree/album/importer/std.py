@@ -35,7 +35,7 @@ class StdNoMediaError:
 
 # Validation errors for a std task: an empty staging dir, or several files
 # sharing a stem within ``orig/`` or ``edit/``.
-StdValidationError = StdNoMediaError | DuplicateStem
+type StdValidationError = StdNoMediaError | DuplicateStem
 
 
 @dataclass(frozen=True)

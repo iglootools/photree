@@ -4,14 +4,14 @@ from ...clihelpers.options import OUTPUT_FILE_OPTION, OUTPUT_FORMAT_OPTION, Outp
 from ...clihelpers.runtime import runtime_of
 from ..batchcli.listmedia import run_batch_list_media
 from ..batchcli.resolution import resolve_check_batch_albums
-from . import AlbumDirOption, DirOption, albums_app
+from . import ALBUM_DIR_OPTION, DIR_OPTION, app
 
 
-@albums_app.command("list-media")
+@app.command("list-media")
 def list_media_cmd(
     ctx: typer.Context,
-    base_dir: DirOption = None,
-    album_dirs: AlbumDirOption = None,
+    base_dir: DIR_OPTION = None,
+    album_dirs: ALBUM_DIR_OPTION = None,
     output_format: OUTPUT_FORMAT_OPTION = OutputFormat.TEXT,
     output_file: OUTPUT_FILE_OPTION = None,
 ) -> None:

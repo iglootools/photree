@@ -38,7 +38,7 @@ _FILENAME = "config.toml"
 _EMPTY_CONFIG = PhotreeConfig()
 
 # ``platformdirs`` lookup signature: app name -> directory.
-ConfigDirFn = Callable[[str], str]
+type ConfigDirFn = Callable[[str], str]
 
 
 def config_search_paths(
