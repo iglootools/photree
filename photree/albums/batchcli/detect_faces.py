@@ -3,6 +3,7 @@ from pathlib import Path
 import typer
 
 from ...clihelpers.progress import BatchProgressBar
+from ...common.formatting import format_dry_run
 from ..cmd_handler.detect_faces import batch_detect_faces
 from .failures import exit_if_no_albums, exit_with_failures
 from .resolution import make_display_fn
@@ -39,8 +40,12 @@ def run_batch_detect_faces(
             ),
         )
 
-    verb = "would be processed" if dry_run else "processed"
+    tally = (
+        f"{result.succeeded} album(s) would be processed"
+        if dry_run
+        else f"Done. {result.succeeded} album(s) processed"
+    )
     typer.echo(
-        f"\nDone. {result.succeeded} album(s) {verb}, {len(result.failures)} failed."
+        format_dry_run(f"\n{tally}, {len(result.failures)} failed.", dry_run=dry_run)
     )
     exit_with_failures(result.failures, "detect-faces", cwd)

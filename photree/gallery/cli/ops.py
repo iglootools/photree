@@ -20,7 +20,7 @@ from ...clihelpers.console import console, err_console
 from ...clihelpers.progress import BatchProgressBar, StageProgressBar
 from ...clihelpers.usage import usage_error
 from ...common.exif import exiftool_session
-from ...common.formatting import CHECK, indent
+from ...common.formatting import CHECK, format_dry_run, indent
 from ...common.fs import display_path
 from ...common.sysdeps import WhichFn
 from ...foundation.gallery_metadata import resolve_link_mode
@@ -130,7 +130,12 @@ def run_single_import(
     cwd: Path,
 ) -> AlbumImportResult:
     """Execute a single album import/reimport with stage progress bar."""
-    typer.echo("Reimport:" if plan.action is ImportAction.REIMPORT else "Import:")
+    typer.echo(
+        format_dry_run(
+            "Reimport:" if plan.action is ImportAction.REIMPORT else "Import:",
+            dry_run=dry_run,
+        )
+    )
     with StageProgressBar(total=3, labels=_stage_labels(plan)) as progress:
         try:
             result = _run_single_import(
@@ -307,7 +312,7 @@ def run_face_clustering(
     force_full: bool = False,
 ) -> None:
     """Run gallery-wide face clustering with progress bar and output."""
-    typer.echo("\nFace clustering:")
+    typer.echo(format_dry_run("\nFace clustering:", dry_run=dry_run))
     with StageProgressBar(
         total=4,
         labels={

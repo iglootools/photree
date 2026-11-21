@@ -49,7 +49,7 @@ def _fix_one(album_dir: Path, opts: _FixOptions) -> str:
         rm_orphan_flag=opts.rm_orphan,
         force=opts.force,
     )
-    return "\n".join(format_fix_result(result))
+    return "\n".join(format_fix_result(result, dry_run=opts.dry_run))
 
 
 def batch_fix(

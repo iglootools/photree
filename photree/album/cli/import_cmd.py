@@ -8,6 +8,7 @@ from ...clihelpers.console import console, err_console
 from ...clihelpers.options import CONFIG_OPTION, LINK_MODE_OPTION
 from ...clihelpers.progress import StageProgressBar
 from ...common.exif import exiftool_session
+from ...common.formatting import format_dry_run
 from ...common.fs import display_path, list_files
 from ...common.sysdeps import WhichFn
 from ...foundation.gallery_metadata import (
@@ -118,7 +119,7 @@ def import_cmd(
     _require_valid_name(album_dir, album_display, cwd=cwd)
     _require_valid_tasks(album_dir, image_capture_dir, album_display)
 
-    typer.echo("\nImport:")
+    typer.echo(format_dry_run("\nImport:", dry_run=dry_run))
     with (
         exiftool_session(which=which) as exiftool,
         exit_on_media_source_conflict(cwd),

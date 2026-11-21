@@ -172,7 +172,7 @@ class TestCollectionImportCmd:
             ],
         )
         assert result.exit_code == 0
-        assert "Dry run" in result.output
+        assert "[dry-run] No changes made." in result.output
 
         loaded = load_collection_metadata(col_dir)
         assert loaded is not None

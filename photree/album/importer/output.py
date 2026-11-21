@@ -239,8 +239,15 @@ def batch_album_skipped(album_name: str, reason: str) -> str:
     return f"Skipping:  {markup_escape(album_name)} ({markup_escape(reason)})"
 
 
-def batch_summary(imported: int, skipped: int, failed: int = 0) -> str:
-    return f"\nDone. {imported} album(s) imported, {failed} failed, {skipped} skipped."
+def batch_summary(
+    imported: int, skipped: int, failed: int = 0, *, dry_run: bool = False
+) -> str:
+    tally = (
+        f"{imported} album(s) would be imported"
+        if dry_run
+        else f"Done. {imported} album(s) imported"
+    )
+    return f"\n{tally}, {failed} failed, {skipped} skipped."
 
 
 def batch_failures(failures: Sequence[AlbumFailure], base: Path) -> str:

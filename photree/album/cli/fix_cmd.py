@@ -154,5 +154,5 @@ def _run_archive_fixes(
             )
             raise typer.Exit(code=1) from exc
 
-    for line in format_fix_result(result):
-        typer.echo(line)
+    for line in format_fix_result(result, dry_run=dry_run):
+        typer.echo(format_dry_run(line, dry_run=dry_run))

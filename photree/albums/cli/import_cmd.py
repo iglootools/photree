@@ -16,7 +16,7 @@ from ...clihelpers.progress import BatchProgressBar
 from ...clihelpers.runtime import runtime_of
 from ...clihelpers.usage import usage_error
 from ...common.exif import exiftool_session
-from ...common.formatting import indent
+from ...common.formatting import format_dry_run, indent
 from ...common.fs import display_path
 from ...common.sysdeps import WhichFn
 from ...foundation.gallery_metadata import (
@@ -248,8 +248,11 @@ def import_cmd(
         raise typer.Exit(code=1)
 
     typer.echo(
-        importer_output.batch_summary(
-            result.imported, result.skipped, result.failed_count
+        format_dry_run(
+            importer_output.batch_summary(
+                result.imported, result.skipped, result.failed_count, dry_run=dry_run
+            ),
+            dry_run=dry_run,
         )
     )
     if not dry_run:

@@ -5,6 +5,7 @@ import typer
 
 from ...clihelpers.console import err_console
 from ...clihelpers.runtime import runtime_of
+from ...common.formatting import format_dry_run
 from ...common.fs import display_path
 from .. import media
 from . import app
@@ -65,7 +66,12 @@ def mv_media_cmd(
             err_console.print(media.format_media_op_error(exc, cwd), markup=False)
             raise typer.Exit(code=1) from None
 
-    typer.echo(media.media_op_summary("move", result.files_by_dir))
+    typer.echo(
+        format_dry_run(
+            media.media_op_summary("move", result.files_by_dir, dry_run=dry_run),
+            dry_run=dry_run,
+        )
+    )
     typer.echo(
         media.media_op_check_suggestions(
             [

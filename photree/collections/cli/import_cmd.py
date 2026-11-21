@@ -23,7 +23,7 @@ from ...collection.importer.output import (
 from ...collection.importer.selection import has_selection
 from ...collection.store.collection_discovery import discover_collections
 from ...common.exif import exiftool_session
-from ...common.formatting import indent
+from ...common.formatting import format_dry_run, indent
 from ...common.fs import display_path
 from ...common.sysdeps import WhichFn
 from ...foundation.metadata_io import InvalidMetadataError
@@ -96,7 +96,11 @@ def _print_summary(
     imported = len(outcomes) - len(failures)
     verb = "would be imported" if dry_run else "imported"
     typer.echo(
-        f"\n{imported} collection(s) {verb}, {skipped} skipped, {len(failures)} failed."
+        format_dry_run(
+            f"\n{imported} collection(s) {verb}, {skipped} skipped, "
+            f"{len(failures)} failed.",
+            dry_run=dry_run,
+        )
     )
     if failures:
         err_console.print("\nFailed collections:")

@@ -10,7 +10,7 @@ from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...clihelpers.runtime import runtime_of
 from ...clihelpers.sysdeps import EXIF_DEPS, require_system_deps
 from ...common.exif import exiftool_session
-from ...common.formatting import indent
+from ...common.formatting import format_dry_run, indent
 from ...common.fs import display_path
 from ..id import format_collection_external_id
 from ..importer.import_members import (
@@ -67,7 +67,8 @@ def _print_result(result: CollectionImportResult, *, dry_run: bool, cwd: Path) -
     for warning in result.warnings:
         console.print(indent(format_resolution_warning(warning)), markup=False)
 
-    typer.echo(f"Imported into: {display_path(result.collection_dir, cwd)}")
+    into = "Would import into" if dry_run else "Imported into"
+    typer.echo(f"{into}: {display_path(result.collection_dir, cwd)}")
     typer.echo(
         indent(
             "\n".join(
@@ -78,7 +79,11 @@ def _print_result(result: CollectionImportResult, *, dry_run: bool, cwd: Path) -
             )
         )
     )
-    typer.echo("\nDry run — no changes made." if dry_run else "Import complete.")
+    typer.echo(
+        format_dry_run("\nNo changes made.", dry_run=True)
+        if dry_run
+        else "Import complete."
+    )
 
 
 @app.command("import")

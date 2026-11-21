@@ -3,6 +3,7 @@ from pathlib import Path
 import typer
 
 from ...clihelpers.progress import BatchProgressBar
+from ...common.formatting import format_dry_run
 from ..cmd_handler.init import batch_init
 from .failures import exit_if_no_albums, exit_with_failures
 from .resolution import make_display_fn
@@ -31,7 +32,14 @@ def run_batch_init(
         )
 
     typer.echo(
-        f"\nDone. {result.initialized} album(s) initialized, "
-        f"{len(result.failures)} failed."
+        format_dry_run(
+            (
+                f"\n{result.initialized} album(s) would be initialized"
+                if dry_run
+                else f"\nDone. {result.initialized} album(s) initialized"
+            )
+            + f", {len(result.failures)} failed.",
+            dry_run=dry_run,
+        )
     )
     exit_with_failures(result.failures, "init", cwd)

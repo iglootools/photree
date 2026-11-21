@@ -9,7 +9,7 @@ from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...clihelpers.runtime import runtime_of
 from ...clihelpers.sysdeps import import_deps, require_system_deps
 from ...clihelpers.usage import usage_error
-from ...common.formatting import indent, markup_escape
+from ...common.formatting import format_dry_run, indent, markup_escape
 from ...common.fs import display_path
 from ...common.sysdeps import WhichFn
 from ...foundation.gallery_metadata import (
@@ -139,7 +139,13 @@ def import_all_cmd(
         _cluster_faces(resolved_gallery)
 
     typer.echo(
-        "\n" + format_import_all_summary(result, check_failed, len(import_plan.skipped))
+        format_dry_run(
+            "\n"
+            + format_import_all_summary(
+                result, check_failed, len(import_plan.skipped), dry_run=dry_run
+            ),
+            dry_run=dry_run,
+        )
     )
     if import_all_failed(result, check_failed):
         raise typer.Exit(code=1)

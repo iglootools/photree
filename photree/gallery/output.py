@@ -133,16 +133,25 @@ def format_import_failure_labels(
 
 
 def format_import_all_summary(
-    result: BatchImportResult, check_failed: list[Path], skipped: int
+    result: BatchImportResult,
+    check_failed: list[Path],
+    skipped: int,
+    *,
+    dry_run: bool = False,
 ) -> str:
     """The ``gallery import-all`` tally: imports, failures, check failures, skips."""
+    imported = len(result.imported)
     parts = [
-        f"{len(result.imported)} album(s) imported",
+        (
+            f"{imported} album(s) would be imported"
+            if dry_run
+            else f"{imported} album(s) imported"
+        ),
         f"{len(result.failures)} failed",
         *([f"{len(check_failed)} failed post-import check"] if check_failed else []),
         *([f"{skipped} skipped"] if skipped else []),
     ]
-    return f"Done. {', '.join(parts)}."
+    return f"{', '.join(parts)}." if dry_run else f"Done. {', '.join(parts)}."
 
 
 def import_all_failed(result: BatchImportResult, check_failed: list[Path]) -> bool:

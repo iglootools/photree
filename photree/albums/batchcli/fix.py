@@ -8,6 +8,7 @@ from ...album.fix.ios.output import batch_fix_ios_summary
 from ...album.fix.output import batch_fix_summary
 from ...clihelpers.console import console
 from ...clihelpers.progress import BatchProgressBar
+from ...common.formatting import format_dry_run
 from ..cmd_handler.fix import batch_fix
 from ..cmd_handler.fix_ios import batch_fix_ios
 from .failures import album_reports_block, exit_if_no_albums, exit_with_failures
@@ -54,7 +55,13 @@ def run_batch_fix(
         )
 
     _print_reports(result.album_reports)
-    console.print(batch_fix_summary(result.fixed, len(result.failures)))
+    console.print(
+        format_dry_run(
+            batch_fix_summary(result.fixed, len(result.failures), dry_run=dry_run),
+            dry_run=dry_run,
+            markup=True,
+        )
+    )
     # The single-album retry must carry the same fixes, or it only prints
     # "No fix specified".
     retry_flags = "".join(
@@ -106,5 +113,11 @@ def run_batch_fix_ios(
         )
 
     _print_reports(result.album_reports)
-    console.print(batch_fix_ios_summary(result.fixed, len(result.failures)))
+    console.print(
+        format_dry_run(
+            batch_fix_ios_summary(result.fixed, len(result.failures), dry_run=dry_run),
+            dry_run=dry_run,
+            markup=True,
+        )
+    )
     exit_with_failures(result.failures, "fix-ios", cwd)

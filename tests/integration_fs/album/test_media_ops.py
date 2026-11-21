@@ -394,5 +394,10 @@ class TestMediaOpSummary:
             "Done. Moved 2 file(s): 2 from orig-img."
         )
 
+    def test_dry_run_summary_says_what_would_happen(self) -> None:
+        assert media_op_summary(
+            "remove", (("orig-img", ("a", "b")),), dry_run=True
+        ) == ("Would remove 2 file(s): 2 from orig-img.")
+
     def test_summary_names_the_verb_when_nothing_matched(self) -> None:
         assert media_op_summary("remove", ()) == "Done. No files to remove."
