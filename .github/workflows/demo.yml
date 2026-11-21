@@ -42,7 +42,7 @@ jobs:
     # records the demo with `mise run ci-demo-record` and keeps the cast as the
     # demo-recording artifact. Publishing from CI stays off, because GitHub-hosted runners
     # cannot reach asciinema.org; publish with `mise run demo-upload-latest`.
-    uses: iglootools/common/.github/workflows/reusable-demo.yml@74b6bca31bb10ae73c011fb08d4b858b8f947fcb # v1.29.1
+    uses: iglootools/common/.github/workflows/reusable-demo.yml@4de2f56f5a4e0a1625d072f8656b75428a84688a # v1.30.0
     with:
       # Pinned here, matching the version mise.lock was generated with; the custom manager in
       # renovate.json keeps it current.

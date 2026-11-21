@@ -34,4 +34,4 @@ jobs:
     # third-party action under that grant. The action is pinned by commit SHA in
     # iglootools/common so it is reviewed once there — and a bump to that pin is not a routine
     # dependency update. See the shared workflow's header before approving one.
-    uses: iglootools/common/.github/workflows/reusable-uv-dependency-submission.yml@74b6bca31bb10ae73c011fb08d4b858b8f947fcb # v1.29.1
+    uses: iglootools/common/.github/workflows/reusable-uv-dependency-submission.yml@4de2f56f5a4e0a1625d072f8656b75428a84688a # v1.30.0

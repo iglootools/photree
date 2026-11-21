@@ -29,4 +29,4 @@ jobs:
     # The job lives in iglootools/common (guidelines/project-setup/shared-workflows.md). Keep
     # this workflow named `release`: publish.yml and demo.yml start on its completion.
     # Rehearse a change with `with: dry-run: true`, which pushes nothing.
-    uses: iglootools/common/.github/workflows/reusable-release.yml@74b6bca31bb10ae73c011fb08d4b858b8f947fcb # v1.29.1
+    uses: iglootools/common/.github/workflows/reusable-release.yml@4de2f56f5a4e0a1625d072f8656b75428a84688a # v1.30.0
