@@ -1,9 +1,10 @@
 # CLI Conventions
 
-How photree's command-line layer is built: the command hierarchy, option and output
-conventions, progress and error reporting, and where CLI code ends and the domain begins.
-[guidelines.md](./guidelines.md#area-conventions) lists the paths these conventions govern;
-read this before changing any of them, or adding a command anywhere.
+How photree's command-line layer is built: the command hierarchy, option and
+output conventions, progress and error reporting, and where CLI code ends and
+the domain begins. [guidelines.md](./guidelines.md#area-conventions) lists the
+paths these conventions govern; read this before changing any of them, or adding
+a command anywhere.
 
 <!-- toc -->
 **On this page**
@@ -27,6 +28,7 @@ read this before changing any of them, or adding a command anywhere.
 
 Use `typer` for CLI implementation. Rich console instances for formatted
 output:
+
 - `console` (`clihelpers/console.py`) — standard output
 - `err_console` — stderr for errors and troubleshooting
 - `typer.echo()` — simple unformatted text (section headers, plain messages)
@@ -88,6 +90,7 @@ managers (`with` syntax). Choose based on the operation:
 | `BatchProgressBar` | Per-item batch operations (albums, collections) | `✓`/`✗`/`⚠` per item |
 
 Usage pattern:
+
 ```python
 with BatchProgressBar(
     total=len(items), description="Checking", done_description="check"
@@ -97,17 +100,19 @@ with BatchProgressBar(
         progress.on_end(item.name, success=True)
 ```
 
-For gallery-scoped scanning (resolving album list), use a transient
-Rich spinner via `resolve_check_batch_albums` in `albums/batchcli/resolution.py`.
+For gallery-scoped scanning (resolving album list), use a transient Rich spinner
+via `resolve_check_batch_albums` in `albums/batchcli/resolution.py`.
 
 ## Icons and Result Formatting
 
 Defined in `common/formatting.py`:
+
 - `✓` (green) — `CHECK` — success
 - `✗` (red) — `CROSS` — failure
 - `✓` (orange) — `WARNING` — success with warnings
 
 Progress bar labels during operation:
+
 - "Checking..." during the operation
 - "✓ check" for a successfully completed step
 - "✗ check" for a failed step
@@ -121,6 +126,7 @@ Progress bar labels during operation:
 | 2 | Configuration error | Invalid config file |
 
 **Error output pattern**:
+
 1. Describe the problem via `err_console.print()`
 2. Suggest a fix: `"Run 'photree <command>' to <fix>."`
 3. `raise typer.Exit(code=1)`
@@ -165,7 +171,7 @@ import-linter contract enforces this).
 Commands reference each other in error messages so the user can navigate
 the tool by following its output:
 
-```
+```text
 Albums with missing IDs found:
   2024-07-14 - Trip
 Run 'photree gallery fix --id' to generate missing album IDs.
@@ -177,6 +183,7 @@ Use single quotes around commands, include necessary flags, and use
 ## CSV Output
 
 Commands with `--format csv` follow this pattern:
+
 - `--format` option: `text` (default) or `csv`, declared with the shared
   `OUTPUT_FORMAT_OPTION` (an `OutputFormat` enum, so an unknown value is
   rejected rather than silently rendered as text)
@@ -214,6 +221,7 @@ Batch operations follow a three-layer pattern:
    the other way round
 
 Album resolution helpers live in `albums/batchcli/resolution.py`:
+
 - `resolve_check_batch_albums` — for check/list/refresh commands
 - `resolve_batch_albums` — for archive-based commands (fix-ios)
 - `resolve_init_batch_albums` — for init commands
@@ -228,4 +236,5 @@ Two levels of album validation, used in different contexts:
   `check` commands. Supports `--no-checksum` and
   `--no-check-exif-date-match` to skip expensive operations.
 
-See [internals.md — Album Validation Levels](./internals.md#album-validation-levels).
+See
+[internals.md — Album Validation Levels](./internals.md#album-validation-levels).

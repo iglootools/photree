@@ -1,34 +1,34 @@
 {
-    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-    "description": [
-        "The shared rules (digest pinning, the 14-day minimumReleaseAge with timestamp-optional, and the managers for the mise version in workflows and for [tool.uv] build-constraint-dependencies) come from the iglootools presets, pinned to a release tag: see guidelines/project-setup/dependency-automation.md in iglootools/common. What is here is photree's own."
-    ],
-    "extends": [
-        "config:recommended",
-        "github>iglootools/common//renovate/base#v1.29.1",
-        "github>iglootools/common//renovate/python#v1.29.1"
-    ],
-    "separateMajorMinor": false,
-    "packageRules": [
-        {
-            "groupName": "all dependencies",
-            "matchManagers": [
-                "*"
-            ],
-            "schedule": [
-                "at any time"
-            ],
-            "automerge": false
-        },
-        {
-            "description": "Hold Python on 3.14, the documented exception to the Python Version Policy next to requires-python in pyproject.toml: onnxruntime (face-detection stack) publishes no cp315 wheels, so uv lock cannot resolve on 3.15. Matched by depName, which is python for both the mise [tools] pin and requires-python; the package name differs (python/cpython for mise), so matchPackageNames would miss the mise pin. Remove this rule when onnxruntime ships cp315 wheels and the project moves to 3.15.",
-            "matchDepNames": [
-                "python"
-            ],
-            "allowedVersions": "<3.15"
-        }
-    ],
-    "dependencyDashboard": {
-        "enabled": true
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": [
+    "The shared rules (digest pinning, the 14-day minimumReleaseAge with timestamp-optional, and the managers for the mise version in workflows and for [tool.uv] build-constraint-dependencies) come from the iglootools presets, pinned to a release tag: see guidelines/project-setup/dependency-automation.md in iglootools/common. What is here is photree's own."
+  ],
+  "extends": [
+    "config:recommended",
+    "github>iglootools/common//renovate/base#v1.29.1",
+    "github>iglootools/common//renovate/python#v1.29.1"
+  ],
+  "separateMajorMinor": false,
+  "packageRules": [
+    {
+      "groupName": "all dependencies",
+      "matchManagers": [
+        "*"
+      ],
+      "schedule": [
+        "at any time"
+      ],
+      "automerge": false
+    },
+    {
+      "description": "Hold Python on 3.14, the documented exception to the Python Version Policy next to requires-python in pyproject.toml: onnxruntime (face-detection stack) publishes no cp315 wheels, so uv lock cannot resolve on 3.15. Matched by depName, which is python for both the mise [tools] pin and requires-python; the package name differs (python/cpython for mise), so matchPackageNames would miss the mise pin. Remove this rule when onnxruntime ships cp315 wheels and the project moves to 3.15.",
+      "matchDepNames": [
+        "python"
+      ],
+      "allowedVersions": "<3.15"
     }
+  ],
+  "dependencyDashboard": {
+    "enabled": true
+  }
 }

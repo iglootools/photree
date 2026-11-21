@@ -149,10 +149,10 @@ extend-select = ["PLW1514", "RUF100", "TID251"]
 
 [tool.pytest.ini_options]
 markers = [
-    "integration_fs: filesystem integration tests (full workflow)",
+  "integration_fs: filesystem integration tests (full workflow)",
 ]
 filterwarnings = [
-    "ignore::DeprecationWarning:importlib._bootstrap",  # FAISS SWIG bindings
+  "ignore::DeprecationWarning:importlib._bootstrap", # FAISS SWIG bindings
 ]
 
 [tool.pyright]

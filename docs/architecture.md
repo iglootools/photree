@@ -1,9 +1,11 @@
 # Architecture
 
-[README.md](../README.md) documents the main use cases and philosophy that guide the design of photree.
+[README.md](../README.md) documents the main use cases and philosophy that guide
+the design of photree.
 
-For the domain concepts (albums, media sources, collections, naming conventions), see
-[domain.md](./domain.md). For the on-disk layout and metadata formats, see
+For the domain concepts (albums, media sources, collections, naming
+conventions), see [domain.md](./domain.md). For the on-disk layout and metadata
+formats, see
 [internals.md](./internals.md).
 
 This document is for contributors navigating the codebase: the module-level
@@ -93,7 +95,7 @@ graph TD
 The top-level packages form layers. A package imports only from layers below
 it, and packages on the same line (`|`) do not import each other:
 
-```
+```text
 cli
 gallery | demo | check
 albums | collections
@@ -106,12 +108,12 @@ dates | common
 ```
 
 These rules are enforced by `mise run boundaries-check` (part of
-`mise run check`) through the [import-linter](https://import-linter.readthedocs.io/)
-contracts in `pyproject.toml` (`[tool.importlinter]`). The generated graph
-above only *shows* dependencies; the contracts are the source of truth and
-reject a new import that breaks a rule. See
-[guidelines.md — Module boundaries](./guidelines.md#coding) for how to change
-them.
+`mise run check`) through the
+[import-linter](https://import-linter.readthedocs.io/) contracts in
+`pyproject.toml` (`[tool.importlinter]`). The generated graph above only *shows*
+dependencies; the contracts are the source of truth and reject a new import that
+breaks a rule. See [guidelines.md — Module boundaries](./guidelines.md#coding)
+for how to change them.
 
 - **Domain code never depends on the CLI layer**, directly or indirectly. The
   CLI layer is `cli/`, every `*/cli/` subpackage, `albums/batchcli/`,

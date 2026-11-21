@@ -65,7 +65,7 @@ collections, naming conventions, identifiers — see [domain.md](./domain.md).
 A gallery is a directory containing `.photree/gallery.yaml` and an `albums/`
 subdirectory where imported albums are organized by year:
 
-```
+```text
 <Gallery Root>/
   .photree/
     gallery.yaml            gallery-wide settings
@@ -189,6 +189,7 @@ If no gallery metadata is found, the command exits with an error suggesting
 ### Album Detection
 
 A directory is recognized as a photree album when it contains:
+
 1. A `.photree/album.yaml` file (album metadata), **and**
 2. At least one media source (iOS or std)
 
@@ -204,7 +205,7 @@ sources.
 
 ### Directory Structure
 
-```
+```text
 <Album Title>/
   .photree/               album metadata directory
     album.yaml            album metadata (id)
@@ -419,7 +420,7 @@ date range containment:
 
 ### Collection Directory Layout
 
-```
+```text
 <Collection Title>/
   .photree/
     collection.yaml         collection metadata
@@ -434,7 +435,7 @@ with relative symlinks that organize content for easy navigation.
 
 ### Structure
 
-```
+```text
 browsable/
   public/
     albums/
@@ -686,7 +687,8 @@ operations.
 - **No performance advantage.** For the small number of files sampled per album,
   Pillow's per-file Python overhead is comparable to (or slower than) exiftool's
   batch mode. exiftool reads only metadata headers without decoding pixel data,
-  and its batch/persistent-process modes amortize startup cost across many files.
+  and its batch/persistent-process modes amortize startup cost across many
+  files.
 - **Narrower format coverage.** exiftool handles HEIC, DNG, JPEG, PNG, MOV, MP4,
   and dozens of other formats uniformly. Pillow requires format-specific plugins
   (pillow_heif for HEIC) and still cannot match exiftool's breadth.
@@ -767,12 +769,14 @@ cross-album date collisions. No media file access — only inspects names
 and album metadata. Fast, suitable as a pre-validation gate.
 
 Includes:
+
 - Per-album naming validation (parseability, valid calendar dates and
   ranges, tags, part number rules, canonical spacing)
 - Cross-album date collision detection (multiple non-private single-day
   albums on the same date without part numbers)
 
 Used by:
+
 - `gallery refresh` — ensures all album names are parsable and
   collision-free before modifying any collections
 - `gallery import` / `gallery import-all` — validates naming before
@@ -792,6 +796,7 @@ them is only reported by `gallery import`.
 ### Full Check
 
 Includes the light check plus filesystem and media validation:
+
 - Directory structure (required/optional subdirectories)
 - Album ID and media metadata presence and sync
 - Per-media-source integrity (checksum verification, browsable/archive
@@ -802,6 +807,7 @@ Includes the light check plus filesystem and media validation:
 - Cross-album checks (date collisions, duplicate IDs)
 
 Used by:
+
 - `album check` / `albums check` / `gallery check`
 - Post-import checks after `gallery import`
 
@@ -818,7 +824,7 @@ mtimes — no exiftool process needed.
 
 ### Storage Layout
 
-```
+```text
 <Album>/
   .photree/
     cache/
@@ -857,6 +863,7 @@ current `version` is treated as absent and rebuilt on the next refresh.
 ### Change Detection
 
 A file needs EXIF re-reading when:
+
 - Its key is not in the cache (new file)
 - Its mtime differs from cached mtime (file changed)
 
@@ -897,7 +904,7 @@ for acceleration.
 
 ### Album-Level Storage
 
-```
+```text
 <Album>/
   .photree/
     cache/
@@ -956,13 +963,14 @@ to overlap CPU-bound `sips` work with Neural Engine inference.
 #### Change Detection
 
 An image needs re-processing when:
+
 - Not yet in `processed-keys` (new image)
 - File modification time differs from stored `mtime`
 - Model name/version changed (only re-detection, thumbnails reused)
 
 ### Gallery-Level Storage
 
-```
+```text
 <Gallery>/
   .photree/
     faces/
