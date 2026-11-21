@@ -23,7 +23,7 @@ read this before changing any of them, or adding a command anywhere.
 - [Validation Levels](#validation-levels)
 <!-- tocstop -->
 
-### Framework
+## Framework
 
 Use `typer` for CLI implementation. Rich console instances for formatted
 output:
@@ -31,7 +31,7 @@ output:
 - `err_console` — stderr for errors and troubleshooting
 - `typer.echo()` — simple unformatted text (section headers, plain messages)
 
-### Command Hierarchy
+## Command Hierarchy
 
 Commands are organized in three scopes (see `docs/usage.md`):
 
@@ -47,7 +47,7 @@ require a gallery. Single-item commands operate on one directory.
 **Nested sub-commands**: Use `typer.Typer` sub-apps for grouping
 (e.g., `gallery metadata set`, `collection metadata set`).
 
-### Standard Operations
+## Standard Operations
 
 Most entity types support the same set of operations:
 
@@ -63,7 +63,7 @@ Most entity types support the same set of operations:
 | `stats` | Aggregated disk usage and content statistics | album, albums, gallery |
 | `metadata set` | Update settings after init | collection, gallery |
 
-### Option Conventions
+## Option Conventions
 
 - **Directory options**: `--album-dir -a`, `--collection-dir -c`,
   `--gallery-dir -g`, `--dir -d` (scan base)
@@ -75,7 +75,7 @@ Most entity types support the same set of operations:
   Output includes `[dry-run]` or `[dry run]` prefix. Summary shows
   "would be" phrasing
 
-### Progress Indicators
+## Progress Indicators
 
 All progress bars are in `clihelpers/progress.py` and support context
 managers (`with` syntax). Choose based on the operation:
@@ -100,7 +100,7 @@ with BatchProgressBar(
 For gallery-scoped scanning (resolving album list), use a transient
 Rich spinner via `resolve_check_batch_albums` in `albums/batchcli/resolution.py`.
 
-### Icons and Result Formatting
+## Icons and Result Formatting
 
 Defined in `common/formatting.py`:
 - `✓` (green) — `CHECK` — success
@@ -112,7 +112,7 @@ Progress bar labels during operation:
 - "✓ check" for a successfully completed step
 - "✗ check" for a failed step
 
-### Error Handling and Exit Codes
+## Error Handling and Exit Codes
 
 | Exit code | Meaning | When |
 |-----------|---------|------|
@@ -130,7 +130,7 @@ count: print each failed item with its error, count failures separately from
 skips, and exit 1. A summary that folds failures into "skipped" and exits 0
 makes a wholly-failed run look like a successful one.
 
-### System Dependencies
+## System Dependencies
 
 Anything that shells out to `sips` or `exiftool` resolves its requirement
 through `clihelpers/sysdeps.py` (`import_deps()`, `refresh_deps()`,
@@ -160,7 +160,7 @@ statuses as a parameter and stay pure; output layers render them with
 — `*/cli/`, `albums/batchcli/`, `clihelpers/` — may import `clihelpers`; an
 import-linter contract enforces this).
 
-### Discoverability
+## Discoverability
 
 Commands reference each other in error messages so the user can navigate
 the tool by following its output:
@@ -174,7 +174,7 @@ Run 'photree gallery fix --id' to generate missing album IDs.
 Use single quotes around commands, include necessary flags, and use
 `display_path` for paths so they can be copy-pasted.
 
-### CSV Output
+## CSV Output
 
 Commands with `--format csv` follow this pattern:
 - `--format` option: `text` (default) or `csv`, declared with the shared
@@ -187,7 +187,7 @@ Commands with `--format csv` follow this pattern:
 - When `--format csv`, suppress non-CSV output (e.g., "No albums found"
   goes to stderr)
 
-### Ambient Gallery Lookups
+## Ambient Gallery Lookups
 
 Finding the gallery (walking up to `.photree/gallery.yaml`) is ambient state,
 like probing PATH, so it is the CLI layer's job too. Core functions take the
@@ -197,7 +197,7 @@ and `run_album_check` — and the CLI (or `albums/batchcli/`) calls
 may live in different galleries takes a resolver instead
 (`batch_refresh(link_mode_for=...)`), still supplied by the CLI.
 
-### Batch Operation Architecture
+## Batch Operation Architecture
 
 Batch operations follow a three-layer pattern:
 
@@ -218,7 +218,7 @@ Album resolution helpers live in `albums/batchcli/resolution.py`:
 - `resolve_batch_albums` — for archive-based commands (fix-ios)
 - `resolve_init_batch_albums` — for init commands
 
-### Validation Levels
+## Validation Levels
 
 Two levels of album validation, used in different contexts:
 
