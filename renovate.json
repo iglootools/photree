@@ -28,5 +28,7 @@
             "allowedVersions": "<3.15"
         }
     ],
-    "dependencyDashboard": true
+    "dependencyDashboard": {
+        "enabled": true
+    }
 }
