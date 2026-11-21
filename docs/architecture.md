@@ -107,8 +107,8 @@ foundation
 dates | common
 ```
 
-These rules are enforced by `mise run boundaries-check` (part of
-`mise run check`) through the
+These rules are enforced by `mise run lint-boundaries` (part of
+`mise run lint`) through the
 [import-linter](https://import-linter.readthedocs.io/) contracts in
 `pyproject.toml` (`[tool.importlinter]`). The generated graph above only *shows*
 dependencies; the contracts are the source of truth and reject a new import that

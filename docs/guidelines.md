@@ -41,7 +41,7 @@ For general coding, Python, and tooling guidelines, see the
   - The import-linter contracts in `pyproject.toml` (`[tool.importlinter]`) are
     the source of truth for which package may import which;
     [architecture.md — Layering](./architecture.md#layering)
-    explains them, and `mise run boundaries-check` (part of `mise run check`)
+    explains them, and `mise run lint-boundaries` (part of `mise run lint`)
     enforces them.
   - When a change needs a new edge, decide whether it belongs: move the code
     to the layer that may own it rather than bending the contract. If the
