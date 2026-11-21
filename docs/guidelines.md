@@ -112,7 +112,7 @@ the linked document in full before changing files under these paths.
 
 | Paths | Conventions |
 |-------|-------------|
-| `photree/cli/`, `photree/clihelpers/`, `photree/*/cli/`, `photree/albums/batchcli/` — and adding a command anywhere | [cli-conventions.md](./cli-conventions.md) — command hierarchy, standard operations, options, progress, exit codes, system dependencies, CSV, batch architecture, validation levels |
+| `photree/cli/`, `photree/clihelpers/`, `photree/*/cli/`, `photree/albums/batchcli/` — and adding a command anywhere | [cli.md](./guidelines/cli.md) — command hierarchy, standard operations, options, progress, exit codes, system dependencies, CSV, batch architecture, validation levels |
 
 ## Implementation Checklists
 
@@ -205,7 +205,7 @@ When introducing a new concept that is managed by photree:
 - [ ] **Discovery**: `is_<entity>`, `discover_<entities>` functions
 - [ ] **CLI commands at all three levels**: single (`<entity> <op>`), batch
       (`<entities> <op>`), gallery (`gallery <op>`), following
-      [cli-conventions.md](./cli-conventions.md)
+      [cli.md](./guidelines/cli.md)
 - [ ] **Standard operations**: init, show, check, import, metadata set, list
       (with CSV output), stats
 - [ ] **Stats**: disk usage and content statistics at all three levels (single,

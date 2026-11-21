@@ -2,7 +2,7 @@
 
 How photree's command-line layer is built: the command hierarchy, option and
 output conventions, progress and error reporting, and where CLI code ends and
-the domain begins. [guidelines.md](./guidelines.md#area-conventions) lists the
+the domain begins. [guidelines.md](../guidelines.md#area-conventions) lists the
 paths these conventions govern; read this before changing any of them, or adding
 a command anywhere.
 
@@ -148,7 +148,7 @@ Every requirement is declared in that one module — never inline at the call
 site — so adding a binary cannot leave a caller behind. Add the binary itself
 to `common/sysdeps.py`, with its purpose and install hint, never as a bare
 `shutil.which`. Keep the command/requirement table in
-[internals.md](./internals.md#system-dependencies) in sync.
+[internals.md](../internals.md#system-dependencies) in sync.
 
 Two call styles, matching what the command does:
 
@@ -237,4 +237,4 @@ Two levels of album validation, used in different contexts:
   `--no-check-exif-date-match` to skip expensive operations.
 
 See
-[internals.md — Album Validation Levels](./internals.md#album-validation-levels).
+[internals.md — Album Validation Levels](../internals.md#album-validation-levels).
