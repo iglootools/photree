@@ -16,18 +16,19 @@ a command anywhere.
 - [Progress Indicators](#progress-indicators)
 - [Icons and Result Formatting](#icons-and-result-formatting)
 - [Error Handling and Exit Codes](#error-handling-and-exit-codes)
-- [System Dependencies](#system-dependencies)
-- [Discoverability](#discoverability)
+- [Declare system dependencies in `sysdeps`, and check them before any change](#declare-system-dependencies-in-sysdeps-and-check-them-before-any-change)
+- [Suggest the next command in single quotes, with its flags](#suggest-the-next-command-in-single-quotes-with-its-flags)
 - [CSV Output](#csv-output)
-- [Ambient Gallery Lookups](#ambient-gallery-lookups)
+- [Resolve the gallery in the CLI layer, and pass the value in](#resolve-the-gallery-in-the-cli-layer-and-pass-the-value-in)
 - [Batch Operation Architecture](#batch-operation-architecture)
 - [Validation Levels](#validation-levels)
 <!-- tocstop -->
 
 ## Framework
 
-Use `typer` for CLI implementation. Rich console instances for formatted
-output:
+The CLI is built on Typer and prints through Rich, as
+[python.md › Print through Rich](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md#print-through-rich-escaping-interpolated-text-exactly-once)
+describes. photree's consoles:
 
 - `console` (`clihelpers/console.py`) — standard output
 - `err_console` — stderr for errors and troubleshooting
@@ -71,8 +72,10 @@ Most entity types support the same set of operations:
   `--gallery-dir -g`, `--dir -d` (scan base)
 - **Mutually exclusive options**: Check in the command body, print error
   to stderr, exit with code 1
-- **Shared options**: Define as `Annotated` types in `clihelpers/options.py`
-  (e.g., `DRY_RUN_OPTION`, `CHECKSUM_OPTION`, `LINK_MODE_OPTION`)
+- **Shared options**: the `<NAME>_OPTION` constants
+  [python.md](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md#start-a-functions-name-with-the-verb-that-says-what-the-caller-gets)
+  asks for live in `clihelpers/options.py` (e.g., `DRY_RUN_OPTION`,
+  `CHECKSUM_OPTION`, `LINK_MODE_OPTION`)
 - **Dry run**: `--dry-run -n`. Operations skip filesystem mutations.
   Output includes `[dry-run]` or `[dry run]` prefix. Summary shows
   "would be" phrasing
@@ -125,30 +128,33 @@ Progress bar labels during operation:
 | 1 | Error | Validation failures, check failures, missing metadata, resolution errors |
 | 2 | Configuration error | Invalid config file |
 
-**Error output pattern**:
+**Error output pattern**, photree's form of
+[general.md › Provide preflight checks and troubleshooting commands](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#provide-preflight-checks-and-troubleshooting-commands):
 
 1. Describe the problem via `err_console.print()`
 2. Suggest a fix: `"Run 'photree <command>' to <fix>."`
 3. `raise typer.Exit(code=1)`
 
-**A batch never swallows a per-item failure.** Report the reason, not just the
-count: print each failed item with its error, count failures separately from
-skips, and exit 1. A summary that folds failures into "skipped" and exits 0
-makes a wholly-failed run look like a successful one.
+**A batch reports every failure**, as
+[general.md › Report every failure in a batch, apart from the skips](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#report-every-failure-in-a-batch-apart-from-the-skips)
+describes, and exits 1 when any item failed.
 
-## System Dependencies
+## Declare system dependencies in `sysdeps`, and check them before any change
 
-Anything that shells out to `sips` or `exiftool` resolves its requirement
+photree's form of
+[general.md › Provide preflight checks and troubleshooting commands](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#provide-preflight-checks-and-troubleshooting-commands):
+anything that shells out to `sips` or `exiftool` resolves its requirement
 through `clihelpers/sysdeps.py` (`import_deps()`, `refresh_deps()`,
 `EXIF_DEPS`, `FACE_DETECTION_DEPS`) and checks it **before** any filesystem
-mutation. A missing binary is a property of the machine, so a batch must fail
-once up front rather than once per item, halfway through.
+mutation.
 
-Every requirement is declared in that one module — never inline at the call
-site — so adding a binary cannot leave a caller behind. Add the binary itself
-to `common/sysdeps.py`, with its purpose and install hint, never as a bare
-`shutil.which`. Keep the command/requirement table in
-[internals.md](../internals.md#system-dependencies) in sync.
+**Why:** with every requirement declared in that one module, never inline at
+the call site, adding a binary cannot leave a caller behind.
+
+- Add the binary itself to `common/sysdeps.py`, with its purpose and install
+  hint, never as a bare `shutil.which`.
+- Keep the command/requirement table in
+  [internals.md](../internals.md#system-dependencies) in sync.
 
 Two call styles, matching what the command does:
 
@@ -160,16 +166,18 @@ Two call styles, matching what the command does:
   staging/Image Capture problems in one pass. `import-check` is a pure
   diagnostic and depends on this.
 
-Probing PATH is the CLI layer's job. Library functions take the resolved
-statuses as a parameter and stay pure; output layers render them with
-`common/sysdeps_output.py`, never by importing `clihelpers` (only CLI modules
-— `*/cli/`, `albums/batchcli/`, `clihelpers/` — may import `clihelpers`; an
-import-linter contract enforces this).
+Probing PATH is the CLI layer's job, as ambient state is under
+[general.md › Testability](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#testability).
+Library functions take the resolved statuses as a parameter; output layers
+render them with `common/sysdeps_output.py`, never by importing `clihelpers`
+(only CLI modules — `*/cli/`, `albums/batchcli/`, `clihelpers/` — may import
+`clihelpers`; an import-linter contract enforces this).
 
-## Discoverability
+## Suggest the next command in single quotes, with its flags
 
-Commands reference each other in error messages so the user can navigate
-the tool by following its output:
+Commands reference each other in error messages, as
+[general.md › Make the CLI navigable from its own output](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#make-the-cli-navigable-from-its-own-output)
+asks:
 
 ```text
 Albums with missing IDs found:
@@ -177,8 +185,10 @@ Albums with missing IDs found:
 Run 'photree gallery fix --id' to generate missing album IDs.
 ```
 
-Use single quotes around commands, include necessary flags, and use
-`display_path` for paths so they can be copy-pasted.
+Put single quotes around the command, include the flags it needs, and print
+paths with `display_path`.
+
+**Why:** the user copies the suggestion as-is.
 
 ## CSV Output
 
@@ -194,7 +204,7 @@ Commands with `--format csv` follow this pattern:
 - When `--format csv`, suppress non-CSV output (e.g., "No albums found"
   goes to stderr)
 
-## Ambient Gallery Lookups
+## Resolve the gallery in the CLI layer, and pass the value in
 
 Finding the gallery (walking up to `.photree/gallery.yaml`) is ambient state,
 like probing PATH, so it is the CLI layer's job too. Core functions take the
