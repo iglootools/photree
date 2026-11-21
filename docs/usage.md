@@ -22,18 +22,22 @@ See [Installation instructions](./installation.md)
 
 ## Configuration
 
-photree uses a TOML config file for default settings. The config file is optional — all values
-can be overridden via CLI flags.
+photree uses a TOML config file for default settings. The config file is
+optional — all values can be overridden via CLI flags.
 
 ### Config file location
 
 photree searches for `config.toml` in these directories, in order:
 
-1. `$XDG_CONFIG_HOME/photree/config.toml` (typically `~/.config/photree/config.toml`)
-2. Platform user config dir (macOS: `~/Library/Application Support/photree/config.toml`)
-3. Platform site config dir (macOS: `/Library/Application Support/photree/config.toml`)
+1. `$XDG_CONFIG_HOME/photree/config.toml` (typically
+   `~/.config/photree/config.toml`)
+2. Platform user config dir (macOS:
+   `~/Library/Application Support/photree/config.toml`)
+3. Platform site config dir (macOS:
+   `/Library/Application Support/photree/config.toml`)
 
-The first file found is used. You can also pass `--config <path>` to any command to use a specific file.
+The first file found is used. You can also pass `--config <path>` to any command
+to use a specific file.
 
 ### Config file format
 
@@ -62,14 +66,17 @@ album-layout = "archive"
 
 Most operations (check, fix, stats, export) are available in three flavours:
 
-- **`photree gallery <op>`** — operates on all albums within an initialized gallery
-  (resolved from cwd or `--gallery-dir`). This is the recommended way to manage albums.
+- **`photree gallery <op>`** — operates on all albums within an initialized
+  gallery (resolved from cwd or `--gallery-dir`). This is the recommended way to
+  manage albums.
 - **`photree album <op>`** — operates on a single album directory.
-- **`photree albums <op>`** — batch variant that scans a directory (`--dir`) or accepts
-  explicit album directories (`--album-dir`, repeatable). Does not require a gallery.
+- **`photree albums <op>`** — batch variant that scans a directory (`--dir`) or
+  accepts explicit album directories (`--album-dir`, repeatable). Does not
+  require a gallery.
 
-This document covers the `gallery` commands and the Image Capture import workflow.
-See the [CLI Reference](./cli-reference.md) for the full `album` and `albums` variants.
+This document covers the `gallery` commands and the Image Capture import
+workflow. See the [CLI Reference](./cli-reference.md) for the full `album` and
+`albums` variants.
 
 ### Initialize Gallery
 
@@ -88,10 +95,11 @@ photree gallery init -g ~/Pictures/albums
 ```
 
 The `link-mode` setting in `gallery.yaml` is used as the default for `refresh`,
-`import`, `export`, and other commands that accept `--link-mode`. An explicit `--link-mode`
-CLI flag always overrides the gallery default.
+`import`, `export`, and other commands that accept `--link-mode`. An explicit
+`--link-mode` CLI flag always overrides the gallery default.
 
-See [internals.md](./internals.md) for the gallery metadata format and resolution rules.
+See [internals.md](./internals.md) for the gallery metadata format and
+resolution rules.
 
 ### Import Media into an Album
 
@@ -146,7 +154,8 @@ is resolved in this order:
 2. `importer.image-capture-dir` from the config file
 3. Default: `~/Pictures/iPhone`
 
-See [internals.md — Import Staging Directories](./internals.md#import-staging-directories)
+See
+[internals.md — Import Staging Directories](./internals.md#import-staging-directories)
 for the full details.
 
 ### Import Albums into Gallery
@@ -171,6 +180,7 @@ photree gallery import -a "2024-06-15 - Summer Vacation" -n
 ```
 
 The gallery directory is resolved in this order:
+
 1. `--gallery-dir` / `-g` flag (explicit)
 2. Walk up from cwd looking for `.photree/gallery.yaml`
 
@@ -317,10 +327,10 @@ for details.
 
 ### Export Albums
 
-Exports all gallery albums to a shared directory (cloud sync folders, external volumes).
-The gallery is resolved like every other `gallery` command (`--gallery-dir`, or
-walking up from the current directory); `--dir` / `--album-dir` narrow the export
-to a subset.
+Exports all gallery albums to a shared directory (cloud sync folders, external
+volumes). The gallery is resolved like every other `gallery` command
+(`--gallery-dir`, or walking up from the current directory); `--dir` /
+`--album-dir` narrow the export to a subset.
 
 ```bash
 # Export using a named profile
@@ -334,24 +344,29 @@ photree gallery export -p mega -n
 ```
 
 **Album layouts:**
-- `browsable-jpg` (default): exports `{name}-jpg/` and `{name}-vid/` (most compatible formats)
+
+- `browsable-jpg` (default): exports `{name}-jpg/` and `{name}-vid/` (most
+  compatible formats)
 - `browsable`: exports `{name}-img/`, `{name}-jpg/`, `{name}-vid/`
 - `all`: exports archival directories (orig/edit), `{name}-jpg`, and `.photree/`
-  metadata (excluding the derived `cache/`), and recreates browsable dirs with links.
-  Album and media IDs travel with the export, so the copy is still recognized as
-  the same album.
+  metadata (excluding the derived `cache/`), and recreates browsable dirs with
+  links. Album and media IDs travel with the export, so the copy is still
+  recognized as the same album.
 - `archive`: exports only the archive (orig/edit) plus `.photree/` metadata
   (excluding the derived `cache/`). All browsable/JPEG dirs are dropped — they
   are regenerable via `photree albums refresh`. Space-efficient for backups to
   destinations without hardlink/symlink support (e.g. MEGA).
 
 **Share directory layouts:**
+
 - `flat`: albums placed directly under the share directory
 - `albums`: albums organized by year (`2024/2024-06-15 - Summer Vacation/`)
-- `by-month`: albums organized by month (`2024-06/2024-06-15 - Summer Vacation/`);
-  for date ranges, the start month is used
+- `by-month`: albums organized by month
+  (`2024-06/2024-06-15 - Summer Vacation/`); for date ranges, the start month is
+  used
 
-The share directory must contain a `.photree-share` sentinel file to prevent accidental exports.
+The share directory must contain a `.photree-share` sentinel file to prevent
+accidental exports.
 
 A typical MEGA backup profile combines `by-month` + `archive`:
 

@@ -1,8 +1,11 @@
 # Project-Specific Guidelines
 
-A set of [implementation checklists](#implementation-checklists) serve as a reminder for things to check when implementing new features or making changes to the codebase.
+A set of [implementation checklists](#implementation-checklists) serve as a
+reminder for things to check when implementing new features or making changes to
+the codebase.
 
-For general coding, Python, and tooling guidelines, see the [common guidelines](https://github.com/iglootools/common).
+For general coding, Python, and tooling guidelines, see the
+[common guidelines](https://github.com/iglootools/common).
 
 <!-- toc -->
 **On this page**
@@ -19,10 +22,12 @@ For general coding, Python, and tooling guidelines, see the [common guidelines](
 <!-- tocstop -->
 
 ## Coding
+
 - **Naming Conventions**
   - `kebab-case` for CLI commands
 - **Printing/Logging**
-  - Print/Log relative paths when paths relative to the current working directory, using `display_path`
+  - Print/Log relative paths when paths relative to the current working
+    directory, using `display_path`
 - **Imports**
   - Import at module level. A function-level import is reserved for two cases,
     each with a comment saying which: breaking an import cycle, or deferring a
@@ -50,11 +55,12 @@ For general coding, Python, and tooling guidelines, see the [common guidelines](
 
 ### Documented exception: mutable accumulators in scan/group loops
 
-The [common Python guidelines](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md)
+The
+[common Python guidelines](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md)
 ask for lists built as a single expression rather than `errors = []` plus
 `append`, and for `continue` to be replaced by filtering. photree keeps the
-accumulator form in two specific shapes, because the comprehension is harder
-to read, not easier:
+accumulator form in two specific shapes, because the comprehension is harder to
+read, not easier:
 
 - **Loop-carried state.** Grouping a sorted sequence into contiguous runs
   (`collection/refresh/series.py::_group_contiguous_series`) needs the previous
@@ -80,8 +86,8 @@ so that trade-off can be re-examined rather than assumed.
 The shared rules apply as written: *Presentation at the Edges* and structured
 errors under *Testability* in the common
 [general.md](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md),
-and *Data Classes* (plain exception classes), *Errors* and *Console Output*
-in [python.md](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md).
+and *Data Classes* (plain exception classes), *Errors* and *Console Output* in
+[python.md](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md).
 photree's helpers for them:
 
 - **Rendering errors**: formatters in each package's `output.py` (or the CLI
@@ -93,17 +99,16 @@ photree's helpers for them:
   markup on; progress bars (`clihelpers/progress.py`) escape the labels they
   are given, so callers pass plain text.
 - **Corrupt metadata is never "absent".** Read `.photree/*.yaml` through
-  `foundation.metadata_io.load_yaml_mapping` / `validate_metadata`: `None` means the file
-  does not exist, and anything present but unusable raises
+  `foundation.metadata_io.load_yaml_mapping` / `validate_metadata`: `None` means
+  the file does not exist, and anything present but unusable raises
   `InvalidMetadataError`. Treating corruption as absence is how a truncated
-  `album.yaml` used to get a fresh ID and orphan every reference to the old
-  one.
+  `album.yaml` used to get a fresh ID and orphan every reference to the old one.
 
 ## Area conventions
 
-Conventions for one part of the code live in their own document, so they are read when a
-change reaches that part rather than loaded into every session. Read the linked document in
-full before changing files under these paths.
+Conventions for one part of the code live in their own document, so they are
+read when a change reaches that part rather than loaded into every session. Read
+the linked document in full before changing files under these paths.
 
 | Paths | Conventions |
 |-------|-------------|
@@ -111,9 +116,11 @@ full before changing files under these paths.
 
 ## Implementation Checklists
 
-These checklists serve as a reminder for things to check when implementing new features or making changes to the codebase.
+These checklists serve as a reminder for things to check when implementing new
+features or making changes to the codebase.
 
 ### Build and CI
+
 - Keep Github workflows and mise tasks in sync with each other
 
 ### Documentation
@@ -136,43 +143,50 @@ Before calling a change done, update the documents its kind of change reaches:
 | Renaming or moving a document | every reference to it: `git grep` the old name, including the AGENTS.md links and the README's absolute URLs |
 
 ### Tests
+
 - Ensure that all new functionality is covered by tests.
 - **Test without patching**, as the common
   [Mocks](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#mocks)
-  and [Tests](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md#tests)
-  rules describe: put the decision in a decider tested with plain values, or take the
-  dependency as a parameter with the real default (as `import_album(refresh=...)` and
-  `run_preflight(system_deps=...)` already do) and pass a fake. Patching is reserved for
-  the three exceptions those rules define: **(a)** a wrapped third-party boundary,
-  **(b)** a fault no real resource can produce, **(c)** process-global state.
-  photree's building blocks for it:
-  - **Deciders**, such as `import_problems` (album import), `import_failure_of` and
-    `import_all_failed` (gallery import), tested with real result objects.
-  - **The CLI runtime** (`photree/clihelpers/runtime.py`): everything a command reads
-    from the machine or the process: `which` (installed binaries), `cwd`, `home`,
-    `environ`, the platform config directories, and `cpu_count`; `load_config` loads
-    the config file from them. Commands read them with `runtime_of(ctx)` and pass the
-    values on; `main()` hands the real one to the app, and tests pass a fake as
-    `CliRunner.invoke(..., obj=...)`. Below the commands, nothing reads the
-    environment: CLI helpers take `cwd` (or the runtime) as a parameter, and a domain
-    function that would otherwise read it takes a keyword parameter defaulting to the
-    real value (`which=shutil.which`, `load=load_config`, `cpu_count=os.cpu_count`)
-    that the command overrides. `cwd` stays the process's working directory, since the
-    OS resolves relative arguments against it: tests change it with the `chdir`
-    fixture. Album operations a command runs are album-level ports, on
-    `AlbumRuntime` (`photree/album/cli/runtime.py`), since `clihelpers` sits below
-    `album`: `album_runtime_of(ctx)` widens the shared runtime with the real ones.
-  - **Fakes**, in `tests/fakes.py`: `fake_runtime(*present)` (only *present* binaries
-    installed, a home that does not exist, an empty environment, no config file),
-    `ALL_DEPS_RUNTIME`, `fake_which`, and `fake_album_runtime(*present, run_import=...)`.
-- **Enforced** by pytest and ruff. `tests/conftest.py` replaces the `monkeypatch`
-  fixture with one that fails the test, and ruff's `TID251` bans `unittest.mock` and
-  `pytest.MonkeyPatch`, the only ways left to patch. A file in the table below imports
-  `from pytest import MonkeyPatch  # noqa: TID251 -- <category>` and defines its own
-  `monkeypatch` fixture over `MonkeyPatch.context()`, in the test module itself: one in
-  a `conftest.py` would re-enable patching for the whole directory. Ruff's `RUF100`
-  fails on a `noqa` that is no longer needed. `monkeypatch.chdir` is replaced by the
-  `chdir` fixture in `tests/conftest.py`.
+  and
+  [Tests](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md#tests)
+  rules describe: put the decision in a decider tested with plain values, or
+  take the dependency as a parameter with the real default (as
+  `import_album(refresh=...)` and `run_preflight(system_deps=...)` already do)
+  and pass a fake. Patching is reserved for the three exceptions those rules
+  define: **(a)** a wrapped third-party boundary, **(b)** a fault no real
+  resource can produce, **(c)** process-global state. photree's building blocks
+  for it:
+  - **Deciders**, such as `import_problems` (album import), `import_failure_of`
+    and `import_all_failed` (gallery import), tested with real result objects.
+  - **The CLI runtime** (`photree/clihelpers/runtime.py`): everything a command
+    reads from the machine or the process: `which` (installed binaries), `cwd`,
+    `home`, `environ`, the platform config directories, and `cpu_count`;
+    `load_config` loads the config file from them. Commands read them with
+    `runtime_of(ctx)` and pass the values on; `main()` hands the real one to the
+    app, and tests pass a fake as `CliRunner.invoke(..., obj=...)`. Below the
+    commands, nothing reads the environment: CLI helpers take `cwd` (or the
+    runtime) as a parameter, and a domain function that would otherwise read it
+    takes a keyword parameter defaulting to the real value
+    (`which=shutil.which`, `load=load_config`, `cpu_count=os.cpu_count`) that
+    the command overrides. `cwd` stays the process's working directory, since
+    the OS resolves relative arguments against it: tests change it with the
+    `chdir` fixture. Album operations a command runs are album-level ports, on
+    `AlbumRuntime` (`photree/album/cli/runtime.py`), since `clihelpers` sits
+    below `album`: `album_runtime_of(ctx)` widens the shared runtime with the
+    real ones.
+  - **Fakes**, in `tests/fakes.py`: `fake_runtime(*present)` (only *present*
+    binaries installed, a home that does not exist, an empty environment, no
+    config file), `ALL_DEPS_RUNTIME`, `fake_which`, and
+    `fake_album_runtime(*present, run_import=...)`.
+- **Enforced** by pytest and ruff. `tests/conftest.py` replaces the
+  `monkeypatch` fixture with one that fails the test, and ruff's `TID251` bans
+  `unittest.mock` and `pytest.MonkeyPatch`, the only ways left to patch. A file
+  in the table below imports
+  `from pytest import MonkeyPatch  # noqa: TID251 -- <category>` and defines its
+  own `monkeypatch` fixture over `MonkeyPatch.context()`, in the test module
+  itself: one in a `conftest.py` would re-enable patching for the whole
+  directory. Ruff's `RUF100` fails on a `noqa` that is no longer needed.
+  `monkeypatch.chdir` is replaced by the `chdir` fixture in `tests/conftest.py`.
 
   | File | What is replaced | Category | Why, and when to retire it |
   |---|---|---|---|
@@ -182,15 +196,25 @@ Before calling a change done, update the documents its kind of change reaches:
 
 When introducing a new concept that is managed by photree:
 
-- [ ] **Metadata model**: `.photree/<entity>.yaml` with Pydantic model, load/save I/O
-- [ ] **ID system**: generate/format/parse functions with `<type>_<base58>` external form
+- [ ] **Metadata model**: `.photree/<entity>.yaml` with Pydantic model,
+      load/save I/O
+- [ ] **ID system**: generate/format/parse functions with `<type>_<base58>`
+      external form
 - [ ] **Naming convention**: parser, reconstructor, validation (reuse
   `photree/dates.py` for any date component rather than re-deriving ranges)
 - [ ] **Discovery**: `is_<entity>`, `discover_<entities>` functions
-- [ ] **CLI commands at all three levels**: single (`<entity> <op>`), batch (`<entities> <op>`), gallery (`gallery <op>`), following [cli-conventions.md](./cli-conventions.md)
-- [ ] **Standard operations**: init, show, check, import, metadata set, list (with CSV output), stats
-- [ ] **Stats**: disk usage and content statistics at all three levels (single, batch, gallery)
-- [ ] **Gallery integration**: gallery check includes the new entity, gallery refresh manages derived state
-- [ ] **Progress indicators**: spinners for single operations, BatchProgressBar for batch, StageProgressBar for multi-stage
-- [ ] **Validation**: light check (naming) as gate for refresh/import, full check for check commands
-- [ ] **Documentation**: domain.md (concepts), internals.md (design), usage.md (workflow), cli-reference.md (regenerate), architecture.md (depgraph)
+- [ ] **CLI commands at all three levels**: single (`<entity> <op>`), batch
+      (`<entities> <op>`), gallery (`gallery <op>`), following
+      [cli-conventions.md](./cli-conventions.md)
+- [ ] **Standard operations**: init, show, check, import, metadata set, list
+      (with CSV output), stats
+- [ ] **Stats**: disk usage and content statistics at all three levels (single,
+      batch, gallery)
+- [ ] **Gallery integration**: gallery check includes the new entity, gallery
+      refresh manages derived state
+- [ ] **Progress indicators**: spinners for single operations, BatchProgressBar
+      for batch, StageProgressBar for multi-stage
+- [ ] **Validation**: light check (naming) as gate for refresh/import, full
+      check for check commands
+- [ ] **Documentation**: domain.md (concepts), internals.md (design), usage.md
+      (workflow), cli-reference.md (regenerate), architecture.md (depgraph)

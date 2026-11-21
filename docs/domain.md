@@ -46,7 +46,7 @@ algorithms behind refresh, import, and face clustering, see
 
 ## Overview
 
-```
+```text
 Gallery
 ├── Albums ─────────────── one event, day, or period
 │   └── Media sources ──── one per person / device (ios-main, std-nelu, ...)
@@ -105,7 +105,7 @@ source. Its identity comes from two places:
 
 ### Album Naming
 
-```
+```text
 DATE - [PART - ] [Series - ] Title [@ Location] [tags]
 ```
 
@@ -155,7 +155,7 @@ Constraints:
 
 Examples:
 
-```
+```text
 2024-07-14 - Hiking the Rockies
 2024-07-14 - 01 - Hiking the Rockies
 2024-07-14 - 01 - Canada Trip - Hiking the Rockies
@@ -279,31 +279,42 @@ macOS Image Capture exports iOS media with the following conventions, which
 photree preserves in iOS archives.
 
 **HEIC photos** (Camera Capture set to "High Efficiency"):
+
 - `IMG_0410.HEIC` — original file with depth of field metadata, etc
-- `IMG_0410.AAE` — Apple Adjustments and Edits sidecar (background defocus, filters, etc). Generally provided, but not guaranteed (e.g. no edits applied, older iOS versions).
-- `IMG_E0410.HEIC` (optional, only if edits) — edited file that lacks the depth of field metadata
+- `IMG_0410.AAE` — Apple Adjustments and Edits sidecar (background defocus,
+  filters, etc). Generally provided, but not guaranteed (e.g. no edits applied,
+  older iOS versions).
+- `IMG_E0410.HEIC` (optional, only if edits) — edited file that lacks the depth
+  of field metadata
 - `IMG_O0410.AAE` (optional, only if edits) — sidecar for the edited file
 
 **JPEG photos** (Camera Capture set to "Most Compatible"):
-- `IMG_0410.JPG` — original file (same structure as HEIC, just a different format)
+
+- `IMG_0410.JPG` — original file (same structure as HEIC, just a different
+  format)
 - `IMG_0410.AAE` — sidecar
 - `IMG_E0410.JPG` (optional, only if edits) — edited file
 - `IMG_O0410.AAE` (optional, only if edits) — sidecar for the edited file
-- Even with "High Efficiency", some files may be JPEG (suspected: front camera selfies).
+- Even with "High Efficiency", some files may be JPEG (suspected: front camera
+  selfies).
 
 **ProRAW photos** (Apple DNG, Photo Capture set to Apple "ProRAW"):
+
 - `IMG_0235.DNG` — original ProRAW file (~30 MB)
 - `IMG_0235.AAE` — sidecar
 - `IMG_E0235.JPG` (optional, only if edits) — edited file (note: JPG, not DNG)
 - `IMG_O0235.AAE` (optional, only if edits) — sidecar for the edited file
 
 **Videos** (standard and ProRes):
+
 - `IMG_0115.MOV` — original video file
 - `IMG_E0115.MOV` (optional, only if edits) — the edited video file
 - `IMG_O0115.MOV` (optional, only if edits) — sidecar for the edited video file
-- ProRes videos use the same `.MOV` container but are much larger (~663 MB vs ~45 MB).
+- ProRes videos use the same `.MOV` container but are much larger (~663 MB vs
+  ~45 MB).
 
 **Live Photos** (image + companion video):
+
 - `IMG_0410.HEIC` — the image component
 - `IMG_0410.MOV` — the companion video (~2-3 second clip)
 - `IMG_0410.AAE` — sidecar for the image
@@ -358,7 +369,7 @@ referenced by ID, never copied.
 
 ### Collection Naming
 
-```
+```text
 [DATE - ] Title [@ Location] [tags]
 ```
 
@@ -512,7 +523,8 @@ Both can be disabled per gallery (`faces-enabled`). See
   (checksums, browsable/archive consistency, JPEG completeness, duplicates),
   EXIF date matching, and cache state. Run by the `check` commands.
 
-See [internals.md — Album Validation Levels](./internals.md#album-validation-levels).
+See
+[internals.md — Album Validation Levels](./internals.md#album-validation-levels).
 
 ### EXIF Date Matching
 
@@ -553,7 +565,8 @@ path can never receive an export. An export is shaped by two layouts:
   `by-month`.
 
 An **export profile** is a named combination of share directory, layouts, and
-link mode in the config file. See [usage.md — Export Albums](./usage.md#export-albums).
+link mode in the config file. See
+[usage.md — Export Albums](./usage.md#export-albums).
 
 ## Glossary
 
@@ -586,7 +599,8 @@ link mode in the config file. See [usage.md — Export Albums](./usage.md#export
 
 ### Abbreviations in the code
 
-These are the only abbreviations the code uses for domain terms; spell anything else out.
+These are the only abbreviations the code uses for domain terms; spell anything
+else out.
 
 | Abbreviation | Stands for |
 |---|---|

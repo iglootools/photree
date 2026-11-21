@@ -43,7 +43,7 @@ dev = [
   "deadcode>=2.7.0,<3.0",
   # The shared build, docs and check commands (guidelines/project-setup/iglootools-cli.md in
   # iglootools/common). Pinned to the release tag; uv.lock records the commit it resolved to.
-  "iglootools @ git+https://github.com/iglootools/common@v1.28.0",
+  "iglootools @ git+https://github.com/iglootools/common@v1.29.1",
 ]
 
 [build-system]
@@ -149,10 +149,10 @@ extend-select = ["PLW1514", "RUF100", "TID251"]
 
 [tool.pytest.ini_options]
 markers = [
-    "integration_fs: filesystem integration tests (full workflow)",
+  "integration_fs: filesystem integration tests (full workflow)",
 ]
 filterwarnings = [
-    "ignore::DeprecationWarning:importlib._bootstrap",  # FAISS SWIG bindings
+  "ignore::DeprecationWarning:importlib._bootstrap", # FAISS SWIG bindings
 ]
 
 [tool.pyright]
@@ -166,14 +166,16 @@ venv = ".venv"
 # that runs without being named in the project, so the scan cannot see it used.
 [tool.deadcode]
 ignore-names-if-decorated-with = [
-  "@*.command", "@*.callback",            # Typer registers commands by decorator
-  "@pytest.fixture",                      # pytest injects fixtures by parameter name
-  "@field_validator", "@model_validator", # Pydantic calls them while validating
+  "@*.command", # Typer registers commands and callbacks by decorator
+  "@*.callback",
+  "@pytest.fixture", # pytest injects fixtures by parameter name
+  "@field_validator", # Pydantic calls validators while validating
+  "@model_validator",
 ]
 ignore-names = [
-  "main",                                 # the [project.scripts] entry point
-  "model_config",                         # read by Pydantic
-  "pytestmark",                           # read by pytest
+  "main", # the [project.scripts] entry point
+  "model_config", # read by Pydantic
+  "pytestmark", # read by pytest
 ]
 
 # Module boundaries, enforced by `mise run boundaries-check` (part of `check`). These

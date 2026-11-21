@@ -67,15 +67,16 @@ EXIF checks were skipped rather than failing.
 
 ## Install with uv
 
-[uv](https://docs.astral.sh/uv/) installs CLI tools in isolated environments, keeping your system
-Python clean:
+[uv](https://docs.astral.sh/uv/) installs CLI tools in isolated environments,
+keeping your system Python clean:
 
 ```bash
 uv tool install photree
 ```
 
-photree requires Python 3.14. If no 3.14 interpreter is installed, uv downloads a managed one
-for the tool's environment, so this works regardless of your system Python.
+photree requires Python 3.14. If no 3.14 interpreter is installed, uv downloads
+a managed one for the tool's environment, so this works regardless of your
+system Python.
 
 To upgrade to the latest version:
 
@@ -85,9 +86,10 @@ uv tool upgrade photree
 
 ## Install with pipx
 
-[pipx](https://pipx.pypa.io/) does the same thing, and is a fine alternative if you already have it.
-Unlike uv, pipx does not fetch an interpreter by default: it uses the Python it was installed with, so
-point it at a 3.14 interpreter explicitly unless that is already 3.14:
+[pipx](https://pipx.pypa.io/) does the same thing, and is a fine alternative if
+you already have it. Unlike uv, pipx does not fetch an interpreter by default:
+it uses the Python it was installed with, so point it at a 3.14 interpreter
+explicitly unless that is already 3.14:
 
 ```bash
 pipx install --python python3.14 photree
@@ -119,4 +121,5 @@ To preview the completion script without installing it:
 photree --show-completion
 ```
 
-Restart your shell (or source the relevant config file) for completions to take effect.
+Restart your shell (or source the relevant config file) for completions to take
+effect.
