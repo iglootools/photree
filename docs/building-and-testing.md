@@ -2,32 +2,37 @@
 
 Run automated tests and checks:
 
+Tasks come in families, as guidelines/project-setup/mise.md in iglootools/common
+describes: `fmt*`, `toc` and the reference generators rewrite files, `lint*`
+fail without writing, and `lint` runs every one of them.
+
 ```bash
 # mise tasks
-mise run check              # Run all checks: format-check + lint + lint-shell + lint-markdown + type-check + boundaries-check + dead-code-check + lock-check + lock-check-uv + clidocs-check + depgraph-check
-mise run check-all          # Run all checks: regular checks + all tests
+mise run preflight          # every lint and every test (what CI runs)
+mise run preflight-quick    # every lint and the unit tests
+mise run lint               # every lint below
 
 mise run test-all           # All tests (unit + integration)
 mise run test-unit          # Unit tests
 mise run test-integration-fs # Filesystem integration tests (full workflow)
 
-mise run format             # ruff, dprint and rumdl format every file (rewrites files)
-mise run format-check       # ruff format --check + dprint check (verifies only; what check runs)
-mise run lint               # ruff check
+mise run fmt                # ruff, dprint and rumdl format every file (fmt-ruff, fmt-dprint, fmt-rumdl)
+mise run lint-fmt           # ruff format --check + dprint check (lint-fmt-ruff, lint-fmt-dprint)
+mise run lint-ruff          # ruff check
 mise run lint-shell         # shellcheck on the tracked shell scripts
 mise run lint-markdown      # rumdl check (also what rumdl fmt would change)
-mise run type-check         # pyright
-mise run boundaries-check   # import-linter (module boundary contracts in pyproject.toml — see architecture.md)
-mise run dead-code-check    # deadcode (unused functions, classes, constants; config in pyproject.toml)
+mise run lint-types         # pyright
+mise run lint-boundaries    # import-linter (module boundary contracts in pyproject.toml — see architecture.md)
+mise run lint-dead-code     # deadcode (unused functions, classes, constants; config in pyproject.toml)
 
 mise run clidocs            # Regenerate CLI reference in docs/cli-reference.md
-mise run clidocs-check      # Check that CLI reference is up to date
+mise run lint-clidocs       # Check that CLI reference is up to date
 mise run depgraph           # Regenerate Module Overview in docs/architecture.md
-mise run depgraph-check     # Check that Module Overview is up to date
+mise run lint-depgraph      # Check that Module Overview is up to date
 
 mise run install            # Sync .venv with uv.lock (rarely needed by hand — see below)
 mise run reinstall          # Delete .venv and sync from scratch
-mise run lock-check-uv      # Check uv.lock is consistent with pyproject.toml
+mise run lint-lock-uv       # Check uv.lock is consistent with pyproject.toml
 
 # Running tools directly
 uv run pytest tests/ -v                         # All tests

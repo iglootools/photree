@@ -58,4 +58,4 @@ jobs:
         with:
           # renovate: datasource=github-releases depName=jdx/mise
           version: 2026.11.1
-      - run: mise run ci-test
+      - run: mise run ci-preflight

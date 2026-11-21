@@ -43,7 +43,7 @@ dev = [
   "deadcode>=2.7.0,<3.0",
   # The shared build, docs and check commands (guidelines/project-setup/iglootools-cli.md in
   # iglootools/common). Pinned to the release tag; uv.lock records the commit it resolved to.
-  "iglootools @ git+https://github.com/iglootools/common@v1.29.1",
+  "iglootools @ git+https://github.com/iglootools/common@v1.30.0",
 ]
 
 [build-system]
@@ -162,7 +162,7 @@ pythonVersion = "3.14"
 venvPath = "."
 venv = ".venv"
 
-# Unused code, enforced by `mise run dead-code-check` (part of `check`). Each entry is code
+# Unused code, enforced by `mise run lint-dead-code` (part of `lint`). Each entry is code
 # that runs without being named in the project, so the scan cannot see it used.
 [tool.deadcode]
 ignore-names-if-decorated-with = [
@@ -178,7 +178,7 @@ ignore-names = [
   "pytestmark", # read by pytest
 ]
 
-# Module boundaries, enforced by `mise run boundaries-check` (part of `check`). These
+# Module boundaries, enforced by `mise run lint-boundaries` (part of `lint`). These
 # contracts are the source of truth for the layering described in
 # docs/architecture.md#layering; change them deliberately, in the same commit as the
 # restructuring that motivates the change, and never by adding an ignore_imports entry to
