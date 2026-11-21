@@ -146,7 +146,7 @@ Before calling a change done, update the documents its kind of change reaches:
 
 - Ensure that all new functionality is covered by tests.
 - **Test without patching**, as the common
-  [Mocks](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#mocks)
+  [Testability](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#testability)
   and
   [Tests](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md#tests)
   rules describe: put the decision in a decider tested with plain values, or

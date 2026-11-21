@@ -2,7 +2,8 @@
 
 Run automated tests and checks:
 
-Tasks come in families, as guidelines/project-setup/mise.md in iglootools/common
+Tasks come in families, as
+[mise.md › Name tasks by family](https://github.com/iglootools/common/blob/main/guidelines/project-setup/mise.md#name-tasks-by-family)
 describes: `fmt*`, `toc` and the reference generators rewrite files, `lint*`
 fail without writing, and `lint` runs every one of them.
 
@@ -76,9 +77,10 @@ has no version matrix), and the only version `requires-python` in
 code may use any feature of that version; ruff's `target-version` and pyright's
 `pythonVersion` are set to match.
 
-The
-[Python Version Policy](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md#python-version-policy)
-is to target the latest stable CPython that every dependency ships wheels for.
+The shared rule is to
+[target only the latest stable Python](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md#target-only-the-latest-stable-python),
+and to stay on the newest one a lagging dependency supports
+([When a dependency lags](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md#when-a-dependency-lags)).
 **Documented exception:** photree is on 3.14 rather than 3.15 because
 onnxruntime (pulled in by the face-detection stack) publishes no cp315 wheels,
 so `uv lock` cannot resolve on 3.15. Move to 3.15 when it does — check
