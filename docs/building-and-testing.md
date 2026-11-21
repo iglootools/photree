@@ -68,11 +68,11 @@ or remove dependencies with `uv add` / `uv remove`.
 ## Python version
 
 photree runs on one Python version, everywhere: the `python` pin in `mise.toml`
-is the local development version, the version CI tests (the `test` workflow has
-no version matrix), and the only version `requires-python` in `pyproject.toml`
-accepts. There is no older floor to stay compatible with, so code may use any
-feature of that version; ruff's `target-version` and pyright's `pythonVersion`
-are set to match.
+is the local development version, the version CI tests (the `preflight` workflow
+has no version matrix), and the only version `requires-python` in
+`pyproject.toml` accepts. There is no older floor to stay compatible with, so
+code may use any feature of that version; ruff's `target-version` and pyright's
+`pythonVersion` are set to match.
 
 The
 [Python Version Policy](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md#python-version-policy)
