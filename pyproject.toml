@@ -166,14 +166,16 @@ venv = ".venv"
 # that runs without being named in the project, so the scan cannot see it used.
 [tool.deadcode]
 ignore-names-if-decorated-with = [
-  "@*.command", "@*.callback",            # Typer registers commands by decorator
-  "@pytest.fixture",                      # pytest injects fixtures by parameter name
-  "@field_validator", "@model_validator", # Pydantic calls them while validating
+  "@*.command", # Typer registers commands and callbacks by decorator
+  "@*.callback",
+  "@pytest.fixture", # pytest injects fixtures by parameter name
+  "@field_validator", # Pydantic calls validators while validating
+  "@model_validator",
 ]
 ignore-names = [
-  "main",                                 # the [project.scripts] entry point
-  "model_config",                         # read by Pydantic
-  "pytestmark",                           # read by pytest
+  "main", # the [project.scripts] entry point
+  "model_config", # read by Pydantic
+  "pytestmark", # read by pytest
 ]
 
 # Module boundaries, enforced by `mise run boundaries-check` (part of `check`). These
