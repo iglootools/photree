@@ -1,0 +1,6 @@
+# Commits git blame skips, so a line is attributed to the change that wrote it rather than to
+# the one that reformatted it. Run once per clone: git config blame.ignoreRevsFile .git-blame-ignore-revs
+# GitHub reads this file without configuration.
+
+# style: format every file with dprint and rumdl
+fb13709284184bd96ab1d82a4a850eb77b8b1fcb
