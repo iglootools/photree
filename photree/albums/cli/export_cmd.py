@@ -25,6 +25,7 @@ from ...clihelpers.options import (
 )
 from ...clihelpers.progress import BatchProgressBar
 from ...clihelpers.runtime import runtime_of
+from ...clihelpers.usage import usage_error
 from ...common.formatting import indent
 from ...common.fs import display_path
 from ...config import ConfigError, PhotreeConfig
@@ -63,11 +64,10 @@ def export_cmd(
     runtime = runtime_of(ctx)
     cwd = runtime.cwd()
     if base_dir is not None and album_dirs is not None:
-        err_console.print(
+        raise usage_error(
             "--dir and --album-dir are mutually exclusive.\n"
             "Run 'photree albums export --help' for usage."
         )
-        raise typer.Exit(code=1)
 
     settings = _resolve_settings_or_exit(
         profile=profile,

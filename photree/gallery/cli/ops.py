@@ -18,6 +18,7 @@ from ...album.store.album_discovery import discover_potential_albums
 from ...album.store.metadata import load_album_metadata
 from ...clihelpers.console import console, err_console
 from ...clihelpers.progress import BatchProgressBar, StageProgressBar
+from ...clihelpers.usage import usage_error
 from ...common.exif import exiftool_session
 from ...common.formatting import CHECK, indent
 from ...common.fs import display_path
@@ -288,15 +289,14 @@ def run_batch_post_import_check(
 
 
 def require_valid_threshold(threshold: float | None, option: str) -> None:
-    """Exit 1 unless *threshold* is unset or a cosine distance in [0.0, 1.0]."""
+    """Usage error unless *threshold* is unset or a cosine distance in [0.0, 1.0]."""
     if threshold is not None and not 0.0 <= threshold <= 1.0:
-        err_console.print(
+        raise usage_error(
             f"Invalid {option} {threshold}: expected a cosine distance between "
             "0.0 and 1.0 (lower = stricter).\n"
             f"Run 'photree gallery metadata set --help' for details.",
             markup=False,
         )
-        raise typer.Exit(code=1)
 
 
 def run_face_clustering(

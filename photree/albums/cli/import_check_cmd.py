@@ -10,6 +10,7 @@ from ...album.importer.tasks import discover_import_tasks
 from ...clihelpers.console import err_console
 from ...clihelpers.progress import BatchProgressBar
 from ...clihelpers.runtime import runtime_of
+from ...clihelpers.usage import usage_error
 from ...common.formatting import indent
 from ...common.fs import display_path
 from . import app
@@ -136,11 +137,10 @@ def import_check_cmd(
     runtime = runtime_of(ctx)
     cwd = runtime.cwd()
     if albums_dir is not None and album_dirs is not None:
-        err_console.print(
+        raise usage_error(
             "--dir and --album-dir are mutually exclusive.\n"
             "Run 'photree albums import-check --help' for usage."
         )
-        raise typer.Exit(code=1)
 
     # Shared preflight (sips + IC directory, no per-album selection check)
     run_import_preflight(source, config, runtime=runtime)

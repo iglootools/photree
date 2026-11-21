@@ -80,7 +80,7 @@ class TestCollectionInit:
                 "implicit",
             ],
         )
-        assert result.exit_code == 1
+        assert result.exit_code == 2
         assert "invalid combination" in result.output
 
     def test_fails_if_already_initialized(self, tmp_path: Path) -> None:

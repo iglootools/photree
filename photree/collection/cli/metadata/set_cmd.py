@@ -5,6 +5,7 @@ import typer
 
 from ....clihelpers.console import err_console
 from ....clihelpers.runtime import runtime_of
+from ....clihelpers.usage import usage_error
 from ....common.formatting import indent
 from ....common.fs import display_path
 from ....foundation.layout import PHOTREE_DIR
@@ -105,11 +106,10 @@ def set_cmd(
 ) -> None:
     """Update collection metadata fields."""
     if members is None and lifecycle is None and strategy is None:
-        err_console.print(
+        raise usage_error(
             "No fields specified. Use --members, --lifecycle, and/or --strategy "
             "to set a value."
         )
-        raise typer.Exit(code=1)
 
     cwd = runtime_of(ctx).cwd()
     current = _load_or_exit(collection_dir, cwd)

@@ -78,9 +78,34 @@ def test_corrupt_album_yaml_is_never_overwritten(
 def test_fix_without_flag_suggests_help(tmp_path: Path) -> None:
     result = runner.invoke(app, ["album", "fix", "--album-dir", str(tmp_path)])
 
-    assert result.exit_code == 1
+    assert result.exit_code == 2
     assert "No fix specified." in result.output
     assert "'photree album fix --help'" in result.output
+
+
+def test_fix_ios_mutually_exclusive_flags_exit_2(tmp_path: Path) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "album",
+            "fix-ios",
+            "--album-dir",
+            str(tmp_path),
+            "--rm-miscategorized",
+            "--mv-miscategorized",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "are mutually exclusive." in result.output
+    assert "'photree album fix-ios --help'" in result.output
+
+
+def test_rm_media_without_files_exits_2(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["album", "rm-media", "--album-dir", str(tmp_path)])
+
+    assert result.exit_code == 2
+    assert "No files specified." in result.output
 
 
 def test_rm_upstream_refusal_suggests_force(tmp_path: Path) -> None:
@@ -307,7 +332,7 @@ def test_albums_fix_rm_upstream_refusal_then_force(tmp_path: Path) -> None:
 def test_gallery_fix_invalid_flags_suggest_help(tmp_path: Path) -> None:
     result = runner.invoke(app, ["gallery", "fix", "--gallery-dir", str(tmp_path)])
 
-    assert result.exit_code == 1
+    assert result.exit_code == 2
     assert "'photree gallery fix --help'" in result.output
 
 

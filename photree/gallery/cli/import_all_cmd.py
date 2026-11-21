@@ -8,6 +8,7 @@ from ...clihelpers.options import REIMPORT_OPTION
 from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...clihelpers.runtime import runtime_of
 from ...clihelpers.sysdeps import import_deps, require_system_deps
+from ...clihelpers.usage import usage_error
 from ...common.formatting import indent, markup_escape
 from ...common.fs import display_path
 from ...common.sysdeps import WhichFn
@@ -98,8 +99,7 @@ def import_all_cmd(
     cwd = runtime.cwd()
     which = runtime.which
     if base_dir is not None and album_dirs is not None:
-        err_console.print("--dir and --album-dir are mutually exclusive.")
-        raise typer.Exit(code=1)
+        raise usage_error("--dir and --album-dir are mutually exclusive.")
 
     require_system_deps(import_deps(), which=which)
 

@@ -23,7 +23,7 @@ def _jpeg(path: Path) -> Path:
 class TestFlagSelection:
     def test_no_flag(self, tmp_path: Path) -> None:
         result = runner.invoke(app, ["album", "fix-exif", str(tmp_path / "a.jpg")])
-        assert result.exit_code == 1
+        assert result.exit_code == 2
         assert "Specify exactly one" in result.output
 
     def test_two_flags(self, tmp_path: Path) -> None:
@@ -31,14 +31,14 @@ class TestFlagSelection:
             app,
             ["album", "fix-exif", "--shift-date", "1", "--shift-time", "2", "x.jpg"],
         )
-        assert result.exit_code == 1
+        assert result.exit_code == 2
         assert "mutually exclusive" in result.output
 
     def test_invalid_date(self) -> None:
         result = runner.invoke(
             app, ["album", "fix-exif", "--set-date", "2024-07", "x.jpg"]
         )
-        assert result.exit_code == 1
+        assert result.exit_code == 2
         assert "expected YYYY-MM-DD" in result.output
 
 

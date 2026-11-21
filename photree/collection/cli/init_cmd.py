@@ -5,6 +5,7 @@ import typer
 
 from ...clihelpers.console import err_console
 from ...clihelpers.runtime import runtime_of
+from ...clihelpers.usage import usage_error
 from ...common.formatting import indent
 from ...common.fs import display_path
 from ...foundation.layout import PHOTREE_DIR
@@ -53,8 +54,7 @@ def init_cmd(
 
     validation_error = validate_collection_config(members, lifecycle, strategy)
     if validation_error is not None:
-        err_console.print(validation_error, markup=False)
-        raise typer.Exit(code=1)
+        raise usage_error(validation_error, markup=False)
 
     try:
         metadata = init_collection(

@@ -70,8 +70,9 @@ Most entity types support the same set of operations:
 
 - **Directory options**: `--album-dir -a`, `--collection-dir -c`,
   `--gallery-dir -g`, `--dir -d` (scan base)
-- **Mutually exclusive options**: Check in the command body, print error
-  to stderr, exit with code 1
+- **Mutually exclusive options**: Check in the command body and
+  `raise usage_error(...)` (`clihelpers/usage.py`), which prints to stderr and
+  exits 2, like any other [usage error](#error-handling-and-exit-codes)
 - **Shared options**: the `<NAME>_OPTION` constants
   [python.md](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md#start-a-functions-name-with-the-verb-that-says-what-the-caller-gets)
   asks for live in `clihelpers/options.py` (e.g., `DRY_RUN_OPTION`,
@@ -122,11 +123,18 @@ Progress bar labels during operation:
 
 ## Error Handling and Exit Codes
 
+photree follows
+[general.md › Exit with 0, 1 or 2](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#exit-with-0-1-or-2):
+
 | Exit code | Meaning | When |
 |-----------|---------|------|
 | 0 | Success | Normal completion, or "nothing to do" (no albums found) |
-| 1 | Error | Validation failures, check failures, missing metadata, resolution errors |
-| 2 | Configuration error | Invalid config file |
+| 1 | The operation or a check failed | Validation failures, check failures, missing metadata, resolution errors, missing system tools |
+| 2 | Usage or configuration error | Invalid config file; mutually exclusive options, a command given nothing to do (no fields, no files, no fix selected), an option value photree validates itself |
+
+A usage error is about the invocation alone: the same command line fails
+whatever is on disk. An error that depends on the gallery, an album or a file
+exits 1, even when it names an option.
 
 **Error output pattern**, photree's form of
 [general.md › Provide preflight checks and troubleshooting commands](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#provide-preflight-checks-and-troubleshooting-commands):
@@ -134,6 +142,10 @@ Progress bar labels during operation:
 1. Describe the problem via `err_console.print()`
 2. Suggest a fix: `"Run 'photree <command>' to <fix>."`
 3. `raise typer.Exit(code=1)`
+
+A usage error takes steps 1 and 3 in one call,
+`raise usage_error("<problem>\n<fix>")` from `clihelpers/usage.py`, which exits
+2 instead of 1.
 
 **A batch reports every failure**, as
 [general.md › Report every failure in a batch, apart from the skips](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#report-every-failure-in-a-batch-apart-from-the-skips)

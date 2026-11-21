@@ -3,7 +3,6 @@ from typing import Annotated
 import typer
 
 from ...album.fix import FixValidationError, validate_fix_flags
-from ...clihelpers.console import err_console
 from ...clihelpers.options import (
     DRY_RUN_OPTION,
     FORCE_OPTION,
@@ -11,6 +10,7 @@ from ...clihelpers.options import (
     RM_UPSTREAM_OPTION,
 )
 from ...clihelpers.runtime import runtime_of
+from ...clihelpers.usage import usage_error
 from ..batchcli.fix import run_batch_fix
 from ..batchcli.resolution import resolve_check_batch_albums
 from . import ALBUM_DIR_OPTION, DIR_OPTION, app
@@ -45,11 +45,10 @@ def fix_cmd(
             rm_orphan=rm_orphan,
         )
     except FixValidationError as exc:
-        err_console.print(
+        raise usage_error(
             f"{exc}\nRun 'photree albums fix --help' for the available fixes.",
             markup=False,
-        )
-        raise typer.Exit(code=1) from exc
+        ) from exc
 
     albums, display_base = resolve_check_batch_albums(base_dir, album_dirs, cwd=cwd)
 

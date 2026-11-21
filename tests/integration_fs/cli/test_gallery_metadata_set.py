@@ -78,7 +78,7 @@ class TestGalleryMetadataSet:
             app,
             ["gallery", "metadata", "set", "-g", str(tmp_path)],
         )
-        assert result.exit_code == 1
+        assert result.exit_code == 2
         assert "No fields specified" in result.output
 
     def test_all_link_modes(self, tmp_path: Path) -> None:
