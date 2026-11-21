@@ -5,6 +5,8 @@ github-cli = "2.103.3"
 "aqua:asciinema/asciinema" = "3.2.1"
 "aqua:asciinema/agg" = "1.9.0"
 shellcheck = "0.11.0"
+dprint = "0.64.3"
+rumdl = "0.3.4"
 
 [env]
 # Pin uv to the interpreter mise installed, by absolute path. mise's own docs are explicit
