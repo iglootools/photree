@@ -13,6 +13,7 @@ from ...clihelpers.options import (
     RM_ORPHAN_SIDECAR_OPTION,
 )
 from ...clihelpers.runtime import runtime_of
+from ...clihelpers.usage import usage_error
 from ...common.fs import display_path
 from ..fix.ios import (
     FixIosValidationError,
@@ -78,11 +79,10 @@ def fix_ios_cmd(
     try:
         validate_fix_flags(**flags)
     except FixIosValidationError as exc:
-        err_console.print(str(exc), markup=False)
-        err_console.print(
-            "Run 'photree album fix-ios --help' to see the available fixes."
-        )
-        raise typer.Exit(code=1) from exc
+        raise usage_error(
+            f"{exc}\nRun 'photree album fix-ios --help' to see the available fixes.",
+            markup=False,
+        ) from exc
 
     cwd = runtime_of(ctx).cwd()
     with exit_on_media_source_conflict(cwd):

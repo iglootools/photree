@@ -1,7 +1,6 @@
 import typer
 
 from ...album.fix.ios import FixIosValidationError, validate_fix_flags
-from ...clihelpers.console import err_console
 from ...clihelpers.options import (
     DRY_RUN_OPTION,
     MV_MISCATEGORIZED_OPTION,
@@ -11,6 +10,7 @@ from ...clihelpers.options import (
     RM_ORPHAN_SIDECAR_OPTION,
 )
 from ...clihelpers.runtime import runtime_of
+from ...clihelpers.usage import usage_error
 from ..batchcli.fix import run_batch_fix_ios
 from ..batchcli.resolution import resolve_batch_albums
 from . import ALBUM_DIR_OPTION, DIR_OPTION, app
@@ -40,11 +40,10 @@ def fix_ios_cmd(
             mv_miscategorized=mv_miscategorized,
         )
     except FixIosValidationError as exc:
-        err_console.print(
+        raise usage_error(
             f"{exc}\nRun 'photree albums fix-ios --help' for the available fixes.",
             markup=False,
-        )
-        raise typer.Exit(code=1) from exc
+        ) from exc
 
     albums, display_base = resolve_batch_albums(base_dir, album_dirs, cwd=cwd)
     run_batch_fix_ios(

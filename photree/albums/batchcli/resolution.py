@@ -7,11 +7,9 @@ album list; used by both ``albums`` and ``gallery`` CLI commands.
 from collections.abc import Callable
 from pathlib import Path
 
-import typer
-
 from ...album import check as album_check
 from ...album.store.album_discovery import discover_potential_albums
-from ...clihelpers.console import err_console
+from ...clihelpers.usage import usage_error
 from ...common.fs import display_path
 
 
@@ -93,11 +91,10 @@ def _resolve_batch_albums_with(
     from rich.progress import Progress, SpinnerColumn, TextColumn
 
     if base_dir is not None and album_dirs is not None:
-        err_console.print(
+        raise usage_error(
             "--dir and --album-dir are mutually exclusive: scan a base directory "
             "with --dir, or list albums with --album-dir (repeatable)."
         )
-        raise typer.Exit(code=1)
 
     if album_dirs is not None:
         return (album_dirs, None)

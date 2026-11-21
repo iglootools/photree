@@ -8,6 +8,7 @@ import typer
 from ...clihelpers.console import console, err_console
 from ...clihelpers.runtime import runtime_of
 from ...clihelpers.sysdeps import EXIF_DEPS, require_system_deps
+from ...clihelpers.usage import usage_error
 from ...common import exif as common_exif
 from ...common.formatting import CHECK, indent, markup_escape
 from ...common.fs import display_path
@@ -38,18 +39,13 @@ class _ShiftTime:
 type _Operation = _SetDate | _SetDateTime | _ShiftDate | _ShiftTime
 
 
-def _fail(message: str) -> typer.Exit:
-    err_console.print(message, markup=False)
-    return typer.Exit(code=1)
-
-
 def _select_operation(
     set_date: str | None,
     set_date_time: str | None,
     shift_date: int | None,
     shift_time: int | None,
 ) -> _Operation:
-    """Turn the four mutually exclusive flags into one operation (or exit 1)."""
+    """Turn the four mutually exclusive flags into one operation, or a usage error."""
     match (set_date, set_date_time, shift_date, shift_time):
         case (str() as date, None, None, None):
             return _SetDate(date)
@@ -60,14 +56,16 @@ def _select_operation(
         case (None, None, None, int() as hours):
             return _ShiftTime(hours)
         case (None, None, None, None):
-            raise _fail(
+            raise usage_error(
                 "Specify exactly one of --set-date, --set-date-time,"
-                " --shift-date, or --shift-time."
+                " --shift-date, or --shift-time.",
+                markup=False,
             )
         case _:
-            raise _fail(
+            raise usage_error(
                 "--set-date, --set-date-time, --shift-date, and --shift-time"
-                " are mutually exclusive."
+                " are mutually exclusive.",
+                markup=False,
             )
 
 
@@ -76,7 +74,9 @@ def _validate_operation(operation: _Operation) -> None:
         case _SetDate(date):
             parts = date.split("-")
             if len(parts) != 3 or not all(p.isdigit() for p in parts):
-                raise _fail(f'Invalid date "{date}", expected YYYY-MM-DD.')
+                raise usage_error(
+                    f'Invalid date "{date}", expected YYYY-MM-DD.', markup=False
+                )
         case _:
             pass
 
@@ -181,7 +181,7 @@ def fix_exif_cmd(
     cwd = runtime.cwd()
     operation = _select_operation(set_date, set_date_time, shift_date, shift_time)
     if not files:
-        raise _fail("No files specified.")
+        raise usage_error("No files specified.", markup=False)
     _validate_operation(operation)
     require_system_deps(EXIF_DEPS, which=runtime.which)
 

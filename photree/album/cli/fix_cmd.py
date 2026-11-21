@@ -11,6 +11,7 @@ from ...clihelpers.options import (
     RM_UPSTREAM_OPTION,
 )
 from ...clihelpers.runtime import runtime_of
+from ...clihelpers.usage import usage_error
 from ...common.fs import display_path
 from .. import fix as album_fixes
 from ..fix import FixValidationError, MissingArchiveError, RmUpstreamRefusedError
@@ -78,9 +79,10 @@ def fix_cmd(
             rm_orphan=rm_orphan,
         )
     except FixValidationError as exc:
-        err_console.print(str(exc), markup=False)
-        err_console.print("Run 'photree album fix --help' to see the available fixes.")
-        raise typer.Exit(code=1) from exc
+        raise usage_error(
+            f"{exc}\nRun 'photree album fix --help' to see the available fixes.",
+            markup=False,
+        ) from exc
 
     if fix_id or new_id:
         _fix_album_id(album_dir, new_id=new_id, dry_run=dry_run)

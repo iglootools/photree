@@ -5,6 +5,7 @@ import typer
 
 from ...clihelpers.console import err_console
 from ...clihelpers.runtime import runtime_of
+from ...clihelpers.usage import usage_error
 from ...common.fs import display_path
 from .. import media
 from . import app
@@ -47,8 +48,7 @@ def rm_media_cmd(
     and removes them all. Any variant file can be used to identify the media.
     """
     if not files:
-        err_console.print("No files specified.")
-        raise typer.Exit(code=1)
+        raise usage_error("No files specified.")
 
     cwd = runtime_of(ctx).cwd()
     with exit_on_media_source_conflict(cwd):

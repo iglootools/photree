@@ -10,6 +10,7 @@ from ...clihelpers.progress import BatchProgressBar
 from ...clihelpers.resolution import format_invalid_metadata, resolve_gallery_or_exit
 from ...clihelpers.runtime import runtime_of
 from ...clihelpers.sysdeps import EXIF_DEPS, require_system_deps
+from ...clihelpers.usage import usage_error
 from ...collection.importer.import_members import (
     CollectionImportError,
     import_collection_members,
@@ -171,11 +172,10 @@ def import_cmd(
     cwd = runtime.cwd()
     which = runtime.which
     if collections_dir is not None and collection_dirs is not None:
-        err_console.print(
+        raise usage_error(
             "--dir and --collection-dir are mutually exclusive.\n"
             "Run 'photree collections import --help' for usage."
         )
-        raise typer.Exit(code=1)
 
     # Selection entries are resolved to media items by EXIF timestamp.
     require_system_deps(EXIF_DEPS, which=which)

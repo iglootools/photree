@@ -14,6 +14,7 @@ from ...clihelpers.console import err_console
 from ...clihelpers.options import LINK_MODE_OPTION
 from ...clihelpers.progress import BatchProgressBar
 from ...clihelpers.runtime import runtime_of
+from ...clihelpers.usage import usage_error
 from ...common.exif import exiftool_session
 from ...common.formatting import indent
 from ...common.fs import display_path
@@ -212,11 +213,10 @@ def import_cmd(
     cwd = runtime.cwd()
     which = runtime.which
     if albums_dir is not None and album_dirs is not None:
-        err_console.print(
+        raise usage_error(
             "--dir and --album-dir are mutually exclusive.\n"
             "Run 'photree albums import --help' for usage."
         )
-        raise typer.Exit(code=1)
 
     ic_dir = run_import_preflight(
         source,

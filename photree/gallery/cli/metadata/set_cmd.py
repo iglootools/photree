@@ -4,9 +4,9 @@ from typing import Annotated
 
 import typer
 
-from ....clihelpers.console import err_console
 from ....clihelpers.resolution import resolve_gallery_or_exit
 from ....clihelpers.runtime import runtime_of
+from ....clihelpers.usage import usage_error
 from ....common.formatting import indent
 from ....common.fs import display_path
 from ....foundation.gallery_metadata import (
@@ -70,11 +70,10 @@ def set_cmd(
         if value is not None
     }
     if not requested:
-        err_console.print(
+        raise usage_error(
             "No fields specified. Use --link-mode, --faces-enabled,"
             " or --face-cluster-threshold to set a value."
         )
-        raise typer.Exit(code=1)
     require_valid_threshold(face_cluster_threshold, "--face-cluster-threshold")
 
     resolved = resolve_gallery_or_exit(gallery_dir, cwd=cwd)

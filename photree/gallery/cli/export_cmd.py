@@ -26,6 +26,7 @@ from ...clihelpers.options import (
 from ...clihelpers.progress import BatchProgressBar
 from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...clihelpers.runtime import runtime_of
+from ...clihelpers.usage import usage_error
 from ...common.formatting import indent
 from ...common.fs import display_path
 from ...config import ConfigError, PhotreeConfig
@@ -101,8 +102,7 @@ def export_cmd(
         if value is not None
     ]
     if len(given) > 1:
-        err_console.print(f"{' and '.join(given)} are mutually exclusive.")
-        raise typer.Exit(code=1)
+        raise usage_error(f"{' and '.join(given)} are mutually exclusive.")
 
     settings = _resolve_settings_or_exit(
         profile=profile,
