@@ -67,7 +67,7 @@ class TestAlbumRefresh:
 
         result = runner.invoke(
             app,
-            ["album", "refresh", "-a", str(album), "--dry-run"],
+            ["album", "refresh", "-a", str(album), "-n"],
             obj=ALL_DEPS_RUNTIME,
         )
 

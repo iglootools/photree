@@ -4,6 +4,7 @@ from typing import Annotated
 import typer
 
 from ...clihelpers.console import console, err_console
+from ...clihelpers.options import DRY_RUN_OPTION
 from ...clihelpers.progress import run_with_spinner
 from ...clihelpers.runtime import runtime_of
 from ...clihelpers.sysdeps import refresh_deps, require_system_deps
@@ -32,10 +33,7 @@ def refresh_cmd(
             resolve_path=True,
         ),
     ] = Path("."),
-    dry_run: Annotated[
-        bool,
-        typer.Option("--dry-run", help="Show what would change without writing."),
-    ] = False,
+    dry_run: DRY_RUN_OPTION = False,
     refresh_browsable: Annotated[
         bool,
         typer.Option(

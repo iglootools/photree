@@ -4,6 +4,7 @@ from typing import Annotated
 import typer
 
 from ...clihelpers.console import err_console
+from ...clihelpers.options import DRY_RUN_OPTION
 from ...clihelpers.runtime import runtime_of
 from ...clihelpers.sysdeps import FACE_DETECTION_DEPS, require_system_deps
 from ...common.formatting import format_dry_run, indent
@@ -28,10 +29,7 @@ def detect_faces_cmd(
             resolve_path=True,
         ),
     ] = Path("."),
-    dry_run: Annotated[
-        bool,
-        typer.Option("--dry-run", help="Show what would change without writing."),
-    ] = False,
+    dry_run: DRY_RUN_OPTION = False,
     redetect: Annotated[
         bool,
         typer.Option(
