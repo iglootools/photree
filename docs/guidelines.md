@@ -1,93 +1,100 @@
 # Project-Specific Guidelines
 
-A set of [implementation checklists](#implementation-checklists) serve as a
-reminder for things to check when implementing new features or making changes to
-the codebase.
-
-For general coding, Python, and tooling guidelines, see the
-[common guidelines](https://github.com/iglootools/common).
+Where photree departs from the shared
+[iglootools guidelines](https://github.com/iglootools/common/blob/main/guidelines/README.md),
+and the rules it adds. Read it before any change; the
+[area conventions](#area-conventions) and the
+[task checklists](#adding-a-concept) it links are read when a change reaches
+them.
 
 <!-- toc -->
 **On this page**
 
-- [Coding](#coding)
-  - [Documented exception: mutable accumulators in scan/group loops](#documented-exception-mutable-accumulators-in-scangroup-loops)
-  - [Errors and Output](#errors-and-output)
+- [Deviations](#deviations)
+  - [Defer an import inside the function that needs it, not with `lazy import`](#defer-an-import-inside-the-function-that-needs-it-not-with-lazy-import)
+  - [Keep an accumulator for loop-carried state and per-item `try`/`except`](#keep-an-accumulator-for-loop-carried-state-and-per-item-tryexcept)
+- [Rules](#rules)
+  - [Read `.photree/*.yaml` through `metadata_io`](#read-photreeyaml-through-metadata_io)
+  - [Add each new non-CLI domain subpackage to the CLI-layer contract](#add-each-new-non-cli-domain-subpackage-to-the-cli-layer-contract)
+  - [Render errors and output with photree's helpers](#render-errors-and-output-with-photrees-helpers)
+  - [Cover all new functionality with tests](#cover-all-new-functionality-with-tests)
+- [Tests](#tests)
 - [Area conventions](#area-conventions)
-- [Implementation Checklists](#implementation-checklists)
-  - [Build and CI](#build-and-ci)
-  - [Documentation](#documentation)
-  - [Tests](#tests)
-  - [New Concepts (e.g., collections, future entity types)](#new-concepts-eg-collections-future-entity-types)
+- [Adding a concept](#adding-a-concept)
+- [Documentation](#documentation)
 <!-- tocstop -->
 
-## Coding
+## Deviations
 
-- **Naming Conventions**
-  - `kebab-case` for CLI commands
-- **Printing/Logging**
-  - Print/Log relative paths when paths relative to the current working
-    directory, using `display_path`
-- **Imports**
-  - Import at module level. A function-level import is reserved for two cases,
-    each with a comment saying which: breaking an import cycle, or deferring a
-    heavy ML dependency.
-  - The face ML stack (`insightface`, `onnxruntime`, `cv2`, `faiss`, `sklearn`,
-    `scipy`) is imported only inside the functions that use it, or under
-    `TYPE_CHECKING` for annotations: loading it at module level adds most of a
-    second to every CLI invocation. `tests/unit/test_cli_startup_imports.py`
-    fails if `import photree.cli` loads any of them.
-- **Module boundaries**
-  - The import-linter contracts in `pyproject.toml` (`[tool.importlinter]`) are
-    the source of truth for which package may import which;
-    [architecture.md — Layering](./architecture.md#layering)
-    explains them, and `mise run lint-boundaries` (part of `mise run lint`)
-    enforces them.
-  - When a change needs a new edge, decide whether it belongs: move the code
-    to the layer that may own it rather than bending the contract. If the
-    architecture itself changes, update the contracts deliberately, in the
-    same commit as the restructuring, together with the Layering
-    section. Do not add an `ignore_imports` entry to make an edge pass; if one
-    is truly unavoidable, comment why next to it.
-  - A new subpackage of `album/`, `albums/`, `collection/` or `gallery/` that
-    is not CLI code must be added to the source list of the "Domain code does
-    not depend on the CLI layer" contract.
+### Defer an import inside the function that needs it, not with `lazy import`
 
-### Documented exception: mutable accumulators in scan/group loops
+Documented exception to
+[python.md › Import at module level, and defer with `lazy import`](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md#import-at-module-level-and-defer-with-lazy-import).
+Defer an import only to break an import cycle or to keep the face ML stack
+(`insightface`, `onnxruntime`, `cv2`, `faiss`, `sklearn`, `scipy`) out
+of CLI startup: import it inside the function that uses it, or under
+`TYPE_CHECKING` for an annotation, with a comment saying which case it is.
 
-The
-[common Python guidelines](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md)
-ask for lists built as a single expression rather than `errors = []` plus
-`append`, and for `continue` to be replaced by filtering. photree keeps the
-accumulator form in two specific shapes, because the comprehension is harder to
-read, not easier:
+**Why:** `lazy import` needs Python 3.15, and photree is held on 3.14 because
+onnxruntime publishes no cp315 wheels (the comment at `requires-python` in
+`pyproject.toml`). Loading the ML stack at module level adds most of a second
+to every CLI invocation.
+
+- `tests/unit/test_cli_startup_imports.py` fails if `import photree.cli`
+  loads any of the ML stack.
+- **Retires when** photree moves to Python 3.15, once onnxruntime publishes
+  cp315 wheels: these imports then become `lazy import`s.
+
+### Keep an accumulator for loop-carried state and per-item `try`/`except`
+
+Documented exception to
+[python.md › Build a collection in one expression, not by appending](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md#build-a-collection-in-one-expression-not-by-appending),
+and to its filtering instead of `continue`, in two shapes only, each marked
+with a `# Documented exception (docs/guidelines.md)` comment:
 
 - **Loop-carried state.** Grouping a sorted sequence into contiguous runs
-  (`collection/refresh/series.py::_group_contiguous_series`) needs the previous
-  element to decide where the current group ends. Expressed as a
-  comprehension it requires `itertools.groupby` plus a key function that
-  closes over mutable state — strictly more machinery for the same result.
-- **Per-item try/except in a batch.** A loop that must record a failure and
-  carry on cannot be a comprehension, because a comprehension has nowhere to
-  put the `except`. These loops are exactly the ones that must not swallow
-  errors, so clarity there matters more than form.
+  (`collection/refresh/series.py::_group_contiguous_series`) needs the
+  previous element to decide where the current group ends.
+- **Per-item `try`/`except` in a batch.** A loop that records a failure and
+  carries on cannot be a comprehension, which has nowhere to put the `except`.
 
-Everywhere else, prefer the single-expression form: building a result from
-independent branches, filtering, mapping, and conditional inclusion all read
-better as `[*(...), *(...)]` and comprehensions, and that is the majority of
-list construction in this codebase.
+**Why:** in these shapes the comprehension is harder to read, not easier: the
+first needs `itertools.groupby` with a key function closing over mutable
+state, and the second holds the loops that must not swallow errors, where
+clarity matters most. Everywhere else the single-expression form applies.
 
-**This exception retires** if a case appears where the accumulator hides a
-bug the comprehension would have prevented — the reason it is written down is
-so that trade-off can be re-examined rather than assumed.
+This is structural rather than temporary: no condition retires it while a
+comprehension can neither carry state between elements nor catch an exception
+per item.
 
-### Errors and Output
+## Rules
 
-The shared rules apply as written: *Presentation at the Edges* and structured
-errors under *Testability* in the common
-[general.md](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md),
-and *Data Classes* (plain exception classes), *Errors* and *Console Output* in
-[python.md](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md).
+### Read `.photree/*.yaml` through `metadata_io`
+
+Read metadata through `foundation.metadata_io.load_yaml_mapping` /
+`validate_metadata`: `None` means the file does not exist, and anything
+present but unusable raises `InvalidMetadataError`.
+
+**Why:** it is photree's form of
+[general.md › Treat a file that exists but cannot be read as an error, never as absent](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#treat-a-file-that-exists-but-cannot-be-read-as-an-error-never-as-absent):
+a truncated `album.yaml` read as absent gets a fresh ID, orphaning every
+reference to the old one.
+
+### Add each new non-CLI domain subpackage to the CLI-layer contract
+
+A new subpackage of `album/`, `albums/`, `collection/` or `gallery/` that
+is not CLI code goes on the source list of the "Domain code does not depend on
+the CLI layer" contract in `pyproject.toml`.
+
+**Why:** the contract enumerates its sources, so a subpackage left off it is
+unchecked and the run still passes
+([python-tooling.md › Prefer contracts whose coverage follows the code](https://github.com/iglootools/common/blob/main/guidelines/project-setup/python-tooling.md#prefer-contracts-whose-coverage-follows-the-code)).
+What each contract protects is in
+[architecture.md › Layering](./architecture.md#layering).
+
+### Render errors and output with photree's helpers
+
+The shared rules on presentation, errors and console output apply as written.
 photree's helpers for them:
 
 - **Rendering errors**: formatters in each package's `output.py` (or the CLI
@@ -98,32 +105,42 @@ photree's helpers for them:
   Formatters that embed user text escape it themselves and are printed with
   markup on; progress bars (`clihelpers/progress.py`) escape the labels they
   are given, so callers pass plain text.
-- **Corrupt metadata is never "absent".** Read `.photree/*.yaml` through
-  `foundation.metadata_io.load_yaml_mapping` / `validate_metadata`: `None` means
-  the file does not exist, and anything present but unusable raises
-  `InvalidMetadataError`. Treating corruption as absence is how a truncated
-  `album.yaml` used to get a fresh ID and orphan every reference to the old one.
+
+### Cover all new functionality with tests
+
+Each new behaviour gets a test, written without patching as
+[general.md › Testability](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#testability)
+describes; photree's deciders, CLI runtime and fakes are in
+[testing.md](./guidelines/testing.md).
+
+## Tests
+
+The patches the
+[patching rule](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#patch-only-in-the-three-documented-cases-and-list-each-one)
+allows, enforced as
+[python-tooling.md › Enforce the patching rule](https://github.com/iglootools/common/blob/main/guidelines/project-setup/python-tooling.md#enforce-the-patching-rule)
+sets up:
+
+| File | What is replaced | Category | Why, and when to retire it |
+|---|---|---|---|
+| `tests/integration_fs/album/importer/test_preflight.py` | `PATH`, emptied | (c) | The test asserts that `run_preflight` does not read `PATH`, since its caller owns the probing. Changing the process's `PATH` is the only way to show that. |
 
 ## Area conventions
 
-Conventions for one part of the code live in their own document, so they are
-read when a change reaches that part rather than loaded into every session. Read
-the linked document in full before changing files under these paths.
+Read the linked document in full before changing files under these paths.
 
 | Paths | Conventions |
 |-------|-------------|
-| `photree/cli/`, `photree/clihelpers/`, `photree/*/cli/`, `photree/albums/batchcli/` — and adding a command anywhere | [cli-conventions.md](./cli-conventions.md) — command hierarchy, standard operations, options, progress, exit codes, system dependencies, CSV, batch architecture, validation levels |
+| `photree/cli/`, `photree/clihelpers/`, `photree/*/cli/`, `photree/albums/batchcli/` — and adding a command anywhere | [cli.md](./guidelines/cli.md) — command hierarchy, options, progress, exit codes, system dependencies, CSV, batch architecture, validation levels |
+| `tests/` — and adding a parameter a test needs to control | [testing.md](./guidelines/testing.md) — deciders, the CLI runtime, fakes |
 
-## Implementation Checklists
+## Adding a concept
 
-These checklists serve as a reminder for things to check when implementing new
-features or making changes to the codebase.
+Run the checklist in [adding-a-concept.md](./guidelines/adding-a-concept.md)
+before introducing a new concept that photree manages, such as collections or a
+future entity type.
 
-### Build and CI
-
-- Keep Github workflows and mise tasks in sync with each other
-
-### Documentation
+## Documentation
 
 Before calling a change done, update the documents its kind of change reaches:
 
@@ -140,81 +157,4 @@ Before calling a change done, update the documents its kind of change reaches:
 | Release or publish pipeline, trusted publisher | releasing-and-publishing.md |
 | GitHub repository setting | building-and-testing.md "GitHub Config" |
 | Major release | new scenarios in demo/demo.sh (see the Release Process) |
-| Renaming or moving a document | every reference to it: `git grep` the old name, including the AGENTS.md links and the README's absolute URLs |
-
-### Tests
-
-- Ensure that all new functionality is covered by tests.
-- **Test without patching**, as the common
-  [Mocks](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#mocks)
-  and
-  [Tests](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md#tests)
-  rules describe: put the decision in a decider tested with plain values, or
-  take the dependency as a parameter with the real default (as
-  `import_album(refresh=...)` and `run_preflight(system_deps=...)` already do)
-  and pass a fake. Patching is reserved for the three exceptions those rules
-  define: **(a)** a wrapped third-party boundary, **(b)** a fault no real
-  resource can produce, **(c)** process-global state. photree's building blocks
-  for it:
-  - **Deciders**, such as `import_problems` (album import), `import_failure_of`
-    and `import_all_failed` (gallery import), tested with real result objects.
-  - **The CLI runtime** (`photree/clihelpers/runtime.py`): everything a command
-    reads from the machine or the process: `which` (installed binaries), `cwd`,
-    `home`, `environ`, the platform config directories, and `cpu_count`;
-    `load_config` loads the config file from them. Commands read them with
-    `runtime_of(ctx)` and pass the values on; `main()` hands the real one to the
-    app, and tests pass a fake as `CliRunner.invoke(..., obj=...)`. Below the
-    commands, nothing reads the environment: CLI helpers take `cwd` (or the
-    runtime) as a parameter, and a domain function that would otherwise read it
-    takes a keyword parameter defaulting to the real value
-    (`which=shutil.which`, `load=load_config`, `cpu_count=os.cpu_count`) that
-    the command overrides. `cwd` stays the process's working directory, since
-    the OS resolves relative arguments against it: tests change it with the
-    `chdir` fixture. Album operations a command runs are album-level ports, on
-    `AlbumRuntime` (`photree/album/cli/runtime.py`), since `clihelpers` sits
-    below `album`: `album_runtime_of(ctx)` widens the shared runtime with the
-    real ones.
-  - **Fakes**, in `tests/fakes.py`: `fake_runtime(*present)` (only *present*
-    binaries installed, a home that does not exist, an empty environment, no
-    config file), `ALL_DEPS_RUNTIME`, `fake_which`, and
-    `fake_album_runtime(*present, run_import=...)`.
-- **Enforced** by pytest and ruff. `tests/conftest.py` replaces the
-  `monkeypatch` fixture with one that fails the test, and ruff's `TID251` bans
-  `unittest.mock` and `pytest.MonkeyPatch`, the only ways left to patch. A file
-  in the table below imports
-  `from pytest import MonkeyPatch  # noqa: TID251 -- <category>` and defines its
-  own `monkeypatch` fixture over `MonkeyPatch.context()`, in the test module
-  itself: one in a `conftest.py` would re-enable patching for the whole
-  directory. Ruff's `RUF100` fails on a `noqa` that is no longer needed.
-  `monkeypatch.chdir` is replaced by the `chdir` fixture in `tests/conftest.py`.
-
-  | File | What is replaced | Category | Why, and when to retire it |
-  |---|---|---|---|
-  | `tests/integration_fs/album/importer/test_preflight.py` | `PATH`, emptied | (c) | The test asserts that `run_preflight` does not read `PATH`, since its caller owns the probing. Changing the process's `PATH` is the only way to show that. |
-
-### New Concepts (e.g., collections, future entity types)
-
-When introducing a new concept that is managed by photree:
-
-- [ ] **Metadata model**: `.photree/<entity>.yaml` with Pydantic model,
-      load/save I/O
-- [ ] **ID system**: generate/format/parse functions with `<type>_<base58>`
-      external form
-- [ ] **Naming convention**: parser, reconstructor, validation (reuse
-  `photree/dates.py` for any date component rather than re-deriving ranges)
-- [ ] **Discovery**: `is_<entity>`, `discover_<entities>` functions
-- [ ] **CLI commands at all three levels**: single (`<entity> <op>`), batch
-      (`<entities> <op>`), gallery (`gallery <op>`), following
-      [cli-conventions.md](./cli-conventions.md)
-- [ ] **Standard operations**: init, show, check, import, metadata set, list
-      (with CSV output), stats
-- [ ] **Stats**: disk usage and content statistics at all three levels (single,
-      batch, gallery)
-- [ ] **Gallery integration**: gallery check includes the new entity, gallery
-      refresh manages derived state
-- [ ] **Progress indicators**: spinners for single operations, BatchProgressBar
-      for batch, StageProgressBar for multi-stage
-- [ ] **Validation**: light check (naming) as gate for refresh/import, full
-      check for check commands
-- [ ] **Documentation**: domain.md (concepts), internals.md (design), usage.md
-      (workflow), cli-reference.md (regenerate), architecture.md (depgraph)
+| Renaming or moving a document | every reference to it: `git grep` the old name, including the CONTRIBUTING.md line and the README's absolute URLs |
