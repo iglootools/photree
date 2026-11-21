@@ -165,7 +165,7 @@ class TestCollectionMetadataSet:
             app,
             ["collection", "metadata", "set", "-d", str(tmp_path)],
         )
-        assert result.exit_code == 1
+        assert result.exit_code == 2
         assert "No fields specified" in result.output
 
     def test_preserves_members(self, tmp_path: Path) -> None:

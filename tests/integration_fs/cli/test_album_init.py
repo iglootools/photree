@@ -146,5 +146,5 @@ class TestAlbumsInit:
         result = runner.invoke(
             app, ["albums", "init", "-d", str(tmp_path), "-a", str(a1)]
         )
-        assert result.exit_code == 1
+        assert result.exit_code == 2
         assert "mutually exclusive" in result.output

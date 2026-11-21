@@ -105,7 +105,7 @@ class TestFaceClusterThreshold:
             ],
         )
 
-        assert result.exit_code == 1
+        assert result.exit_code == 2
         meta = load_gallery_metadata(gallery / PHOTREE_DIR / GALLERY_YAML)
         assert meta.face_cluster_threshold is None
 
@@ -138,7 +138,7 @@ class TestFaceClusterThreshold:
             obj=ALL_DEPS_RUNTIME,
         )
 
-        assert result.exit_code == 1
+        assert result.exit_code == 2
         assert not (gallery / PHOTREE_DIR / "faces").exists()
 
 
@@ -213,7 +213,7 @@ class TestExport:
             ["gallery", "export", "-g", str(gallery), "--dir", str(tmp_path)],
         )
 
-        assert result.exit_code == 1
+        assert result.exit_code == 2
 
 
 class TestListCollections:
