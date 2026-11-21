@@ -42,12 +42,12 @@ jobs:
     # records the demo with `mise run ci-demo-record` and keeps the cast as the
     # demo-recording artifact. Publishing from CI stays off, because GitHub-hosted runners
     # cannot reach asciinema.org; publish with `mise run demo-upload-latest`.
-    uses: iglootools/common/.github/workflows/reusable-demo.yml@66de37b103b2b3a5a9039aaa2ccd3a2b63f83f6e # v1.30.2
+    uses: iglootools/common/.github/workflows/reusable-demo.yml@055e901d9ced543ee667a476442049676011412c # v1.31.0
     with:
       # Pinned here, matching the version mise.lock was generated with; the custom manager in
       # renovate.json keeps it current.
       # renovate: datasource=github-releases depName=jdx/mise
-      version: 2026.11.1
+      version: 2026.11.9
       # pv: demo-magic's simulated typing. tree: the directory listings the demo shows.
       # libimage-exiftool-perl: exiftool, required by the import preflight (sips is shimmed
       # in demo.sh).

@@ -24,6 +24,8 @@ mise run lint-markdown      # rumdl check (also what rumdl fmt would change)
 mise run lint-types         # pyright
 mise run lint-boundaries    # import-linter (module boundary contracts in pyproject.toml — see architecture.md)
 mise run lint-dead-code     # deadcode (unused functions, classes, constants; config in pyproject.toml)
+mise run lint-renovate      # validate renovate.json with Renovate's validator, strictly
+mise run renovate-dry-run   # list the updates Renovate would propose, writing nothing (needs gh auth)
 
 mise run clidocs            # Regenerate CLI reference in docs/cli-reference.md
 mise run lint-clidocs       # Check that CLI reference is up to date
