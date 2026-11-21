@@ -38,7 +38,7 @@ env:
   UV_LOCKED: 1
 
 jobs:
-  test:
+  preflight:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
