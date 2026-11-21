@@ -18,7 +18,7 @@ For general coding, Python, and tooling guidelines, see the
   - [Build and CI](#build-and-ci)
   - [Documentation](#documentation)
   - [Tests](#tests)
-  - [New Concepts (e.g., collections, future entity types)](#new-concepts-eg-collections-future-entity-types)
+  - [Adding a concept](#adding-a-concept)
 <!-- tocstop -->
 
 ## Coding
@@ -155,29 +155,7 @@ Before calling a change done, update the documents its kind of change reaches:
   and pass a fake. Patching is reserved for the three exceptions those rules
   define: **(a)** a wrapped third-party boundary, **(b)** a fault no real
   resource can produce, **(c)** process-global state. photree's building blocks
-  for it:
-  - **Deciders**, such as `import_problems` (album import), `import_failure_of`
-    and `import_all_failed` (gallery import), tested with real result objects.
-  - **The CLI runtime** (`photree/clihelpers/runtime.py`): everything a command
-    reads from the machine or the process: `which` (installed binaries), `cwd`,
-    `home`, `environ`, the platform config directories, and `cpu_count`;
-    `load_config` loads the config file from them. Commands read them with
-    `runtime_of(ctx)` and pass the values on; `main()` hands the real one to the
-    app, and tests pass a fake as `CliRunner.invoke(..., obj=...)`. Below the
-    commands, nothing reads the environment: CLI helpers take `cwd` (or the
-    runtime) as a parameter, and a domain function that would otherwise read it
-    takes a keyword parameter defaulting to the real value
-    (`which=shutil.which`, `load=load_config`, `cpu_count=os.cpu_count`) that
-    the command overrides. `cwd` stays the process's working directory, since
-    the OS resolves relative arguments against it: tests change it with the
-    `chdir` fixture. Album operations a command runs are album-level ports, on
-    `AlbumRuntime` (`photree/album/cli/runtime.py`), since `clihelpers` sits
-    below `album`: `album_runtime_of(ctx)` widens the shared runtime with the
-    real ones.
-  - **Fakes**, in `tests/fakes.py`: `fake_runtime(*present)` (only *present*
-    binaries installed, a home that does not exist, an empty environment, no
-    config file), `ALL_DEPS_RUNTIME`, `fake_which`, and
-    `fake_album_runtime(*present, run_import=...)`.
+  for it are in [testing.md](./guidelines/testing.md).
 - **Enforced** by pytest and ruff. `tests/conftest.py` replaces the
   `monkeypatch` fixture with one that fails the test, and ruff's `TID251` bans
   `unittest.mock` and `pytest.MonkeyPatch`, the only ways left to patch. A file
@@ -192,29 +170,8 @@ Before calling a change done, update the documents its kind of change reaches:
   |---|---|---|---|
   | `tests/integration_fs/album/importer/test_preflight.py` | `PATH`, emptied | (c) | The test asserts that `run_preflight` does not read `PATH`, since its caller owns the probing. Changing the process's `PATH` is the only way to show that. |
 
-### New Concepts (e.g., collections, future entity types)
+### Adding a concept
 
-When introducing a new concept that is managed by photree:
-
-- [ ] **Metadata model**: `.photree/<entity>.yaml` with Pydantic model,
-      load/save I/O
-- [ ] **ID system**: generate/format/parse functions with `<type>_<base58>`
-      external form
-- [ ] **Naming convention**: parser, reconstructor, validation (reuse
-  `photree/dates.py` for any date component rather than re-deriving ranges)
-- [ ] **Discovery**: `is_<entity>`, `discover_<entities>` functions
-- [ ] **CLI commands at all three levels**: single (`<entity> <op>`), batch
-      (`<entities> <op>`), gallery (`gallery <op>`), following
-      [cli.md](./guidelines/cli.md)
-- [ ] **Standard operations**: init, show, check, import, metadata set, list
-      (with CSV output), stats
-- [ ] **Stats**: disk usage and content statistics at all three levels (single,
-      batch, gallery)
-- [ ] **Gallery integration**: gallery check includes the new entity, gallery
-      refresh manages derived state
-- [ ] **Progress indicators**: spinners for single operations, BatchProgressBar
-      for batch, StageProgressBar for multi-stage
-- [ ] **Validation**: light check (naming) as gate for refresh/import, full
-      check for check commands
-- [ ] **Documentation**: domain.md (concepts), internals.md (design), usage.md
-      (workflow), cli-reference.md (regenerate), architecture.md (depgraph)
+Run the checklist in [adding-a-concept.md](./guidelines/adding-a-concept.md)
+when introducing a new concept that photree manages, such as collections or a
+future entity type.
