@@ -112,7 +112,8 @@ These rules are enforced by `mise run lint-boundaries` (part of
 [import-linter](https://import-linter.readthedocs.io/) contracts in
 `pyproject.toml` (`[tool.importlinter]`). The generated graph above only *shows*
 dependencies; the contracts are the source of truth and reject a new import that
-breaks a rule. See [guidelines.md — Module boundaries](./guidelines.md#coding)
+breaks a rule. See
+[python.md › Change the import-linter contracts deliberately](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md#change-the-import-linter-contracts-deliberately-never-to-let-an-edge-through)
 for how to change them.
 
 - **Domain code never depends on the CLI layer**, directly or indirectly. The
