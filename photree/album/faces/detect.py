@@ -11,7 +11,7 @@ import warnings
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import numpy as np
 
@@ -32,14 +32,24 @@ def is_ort_device_discovery_noise(line: str) -> bool:
     return "device_discovery" in line and "GetPciBusId" in line
 
 
+# insightface and onnxruntime ship no type information, so each import, and each call
+# whose signature pyright infers with Unknown parts, carries a suppression.
 if TYPE_CHECKING:
-    from insightface.app import FaceAnalysis
+    from insightface.app import FaceAnalysis  # pyright: ignore[reportMissingTypeStubs]
 
 # A zero-argument factory that produces a prepared :class:`FaceAnalysis`. Face
 # detection is injected as a *factory* (not an instance) so the ~300 MB model
 # loads lazily — only once a refresh actually has images to process — and so a
 # single instance can be shared across albums in a batch.
 type FaceAnalyzerFactory = Callable[[], FaceAnalysis]
+
+
+class FaceDetector(Protocol):
+    """Finds the faces in an image: a prepared :class:`FaceAnalysis`, or a test fake."""
+
+    def get(self, img: np.ndarray) -> list[Any]:
+        """Return insightface ``Face`` objects (dicts with attribute access)."""
+        ...
 
 
 _PREFERRED_PROVIDERS = ("CoreMLExecutionProvider", "CPUExecutionProvider")
@@ -69,8 +79,8 @@ def create_face_analyzer(
     # Imported here, not at module level: insightface and onnxruntime take
     # ~0.5 s to import, which every CLI invocation would otherwise pay.
     with filter_native_stderr(is_ort_device_discovery_noise):
-        import onnxruntime
-        from insightface.app import FaceAnalysis
+        import onnxruntime  # pyright: ignore[reportMissingTypeStubs]
+        from insightface.app import FaceAnalysis  # pyright: ignore[reportMissingTypeStubs]
 
     # Suppress insightface's verbose stdout (model loading messages) and
     # FutureWarning from deprecated scikit-image API calls.
@@ -79,11 +89,9 @@ def create_face_analyzer(
         contextlib.redirect_stdout(io.StringIO()),
     ):
         warnings.filterwarnings("ignore", category=FutureWarning, module="insightface")
-        app = FaceAnalysis(
-            name=model_name,
-            providers=select_providers(onnxruntime.get_available_providers()),
-        )
-        app.prepare(ctx_id=0, det_size=(640, 640))
+        available = cast(list[str], onnxruntime.get_available_providers())  # pyright: ignore[reportUnknownMemberType]
+        app = FaceAnalysis(name=model_name, providers=select_providers(available))
+        app.prepare(ctx_id=0, det_size=(640, 640))  # pyright: ignore[reportUnknownMemberType]
     return app
 
 
@@ -195,7 +203,7 @@ def _face_embedding(face: Any) -> np.ndarray:
 def detect_faces(
     key: str,
     image_path: Path,
-    analyzer: FaceAnalysis,
+    analyzer: FaceDetector,
 ) -> list[DetectedFace]:
     """Returns an empty list when no faces are found. Raises
     :class:`UnreadableThumbnailError` when the image cannot be read.

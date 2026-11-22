@@ -1,5 +1,6 @@
 import shutil
 from pathlib import Path
+from typing import Any
 
 import cv2
 import numpy as np
@@ -170,7 +171,7 @@ class TestFailureReporting:
 
     def test_detection_failure_carries_key_stage_and_reason(self) -> None:
         class _Boom:
-            def get(self, *_args, **_kwargs):
+            def get(self, img: np.ndarray) -> list[Any]:
                 raise RuntimeError("model exploded")
 
         tr = ThumbnailResult(
@@ -234,7 +235,7 @@ class TestFailureAccounting:
         )
 
         class _NeverCalled:
-            def get(self, *_args, **_kwargs):
+            def get(self, img: np.ndarray) -> list[Any]:
                 raise AssertionError("analyzer must not see an unreadable image")
 
         faces, state_key, failure = _detect_single(tr, orig_dir, _NeverCalled())

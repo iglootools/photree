@@ -16,6 +16,7 @@ from ..store.media_sources_discovery import discover_media_sources
 from .detect import (
     DetectedFace,
     FaceAnalyzerFactory,
+    FaceDetector,
     ThumbnailResult,
     detect_faces,
     generate_thumbnail,
@@ -41,7 +42,8 @@ from .store import (
 
 if TYPE_CHECKING:
     # Annotation only: importing insightface costs ~0.3 s at CLI startup.
-    from insightface.app import FaceAnalysis
+    # insightface ships no type information.
+    from insightface.app import FaceAnalysis  # pyright: ignore[reportMissingTypeStubs]
 
 
 @dataclass(frozen=True)
@@ -366,7 +368,7 @@ def _run_detection(
 def _detect_single(
     tr: ThumbnailResult,
     orig_dir: Path,
-    analyzer: FaceAnalysis,
+    analyzer: FaceDetector,
 ) -> tuple[list[DetectedFace] | None, FaceProcessedKey | None, FaceFailure | None]:
     """Detection is best-effort per image — one unreadable file must not abandon
     the album — but the reason is carried out rather than dropped, so the
