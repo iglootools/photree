@@ -4,8 +4,23 @@ from typing import Annotated
 
 import typer
 
-from ...clihelpers.console import console, err_console
-from ...clihelpers.options import (
+from photree.album import check as album_check
+from photree.album import naming as album_naming
+from photree.album.check import output as preflight_output
+from photree.album.cli import app
+from photree.album.cli.media_source_conflict import format_media_source_conflict
+from photree.album.exif_cache.refresh import (
+    refresh_exif_cache as refresh_album_exif_cache,
+)
+from photree.album.formats import IMG_EXTENSIONS, VID_EXTENSIONS
+from photree.album.store.album_discovery import discover_albums
+from photree.album.store.media_sources_discovery import (
+    MediaSourceConflictError,
+    discover_media_sources,
+    find_media_source_conflicts,
+)
+from photree.clihelpers.console import console, err_console
+from photree.clihelpers.options import (
     CHECK_DATE_PART_COLLISION_OPTION,
     CHECK_EXIF_DATE_MATCH_OPTION,
     CHECK_NAMING_OPTION,
@@ -14,29 +29,12 @@ from ...clihelpers.options import (
     FATAL_SIDECAR_OPTION,
     FATAL_WARNINGS_OPTION,
 )
-from ...clihelpers.progress import SilentProgressBar
-from ...clihelpers.runtime import runtime_of
-from ...common.exif import exiftool_session
-from ...common.fs import count_unique_media_numbers, display_path
-from ...common.sysdeps import WhichFn
-from ...foundation.gallery_metadata import resolve_link_mode
-from .. import (
-    check as album_check,
-)
-from .. import (
-    naming as album_naming,
-)
-from ..check import output as preflight_output
-from ..exif_cache.refresh import refresh_exif_cache as refresh_album_exif_cache
-from ..formats import IMG_EXTENSIONS, VID_EXTENSIONS
-from ..store.album_discovery import discover_albums
-from ..store.media_sources_discovery import (
-    MediaSourceConflictError,
-    discover_media_sources,
-    find_media_source_conflicts,
-)
-from . import app
-from .media_source_conflict import format_media_source_conflict
+from photree.clihelpers.progress import SilentProgressBar
+from photree.clihelpers.runtime import runtime_of
+from photree.common.exif import exiftool_session
+from photree.common.fs import count_unique_media_numbers, display_path
+from photree.common.sysdeps import WhichFn
+from photree.foundation.gallery_metadata import resolve_link_mode
 
 
 @app.command("check")

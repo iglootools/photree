@@ -15,10 +15,10 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..common.fs import list_files
-from ..foundation.linking import LinkMode
-from .store.file_matching import dedup_media_dict
-from .store.media_source import KeyFn
+from photree.album.store.file_matching import dedup_media_dict
+from photree.album.store.media_source import KeyFn
+from photree.common.fs import list_files
+from photree.foundation.linking import LinkMode
 
 
 def compute_browsable_files(

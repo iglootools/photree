@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from ..store.media_source import MediaSource
+from photree.album.store.media_source import MediaSource
 
 
 class MissingArchiveError(FileNotFoundError):

@@ -2,10 +2,10 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ....common.fs import file_ext, list_files
-from ...formats import IOS_SIDECAR_EXTENSIONS
-from ...store.file_matching import ios_is_media
-from ...store.media_source import ios_img_number
+from photree.album.formats import IOS_SIDECAR_EXTENSIONS
+from photree.album.store.file_matching import ios_is_media
+from photree.album.store.media_source import ios_img_number
+from photree.common.fs import file_ext, list_files
 
 
 class SidecarIssueKind(StrEnum):

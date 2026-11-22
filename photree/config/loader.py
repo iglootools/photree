@@ -22,9 +22,7 @@ from typing import cast
 
 from platformdirs import site_config_dir, user_config_dir
 
-from ..foundation.linking import LinkMode
-from ..foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
-from .protocol import (
+from photree.config.protocol import (
     ConfigError,
     ConfigErrorKind,
     ExporterConfig,
@@ -32,6 +30,8 @@ from .protocol import (
     ImporterConfig,
     PhotreeConfig,
 )
+from photree.foundation.linking import LinkMode
+from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 
 _APP = "photree"
 _FILENAME = "config.toml"

@@ -3,20 +3,19 @@ from typing import Annotated
 
 import typer
 
-from ...clihelpers.options import REIMPORT_OPTION
-from ...clihelpers.resolution import resolve_gallery_or_exit
-from ...clihelpers.runtime import runtime_of
-from ...clihelpers.sysdeps import import_deps, require_system_deps
-from ...foundation.gallery_metadata import (
+from photree.clihelpers.options import REIMPORT_OPTION
+from photree.clihelpers.resolution import resolve_gallery_or_exit
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.sysdeps import import_deps, require_system_deps
+from photree.foundation.gallery_metadata import (
     GALLERY_YAML,
     load_gallery_metadata,
     resolve_link_mode,
 )
-from ...foundation.layout import PHOTREE_DIR
-from ...foundation.linking import LinkMode
-from ..import_plan import ImportAction
-from . import app
-from .ops import (
+from photree.foundation.layout import PHOTREE_DIR
+from photree.foundation.linking import LinkMode
+from photree.gallery.cli import app
+from photree.gallery.cli.ops import (
     build_index_or_exit,
     plan_imports_or_exit,
     print_single_import_result,
@@ -24,6 +23,7 @@ from .ops import (
     run_face_clustering,
     run_single_import,
 )
+from photree.gallery.import_plan import ImportAction
 
 
 @app.command("import")

@@ -3,13 +3,13 @@ from typing import Annotated
 
 import typer
 
-from ...clihelpers.console import console, err_console
-from ...clihelpers.resolution import resolve_gallery_or_exit
-from ...clihelpers.runtime import runtime_of
-from ...collection.check import CollectionCheckResult, check_all_collections
-from ...common.formatting import CHECK, CROSS, indent, markup_escape
-from ...common.fs import display_path
-from . import app
+from photree.clihelpers.console import console, err_console
+from photree.clihelpers.resolution import resolve_gallery_or_exit
+from photree.clihelpers.runtime import runtime_of
+from photree.collection.check import CollectionCheckResult, check_all_collections
+from photree.collections.cli import app
+from photree.common.formatting import CHECK, CROSS, indent, markup_escape
+from photree.common.fs import display_path
 
 
 def _format_result(result: CollectionCheckResult, cwd: Path) -> str:

@@ -1,23 +1,28 @@
 """Fake check results for demo and testing purposes."""
 
-from ..store.media_source import MAIN_MEDIA_SOURCE, std_media_source
-from . import (
+from photree.album.check import (
     AlbumDirCheck,
     AlbumIdCheck,
     AlbumIntegrityResult,
     AlbumMediaSourceSummary,
     AlbumPreflightResult,
 )
-from .browsable import BrowsableDirCheck, FileComparison, MissingFile, WrongSource
-from .ios import (
+from photree.album.check.browsable import (
+    BrowsableDirCheck,
+    FileComparison,
+    MissingFile,
+    WrongSource,
+)
+from photree.album.check.ios import (
     IosMediaSourceIntegrityResult,
     MiscategorizedFile,
     MiscategorizedKind,
 )
-from .ios.sidecar import SidecarCheck, SidecarIssue, SidecarIssueKind
-from .jpeg import AlbumJpegIntegrityResult, JpegCheck
-from .std import DuplicateStem, StdMediaSourceIntegrityResult
-from .unexpected_dirs import UnexpectedDirsCheck
+from photree.album.check.ios.sidecar import SidecarCheck, SidecarIssue, SidecarIssueKind
+from photree.album.check.jpeg import AlbumJpegIntegrityResult, JpegCheck
+from photree.album.check.std import DuplicateStem, StdMediaSourceIntegrityResult
+from photree.album.check.unexpected_dirs import UnexpectedDirsCheck
+from photree.album.store.media_source import MAIN_MEDIA_SOURCE, std_media_source
 
 _STD_MEDIA_SOURCE = std_media_source("nelu")
 

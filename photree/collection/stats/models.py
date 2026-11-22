@@ -1,7 +1,11 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from ..store.protocol import CollectionLifecycle, CollectionMembers, CollectionStrategy
+from photree.collection.store.protocol import (
+    CollectionLifecycle,
+    CollectionMembers,
+    CollectionStrategy,
+)
 
 
 @dataclass(frozen=True)

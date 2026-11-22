@@ -16,10 +16,13 @@ from functools import partial
 from pathlib import Path
 from typing import Protocol
 
-from ..common.fs import file_ext, list_files
-from ..common.parallelism import ParallelResult, run_parallel
-from ..common.sips import convert_to_jpeg
-from .formats import CONVERT_TO_JPEG_EXTENSIONS, COPY_AS_IS_TO_JPEG_EXTENSIONS
+from photree.album.formats import (
+    CONVERT_TO_JPEG_EXTENSIONS,
+    COPY_AS_IS_TO_JPEG_EXTENSIONS,
+)
+from photree.common.fs import file_ext, list_files
+from photree.common.parallelism import ParallelResult, run_parallel
+from photree.common.sips import convert_to_jpeg
 
 
 class JpegAction(StrEnum):

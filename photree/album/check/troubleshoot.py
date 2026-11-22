@@ -2,11 +2,11 @@ import shlex
 from collections import defaultdict
 from textwrap import dedent
 
-from ...common.formatting import indent, markup_escape
-from ..exif_date_check import ExifMismatch
-from ..store.media_source import MediaSource
-from .ios import IosMediaSourceIntegrityResult
-from .std import StdMediaSourceIntegrityResult
+from photree.album.check.ios import IosMediaSourceIntegrityResult
+from photree.album.check.std import StdMediaSourceIntegrityResult
+from photree.album.exif_date_check import ExifMismatch
+from photree.album.store.media_source import MediaSource
+from photree.common.formatting import indent, markup_escape
 
 
 def _has_browsable_issues(

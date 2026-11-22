@@ -3,23 +3,23 @@ from typing import Annotated
 
 import typer
 
-from ...clihelpers.console import err_console
-from ...clihelpers.runtime import runtime_of
-from ...clihelpers.usage import usage_error
-from ...common.formatting import indent
-from ...common.fs import display_path
-from ...foundation.layout import PHOTREE_DIR
-from ..id import format_collection_external_id
-from ..init import CollectionAlreadyInitializedError, init_collection
-from ..store.protocol import (
+from photree.clihelpers.console import err_console
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.usage import usage_error
+from photree.collection.cli import app
+from photree.collection.cli.options import COLLECTION_DIR_OPTION
+from photree.collection.id import format_collection_external_id
+from photree.collection.init import CollectionAlreadyInitializedError, init_collection
+from photree.collection.store.protocol import (
     COLLECTION_YAML,
     CollectionLifecycle,
     CollectionMembers,
     CollectionStrategy,
     validate_collection_config,
 )
-from . import app
-from .options import COLLECTION_DIR_OPTION
+from photree.common.formatting import indent
+from photree.common.fs import display_path
+from photree.foundation.layout import PHOTREE_DIR
 
 
 @app.command("init")

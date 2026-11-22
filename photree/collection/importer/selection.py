@@ -18,10 +18,10 @@ from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
 
-from ...album.exif import read_exif_timestamps_by_file
-from ...album.formats import IMG_EXTENSIONS, VID_EXTENSIONS
-from ...common.exif import ExifTagReader
-from ...common.fs import file_ext, list_files
+from photree.album.exif import read_exif_timestamps_by_file
+from photree.album.formats import IMG_EXTENSIONS, VID_EXTENSIONS
+from photree.common.exif import ExifTagReader
+from photree.common.fs import file_ext, list_files
 
 SELECTION_DIR = "to-import"
 SELECTION_CSV = "to-import.csv"

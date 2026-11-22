@@ -3,25 +3,29 @@ from typing import Annotated
 
 import typer
 
-from ...clihelpers.console import err_console
-from ...clihelpers.options import (
+from photree.album import fix as album_fixes
+from photree.album.cli import app
+from photree.album.cli.media_source_conflict import exit_on_media_source_conflict
+from photree.album.fix import (
+    FixValidationError,
+    MissingArchiveError,
+    RmUpstreamRefusedError,
+)
+from photree.album.fix.output import format_fix_result
+from photree.album.id import format_album_external_id, generate_album_id
+from photree.album.store.metadata import load_album_metadata, save_album_metadata
+from photree.album.store.protocol import AlbumMetadata
+from photree.clihelpers.console import err_console
+from photree.clihelpers.options import (
     DRY_RUN_OPTION,
     FORCE_OPTION,
     RM_ORPHAN_OPTION,
     RM_UPSTREAM_OPTION,
 )
-from ...clihelpers.runtime import runtime_of
-from ...clihelpers.usage import usage_error
-from ...common.formatting import format_dry_run
-from ...common.fs import display_path
-from .. import fix as album_fixes
-from ..fix import FixValidationError, MissingArchiveError, RmUpstreamRefusedError
-from ..fix.output import format_fix_result
-from ..id import format_album_external_id, generate_album_id
-from ..store.metadata import load_album_metadata, save_album_metadata
-from ..store.protocol import AlbumMetadata
-from . import app
-from .media_source_conflict import exit_on_media_source_conflict
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.usage import usage_error
+from photree.common.formatting import format_dry_run
+from photree.common.fs import display_path
 
 
 @app.command("fix")

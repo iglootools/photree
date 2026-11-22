@@ -9,8 +9,8 @@ import csv
 from dataclasses import dataclass
 from pathlib import Path
 
-from ...common.fs import list_files
-from ..store.media_source import ios_img_number
+from photree.album.store.media_source import ios_img_number
+from photree.common.fs import list_files
 
 
 @dataclass(frozen=True)

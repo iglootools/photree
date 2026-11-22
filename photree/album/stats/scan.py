@@ -12,19 +12,21 @@ from dataclasses import dataclass, replace
 from enum import StrEnum
 from pathlib import Path
 
-from ...common.fs import file_ext, list_files
-from ..formats import (
+from photree.album.formats import (
     IMG_EXTENSIONS,
     IOS_IMG_EXTENSIONS,
     IOS_SIDECAR_EXTENSIONS,
     IOS_VID_EXTENSIONS,
     VID_EXTENSIONS,
 )
-from ..live_photo import detect_live_photo_keys
-from ..store.file_matching import dedup_media_dict as generic_dedup_media_dict
-from ..store.media_source import MediaSource
-from .aggregate import merge_size_stats
-from .models import FormatStats, SizeStats, StorageRole
+from photree.album.live_photo import detect_live_photo_keys
+from photree.album.stats.aggregate import merge_size_stats
+from photree.album.stats.models import FormatStats, SizeStats, StorageRole
+from photree.album.store.file_matching import (
+    dedup_media_dict as generic_dedup_media_dict,
+)
+from photree.album.store.media_source import MediaSource
+from photree.common.fs import file_ext, list_files
 
 _ZERO = SizeStats(file_count=0, apparent_bytes=0, on_disk_bytes=0)
 

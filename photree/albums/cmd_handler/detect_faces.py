@@ -3,9 +3,12 @@ from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
 
-from ...album.faces.detect import FaceAnalyzerFactory, memoized_face_analyzer_factory
-from ...album.faces.refresh import refresh_face_data
-from . import (
+from photree.album.faces.detect import (
+    FaceAnalyzerFactory,
+    memoized_face_analyzer_factory,
+)
+from photree.album.faces.refresh import refresh_face_data
+from photree.albums.cmd_handler import (
     AlbumStepError,
     BatchFailure,
     OnEnd,

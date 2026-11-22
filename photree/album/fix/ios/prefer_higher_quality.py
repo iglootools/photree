@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from ....common.fs import delete_files, file_ext, list_files
-from ...formats import IOS_IMG_EXTENSIONS, PICTURE_PRIORITY_EXTENSIONS
-from ...store.file_matching import group_by_key, pick_media_priority
-from ...store.media_source import MediaSource, ios_img_number
-from ..helpers import require_ios
+from photree.album.fix.helpers import require_ios
+from photree.album.formats import IOS_IMG_EXTENSIONS, PICTURE_PRIORITY_EXTENSIONS
+from photree.album.store.file_matching import group_by_key, pick_media_priority
+from photree.album.store.media_source import MediaSource, ios_img_number
+from photree.common.fs import delete_files, file_ext, list_files
 
 
 def _find_lower_quality_dups_in_dir(

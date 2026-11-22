@@ -3,7 +3,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..album.store.metadata import load_album_metadata
+from photree.album.store.metadata import load_album_metadata
 
 
 @dataclass(frozen=True)

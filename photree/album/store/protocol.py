@@ -1,6 +1,6 @@
 from pydantic import Field
 
-from ...foundation.model import PhotreeModel
+from photree.foundation.model import PhotreeModel
 
 ALBUM_YAML = "album.yaml"
 MEDIA_IDS_DIR = "media-ids"

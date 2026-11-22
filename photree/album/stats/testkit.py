@@ -1,8 +1,10 @@
 """Fake stats data for demo and testing purposes."""
 
-from ..store.media_source import MediaSourceType
-from .aggregate import media_source_type_stats, merge_media_source_type_stats
-from .models import (
+from photree.album.stats.aggregate import (
+    media_source_type_stats,
+    merge_media_source_type_stats,
+)
+from photree.album.stats.models import (
     AggregateStats,
     AlbumsStats,
     AlbumStats,
@@ -12,6 +14,7 @@ from .models import (
     SizeStats,
     YearStats,
 )
+from photree.album.store.media_source import MediaSourceType
 
 
 def _gb(n: float) -> int:

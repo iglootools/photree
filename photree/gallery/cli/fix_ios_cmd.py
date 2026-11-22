@@ -3,10 +3,10 @@ from typing import Annotated
 
 import typer
 
-from ...album.fix.ios import FixIosValidationError, validate_fix_flags
-from ...albums.batchcli.fix import run_batch_fix_ios
-from ...albums.batchcli.resolution import resolve_batch_albums
-from ...clihelpers.options import (
+from photree.album.fix.ios import FixIosValidationError, validate_fix_flags
+from photree.albums.batchcli.fix import run_batch_fix_ios
+from photree.albums.batchcli.resolution import resolve_batch_albums
+from photree.clihelpers.options import (
     DRY_RUN_OPTION,
     MV_MISCATEGORIZED_OPTION,
     PREFER_HIGHER_QUALITY_OPTION,
@@ -14,10 +14,10 @@ from ...clihelpers.options import (
     RM_MISCATEGORIZED_SAFE_OPTION,
     RM_ORPHAN_SIDECAR_OPTION,
 )
-from ...clihelpers.resolution import resolve_gallery_or_exit
-from ...clihelpers.runtime import runtime_of
-from ...clihelpers.usage import usage_error
-from . import app
+from photree.clihelpers.resolution import resolve_gallery_or_exit
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.usage import usage_error
+from photree.gallery.cli import app
 
 
 @app.command("fix-ios")

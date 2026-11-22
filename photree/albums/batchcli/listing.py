@@ -4,17 +4,17 @@ from pathlib import Path
 
 import typer
 
-from ...album.id import format_album_external_id
-from ...album.naming import ParsedAlbumName, parse_album_name
-from ...album.store.media_sources_discovery import discover_media_sources
-from ...album.store.metadata import load_album_metadata
-from ...album.store.protocol import AlbumMetadata
-from ...clihelpers.console import err_console
-from ...clihelpers.options import OutputFormat
-from ...common.formatting import indent
-from ...common.fs import display_path
-from .resolution import display_name
-from .sink import write_csv, write_text
+from photree.album.id import format_album_external_id
+from photree.album.naming import ParsedAlbumName, parse_album_name
+from photree.album.store.media_sources_discovery import discover_media_sources
+from photree.album.store.metadata import load_album_metadata
+from photree.album.store.protocol import AlbumMetadata
+from photree.albums.batchcli.resolution import display_name
+from photree.albums.batchcli.sink import write_csv, write_text
+from photree.clihelpers.console import err_console
+from photree.clihelpers.options import OutputFormat
+from photree.common.formatting import indent
+from photree.common.fs import display_path
 
 _CSV_HEADER = (
     "id",

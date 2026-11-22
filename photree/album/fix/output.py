@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING
 
-from .rm_upstream import RmUpstreamSkip, SignalSkipReason
+from photree.album.fix.rm_upstream import RmUpstreamSkip, SignalSkipReason
 
 if TYPE_CHECKING:
-    from . import FixResult, FixRmUpstreamResult
+    from photree.album.fix import FixResult, FixRmUpstreamResult
 
 
 def rm_upstream_summary(

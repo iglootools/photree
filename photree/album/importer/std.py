@@ -13,14 +13,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ...common.fs import file_ext, list_files
-from ..check.std import DuplicateStem, check_duplicate_stems
-from ..formats import IMG_EXTENSIONS, VID_EXTENSIONS
-from ..store.media_source import MediaSource
-from .collision import ArchiveCollision
+from photree.album.check.std import DuplicateStem, check_duplicate_stems
+from photree.album.formats import IMG_EXTENSIONS, VID_EXTENSIONS
+from photree.album.importer.collision import ArchiveCollision
+from photree.album.store.media_source import MediaSource
+from photree.common.fs import file_ext, list_files
 
 if TYPE_CHECKING:
-    from .tasks import ImportTask
+    from photree.album.importer.tasks import ImportTask
 
 ORIG_SUBDIR = "orig"
 EDIT_SUBDIR = "edit"

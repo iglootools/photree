@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from ....common.fs import delete_files, file_ext, list_files
-from ...formats import IOS_SIDECAR_EXTENSIONS
-from ...store.file_matching import ios_is_media
-from ...store.media_source import MediaSource, ios_img_number
-from ..helpers import require_ios
+from photree.album.fix.helpers import require_ios
+from photree.album.formats import IOS_SIDECAR_EXTENSIONS
+from photree.album.store.file_matching import ios_is_media
+from photree.album.store.media_source import MediaSource, ios_img_number
+from photree.common.fs import delete_files, file_ext, list_files
 
 
 def _find_orphan_sidecars(directory: Path) -> list[str]:

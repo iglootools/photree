@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from ..formats import IMG_EXTENSIONS, VID_EXTENSIONS
-from .media_source import (
+from photree.album.formats import IMG_EXTENSIONS, VID_EXTENSIONS
+from photree.album.store.media_source import (
     DEFAULT_MEDIA_SOURCE,
     IOS_DIR_PREFIX,
     STD_DIR_PREFIX,

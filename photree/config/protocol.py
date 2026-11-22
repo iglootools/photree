@@ -4,8 +4,8 @@ from enum import StrEnum
 from pathlib import Path
 from types import MappingProxyType
 
-from ..foundation.linking import LinkMode
-from ..foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
+from photree.foundation.linking import LinkMode
+from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 
 
 class ConfigErrorKind(StrEnum):

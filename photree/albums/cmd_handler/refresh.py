@@ -4,17 +4,17 @@ from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
 
-from ...album.faces.detect import FaceAnalyzerFactory, memoized_face_analyzer_factory
-from ...album.faces.failures import format_face_failures
-from ...album.refresh import (
+from photree.album.faces.detect import (
+    FaceAnalyzerFactory,
+    memoized_face_analyzer_factory,
+)
+from photree.album.faces.failures import format_face_failures
+from photree.album.refresh import (
     AlbumRefreshResult,
     RefreshFn,
     refresh_album_derived_data,
 )
-from ...common.exif import ExifTagReader, exiftool_session
-from ...common.sysdeps import WhichFn
-from ...foundation.linking import LinkMode
-from . import (
+from photree.albums.cmd_handler import (
     AlbumStepError,
     BatchFailure,
     OnEnd,
@@ -22,6 +22,9 @@ from . import (
     failures_of,
     run_album_step,
 )
+from photree.common.exif import ExifTagReader, exiftool_session
+from photree.common.sysdeps import WhichFn
+from photree.foundation.linking import LinkMode
 
 
 @dataclass(frozen=True)

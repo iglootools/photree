@@ -9,34 +9,27 @@ from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.text import Text
 
-from ...album.check import output as preflight_output
-from ...album.check.output import format_integrity_checks
-from ...album.check.testkit import (
+from photree.album.check import output as preflight_output
+from photree.album.check.output import format_integrity_checks
+from photree.album.check.testkit import (
     INTEGRITY_FAILURES,
     INTEGRITY_OK,
     PREFLIGHT_FAILURES,
     PREFLIGHT_OK,
     PREFLIGHT_STD,
 )
-from ...album.fix.output import (
-    rm_upstream_summary,
-)
-from ...album.importer import output as importer_output
-from ...album.importer.testkit import SeedResult, seed_demo
-from ...album.importer.testkit.preflight import (
-    IC_CHECK_OK,
-    IC_CHECK_WARNINGS,
-)
-from ...album.importer.testkit.preflight import (
+from photree.album.fix.output import rm_upstream_summary
+from photree.album.importer import output as importer_output
+from photree.album.importer.testkit import SeedResult, seed_demo
+from photree.album.importer.testkit.preflight import IC_CHECK_OK, IC_CHECK_WARNINGS
+from photree.album.importer.testkit.preflight import (
     PREFLIGHT_FAILURES as IMPORT_PREFLIGHT_FAILURES,
 )
-from ...album.importer.testkit.preflight import (
-    PREFLIGHT_OK as IMPORT_PREFLIGHT_OK,
-)
-from ...album.importer.testkit.validation import VALIDATION_ERRORS
-from ...album.stats.output import format_album_stats, format_albums_stats
-from ...album.stats.testkit import ALBUM_STATS, ALBUMS_STATS
-from ...clihelpers.console import console
+from photree.album.importer.testkit.preflight import PREFLIGHT_OK as IMPORT_PREFLIGHT_OK
+from photree.album.importer.testkit.validation import VALIDATION_ERRORS
+from photree.album.stats.output import format_album_stats, format_albums_stats
+from photree.album.stats.testkit import ALBUM_STATS, ALBUMS_STATS
+from photree.clihelpers.console import console
 
 app = typer.Typer(
     name="demo",

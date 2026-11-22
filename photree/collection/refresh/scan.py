@@ -8,28 +8,24 @@ problem at once and modifies nothing.
 from dataclasses import dataclass
 from pathlib import Path
 
-from ...album.naming import (
+from photree.album.naming import (
     ParsedAlbumName,
     check_album_naming,
     check_batch_date_collisions,
     parse_album_name,
 )
-from ...album.store.album_discovery import discover_albums
-from ...album.store.metadata import load_album_metadata
-from ...album.store.protocol import AlbumMetadata
-from ...foundation.layout import ALBUMS_DIR, COLLECTIONS_DIR
-from ...foundation.metadata_io import read_or_none
-from ..store.collection_discovery import discover_collections
-from ..store.metadata import (
-    load_collection_metadata,
-)
-from ..store.protocol import (
-    CollectionMetadata,
-)
-from .result import (
+from photree.album.store.album_discovery import discover_albums
+from photree.album.store.metadata import load_album_metadata
+from photree.album.store.protocol import AlbumMetadata
+from photree.collection.refresh.result import (
     CollectionRefreshError,
     CollectionRefreshErrorKind,
 )
+from photree.collection.store.collection_discovery import discover_collections
+from photree.collection.store.metadata import load_collection_metadata
+from photree.collection.store.protocol import CollectionMetadata
+from photree.foundation.layout import ALBUMS_DIR, COLLECTIONS_DIR
+from photree.foundation.metadata_io import read_or_none
 
 
 @dataclass(frozen=True)

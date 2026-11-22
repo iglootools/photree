@@ -9,19 +9,19 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ..faces.protocol import (
+from photree.album.faces.protocol import (
     DEFAULT_MODEL_NAME,
     DEFAULT_MODEL_VERSION,
     FaceProcessingState,
 )
-from ..faces.store import (
+from photree.album.faces.store import (
     FaceData,
     data_path,
     load_face_data,
     load_face_state,
     state_path,
 )
-from ..store.media_source import MediaSource
+from photree.album.store.media_source import MediaSource
 
 
 class FaceSyncIssueKind(StrEnum):

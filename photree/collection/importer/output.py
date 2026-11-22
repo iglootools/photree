@@ -6,19 +6,24 @@ into messages. Formatters return unindented lines — the caller indents.
 
 from pathlib import Path
 
-from ...common.fs import display_path
-from .import_members import (
+from photree.collection.importer.import_members import (
     CollectionImportError,
     CollectionImportErrorKind,
     CollectionImportResult,
 )
-from .resolve import (
+from photree.collection.importer.resolve import (
     ResolutionError,
     ResolutionErrorKind,
     ResolutionWarning,
     ResolvedMembers,
 )
-from .selection import SELECTION_CSV, SELECTION_DIR, SelectionError, SelectionErrorKind
+from photree.collection.importer.selection import (
+    SELECTION_CSV,
+    SELECTION_DIR,
+    SelectionError,
+    SelectionErrorKind,
+)
+from photree.common.fs import display_path
 
 
 def format_import_error(exc: CollectionImportError, cwd: Path) -> str:

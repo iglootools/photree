@@ -4,22 +4,22 @@ from enum import StrEnum
 from pathlib import Path
 from typing import NamedTuple, Protocol
 
-from ...common.exif import ExifTagReader
-from ...common.fs import list_files
-from ...foundation.linking import LinkMode
-from ..faces.detect import FaceAnalyzerFactory
-from ..faces.failures import format_face_failures
-from ..jpeg import ConvertFile, convert_single_file
-from ..staging import ios_import_dir, std_import_dir
-from . import album_import
-from .album_import import (
+from photree.album.faces.detect import FaceAnalyzerFactory
+from photree.album.faces.failures import format_face_failures
+from photree.album.importer import album_import
+from photree.album.importer.album_import import (
     AlbumImportResult,
     TaskIssue,
     task_has_content,
     validate_album_import,
 )
-from .naming_gate import ImportNamingCheck, check_import_naming
-from .tasks import discover_import_tasks, has_import_tasks
+from photree.album.importer.naming_gate import ImportNamingCheck, check_import_naming
+from photree.album.importer.tasks import discover_import_tasks, has_import_tasks
+from photree.album.jpeg import ConvertFile, convert_single_file
+from photree.album.staging import ios_import_dir, std_import_dir
+from photree.common.exif import ExifTagReader
+from photree.common.fs import list_files
+from photree.foundation.linking import LinkMode
 
 
 class OnSkipped(Protocol):

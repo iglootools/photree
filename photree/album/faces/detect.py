@@ -15,9 +15,9 @@ from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import numpy as np
 
-from ...common.native_stderr import filter_native_stderr
-from ...common.sips import get_dimensions, resize_to_jpeg
-from .protocol import DEFAULT_MODEL_NAME, THUMB_MAX_DIMENSION
+from photree.album.faces.protocol import DEFAULT_MODEL_NAME, THUMB_MAX_DIMENSION
+from photree.common.native_stderr import filter_native_stderr
+from photree.common.sips import get_dimensions, resize_to_jpeg
 
 
 def is_ort_device_discovery_noise(line: str) -> bool:

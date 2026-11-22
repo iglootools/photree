@@ -5,17 +5,17 @@ from pathlib import Path
 
 import typer
 
-from ...clihelpers.console import err_console
-from ...common.formatting import format_dry_run, indent
-from ...common.fs import display_path
-from ..cmd_handler.rename import BatchRenameResult, batch_rename_from_csv
-from ..renamer import (
+from photree.albums.cmd_handler.rename import BatchRenameResult, batch_rename_from_csv
+from photree.albums.renamer import (
     RenameCollisionError,
     RenameFailure,
     RenamePhase,
     RenamePlanError,
     RenamePlanErrorKind,
 )
+from photree.clihelpers.console import err_console
+from photree.common.formatting import format_dry_run, indent
+from photree.common.fs import display_path
 
 
 def format_rename_plan_error(error: RenamePlanError) -> str:

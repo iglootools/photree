@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..store.media_source import MAIN_MEDIA_SOURCE, MediaSource
+from photree.album.store.media_source import MAIN_MEDIA_SOURCE, MediaSource
 
 
 @dataclass(frozen=True)

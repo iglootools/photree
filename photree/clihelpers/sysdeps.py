@@ -11,15 +11,15 @@ from textwrap import dedent
 
 import typer
 
-from ..common.sysdeps import (
+from photree.clihelpers.console import console, err_console
+from photree.common.sysdeps import (
     SystemDependency,
     SystemDependencyStatus,
     WhichFn,
     check_system_dependencies,
     missing_dependencies,
 )
-from ..common.sysdeps_output import format_missing_troubleshoot, format_statuses
-from .console import console, err_console
+from photree.common.sysdeps_output import format_missing_troubleshoot, format_statuses
 
 # Requirement sets, named so commands declare intent rather than a binary list.
 # Every command's requirement is declared here and nowhere else, so adding a

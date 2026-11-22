@@ -12,29 +12,29 @@ from datetime import date
 from enum import StrEnum
 from pathlib import Path
 
-from ..album.id import (
+from photree.album.id import (
     format_album_external_id,
     format_image_external_id,
     format_video_external_id,
 )
-from ..album.naming import ParsedAlbumName, parse_album_name
-from ..album.store.album_discovery import discover_albums
-from ..album.store.media_metadata import MediaMetadata, load_media_metadata
-from ..album.store.metadata import load_album_metadata
-from ..dates import date_range, range_contains, ranges_overlap
-from ..foundation.layout import ALBUMS_DIR, COLLECTIONS_DIR, PHOTREE_DIR
-from ..foundation.metadata_io import InvalidMetadataError
-from .id import format_collection_external_id
-from .naming import ParsedCollectionName, parse_collection_name
-from .store.collection_discovery import discover_collections
-from .store.metadata import load_collection_metadata
-from .store.protocol import (
+from photree.album.naming import ParsedAlbumName, parse_album_name
+from photree.album.store.album_discovery import discover_albums
+from photree.album.store.media_metadata import MediaMetadata, load_media_metadata
+from photree.album.store.metadata import load_album_metadata
+from photree.collection.id import format_collection_external_id
+from photree.collection.naming import ParsedCollectionName, parse_collection_name
+from photree.collection.store.collection_discovery import discover_collections
+from photree.collection.store.metadata import load_collection_metadata
+from photree.collection.store.protocol import (
     COLLECTION_YAML,
     CollectionMembers,
     CollectionMetadata,
     CollectionStrategy,
     validate_collection_config,
 )
+from photree.dates import date_range, range_contains, ranges_overlap
+from photree.foundation.layout import ALBUMS_DIR, COLLECTIONS_DIR, PHOTREE_DIR
+from photree.foundation.metadata_io import InvalidMetadataError
 
 
 class CollectionIssueCode(StrEnum):

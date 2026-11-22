@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 import numpy.typing as npt
 
-from .protocol import DEFAULT_CLUSTER_THRESHOLD
+from photree.gallery.faces.protocol import DEFAULT_CLUSTER_THRESHOLD
 
 # faiss, scipy and sklearn are imported inside the functions that use them, not
 # here: this module is reachable from the CLI, and loading them would slow down

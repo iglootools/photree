@@ -9,12 +9,12 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ..common.formatting import indent
-from ..common.fs import delete_files, display_path, file_ext, move_files
-from .formats import VID_EXTENSIONS
-from .store.file_matching import find_files_by_key
-from .store.media_source import MediaSource
-from .store.media_sources_discovery import discover_media_sources
+from photree.album.formats import VID_EXTENSIONS
+from photree.album.store.file_matching import find_files_by_key
+from photree.album.store.media_source import MediaSource
+from photree.album.store.media_sources_discovery import discover_media_sources
+from photree.common.formatting import indent
+from photree.common.fs import delete_files, display_path, file_ext, move_files
 
 
 @dataclass(frozen=True)

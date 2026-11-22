@@ -9,12 +9,12 @@ from uuid import uuid7
 
 import numpy as np
 
-from ...album.faces.protocol import FACES_DIR
-from ...album.faces.store import load_face_data
-from ...album.store.album_discovery import discover_albums
-from ...album.store.metadata import load_album_metadata
-from ...foundation.layout import ALBUMS_DIR, PHOTREE_DIR
-from .clustering import (
+from photree.album.faces.protocol import FACES_DIR
+from photree.album.faces.store import load_face_data
+from photree.album.store.album_discovery import discover_albums
+from photree.album.store.metadata import load_album_metadata
+from photree.foundation.layout import ALBUMS_DIR, PHOTREE_DIR
+from photree.gallery.faces.clustering import (
     add_to_index,
     assign_to_nearest_cluster,
     build_faiss_index,
@@ -23,7 +23,7 @@ from .clustering import (
     match_clusters_by_medoid,
     save_faiss_index,
 )
-from .manifest import (
+from photree.gallery.faces.manifest import (
     compute_npz_checksum,
     faiss_index_path,
     load_checksums,
@@ -33,7 +33,7 @@ from .manifest import (
     save_clusters,
     save_manifest,
 )
-from .protocol import (
+from photree.gallery.faces.protocol import (
     DEFAULT_CLUSTER_THRESHOLD,
     AlbumFaceChecksums,
     FaceCluster,

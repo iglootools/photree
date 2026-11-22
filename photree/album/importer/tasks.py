@@ -11,15 +11,15 @@ An album may carry multiple import staging entries, one per media source:
 from dataclasses import dataclass
 from pathlib import Path
 
-from ...common.fs import list_dirs, list_files
-from ..staging import STAGING_CSV_RE, STAGING_DIR_RE
-from ..store.media_source import (
+from photree.album.staging import STAGING_CSV_RE, STAGING_DIR_RE
+from photree.album.store.media_source import (
     DEFAULT_MEDIA_SOURCE,
     MediaSource,
     MediaSourceType,
     ios_media_source,
     std_media_source,
 )
+from photree.common.fs import list_dirs, list_files
 
 
 @dataclass(frozen=True)

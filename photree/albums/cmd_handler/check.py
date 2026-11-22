@@ -2,12 +2,10 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from ...album import (
-    check as album_check,
-)
-from ...album.id import format_album_external_id
-from ...common.exif import ExifTagReader
-from ...foundation.linking import LinkMode
+from photree.album import check as album_check
+from photree.album.id import format_album_external_id
+from photree.common.exif import ExifTagReader
+from photree.foundation.linking import LinkMode
 
 type OnCheckEnd = Callable[[str, bool, tuple[str, ...], tuple[str, ...]], None]
 

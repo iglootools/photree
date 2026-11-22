@@ -7,24 +7,24 @@ from pathlib import Path
 
 import typer
 
-from ...album import naming as album_naming
-from ...album.check import output as preflight_output
-from ...album.check.output import batch_check_summary
-from ...album.exif_cache.refresh import refresh_exif_cache as _refresh_exif
-from ...album.id import format_album_external_id, format_image_external_id
-from ...album.naming import BatchNamingResult
-from ...clihelpers.console import console, err_console
-from ...clihelpers.progress import BatchProgressBar, run_with_spinner
-from ...clihelpers.sysdeps import CHECK_DEPS, EXIF_DEPS, require_system_deps
-from ...common.exif import ExifTagReader, exiftool_session
-from ...common.sysdeps import WhichFn
-from ...foundation.gallery_metadata import resolve_link_mode
-from ..cmd_handler import BatchFailure, failures_of, run_album_step
-from ..cmd_handler.check import BatchCheckResult, batch_check
-from ..index import find_duplicate_album_ids
-from ..media_index import find_duplicate_media_ids
-from .failures import batch_failures_report, investigate_commands
-from .resolution import make_display_fn
+from photree.album import naming as album_naming
+from photree.album.check import output as preflight_output
+from photree.album.check.output import batch_check_summary
+from photree.album.exif_cache.refresh import refresh_exif_cache as _refresh_exif
+from photree.album.id import format_album_external_id, format_image_external_id
+from photree.album.naming import BatchNamingResult
+from photree.albums.batchcli.failures import batch_failures_report, investigate_commands
+from photree.albums.batchcli.resolution import make_display_fn
+from photree.albums.cmd_handler import BatchFailure, failures_of, run_album_step
+from photree.albums.cmd_handler.check import BatchCheckResult, batch_check
+from photree.albums.index import find_duplicate_album_ids
+from photree.albums.media_index import find_duplicate_media_ids
+from photree.clihelpers.console import console, err_console
+from photree.clihelpers.progress import BatchProgressBar, run_with_spinner
+from photree.clihelpers.sysdeps import CHECK_DEPS, EXIF_DEPS, require_system_deps
+from photree.common.exif import ExifTagReader, exiftool_session
+from photree.common.sysdeps import WhichFn
+from photree.foundation.gallery_metadata import resolve_link_mode
 
 
 @dataclass(frozen=True)

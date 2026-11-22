@@ -3,14 +3,16 @@ from typing import Annotated
 
 import typer
 
-from ....clihelpers.console import err_console
-from ....clihelpers.runtime import runtime_of
-from ....clihelpers.usage import usage_error
-from ....common.formatting import indent
-from ....common.fs import display_path
-from ....foundation.layout import PHOTREE_DIR
-from ...store.metadata import load_collection_metadata, save_collection_metadata
-from ...store.protocol import (
+from photree.clihelpers.console import err_console
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.usage import usage_error
+from photree.collection.cli.metadata import app
+from photree.collection.cli.options import COLLECTION_DIR_OPTION
+from photree.collection.store.metadata import (
+    load_collection_metadata,
+    save_collection_metadata,
+)
+from photree.collection.store.protocol import (
     COLLECTION_YAML,
     CollectionLifecycle,
     CollectionMembers,
@@ -18,8 +20,9 @@ from ...store.protocol import (
     CollectionStrategy,
     validate_collection_config,
 )
-from ..options import COLLECTION_DIR_OPTION
-from . import app
+from photree.common.formatting import indent
+from photree.common.fs import display_path
+from photree.foundation.layout import PHOTREE_DIR
 
 
 def _load_or_exit(collection_dir: Path, cwd: Path) -> CollectionMetadata:

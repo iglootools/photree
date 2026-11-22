@@ -14,10 +14,10 @@ from pathlib import Path
 
 import typer
 
-from ...clihelpers.console import err_console
-from ...common.formatting import indent, markup_escape
-from ...common.fs import display_path
-from ..cmd_handler import BatchFailure
+from photree.albums.cmd_handler import BatchFailure
+from photree.clihelpers.console import err_console
+from photree.common.formatting import indent, markup_escape
+from photree.common.fs import display_path
 
 
 def batch_failures_report(failures: Iterable[BatchFailure], base: Path) -> str:

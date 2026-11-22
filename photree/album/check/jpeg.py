@@ -2,9 +2,12 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from ...common.fs import file_ext, list_files
-from ..formats import CONVERT_TO_JPEG_EXTENSIONS, COPY_AS_IS_TO_JPEG_EXTENSIONS
-from ..store.media_source import MediaSource
+from photree.album.formats import (
+    CONVERT_TO_JPEG_EXTENSIONS,
+    COPY_AS_IS_TO_JPEG_EXTENSIONS,
+)
+from photree.album.store.media_source import MediaSource
+from photree.common.fs import file_ext, list_files
 
 
 @dataclass(frozen=True)

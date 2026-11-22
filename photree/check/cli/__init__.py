@@ -8,4 +8,4 @@ app = typer.Typer(
 
 # Imported for its side effect: the module registers its commands on `app`.
 # The redundant `x as x` alias tells ruff and pyright the import is intentional.
-from . import cmd as cmd
+from photree.check.cli import cmd as cmd

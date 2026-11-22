@@ -2,10 +2,10 @@ import shutil
 from collections.abc import Callable
 from pathlib import Path
 
-from ...album import check as album_check
-from ...common.exif import ExifTagReader, exiftool_session
-from ...common.sysdeps import WhichFn
-from ...foundation.linking import LinkMode
+from photree.album import check as album_check
+from photree.common.exif import ExifTagReader, exiftool_session
+from photree.common.sysdeps import WhichFn
+from photree.foundation.linking import LinkMode
 
 
 def run_batch_post_import_check(

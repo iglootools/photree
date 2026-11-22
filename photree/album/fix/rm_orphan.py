@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from ...common.fs import delete_files, file_ext, list_files
-from ..formats import IMG_EXTENSIONS, VID_EXTENSIONS
-from ..store.media_source import KeyFn, MediaSource
-from .helpers import require_archive
+from photree.album.fix.helpers import require_archive
+from photree.album.formats import IMG_EXTENSIONS, VID_EXTENSIONS
+from photree.album.store.media_source import KeyFn, MediaSource
+from photree.common.fs import delete_files, file_ext, list_files
 
 
 def _extract_keys(

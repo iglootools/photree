@@ -7,10 +7,10 @@ album list; used by both ``albums`` and ``gallery`` CLI commands.
 from collections.abc import Callable
 from pathlib import Path
 
-from ...album import check as album_check
-from ...album.store.album_discovery import discover_potential_albums
-from ...clihelpers.usage import usage_error
-from ...common.fs import display_path
+from photree.album import check as album_check
+from photree.album.store.album_discovery import discover_potential_albums
+from photree.clihelpers.usage import usage_error
+from photree.common.fs import display_path
 
 
 def display_name(album_dir: Path, base_dir: Path | None, cwd: Path) -> str:

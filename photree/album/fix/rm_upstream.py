@@ -24,13 +24,13 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ...common.fs import delete_files, list_files
-from .. import browsable as browsable_module
-from ..formats import IMG_EXTENSIONS
-from ..jpeg import jpeg_name
-from ..store.file_matching import find_files_by_key
-from ..store.media_source import MediaSource
-from .helpers import require_archive
+from photree.album import browsable as browsable_module
+from photree.album.fix.helpers import require_archive
+from photree.album.formats import IMG_EXTENSIONS
+from photree.album.jpeg import jpeg_name
+from photree.album.store.file_matching import find_files_by_key
+from photree.album.store.media_source import MediaSource
+from photree.common.fs import delete_files, list_files
 
 
 class MediaKind(StrEnum):

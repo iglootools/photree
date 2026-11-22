@@ -4,14 +4,14 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ...common.sysdeps import (
+from photree.album.importer.album_import import task_has_content
+from photree.album.importer.tasks import discover_import_tasks
+from photree.common.sysdeps import (
     SystemDependency,
     SystemDependencyStatus,
     missing_dependencies,
 )
-from ...config import PhotreeConfig, load_config
-from .album_import import task_has_content
-from .tasks import discover_import_tasks
+from photree.config import PhotreeConfig, load_config
 
 
 def default_image_capture_dir(home: Path) -> Path:

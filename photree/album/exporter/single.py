@@ -25,15 +25,15 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ...dates import parse_month_prefix, parse_year_prefix
-from ...foundation.layout import PHOTREE_DIR
-from ...foundation.linking import LinkMode
-from ...foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
-from ..browsable import refresh_browsable_dir
-from ..formats import IMG_EXTENSIONS, VID_EXTENSIONS
-from ..store.media_source import MediaSource
-from ..store.media_sources_discovery import discover_media_sources
-from ..store.protocol import CACHE_DIR
+from photree.album.browsable import refresh_browsable_dir
+from photree.album.formats import IMG_EXTENSIONS, VID_EXTENSIONS
+from photree.album.store.media_source import MediaSource
+from photree.album.store.media_sources_discovery import discover_media_sources
+from photree.album.store.protocol import CACHE_DIR
+from photree.dates import parse_month_prefix, parse_year_prefix
+from photree.foundation.layout import PHOTREE_DIR
+from photree.foundation.linking import LinkMode
+from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 
 type _IgnoreFn = Callable[[str, list[str]], set[str]]
 

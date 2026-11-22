@@ -3,16 +3,16 @@ from typing import Annotated
 
 import typer
 
-from ...clihelpers.console import err_console
-from ...clihelpers.options import DRY_RUN_OPTION
-from ...clihelpers.runtime import runtime_of
-from ...clihelpers.sysdeps import FACE_DETECTION_DEPS, require_system_deps
-from ...common.formatting import format_dry_run, indent
-from ..faces.detect import memoized_face_analyzer_factory
-from ..faces.failures import format_face_failures
-from ..faces.refresh import FaceSourceRefreshResult, refresh_face_data
-from . import app
-from .media_source_conflict import exit_on_media_source_conflict
+from photree.album.cli import app
+from photree.album.cli.media_source_conflict import exit_on_media_source_conflict
+from photree.album.faces.detect import memoized_face_analyzer_factory
+from photree.album.faces.failures import format_face_failures
+from photree.album.faces.refresh import FaceSourceRefreshResult, refresh_face_data
+from photree.clihelpers.console import err_console
+from photree.clihelpers.options import DRY_RUN_OPTION
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.sysdeps import FACE_DETECTION_DEPS, require_system_deps
+from photree.common.formatting import format_dry_run, indent
 
 
 @app.command("detect-faces")

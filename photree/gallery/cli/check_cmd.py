@@ -3,10 +3,10 @@ from typing import Annotated
 
 import typer
 
-from ...albums.batchcli.check import run_batch_check
-from ...albums.batchcli.resolution import resolve_check_batch_albums
-from ...clihelpers.console import console, err_console
-from ...clihelpers.options import (
+from photree.albums.batchcli.check import run_batch_check
+from photree.albums.batchcli.resolution import resolve_check_batch_albums
+from photree.clihelpers.console import console, err_console
+from photree.clihelpers.options import (
     CHECK_DATE_PART_COLLISION_OPTION,
     CHECK_EXIF_DATE_MATCH_OPTION,
     CHECK_NAMING_OPTION,
@@ -15,13 +15,14 @@ from ...clihelpers.options import (
     FATAL_SIDECAR_OPTION,
     FATAL_WARNINGS_OPTION,
 )
-from ...clihelpers.progress import run_with_spinner
-from ...clihelpers.resolution import resolve_gallery_or_exit
-from ...clihelpers.runtime import runtime_of
-from ...collection.check import check_all_collections
-from ...common.formatting import CHECK, CROSS, indent, markup_escape
-from ...common.fs import display_path
-from ..faces.check import (
+from photree.clihelpers.progress import run_with_spinner
+from photree.clihelpers.resolution import resolve_gallery_or_exit
+from photree.clihelpers.runtime import runtime_of
+from photree.collection.check import check_all_collections
+from photree.common.formatting import CHECK, CROSS, indent, markup_escape
+from photree.common.fs import display_path
+from photree.gallery.cli import app
+from photree.gallery.faces.check import (
     AlbumFaceDataChanged,
     AlbumFaceDataNotIndexed,
     ClusterIndexOutOfBounds,
@@ -29,7 +30,6 @@ from ..faces.check import (
     FaceCountMismatch,
     check_face_clusters,
 )
-from . import app
 
 
 @app.command("check")

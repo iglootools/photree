@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING
 
-from .miscategorized import MiscategorizedAction
+from photree.album.fix.ios.miscategorized import MiscategorizedAction
 
 if TYPE_CHECKING:
-    from . import FixIosMiscategorizedResult, FixIosResult
+    from photree.album.fix.ios import FixIosMiscategorizedResult, FixIosResult
 
 
 def _removal_summary(

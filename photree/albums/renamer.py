@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ..album.id import ALBUM_ID_PREFIX, InvalidExternalIdError, parse_external_id
-from ..album.naming import ParsedAlbumName, parse_album_name, reconstruct_name
+from photree.album.id import ALBUM_ID_PREFIX, InvalidExternalIdError, parse_external_id
+from photree.album.naming import ParsedAlbumName, parse_album_name, reconstruct_name
 
 
 @dataclass(frozen=True)

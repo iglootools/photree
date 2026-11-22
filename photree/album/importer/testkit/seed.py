@@ -9,8 +9,8 @@ import zlib
 from dataclasses import dataclass
 from pathlib import Path
 
-from ....common.sips import convert_to_heic
-from ....common.sysdeps import SystemDependency, WhichFn, is_available
+from photree.common.sips import convert_to_heic
+from photree.common.sysdeps import SystemDependency, WhichFn, is_available
 
 # Minimal valid 1x1 JPEG, generated with Pillow (quality 75). An earlier
 # hand-written byte list was truncated: libjpeg decoded it but printed

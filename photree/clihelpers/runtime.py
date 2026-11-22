@@ -16,9 +16,9 @@ from pathlib import Path
 import typer
 from platformdirs import site_config_dir, user_config_dir
 
-from ..common.sysdeps import WhichFn
-from ..config import PhotreeConfig, load_config
-from ..config.loader import ConfigDirFn
+from photree.common.sysdeps import WhichFn
+from photree.config import PhotreeConfig, load_config
+from photree.config.loader import ConfigDirFn
 
 
 @dataclass(frozen=True)

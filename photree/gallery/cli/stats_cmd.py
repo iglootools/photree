@@ -3,12 +3,12 @@ from typing import Annotated
 
 import typer
 
-from ...albums.batchcli.resolution import resolve_check_batch_albums
-from ...albums.batchcli.stats import run_batch_stats
-from ...clihelpers.resolution import resolve_gallery_or_exit
-from ...clihelpers.runtime import runtime_of
-from ..stats import compute_gallery_stats, format_gallery_stats
-from . import app
+from photree.albums.batchcli.resolution import resolve_check_batch_albums
+from photree.albums.batchcli.stats import run_batch_stats
+from photree.clihelpers.resolution import resolve_gallery_or_exit
+from photree.clihelpers.runtime import runtime_of
+from photree.gallery.cli import app
+from photree.gallery.stats import compute_gallery_stats, format_gallery_stats
 
 
 @app.command("stats")

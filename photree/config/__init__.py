@@ -1,7 +1,7 @@
 """Configuration types and TOML loader."""
 
-from .loader import config_search_paths, find_config_file, load_config
-from .protocol import (
+from photree.config.loader import config_search_paths, find_config_file, load_config
+from photree.config.protocol import (
     ConfigError,
     ConfigErrorKind,
     ExporterConfig,

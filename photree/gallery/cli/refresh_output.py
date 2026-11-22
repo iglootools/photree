@@ -7,20 +7,20 @@ next step.
 
 from pathlib import Path
 
-from ...album.id import (
+from photree.album.id import (
     format_album_external_id,
     format_image_external_id,
     format_video_external_id,
 )
-from ...collection.id import format_collection_external_id
-from ...collection.refresh.result import (
+from photree.collection.id import format_collection_external_id
+from photree.collection.refresh.result import (
     CollectionRefreshError,
     CollectionRefreshErrorKind,
     CollectionRefreshResult,
 )
-from ...common.formatting import indent
-from ...common.fs import display_path
-from ..browsable_refresh import (
+from photree.common.formatting import indent
+from photree.common.fs import display_path
+from photree.gallery.browsable_refresh import (
     BrowsableRefreshError,
     BrowsableRefreshErrorKind,
     DanglingMember,

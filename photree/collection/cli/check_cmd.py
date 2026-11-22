@@ -3,14 +3,14 @@ from typing import Annotated
 
 import typer
 
-from ...clihelpers.console import console, err_console
-from ...clihelpers.resolution import resolve_gallery_or_exit
-from ...clihelpers.runtime import runtime_of
-from ...common.formatting import CHECK, CROSS, indent, markup_escape
-from ...common.fs import display_path
-from ..check import build_gallery_lookup, check_collection
-from . import app
-from .options import COLLECTION_DIR_OPTION
+from photree.clihelpers.console import console, err_console
+from photree.clihelpers.resolution import resolve_gallery_or_exit
+from photree.clihelpers.runtime import runtime_of
+from photree.collection.check import build_gallery_lookup, check_collection
+from photree.collection.cli import app
+from photree.collection.cli.options import COLLECTION_DIR_OPTION
+from photree.common.formatting import CHECK, CROSS, indent, markup_escape
+from photree.common.fs import display_path
 
 
 @app.command("check")

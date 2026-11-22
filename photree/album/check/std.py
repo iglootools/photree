@@ -4,12 +4,12 @@ from itertools import groupby
 from pathlib import Path
 from typing import TypedDict
 
-from ...common.fs import file_ext, list_files
-from ...foundation.linking import LinkMode
-from ..formats import IMG_EXTENSIONS, VID_EXTENSIONS
-from ..store.media_source import MediaSource
-from .browsable import BrowsableDirCheck, check_browsable_dir
-from .jpeg import JpegCheck, check_jpeg_dir
+from photree.album.check.browsable import BrowsableDirCheck, check_browsable_dir
+from photree.album.check.jpeg import JpegCheck, check_jpeg_dir
+from photree.album.formats import IMG_EXTENSIONS, VID_EXTENSIONS
+from photree.album.store.media_source import MediaSource
+from photree.common.fs import file_ext, list_files
+from photree.foundation.linking import LinkMode
 
 
 @dataclass(frozen=True)

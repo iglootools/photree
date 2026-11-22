@@ -7,8 +7,13 @@ import preflight, ``check`` troubleshooting).
 
 from collections.abc import Iterable
 
-from .formatting import CHECK, CROSS
-from .sysdeps import SystemDependency, SystemDependencyStatus, install_hint, purpose
+from photree.common.formatting import CHECK, CROSS
+from photree.common.sysdeps import (
+    SystemDependency,
+    SystemDependencyStatus,
+    install_hint,
+    purpose,
+)
 
 
 def format_status(status: SystemDependencyStatus) -> str:

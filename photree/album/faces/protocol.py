@@ -1,6 +1,6 @@
 from pydantic import Field
 
-from ...foundation.model import PhotreeModel
+from photree.foundation.model import PhotreeModel
 
 FACES_DIR = "cache/faces"
 """Subdirectory under ``.photree/`` for face detection cache (album-level)."""

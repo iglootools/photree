@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import StrEnum
 
-from ..store.media_source import MediaSourceType
+from photree.album.store.media_source import MediaSourceType
 
 
 class StorageRole(StrEnum):

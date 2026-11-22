@@ -13,9 +13,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from ...common.formatting import indent, markup_escape
-from ..store.media_source import MediaSourceType
-from .models import (
+from photree.album.stats.models import (
     AggregateStats,
     AlbumsStats,
     AlbumStats,
@@ -24,6 +22,8 @@ from .models import (
     SizeStats,
     YearStats,
 )
+from photree.album.store.media_source import MediaSourceType
+from photree.common.formatting import indent, markup_escape
 
 _UNITS = ("B", "KiB", "MiB", "GiB", "TiB")
 

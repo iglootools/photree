@@ -3,13 +3,16 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from ...album.faces.detect import FaceAnalyzerFactory, memoized_face_analyzer_factory
-from ...common.exif import ExifTagReader, exiftool_session
-from ...common.sysdeps import WhichFn
-from ...foundation.linking import LinkMode
-from .. import importer as gallery_importer
-from ..import_plan import AlbumPlan, ImportAction
-from ..importer import AlbumImportResult, FaceFailures, JpegFailures
+from photree.album.faces.detect import (
+    FaceAnalyzerFactory,
+    memoized_face_analyzer_factory,
+)
+from photree.common.exif import ExifTagReader, exiftool_session
+from photree.common.sysdeps import WhichFn
+from photree.foundation.linking import LinkMode
+from photree.gallery import importer as gallery_importer
+from photree.gallery.import_plan import AlbumPlan, ImportAction
+from photree.gallery.importer import AlbumImportResult, FaceFailures, JpegFailures
 
 
 def _execute_plan(

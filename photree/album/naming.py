@@ -20,7 +20,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from enum import StrEnum
 
-from ..dates import DATE_PREFIX_RE, is_day_precision, is_valid_date
+from photree.dates import DATE_PREFIX_RE, is_day_precision, is_valid_date
 
 _TAGS_RE = re.compile(r"\s*\[([^\]]+)\]\s*$")
 

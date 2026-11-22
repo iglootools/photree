@@ -1,10 +1,10 @@
 import typer
 
-from ...clihelpers.options import DRY_RUN_OPTION
-from ...clihelpers.runtime import runtime_of
-from ..batchcli.init import run_batch_init
-from ..batchcli.resolution import resolve_init_batch_albums
-from . import ALBUM_DIR_OPTION, DIR_OPTION, app
+from photree.albums.batchcli.init import run_batch_init
+from photree.albums.batchcli.resolution import resolve_init_batch_albums
+from photree.albums.cli import ALBUM_DIR_OPTION, DIR_OPTION, app
+from photree.clihelpers.options import DRY_RUN_OPTION
+from photree.clihelpers.runtime import runtime_of
 
 
 @app.command("init")

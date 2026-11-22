@@ -8,14 +8,19 @@ failure helpers at the bottom return plain text instead.
 
 from pathlib import Path
 
-from ..album.faces.failures import format_face_failures
-from ..album.id import format_album_external_id
-from ..album.naming import NamingIssue
-from ..common.formatting import CROSS, WARNING, indent, markup_escape
-from ..common.fs import display_path
-from .cmd_handler.importer import AlbumImportFailure, BatchImportResult
-from .import_plan import AlbumPlan, ClobberConflict, GalleryImportPlan, SourceDuplicate
-from .importer import TargetExistsError
+from photree.album.faces.failures import format_face_failures
+from photree.album.id import format_album_external_id
+from photree.album.naming import NamingIssue
+from photree.common.formatting import CROSS, WARNING, indent, markup_escape
+from photree.common.fs import display_path
+from photree.gallery.cmd_handler.importer import AlbumImportFailure, BatchImportResult
+from photree.gallery.import_plan import (
+    AlbumPlan,
+    ClobberConflict,
+    GalleryImportPlan,
+    SourceDuplicate,
+)
+from photree.gallery.importer import TargetExistsError
 
 
 def _shown(path: Path, cwd: Path) -> str:

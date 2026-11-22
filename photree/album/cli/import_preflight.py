@@ -8,14 +8,14 @@ from pathlib import Path
 
 import typer
 
-from ...clihelpers.config_errors import format_config_error
-from ...clihelpers.console import console, err_console
-from ...clihelpers.runtime import Runtime
-from ...clihelpers.sysdeps import import_deps
-from ...common.sysdeps import check_system_dependencies
-from ...config import ConfigError
-from ..importer import output as importer_output
-from ..importer.preflight import resolve_image_capture_dir, run_preflight
+from photree.album.importer import output as importer_output
+from photree.album.importer.preflight import resolve_image_capture_dir, run_preflight
+from photree.clihelpers.config_errors import format_config_error
+from photree.clihelpers.console import console, err_console
+from photree.clihelpers.runtime import Runtime
+from photree.clihelpers.sysdeps import import_deps
+from photree.common.sysdeps import check_system_dependencies
+from photree.config import ConfigError
 
 
 def run_import_preflight(

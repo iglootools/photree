@@ -3,19 +3,19 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ...common.fs import list_files
-from ..formats import (
+from photree.album.formats import (
     IMG_EXTENSIONS,
     IOS_IMG_EXTENSIONS,
     IOS_VID_EXTENSIONS,
     VID_EXTENSIONS,
 )
-from ..store.file_matching import dedup_media_dict
-from ..store.media_metadata import (
+from photree.album.store.file_matching import dedup_media_dict
+from photree.album.store.media_metadata import (
     MediaSourceMediaMetadata,
     load_media_metadata,
 )
-from ..store.media_source import KeyFn, MediaSource
+from photree.album.store.media_source import KeyFn, MediaSource
+from photree.common.fs import list_files
 
 
 class MediaType(StrEnum):

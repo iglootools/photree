@@ -19,7 +19,7 @@ from typing import Protocol
 # that imports it: the others take an ExifTagReader.
 from exiftool import ExifToolHelper  # pyright: ignore[reportMissingTypeStubs]
 
-from .sysdeps import SystemDependency, WhichFn, is_available, require
+from photree.common.sysdeps import SystemDependency, WhichFn, is_available, require
 
 _EXIF_DATE_FORMAT = "%Y:%m:%d %H:%M:%S"
 _EXIF_DATE_TZ_FORMAT = "%Y:%m:%d %H:%M:%S%z"

@@ -3,8 +3,17 @@ from typing import Annotated
 
 import typer
 
-from ...clihelpers.console import err_console
-from ...clihelpers.options import (
+from photree.album.cli import app
+from photree.album.cli.media_source_conflict import exit_on_media_source_conflict
+from photree.album.fix.ios import (
+    FixIosValidationError,
+    MiscategorizedMoveConflictError,
+    run_fix_ios,
+    validate_fix_flags,
+)
+from photree.album.fix.ios.output import format_fix_ios_result
+from photree.clihelpers.console import err_console
+from photree.clihelpers.options import (
     DRY_RUN_OPTION,
     MV_MISCATEGORIZED_OPTION,
     PREFER_HIGHER_QUALITY_OPTION,
@@ -12,19 +21,10 @@ from ...clihelpers.options import (
     RM_MISCATEGORIZED_SAFE_OPTION,
     RM_ORPHAN_SIDECAR_OPTION,
 )
-from ...clihelpers.runtime import runtime_of
-from ...clihelpers.usage import usage_error
-from ...common.formatting import format_dry_run
-from ...common.fs import display_path
-from ..fix.ios import (
-    FixIosValidationError,
-    MiscategorizedMoveConflictError,
-    run_fix_ios,
-    validate_fix_flags,
-)
-from ..fix.ios.output import format_fix_ios_result
-from . import app
-from .media_source_conflict import exit_on_media_source_conflict
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.usage import usage_error
+from photree.common.formatting import format_dry_run
+from photree.common.fs import display_path
 
 
 @app.command("fix-ios")

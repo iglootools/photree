@@ -3,15 +3,15 @@ from typing import Annotated
 
 import typer
 
-from ...album.id import format_album_external_id
-from ...albums.batchcli.rename import run_batch_rename_from_csv
-from ...clihelpers.console import err_console
-from ...clihelpers.resolution import resolve_gallery_or_exit
-from ...clihelpers.runtime import runtime_of
-from ...common.formatting import indent
-from ...common.fs import display_path
-from . import app
-from .ops import build_index_or_exit
+from photree.album.id import format_album_external_id
+from photree.albums.batchcli.rename import run_batch_rename_from_csv
+from photree.clihelpers.console import err_console
+from photree.clihelpers.resolution import resolve_gallery_or_exit
+from photree.clihelpers.runtime import runtime_of
+from photree.common.formatting import indent
+from photree.common.fs import display_path
+from photree.gallery.cli import app
+from photree.gallery.cli.ops import build_index_or_exit
 
 
 @app.command("rename-from-csv")

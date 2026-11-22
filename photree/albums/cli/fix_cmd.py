@@ -2,18 +2,18 @@ from typing import Annotated
 
 import typer
 
-from ...album.fix import FixValidationError, validate_fix_flags
-from ...clihelpers.options import (
+from photree.album.fix import FixValidationError, validate_fix_flags
+from photree.albums.batchcli.fix import run_batch_fix
+from photree.albums.batchcli.resolution import resolve_check_batch_albums
+from photree.albums.cli import ALBUM_DIR_OPTION, DIR_OPTION, app
+from photree.clihelpers.options import (
     DRY_RUN_OPTION,
     FORCE_OPTION,
     RM_ORPHAN_OPTION,
     RM_UPSTREAM_OPTION,
 )
-from ...clihelpers.runtime import runtime_of
-from ...clihelpers.usage import usage_error
-from ..batchcli.fix import run_batch_fix
-from ..batchcli.resolution import resolve_check_batch_albums
-from . import ALBUM_DIR_OPTION, DIR_OPTION, app
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.usage import usage_error
 
 
 @app.command("fix")

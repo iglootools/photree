@@ -4,29 +4,32 @@ from typing import Annotated
 
 import typer
 
-from ...clihelpers.console import console, err_console
-from ...clihelpers.progress import BatchProgressBar
-from ...clihelpers.resolution import format_invalid_metadata, resolve_gallery_or_exit
-from ...clihelpers.runtime import runtime_of
-from ...clihelpers.sysdeps import EXIF_DEPS, require_system_deps
-from ...clihelpers.usage import usage_error
-from ...collection.importer.import_members import (
+from photree.clihelpers.console import console, err_console
+from photree.clihelpers.progress import BatchProgressBar
+from photree.clihelpers.resolution import (
+    format_invalid_metadata,
+    resolve_gallery_or_exit,
+)
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.sysdeps import EXIF_DEPS, require_system_deps
+from photree.clihelpers.usage import usage_error
+from photree.collection.importer.import_members import (
     CollectionImportError,
     import_collection_members,
 )
-from ...collection.importer.output import (
+from photree.collection.importer.output import (
     format_import_error,
     format_resolution_warning,
     format_result_errors,
 )
-from ...collection.importer.selection import has_selection
-from ...collection.store.collection_discovery import discover_collections
-from ...common.exif import ExifTagReader, exiftool_session
-from ...common.formatting import format_dry_run, indent
-from ...common.fs import display_path
-from ...common.sysdeps import WhichFn
-from ...foundation.metadata_io import InvalidMetadataError
-from . import app
+from photree.collection.importer.selection import has_selection
+from photree.collection.store.collection_discovery import discover_collections
+from photree.collections.cli import app
+from photree.common.exif import ExifTagReader, exiftool_session
+from photree.common.formatting import format_dry_run, indent
+from photree.common.fs import display_path
+from photree.common.sysdeps import WhichFn
+from photree.foundation.metadata_io import InvalidMetadataError
 
 
 @dataclass(frozen=True)

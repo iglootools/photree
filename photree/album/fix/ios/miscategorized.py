@@ -2,10 +2,10 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ....common.fs import delete_files, list_files, move_files
-from ...store.file_matching import ios_file_prefix
-from ...store.media_source import MediaSource
-from ..helpers import require_ios
+from photree.album.fix.helpers import require_ios
+from photree.album.store.file_matching import ios_file_prefix
+from photree.album.store.media_source import MediaSource
+from photree.common.fs import delete_files, list_files, move_files
 
 
 class MiscategorizedAction(StrEnum):

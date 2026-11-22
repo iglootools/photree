@@ -11,15 +11,15 @@ from pathlib import Path
 
 import typer
 
-from ..common.fs import display_path
-from ..foundation.gallery_metadata import (
+from photree.clihelpers.console import err_console
+from photree.common.fs import display_path
+from photree.foundation.gallery_metadata import (
     GALLERY_YAML,
     GalleryNotFoundError,
     resolve_gallery_dir,
 )
-from ..foundation.layout import PHOTREE_DIR
-from ..foundation.metadata_io import InvalidMetadataError
-from .console import err_console
+from photree.foundation.layout import PHOTREE_DIR
+from photree.foundation.metadata_io import InvalidMetadataError
 
 
 def format_gallery_not_found(exc: GalleryNotFoundError, cwd: Path) -> str:

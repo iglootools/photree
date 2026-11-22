@@ -15,17 +15,17 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ..album.naming import (
+from photree.album.naming import (
     NamingIssue,
     check_album_naming,
     check_batch_date_collisions,
     parse_album_name,
 )
-from ..album.store.album_discovery import has_media_sources
-from ..album.store.metadata import load_album_metadata
-from ..album.store.protocol import AlbumMetadata
-from . import AlbumIndex
-from .importer import compute_target_dir
+from photree.album.store.album_discovery import has_media_sources
+from photree.album.store.metadata import load_album_metadata
+from photree.album.store.protocol import AlbumMetadata
+from photree.gallery import AlbumIndex
+from photree.gallery.importer import compute_target_dir
 
 
 class ImportAction(StrEnum):

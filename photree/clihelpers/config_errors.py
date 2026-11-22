@@ -2,7 +2,7 @@
 config file (album/albums/gallery import and export, and the CLI entry point).
 """
 
-from ..config import ConfigError
+from photree.config import ConfigError
 
 
 def format_config_error(exc: ConfigError) -> str:

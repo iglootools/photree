@@ -1,7 +1,10 @@
 import typer
 
-from ...album.fix.ios import FixIosValidationError, validate_fix_flags
-from ...clihelpers.options import (
+from photree.album.fix.ios import FixIosValidationError, validate_fix_flags
+from photree.albums.batchcli.fix import run_batch_fix_ios
+from photree.albums.batchcli.resolution import resolve_batch_albums
+from photree.albums.cli import ALBUM_DIR_OPTION, DIR_OPTION, app
+from photree.clihelpers.options import (
     DRY_RUN_OPTION,
     MV_MISCATEGORIZED_OPTION,
     PREFER_HIGHER_QUALITY_OPTION,
@@ -9,11 +12,8 @@ from ...clihelpers.options import (
     RM_MISCATEGORIZED_SAFE_OPTION,
     RM_ORPHAN_SIDECAR_OPTION,
 )
-from ...clihelpers.runtime import runtime_of
-from ...clihelpers.usage import usage_error
-from ..batchcli.fix import run_batch_fix_ios
-from ..batchcli.resolution import resolve_batch_albums
-from . import ALBUM_DIR_OPTION, DIR_OPTION, app
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.usage import usage_error
 
 
 @app.command("fix-ios")

@@ -10,15 +10,15 @@ from pathlib import Path
 
 from pydantic import Field
 
-from .layout import PHOTREE_DIR
-from .linking import LinkMode
-from .metadata_io import (
+from photree.foundation.layout import PHOTREE_DIR
+from photree.foundation.linking import LinkMode
+from photree.foundation.metadata_io import (
     InvalidMetadataError,
     load_yaml_mapping,
     validate_metadata,
     write_yaml,
 )
-from .model import PhotreeModel
+from photree.foundation.model import PhotreeModel
 
 GALLERY_YAML = "gallery.yaml"
 

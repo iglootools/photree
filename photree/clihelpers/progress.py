@@ -28,7 +28,7 @@ from rich.progress import (
     TextColumn,
 )
 
-from ..common.formatting import (
+from photree.common.formatting import (
     CHECK,
     CROSS,
     WARN_SIGN,

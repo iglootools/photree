@@ -9,34 +9,32 @@ from pathlib import Path
 
 import typer
 
-from ...album import (
-    check as album_check,
-)
-from ...album.check import output as preflight_output
-from ...album.id import format_album_external_id
-from ...album.store.album_discovery import discover_potential_albums
-from ...album.store.metadata import load_album_metadata
-from ...clihelpers.console import console, err_console
-from ...clihelpers.progress import BatchProgressBar, StageProgressBar
-from ...clihelpers.usage import usage_error
-from ...common.exif import exiftool_session
-from ...common.formatting import CHECK, format_dry_run, indent
-from ...common.fs import display_path
-from ...common.sysdeps import WhichFn
-from ...foundation.gallery_metadata import resolve_link_mode
-from ...foundation.linking import LinkMode
-from .. import (
+from photree.album import check as album_check
+from photree.album.check import output as preflight_output
+from photree.album.id import format_album_external_id
+from photree.album.store.album_discovery import discover_potential_albums
+from photree.album.store.metadata import load_album_metadata
+from photree.clihelpers.console import console, err_console
+from photree.clihelpers.progress import BatchProgressBar, StageProgressBar
+from photree.clihelpers.usage import usage_error
+from photree.common.exif import exiftool_session
+from photree.common.formatting import CHECK, format_dry_run, indent
+from photree.common.fs import display_path
+from photree.common.sysdeps import WhichFn
+from photree.foundation.gallery_metadata import resolve_link_mode
+from photree.foundation.linking import LinkMode
+from photree.gallery import (
     AlbumIndex,
     MissingAlbumIdError,
     build_album_id_to_path_index,
 )
-from ..cmd_handler.importer import BatchImportResult
-from ..cmd_handler.importer import run_batch_import as _run_batch_import
-from ..cmd_handler.importer import run_single_import as _run_single_import
-from ..cmd_handler.post_import_check import (
+from photree.gallery.cmd_handler.importer import BatchImportResult
+from photree.gallery.cmd_handler.importer import run_batch_import as _run_batch_import
+from photree.gallery.cmd_handler.importer import run_single_import as _run_single_import
+from photree.gallery.cmd_handler.post_import_check import (
     run_batch_post_import_check as _run_batch_post_import_check,
 )
-from ..faces.face_refresh import (
+from photree.gallery.faces.face_refresh import (
     STAGE_BUILD_INDEX,
     STAGE_CLUSTER,
     STAGE_SAVE,
@@ -44,14 +42,14 @@ from ..faces.face_refresh import (
     GalleryFaceRefreshResult,
     refresh_face_clusters,
 )
-from ..import_plan import (
+from photree.gallery.import_plan import (
     AlbumPlan,
     GalleryImportPlan,
     ImportAction,
     plan_imports,
 )
-from ..importer import AlbumImportResult
-from ..output import (
+from photree.gallery.importer import AlbumImportResult
+from photree.gallery.output import (
     format_import_error,
     format_import_errors,
     format_import_failure_labels,

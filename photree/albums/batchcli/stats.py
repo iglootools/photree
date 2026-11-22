@@ -6,16 +6,16 @@ from pathlib import Path
 import typer
 from rich.console import RenderableType
 
-from ...album.naming import parse_album_name
-from ...album.stats import models as stats_models
-from ...album.stats import output as stats_output
-from ...clihelpers.console import console, err_console
-from ...clihelpers.progress import BatchProgressBar
-from ...common.formatting import indent
-from ...common.fs import display_path
-from ..cmd_handler.stats import batch_stats
-from .failures import exit_with_failures
-from .resolution import make_display_fn
+from photree.album.naming import parse_album_name
+from photree.album.stats import models as stats_models
+from photree.album.stats import output as stats_output
+from photree.albums.batchcli.failures import exit_with_failures
+from photree.albums.batchcli.resolution import make_display_fn
+from photree.albums.cmd_handler.stats import batch_stats
+from photree.clihelpers.console import console, err_console
+from photree.clihelpers.progress import BatchProgressBar
+from photree.common.formatting import indent
+from photree.common.fs import display_path
 
 
 def _exit_if_unparseable(

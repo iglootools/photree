@@ -12,13 +12,13 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..naming import (
+from photree.album.naming import (
     NamingIssue,
     check_album_naming,
     check_batch_date_collisions,
     parse_album_name,
 )
-from ..store.album_discovery import discover_albums
+from photree.album.store.album_discovery import discover_albums
 
 
 @dataclass(frozen=True)

@@ -3,19 +3,15 @@ from dataclasses import dataclass
 from itertools import groupby
 from pathlib import Path
 
-from ...foundation.layout import PHOTREE_DIR
-from ..naming import parse_album_name
-from ..store.media_source import MediaSource
-from ..store.media_sources_discovery import discover_media_sources
-from ..store.protocol import CACHE_DIR
-from .aggregate import (
+from photree.album.naming import parse_album_name
+from photree.album.stats.aggregate import (
     aggregate_media_sources,
     merge_aggregates,
     merge_format_stats,
     merge_role_breakdowns,
     merge_size_stats,
 )
-from .models import (
+from photree.album.stats.models import (
     AggregateStats,
     AlbumsStats,
     AlbumStats,
@@ -26,7 +22,7 @@ from .models import (
     StorageRole,
     YearStats,
 )
-from .scan import (
+from photree.album.stats.scan import (
     DirStats,
     InodeKey,
     categorize_size_stats,
@@ -36,6 +32,10 @@ from .scan import (
     scan_directory_size,
     tag_format_role,
 )
+from photree.album.store.media_source import MediaSource
+from photree.album.store.media_sources_discovery import discover_media_sources
+from photree.album.store.protocol import CACHE_DIR
+from photree.foundation.layout import PHOTREE_DIR
 
 __all__ = [
     "AggregateStats",

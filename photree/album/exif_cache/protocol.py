@@ -1,6 +1,6 @@
 from pydantic import Field
 
-from ...foundation.model import PhotreeModel
+from photree.foundation.model import PhotreeModel
 
 EXIF_CACHE_DIR = "cache/exif"
 """Subdirectory under ``.photree/`` for EXIF timestamp cache."""

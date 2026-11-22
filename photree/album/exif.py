@@ -1,14 +1,8 @@
 from datetime import datetime
 from pathlib import Path
 
-from ..common.exif import (
-    ExifDateChange,
-    ExifTagReader,
-    write_exif_date,
-)
-from ..common.exif import (
-    read_exif_timestamps_by_file as _generic_read_by_file,
-)
+from photree.common.exif import ExifDateChange, ExifTagReader, write_exif_date
+from photree.common.exif import read_exif_timestamps_by_file as _generic_read_by_file
 
 # Tag priority for timestamp extraction (first match wins):
 #

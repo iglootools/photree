@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from ...common.fs import matching_subdirectories
-from ...foundation.layout import PHOTREE_DIR
-from .protocol import COLLECTION_YAML
+from photree.collection.store.protocol import COLLECTION_YAML
+from photree.common.fs import matching_subdirectories
+from photree.foundation.layout import PHOTREE_DIR
 
 
 def is_collection(directory: Path) -> bool:

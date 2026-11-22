@@ -3,15 +3,15 @@ from typing import Annotated
 
 import typer
 
-from ...clihelpers.runtime import runtime_of
-from ...common.formatting import indent
-from ...common.fs import display_path
-from ..id import format_album_external_id
-from ..naming import ParsedAlbumName, parse_album_name
-from ..store.media_sources_discovery import discover_media_sources
-from ..store.metadata import load_album_metadata
-from . import app
-from .media_source_conflict import exit_on_media_source_conflict
+from photree.album.cli import app
+from photree.album.cli.media_source_conflict import exit_on_media_source_conflict
+from photree.album.id import format_album_external_id
+from photree.album.naming import ParsedAlbumName, parse_album_name
+from photree.album.store.media_sources_discovery import discover_media_sources
+from photree.album.store.metadata import load_album_metadata
+from photree.clihelpers.runtime import runtime_of
+from photree.common.formatting import indent
+from photree.common.fs import display_path
 
 
 @app.command("show")

@@ -3,12 +3,18 @@ from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
 
-from ...album import fix as album_fixes
-from ...album.fix.output import format_fix_result
-from ...album.id import generate_album_id
-from ...album.store.metadata import load_album_metadata, save_album_metadata
-from ...album.store.protocol import AlbumMetadata
-from . import BatchFailure, OnEnd, OnStart, failures_of, run_album_step
+from photree.album import fix as album_fixes
+from photree.album.fix.output import format_fix_result
+from photree.album.id import generate_album_id
+from photree.album.store.metadata import load_album_metadata, save_album_metadata
+from photree.album.store.protocol import AlbumMetadata
+from photree.albums.cmd_handler import (
+    BatchFailure,
+    OnEnd,
+    OnStart,
+    failures_of,
+    run_album_step,
+)
 
 
 @dataclass(frozen=True)

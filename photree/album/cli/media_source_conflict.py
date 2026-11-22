@@ -10,9 +10,9 @@ from pathlib import Path
 
 import typer
 
-from ...clihelpers.console import err_console
-from ...common.fs import display_path
-from ..store.media_sources_discovery import MediaSourceConflictError
+from photree.album.store.media_sources_discovery import MediaSourceConflictError
+from photree.clihelpers.console import err_console
+from photree.common.fs import display_path
 
 
 def format_media_source_conflict(exc: MediaSourceConflictError, cwd: Path) -> str:

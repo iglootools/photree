@@ -8,10 +8,10 @@ Use ``--refresh-exif-cache`` on check commands to force a re-read.
 from dataclasses import dataclass
 from pathlib import Path
 
-from ...foundation.layout import PHOTREE_DIR
-from ..exif_cache.protocol import EXIF_CACHE_DIR
-from ..exif_cache.store import cache_path
-from ..store.media_source import MediaSource
+from photree.album.exif_cache.protocol import EXIF_CACHE_DIR
+from photree.album.exif_cache.store import cache_path
+from photree.album.store.media_source import MediaSource
+from photree.foundation.layout import PHOTREE_DIR
 
 
 @dataclass(frozen=True)

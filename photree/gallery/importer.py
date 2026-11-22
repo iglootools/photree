@@ -16,22 +16,22 @@ from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-from ..album.faces.detect import FaceAnalyzerFactory
-from ..album.faces.failures import FaceFailure
-from ..album.id import generate_album_id
-from ..album.jpeg import ConvertFile, JpegConversionFailure
-from ..album.refresh import (
+from photree.album.faces.detect import FaceAnalyzerFactory
+from photree.album.faces.failures import FaceFailure
+from photree.album.id import generate_album_id
+from photree.album.jpeg import ConvertFile, JpegConversionFailure
+from photree.album.refresh import (
     AlbumRefreshResult,
     RefreshFn,
     refresh_album_derived_data,
 )
-from ..album.store.media_metadata import load_media_metadata, save_media_metadata
-from ..album.store.metadata import load_album_metadata, save_album_metadata
-from ..album.store.protocol import AlbumMetadata
-from ..common.exif import ExifTagReader
-from ..dates import parse_year_prefix
-from ..foundation.layout import ALBUMS_DIR, PHOTREE_DIR
-from ..foundation.linking import LinkMode
+from photree.album.store.media_metadata import load_media_metadata, save_media_metadata
+from photree.album.store.metadata import load_album_metadata, save_album_metadata
+from photree.album.store.protocol import AlbumMetadata
+from photree.common.exif import ExifTagReader
+from photree.dates import parse_year_prefix
+from photree.foundation.layout import ALBUMS_DIR, PHOTREE_DIR
+from photree.foundation.linking import LinkMode
 
 STAGE_COPY = "copy"
 STAGE_ID = "id"

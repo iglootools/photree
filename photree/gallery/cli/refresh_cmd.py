@@ -3,28 +3,30 @@ from typing import Annotated
 
 import typer
 
-from ...albums.batchcli.refresh import run_batch_refresh
-from ...albums.batchcli.resolution import resolve_check_batch_albums
-from ...clihelpers.console import console, err_console
-from ...clihelpers.options import DRY_RUN_OPTION
-from ...clihelpers.progress import StageProgressBar, run_with_spinner
-from ...clihelpers.resolution import resolve_gallery_or_exit
-from ...clihelpers.runtime import runtime_of
-from ...clihelpers.sysdeps import refresh_deps, require_system_deps
-from ...collection.refresh import (
+from photree.albums.batchcli.refresh import run_batch_refresh
+from photree.albums.batchcli.resolution import resolve_check_batch_albums
+from photree.clihelpers.console import console, err_console
+from photree.clihelpers.options import DRY_RUN_OPTION
+from photree.clihelpers.progress import StageProgressBar, run_with_spinner
+from photree.clihelpers.resolution import resolve_gallery_or_exit
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.sysdeps import refresh_deps, require_system_deps
+from photree.collection.refresh import (
     STAGE_IMPLICIT_REFRESH,
     STAGE_SCAN_ALBUMS,
     STAGE_SMART_REFRESH,
     STAGE_TITLE_SYNC,
     refresh_collections,
 )
-from ...common.formatting import CHECK, format_dry_run, indent
-from ...foundation.gallery_metadata import GALLERY_YAML, load_gallery_metadata
-from ...foundation.layout import PHOTREE_DIR
-from ..browsable_refresh import refresh_browsable as refresh_gallery_browsable
-from . import app
-from .ops import run_face_clustering
-from .refresh_output import (
+from photree.common.formatting import CHECK, format_dry_run, indent
+from photree.foundation.gallery_metadata import GALLERY_YAML, load_gallery_metadata
+from photree.foundation.layout import PHOTREE_DIR
+from photree.gallery.browsable_refresh import (
+    refresh_browsable as refresh_gallery_browsable,
+)
+from photree.gallery.cli import app
+from photree.gallery.cli.ops import run_face_clustering
+from photree.gallery.cli.refresh_output import (
     format_browsable_error,
     format_collection_changes,
     format_collection_refresh_error,

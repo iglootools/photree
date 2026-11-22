@@ -4,19 +4,19 @@ from enum import StrEnum
 from itertools import groupby
 from pathlib import Path
 
-from ....common.fs import file_ext, list_files
-from ....foundation.linking import LinkMode
-from ...formats import IOS_IMG_EXTENSIONS, IOS_VID_EXTENSIONS
-from ...live_photo import (
+from photree.album.check.browsable import BrowsableDirCheck, check_browsable_dir
+from photree.album.check.ios.sidecar import SidecarCheck, check_sidecars
+from photree.album.check.jpeg import JpegCheck, check_jpeg_dir
+from photree.album.formats import IOS_IMG_EXTENSIONS, IOS_VID_EXTENSIONS
+from photree.album.live_photo import (
     compute_live_photo_videos,
     detect_live_photo_keys,
     filter_live_photo_extras,
 )
-from ...store.file_matching import ios_file_prefix, ios_is_media
-from ...store.media_source import MediaSource, ios_img_number
-from ..browsable import BrowsableDirCheck, check_browsable_dir
-from ..jpeg import JpegCheck, check_jpeg_dir
-from .sidecar import SidecarCheck, check_sidecars
+from photree.album.store.file_matching import ios_file_prefix, ios_is_media
+from photree.album.store.media_source import MediaSource, ios_img_number
+from photree.common.fs import file_ext, list_files
+from photree.foundation.linking import LinkMode
 
 
 @dataclass(frozen=True)

@@ -3,14 +3,14 @@ from typing import Annotated
 
 import typer
 
-from ...album.store.album_discovery import discover_albums
-from ...clihelpers.resolution import resolve_gallery_or_exit
-from ...clihelpers.runtime import runtime_of
-from ...common.formatting import indent
-from ...common.fs import display_path
-from ...foundation.gallery_metadata import GALLERY_YAML, load_gallery_metadata
-from ...foundation.layout import ALBUMS_DIR, PHOTREE_DIR
-from . import app
+from photree.album.store.album_discovery import discover_albums
+from photree.clihelpers.resolution import resolve_gallery_or_exit
+from photree.clihelpers.runtime import runtime_of
+from photree.common.formatting import indent
+from photree.common.fs import display_path
+from photree.foundation.gallery_metadata import GALLERY_YAML, load_gallery_metadata
+from photree.foundation.layout import ALBUMS_DIR, PHOTREE_DIR
+from photree.gallery.cli import app
 
 
 @app.command("show")

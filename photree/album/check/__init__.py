@@ -2,33 +2,44 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from ...common.exif import ExifTagReader
-from ...foundation.linking import LinkMode
-from ..exif_date_check import AlbumNamingResult, check_exif_date_match
-from ..naming import check_album_naming, parse_album_name
-from ..store.album_discovery import (
-    discover_albums,
+from photree.album.check.dir_structure import AlbumDirCheck, check_album_dir_structure
+from photree.album.check.exif_cache_state import (
+    ExifCacheStateCheck,
+    check_exif_cache_state,
 )
-from ..store.media_source import MediaSource, MediaSourceType
-from ..store.media_sources_discovery import (
+from photree.album.check.face_state import FaceStateCheck, check_face_state
+from photree.album.check.ios import (
+    IosMediaSourceIntegrityResult,
+    check_ios_media_source_integrity,
+)
+from photree.album.check.jpeg import (
+    AlbumJpegIntegrityResult,
+    check_album_jpeg_integrity,
+)
+from photree.album.check.media_metadata import MediaMetadataCheck, check_media_metadata
+from photree.album.check.std import (
+    StdMediaSourceIntegrityResult,
+    check_std_media_source_integrity,
+)
+from photree.album.check.system import (
+    check_exiftool_available as check_exiftool_available,
+)
+from photree.album.check.system import check_sips_available as check_sips_available
+from photree.album.check.unexpected_dirs import (
+    UnexpectedDirsCheck,
+    check_unexpected_dirs,
+)
+from photree.album.exif_date_check import AlbumNamingResult, check_exif_date_match
+from photree.album.naming import check_album_naming, parse_album_name
+from photree.album.store.album_discovery import discover_albums
+from photree.album.store.media_source import MediaSource, MediaSourceType
+from photree.album.store.media_sources_discovery import (
     discover_media_sources,
     find_media_source_conflicts,
 )
-from ..store.metadata import load_album_metadata
-from .dir_structure import AlbumDirCheck, check_album_dir_structure
-from .exif_cache_state import ExifCacheStateCheck, check_exif_cache_state
-from .face_state import FaceStateCheck, check_face_state
-from .ios import IosMediaSourceIntegrityResult, check_ios_media_source_integrity
-from .jpeg import AlbumJpegIntegrityResult, check_album_jpeg_integrity
-from .media_metadata import MediaMetadataCheck, check_media_metadata
-from .std import StdMediaSourceIntegrityResult, check_std_media_source_integrity
-from .system import (
-    check_exiftool_available as check_exiftool_available,
-)
-from .system import (
-    check_sips_available as check_sips_available,
-)
-from .unexpected_dirs import UnexpectedDirsCheck, check_unexpected_dirs
+from photree.album.store.metadata import load_album_metadata
+from photree.common.exif import ExifTagReader
+from photree.foundation.linking import LinkMode
 
 MediaSourceIntegrityResult = (
     IosMediaSourceIntegrityResult | StdMediaSourceIntegrityResult

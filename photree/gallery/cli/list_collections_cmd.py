@@ -4,24 +4,24 @@ from typing import Annotated
 
 import typer
 
-from ...clihelpers.console import err_console
-from ...clihelpers.csvout import csv_output
-from ...clihelpers.options import (
+from photree.clihelpers.console import err_console
+from photree.clihelpers.csvout import csv_output
+from photree.clihelpers.options import (
     OUTPUT_FILE_OPTION,
     OUTPUT_FORMAT_OPTION,
     OutputFormat,
 )
-from ...clihelpers.resolution import resolve_gallery_or_exit
-from ...clihelpers.runtime import runtime_of
-from ...collection.id import format_collection_external_id
-from ...collection.naming import ParsedCollectionName, parse_collection_name
-from ...collection.store.collection_discovery import discover_collections
-from ...collection.store.metadata import load_collection_metadata
-from ...collection.store.protocol import CollectionMetadata
-from ...common.formatting import indent
-from ...common.fs import display_path
-from ...foundation.layout import COLLECTIONS_DIR
-from . import app
+from photree.clihelpers.resolution import resolve_gallery_or_exit
+from photree.clihelpers.runtime import runtime_of
+from photree.collection.id import format_collection_external_id
+from photree.collection.naming import ParsedCollectionName, parse_collection_name
+from photree.collection.store.collection_discovery import discover_collections
+from photree.collection.store.metadata import load_collection_metadata
+from photree.collection.store.protocol import CollectionMetadata
+from photree.common.formatting import indent
+from photree.common.fs import display_path
+from photree.foundation.layout import COLLECTIONS_DIR
+from photree.gallery.cli import app
 
 _CSV_HEADER = [
     "id",

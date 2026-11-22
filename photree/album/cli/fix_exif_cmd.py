@@ -5,15 +5,15 @@ from typing import Annotated
 
 import typer
 
-from ...clihelpers.console import console, err_console
-from ...clihelpers.runtime import runtime_of
-from ...clihelpers.sysdeps import EXIF_DEPS, require_system_deps
-from ...clihelpers.usage import usage_error
-from ...common import exif as common_exif
-from ...common.formatting import CHECK, indent, markup_escape
-from ...common.fs import display_path
-from .. import exif as album_exif
-from . import app
+from photree.album import exif as album_exif
+from photree.album.cli import app
+from photree.clihelpers.console import console, err_console
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.sysdeps import EXIF_DEPS, require_system_deps
+from photree.clihelpers.usage import usage_error
+from photree.common import exif as common_exif
+from photree.common.formatting import CHECK, indent, markup_escape
+from photree.common.fs import display_path
 
 
 @dataclass(frozen=True)

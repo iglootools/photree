@@ -1,7 +1,7 @@
 import uuid as _uuid
 from enum import StrEnum
 
-from ..common.base58 import base58_decode, base58_encode
+from photree.common.base58 import base58_decode, base58_encode
 
 ALBUM_ID_PREFIX = "album"
 IMAGE_ID_PREFIX = "image"

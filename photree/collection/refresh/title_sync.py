@@ -8,21 +8,14 @@ series-less albums.
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 
-from ...album.naming import (
-    ParsedAlbumName,
-    reconstruct_name,
-)
-from ..naming import (
-    parse_collection_name,
-)
-from ..store.protocol import (
-    CollectionLifecycle,
-)
-from .result import (
+from photree.album.naming import ParsedAlbumName, reconstruct_name
+from photree.collection.naming import parse_collection_name
+from photree.collection.refresh.result import (
     CollectionRefreshError,
     CollectionRefreshErrorKind,
 )
-from .scan import AlbumInfo, ExistingCollection
+from photree.collection.refresh.scan import AlbumInfo, ExistingCollection
+from photree.collection.store.protocol import CollectionLifecycle
 
 
 @dataclass(frozen=True)

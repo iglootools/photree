@@ -3,15 +3,19 @@ from pathlib import Path
 
 import numpy as np
 
-from ...foundation.layout import PHOTREE_DIR
-from ...foundation.metadata_io import load_yaml_mapping, validate_metadata, write_yaml
-from .protocol import (
+from photree.album.faces.protocol import (
     EMBEDDING_DIM,
     FACES_DATA_SUFFIX,
     FACES_DIR,
     FACES_STATE_SUFFIX,
     THUMBS_DIR_SUFFIX,
     FaceProcessingState,
+)
+from photree.foundation.layout import PHOTREE_DIR
+from photree.foundation.metadata_io import (
+    load_yaml_mapping,
+    validate_metadata,
+    write_yaml,
 )
 
 

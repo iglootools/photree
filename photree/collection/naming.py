@@ -16,7 +16,7 @@ This module performs **no** filesystem mutations.
 import re
 from dataclasses import dataclass
 
-from ..dates import DATE_PREFIX_RE, parse_year_prefix
+from photree.dates import DATE_PREFIX_RE, parse_year_prefix
 
 # Matches "[tag1, tag2]" at the end of a name (same as album naming)
 _TAGS_RE = re.compile(r"\s*\[([^\]]+)\]\s*$")

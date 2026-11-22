@@ -6,14 +6,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ...common.fs import list_files
-from ...common.parallelism import ParallelResult, run_parallel
-from ...common.sips import get_dimensions
-from ..formats import IMG_EXTENSIONS, IOS_IMG_EXTENSIONS
-from ..store.file_matching import dedup_media_dict
-from ..store.media_source import MediaSource
-from ..store.media_sources_discovery import discover_media_sources
-from .detect import (
+from photree.album.faces.detect import (
     DetectedFace,
     FaceAnalyzerFactory,
     FaceDetector,
@@ -22,14 +15,14 @@ from .detect import (
     generate_thumbnail,
     thumb_filename,
 )
-from .failures import FaceFailure, FaceFailureStage
-from .protocol import (
+from photree.album.faces.failures import FaceFailure, FaceFailureStage
+from photree.album.faces.protocol import (
     DEFAULT_MODEL_NAME,
     DEFAULT_MODEL_VERSION,
     FaceProcessedKey,
     FaceProcessingState,
 )
-from .store import (
+from photree.album.faces.store import (
     FaceData,
     filter_face_data,
     load_face_data,
@@ -39,6 +32,13 @@ from .store import (
     save_face_state,
     thumbs_dir,
 )
+from photree.album.formats import IMG_EXTENSIONS, IOS_IMG_EXTENSIONS
+from photree.album.store.file_matching import dedup_media_dict
+from photree.album.store.media_source import MediaSource
+from photree.album.store.media_sources_discovery import discover_media_sources
+from photree.common.fs import list_files
+from photree.common.parallelism import ParallelResult, run_parallel
+from photree.common.sips import get_dimensions
 
 if TYPE_CHECKING:
     # Annotation only: importing insightface costs ~0.3 s at CLI startup.

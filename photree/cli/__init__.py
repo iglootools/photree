@@ -1,17 +1,17 @@
 import sys
 from collections.abc import Callable
 
-from ..album.cli.media_source_conflict import format_media_source_conflict
-from ..album.store.media_sources_discovery import MediaSourceConflictError
-from ..clihelpers.config_errors import format_config_error
-from ..clihelpers.console import err_console
-from ..clihelpers.resolution import format_invalid_metadata
-from ..clihelpers.runtime import Runtime
-from ..common.sysdeps import MissingSystemDependencyError
-from ..common.sysdeps_output import format_missing_troubleshoot
-from ..config import ConfigError
-from ..foundation.metadata_io import InvalidMetadataError
-from .app import app
+from photree.album.cli.media_source_conflict import format_media_source_conflict
+from photree.album.store.media_sources_discovery import MediaSourceConflictError
+from photree.cli.app import app
+from photree.clihelpers.config_errors import format_config_error
+from photree.clihelpers.console import err_console
+from photree.clihelpers.resolution import format_invalid_metadata
+from photree.clihelpers.runtime import Runtime
+from photree.common.sysdeps import MissingSystemDependencyError
+from photree.common.sysdeps_output import format_missing_troubleshoot
+from photree.config import ConfigError
+from photree.foundation.metadata_io import InvalidMetadataError
 
 __all__ = ["app", "main"]
 

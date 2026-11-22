@@ -4,21 +4,21 @@ from typing import Annotated
 
 import typer
 
-from ....clihelpers.resolution import resolve_gallery_or_exit
-from ....clihelpers.runtime import runtime_of
-from ....clihelpers.usage import usage_error
-from ....common.formatting import indent
-from ....common.fs import display_path
-from ....foundation.gallery_metadata import (
+from photree.clihelpers.resolution import resolve_gallery_or_exit
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.usage import usage_error
+from photree.common.formatting import indent
+from photree.common.fs import display_path
+from photree.foundation.gallery_metadata import (
     GALLERY_YAML,
     GalleryMetadata,
     load_gallery_metadata,
     save_gallery_metadata,
 )
-from ....foundation.layout import PHOTREE_DIR
-from ....foundation.linking import LinkMode
-from ..ops import require_valid_threshold
-from . import app
+from photree.foundation.layout import PHOTREE_DIR
+from photree.foundation.linking import LinkMode
+from photree.gallery.cli.metadata import app
+from photree.gallery.cli.ops import require_valid_threshold
 
 
 @app.command("set")

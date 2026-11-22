@@ -1,7 +1,7 @@
 import itertools
 from pathlib import Path
 
-from ..album.store.media_metadata import load_media_metadata
+from photree.album.store.media_metadata import load_media_metadata
 
 
 def find_duplicate_media_ids(

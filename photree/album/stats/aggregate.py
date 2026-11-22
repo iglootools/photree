@@ -1,6 +1,6 @@
 from collections.abc import Iterable
 
-from .models import (
+from photree.album.stats.models import (
     AggregateStats,
     FormatStats,
     MediaSourceStats,

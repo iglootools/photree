@@ -12,16 +12,16 @@ from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ..common.fs import list_files
-from ..foundation.linking import LinkMode
-from .browsable import place_file
-from .store.file_matching import dedup_media_dict
-from .store.media_source import KeyFn
+from photree.album.browsable import place_file
+from photree.album.store.file_matching import dedup_media_dict
+from photree.album.store.media_source import KeyFn
+from photree.common.fs import list_files
+from photree.foundation.linking import LinkMode
 
 if TYPE_CHECKING:
     # Annotation only: a runtime import would cycle back through album.check,
     # whose iOS checks import this module.
-    from .check.browsable import BrowsableDirCheck
+    from photree.album.check.browsable import BrowsableDirCheck
 
 
 def detect_live_photo_keys(

@@ -2,45 +2,45 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..common.exif import ExifTagReader
-from ..common.fs import list_files
-from ..foundation.linking import LinkMode
-from .browsable import refresh_browsable_dir
-from .check.browsable import check_browsable_dir
-from .check.jpeg import check_jpeg_dir
-from .check.media_metadata import check_media_metadata
-from .exif_cache.refresh import refresh_exif_cache
-from .faces.detect import FaceAnalyzerFactory
-from .faces.failures import FaceFailure
-from .faces.refresh import refresh_face_data
-from .formats import (
+from photree.album.browsable import refresh_browsable_dir
+from photree.album.check.browsable import check_browsable_dir
+from photree.album.check.jpeg import check_jpeg_dir
+from photree.album.check.media_metadata import check_media_metadata
+from photree.album.exif_cache.refresh import refresh_exif_cache
+from photree.album.faces.detect import FaceAnalyzerFactory
+from photree.album.faces.failures import FaceFailure
+from photree.album.faces.refresh import refresh_face_data
+from photree.album.formats import (
     IMG_EXTENSIONS,
     IOS_IMG_EXTENSIONS,
     IOS_VID_EXTENSIONS,
     VID_EXTENSIONS,
 )
-from .id import generate_media_id
-from .jpeg import (
+from photree.album.id import generate_media_id
+from photree.album.jpeg import (
     ConvertFile,
     JpegConversionFailure,
     convert_single_file,
     refresh_jpeg_dir,
 )
-from .live_photo import (
+from photree.album.live_photo import (
     augment_browsable_img_with_live_photo_videos,
     compute_live_photo_videos,
     detect_live_photo_keys,
     filter_live_photo_extras,
 )
-from .store.file_matching import dedup_media_dict
-from .store.media_metadata import (
+from photree.album.store.file_matching import dedup_media_dict
+from photree.album.store.media_metadata import (
     MediaMetadata,
     MediaSourceMediaMetadata,
     load_media_metadata,
     save_media_metadata,
 )
-from .store.media_source import KeyFn, MediaSource
-from .store.media_sources_discovery import discover_media_sources
+from photree.album.store.media_source import KeyFn, MediaSource
+from photree.album.store.media_sources_discovery import discover_media_sources
+from photree.common.exif import ExifTagReader
+from photree.common.fs import list_files
+from photree.foundation.linking import LinkMode
 
 
 @dataclass(frozen=True)

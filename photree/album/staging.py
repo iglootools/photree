@@ -12,7 +12,7 @@ album level rather than inside either.
 
 import re
 
-from .store.media_source import MediaSourceType
+from photree.album.store.media_source import MediaSourceType
 
 TO_IMPORT_PREFIX = "to-import-"
 

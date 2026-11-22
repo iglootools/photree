@@ -10,9 +10,9 @@ from dataclasses import dataclass, fields
 
 import typer
 
-from ...clihelpers.runtime import Runtime
-from ..importer import album_import
-from ..importer.album_import import AlbumImportResult
+from photree.album.importer import album_import
+from photree.album.importer.album_import import AlbumImportResult
+from photree.clihelpers.runtime import Runtime
 
 type RunImportFn = Callable[..., AlbumImportResult]
 

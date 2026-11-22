@@ -14,7 +14,38 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from textwrap import dedent
 
-from ...common.formatting import (
+from photree.album.check import (
+    AlbumIntegrityResult,
+    AlbumMediaSourceSummary,
+    AlbumPreflightResult,
+)
+from photree.album.check.browsable import BrowsableDirCheck
+from photree.album.check.dir_structure import AlbumDirCheck
+from photree.album.check.exif_cache_state import ExifCacheStateCheck
+from photree.album.check.face_state import (
+    FaceStateCheck,
+    FaceSyncIssue,
+    FaceSyncIssueKind,
+)
+from photree.album.check.ios import (
+    DuplicateNumber,
+    IosMediaSourceIntegrityResult,
+    MiscategorizedFile,
+    MiscategorizedKind,
+)
+from photree.album.check.ios.sidecar import SidecarCheck, SidecarIssue, SidecarIssueKind
+from photree.album.check.jpeg import AlbumJpegIntegrityResult, JpegCheck
+from photree.album.check.media_metadata import MediaMetadataCheck
+from photree.album.check.std import DuplicateStem, StdMediaSourceIntegrityResult
+from photree.album.check.troubleshoot import suggest_exif_fixes, suggest_fixes
+from photree.album.check.unexpected_dirs import UnexpectedDirsCheck
+from photree.album.exif_date_check import AlbumNamingResult, ExifTimestampCheck
+from photree.album.faces.failures import FaceFailure, format_face_failures
+from photree.album.id import format_album_external_id
+from photree.album.jpeg import JpegConversionFailure
+from photree.album.naming import BatchNamingResult
+from photree.album.store.media_source import MediaSource
+from photree.common.formatting import (
     CHECK,
     CROSS,
     WARNING,
@@ -22,32 +53,9 @@ from ...common.formatting import (
     indent,
     markup_escape,
 )
-from ...common.fs import display_path
-from ...common.sysdeps import SystemDependency
-from ...common.sysdeps_output import format_missing_troubleshoot
-from ..exif_date_check import AlbumNamingResult, ExifTimestampCheck
-from ..faces.failures import FaceFailure, format_face_failures
-from ..id import format_album_external_id
-from ..jpeg import JpegConversionFailure
-from ..naming import BatchNamingResult
-from ..store.media_source import MediaSource
-from . import AlbumIntegrityResult, AlbumMediaSourceSummary, AlbumPreflightResult
-from .browsable import BrowsableDirCheck
-from .dir_structure import AlbumDirCheck
-from .exif_cache_state import ExifCacheStateCheck
-from .face_state import FaceStateCheck, FaceSyncIssue, FaceSyncIssueKind
-from .ios import (
-    DuplicateNumber,
-    IosMediaSourceIntegrityResult,
-    MiscategorizedFile,
-    MiscategorizedKind,
-)
-from .ios.sidecar import SidecarCheck, SidecarIssue, SidecarIssueKind
-from .jpeg import AlbumJpegIntegrityResult, JpegCheck
-from .media_metadata import MediaMetadataCheck
-from .std import DuplicateStem, StdMediaSourceIntegrityResult
-from .troubleshoot import suggest_exif_fixes, suggest_fixes
-from .unexpected_dirs import UnexpectedDirsCheck
+from photree.common.fs import display_path
+from photree.common.sysdeps import SystemDependency
+from photree.common.sysdeps_output import format_missing_troubleshoot
 
 
 def _bullets(items: Sequence[str]) -> list[str]:

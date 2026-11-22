@@ -4,16 +4,16 @@ from typing import Annotated
 
 import typer
 
-from ...album.cli.import_preflight import run_import_preflight
-from ...album.importer.album_import import task_has_content
-from ...album.importer.tasks import discover_import_tasks
-from ...clihelpers.console import err_console
-from ...clihelpers.progress import BatchProgressBar
-from ...clihelpers.runtime import runtime_of
-from ...clihelpers.usage import usage_error
-from ...common.formatting import indent
-from ...common.fs import display_path
-from . import app
+from photree.album.cli.import_preflight import run_import_preflight
+from photree.album.importer.album_import import task_has_content
+from photree.album.importer.tasks import discover_import_tasks
+from photree.albums.cli import app
+from photree.clihelpers.console import err_console
+from photree.clihelpers.progress import BatchProgressBar
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.usage import usage_error
+from photree.common.formatting import indent
+from photree.common.fs import display_path
 
 
 class NotReadyReason(StrEnum):

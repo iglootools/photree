@@ -7,14 +7,10 @@ date range changed), identical members (the series title changed).
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from ..naming import (
-    parse_collection_name,
-)
-from ..store.protocol import (
-    CollectionLifecycle,
-)
-from .scan import ExistingCollection
-from .series import SeriesTarget
+from photree.collection.naming import parse_collection_name
+from photree.collection.refresh.scan import ExistingCollection
+from photree.collection.refresh.series import SeriesTarget
+from photree.collection.store.protocol import CollectionLifecycle
 
 
 @dataclass(frozen=True)

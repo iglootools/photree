@@ -1,9 +1,9 @@
 from pathlib import Path
 
-from ...common.fs import matching_subdirectories, partition_subdirectories
-from ...foundation.layout import PHOTREE_DIR
-from .media_sources_discovery import has_any_media_source
-from .protocol import ALBUM_YAML
+from photree.album.store.media_sources_discovery import has_any_media_source
+from photree.album.store.protocol import ALBUM_YAML
+from photree.common.fs import matching_subdirectories, partition_subdirectories
+from photree.foundation.layout import PHOTREE_DIR
 
 
 def is_album(directory: Path) -> bool:

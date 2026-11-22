@@ -3,28 +3,28 @@ from typing import Annotated
 
 import typer
 
-from ...album.cli.import_preflight import run_import_preflight
-from ...album.faces.detect import memoized_face_analyzer_factory
-from ...album.importer import batch
-from ...album.importer import output as importer_output
-from ...album.importer.album_import import TaskIssue
-from ...album.importer.batch import ImportFailureStage
-from ...album.jpeg import convert_single_file, noop_convert_single
-from ...clihelpers.console import err_console
-from ...clihelpers.options import LINK_MODE_OPTION
-from ...clihelpers.progress import BatchProgressBar
-from ...clihelpers.runtime import runtime_of
-from ...clihelpers.usage import usage_error
-from ...common.exif import exiftool_session
-from ...common.formatting import format_dry_run, indent
-from ...common.fs import display_path
-from ...common.sysdeps import WhichFn
-from ...foundation.gallery_metadata import (
+from photree.album.cli.import_preflight import run_import_preflight
+from photree.album.faces.detect import memoized_face_analyzer_factory
+from photree.album.importer import batch
+from photree.album.importer import output as importer_output
+from photree.album.importer.album_import import TaskIssue
+from photree.album.importer.batch import ImportFailureStage
+from photree.album.jpeg import convert_single_file, noop_convert_single
+from photree.albums.cli import app
+from photree.clihelpers.console import err_console
+from photree.clihelpers.options import LINK_MODE_OPTION
+from photree.clihelpers.progress import BatchProgressBar
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.usage import usage_error
+from photree.common.exif import exiftool_session
+from photree.common.formatting import format_dry_run, indent
+from photree.common.fs import display_path
+from photree.common.sysdeps import WhichFn
+from photree.foundation.gallery_metadata import (
     resolve_gallery_metadata,
     resolve_link_mode,
 )
-from ...foundation.linking import LinkMode
-from . import app
+from photree.foundation.linking import LinkMode
 
 
 def _count_candidates(albums_dir: Path | None, album_dirs: list[Path] | None) -> int:

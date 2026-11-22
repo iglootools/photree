@@ -1,6 +1,6 @@
 from pydantic import Field
 
-from ...foundation.model import PhotreeModel
+from photree.foundation.model import PhotreeModel
 
 FACES_DIR = "faces"
 """Subdirectory under gallery ``.photree/`` for face clustering data."""

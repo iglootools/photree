@@ -1,8 +1,12 @@
 from pathlib import Path
 
-from ...foundation.layout import PHOTREE_DIR
-from ...foundation.metadata_io import load_yaml_mapping, validate_metadata, write_yaml
-from .protocol import COLLECTION_YAML, CollectionMetadata
+from photree.collection.store.protocol import COLLECTION_YAML, CollectionMetadata
+from photree.foundation.layout import PHOTREE_DIR
+from photree.foundation.metadata_io import (
+    load_yaml_mapping,
+    validate_metadata,
+    write_yaml,
+)
 
 
 def load_collection_metadata(collection_dir: Path) -> CollectionMetadata | None:

@@ -9,7 +9,7 @@ media source can never leave another source half-imported.
 
 from dataclasses import dataclass
 
-from ..store.media_source import MediaSource
+from photree.album.store.media_source import MediaSource
 
 
 @dataclass(frozen=True)

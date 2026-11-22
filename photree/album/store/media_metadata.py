@@ -13,15 +13,15 @@ from pathlib import Path
 
 from pydantic import Field
 
-from ...foundation.layout import PHOTREE_DIR
-from ...foundation.metadata_io import (
+from photree.album.store.protocol import MEDIA_IDS_DIR
+from photree.foundation.layout import PHOTREE_DIR
+from photree.foundation.metadata_io import (
     InvalidMetadataError,
     load_yaml_mapping,
     validate_metadata,
     write_yaml,
 )
-from ...foundation.model import PhotreeModel
-from .protocol import MEDIA_IDS_DIR
+from photree.foundation.model import PhotreeModel
 
 
 class MediaSourceMediaMetadata(PhotreeModel):

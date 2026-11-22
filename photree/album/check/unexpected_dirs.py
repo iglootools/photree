@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from ...common.fs import list_dirs
-from ..staging import is_import_staging_dir
-from ..store.media_source import MediaSource
+from photree.album.staging import is_import_staging_dir
+from photree.album.store.media_source import MediaSource
+from photree.common.fs import list_dirs
 
 
 @dataclass(frozen=True)

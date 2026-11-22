@@ -3,27 +3,24 @@ from typing import Annotated
 
 import typer
 
-from ...clihelpers.console import err_console
-from ...clihelpers.options import REIMPORT_OPTION
-from ...clihelpers.resolution import resolve_gallery_or_exit
-from ...clihelpers.runtime import runtime_of
-from ...clihelpers.sysdeps import import_deps, require_system_deps
-from ...clihelpers.usage import usage_error
-from ...common.formatting import format_dry_run, indent, markup_escape
-from ...common.fs import display_path
-from ...common.sysdeps import WhichFn
-from ...foundation.gallery_metadata import (
+from photree.clihelpers.console import err_console
+from photree.clihelpers.options import REIMPORT_OPTION
+from photree.clihelpers.resolution import resolve_gallery_or_exit
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.sysdeps import import_deps, require_system_deps
+from photree.clihelpers.usage import usage_error
+from photree.common.formatting import format_dry_run, indent, markup_escape
+from photree.common.fs import display_path
+from photree.common.sysdeps import WhichFn
+from photree.foundation.gallery_metadata import (
     GALLERY_YAML,
     load_gallery_metadata,
     resolve_link_mode,
 )
-from ...foundation.layout import PHOTREE_DIR
-from ...foundation.linking import LinkMode
-from ..cmd_handler.importer import BatchImportResult
-from ..import_plan import AlbumPlan
-from ..output import format_import_all_summary, import_all_failed
-from . import app
-from .ops import (
+from photree.foundation.layout import PHOTREE_DIR
+from photree.foundation.linking import LinkMode
+from photree.gallery.cli import app
+from photree.gallery.cli.ops import (
     build_index_or_exit,
     plan_imports_or_exit,
     render_skipped,
@@ -32,6 +29,9 @@ from .ops import (
     run_batch_post_import_check,
     run_face_clustering,
 )
+from photree.gallery.cmd_handler.importer import BatchImportResult
+from photree.gallery.import_plan import AlbumPlan
+from photree.gallery.output import format_import_all_summary, import_all_failed
 
 
 @app.command("import-all")

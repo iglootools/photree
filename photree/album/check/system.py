@@ -6,7 +6,7 @@ dependency list, purposes, and install hints.
 
 import shutil
 
-from ...common.sysdeps import SystemDependency, WhichFn, is_available
+from photree.common.sysdeps import SystemDependency, WhichFn, is_available
 
 
 def check_sips_available(*, which: WhichFn = shutil.which) -> bool:

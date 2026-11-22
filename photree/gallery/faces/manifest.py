@@ -11,9 +11,13 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from ...foundation.layout import PHOTREE_DIR
-from ...foundation.metadata_io import load_yaml_mapping, validate_metadata, write_yaml
-from .protocol import (
+from photree.foundation.layout import PHOTREE_DIR
+from photree.foundation.metadata_io import (
+    load_yaml_mapping,
+    validate_metadata,
+    write_yaml,
+)
+from photree.gallery.faces.protocol import (
     FACE_CHECKSUMS_FILE,
     FACE_CLUSTERS_FILE,
     FACE_INDEX_FILE,

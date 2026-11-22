@@ -2,9 +2,13 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from ...common.formatting import indent, markup_escape
-from ..store.protocol import CollectionLifecycle, CollectionMembers, CollectionStrategy
-from .models import GalleryCollectionStats
+from photree.collection.stats.models import GalleryCollectionStats
+from photree.collection.store.protocol import (
+    CollectionLifecycle,
+    CollectionMembers,
+    CollectionStrategy,
+)
+from photree.common.formatting import indent, markup_escape
 
 _TABLE_BOX = None  # borderless
 

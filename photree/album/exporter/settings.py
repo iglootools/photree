@@ -3,10 +3,10 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ...config import PhotreeConfig, load_config
-from ...foundation.layout import SHARE_SENTINEL
-from ...foundation.linking import LinkMode
-from ...foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
+from photree.config import PhotreeConfig, load_config
+from photree.foundation.layout import SHARE_SENTINEL
+from photree.foundation.linking import LinkMode
+from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 
 
 class ExportSettingsErrorKind(StrEnum):

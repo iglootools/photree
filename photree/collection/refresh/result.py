@@ -2,9 +2,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ...album.naming import (
-    NamingIssue,
-)
+from photree.album.naming import NamingIssue
 
 
 class CollectionRefreshErrorKind(StrEnum):

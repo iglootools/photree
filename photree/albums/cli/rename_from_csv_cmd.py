@@ -3,16 +3,16 @@ from typing import Annotated
 
 import typer
 
-from ...album.id import format_album_external_id
-from ...clihelpers.console import err_console
-from ...clihelpers.options import DRY_RUN_OPTION
-from ...clihelpers.runtime import runtime_of
-from ...common.formatting import indent
-from ...common.fs import display_path
-from ..batchcli.rename import run_batch_rename_from_csv
-from ..batchcli.resolution import resolve_check_batch_albums
-from ..index import AlbumIndex, MissingAlbumIdError, build_album_index
-from . import ALBUM_DIR_OPTION, DIR_OPTION, app
+from photree.album.id import format_album_external_id
+from photree.albums.batchcli.rename import run_batch_rename_from_csv
+from photree.albums.batchcli.resolution import resolve_check_batch_albums
+from photree.albums.cli import ALBUM_DIR_OPTION, DIR_OPTION, app
+from photree.albums.index import AlbumIndex, MissingAlbumIdError, build_album_index
+from photree.clihelpers.console import err_console
+from photree.clihelpers.options import DRY_RUN_OPTION
+from photree.clihelpers.runtime import runtime_of
+from photree.common.formatting import indent
+from photree.common.fs import display_path
 
 
 @app.command("rename-from-csv")

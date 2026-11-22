@@ -8,12 +8,9 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ...foundation.linking import LinkMode
-from ..store.media_source import MediaSource
-from ..store.media_sources_discovery import discover_media_sources
-from .helpers import MissingArchiveError
-from .rm_orphan import RmOrphanDirResult, RmOrphanResult, rm_orphan
-from .rm_upstream import (
+from photree.album.fix.helpers import MissingArchiveError
+from photree.album.fix.rm_orphan import RmOrphanDirResult, RmOrphanResult, rm_orphan
+from photree.album.fix.rm_upstream import (
     RmUpstreamHeicResult,
     RmUpstreamMovResult,
     RmUpstreamRefusedError,
@@ -25,6 +22,9 @@ from .rm_upstream import (
     plan_rm_upstream,
     rm_upstream,
 )
+from photree.album.store.media_source import MediaSource
+from photree.album.store.media_sources_discovery import discover_media_sources
+from photree.foundation.linking import LinkMode
 
 __all__ = [
     "FixResult",

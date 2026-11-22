@@ -11,12 +11,9 @@ from collections.abc import Sequence
 from pathlib import Path
 from textwrap import dedent
 
-from ...common.formatting import CHECK, CROSS, indent, markup_escape
-from ...common.fs import display_path
-from ...common.sysdeps_output import format_missing_troubleshoot, format_statuses
-from ..check.output import derived_failures_report, format_duplicate_stem
-from ..check.std import DuplicateStem
-from .album_import import (
+from photree.album.check.output import derived_failures_report, format_duplicate_stem
+from photree.album.check.std import DuplicateStem
+from photree.album.importer.album_import import (
     AlbumImportResult,
     AlbumImportValidation,
     EmptyImageCaptureDirError,
@@ -24,23 +21,26 @@ from .album_import import (
     TaskIssue,
     TaskIssueDetail,
 )
-from .batch import AlbumFailure
-from .collision import ArchiveCollision
-from .image_capture import (
+from photree.album.importer.batch import AlbumFailure
+from photree.album.importer.collision import ArchiveCollision
+from photree.album.importer.image_capture import (
     DedupWarning,
     ValidationError,
     ValidationErrorKind,
     ValidationWarning,
     ValidationWarningKind,
 )
-from .naming_gate import ImportNamingCheck
-from .preflight import (
+from photree.album.importer.naming_gate import ImportNamingCheck
+from photree.album.importer.preflight import (
     IMG_PREFIX_THRESHOLD,
     ImageCaptureDirCheck,
     ImportPreflightResult,
     SelectionStatus,
 )
-from .std import StdNoMediaError
+from photree.album.importer.std import StdNoMediaError
+from photree.common.formatting import CHECK, CROSS, indent, markup_escape
+from photree.common.fs import display_path
+from photree.common.sysdeps_output import format_missing_troubleshoot, format_statuses
 
 _MAX_COLLISIONS_SHOWN = 10
 

@@ -3,9 +3,12 @@
 from collections.abc import Callable
 from pathlib import Path
 
-from .id import generate_collection_id
-from .store.metadata import load_collection_metadata, save_collection_metadata
-from .store.protocol import (
+from photree.collection.id import generate_collection_id
+from photree.collection.store.metadata import (
+    load_collection_metadata,
+    save_collection_metadata,
+)
+from photree.collection.store.protocol import (
     CollectionLifecycle,
     CollectionMembers,
     CollectionMetadata,

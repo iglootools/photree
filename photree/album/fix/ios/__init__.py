@@ -10,9 +10,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ...store.media_source import MediaSource
-from ...store.media_sources_discovery import discover_media_sources
-from .miscategorized import (
+from photree.album.fix.ios.miscategorized import (
     MiscategorizedAction,
     MiscategorizedDirResult,
     MiscategorizedMoveConflictError,
@@ -22,11 +20,16 @@ from .miscategorized import (
     rm_miscategorized,
     rm_miscategorized_safe,
 )
-from .prefer_higher_quality import (
+from photree.album.fix.ios.prefer_higher_quality import (
     PreferHigherQualityResult,
     prefer_higher_quality_when_dups,
 )
-from .rm_orphan_sidecar import RmOrphanSidecarResult, rm_orphan_sidecar
+from photree.album.fix.ios.rm_orphan_sidecar import (
+    RmOrphanSidecarResult,
+    rm_orphan_sidecar,
+)
+from photree.album.store.media_source import MediaSource
+from photree.album.store.media_sources_discovery import discover_media_sources
 
 __all__ = [
     "FixIosMiscategorizedResult",

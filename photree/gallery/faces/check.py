@@ -8,12 +8,17 @@ structured issues; the CLI layer renders them.
 from dataclasses import dataclass
 from pathlib import Path
 
-from ...album.faces.protocol import FACES_DIR
-from ...album.store.album_discovery import discover_albums
-from ...album.store.metadata import load_album_metadata
-from ...foundation.layout import ALBUMS_DIR, PHOTREE_DIR
-from .manifest import compute_npz_checksum, load_checksums, load_clusters, load_manifest
-from .protocol import FaceClusteringResult
+from photree.album.faces.protocol import FACES_DIR
+from photree.album.store.album_discovery import discover_albums
+from photree.album.store.metadata import load_album_metadata
+from photree.foundation.layout import ALBUMS_DIR, PHOTREE_DIR
+from photree.gallery.faces.manifest import (
+    compute_npz_checksum,
+    load_checksums,
+    load_clusters,
+    load_manifest,
+)
+from photree.gallery.faces.protocol import FaceClusteringResult
 
 
 @dataclass(frozen=True)

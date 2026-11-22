@@ -2,7 +2,7 @@ from enum import StrEnum
 
 from pydantic import Field
 
-from ...foundation.model import PhotreeModel
+from photree.foundation.model import PhotreeModel
 
 COLLECTION_YAML = "collection.yaml"
 

@@ -21,12 +21,15 @@ from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-from ..id import generate_collection_id
-from .implicit import ImplicitChanges, refresh_implicit_collections
-from .result import CollectionRefreshResult
-from .scan import scan_existing_collections, scan_gallery
-from .smart import refresh_smart_collections
-from .title_sync import TitleSync, sync_album_titles
+from photree.collection.id import generate_collection_id
+from photree.collection.refresh.implicit import (
+    ImplicitChanges,
+    refresh_implicit_collections,
+)
+from photree.collection.refresh.result import CollectionRefreshResult
+from photree.collection.refresh.scan import scan_existing_collections, scan_gallery
+from photree.collection.refresh.smart import refresh_smart_collections
+from photree.collection.refresh.title_sync import TitleSync, sync_album_titles
 
 # Refresh stage names (for progress callbacks)
 STAGE_SCAN_ALBUMS = "scan-albums"

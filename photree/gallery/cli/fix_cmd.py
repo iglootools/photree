@@ -3,19 +3,19 @@ from typing import Annotated
 
 import typer
 
-from ...album.fix import FixValidationError, validate_fix_flags
-from ...albums.batchcli.fix import run_batch_fix
-from ...albums.batchcli.resolution import resolve_check_batch_albums
-from ...clihelpers.options import (
+from photree.album.fix import FixValidationError, validate_fix_flags
+from photree.albums.batchcli.fix import run_batch_fix
+from photree.albums.batchcli.resolution import resolve_check_batch_albums
+from photree.clihelpers.options import (
     DRY_RUN_OPTION,
     FORCE_OPTION,
     RM_ORPHAN_OPTION,
     RM_UPSTREAM_OPTION,
 )
-from ...clihelpers.resolution import resolve_gallery_or_exit
-from ...clihelpers.runtime import runtime_of
-from ...clihelpers.usage import usage_error
-from . import app
+from photree.clihelpers.resolution import resolve_gallery_or_exit
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.usage import usage_error
+from photree.gallery.cli import app
 
 
 @app.command("fix")

@@ -11,7 +11,7 @@ https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#exit
 
 import typer
 
-from .console import err_console
+from photree.clihelpers.console import err_console
 
 USAGE_ERROR_EXIT_CODE = 2
 
