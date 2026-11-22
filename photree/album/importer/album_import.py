@@ -9,8 +9,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from exiftool import ExifToolHelper  # type: ignore[import-untyped]
-
+from ...common.exif import ExifTagReader
 from ...common.fs import list_files
 from ...foundation.layout import PHOTREE_DIR
 from ...foundation.linking import LinkMode
@@ -318,7 +317,7 @@ def run_import(
     on_stage_end: Callable[[str], None] | None = None,
     convert_file: ConvertFile = convert_single_file,
     max_workers: int | None = None,
-    exiftool: ExifToolHelper | None = None,
+    exiftool: ExifTagReader | None = None,
     analyzer_factory: FaceAnalyzerFactory | None = None,
     new_id: Callable[[], str] = generate_album_id,
 ) -> AlbumImportResult:
@@ -384,7 +383,7 @@ def _refresh_derived(
     on_stage_end: Callable[[str], None] | None,
     convert_file: ConvertFile,
     max_workers: int | None,
-    exiftool: ExifToolHelper | None,
+    exiftool: ExifTagReader | None,
     analyzer_factory: FaceAnalyzerFactory | None,
 ) -> AlbumRefreshResult:
     """Discovers every media source and builds browsable/JPEG/media-ids/EXIF

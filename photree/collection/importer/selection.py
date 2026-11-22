@@ -18,10 +18,9 @@ from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
 
-from exiftool import ExifToolHelper  # type: ignore[import-untyped]
-
 from ...album.exif import read_exif_timestamps_by_file
 from ...album.formats import IMG_EXTENSIONS, VID_EXTENSIONS
+from ...common.exif import ExifTagReader
 from ...common.fs import file_ext, list_files
 
 SELECTION_DIR = "to-import"
@@ -147,7 +146,7 @@ def _is_media_file(filename: str) -> bool:
 def _read_dir_entries(
     selection_dir: Path,
     *,
-    exiftool: ExifToolHelper | None = None,
+    exiftool: ExifTagReader | None = None,
 ) -> list[SelectionEntry]:
     """Read entries from the selection directory.
 
@@ -186,7 +185,7 @@ def _dedupe(entries: list[SelectionEntry]) -> tuple[SelectionEntry, ...]:
 def read_selection(
     collection_dir: Path,
     *,
-    exiftool: ExifToolHelper | None = None,
+    exiftool: ExifTagReader | None = None,
 ) -> CollectionSelectionSources:
     """Read selection entries from ``to-import/`` and ``to-import.csv``.
 

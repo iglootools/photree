@@ -2,8 +2,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from exiftool import ExifToolHelper  # type: ignore[import-untyped]
-
+from ...common.exif import ExifTagReader
 from ..store.metadata import load_collection_metadata, save_collection_metadata
 from ..store.protocol import CollectionLifecycle, CollectionMembers, CollectionMetadata
 from .resolve import (
@@ -119,7 +118,7 @@ def import_collection_members(
     gallery_dir: Path,
     *,
     dry_run: bool = False,
-    exiftool: ExifToolHelper | None = None,
+    exiftool: ExifTagReader | None = None,
 ) -> CollectionImportResult:
     """Resolve selection entries and merge into collection metadata.
 

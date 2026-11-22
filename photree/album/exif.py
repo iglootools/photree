@@ -1,10 +1,9 @@
 from datetime import datetime
 from pathlib import Path
 
-from exiftool import ExifToolHelper  # type: ignore[import-untyped]
-
 from ..common.exif import (
     ExifDateChange,
+    ExifTagReader,
     write_exif_date,
 )
 from ..common.exif import (
@@ -32,7 +31,7 @@ TIMESTAMP_TAGS = ["CreationDate", "DateTimeOriginal", "CreateDate"]
 def read_exif_timestamps_by_file(
     files: list[Path],
     *,
-    exiftool: ExifToolHelper | None = None,
+    exiftool: ExifTagReader | None = None,
 ) -> list[tuple[Path, datetime]]:
     return _generic_read_by_file(files, TIMESTAMP_TAGS, exiftool=exiftool)
 

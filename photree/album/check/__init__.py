@@ -2,8 +2,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from exiftool import ExifToolHelper  # type: ignore[import-untyped]
-
+from ...common.exif import ExifTagReader
 from ...foundation.linking import LinkMode
 from ..exif_date_check import AlbumNamingResult, check_exif_date_match
 from ..naming import check_album_naming, parse_album_name
@@ -300,7 +299,7 @@ def run_album_check(
     album_dir: Path,
     *,
     sips_available: bool,
-    exiftool: ExifToolHelper | None,
+    exiftool: ExifTagReader | None,
     link_mode: LinkMode,
     checksum: bool = True,
     check_naming_flag: bool = True,
@@ -438,7 +437,7 @@ def _check_media(
 
 def _check_naming(
     album_dir: Path,
-    exiftool: ExifToolHelper | None,
+    exiftool: ExifTagReader | None,
     check_naming_flag: bool,
 ) -> AlbumNamingResult | None:
     if not check_naming_flag:

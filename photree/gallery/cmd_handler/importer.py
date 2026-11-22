@@ -3,10 +3,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from exiftool import ExifToolHelper  # type: ignore[import-untyped]
-
 from ...album.faces.detect import FaceAnalyzerFactory, memoized_face_analyzer_factory
-from ...common.exif import exiftool_session
+from ...common.exif import ExifTagReader, exiftool_session
 from ...common.sysdeps import WhichFn
 from ...foundation.linking import LinkMode
 from .. import importer as gallery_importer
@@ -20,7 +18,7 @@ def _execute_plan(
     link_mode: LinkMode,
     dry_run: bool,
     *,
-    exiftool: ExifToolHelper | None = None,
+    exiftool: ExifTagReader | None = None,
     analyzer_factory: FaceAnalyzerFactory | None = None,
     max_workers: int | None = None,
     on_stage_start: Callable[[str], None] | None = None,
@@ -124,7 +122,7 @@ def _import_one(
     link_mode: LinkMode,
     dry_run: bool,
     *,
-    exiftool: ExifToolHelper | None,
+    exiftool: ExifTagReader | None,
     analyzer_factory: FaceAnalyzerFactory,
     max_workers: int | None,
 ) -> AlbumImportFailure | None:

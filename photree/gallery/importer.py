@@ -16,8 +16,6 @@ from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-from exiftool import ExifToolHelper  # type: ignore[import-untyped]
-
 from ..album.faces.detect import FaceAnalyzerFactory
 from ..album.faces.failures import FaceFailure
 from ..album.id import generate_album_id
@@ -30,6 +28,7 @@ from ..album.refresh import (
 from ..album.store.media_metadata import load_media_metadata, save_media_metadata
 from ..album.store.metadata import load_album_metadata, save_album_metadata
 from ..album.store.protocol import AlbumMetadata
+from ..common.exif import ExifTagReader
 from ..dates import parse_year_prefix
 from ..foundation.layout import ALBUMS_DIR, PHOTREE_DIR
 from ..foundation.linking import LinkMode
@@ -90,7 +89,7 @@ class _Pipeline:
     link_mode: LinkMode
     max_workers: int | None
     convert_file: ConvertFile | None
-    exiftool: ExifToolHelper | None
+    exiftool: ExifTagReader | None
     analyzer_factory: FaceAnalyzerFactory | None
     refresh: RefreshFn
     new_id: Callable[[], str]
@@ -245,7 +244,7 @@ def import_album(
     on_stage_end: Callable[[str], None] | None = None,
     convert_file: ConvertFile | None = None,
     max_workers: int | None = None,
-    exiftool: ExifToolHelper | None = None,
+    exiftool: ExifTagReader | None = None,
     analyzer_factory: FaceAnalyzerFactory | None = None,
     refresh: RefreshFn = refresh_album_derived_data,
     new_id: Callable[[], str] = generate_album_id,
@@ -301,7 +300,7 @@ def reimport_album(
     on_stage_end: Callable[[str], None] | None = None,
     convert_file: ConvertFile | None = None,
     max_workers: int | None = None,
-    exiftool: ExifToolHelper | None = None,
+    exiftool: ExifTagReader | None = None,
     analyzer_factory: FaceAnalyzerFactory | None = None,
     refresh: RefreshFn = refresh_album_derived_data,
     new_id: Callable[[], str] = generate_album_id,

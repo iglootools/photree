@@ -209,7 +209,7 @@ class TestExifCachePaths:
 
         refresh_exif_cache(
             tmp_path,
-            exiftool=_FakeExifTool("2024:07:14 10:00:00"),  # type: ignore[arg-type]
+            exiftool=_FakeExifTool("2024:07:14 10:00:00"),
         )
 
         cache = load_exif_cache(tmp_path, "main")
@@ -223,7 +223,7 @@ class TestExifCachePaths:
         _album_with_same_stem_photo_and_video(tmp_path)
         refresh_exif_cache(
             tmp_path,
-            exiftool=_FakeExifTool("2023:01:01 10:00:00"),  # type: ignore[arg-type]
+            exiftool=_FakeExifTool("2023:01:01 10:00:00"),
         )
 
         check = check_exif_date_match(tmp_path, "2024-07-14")
@@ -255,7 +255,7 @@ class TestExifCachePaths:
 
         refresh_exif_cache(
             tmp_path,
-            exiftool=_FakeExifTool("2024:07:14 10:00:00"),  # type: ignore[arg-type]
+            exiftool=_FakeExifTool("2024:07:14 10:00:00"),
         )
 
         cache = load_exif_cache(tmp_path, "main")

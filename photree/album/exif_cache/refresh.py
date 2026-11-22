@@ -5,9 +5,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from exiftool import ExifToolHelper  # type: ignore[import-untyped]
-
-from ...common.exif import exiftool_session, extract_timestamp, get_metadata
+from ...common.exif import (
+    ExifTagReader,
+    exiftool_session,
+    extract_timestamp,
+    get_metadata,
+)
 from ...common.fs import list_files
 from ...common.sysdeps import WhichFn
 from ..exif import TIMESTAMP_TAGS
@@ -40,7 +43,7 @@ class ExifCacheRefreshResult:
 def refresh_exif_cache(
     album_dir: Path,
     *,
-    exiftool: ExifToolHelper | None = None,
+    exiftool: ExifTagReader | None = None,
     force: bool = False,
     dry_run: bool = False,
     which: WhichFn = shutil.which,
@@ -115,7 +118,7 @@ def _refresh_source(
     album_dir: Path,
     ms: MediaSource,
     *,
-    exiftool: ExifToolHelper | None,
+    exiftool: ExifTagReader | None,
     force: bool,
     dry_run: bool,
 ) -> ExifCacheSourceResult:
@@ -145,7 +148,7 @@ def _apply_plan(
     ms: MediaSource,
     plan: _SourcePlan,
     *,
-    exiftool: ExifToolHelper | None,
+    exiftool: ExifTagReader | None,
 ) -> ExifCacheSourceResult:
     """Read EXIF for new/changed files, merge with the kept entries, and save."""
     new_entries = _read_exif_for_keys(
@@ -212,7 +215,7 @@ def _read_exif_for_keys(
     current_files: Mapping[str, str],
     album_dir: Path,
     *,
-    exiftool: ExifToolHelper | None,
+    exiftool: ExifTagReader | None,
 ) -> dict[str, ExifCacheEntry]:
     files = [album_dir / current_files[key] for key in keys]
 
@@ -231,7 +234,7 @@ def _read_exif_for_keys(
 def _batch_read_timestamps(
     files: list[Path],
     *,
-    exiftool: ExifToolHelper | None,
+    exiftool: ExifTagReader | None,
 ) -> list[datetime | None]:
     """Read EXIF timestamps for files, returning None for unreadable ones."""
     if not files:

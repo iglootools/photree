@@ -13,8 +13,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from exiftool import ExifToolHelper  # type: ignore[import-untyped]
-
+from ..common.exif import ExifTagReader
 from ..common.fs import file_ext
 from ..dates import (
     is_day_precision,
@@ -163,7 +162,7 @@ def check_exif_date_match(
     album_dir: Path,
     album_date: str,
     *,
-    exiftool: ExifToolHelper | None = None,
+    exiftool: ExifTagReader | None = None,
     part: str | None = None,
 ) -> ExifTimestampCheck | None:
     """Reads from the EXIF cache when available and fresh. Falls back to
@@ -194,7 +193,7 @@ def check_exif_date_match(
 def _read_timestamps_from_cache_or_exiftool(
     album_dir: Path,
     *,
-    exiftool: ExifToolHelper | None,
+    exiftool: ExifTagReader | None,
 ) -> list[tuple[Path, datetime]]:
     cached = _try_read_from_cache(album_dir)
     if cached is not None:
