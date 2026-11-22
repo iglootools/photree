@@ -156,6 +156,9 @@ filterwarnings = [
 ]
 
 [tool.pyright]
+include = ["photree", "tests"]
+typeCheckingMode = "strict"
+reportUnnecessaryTypeIgnoreComment = "error"
 pythonVersion = "3.14"
 # uv creates the project venv at .venv; restating it here is what lets editors and
 # language servers resolve imports against it, since they inherit no shell activation.
