@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 import numpy as np
+import numpy.typing as npt
 
 from .protocol import DEFAULT_CLUSTER_THRESHOLD
 
@@ -11,7 +12,23 @@ from .protocol import DEFAULT_CLUSTER_THRESHOLD
 # here: this module is reachable from the CLI, and loading them would slow down
 # every invocation, most of which never cluster faces.
 if TYPE_CHECKING:
-    import faiss  # type: ignore[import-untyped]
+    import faiss
+
+
+# faiss's stubs overload add and search for torch.Tensor as well as numpy arrays.
+# photree does not install torch, so pyright reads those overloads as Unknown and
+# matches them first, whatever the argument. These two functions hold the faiss calls
+# and give the numpy overload's types to everything downstream.
+def add_to_index(index: faiss.IndexFlatIP, vectors: npt.NDArray[np.float32]) -> None:
+    """Append *vectors* to *index*."""
+    index.add(vectors)  # pyright: ignore[reportUnknownMemberType]
+
+
+def _search_index(
+    index: faiss.IndexFlatIP, queries: npt.NDArray[np.float32], k: int
+) -> tuple[npt.NDArray[np.float32], npt.NDArray[np.int64]]:
+    """Return the similarities and row indices of each query's *k* nearest rows."""
+    return index.search(queries, k)  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
 
 
 def build_faiss_index(embeddings: np.ndarray) -> faiss.IndexFlatIP:
@@ -19,17 +36,17 @@ def build_faiss_index(embeddings: np.ndarray) -> faiss.IndexFlatIP:
 
     For normalized vectors, inner product = cosine similarity.
     """
-    import faiss  # type: ignore[import-untyped]
+    import faiss
 
     dim = embeddings.shape[1] if embeddings.ndim == 2 else 512
-    index = faiss.IndexFlatIP(dim)  # type: ignore[call-arg]
+    index = faiss.IndexFlatIP(dim)
     if len(embeddings) > 0:
-        index.add(embeddings.astype(np.float32))  # type: ignore[call-arg]
+        add_to_index(index, embeddings.astype(np.float32))
     return index
 
 
 def save_faiss_index(index: faiss.IndexFlatIP, path: Path) -> None:
-    import faiss  # type: ignore[import-untyped]
+    import faiss
 
     path.parent.mkdir(parents=True, exist_ok=True)
     faiss.write_index(index, str(path))
@@ -37,7 +54,7 @@ def save_faiss_index(index: faiss.IndexFlatIP, path: Path) -> None:
 
 def load_faiss_index(path: Path) -> faiss.IndexFlatIP | None:
     """Load a FAISS index from disk, or ``None`` if the file is missing."""
-    import faiss  # type: ignore[import-untyped]
+    import faiss
 
     if not path.is_file():
         return None
@@ -63,7 +80,8 @@ def cluster_embeddings(
     if n == 1:
         return np.array([0], dtype=np.int32)
 
-    from sklearn.cluster import (  # type: ignore[import-untyped]
+    # scikit-learn ships no type information.
+    from sklearn.cluster import (  # pyright: ignore[reportMissingTypeStubs]
         AgglomerativeClustering,
     )
 
@@ -72,13 +90,16 @@ def cluster_embeddings(
     )
 
     clustering = AgglomerativeClustering(
-        n_clusters=None,  # type: ignore[arg-type]  # sklearn expects int | None
+        # sklearn documents None (with distance_threshold), but its signature, inferred
+        # from the int default, takes an int only.
+        n_clusters=None,  # pyright: ignore[reportArgumentType]
         metric="cosine",
         linkage="average",
         distance_threshold=distance_threshold,
         connectivity=connectivity,
     )
-    labels = clustering.fit_predict(embeddings)
+    # scikit-learn leaves fit_predict's parameters and result unannotated.
+    labels = cast(np.ndarray, clustering.fit_predict(embeddings))  # pyright: ignore[reportUnknownMemberType]
     return labels.astype(np.int32)
 
 
@@ -88,12 +109,14 @@ def _build_sparse_connectivity(embeddings: np.ndarray, *, k: int) -> object:
     Returns a binary adjacency matrix where entry (i, j) = 1 iff
     j is among the k nearest neighbors of i.
     """
-    import faiss  # type: ignore[import-untyped]
-    from scipy.sparse import lil_matrix
+    import faiss
 
-    index = faiss.IndexFlatIP(embeddings.shape[1])  # type: ignore[call-arg]
-    index.add(embeddings.astype(np.float32))  # type: ignore[call-arg]
-    _, indices = index.search(embeddings.astype(np.float32), k + 1)  # type: ignore[call-arg]
+    # SciPy ships no type information for scipy.sparse.
+    from scipy.sparse import lil_matrix  # pyright: ignore[reportMissingTypeStubs]
+
+    index = faiss.IndexFlatIP(embeddings.shape[1])
+    add_to_index(index, embeddings.astype(np.float32))
+    _, indices = _search_index(index, embeddings.astype(np.float32), k + 1)
 
     # lil_matrix is inherently mutable (sparse matrix construction)
     n = len(embeddings)
@@ -131,8 +154,8 @@ def assign_to_nearest_cluster(
             next_cluster_id, next_cluster_id + len(new_embeddings), dtype=np.int32
         )
 
-    similarities, nn_indices = index.search(  # type: ignore[call-arg]
-        new_embeddings.astype(np.float32), 1
+    similarities, nn_indices = _search_index(
+        index, new_embeddings.astype(np.float32), 1
     )
 
     return _assign_labels(
@@ -245,15 +268,15 @@ def _build_medoid_index(
     embeddings: np.ndarray, medoids: dict[int, int]
 ) -> tuple[faiss.IndexFlatIP, list[int]]:
     """Build a FAISS index of medoid embeddings for nearest-neighbor matching."""
-    import faiss  # type: ignore[import-untyped]
+    import faiss
 
     medoid_embeddings = np.stack([embeddings[idx] for idx in medoids.values()]).astype(
         np.float32
     )
     medoid_labels = list(medoids.keys())
 
-    index = faiss.IndexFlatIP(medoid_embeddings.shape[1])  # type: ignore[call-arg]
-    index.add(medoid_embeddings)  # type: ignore[call-arg]
+    index = faiss.IndexFlatIP(medoid_embeddings.shape[1])
+    add_to_index(index, medoid_embeddings)
     return (index, medoid_labels)
 
 
@@ -300,13 +323,13 @@ def _find_best_match(
 ) -> str | None:
     """Find the best matching old cluster UUID for a query embedding."""
     query = query_embedding.reshape(1, -1).astype(np.float32)
-    similarities, indices = old_index.search(query, 1)  # type: ignore[call-arg]
+    similarities, indices = _search_index(old_index, query, 1)
 
     if indices[0][0] < 0:
         return None
 
     cosine_dist = 1.0 - float(similarities[0][0])
-    old_label = old_medoid_labels[indices[0][0]]
+    old_label = old_medoid_labels[int(indices[0][0])]
     old_uuid = old_cluster_ids.get(old_label)
 
     if old_uuid is not None and cosine_dist <= threshold and old_uuid not in exclude:

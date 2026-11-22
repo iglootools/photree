@@ -4,7 +4,7 @@ Public to the other CLI layers: the entry point (``photree.cli``) renders the
 same message when the error escapes a command.
 """
 
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -28,7 +28,7 @@ def format_media_source_conflict(exc: MediaSourceConflictError, cwd: Path) -> st
 
 
 @contextmanager
-def exit_on_media_source_conflict(cwd: Path) -> Iterator[None]:
+def exit_on_media_source_conflict(cwd: Path) -> Generator[None]:
     """Report a :class:`MediaSourceConflictError` and exit 1 instead of a traceback."""
     try:
         yield

@@ -4,8 +4,6 @@ from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
 
-from exiftool import ExifToolHelper  # type: ignore[import-untyped]
-
 from ...album.faces.detect import FaceAnalyzerFactory, memoized_face_analyzer_factory
 from ...album.faces.failures import format_face_failures
 from ...album.refresh import (
@@ -13,7 +11,7 @@ from ...album.refresh import (
     RefreshFn,
     refresh_album_derived_data,
 )
-from ...common.exif import exiftool_session
+from ...common.exif import ExifTagReader, exiftool_session
 from ...common.sysdeps import WhichFn
 from ...foundation.linking import LinkMode
 from . import (
@@ -51,7 +49,7 @@ def _refresh_one(
     album_dir: Path,
     link_mode_for: Callable[[Path], LinkMode],
     opts: _RefreshOptions,
-    exiftool: ExifToolHelper | None,
+    exiftool: ExifTagReader | None,
     analyzer_factory: FaceAnalyzerFactory,
     refresh: RefreshFn,
 ) -> None:

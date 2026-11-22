@@ -34,18 +34,18 @@ ALBUM_DIR_OPTION = Annotated[
     ),
 ]
 
-from . import (  # noqa: F401 — imported for command registration side effects
-    check_cmd,
-    detect_faces_cmd,
-    export_cmd,
-    fix_cmd,
-    fix_ios_cmd,
-    import_check_cmd,
-    import_cmd,
-    init_cmd,
-    list_cmd,
-    list_media_cmd,
-    refresh_cmd,
-    rename_from_csv_cmd,
-    stats_cmd,
-)
+# Imported for their side effect: each module registers its commands on `app`.
+# The redundant `x as x` alias tells ruff and pyright the import is intentional.
+from . import check_cmd as check_cmd
+from . import detect_faces_cmd as detect_faces_cmd
+from . import export_cmd as export_cmd
+from . import fix_cmd as fix_cmd
+from . import fix_ios_cmd as fix_ios_cmd
+from . import import_check_cmd as import_check_cmd
+from . import import_cmd as import_cmd
+from . import init_cmd as init_cmd
+from . import list_cmd as list_cmd
+from . import list_media_cmd as list_media_cmd
+from . import refresh_cmd as refresh_cmd
+from . import rename_from_csv_cmd as rename_from_csv_cmd
+from . import stats_cmd as stats_cmd

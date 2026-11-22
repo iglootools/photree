@@ -5,10 +5,10 @@ import pytest
 
 from photree.album.id import generate_album_id
 from photree.album.stats import (
-    _extract_year,
     albums_stats_from_album_stats,
     compute_album_stats,
     compute_media_source_stats,
+    extract_year,
 )
 from photree.album.stats.aggregate import merge_format_stats, merge_size_stats
 from photree.album.stats.models import AlbumStats, FormatStats, SizeStats
@@ -151,19 +151,19 @@ class TestUniqueMediaCounting:
 
 class TestExtractYear:
     def test_full_date(self) -> None:
-        assert _extract_year("2024-07-14 - Title") == "2024"
+        assert extract_year("2024-07-14 - Title") == "2024"
 
     def test_month_precision(self) -> None:
-        assert _extract_year("2024-07 - Title") == "2024"
+        assert extract_year("2024-07 - Title") == "2024"
 
     def test_year_precision(self) -> None:
-        assert _extract_year("2024 - Title") == "2024"
+        assert extract_year("2024 - Title") == "2024"
 
     def test_date_range(self) -> None:
-        assert _extract_year("2024-07-14--2025-01-01 - Title") == "2024"
+        assert extract_year("2024-07-14--2025-01-01 - Title") == "2024"
 
     def test_unparseable(self) -> None:
-        assert _extract_year("not a valid name") is None
+        assert extract_year("not a valid name") is None
 
 
 class TestMergeSizeStats:

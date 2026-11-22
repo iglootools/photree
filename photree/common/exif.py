@@ -8,18 +8,29 @@ layout or naming convention.
 import json
 import shutil
 import subprocess
-from collections.abc import Generator, Sequence
+from collections.abc import Generator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Protocol
 
-from exiftool import ExifToolHelper  # type: ignore[import-untyped]
+# PyExifTool ships neither stubs nor a py.typed marker. This module is the only one
+# that imports it: the others take an ExifTagReader.
+from exiftool import ExifToolHelper  # pyright: ignore[reportMissingTypeStubs]
 
 from .sysdeps import SystemDependency, WhichFn, is_available, require
 
 _EXIF_DATE_FORMAT = "%Y:%m:%d %H:%M:%S"
 _EXIF_DATE_TZ_FORMAT = "%Y:%m:%d %H:%M:%S%z"
+
+
+class ExifTagReader(Protocol):
+    """Reads EXIF tags from files: a running ``ExifToolHelper``, or a test fake."""
+
+    def get_tags(self, files: list[str], tags: list[str]) -> list[dict[str, object]]:
+        """Return one ``{tag: value}`` mapping per file, in the order of *files*."""
+        ...
 
 
 def try_start_exiftool(*, which: WhichFn = shutil.which) -> ExifToolHelper | None:
@@ -54,7 +65,8 @@ def exiftool_session(
         yield et
     finally:
         if et is not None:
-            et.__exit__(None, None, None)
+            # PyExifTool leaves __exit__'s parameters unannotated.
+            et.__exit__(None, None, None)  # pyright: ignore[reportUnknownMemberType]
 
 
 def parse_timestamp(value: str) -> datetime | None:
@@ -75,7 +87,7 @@ def parse_timestamp(value: str) -> datetime | None:
 
 
 def extract_timestamp(
-    metadata: dict[str, object],
+    metadata: Mapping[str, object],
     tags: list[str],
 ) -> datetime | None:
     """Extract the best timestamp from a single file's metadata dict.
@@ -97,7 +109,7 @@ def get_metadata(
     files: list[Path],
     tags: list[str],
     *,
-    exiftool: ExifToolHelper | None = None,
+    exiftool: ExifTagReader | None = None,
     which: WhichFn = shutil.which,
 ) -> list[dict[str, object]]:
     """Fetch *tags* for *files* via exiftool.
@@ -111,18 +123,18 @@ def get_metadata(
         return []
     str_files = [str(f) for f in files]
     if exiftool is not None:
-        return exiftool.get_tags(str_files, tags)  # type: ignore[no-any-return]
+        return exiftool.get_tags(str_files, tags)
     else:
         require((SystemDependency.EXIFTOOL,), which=which)
         with ExifToolHelper() as et:
-            return et.get_tags(str_files, tags)  # type: ignore[no-any-return]
+            return get_metadata(files, tags, exiftool=et)
 
 
 def read_exif_timestamps(
     files: list[Path],
     tags: list[str],
     *,
-    exiftool: ExifToolHelper | None = None,
+    exiftool: ExifTagReader | None = None,
 ) -> list[datetime]:
     """Read timestamps from files, returning only successfully parsed ones."""
     return [
@@ -136,7 +148,7 @@ def read_exif_timestamps_by_file(
     files: list[Path],
     tags: list[str],
     *,
-    exiftool: ExifToolHelper | None = None,
+    exiftool: ExifTagReader | None = None,
 ) -> list[tuple[Path, datetime]]:
     """Read timestamps from files, returning ``(file, timestamp)`` pairs.
 

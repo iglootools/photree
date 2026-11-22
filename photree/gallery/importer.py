@@ -16,8 +16,6 @@ from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-from exiftool import ExifToolHelper  # type: ignore[import-untyped]
-
 from ..album.faces.detect import FaceAnalyzerFactory
 from ..album.faces.failures import FaceFailure
 from ..album.id import generate_album_id
@@ -30,6 +28,7 @@ from ..album.refresh import (
 from ..album.store.media_metadata import load_media_metadata, save_media_metadata
 from ..album.store.metadata import load_album_metadata, save_album_metadata
 from ..album.store.protocol import AlbumMetadata
+from ..common.exif import ExifTagReader
 from ..dates import parse_year_prefix
 from ..foundation.layout import ALBUMS_DIR, PHOTREE_DIR
 from ..foundation.linking import LinkMode
@@ -90,7 +89,7 @@ class _Pipeline:
     link_mode: LinkMode
     max_workers: int | None
     convert_file: ConvertFile | None
-    exiftool: ExifToolHelper | None
+    exiftool: ExifTagReader | None
     analyzer_factory: FaceAnalyzerFactory | None
     refresh: RefreshFn
     new_id: Callable[[], str]
@@ -213,7 +212,7 @@ def _restore_photree(metadata_src: Path, dst: Path) -> None:
         save_media_metadata(dst, media_meta)
 
 
-def _swap_into_place(existing_dir: Path, staging: Path, target_dir: Path) -> None:
+def swap_into_place(existing_dir: Path, staging: Path, target_dir: Path) -> None:
     """Replace the gallery album with the staged rebuild.
 
     Moves the live album aside, moves *staging* into *target_dir* (which may
@@ -245,7 +244,7 @@ def import_album(
     on_stage_end: Callable[[str], None] | None = None,
     convert_file: ConvertFile | None = None,
     max_workers: int | None = None,
-    exiftool: ExifToolHelper | None = None,
+    exiftool: ExifTagReader | None = None,
     analyzer_factory: FaceAnalyzerFactory | None = None,
     refresh: RefreshFn = refresh_album_derived_data,
     new_id: Callable[[], str] = generate_album_id,
@@ -301,7 +300,7 @@ def reimport_album(
     on_stage_end: Callable[[str], None] | None = None,
     convert_file: ConvertFile | None = None,
     max_workers: int | None = None,
-    exiftool: ExifToolHelper | None = None,
+    exiftool: ExifTagReader | None = None,
     analyzer_factory: FaceAnalyzerFactory | None = None,
     refresh: RefreshFn = refresh_album_derived_data,
     new_id: Callable[[], str] = generate_album_id,
@@ -341,5 +340,5 @@ def reimport_album(
         id_generated, refreshed = pipeline.build(
             source_dir, staging, preserve_from=existing_dir
         )
-        _swap_into_place(existing_dir, staging, target_dir)
+        swap_into_place(existing_dir, staging, target_dir)
     return _import_result(source_dir, target_dir, id_generated, refreshed)

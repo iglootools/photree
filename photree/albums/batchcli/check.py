@@ -6,7 +6,6 @@ from functools import partial
 from pathlib import Path
 
 import typer
-from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ...album import naming as album_naming
 from ...album.check import output as preflight_output
@@ -17,7 +16,7 @@ from ...album.naming import BatchNamingResult
 from ...clihelpers.console import console, err_console
 from ...clihelpers.progress import BatchProgressBar, run_with_spinner
 from ...clihelpers.sysdeps import CHECK_DEPS, EXIF_DEPS, require_system_deps
-from ...common.exif import exiftool_session
+from ...common.exif import ExifTagReader, exiftool_session
 from ...common.sysdeps import WhichFn
 from ...foundation.gallery_metadata import resolve_link_mode
 from ..cmd_handler import BatchFailure, failures_of, run_album_step
@@ -158,7 +157,7 @@ def _run_per_album_checks(
 
 
 def _refresh_exif_caches(
-    albums: list[Path], exiftool: ExifToolHelper | None, cwd: Path
+    albums: list[Path], exiftool: ExifTagReader | None, cwd: Path
 ) -> tuple[BatchFailure, ...]:
     """Refresh every album's EXIF cache; a failing album is reported, not fatal."""
     typer.echo("\nRefreshing EXIF cache...")
@@ -179,7 +178,7 @@ def _check_albums(
     albums: list[Path],
     display_base: Path | None,
     flags: _CheckFlags,
-    exiftool: ExifToolHelper | None,
+    exiftool: ExifTagReader | None,
     cwd: Path,
 ) -> BatchCheckResult:
     with BatchProgressBar(

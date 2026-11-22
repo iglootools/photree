@@ -2,8 +2,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from exiftool import ExifToolHelper  # type: ignore[import-untyped]
-
+from ..common.exif import ExifTagReader
 from ..common.fs import list_files
 from ..foundation.linking import LinkMode
 from .browsable import refresh_browsable_dir
@@ -213,7 +212,7 @@ def refresh_album_derived_data(
     *,
     link_mode: LinkMode,
     max_workers: int | None = None,
-    exiftool: ExifToolHelper | None = None,
+    exiftool: ExifTagReader | None = None,
     analyzer_factory: FaceAnalyzerFactory | None = None,
     force_browsable: bool = False,
     force_jpeg: bool = False,
@@ -282,7 +281,7 @@ def _refresh_media_ids_if_stale(
 ) -> None:
 
     meta_check = check_media_metadata(album_dir, media_sources=media_sources)
-    if meta_check is None or not meta_check.in_sync:
+    if not meta_check.in_sync:
         refresh_media_metadata(album_dir, dry_run=dry_run)
 
 

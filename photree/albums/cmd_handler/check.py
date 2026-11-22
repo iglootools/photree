@@ -2,12 +2,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from exiftool import ExifToolHelper  # type: ignore[import-untyped]
-
 from ...album import (
     check as album_check,
 )
 from ...album.id import format_album_external_id
+from ...common.exif import ExifTagReader
 from ...foundation.linking import LinkMode
 
 type OnCheckEnd = Callable[[str, bool, tuple[str, ...], tuple[str, ...]], None]
@@ -32,7 +31,7 @@ class CheckOptions:
     """Per-album check settings shared by every album of a batch."""
 
     sips_available: bool
-    exiftool: ExifToolHelper | None
+    exiftool: ExifTagReader | None
     link_mode: LinkMode
     checksum: bool = True
     fatal_sidecar: bool = False
@@ -108,7 +107,7 @@ def batch_check(
     albums: list[Path],
     *,
     sips_available: bool,
-    exiftool: ExifToolHelper | None = None,
+    exiftool: ExifTagReader | None = None,
     link_mode: LinkMode,
     checksum: bool = True,
     fatal_sidecar: bool = False,

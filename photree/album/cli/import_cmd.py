@@ -2,12 +2,11 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ...clihelpers.console import console, err_console
 from ...clihelpers.options import CONFIG_OPTION, LINK_MODE_OPTION
 from ...clihelpers.progress import StageProgressBar
-from ...common.exif import exiftool_session
+from ...common.exif import ExifTagReader, exiftool_session
 from ...common.formatting import format_dry_run
 from ...common.fs import display_path, list_files
 from ...common.sysdeps import WhichFn
@@ -207,7 +206,7 @@ def _run_import(
     link_mode: LinkMode,
     dry_run: bool,
     skip_heic_to_jpeg: bool,
-    exiftool: ExifToolHelper | None,
+    exiftool: ExifTagReader | None,
     max_workers: int | None,
     cwd: Path,
     run_import: RunImportFn,

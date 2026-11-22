@@ -1,4 +1,5 @@
 import shutil
+from collections.abc import Mapping
 from datetime import datetime
 from pathlib import Path
 
@@ -25,7 +26,7 @@ requires_exiftool = pytest.mark.skipif(
 )
 
 
-def _extract_timestamp(metadata: dict[str, object]) -> datetime | None:
+def _extract_timestamp(metadata: Mapping[str, object]) -> datetime | None:
     """Test helper: extract_timestamp bound to the project's tag priority."""
     return extract_timestamp(metadata, TIMESTAMP_TAGS)
 
@@ -118,7 +119,8 @@ class TestTryStartExiftool:
     def test_returns_helper_when_installed(self) -> None:
         et = try_start_exiftool()
         assert et is not None
-        et.__exit__(None, None, None)
+        # PyExifTool leaves __exit__'s parameters unannotated.
+        et.__exit__(None, None, None)  # pyright: ignore[reportUnknownMemberType]
 
 
 class TestExiftoolSession:

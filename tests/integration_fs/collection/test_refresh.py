@@ -25,6 +25,12 @@ from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_me
 from photree.foundation.layout import COLLECTIONS_DIR
 
 
+def _load_metadata(collection_dir: Path) -> CollectionMetadata:
+    metadata = load_collection_metadata(collection_dir)
+    assert metadata is not None
+    return metadata
+
+
 def _write(path: Path, content: str = "data") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
@@ -164,7 +170,7 @@ class TestImplicitCollectionDetection:
         refresh_collections(gallery)
         collections = discover_collections(gallery)
         assert len(collections) == 1
-        original_id = load_collection_metadata(collections[0]).id
+        original_id = _load_metadata(collections[0]).id
 
         # Add another album with same series (extends date range)
         _, aid2 = _setup_album(gallery, "2024-07-15 - 02 - Trip - Day 2")
@@ -187,7 +193,7 @@ class TestImplicitCollectionDetection:
         refresh_collections(gallery)
         collections = discover_collections(gallery)
         assert len(collections) == 1
-        original_id = load_collection_metadata(collections[0]).id
+        original_id = _load_metadata(collections[0]).id
 
         shutil.rmtree(album2)
 
@@ -211,7 +217,7 @@ class TestImplicitCollectionRename:
         refresh_collections(gallery)
         collections = discover_collections(gallery)
         assert len(collections) == 1
-        old_id = load_collection_metadata(collections[0]).id
+        old_id = _load_metadata(collections[0]).id
 
         album1 = gallery / "albums" / "2024" / "2024-07-14 - 01 - Old Name - Day 1"
         album2 = gallery / "albums" / "2024" / "2024-07-15 - 02 - Old Name - Day 2"
@@ -224,7 +230,7 @@ class TestImplicitCollectionRename:
 
         collections = discover_collections(gallery)
         assert len(collections) == 1
-        meta = load_collection_metadata(collections[0])
+        meta = _load_metadata(collections[0])
         assert meta.id == old_id
 
     def test_divergent_series_creates_new_and_keeps_old(self, tmp_path: Path) -> None:
@@ -234,7 +240,7 @@ class TestImplicitCollectionRename:
 
         refresh_collections(gallery)
         [original] = discover_collections(gallery)
-        original_id = load_collection_metadata(original).id
+        original_id = _load_metadata(original).id
 
         album2.rename(album2.parent / "2024-07-15 - 01 - Other - Day 2")
 
@@ -249,8 +255,7 @@ class TestImplicitCollectionRename:
         )
 
         by_name = {
-            col.name: load_collection_metadata(col)
-            for col in discover_collections(gallery)
+            col.name: _load_metadata(col) for col in discover_collections(gallery)
         }
         assert by_name.keys() == {"2024-07-14 - Original", "2024-07-15 - Other"}
         assert by_name["2024-07-14 - Original"].id == original_id
@@ -278,7 +283,7 @@ class TestImplicitCollectionRename:
         assert (album2.parent / "2024-07-15 - Original - Just Day 2").is_dir()
 
         [collection] = discover_collections(gallery)
-        assert load_collection_metadata(collection).albums == [aid1, aid2]
+        assert _load_metadata(collection).albums == [aid1, aid2]
 
 
 class TestSmartCollectionRefresh:

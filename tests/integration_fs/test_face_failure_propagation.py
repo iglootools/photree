@@ -9,7 +9,7 @@ from pathlib import Path
 
 from photree.album.faces.failures import FaceFailure, FaceFailureStage
 from photree.album.importer.album_import import AlbumImportResult
-from photree.album.importer.batch import _result_failure
+from photree.album.importer.batch import result_failure
 from photree.album.importer.output import import_problems
 from photree.album.refresh import AlbumRefreshResult
 from photree.albums.cmd_handler.refresh import batch_refresh
@@ -123,7 +123,7 @@ def test_album_import_without_problems_has_no_report() -> None:
 
 
 def test_albums_batch_import_reports_every_partial_failure(tmp_path: Path) -> None:
-    failure = _result_failure(
+    failure = result_failure(
         tmp_path,
         AlbumImportResult(face_failures=_FACE_FAILURES),
     )

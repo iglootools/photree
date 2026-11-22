@@ -9,6 +9,7 @@ one.
 
 from collections.abc import Callable
 from pathlib import Path
+from typing import cast
 
 import yaml
 from pydantic import BaseModel, ValidationError
@@ -44,7 +45,8 @@ def load_yaml_mapping(path: Path) -> dict[str, object] | None:
         raise InvalidMetadataError(
             path, f"expected a YAML mapping, got {type(raw).__name__}"
         )
-    return raw
+    # isinstance cannot check the keys' type; the models callers validate *raw* against do.
+    return cast(dict[str, object], raw)
 
 
 def validate_metadata[M: BaseModel](path: Path, model_cls: type[M], raw: object) -> M:

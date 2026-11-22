@@ -13,11 +13,17 @@ from photree.foundation.gallery_metadata import (
 from photree.foundation.linking import LinkMode
 from photree.gallery.importer import (
     TargetExistsError,
-    _swap_into_place,
     compute_target_dir,
     import_album,
     reimport_album,
+    swap_into_place,
 )
+
+
+def _album_id(album_dir: Path) -> str:
+    metadata = load_album_metadata(album_dir)
+    assert metadata is not None
+    return metadata.id
 
 
 def _write(path: Path, content: str = "data") -> None:
@@ -69,7 +75,7 @@ def _failing_refresh(*_args: object, **_kwargs: object) -> AlbumRefreshResult:
 class TestReimportAlbum:
     def test_preserves_id_and_existing_uuids(self, tmp_path: Path) -> None:
         gallery, source, target = _first_import(tmp_path)
-        original_id = load_album_metadata(target).id  # type: ignore[union-attr]
+        original_id = _album_id(target)
         uuid_0001 = _uuid_for_key(target, "0001")
 
         _write(source / "ios-main/orig-img/IMG_0002.HEIC", "heic2")
@@ -133,7 +139,7 @@ class TestReimportAlbum:
 
     def test_atomic_on_refresh_failure(self, tmp_path: Path) -> None:
         gallery, source, target = _first_import(tmp_path)
-        original_id = load_album_metadata(target).id  # type: ignore[union-attr]
+        original_id = _album_id(target)
         _write(source / "ios-main/orig-img/IMG_0002.HEIC", "heic2")
 
         with pytest.raises(_RefreshFailed):
@@ -167,7 +173,7 @@ class TestReimportAlbum:
 
     def test_rename_moves_album_and_keeps_id(self, tmp_path: Path) -> None:
         gallery, source, target = _first_import(tmp_path)
-        original_id = load_album_metadata(target).id  # type: ignore[union-attr]
+        original_id = _album_id(target)
 
         # The source is renamed (same date, new title) but is the same album.
         renamed = source.parent / "2024-07-14 - Hiking the Rockies"
@@ -218,7 +224,7 @@ class TestSwapIntoPlace:
         _write(target / "occupant.txt", "occupant")
 
         with pytest.raises(OSError):
-            _swap_into_place(existing, staging, target)
+            swap_into_place(existing, staging, target)
 
         assert (existing / "live.txt").read_text(encoding="utf-8") == "live"
         assert not (target.parent / ".2024-07-14 - Renamed.old").exists()

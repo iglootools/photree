@@ -15,6 +15,7 @@ from ...album.store.album_discovery import discover_albums
 from ...album.store.metadata import load_album_metadata
 from ...foundation.layout import ALBUMS_DIR, PHOTREE_DIR
 from .clustering import (
+    add_to_index,
     assign_to_nearest_cluster,
     build_faiss_index,
     cluster_embeddings,
@@ -42,7 +43,7 @@ from .protocol import (
 )
 
 if TYPE_CHECKING:
-    import faiss  # type: ignore[import-untyped]
+    import faiss
 
 STAGE_SCAN_FACE_DATA = "scan-face-data"
 STAGE_BUILD_INDEX = "build-index"
@@ -339,7 +340,7 @@ def _assign_new_faces(
         distance_threshold=run.threshold,
         next_cluster_id=next_label,
     )
-    index.add(new_embeddings)  # type: ignore[call-arg]
+    add_to_index(index, new_embeddings)
     return np.concatenate([existing_labels, new_labels])
 
 
@@ -456,7 +457,9 @@ def _recover_old_uuid_map(
         return {}
 
     old_embeddings = np.zeros((old_index.ntotal, old_index.d), dtype=np.float32)
-    old_index.reconstruct_n(0, old_index.ntotal, old_embeddings)
+    # faiss's stubs overload reconstruct_n for torch.Tensor, which photree does not
+    # install, so pyright reads the method's type as partially Unknown.
+    old_index.reconstruct_n(0, old_index.ntotal, old_embeddings)  # pyright: ignore[reportUnknownMemberType]
     old_labels = _labels_from_clusters(existing, old_manifest)
     old_id_map = {
         label: c.id

@@ -228,12 +228,14 @@ class TestBatchImport:
         (albums_dir / "no-tasks").mkdir()
 
         skips: list[tuple[str, str, bool]] = []
+
+        def on_skipped(album_name: str, reason: str, *, warn: bool = False) -> None:
+            skips.append((album_name, reason, warn))
+
         result = run_batch_import(
             albums_dir=albums_dir,
             image_capture_dir=ic_dir,
-            on_skipped=lambda name, reason, warn=False: skips.append(
-                (name, reason, warn)
-            ),
+            on_skipped=on_skipped,
             convert_file=_noop_convert,
         )
 

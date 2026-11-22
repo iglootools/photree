@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 
 from ...clihelpers.console import console, err_console
 from ...clihelpers.progress import BatchProgressBar
@@ -22,7 +21,7 @@ from ...collection.importer.output import (
 )
 from ...collection.importer.selection import has_selection
 from ...collection.store.collection_discovery import discover_collections
-from ...common.exif import exiftool_session
+from ...common.exif import ExifTagReader, exiftool_session
 from ...common.formatting import format_dry_run, indent
 from ...common.fs import display_path
 from ...common.sysdeps import WhichFn
@@ -61,7 +60,7 @@ def _import_one(
     gallery_dir: Path,
     *,
     dry_run: bool,
-    exiftool: ExifToolHelper | None,
+    exiftool: ExifTagReader | None,
     cwd: Path,
 ) -> _ImportOutcome:
     """Import one collection; every failure becomes the outcome's reasons."""
@@ -229,7 +228,7 @@ def _run_one(
     gallery_dir: Path,
     progress: BatchProgressBar,
     dry_run: bool,
-    exiftool: ExifToolHelper | None,
+    exiftool: ExifTagReader | None,
     cwd: Path,
 ) -> _ImportOutcome:
     name = str(display_path(col_dir, cwd))

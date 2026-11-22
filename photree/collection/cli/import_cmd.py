@@ -2,14 +2,13 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from exiftool import ExifToolHelper  # type: ignore[import-untyped]
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from ...clihelpers.console import console, err_console
 from ...clihelpers.resolution import resolve_gallery_or_exit
 from ...clihelpers.runtime import runtime_of
 from ...clihelpers.sysdeps import EXIF_DEPS, require_system_deps
-from ...common.exif import exiftool_session
+from ...common.exif import ExifTagReader, exiftool_session
 from ...common.formatting import format_dry_run, indent
 from ...common.fs import display_path
 from ..id import format_collection_external_id
@@ -32,7 +31,7 @@ def _run_import(
     gallery_dir: Path,
     *,
     dry_run: bool,
-    exiftool: ExifToolHelper | None,
+    exiftool: ExifTagReader | None,
     cwd: Path,
 ) -> CollectionImportResult:
     """Run the import behind a spinner, exiting on a collection-level error."""

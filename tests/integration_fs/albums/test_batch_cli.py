@@ -177,7 +177,10 @@ class TestRunAlbumStep:
 
         ends: list[tuple[str, bool, tuple[str, ...]]] = []
         outcome = run_album_step(
-            tmp_path, boom, name="a", on_end=lambda *args: ends.append(args)
+            tmp_path,
+            boom,
+            name="a",
+            on_end=lambda album, ok, labels: ends.append((album, ok, labels)),
         )
 
         assert outcome.failure is not None
@@ -190,7 +193,10 @@ class TestRunAlbumStep:
 
         ends: list[tuple[str, bool, tuple[str, ...]]] = []
         outcome = run_album_step(
-            tmp_path, soft_fail, name="a", on_end=lambda *args: ends.append(args)
+            tmp_path,
+            soft_fail,
+            name="a",
+            on_end=lambda album, ok, labels: ends.append((album, ok, labels)),
         )
 
         assert outcome.failure is not None

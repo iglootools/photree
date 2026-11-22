@@ -21,7 +21,7 @@ from photree.album.exif_cache.store import (
     load_exif_cache,
     save_exif_cache,
 )
-from photree.album.exif_date_check import _try_read_from_cache, check_exif_date_match
+from photree.album.exif_date_check import check_exif_date_match, try_read_from_cache
 from photree.album.faces.protocol import FaceProcessedKey, FaceProcessingState
 from photree.album.faces.store import load_face_state, save_face_state
 from photree.album.formats import IMG_EXTENSIONS
@@ -209,7 +209,7 @@ class TestExifCachePaths:
 
         refresh_exif_cache(
             tmp_path,
-            exiftool=_FakeExifTool("2024:07:14 10:00:00"),  # type: ignore[arg-type]
+            exiftool=_FakeExifTool("2024:07:14 10:00:00"),
         )
 
         cache = load_exif_cache(tmp_path, "main")
@@ -223,7 +223,7 @@ class TestExifCachePaths:
         _album_with_same_stem_photo_and_video(tmp_path)
         refresh_exif_cache(
             tmp_path,
-            exiftool=_FakeExifTool("2023:01:01 10:00:00"),  # type: ignore[arg-type]
+            exiftool=_FakeExifTool("2023:01:01 10:00:00"),
         )
 
         check = check_exif_date_match(tmp_path, "2024-07-14")
@@ -255,7 +255,7 @@ class TestExifCachePaths:
 
         refresh_exif_cache(
             tmp_path,
-            exiftool=_FakeExifTool("2024:07:14 10:00:00"),  # type: ignore[arg-type]
+            exiftool=_FakeExifTool("2024:07:14 10:00:00"),
         )
 
         cache = load_exif_cache(tmp_path, "main")
@@ -290,7 +290,7 @@ class TestExifCachePaths:
             ),
         )
 
-        cached = _try_read_from_cache(tmp_path)
+        cached = try_read_from_cache(tmp_path)
         check = check_exif_date_match(tmp_path, "2024-07-14")
 
         assert cached is not None

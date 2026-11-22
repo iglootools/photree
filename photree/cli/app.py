@@ -26,7 +26,7 @@ app = typer.Typer(
 
 
 @app.callback(invoke_without_command=True)
-def _main(
+def main_callback(
     version: Annotated[
         bool | None,
         typer.Option(

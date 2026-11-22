@@ -254,7 +254,7 @@ run = "uv run --no-sync ruff check photree/ tests/"
 
 [tasks.lint-types]
 description = "Type-check with pyright"
-run = "uv run --no-sync pyright photree/"
+run = "uv run --no-sync pyright"
 
 # The contracts live in pyproject.toml [tool.importlinter]; see docs/architecture.md
 # "Layering" for the rules they encode.

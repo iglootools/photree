@@ -18,6 +18,7 @@ from collections.abc import Callable, Mapping
 from enum import StrEnum
 from pathlib import Path
 from types import MappingProxyType
+from typing import cast
 
 from platformdirs import site_config_dir, user_config_dir
 
@@ -118,7 +119,8 @@ def _as_table(
             expected="a TOML table",
         )
     else:
-        return value
+        # TOML table keys are always strings; isinstance alone cannot say so.
+        return cast(Mapping[str, object], value)
 
 
 def _optional_str(

@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 from photree.common.parallelism import run_parallel
 
 
@@ -7,7 +9,7 @@ class TestRunParallel:
 
     def test_runs_all_tasks(self) -> None:
         results: list[str] = []
-        tasks: list[tuple[str, object]] = [
+        tasks: list[tuple[str, Callable[[], None]]] = [
             ("a", lambda: results.append("a")),
             ("b", lambda: results.append("b")),
             ("c", lambda: results.append("c")),
@@ -22,7 +24,7 @@ class TestRunParallel:
         def fail() -> None:
             raise RuntimeError("boom")
 
-        tasks: list[tuple[str, object]] = [("fail", fail)]
+        tasks: list[tuple[str, Callable[[], None]]] = [("fail", fail)]
         parallel_results = run_parallel(tasks, max_workers=1)
 
         assert len(parallel_results) == 1
@@ -36,7 +38,7 @@ class TestRunParallel:
         started: list[str] = []
         ended: list[tuple[str, bool]] = []
 
-        tasks: list[tuple[str, object]] = [("x", lambda: None)]
+        tasks: list[tuple[str, Callable[[], None]]] = [("x", lambda: None)]
         run_parallel(
             tasks,
             max_workers=1,
@@ -53,7 +55,7 @@ class TestRunParallel:
         def fail() -> None:
             raise ValueError("oops")
 
-        tasks: list[tuple[str, object]] = [("f", fail)]
+        tasks: list[tuple[str, Callable[[], None]]] = [("f", fail)]
         run_parallel(
             tasks,
             max_workers=1,
@@ -64,7 +66,7 @@ class TestRunParallel:
 
     def test_single_worker_runs_sequentially(self) -> None:
         order: list[str] = []
-        tasks: list[tuple[str, object]] = [
+        tasks: list[tuple[str, Callable[[], None]]] = [
             ("1", lambda: order.append("1")),
             ("2", lambda: order.append("2")),
         ]

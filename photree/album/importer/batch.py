@@ -4,8 +4,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import NamedTuple, Protocol
 
-from exiftool import ExifToolHelper  # type: ignore[import-untyped]
-
+from ...common.exif import ExifTagReader
 from ...common.fs import list_files
 from ...foundation.linking import LinkMode
 from ..faces.detect import FaceAnalyzerFactory
@@ -174,7 +173,7 @@ class _ImportOptions:
     convert_file: ConvertFile
     max_workers: int | None
     analyzer_factory: FaceAnalyzerFactory | None
-    exiftool: ExifToolHelper | None
+    exiftool: ExifTagReader | None
 
 
 @dataclass(frozen=True)
@@ -205,7 +204,7 @@ def _report_skips(scan: AlbumScan, on_skipped: OnSkipped | None) -> None:
             on_skipped(album_dir.name, _empty_task_reason(album_dir), warn=True)
 
 
-def _result_failure(album_dir: Path, result: AlbumImportResult) -> AlbumFailure | None:
+def result_failure(album_dir: Path, result: AlbumImportResult) -> AlbumFailure | None:
     """An import that ran to completion can still have failed in part.
 
     Every partial failure is reported: listing only the first would hide the
@@ -255,7 +254,7 @@ def _import_one(
     if callbacks.on_importing:
         callbacks.on_importing(album_dir.name)
     try:
-        failure = _result_failure(
+        failure = result_failure(
             album_dir,
             album_import.run_import(
                 album_dir=album_dir,
@@ -300,7 +299,7 @@ def run_batch_import(
     convert_file: ConvertFile = convert_single_file,
     max_workers: int | None = None,
     analyzer_factory: FaceAnalyzerFactory | None = None,
-    exiftool: ExifToolHelper | None = None,
+    exiftool: ExifTagReader | None = None,
 ) -> BatchResult:
     """Provide exactly one of *albums_dir* (scan immediate subdirectories) or
     *album_dirs* (explicit list of album directories).

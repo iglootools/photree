@@ -2,10 +2,8 @@ import shutil
 from collections.abc import Callable
 from pathlib import Path
 
-from exiftool import ExifToolHelper  # type: ignore[import-untyped]
-
 from ...album import check as album_check
-from ...common.exif import exiftool_session
+from ...common.exif import ExifTagReader, exiftool_session
 from ...common.sysdeps import WhichFn
 from ...foundation.linking import LinkMode
 
@@ -47,7 +45,7 @@ def _check_one(
     *,
     link_mode: LinkMode,
     sips_available: bool,
-    exiftool: ExifToolHelper | None,
+    exiftool: ExifTagReader | None,
     on_start: Callable[[str], None] | None,
     on_end: Callable[[str, bool, tuple[str, ...]], None] | None,
 ) -> bool:
