@@ -31,7 +31,7 @@ class FaceManifest(PhotreeModel):
     Position ``i`` in ``faces`` corresponds to row ``i`` in the FAISS index.
     """
 
-    faces: list[FaceReference] = Field(default_factory=list)
+    faces: list[FaceReference] = Field(default_factory=list[FaceReference])
 
 
 class FaceCluster(PhotreeModel):
@@ -39,7 +39,7 @@ class FaceCluster(PhotreeModel):
 
     id: str = Field(description="UUID v7 for stable identity across re-clusters.")
     face_indices: list[int] = Field(
-        default_factory=list,
+        default_factory=list[int],
         description="Indices into FaceManifest.faces.",
     )
 
@@ -51,7 +51,7 @@ class FaceClusteringResult(PhotreeModel):
     threshold: float = Field(description="Cosine distance threshold used.")
     face_count: int = Field(default=0)
     cluster_count: int = Field(default=0)
-    clusters: list[FaceCluster] = Field(default_factory=list)
+    clusters: list[FaceCluster] = Field(default_factory=list[FaceCluster])
 
 
 class AlbumFaceChecksums(PhotreeModel):

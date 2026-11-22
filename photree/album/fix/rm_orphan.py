@@ -4,7 +4,7 @@ from pathlib import Path
 from ...common.fs import delete_files, file_ext, list_files
 from ..formats import IMG_EXTENSIONS, VID_EXTENSIONS
 from ..store.media_source import KeyFn, MediaSource
-from .helpers import _require_archive
+from .helpers import require_archive
 
 
 def _extract_keys(
@@ -88,7 +88,7 @@ def rm_orphan(
     Videos: files in edit-vid and {name}-vid whose key is not
     present in orig-vid are deleted.
     """
-    _require_archive(album_dir, ms)
+    require_archive(album_dir, ms)
     key_fn = ms.key_fn
 
     heic_keys = _extract_keys(album_dir / ms.orig_img_dir, IMG_EXTENSIONS, key_fn)

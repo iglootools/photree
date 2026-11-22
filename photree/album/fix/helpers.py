@@ -28,7 +28,7 @@ class NotAnIosMediaSourceError(ValueError):
         super().__init__(f"Media source {media_source!r} is not an iOS media source")
 
 
-def _require_archive(album_dir: Path, ms: MediaSource) -> None:
+def require_archive(album_dir: Path, ms: MediaSource) -> None:
     """Archive-dependent operations (rebuilding or pruning browsable dirs)
     require the source's ``{archive}/`` directory; guarding here prevents
     destructive operations from running against an incomplete media source.

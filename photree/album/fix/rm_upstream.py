@@ -30,7 +30,7 @@ from ..formats import IMG_EXTENSIONS
 from ..jpeg import jpeg_name
 from ..store.file_matching import find_files_by_key
 from ..store.media_source import MediaSource
-from .helpers import _require_archive
+from .helpers import require_archive
 
 
 class MediaKind(StrEnum):
@@ -240,7 +240,7 @@ def _plan_videos(album_dir: Path, ms: MediaSource, *, force: bool) -> _Signal:
 def plan_rm_upstream(
     album_dir: Path, ms: MediaSource, *, force: bool = False
 ) -> RmUpstreamPlan:
-    _require_archive(album_dir, ms)
+    require_archive(album_dir, ms)
     from_img, from_jpg = _plan_images(album_dir, ms, force=force)
     from_vid = _plan_videos(album_dir, ms, force=force)
     signals = (from_img, from_jpg, from_vid)

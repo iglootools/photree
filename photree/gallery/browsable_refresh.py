@@ -276,7 +276,9 @@ def _dangling_members(
     """
     member_lists: list[
         tuple[
-            DanglingMemberKind, Callable[[_CollectionEntry], tuple[str, ...]], Mapping
+            DanglingMemberKind,
+            Callable[[_CollectionEntry], tuple[str, ...]],
+            Mapping[str, object],
         ]
     ] = [
         (DanglingMemberKind.ALBUM, lambda c: c.album_ids, albums),

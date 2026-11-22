@@ -281,7 +281,7 @@ def _refresh_media_ids_if_stale(
 ) -> None:
 
     meta_check = check_media_metadata(album_dir, media_sources=media_sources)
-    if meta_check is None or not meta_check.in_sync:
+    if not meta_check.in_sync:
         refresh_media_metadata(album_dir, dry_run=dry_run)
 
 
