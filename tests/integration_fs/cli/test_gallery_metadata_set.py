@@ -100,7 +100,9 @@ class TestGalleryMetadataSet:
             assert loaded.link_mode == mode
 
     def test_resolves_gallery_from_cwd(
-        self, tmp_path: Path, chdir: Callable[[Path], None]
+        self,
+        tmp_path: Path,
+        chdir: Callable[[Path], None],
     ) -> None:
         _init_gallery(tmp_path, LinkMode.HARDLINK)
         child = tmp_path / "subdir"

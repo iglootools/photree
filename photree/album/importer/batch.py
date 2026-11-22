@@ -1,3 +1,5 @@
+"""Import many albums at once, after validating them all."""
+
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -17,6 +19,7 @@ from photree.album.importer.naming_gate import ImportNamingCheck, check_import_n
 from photree.album.importer.tasks import discover_import_tasks, has_import_tasks
 from photree.album.jpeg import ConvertFile, convert_single_file
 from photree.album.staging import ios_import_dir, std_import_dir
+from photree.album.store.album_discovery import AlbumSelectionError
 from photree.common.exif import ExifTagReader
 from photree.common.fs import list_files
 from photree.foundation.linking import LinkMode
@@ -25,11 +28,14 @@ from photree.foundation.linking import LinkMode
 class OnSkipped(Protocol):
     """Called for each album the batch does not attempt."""
 
-    def __call__(self, album_name: str, reason: str, *, warn: bool = False) -> None: ...
+    def __call__(self, album_name: str, reason: str, *, warn: bool = False) -> None:
+        """Report that *album_name* is skipped for *reason*, as a warning if *warn*."""
 
 
 @dataclass(frozen=True)
 class AlbumScan:
+    """Albums sorted by what they have to import; see :func:`categorize_albums`."""
+
     no_selection: tuple[Path, ...] = ()
     empty_selection: tuple[Path, ...] = ()
     to_import: tuple[Path, ...] = ()
@@ -37,16 +43,20 @@ class AlbumScan:
 
 @dataclass(frozen=True)
 class AlbumValidation:
+    """The import-task errors found in one album of a batch."""
+
     album_dir: Path
     errors: tuple[TaskIssue, ...] = ()
 
     @property
     def success(self) -> bool:
+        """Return whether the album has no import-task error."""
         return len(self.errors) == 0
 
 
 class ImportFailureStage(StrEnum):
-    """What went wrong — and therefore what a retry has to run.
+    """
+    What went wrong — and therefore what a retry has to run.
 
     ``IMPORT`` means the import itself did not complete (staging may still
     be in place, so re-running the import is the retry). The other stages
@@ -61,7 +71,8 @@ class ImportFailureStage(StrEnum):
 
 
 class AlbumFailure(NamedTuple):
-    """An album whose import was attempted and failed, with the reason.
+    """
+    An album whose import was attempted and failed, with the reason.
 
     *stages* says which parts failed, so the CLI can suggest the command
     that actually retries each one.
@@ -74,7 +85,10 @@ class AlbumFailure(NamedTuple):
 
 @dataclass(frozen=True)
 class BatchResult:
-    """When the light check (*naming_check*) or the task validation
+    """
+    The outcome of a batch import.
+
+    When the light check (*naming_check*) or the task validation
     (*validation_failures*) refused the batch, nothing was imported and
     *failed* is empty: see :attr:`refused`.
     """
@@ -87,11 +101,13 @@ class BatchResult:
 
     @property
     def refused(self) -> bool:
+        """Return whether the light check or the task validation refused the batch."""
         return bool(self.validation_failures) or not self.naming_check.success
 
     @property
     def skipped(self) -> int:
-        """Albums that were never attempted (no staging entry, or an empty one).
+        """
+        Albums that were never attempted (no staging entry, or an empty one).
 
         Failures are counted separately: an album whose import raised was
         attempted and needs reporting, not quiet lumping in with the skips.
@@ -100,14 +116,17 @@ class BatchResult:
 
     @property
     def failed_count(self) -> int:
+        """Return the number of albums whose import was attempted and failed."""
         return len(self.failed)
 
     @property
     def success(self) -> bool:
+        """Return whether the batch was not refused and no album import failed."""
         return not self.failed and not self.refused
 
 
 def scan_albums(albums_dir: Path) -> AlbumScan:
+    """Sort the immediate subdirectories of *albums_dir* by what they have to import."""
     subdirs = sorted(p for p in albums_dir.iterdir() if p.is_dir())
     return categorize_albums(subdirs)
 
@@ -117,7 +136,8 @@ def _album_has_content(album_dir: Path) -> bool:
 
 
 def _empty_task_reason(album_dir: Path) -> str:
-    """Describe why an album with ``to-import-*`` entries has nothing to import.
+    """
+    Describe why an album with ``to-import-*`` entries has nothing to import.
 
     Names each empty staging dir so a likely user mistake (e.g. std files placed
     directly in the dir instead of under ``orig/``) is easy to spot.
@@ -135,7 +155,10 @@ def _empty_task_reason(album_dir: Path) -> str:
 
 
 def categorize_albums(album_dirs: Sequence[Path]) -> AlbumScan:
-    """- ``no_selection``: no ``to-import-*`` entry at all.
+    """
+    Sort albums by what they have to import.
+
+    - ``no_selection``: no ``to-import-*`` entry at all.
     - ``empty_selection``: has ``to-import-*`` entries but nothing to import.
     - ``to_import``: has at least one non-empty task.
     """
@@ -156,6 +179,11 @@ def validate_albums(
     albums: list[Path] | tuple[Path, ...],
     image_capture_files: list[str],
 ) -> list[AlbumValidation]:
+    """
+    Validate the import tasks of each album in *albums*, one result per album.
+
+    *image_capture_files* are the file names in the Image Capture directory.
+    """
     return [
         AlbumValidation(
             album_dir=album_dir,
@@ -190,7 +218,7 @@ def _scan(albums_dir: Path | None, album_dirs: Sequence[Path] | None) -> AlbumSc
         case (None, [*dirs]):
             return categorize_albums(dirs)
         case _:
-            raise ValueError("Exactly one of albums_dir or album_dirs must be provided")
+            raise AlbumSelectionError(("albums_dir", "album_dirs"))
 
 
 def _report_skips(scan: AlbumScan, on_skipped: OnSkipped | None) -> None:
@@ -205,7 +233,8 @@ def _report_skips(scan: AlbumScan, on_skipped: OnSkipped | None) -> None:
 
 
 def result_failure(album_dir: Path, result: AlbumImportResult) -> AlbumFailure | None:
-    """An import that ran to completion can still have failed in part.
+    """
+    Return the failure of an import that ran to completion, if it failed in part.
 
     Every partial failure is reported: listing only the first would hide the
     others until the next run.
@@ -221,7 +250,7 @@ def result_failure(album_dir: Path, result: AlbumImportResult) -> AlbumFailure |
                 (
                     ImportFailureStage.UNPROCESSED_SELECTION,
                     f"selection entries left behind: {', '.join(result.unprocessed)}",
-                )
+                ),
             ]
             if result.unprocessed
             else []
@@ -249,7 +278,9 @@ def result_failure(album_dir: Path, result: AlbumImportResult) -> AlbumFailure |
 
 
 def _import_one(
-    album_dir: Path, options: _ImportOptions, callbacks: _Callbacks
+    album_dir: Path,
+    options: _ImportOptions,
+    callbacks: _Callbacks,
 ) -> AlbumFailure | None:
     if callbacks.on_importing:
         callbacks.on_importing(album_dir.name)
@@ -301,16 +332,20 @@ def run_batch_import(
     analyzer_factory: FaceAnalyzerFactory | None = None,
     exiftool: ExifTagReader | None = None,
 ) -> BatchResult:
-    """Provide exactly one of *albums_dir* (scan immediate subdirectories) or
+    """
+    Import each album, after validating them all.
+
+    Provide exactly one of *albums_dir* (scan immediate subdirectories) or
     *album_dirs* (explicit list of album directories).
 
     Validates ALL albums before importing ANY: first the light check (names
-    and date collisions, see :mod:`.naming_gate`), then the import tasks. If
-    any album fails, no imports are performed and the failures are returned
-    in :attr:`BatchResult.naming_check` or
+    and date collisions, see :mod:`photree.album.importer.naming_gate`), then
+    the import tasks. If any album fails, no imports are performed and the
+    failures are returned in :attr:`BatchResult.naming_check` or
     :attr:`BatchResult.validation_failures`.
 
     Callbacks are optional hooks for the CLI layer to print status:
+
     - ``on_importing(album_name)`` — called before importing an album
     - ``on_imported(album_name)`` — called after a successful album import
     - ``on_skipped(album_name, reason, warn=...)`` — called for each skipped album
@@ -350,5 +385,7 @@ def run_batch_import(
         outcomes = [_import_one(d, options, callbacks) for d in scan.to_import]
         failures = tuple(f for f in outcomes if f is not None)
         return BatchResult(
-            imported=len(outcomes) - len(failures), failed=failures, scan=scan
+            imported=len(outcomes) - len(failures),
+            failed=failures,
+            scan=scan,
         )

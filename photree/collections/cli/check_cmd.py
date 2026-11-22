@@ -1,3 +1,5 @@
+"""The ``photree collections check`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
@@ -7,7 +9,7 @@ from photree.clihelpers.console import console, err_console
 from photree.clihelpers.resolution import resolve_gallery_or_exit
 from photree.clihelpers.runtime import runtime_of
 from photree.collection.check import CollectionCheckResult, check_all_collections
-from photree.collections.cli import app
+from photree.collections.cli.app import app
 from photree.common.formatting import CHECK, CROSS, indent, markup_escape
 from photree.common.fs import display_path
 
@@ -22,7 +24,7 @@ def _format_result(result: CollectionCheckResult, cwd: Path) -> str:
             [
                 f"{CROSS} {name}",
                 *(indent(markup_escape(i.message), 2) for i in result.issues),
-            ]
+            ],
         )
     )
 
@@ -35,7 +37,10 @@ def check_cmd(
         typer.Option(
             "--gallery-dir",
             "-g",
-            help="Gallery root directory (or resolved from cwd via .photree/gallery.yaml).",
+            help=(
+                "Gallery root directory (or resolved from cwd "
+                "via .photree/gallery.yaml)."
+            ),
             exists=True,
             file_okay=False,
             resolve_path=True,
@@ -64,11 +69,11 @@ def check_cmd(
                     *(
                         indent(
                             "photree collection check --collection-dir "
-                            f'"{display_path(r.collection_dir, cwd)}"'
+                            f'"{display_path(r.collection_dir, cwd)}"',
                         )
                         for r in failed
                     ),
-                ]
+                ],
             ),
             markup=False,
         )

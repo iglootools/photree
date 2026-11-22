@@ -40,7 +40,10 @@ def _setup_gallery(tmp_path: Path) -> Path:
 
 
 def _setup_album(
-    gallery: Path, name: str, *, private: bool = False
+    gallery: Path,
+    name: str,
+    *,
+    private: bool = False,
 ) -> tuple[Path, str]:
     tag = " [private]" if private else ""
     full_name = f"{name}{tag}"
@@ -266,7 +269,8 @@ class TestBrowsableRefreshSafetyCheck:
         assert not result.success
         assert result.errors == (
             BrowsableRefreshError(
-                BrowsableRefreshErrorKind.REGULAR_FILE, browsable / "regular_file.txt"
+                BrowsableRefreshErrorKind.REGULAR_FILE,
+                browsable / "regular_file.txt",
             ),
         )
 
@@ -314,7 +318,8 @@ def _save_collection(
 
 class TestBrowsableRefreshMediaMembers:
     def test_std_source_with_img_prefixed_files_is_keyed_by_stem(
-        self, tmp_path: Path
+        self,
+        tmp_path: Path,
     ) -> None:
         """Regression: std media named IMG_* was matched by the iOS digit rule."""
         gallery = _setup_gallery(tmp_path)
@@ -329,8 +334,8 @@ class TestBrowsableRefreshMediaMembers:
             album_dir,
             MediaMetadata(
                 media_sources={
-                    "cam": MediaSourceMediaMetadata(images={image_id: "IMG_1234"})
-                }
+                    "cam": MediaSourceMediaMetadata(images={image_id: "IMG_1234"}),
+                },
             ),
         )
         _save_collection(gallery, "2024-07 - Picks", images=[image_id])
@@ -349,7 +354,7 @@ class TestBrowsableRefreshMediaMembers:
             / "images"
         )
         assert sorted(p.name for p in images_dir.iterdir()) == [
-            "2024-07-14 - Camera - cam - IMG_1234.jpg"
+            "2024-07-14 - Camera - cam - IMG_1234.jpg",
         ]
 
 
@@ -396,6 +401,7 @@ class TestBrowsableRefreshScanErrors:
 
         assert result.errors == (
             BrowsableRefreshError(
-                BrowsableRefreshErrorKind.COLLECTION_UNREADABLE_METADATA, col_dir
+                BrowsableRefreshErrorKind.COLLECTION_UNREADABLE_METADATA,
+                col_dir,
             ),
         )

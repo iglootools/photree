@@ -1,3 +1,5 @@
+"""The face cache's on-disk layout, model defaults and per-source state model."""
+
 from pydantic import Field
 
 from photree.foundation.model import PhotreeModel
@@ -25,6 +27,8 @@ EMBEDDING_DIM = 512
 
 
 class FaceProcessedKey(PhotreeModel):
+    """What was recorded for one processed image: its mtime, face count and sizes."""
+
     mtime: float = Field(description="File modification time at processing time.")
     file_name: str = Field(description="Original filename (for logging/debugging).")
     face_count: int = Field(description="Number of faces detected (0 = no faces).")

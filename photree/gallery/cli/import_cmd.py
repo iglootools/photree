@@ -1,3 +1,5 @@
+"""The ``photree gallery import`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
@@ -14,7 +16,7 @@ from photree.foundation.gallery_metadata import (
 )
 from photree.foundation.layout import PHOTREE_DIR
 from photree.foundation.linking import LinkMode
-from photree.gallery.cli import app
+from photree.gallery.cli.app import app
 from photree.gallery.cli.ops import (
     build_index_or_exit,
     plan_imports_or_exit,
@@ -45,7 +47,10 @@ def import_cmd(
         typer.Option(
             "--gallery-dir",
             "-g",
-            help="Gallery root directory (or resolved from cwd via .photree/gallery.yaml).",
+            help=(
+                "Gallery root directory (or resolved from cwd "
+                "via .photree/gallery.yaml)."
+            ),
             exists=True,
             file_okay=False,
             resolve_path=True,
@@ -58,6 +63,7 @@ def import_cmd(
             help="How to create main files: hardlink (default), symlink, or copy.",
         ),
     ] = None,
+    *,
     dry_run: Annotated[
         bool,
         typer.Option(
@@ -78,7 +84,11 @@ def import_cmd(
     index = build_index_or_exit(resolved_gallery, cwd)
 
     import_plan = plan_imports_or_exit(
-        [album_dir], index, resolved_gallery, cwd, reimport=reimport
+        [album_dir],
+        index,
+        resolved_gallery,
+        cwd,
+        reimport=reimport,
     )
     plan = import_plan.plans[0]
 
@@ -90,12 +100,12 @@ def import_cmd(
         plan,
         resolved_gallery,
         resolved_lm,
-        dry_run,
+        dry_run=dry_run,
         max_workers=runtime.cpu_count(),
         which=which,
         cwd=cwd,
     )
-    print_single_import_result(result, cwd, dry_run, which=which)
+    print_single_import_result(result, cwd, dry_run=dry_run, which=which)
 
     gallery_meta = load_gallery_metadata(resolved_gallery / PHOTREE_DIR / GALLERY_YAML)
     if gallery_meta.faces_enabled and not dry_run:

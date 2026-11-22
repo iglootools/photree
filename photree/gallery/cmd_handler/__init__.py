@@ -1,4 +1,5 @@
-"""Command handlers for gallery operations.
+"""
+Command handlers for gallery operations.
 
 Each module contains a single handler function + its result dataclass.
 These functions orchestrate domain operations, accept ``on_*`` callbacks

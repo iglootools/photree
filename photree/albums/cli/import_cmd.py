@@ -1,3 +1,5 @@
+"""The ``photree albums import`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
@@ -10,12 +12,12 @@ from photree.album.importer import output as importer_output
 from photree.album.importer.album_import import TaskIssue
 from photree.album.importer.batch import ImportFailureStage
 from photree.album.jpeg import convert_single_file, noop_convert_single
-from photree.albums.cli import app
+from photree.albums.cli.app import app
 from photree.clihelpers.console import err_console
 from photree.clihelpers.options import LINK_MODE_OPTION
 from photree.clihelpers.progress import BatchProgressBar
 from photree.clihelpers.runtime import runtime_of
-from photree.clihelpers.usage import usage_error
+from photree.clihelpers.usage import mutually_exclusive_error
 from photree.common.exif import exiftool_session
 from photree.common.formatting import format_dry_run, indent
 from photree.common.fs import display_path
@@ -49,7 +51,8 @@ def _run_import(
     which: WhichFn,
     max_workers: int | None,
 ) -> batch.BatchResult:
-    """Run the batch import behind a progress bar.
+    """
+    Run the batch import behind a progress bar.
 
     ``result.refused`` is true when validation refused the batch, in which
     case nothing was imported.
@@ -67,7 +70,7 @@ def _run_import(
             progress.stop()
             err_console.print(importer_output.validation_errors(name, errors))
 
-        result = batch.run_batch_import(
+        return batch.run_batch_import(
             albums_dir=albums_dir,
             album_dirs=album_dirs,
             image_capture_dir=ic_dir,
@@ -77,7 +80,9 @@ def _run_import(
             on_imported=lambda name: progress.on_end(name, success=True),
             on_skipped=progress.on_skipped,
             on_error=lambda name, error: progress.on_end(
-                name, success=False, error_labels=(error,)
+                name,
+                success=False,
+                error_labels=(error,),
             ),
             on_validation_error=on_validation_error,
             convert_file=noop_convert_single
@@ -87,7 +92,6 @@ def _run_import(
             analyzer_factory=memoized_face_analyzer_factory(),
             exiftool=exiftool,
         )
-    return result
 
 
 # Ordered so the suggestions read in the order a user would run them.
@@ -103,7 +107,8 @@ _RETRY_COMMANDS: tuple[tuple[ImportFailureStage, str], ...] = (
 
 
 def retry_commands(failure: batch.AlbumFailure, cwd: Path) -> list[str]:
-    """The commands that retry what actually failed for *failure*.
+    """
+    Return the commands that retry what actually failed for *failure*.
 
     A partial failure happens after the staging entries were consumed, so
     suggesting ``album import`` again would only report "nothing to import".
@@ -127,7 +132,7 @@ def _report_failures(result: batch.BatchResult, base: Path, cwd: Path) -> None:
                     for failure in result.failed
                     for command in retry_commands(failure, cwd)
                 ),
-            ]
+            ],
         ),
         markup=False,
     )
@@ -136,6 +141,7 @@ def _report_failures(result: batch.BatchResult, base: Path, cwd: Path) -> None:
 @app.command("import")
 def import_cmd(
     ctx: typer.Context,
+    *,
     albums_dir: Annotated[
         Path | None,
         typer.Option(
@@ -201,7 +207,8 @@ def import_cmd(
         ),
     ] = False,
 ) -> None:
-    """Batch import staged media for multiple albums.
+    """
+    Batch import staged media for multiple albums.
 
     Either scan immediate subdirectories of --dir for a non-empty
     to-import-{ios,std}-<name> staging entry, or provide explicit album
@@ -213,9 +220,9 @@ def import_cmd(
     cwd = runtime.cwd()
     which = runtime.which
     if albums_dir is not None and album_dirs is not None:
-        raise usage_error(
-            "--dir and --album-dir are mutually exclusive.\n"
-            "Run 'photree albums import --help' for usage."
+        raise mutually_exclusive_error(
+            ("--dir", "--album-dir"),
+            command="albums import",
         )
 
     ic_dir = run_import_preflight(
@@ -241,7 +248,7 @@ def import_cmd(
     if not result.naming_check.success:
         err_console.print(
             "\nName check:\n"
-            + importer_output.naming_check_errors(result.naming_check, cwd)
+            + importer_output.naming_check_errors(result.naming_check, cwd),
         )
     if result.refused:
         err_console.print("\nAborted: validation failed. No imports were performed.")
@@ -250,10 +257,13 @@ def import_cmd(
     typer.echo(
         format_dry_run(
             importer_output.batch_summary(
-                result.imported, result.skipped, result.failed_count, dry_run=dry_run
+                result.imported,
+                result.skipped,
+                result.failed_count,
+                dry_run=dry_run,
             ),
             dry_run=dry_run,
-        )
+        ),
     )
     if not dry_run:
         _print_gallery_refresh_hint(result.scan.to_import)
@@ -267,5 +277,5 @@ def _print_gallery_refresh_hint(imported: tuple[Path, ...]) -> None:
     if any(resolve_gallery_metadata(a) is not None for a in imported):
         typer.echo(
             "\nSome albums are in a gallery: run 'photree gallery refresh' to update "
-            "face clusters and the browsable/ tree."
+            "face clusters and the browsable/ tree.",
         )

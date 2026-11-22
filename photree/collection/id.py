@@ -1,3 +1,5 @@
+"""Collection IDs: generation and conversion to and from the external form."""
+
 from uuid import uuid7
 
 from photree.album.id import format_external_id, parse_external_id

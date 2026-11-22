@@ -1,8 +1,11 @@
+"""The ``photree albums list-media`` command."""
+
 import typer
 
 from photree.albums.batchcli.listmedia import run_batch_list_media
 from photree.albums.batchcli.resolution import resolve_check_batch_albums
-from photree.albums.cli import ALBUM_DIR_OPTION, DIR_OPTION, app
+from photree.albums.cli.app import app
+from photree.albums.cli.options import ALBUM_DIR_OPTION, DIR_OPTION
 from photree.clihelpers.options import (
     OUTPUT_FILE_OPTION,
     OUTPUT_FORMAT_OPTION,

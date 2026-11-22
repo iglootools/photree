@@ -1,3 +1,5 @@
+"""The photree configuration: importer settings, exporter profiles and its errors."""
+
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -19,7 +21,8 @@ class ConfigErrorKind(StrEnum):
 
 
 class ConfigError(Exception):
-    """Raised when configuration is invalid.
+    """
+    Raised when configuration is invalid.
 
     Carries the failure as structured data — *kind*, the config *path*, the
     TOML *field* (dotted key; the bare key inside a profile), the offending
@@ -39,6 +42,7 @@ class ConfigError(Exception):
         profile: str | None = None,
         expected: str | None = None,
     ) -> None:
+        """Build the error from its kind and whichever details that kind reports."""
         self.kind = kind
         self.path = path
         self.field = field
@@ -48,6 +52,7 @@ class ConfigError(Exception):
         super().__init__(self.__str__())
 
     def __str__(self) -> str:
+        """Return the message for this error's kind, naming the profile if any."""
         where = f' in profile "{self.profile}"' if self.profile is not None else ""
         match self.kind:
             case ConfigErrorKind.FILE_NOT_FOUND:
@@ -78,6 +83,8 @@ class ImporterConfig:
 
 @dataclass(frozen=True)
 class ExporterProfile:
+    """One named export destination: its share directory, layouts and link mode."""
+
     share_dir: Path
     share_layout: ShareDirectoryLayout = ShareDirectoryLayout.FLAT
     album_layout: AlbumShareLayout = AlbumShareLayout.BROWSABLE_JPG
@@ -90,11 +97,13 @@ class ExporterConfig:
 
     # Read-only view: a frozen dataclass must not expose a mutable dict.
     profiles: Mapping[str, ExporterProfile] = field(
-        default_factory=lambda: MappingProxyType({})
+        default_factory=lambda: MappingProxyType({}),
     )
 
 
 @dataclass(frozen=True)
 class PhotreeConfig:
+    """The whole photree configuration: importer and exporter settings."""
+
     importer: ImporterConfig = ImporterConfig()
     exporter: ExporterConfig = ExporterConfig()

@@ -1,3 +1,5 @@
+"""The ``photree albums rename-from-csv`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
@@ -6,7 +8,8 @@ import typer
 from photree.album.id import format_album_external_id
 from photree.albums.batchcli.rename import run_batch_rename_from_csv
 from photree.albums.batchcli.resolution import resolve_check_batch_albums
-from photree.albums.cli import ALBUM_DIR_OPTION, DIR_OPTION, app
+from photree.albums.cli.app import app
+from photree.albums.cli.options import ALBUM_DIR_OPTION, DIR_OPTION
 from photree.albums.index import AlbumIndex, MissingAlbumIdError, build_album_index
 from photree.clihelpers.console import err_console
 from photree.clihelpers.options import DRY_RUN_OPTION
@@ -29,9 +32,11 @@ def rename_from_csv_cmd(
     ],
     base_dir: DIR_OPTION = None,
     album_dirs: ALBUM_DIR_OPTION = None,
+    *,
     dry_run: DRY_RUN_OPTION = False,
 ) -> None:
-    """Rename albums from a CSV file (from list --format csv, edited).
+    """
+    Rename albums from a CSV file (from list --format csv, edited).
 
     Uses the album ID to look up each album, then compares the
     current series, title, and location against the CSV values. Only albums
@@ -64,7 +69,7 @@ def _missing_ids_report(albums: tuple[Path, ...], cwd: Path) -> str:
             "Albums with missing IDs found:",
             *(indent(str(display_path(p, cwd))) for p in albums),
             "\nRun 'photree albums fix --id' to generate missing album IDs.",
-        ]
+        ],
     )
 
 
@@ -81,5 +86,5 @@ def _duplicate_ids_report(index: AlbumIndex, cwd: Path) -> str:
                 ]
             ),
             "\nResolve duplicates first with 'photree albums fix --new-id'.",
-        ]
+        ],
     )

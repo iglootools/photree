@@ -1,3 +1,5 @@
+"""Batch computation of album statistics."""
+
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial
@@ -28,7 +30,8 @@ def batch_stats(
     on_start: OnStart = None,
     on_end: OnEnd = None,
 ) -> BatchStatsResult:
-    """Compute aggregated stats for multiple albums.
+    """
+    Compute aggregated stats for multiple albums.
 
     Calls ``on_start(name)`` before and ``on_end(name, success, error_labels)``
     after each album. An album whose stats cannot be computed is recorded as
@@ -46,7 +49,7 @@ def batch_stats(
     ]
     return BatchStatsResult(
         stats=album_stats.albums_stats_from_album_stats(
-            [o.value for o in outcomes if o.value is not None]
+            [o.value for o in outcomes if o.value is not None],
         ),
         failures=failures_of(outcomes),
     )

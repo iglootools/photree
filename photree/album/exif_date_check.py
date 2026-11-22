@@ -1,4 +1,5 @@
-"""EXIF date matching: do an album's media timestamps match its name date?
+"""
+EXIF date matching: check that an album's media timestamps match its name date.
 
 Part of the full album check (see docs/domain.md, "EXIF Date Matching").
 Mismatches are warnings, not errors. Timestamps come from the EXIF cache when
@@ -48,18 +49,22 @@ class ExifMismatch:
 
 @dataclass(frozen=True)
 class ExifTimestampCheck:
+    """The outcome of matching an album's EXIF timestamps against its name date."""
+
     album_date: str
     mismatches: tuple[ExifMismatch, ...]
     no_exact_album_date_match: bool = False
 
     @property
     def matches(self) -> bool:
+        """Return whether every timestamp is in range and the exact-date rule holds."""
         return not self.mismatches and not self.no_exact_album_date_match
 
 
 @dataclass(frozen=True)
 class AlbumNamingResult:
-    """Full naming validation result for a single album.
+    """
+    Full naming validation result for a single album.
 
     Combines the name check (:func:`~.naming.check_album_naming`) with the
     EXIF date match, which is why it lives here rather than in the pure
@@ -72,11 +77,13 @@ class AlbumNamingResult:
 
     @property
     def success(self) -> bool:
+        """Return whether the name parsed with no issue; EXIF mismatches don't count."""
         # EXIF mismatch is a warning, not a failure
         return self.parsed is not None and not self.issues
 
     @property
     def has_warnings(self) -> bool:
+        """Return whether the EXIF date check ran and found a mismatch."""
         return self.exif_check is not None and not self.exif_check.matches
 
 
@@ -100,7 +107,7 @@ def _resolve_upstream_files(
     file_path: Path,
     media_sources: list[MediaSource],
 ) -> tuple[tuple[str, ...], bool]:
-    """Returns ``(upstream_relative_paths, is_ios)``."""
+    """Return ``(upstream_relative_paths, is_ios)``."""
     dir_part = str(file_path.relative_to(album_dir).parent)
     filename = file_path.name
 
@@ -129,9 +136,12 @@ def _resolve_upstream_files(
 
 
 def _no_exact_album_date_match(
-    file_timestamps: list[tuple[Path, datetime]], album_date: str, part: str | None
+    file_timestamps: list[tuple[Path, datetime]],
+    album_date: str,
+    part: str | None,
 ) -> bool:
-    """For single-day albums, at least one file must match the album date exactly.
+    """
+    For single-day albums, at least one file must match the album date exactly.
 
     Relaxed for part > 01 (continuation albums where all files may spill into
     the next day).
@@ -145,7 +155,9 @@ def _no_exact_album_date_match(
 
 
 def _exif_mismatches(
-    album_dir: Path, file_timestamps: list[tuple[Path, datetime]], album_date: str
+    album_dir: Path,
+    file_timestamps: list[tuple[Path, datetime]],
+    album_date: str,
 ) -> tuple[ExifMismatch, ...]:
     media_sources = discover_media_sources(album_dir)
     return tuple(
@@ -168,7 +180,10 @@ def check_exif_date_match(
     exiftool: ExifTagReader | None = None,
     part: str | None = None,
 ) -> ExifTimestampCheck | None:
-    """Reads from the EXIF cache when available and fresh. Falls back to
+    """
+    Check the album's media timestamps against the date in its name.
+
+    Reads from the EXIF cache when available and fresh. Falls back to
     exiftool when the cache is missing or stale.
 
     Returns ``None`` if no media files found or no timestamps could be read,
@@ -179,7 +194,8 @@ def check_exif_date_match(
         return None
 
     file_timestamps = _read_timestamps_from_cache_or_exiftool(
-        album_dir, exiftool=exiftool
+        album_dir,
+        exiftool=exiftool,
     )
     if not file_timestamps:
         return None
@@ -188,7 +204,9 @@ def check_exif_date_match(
         album_date=album_date,
         mismatches=_exif_mismatches(album_dir, file_timestamps, album_date),
         no_exact_album_date_match=_no_exact_album_date_match(
-            file_timestamps, album_date, part
+            file_timestamps,
+            album_date,
+            part,
         ),
     )
 
@@ -209,7 +227,10 @@ def _read_timestamps_from_cache_or_exiftool(
 
 
 def try_read_from_cache(album_dir: Path) -> list[tuple[Path, datetime]] | None:
-    """Returns ``None`` if any media source has no cache file, or one written in
+    """
+    Read the timestamps from the EXIF cache, or return ``None`` when it is unusable.
+
+    Returns ``None`` if any media source has no cache file, or one written in
     an older layout (see ``exif_cache.protocol.EXIF_CACHE_VERSION``). An empty
     cache file (written for sources with no browsable files) is valid.
 

@@ -124,7 +124,8 @@ class TestCorruptCollectionMetadata:
         path = tmp_path / PHOTREE_DIR / COLLECTION_YAML
         path.parent.mkdir()
         path.write_text(
-            "id: x\nmembers: bogus\nlifecycle: explicit\n", encoding="utf-8"
+            "id: x\nmembers: bogus\nlifecycle: explicit\n",
+            encoding="utf-8",
         )
 
         with pytest.raises(InvalidMetadataError):

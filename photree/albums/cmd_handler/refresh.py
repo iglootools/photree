@@ -1,3 +1,5 @@
+"""Batch refresh of albums' derived data."""
+
 import shutil
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -29,11 +31,14 @@ from photree.foundation.linking import LinkMode
 
 @dataclass(frozen=True)
 class BatchRefreshResult:
+    """Result of batch refresh: how many albums were refreshed, and failures."""
+
     refreshed: int
     failures: tuple[BatchFailure, ...] = ()
 
     @property
     def failed_albums(self) -> tuple[Path, ...]:
+        """Return the directories of the albums that failed."""
         return tuple(f.album_dir for f in self.failures)
 
 
@@ -54,6 +59,7 @@ def _refresh_one(
     opts: _RefreshOptions,
     exiftool: ExifTagReader | None,
     analyzer_factory: FaceAnalyzerFactory,
+    *,
     refresh: RefreshFn,
 ) -> None:
     result = refresh(
@@ -88,7 +94,7 @@ def _partial_refresh_error(result: AlbumRefreshResult) -> AlbumStepError:
         [
             *([f"jpeg conversion failed: {'; '.join(jpeg)}"] if jpeg else []),
             *([f"face detection failed: {'; '.join(faces)}"] if faces else []),
-        ]
+        ],
     )
     return AlbumStepError(reason, (*jpeg, *faces))
 
@@ -110,7 +116,8 @@ def batch_refresh(
     which: WhichFn = shutil.which,
     max_workers: int | None = None,
 ) -> BatchRefreshResult:
-    """Refresh all derived data for multiple albums.
+    """
+    Refresh all derived data for multiple albums.
 
     Calls ``on_start(name)`` before and
     ``on_end(name, success, error_labels)`` after each album.
@@ -146,7 +153,7 @@ def batch_refresh(
                     opts,
                     exiftool,
                     analyzer_factory,
-                    refresh,
+                    refresh=refresh,
                 ),
                 name=display_fn(album_dir),
                 on_start=on_start,

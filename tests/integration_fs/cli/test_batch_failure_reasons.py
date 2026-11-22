@@ -1,4 +1,5 @@
-"""Every batch command must say *why* an item failed, not just that it did.
+"""
+Every batch command must say *why* an item failed, not just that it did.
 
 A batch that reports only which albums failed forces a per-album re-run to
 learn anything the batch already knew. These pin the reason to the output.
@@ -35,7 +36,8 @@ def _album(base: Path, name: str) -> Path:
 
 class TestBatchInit:
     def test_reason_is_printed_for_an_already_initialized_album(
-        self, tmp_path: Path
+        self,
+        tmp_path: Path,
     ) -> None:
         _album(tmp_path, "2024-07-14 - Hiking")
 
@@ -56,7 +58,9 @@ class TestBatchRefresh:
         save_album_metadata(album, AlbumMetadata(id=generate_album_id()))
 
         result = runner.invoke(
-            app, ["albums", "refresh", "-d", str(tmp_path)], obj=ALL_DEPS_RUNTIME
+            app,
+            ["albums", "refresh", "-d", str(tmp_path)],
+            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 1
@@ -70,7 +74,8 @@ class TestBatchFailureReport:
 
     def test_formats_path_and_reason(self, tmp_path: Path) -> None:
         report = batch_failures_report(
-            [BatchFailure(album_dir=tmp_path / "a", reason="disk on fire")], tmp_path
+            [BatchFailure(album_dir=tmp_path / "a", reason="disk on fire")],
+            tmp_path,
         )
 
         assert "a" in report

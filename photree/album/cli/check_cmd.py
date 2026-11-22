@@ -1,3 +1,5 @@
+"""The ``photree album check`` command."""
+
 from contextlib import nullcontext
 from pathlib import Path
 from typing import Annotated
@@ -7,7 +9,7 @@ import typer
 from photree.album import check as album_check
 from photree.album import naming as album_naming
 from photree.album.check import output as preflight_output
-from photree.album.cli import app
+from photree.album.cli.app import app
 from photree.album.cli.media_source_conflict import format_media_source_conflict
 from photree.album.exif_cache.refresh import (
     refresh_exif_cache as refresh_album_exif_cache,
@@ -50,7 +52,8 @@ def check_cmd(
             file_okay=False,
             resolve_path=True,
         ),
-    ] = Path("."),
+    ] = Path(),
+    *,
     checksum: CHECKSUM_OPTION = True,
     fatal_warnings: FATAL_WARNINGS_OPTION = False,
     fatal_sidecar_arg: FATAL_SIDECAR_OPTION = False,
@@ -92,7 +95,7 @@ def check_cmd(
             fatal_sidecar=fatal_sidecar,
             fatal_exif=fatal_exif,
             album_dir=album_dir_display,
-        )
+        ),
     )
     # Evaluated before the failure test (not short-circuited by it) so the
     # collision report is printed even when the album check already failed.
@@ -119,7 +122,8 @@ def _require_no_media_source_conflict(album_dir: Path, cwd: Path) -> None:
     if conflicts:
         err_console.print(
             format_media_source_conflict(
-                MediaSourceConflictError(album_dir, conflicts), cwd
+                MediaSourceConflictError(album_dir, conflicts),
+                cwd,
             ),
             markup=False,
         )
@@ -184,17 +188,21 @@ def _print_troubleshooting(
     fatal_exif: bool,
 ) -> None:
     troubleshoot = preflight_output.format_album_preflight_troubleshoot(
-        result, album_dir=album_dir_display
+        result,
+        album_dir=album_dir_display,
     )
     if troubleshoot:
         typer.echo("")
         err_console.print(troubleshoot)
     if result.success and result.has_fatal_warnings(
-        fatal_sidecar=fatal_sidecar, fatal_exif=fatal_exif
+        fatal_sidecar=fatal_sidecar,
+        fatal_exif=fatal_exif,
     ):
         typer.echo("")
         err_console.print(
             preflight_output.format_fatal_warnings(
-                result, fatal_sidecar=fatal_sidecar, fatal_exif=fatal_exif
+                result,
+                fatal_sidecar=fatal_sidecar,
+                fatal_exif=fatal_exif,
             ),
         )

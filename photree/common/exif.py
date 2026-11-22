@@ -1,4 +1,5 @@
-"""Generic EXIF metadata extraction and writing via exiftool.
+"""
+Generic EXIF metadata extraction and writing via exiftool.
 
 This module provides exiftool process management and timestamp
 extraction/writing helpers that are not specific to any album
@@ -34,7 +35,8 @@ class ExifTagReader(Protocol):
 
 
 def try_start_exiftool(*, which: WhichFn = shutil.which) -> ExifToolHelper | None:
-    """Start a persistent exiftool process if the binary is installed.
+    """
+    Start a persistent exiftool process if the binary is installed.
 
     Returns ``None`` only when ``exiftool`` is not on PATH (EXIF checks are
     optional and degrade to "skipped"). A binary that is installed but fails
@@ -51,9 +53,12 @@ def try_start_exiftool(*, which: WhichFn = shutil.which) -> ExifToolHelper | Non
 
 @contextmanager
 def exiftool_session(
-    *, enabled: bool = True, which: WhichFn = shutil.which
+    *,
+    enabled: bool = True,
+    which: WhichFn = shutil.which,
 ) -> Generator[ExifToolHelper | None]:
-    """Yield a running exiftool helper (or ``None``), closing it on exit.
+    """
+    Yield a running exiftool helper (or ``None``), closing it on exit.
 
     ``None`` when *enabled* is false or exiftool is not installed. Use this
     instead of pairing :func:`try_start_exiftool` with a manual
@@ -70,7 +75,8 @@ def exiftool_session(
 
 
 def parse_timestamp(value: str) -> datetime | None:
-    """Parse an exiftool timestamp, with or without timezone.
+    """
+    Parse an exiftool timestamp, with or without timezone.
 
     Always returns a **naive wall-clock** datetime: an offset, when present,
     is parsed and then dropped, keeping the local time as recorded by the
@@ -90,7 +96,8 @@ def extract_timestamp(
     metadata: Mapping[str, object],
     tags: list[str],
 ) -> datetime | None:
-    """Extract the best timestamp from a single file's metadata dict.
+    """
+    Extract the best timestamp from a single file's metadata dict.
 
     Tries *tags* in priority order.  Tag keys are group-prefixed
     (e.g. ``EXIF:DateTimeOriginal``) due to ExifToolHelper's
@@ -112,7 +119,8 @@ def get_metadata(
     exiftool: ExifTagReader | None = None,
     which: WhichFn = shutil.which,
 ) -> list[dict[str, object]]:
-    """Fetch *tags* for *files* via exiftool.
+    """
+    Fetch *tags* for *files* via exiftool.
 
     Raises :class:`~photree.common.sysdeps.MissingSystemDependencyError` when no
     helper is supplied and *which* does not find the binary — ``ExifToolHelper()`` would
@@ -150,7 +158,8 @@ def read_exif_timestamps_by_file(
     *,
     exiftool: ExifTagReader | None = None,
 ) -> list[tuple[Path, datetime]]:
-    """Read timestamps from files, returning ``(file, timestamp)`` pairs.
+    """
+    Read timestamps from files, returning ``(file, timestamp)`` pairs.
 
     Files whose timestamp cannot be read are silently skipped.
     """
@@ -163,7 +172,8 @@ def read_exif_timestamps_by_file(
 
 
 class ExifToolError(OSError):
-    """An ``exiftool`` invocation exited non-zero.
+    """
+    An ``exiftool`` invocation exited non-zero.
 
     Carries the files it was run on, the exit code, and exiftool's stderr so
     the CLI layer can report *which* files failed and why. A plain class (not
@@ -171,6 +181,7 @@ class ExifToolError(OSError):
     """
 
     def __init__(self, paths: Sequence[Path], returncode: int, stderr: str) -> None:
+        """Build the error from the files, exiftool's exit code and its stderr."""
         super().__init__(f"exiftool exited with status {returncode}")
         self.paths = tuple(paths)
         self.returncode = returncode
@@ -179,13 +190,16 @@ class ExifToolError(OSError):
 
 @dataclass(frozen=True)
 class ExifDateChange:
+    """One file's EXIF timestamp before and after a date change."""
+
     path: Path
     original: str
     new_value: str
 
 
 def _run_exiftool(args: Sequence[str], paths: Sequence[Path]) -> str:
-    """Run ``exiftool *args* *paths*`` and return its stdout.
+    """
+    Run ``exiftool *args* *paths*`` and return its stdout.
 
     Raises :class:`ExifToolError` on a non-zero exit: exiftool reports
     per-file failures (unwritable file, unsupported format) through its exit
@@ -225,7 +239,9 @@ def _first_timestamp(entry: dict[str, object], tags: Sequence[str]) -> str | Non
 
 
 def _date_change(
-    entry: dict[str, object], tags: Sequence[str], exif_date: str
+    entry: dict[str, object],
+    tags: Sequence[str],
+    exif_date: str,
 ) -> ExifDateChange | None:
     """Plan the date replacement for one exiftool JSON *entry* (keeps the time)."""
     original = _first_timestamp(entry, tags)
@@ -245,7 +261,8 @@ def write_exif_date(
     date: str,
     tags: list[str],
 ) -> tuple[ExifDateChange, ...]:
-    """Set the date portion of EXIF timestamps, preserving the original time.
+    """
+    Set the date portion of EXIF timestamps, preserving the original time.
 
     *date* must be ``YYYY-MM-DD`` format.  Reads each file's existing
     timestamp, replaces the date part, and writes it back. Files without any
@@ -267,7 +284,8 @@ def write_exif_date(
 
 
 def set_exif_date_time(files: list[Path], timestamp: str) -> None:
-    """Set the full EXIF timestamp on all files.
+    """
+    Set the full EXIF timestamp on all files.
 
     *timestamp* is an ISO-like string (e.g. ``2024-07-20T13:55:20``
     or ``2024-07-20T13:55:20-06:00``). Raises :class:`ExifToolError` on
@@ -279,7 +297,8 @@ def set_exif_date_time(files: list[Path], timestamp: str) -> None:
 
 
 def _shift(files: list[Path], spec: str, amount: int) -> None:
-    """Shift all date tags by *amount* units of *spec*.
+    """
+    Shift all date tags by *amount* units of *spec*.
 
     *spec* is an exiftool ``Y:M:D H:M:S`` template with a ``{n}`` placeholder
     in the position being shifted; the sign of *amount* picks the operator.
@@ -289,7 +308,8 @@ def _shift(files: list[Path], spec: str, amount: int) -> None:
 
 
 def shift_exif_date(files: list[Path], days: int) -> None:
-    """Shift EXIF timestamps by *days* (negative shifts backward).
+    """
+    Shift EXIF timestamps by *days* (negative shifts backward).
 
     Raises :class:`ExifToolError` on failure.
     """
@@ -297,7 +317,8 @@ def shift_exif_date(files: list[Path], days: int) -> None:
 
 
 def shift_exif_time(files: list[Path], hours: int) -> None:
-    """Shift EXIF timestamps by *hours* (negative shifts backward).
+    """
+    Shift EXIF timestamps by *hours* (negative shifts backward).
 
     Raises :class:`ExifToolError` on failure.
     """

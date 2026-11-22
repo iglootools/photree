@@ -1,4 +1,5 @@
-"""Face detection failures must reach the user, like JPEG failures do.
+"""
+Face detection failures must reach the user, like JPEG failures do.
 
 An image whose face detection failed is silently missing from clustering, so
 every command that refreshes derived data (album import, albums/gallery
@@ -63,7 +64,9 @@ def test_gallery_import_exposes_face_failures(tmp_path: Path) -> None:
     album = _ios_album(tmp_path / "2024-07-14 - Hiking")
 
     result = import_album(
-        source_dir=album, gallery_dir=gallery, refresh=_refresh_with_face_failures
+        source_dir=album,
+        gallery_dir=gallery,
+        refresh=_refresh_with_face_failures,
     )
 
     assert result.face_failures == _FACE_FAILURES
@@ -110,7 +113,8 @@ def test_gallery_batch_import_complete_album_is_not_a_failure(tmp_path: Path) ->
 def test_album_import_reports_face_failures() -> None:
     """A problem report is what makes ``album import`` exit 1."""
     report = import_problems(
-        AlbumImportResult(face_failures=_FACE_FAILURES), "2024-07-14 - Trip"
+        AlbumImportResult(face_failures=_FACE_FAILURES),
+        "2024-07-14 - Trip",
     )
 
     assert report is not None

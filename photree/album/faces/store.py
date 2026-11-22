@@ -1,3 +1,5 @@
+"""Reading and writing an album's face cache under ``.photree/cache/faces/``."""
+
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -20,18 +22,22 @@ from photree.foundation.metadata_io import (
 
 
 def faces_dir(album_dir: Path) -> Path:
+    """Return the album's face cache directory."""
     return album_dir / PHOTREE_DIR / FACES_DIR
 
 
 def state_path(album_dir: Path, media_source_name: str) -> Path:
+    """Return the path of a media source's face processing state YAML."""
     return faces_dir(album_dir) / f"{media_source_name}{FACES_STATE_SUFFIX}"
 
 
 def data_path(album_dir: Path, media_source_name: str) -> Path:
+    """Return the path of a media source's face data ``.npz`` file."""
     return faces_dir(album_dir) / f"{media_source_name}{FACES_DATA_SUFFIX}"
 
 
 def thumbs_dir(album_dir: Path, media_source_name: str) -> Path:
+    """Return the directory holding a media source's face thumbnails."""
     return faces_dir(album_dir) / f"{media_source_name}{THUMBS_DIR_SUFFIX}"
 
 
@@ -48,10 +54,12 @@ class FaceData:
 
     @property
     def count(self) -> int:
+        """Return the number of faces held."""
         return len(self.keys)
 
     @staticmethod
     def empty() -> FaceData:
+        """Return face data holding no faces."""
         return FaceData(
             keys=np.array([], dtype=object),
             face_indices=np.array([], dtype=np.int32),
@@ -63,7 +71,7 @@ class FaceData:
 
 
 def load_face_data(album_dir: Path, media_source_name: str) -> FaceData | None:
-    """Load face data from ``.photree/cache/faces/{name}.npz``, or ``None`` if missing."""
+    """Load ``.photree/cache/faces/{name}.npz``, or return ``None`` if missing."""
     path = data_path(album_dir, media_source_name)
     if not path.is_file():
         return None
@@ -79,6 +87,11 @@ def load_face_data(album_dir: Path, media_source_name: str) -> FaceData | None:
 
 
 def save_face_data(album_dir: Path, media_source_name: str, data: FaceData) -> None:
+    """
+    Write *data* to the media source's ``.npz`` file, replacing it.
+
+    Creates the face cache directory when missing.
+    """
     path = data_path(album_dir, media_source_name)
     path.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(
@@ -93,11 +106,14 @@ def save_face_data(album_dir: Path, media_source_name: str, data: FaceData) -> N
 
 
 def load_face_state(
-    album_dir: Path, media_source_name: str
+    album_dir: Path,
+    media_source_name: str,
 ) -> FaceProcessingState | None:
-    """Returns ``None`` when absent; raises
-    :class:`~photree.foundation.metadata_io.InvalidMetadataError` when present but corrupt
-    (``--redetect-faces`` or deleting the file rebuilds it).
+    """
+    Load the face state, or return ``None`` when it is absent.
+
+    Raises :class:`~photree.foundation.metadata_io.InvalidMetadataError` when
+    present but corrupt (``--redetect-faces`` or deleting the file rebuilds it).
     """
     path = state_path(album_dir, media_source_name)
     raw = load_yaml_mapping(path)
@@ -107,14 +123,22 @@ def load_face_state(
 
 
 def save_face_state(
-    album_dir: Path, media_source_name: str, state: FaceProcessingState
+    album_dir: Path,
+    media_source_name: str,
+    state: FaceProcessingState,
 ) -> None:
+    """
+    Write *state* to the media source's state YAML, replacing it.
+
+    Creates the face cache directory when missing.
+    """
     path = state_path(album_dir, media_source_name)
     path.parent.mkdir(parents=True, exist_ok=True)
     write_yaml(path, state.model_dump(by_alias=True, mode="json"))
 
 
 def filter_face_data(data: FaceData, *, keep_keys: set[str]) -> FaceData:
+    """Return *data* restricted to the faces of the images in *keep_keys*."""
     if data.count == 0:
         return data
     mask = np.isin(data.keys, list(keep_keys))
@@ -129,6 +153,7 @@ def filter_face_data(data: FaceData, *, keep_keys: set[str]) -> FaceData:
 
 
 def merge_face_data(existing: FaceData, new: FaceData) -> FaceData:
+    """Return the faces of *existing* followed by those of *new*."""
     if existing.count == 0:
         return new
     if new.count == 0:

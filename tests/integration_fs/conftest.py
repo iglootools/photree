@@ -1,4 +1,5 @@
-"""Filesystem integration tests — full import/check/export workflow.
+"""
+Filesystem integration tests — full import/check/export workflow.
 
 Face detection is an injected capability: the import/refresh library
 functions skip it unless a caller passes ``analyzer_factory`` (see

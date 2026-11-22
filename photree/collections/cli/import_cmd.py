@@ -1,3 +1,5 @@
+"""The ``photree collections import`` command."""
+
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated
@@ -12,7 +14,7 @@ from photree.clihelpers.resolution import (
 )
 from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.sysdeps import EXIF_DEPS, require_system_deps
-from photree.clihelpers.usage import usage_error
+from photree.clihelpers.usage import mutually_exclusive_error
 from photree.collection.importer.import_members import (
     CollectionImportError,
     import_collection_members,
@@ -24,7 +26,7 @@ from photree.collection.importer.output import (
 )
 from photree.collection.importer.selection import has_selection
 from photree.collection.store.collection_discovery import discover_collections
-from photree.collections.cli import app
+from photree.collections.cli.app import app
 from photree.common.exif import ExifTagReader, exiftool_session
 from photree.common.formatting import format_dry_run, indent
 from photree.common.fs import display_path
@@ -69,7 +71,10 @@ def _import_one(
     """Import one collection; every failure becomes the outcome's reasons."""
     try:
         result = import_collection_members(
-            col_dir, gallery_dir, dry_run=dry_run, exiftool=exiftool
+            col_dir,
+            gallery_dir,
+            dry_run=dry_run,
+            exiftool=exiftool,
         )
     except CollectionImportError as exc:
         return _ImportOutcome(col_dir, (format_import_error(exc, cwd),))
@@ -92,7 +97,11 @@ def _format_os_error(exc: OSError, cwd: Path) -> str:
 
 
 def _print_summary(
-    outcomes: list[_ImportOutcome], skipped: int, *, dry_run: bool, cwd: Path
+    outcomes: list[_ImportOutcome],
+    skipped: int,
+    *,
+    dry_run: bool,
+    cwd: Path,
 ) -> None:
     failures = [o for o in outcomes if not o.success]
     imported = len(outcomes) - len(failures)
@@ -102,7 +111,7 @@ def _print_summary(
             f"\n{imported} collection(s) {verb}, {skipped} skipped, "
             f"{len(failures)} failed.",
             dry_run=dry_run,
-        )
+        ),
     )
     if failures:
         err_console.print("\nFailed collections:")
@@ -119,7 +128,7 @@ def _print_summary(
             "\n".join(
                 indent(
                     "photree collection import --collection-dir "
-                    f'"{display_path(o.collection_dir, cwd)}" --dry-run'
+                    f'"{display_path(o.collection_dir, cwd)}" --dry-run',
                 )
                 for o in failures
             ),
@@ -158,12 +167,16 @@ def import_cmd(
         typer.Option(
             "--gallery-dir",
             "-g",
-            help="Gallery root directory (or resolved from cwd via .photree/gallery.yaml).",
+            help=(
+                "Gallery root directory (or resolved from cwd "
+                "via .photree/gallery.yaml)."
+            ),
             exists=True,
             file_okay=False,
             resolve_path=True,
         ),
     ] = None,
+    *,
     dry_run: Annotated[
         bool,
         typer.Option(
@@ -178,9 +191,9 @@ def import_cmd(
     cwd = runtime.cwd()
     which = runtime.which
     if collections_dir is not None and collection_dirs is not None:
-        raise usage_error(
-            "--dir and --collection-dir are mutually exclusive.\n"
-            "Run 'photree collections import --help' for usage."
+        raise mutually_exclusive_error(
+            ("--dir", "--collection-dir"),
+            command="collections import",
         )
 
     # Selection entries are resolved to media items by EXIF timestamp.
@@ -193,7 +206,11 @@ def import_cmd(
         raise typer.Exit(code=0)
 
     outcomes, skipped = _import_all(
-        candidates, resolved_gallery, dry_run, cwd, which=which
+        candidates,
+        resolved_gallery,
+        dry_run=dry_run,
+        cwd=cwd,
+        which=which,
     )
     _print_summary(outcomes, skipped, dry_run=dry_run, cwd=cwd)
 
@@ -201,9 +218,9 @@ def import_cmd(
 def _import_all(
     candidates: list[Path],
     gallery_dir: Path,
+    *,
     dry_run: bool,
     cwd: Path,
-    *,
     which: WhichFn,
 ) -> tuple[list[_ImportOutcome], int]:
     """Import every candidate that has a selection; returns outcomes + skip count."""
@@ -213,13 +230,22 @@ def _import_all(
     with (
         exiftool_session(which=which) as exiftool,
         BatchProgressBar(
-            total=len(candidates), description="Importing", done_description="import"
+            total=len(candidates),
+            description="Importing",
+            done_description="import",
         ) as progress,
     ):
         for col_dir in skipped:
             progress.on_skipped(str(display_path(col_dir, cwd)), "no selection")
         outcomes = [
-            _run_one(col_dir, gallery_dir, progress, dry_run, exiftool, cwd)
+            _run_one(
+                col_dir,
+                gallery_dir,
+                progress,
+                dry_run=dry_run,
+                exiftool=exiftool,
+                cwd=cwd,
+            )
             for col_dir in candidates
             if selected[col_dir]
         ]
@@ -230,6 +256,7 @@ def _run_one(
     col_dir: Path,
     gallery_dir: Path,
     progress: BatchProgressBar,
+    *,
     dry_run: bool,
     exiftool: ExifTagReader | None,
     cwd: Path,
@@ -237,7 +264,11 @@ def _run_one(
     name = str(display_path(col_dir, cwd))
     progress.on_start(name)
     outcome = _import_one(
-        col_dir, gallery_dir, dry_run=dry_run, exiftool=exiftool, cwd=cwd
+        col_dir,
+        gallery_dir,
+        dry_run=dry_run,
+        exiftool=exiftool,
+        cwd=cwd,
     )
     progress.on_end(
         name,

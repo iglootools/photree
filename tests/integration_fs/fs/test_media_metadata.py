@@ -26,7 +26,7 @@ class TestMediaMetadata:
                     images={img_id: "0410"},
                     videos={vid_id: "0115"},
                 ),
-            }
+            },
         )
 
         save_media_metadata(album, meta)
@@ -45,7 +45,7 @@ class TestMediaMetadata:
                 media_sources={
                     "main": MediaSourceMediaMetadata(images={"id1": "0410"}),
                     "bruno": MediaSourceMediaMetadata(images={"id2": "DSC_1234"}),
-                }
+                },
             ),
         )
 
@@ -61,12 +61,12 @@ class TestMediaMetadata:
             MediaMetadata(
                 media_sources={
                     "main": MediaSourceMediaMetadata(images={"id1": "0410"}),
-                }
+                },
             ),
         )
 
         raw = yaml.safe_load(
-            (album / PHOTREE_DIR / MEDIA_IDS_DIR / "main.yaml").read_text()
+            (album / PHOTREE_DIR / MEDIA_IDS_DIR / "main.yaml").read_text(),
         )
         # Per-source files contain images/videos directly (no media-sources wrapper)
         assert "images" in raw
@@ -85,7 +85,9 @@ class TestMediaMetadata:
         save_media_metadata(
             album,
             MediaMetadata(
-                media_sources={"main": MediaSourceMediaMetadata(images={"id1": "0410"})}
+                media_sources={
+                    "main": MediaSourceMediaMetadata(images={"id1": "0410"}),
+                },
             ),
         )
         assert (album / PHOTREE_DIR / MEDIA_IDS_DIR).is_dir()
@@ -111,7 +113,7 @@ class TestMediaMetadata:
                     images={"id4": "DSC_1234"},
                     videos={},
                 ),
-            }
+            },
         )
         save_media_metadata(album, meta)
         loaded = load_media_metadata(album)
@@ -131,7 +133,7 @@ class TestMediaMetadata:
                 media_sources={
                     "main": MediaSourceMediaMetadata(images={"id1": "0410"}),
                     "bruno": MediaSourceMediaMetadata(images={"id2": "DSC_1234"}),
-                }
+                },
             ),
         )
 
@@ -140,7 +142,7 @@ class TestMediaMetadata:
             MediaMetadata(
                 media_sources={
                     "main": MediaSourceMediaMetadata(images={"id1": "0410"}),
-                }
+                },
             ),
         )
 

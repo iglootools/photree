@@ -1,3 +1,5 @@
+"""The ``photree gallery init`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
@@ -14,7 +16,7 @@ from photree.foundation.gallery_metadata import (
 )
 from photree.foundation.layout import PHOTREE_DIR
 from photree.foundation.linking import LinkMode
-from photree.gallery.cli import app
+from photree.gallery.cli.app import app
 
 
 @app.command("init")
@@ -30,7 +32,7 @@ def init_cmd(
             file_okay=False,
             resolve_path=True,
         ),
-    ] = Path("."),
+    ] = Path(),
     link_mode: Annotated[
         LinkMode,
         typer.Option(
@@ -71,6 +73,6 @@ def init_cmd(
                 "",
                 "Next steps:",
                 *(indent(step) for step in next_steps),
-            ]
-        )
+            ],
+        ),
     )

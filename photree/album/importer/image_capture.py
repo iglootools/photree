@@ -1,4 +1,7 @@
-"""Import photos from macOS Image Capture into an organized album directory that preserves the different variants.
+"""
+Import photos from macOS Image Capture into an album directory.
+
+The album keeps every variant Image Capture exports (originals, edits, sidecars).
 
 See docs/domain.md for the Image Capture file structure and docs/internals.md
 for the album layout.
@@ -32,6 +35,8 @@ if TYPE_CHECKING:
 
 
 class MediaType(StrEnum):
+    """Whether an iOS file is an image or a video, from its extension."""
+
     IMAGE = "image"
     VIDEO = "video"
 
@@ -68,6 +73,13 @@ def _is_img_prefixed(filename: str) -> bool:
 
 @dataclass(frozen=True)
 class SelectionMatch:
+    """
+    A selection entry resolved to the Image Capture files sharing its image number.
+
+    *orig_files* and *rendered_files* hold the media and AAE sidecars of the
+    original and of the edited (``IMG_E*``) rendering.
+    """
+
     selection_file: str
     img_number: str
     media_type: MediaType
@@ -95,12 +107,20 @@ class DedupWarning:
 
 @dataclass(frozen=True)
 class ImportPlan:
+    """
+    The Image Capture files to import for a selection, before any copy.
+
+    *unmatched* lists the selection entries with no original media to import.
+    """
+
     matches: tuple[SelectionMatch, ...]
     unmatched: tuple[str, ...]
     dedup_warnings: tuple[DedupWarning, ...] = ()
 
 
 class ValidationErrorKind(StrEnum):
+    """Why a selection entry cannot be imported."""
+
     NO_MATCHING_ORIGINAL = "no-matching-original"
     MULTIPLE_ORIGINALS = "multiple-originals"
     MULTIPLE_RENDERED = "multiple-rendered"
@@ -110,13 +130,18 @@ class ValidationErrorKind(StrEnum):
 
 
 class ValidationWarningKind(StrEnum):
+    """Which optional AAE sidecar a selection entry's files lack."""
+
     MISSING_ORIGINAL_SIDECAR = "missing-original-sidecar"
     MISSING_RENDERED_SIDECAR = "missing-rendered-sidecar"
 
 
 @dataclass(frozen=True)
 class ValidationError:
-    """*files* are the Image Capture files involved (e.g. the colliding
+    """
+    A selection that cannot be imported.
+
+    *files* are the Image Capture files involved (e.g. the colliding
     originals for ``MULTIPLE_ORIGINALS``).
     """
 
@@ -128,6 +153,8 @@ class ValidationError:
 
 @dataclass(frozen=True)
 class ValidationWarning:
+    """A selection that imports, but whose *file* lacks its optional AAE sidecar."""
+
     selection_file: str
     kind: ValidationWarningKind
     file: str
@@ -135,7 +162,10 @@ class ValidationWarning:
 
 @dataclass(frozen=True)
 class IosSourceImportResult:
-    """*unprocessed* lists selection entries whose image number was imported but
+    """
+    The outcome of importing one iOS media source.
+
+    *unprocessed* lists selection entries whose image number was imported but
     that are still present in the staging dir or CSV after cleanup. A
     leftover entry would make the next ``album import`` collide with the
     media it already brought in, so a non-empty value is reported as a
@@ -162,7 +192,10 @@ def _dedup_media_by_number(
     files: tuple[str, ...],
     is_primary: Callable[[str], bool],
 ) -> tuple[tuple[str, ...], tuple[DedupWarning, ...]]:
-    """Handles the iOS edge case where multiple format variants exist for the
+    """
+    Keep one file per image number and prefix, preferring the best format.
+
+    Handles the iOS edge case where multiple format variants exist for the
     same photo (e.g. IMG_E7658.JPG + IMG_E7658.HEIC). DNG (ProRAW) is
     preferred as the highest-quality format, followed by HEIC.
 
@@ -170,7 +203,7 @@ def _dedup_media_by_number(
     Sidecar (AAE) files are never deduplicated -- only media files.
     """
     media_by_number = sorted(
-        _group_by_number(f for f in files if is_primary(f)).items()
+        _group_by_number(f for f in files if is_primary(f)).items(),
     )
     winners = {
         num: pick_media_priority(candidates) for num, candidates in media_by_number
@@ -186,9 +219,13 @@ def _dedup_media_by_number(
 
 
 def _classify_ic_files(
-    ic_files: list[str], media_type: MediaType
+    ic_files: list[str],
+    media_type: MediaType,
 ) -> tuple[tuple[str, ...], tuple[str, ...], tuple[DedupWarning, ...]]:
-    """Media files are deduplicated by number with HEIC priority to handle the
+    """
+    Split Image Capture files into media and sidecars.
+
+    Media files are deduplicated by number with HEIC priority to handle the
     undocumented iOS edge case of duplicate edited variants.
 
     Note: AAE sidecars for videos are unconfirmed but accepted
@@ -232,7 +269,9 @@ def _companion_type(media_type: MediaType) -> MediaType:
 
 
 def _build_match(
-    sel_file: str, media_type: MediaType, ic_files: list[str]
+    sel_file: str,
+    media_type: MediaType,
+    ic_files: list[str],
 ) -> tuple[SelectionMatch | None, tuple[DedupWarning, ...]]:
     """Resolve *sel_file* against the IC files sharing its number."""
     orig, rendered, dedup_warnings = _classify_ic_files(ic_files, media_type)
@@ -240,7 +279,8 @@ def _build_match(
         return None, dedup_warnings
     else:
         comp_orig, comp_rendered, comp_dedup = _classify_ic_files(
-            ic_files, _companion_type(media_type)
+            ic_files,
+            _companion_type(media_type),
         )
         has_companion = any(_is_media(f) for f in comp_orig)
         return SelectionMatch(
@@ -256,15 +296,22 @@ def _build_match(
 
 
 def _match_selection_file(
-    sel_file: str, ic_index: dict[str, list[str]]
+    sel_file: str,
+    ic_index: dict[str, list[str]],
 ) -> tuple[SelectionMatch | None, tuple[DedupWarning, ...]]:
-    """Match a single selection file to its IC files, or return (None, warnings) if unmatched."""
+    """
+    Match a single selection file to its IC files.
+
+    Returns ``(None, warnings)`` when it matches none.
+    """
     match _media_type(sel_file):
         case None:
             return None, ()
         case media_type:
             return _build_match(
-                sel_file, media_type, ic_index.get(ios_img_number(sel_file), [])
+                sel_file,
+                media_type,
+                ic_index.get(ios_img_number(sel_file), []),
             )
 
 
@@ -272,7 +319,10 @@ def plan_import(
     selection_files: list[str],
     image_capture_files: list[str],
 ) -> ImportPlan:
-    """Selection files may be JPEG even if IC originals are HEIC: matching is by
+    """
+    Plan which Image Capture files to import for a selection.
+
+    Selection files may be JPEG even if IC originals are HEIC: matching is by
     number.
     """
     ic_index = _build_ic_index(image_capture_files)
@@ -289,6 +339,7 @@ def plan_import(
 
 
 def _error_if(
+    *,
     condition: bool,
     match: SelectionMatch,
     kind: ValidationErrorKind,
@@ -306,16 +357,16 @@ def _validate_companion(match: SelectionMatch) -> list[ValidationError]:
     comp_rendered_media = [f for f in match.companion_rendered_files if _is_media(f)]
     return [
         *_error_if(
-            len(comp_media) > 1,
-            match,
-            ValidationErrorKind.MULTIPLE_LIVE_PHOTO_COMPANIONS,
-            comp_media,
+            condition=len(comp_media) > 1,
+            match=match,
+            kind=ValidationErrorKind.MULTIPLE_LIVE_PHOTO_COMPANIONS,
+            files=comp_media,
         ),
         *_error_if(
-            len(comp_rendered_media) > 1,
-            match,
-            ValidationErrorKind.MULTIPLE_RENDERED_LIVE_PHOTO_COMPANIONS,
-            comp_rendered_media,
+            condition=len(comp_rendered_media) > 1,
+            match=match,
+            kind=ValidationErrorKind.MULTIPLE_RENDERED_LIVE_PHOTO_COMPANIONS,
+            files=comp_rendered_media,
         ),
     ]
 
@@ -328,23 +379,23 @@ def _match_errors(match: SelectionMatch) -> list[ValidationError]:
         # Multiple originals suggest a number collision (e.g. airdropped files
         # sharing the same numeric ID as a camera-taken photo).
         *_error_if(
-            len(orig_media) > 1,
-            match,
-            ValidationErrorKind.MULTIPLE_ORIGINALS,
-            orig_media,
+            condition=len(orig_media) > 1,
+            match=match,
+            kind=ValidationErrorKind.MULTIPLE_ORIGINALS,
+            files=orig_media,
         ),
         *_error_if(
-            len(rendered_media) > 1,
-            match,
-            ValidationErrorKind.MULTIPLE_RENDERED,
-            rendered_media,
+            condition=len(rendered_media) > 1,
+            match=match,
+            kind=ValidationErrorKind.MULTIPLE_RENDERED,
+            files=rendered_media,
         ),
         # Rendered sidecar without rendered media is orphaned edit data.
         *_error_if(
-            bool(rendered_sidecars) and not rendered_media,
-            match,
-            ValidationErrorKind.ORPHAN_RENDERED_SIDECAR,
-            rendered_sidecars[:1],
+            condition=bool(rendered_sidecars) and not rendered_media,
+            match=match,
+            kind=ValidationErrorKind.ORPHAN_RENDERED_SIDECAR,
+            files=rendered_sidecars[:1],
         ),
         *(_validate_companion(match) if match.is_live_photo else []),
     ]
@@ -363,7 +414,7 @@ def _match_warnings(match: SelectionMatch) -> list[ValidationWarning]:
                     match.selection_file,
                     ValidationWarningKind.MISSING_ORIGINAL_SIDECAR,
                     orig_heic[0],
-                )
+                ),
             ]
             if orig_heic and not orig_aae
             else []
@@ -374,7 +425,7 @@ def _match_warnings(match: SelectionMatch) -> list[ValidationWarning]:
                     match.selection_file,
                     ValidationWarningKind.MISSING_RENDERED_SIDECAR,
                     rendered_media[0],
-                )
+                ),
             ]
             if rendered_media and not rendered_sidecars
             else []
@@ -406,27 +457,36 @@ def _archive_numbers(directory: Path) -> set[str]:
 
 
 def find_ios_collision(
-    album_dir: Path, ms: MediaSource, plan: ImportPlan
+    album_dir: Path,
+    ms: MediaSource,
+    plan: ImportPlan,
 ) -> ArchiveCollision | None:
-    """Matched by image number regardless of extension. Live Photos are checked
+    """
+    Find a selected image number the archive already holds.
+
+    Matched by image number regardless of extension. Live Photos are checked
     against ``orig-img`` since both of their files land there.
     """
     incoming_img = {m.img_number for m in plan.matches if m.routes_to_images}
     incoming_vid = {m.img_number for m in plan.matches if not m.routes_to_images}
     collisions = sorted(
         (incoming_img & _archive_numbers(album_dir / ms.orig_img_dir))
-        | (incoming_vid & _archive_numbers(album_dir / ms.orig_vid_dir))
+        | (incoming_vid & _archive_numbers(album_dir / ms.orig_vid_dir)),
     )
     return ArchiveCollision(ms, tuple(collisions)) if collisions else None
 
 
 def plan_ios_task(task: ImportTask, image_capture_files: list[str]) -> ImportPlan:
+    """Plan an iOS task from its merged selection; see :func:`plan_import`."""
     sources = read_selection(task.selection_dir, task.selection_csv)
     return plan_import(list(sources.merged), image_capture_files)
 
 
 def _copy_files(src_dir: Path, dst_dir: Path, files: tuple[str, ...]) -> None:
-    """Creating directories on demand avoids empty leftovers (e.g. ``orig-img/``
+    """
+    Copy files, creating each destination directory on demand.
+
+    Creating directories on demand avoids empty leftovers (e.g. ``orig-img/``
     in a video-only album).
     """
     if files:
@@ -436,7 +496,10 @@ def _copy_files(src_dir: Path, dst_dir: Path, files: tuple[str, ...]) -> None:
 
 
 def _copy_match(
-    album_dir: Path, ms: MediaSource, image_capture_dir: Path, match: SelectionMatch
+    album_dir: Path,
+    ms: MediaSource,
+    image_capture_dir: Path,
+    match: SelectionMatch,
 ) -> None:
     orig_dir, rendered_dir = (
         (ms.orig_img_dir, ms.edit_img_dir)
@@ -456,9 +519,12 @@ def _copy_match(
 
 
 def _consume_selection(
-    task: ImportTask, sources: SelectionSources, processed_numbers: frozenset[str]
+    task: ImportTask,
+    sources: SelectionSources,
+    processed_numbers: frozenset[str],
 ) -> None:
-    """Remove every selection entry whose image number was imported.
+    """
+    Remove every selection entry whose image number was imported.
 
     Removal is by image number rather than by the merged filename: the merge
     keeps one entry per number, so a Live Photo exported as both
@@ -482,9 +548,10 @@ def _consume_selection(
 
 
 def _leftover_entries(
-    task: ImportTask, processed_numbers: frozenset[str]
+    task: ImportTask,
+    processed_numbers: frozenset[str],
 ) -> tuple[str, ...]:
-    """Selection entries still present for a number that was imported."""
+    """Return the selection entries still present for a number that was imported."""
     sources = read_selection(task.selection_dir, task.selection_csv)
     return tuple(
         sorted(
@@ -492,8 +559,8 @@ def _leftover_entries(
                 f
                 for f in (*sources.dir_files, *sources.csv_files)
                 if ios_img_number(f) in processed_numbers
-            }
-        )
+            },
+        ),
     )
 
 
@@ -505,7 +572,10 @@ def import_ios_source(
     *,
     dry_run: bool = False,
 ) -> IosSourceImportResult:
-    """Copies matched originals and edits into the ``ios-<name>/`` archive, then
+    """
+    Import one iOS media source from Image Capture.
+
+    Copies matched originals and edits into the ``ios-<name>/`` archive, then
     removes processed selection entries from the staging dir and CSV.
 
     The archive collision check (:func:`find_ios_collision`) is the caller's

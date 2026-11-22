@@ -1,3 +1,5 @@
+"""The ``photree album fix-exif`` command."""
+
 import shlex
 from dataclasses import dataclass
 from pathlib import Path
@@ -6,11 +8,16 @@ from typing import Annotated
 import typer
 
 from photree.album import exif as album_exif
-from photree.album.cli import app
+from photree.album.cli.app import app
 from photree.clihelpers.console import console, err_console
 from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.sysdeps import EXIF_DEPS, require_system_deps
-from photree.clihelpers.usage import usage_error
+from photree.clihelpers.usage import (
+    exactly_one_error,
+    invalid_value_error,
+    mutually_exclusive_error,
+    no_files_error,
+)
 from photree.common import exif as common_exif
 from photree.common.formatting import CHECK, indent, markup_escape
 from photree.common.fs import display_path
@@ -39,6 +46,10 @@ class _ShiftTime:
 type _Operation = _SetDate | _SetDateTime | _ShiftDate | _ShiftTime
 
 
+_DATE_PARTS = 3  # YYYY-MM-DD
+_OPERATION_OPTIONS = ("--set-date", "--set-date-time", "--shift-date", "--shift-time")
+
+
 def _select_operation(
     set_date: str | None,
     set_date_time: str | None,
@@ -56,33 +67,28 @@ def _select_operation(
         case (None, None, None, int() as hours):
             return _ShiftTime(hours)
         case (None, None, None, None):
-            raise usage_error(
-                "Specify exactly one of --set-date, --set-date-time,"
-                " --shift-date, or --shift-time.",
-                markup=False,
-            )
+            raise exactly_one_error(_OPERATION_OPTIONS)
         case _:
-            raise usage_error(
-                "--set-date, --set-date-time, --shift-date, and --shift-time"
-                " are mutually exclusive.",
-                markup=False,
-            )
+            raise mutually_exclusive_error(_OPERATION_OPTIONS)
 
 
 def _validate_operation(operation: _Operation) -> None:
     match operation:
         case _SetDate(date):
             parts = date.split("-")
-            if len(parts) != 3 or not all(p.isdigit() for p in parts):
-                raise usage_error(
-                    f'Invalid date "{date}", expected YYYY-MM-DD.', markup=False
+            if len(parts) != _DATE_PARTS or not all(p.isdigit() for p in parts):
+                raise invalid_value_error(
+                    name="date",
+                    value=date,
+                    expected="YYYY-MM-DD",
                 )
         case _:
             pass
 
 
 def _apply(operation: _Operation, files: list[Path], cwd: Path) -> tuple[str, ...]:
-    """Run *operation* on *files*; return one result line per changed file.
+    """
+    Run *operation* on *files*; return one result line per changed file.
 
     Lines are built only after exiftool succeeded, so nothing is reported as
     fixed before it actually is.
@@ -114,20 +120,21 @@ def _apply(operation: _Operation, files: list[Path], cwd: Path) -> tuple[str, ..
 def _report_exiftool_error(exc: common_exif.ExifToolError, cwd: Path) -> None:
     err_console.print(f"fix-exif failed: exiftool exited with status {exc.returncode}.")
     err_console.print(
-        "\n".join(indent(markup_escape(display_path(p, cwd))) for p in exc.paths)
+        "\n".join(indent(markup_escape(display_path(p, cwd))) for p in exc.paths),
     )
     if exc.stderr:
         err_console.print(indent(markup_escape(exc.stderr)))
     first = shlex.quote(str(display_path(exc.paths[0], cwd))) if exc.paths else "<file>"
     err_console.print(
         "Check that the files exist and are writable media files,"
-        f" e.g. run 'exiftool {markup_escape(first)}'."
+        f" e.g. run 'exiftool {markup_escape(first)}'.",
     )
 
 
 @app.command("fix-exif")
 def fix_exif_cmd(
     ctx: typer.Context,
+    *,
     set_date: Annotated[
         str | None,
         typer.Option(
@@ -163,7 +170,8 @@ def fix_exif_cmd(
         ),
     ] = [],  # noqa: B006
 ) -> None:
-    """Fix EXIF dates on media files.
+    """
+    Fix EXIF dates on media files.
 
     Exactly one of --set-date, --set-date-time, --shift-date, or
     --shift-time must be specified.
@@ -181,7 +189,7 @@ def fix_exif_cmd(
     cwd = runtime.cwd()
     operation = _select_operation(set_date, set_date_time, shift_date, shift_time)
     if not files:
-        raise usage_error("No files specified.", markup=False)
+        raise no_files_error()
     _validate_operation(operation)
     require_system_deps(EXIF_DEPS, which=runtime.which)
 

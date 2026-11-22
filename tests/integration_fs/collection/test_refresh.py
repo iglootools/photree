@@ -44,7 +44,9 @@ def _setup_gallery(tmp_path: Path) -> Path:
 
 
 def _setup_album(
-    gallery: Path, name: str, album_id: str | None = None
+    gallery: Path,
+    name: str,
+    album_id: str | None = None,
 ) -> tuple[Path, str]:
     album_dir = gallery / "albums" / "2024" / name
     _write(album_dir / "ios-main" / "orig-img" / "IMG_0001.HEIC")
@@ -93,7 +95,8 @@ class TestImplicitCollectionDetection:
         assert any("2024-07-14 - Trip" in name for name in result.created)
 
     def test_non_contiguous_series_creates_separate_collections(
-        self, tmp_path: Path
+        self,
+        tmp_path: Path,
     ) -> None:
         """Same series interrupted by another album → two collections."""
         gallery = _setup_gallery(tmp_path)
@@ -263,8 +266,12 @@ class TestImplicitCollectionRename:
         assert by_name["2024-07-15 - Other"].albums == [aid2]
 
     def test_album_dropping_series_is_renamed_back(self, tmp_path: Path) -> None:
-        """An implicit collection's membership outlives the album's name: dropping
-        the series does not leave the collection, the refresh restores it."""
+        """
+        Rename an album back into its implicit collection's series.
+
+        An implicit collection's membership outlives the album's name: dropping
+        the series does not leave the collection, the refresh restores it.
+        """
         gallery = _setup_gallery(tmp_path)
         _, aid1 = _setup_album(gallery, "2024-07-14 - 01 - Original - Day 1")
         album2, aid2 = _setup_album(gallery, "2024-07-15 - 02 - Original - Day 2")
@@ -349,7 +356,8 @@ class TestSmartCollectionRefresh:
 
 class TestAlbumTitleSync:
     def test_removes_series_when_explicit_collection_exists(
-        self, tmp_path: Path
+        self,
+        tmp_path: Path,
     ) -> None:
         gallery = _setup_gallery(tmp_path)
         _setup_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
@@ -374,7 +382,8 @@ class TestAlbumTitleSync:
         assert "Trip" not in new
 
     def test_adds_series_when_implicit_collection_contains_album(
-        self, tmp_path: Path
+        self,
+        tmp_path: Path,
     ) -> None:
         gallery = _setup_gallery(tmp_path)
         _, aid = _setup_album(gallery, "2024-07-14 - Hiking")
@@ -511,4 +520,5 @@ class TestRefreshErrors:
         assert result.success
         [col_dir] = discover_collections(gallery)
         meta = load_collection_metadata(col_dir)
-        assert meta is not None and meta.id == fixed_id
+        assert meta is not None
+        assert meta.id == fixed_id

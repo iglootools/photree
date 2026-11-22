@@ -1,4 +1,5 @@
-"""JPEG conversion failures must be counted and reported, never discarded.
+"""
+JPEG conversion failures must be counted and reported, never discarded.
 
 Regression cover for a silent-failure bug: the parallel path tallied every
 planned file as converted *before* running the work and then threw away
@@ -26,8 +27,9 @@ def _write(path: Path, content: str = "data") -> None:
     path.write_text(content, encoding="utf-8")
 
 
-def _exploding_convert(src: Path, dst_dir: Path, *, dry_run: bool) -> Path | None:
-    raise OSError(f"boom: {src.name}")
+def _exploding_convert(src: Path, _dst_dir: Path, *, dry_run: bool) -> Path | None:  # noqa: ARG001 - ConvertFile's signature
+    message = f"boom: {src.name}"
+    raise OSError(message)
 
 
 class TestSequentialPath:
@@ -53,7 +55,8 @@ class TestSequentialPath:
 
         def convert(s: Path, d: Path, *, dry_run: bool) -> Path | None:
             if s.suffix == ".HEIC":
-                raise OSError("nope")
+                message = "nope"
+                raise OSError(message)
             return convert_single_file(s, d, dry_run=dry_run)
 
         result = refresh_jpeg_dir(src, dst, convert_file=convert)
@@ -64,7 +67,8 @@ class TestSequentialPath:
 
 
 class TestParallelPath:
-    """The parallel path is what production uses (max_workers=os.cpu_count()).
+    """
+    The parallel path is what production uses (max_workers=os.cpu_count()).
 
     A HEIC file whose bytes are not HEIC fails on macOS because sips rejects it,
     and on Linux because sips does not exist — either way the conversion raises,
@@ -72,7 +76,8 @@ class TestParallelPath:
     """
 
     def test_failures_are_counted_from_results_not_from_the_plan(
-        self, tmp_path: Path
+        self,
+        tmp_path: Path,
     ) -> None:
         src, dst = tmp_path / "img", tmp_path / "jpg"
         _write(src / "IMG_0001.HEIC", "not really heic")
@@ -99,7 +104,9 @@ class TestParallelPath:
 class TestSipsError:
     def test_carries_stderr_in_its_message(self) -> None:
         exc = SipsError(
-            path=Path("/x/IMG_0001.HEIC"), returncode=1, stderr="Error: bad format\n"
+            path=Path("/x/IMG_0001.HEIC"),
+            returncode=1,
+            stderr="Error: bad format\n",
         )
 
         assert "IMG_0001.HEIC" in str(exc)
@@ -107,14 +114,15 @@ class TestSipsError:
 
     def test_falls_back_to_the_exit_code(self) -> None:
         assert "exited 3" in str(
-            SipsError(path=Path("/x/a.HEIC"), returncode=3, stderr="")
+            SipsError(path=Path("/x/a.HEIC"), returncode=3, stderr=""),
         )
 
     def test_is_an_oserror_so_batch_loops_catch_it(self) -> None:
         # refresh_jpeg_dir's sequential path catches OSError; sips failures must
         # land in that net rather than escaping as an unrelated exception type.
         assert isinstance(
-            SipsError(path=Path("/x/a.HEIC"), returncode=1, stderr=""), OSError
+            SipsError(path=Path("/x/a.HEIC"), returncode=1, stderr=""),
+            OSError,
         )
 
     def test_survives_propagating_through_a_context_manager(self) -> None:
@@ -136,7 +144,9 @@ class TestRefreshPropagation:
         save_album_metadata(album, AlbumMetadata(id=generate_album_id()))
 
         result = refresh_album_derived_data(
-            album, link_mode=LinkMode.HARDLINK, max_workers=4
+            album,
+            link_mode=LinkMode.HARDLINK,
+            max_workers=4,
         )
 
         assert not result.success

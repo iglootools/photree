@@ -1,3 +1,5 @@
+"""The ``photree gallery show`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
@@ -10,7 +12,7 @@ from photree.common.formatting import indent
 from photree.common.fs import display_path
 from photree.foundation.gallery_metadata import GALLERY_YAML, load_gallery_metadata
 from photree.foundation.layout import ALBUMS_DIR, PHOTREE_DIR
-from photree.gallery.cli import app
+from photree.gallery.cli.app import app
 
 
 @app.command("show")
@@ -21,7 +23,10 @@ def show_cmd(
         typer.Option(
             "--gallery-dir",
             "-g",
-            help="Gallery root directory (or resolved from cwd via .photree/gallery.yaml).",
+            help=(
+                "Gallery root directory (or resolved from cwd "
+                "via .photree/gallery.yaml)."
+            ),
             exists=True,
             file_okay=False,
             resolve_path=True,
@@ -41,6 +46,6 @@ def show_cmd(
                 f"Gallery: {display_path(resolved, cwd)}",
                 indent(f"link-mode: {metadata.link_mode}"),
                 indent(f"albums: {len(albums)}"),
-            ]
-        )
+            ],
+        ),
     )

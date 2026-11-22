@@ -1,8 +1,10 @@
-"""Export albums to a shared directory.
+"""
+Export albums to a shared directory.
 
 Supports four album layouts for albums with archives (iOS and std sources):
 
-- **browsable-jpg** (default): Copies {name}-jpg/ and {name}-vid/ (most compatible formats).
+- **browsable-jpg** (default): Copies {name}-jpg/ and {name}-vid/ (most compatible
+  formats).
 - **browsable**: Copies {name}-img/, {name}-jpg/, and {name}-vid/.
 - **all**: Copies archival directories (orig-*, edit-*), {name}-jpg/ and the
   ``.photree/`` metadata (excluding the derived ``cache/``) as-is, then
@@ -18,7 +20,6 @@ entirety regardless of album layout — except the ``archive`` layout, which
 copies only the archive dirs and ``.photree/`` metadata.
 """
 
-import os
 import shutil
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
@@ -56,7 +57,8 @@ def _archive_dirs(ms: MediaSource) -> tuple[str, ...]:
 
 
 def _full_copy_dirs(ms: MediaSource) -> tuple[str, ...]:
-    """Archival + JPEG directories copied as-is in the ``all`` layout.
+    """
+    Return the archival and JPEG directories copied as-is in the ``all`` layout.
 
     Works for any media source with archives (iOS or std).
     """
@@ -64,6 +66,8 @@ def _full_copy_dirs(ms: MediaSource) -> tuple[str, ...]:
 
 
 class ExportedAlbumType(StrEnum):
+    """What kind of album an export found: iOS, std only, or a plain directory."""
+
     IOS = "ios"  # at least one iOS media source
     STD = "std"  # only std media sources
     PLAIN = "plain"  # no media source: a plain directory, copied as-is
@@ -71,6 +75,8 @@ class ExportedAlbumType(StrEnum):
 
 @dataclass(frozen=True)
 class ExportResult:
+    """The outcome of one album's export: its name, type and number of files copied."""
+
     album_name: str
     album_type: ExportedAlbumType
     files_copied: int
@@ -81,6 +87,14 @@ def compute_target_dir(
     album_name: str,
     share_layout: ShareDirectoryLayout,
 ) -> Path:
+    """
+    Return the directory *album_name* is exported to under *share_dir*.
+
+    The ``albums`` layout nests it under its year and ``by-month`` under its
+    month, both parsed from the name's date prefix; ``flat`` puts it directly
+    under *share_dir*. Raises :class:`ValueError` when the layout needs a date
+    the name does not start with.
+    """
     match share_layout:
         case ShareDirectoryLayout.FLAT:
             return share_dir / album_name
@@ -93,12 +107,12 @@ def compute_target_dir(
 
 
 def _copy_dir(src: Path, dst: Path) -> int:
-    """Returns the number of files copied."""
+    """Copy a directory, returning the number of files copied."""
     if not src.is_dir():
         return 0
     else:
         dst.mkdir(parents=True, exist_ok=True)
-        files = [e for e in sorted(os.listdir(src)) if (src / e).is_file()]
+        files = sorted(e.name for e in src.iterdir() if e.is_file())
         for entry in files:
             shutil.copy2(src / entry, dst / entry)
         return len(files)
@@ -117,8 +131,8 @@ def _ignore_dotfiles(_directory: str, contents: list[str]) -> set[str]:
 
 
 def _files_to_copy(src: Path, ignore: _IgnoreFn) -> Iterator[Path]:
-    """The files ``shutil.copytree(src, ..., ignore=ignore)`` copies."""
-    names = os.listdir(src)
+    """Yield the files ``shutil.copytree(src, ..., ignore=ignore)`` copies."""
+    names = [p.name for p in src.iterdir()]
     ignored = ignore(str(src), names)
     for name in sorted(set(names) - ignored):
         path = src / name
@@ -129,8 +143,11 @@ def _files_to_copy(src: Path, ignore: _IgnoreFn) -> Iterator[Path]:
 
 
 def _copytree(src: Path, dst: Path, *, ignore: _IgnoreFn = _ignore_dotfiles) -> int:
-    """Returns the number of files copied from *src* — not the number of files in
-    *dst*, which also counts what a previous export left there.
+    """
+    Copy a tree, returning the number of files copied from *src*.
+
+    Not the number of files in *dst*, which also counts what a previous export
+    left there.
     """
     if not src.is_dir():
         return 0
@@ -176,7 +193,8 @@ def _rebuild_browsable(target_dir: Path, ms: MediaSource, link_mode: LinkMode) -
 
 
 def _copy_photree_metadata(album_dir: Path, target_dir: Path) -> int:
-    """Copy ``.photree/`` metadata, excluding the derived ``cache/`` subdir.
+    """
+    Copy ``.photree/`` metadata, excluding the derived ``cache/`` subdir.
 
     ``album.yaml`` (stable album ID) and ``media-ids/`` (stable image/video
     UUIDs) are preserved; ``cache/`` (EXIF + face data) is omitted because it
@@ -196,7 +214,8 @@ def _export_all(
     *,
     link_mode: LinkMode,
 ) -> int:
-    """Export archive + JPEG dirs and metadata, then rebuild browsable dirs.
+    """
+    Export archive + JPEG dirs and metadata, then rebuild browsable dirs.
 
     The metadata (album ID, media IDs) is what lets the export be refreshed
     or re-imported as the same album rather than a new one.
@@ -210,16 +229,22 @@ def _export_all(
 
 
 def _export_archive(
-    album_dir: Path, target_dir: Path, media_sources: Sequence[MediaSource]
+    album_dir: Path,
+    target_dir: Path,
+    media_sources: Sequence[MediaSource],
 ) -> int:
-    """Export only the archive (originals + edits) plus ``.photree/`` metadata.
+    """
+    Export only the archive (originals + edits) plus ``.photree/`` metadata.
 
     Copies each media source's ``orig-*``/``edit-*`` directories. All derived
     dirs (``{name}-jpg/``, ``{name}-img/``, ``{name}-vid/``) are dropped — they
     are regenerable via ``albums refresh``.
     """
     return _export_dirs(
-        album_dir, target_dir, media_sources, _archive_dirs
+        album_dir,
+        target_dir,
+        media_sources,
+        _archive_dirs,
     ) + _copy_photree_metadata(album_dir, target_dir)
 
 
@@ -251,15 +276,24 @@ def _export_files(
                 return _export_archive(album_dir, target_dir, media_sources)
             case AlbumShareLayout.BROWSABLE_JPG:
                 return _export_dirs(
-                    album_dir, target_dir, media_sources, _browsable_jpg_dirs
+                    album_dir,
+                    target_dir,
+                    media_sources,
+                    _browsable_jpg_dirs,
                 )
             case AlbumShareLayout.BROWSABLE:
                 return _export_dirs(
-                    album_dir, target_dir, media_sources, _browsable_dirs
+                    album_dir,
+                    target_dir,
+                    media_sources,
+                    _browsable_dirs,
                 )
             case AlbumShareLayout.ALL:
                 return _export_all(
-                    album_dir, target_dir, media_sources, link_mode=link_mode
+                    album_dir,
+                    target_dir,
+                    media_sources,
+                    link_mode=link_mode,
                 )
 
 
@@ -270,7 +304,10 @@ def export_album(
     album_layout: AlbumShareLayout = AlbumShareLayout.BROWSABLE_JPG,
     link_mode: LinkMode = LinkMode.HARDLINK,
 ) -> ExportResult:
-    """The caller is responsible for computing *target_dir* (e.g. via
+    """
+    Export one album into *target_dir*.
+
+    The caller is responsible for computing *target_dir* (e.g. via
     :func:`compute_target_dir`).
     Albums with archives (iOS or std) are exported according to *album_layout*.
     """

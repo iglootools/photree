@@ -7,7 +7,8 @@ from photree.common.native_stderr import filter_native_stderr
 
 class TestFilterNativeStderr:
     def test_drops_noise_and_keeps_other_fd_writes(
-        self, capfd: pytest.CaptureFixture[str]
+        self,
+        capfd: pytest.CaptureFixture[str],
     ) -> None:
         # os.write on fd 2 stands in for a native library bypassing sys.stderr.
         with filter_native_stderr(lambda line: "noise" in line):
@@ -16,7 +17,8 @@ class TestFilterNativeStderr:
         assert capfd.readouterr().err == "real problem\n"
 
     def test_restores_stderr_when_block_raises(
-        self, capfd: pytest.CaptureFixture[str]
+        self,
+        capfd: pytest.CaptureFixture[str],
     ) -> None:
         def write_then_fail() -> None:
             with filter_native_stderr(lambda _: False):

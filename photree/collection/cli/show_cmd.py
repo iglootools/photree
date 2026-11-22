@@ -1,10 +1,12 @@
+"""The ``photree collection show`` command."""
+
 from pathlib import Path
 
 import typer
 
 from photree.clihelpers.console import err_console
 from photree.clihelpers.runtime import runtime_of
-from photree.collection.cli import app
+from photree.collection.cli.app import app
 from photree.collection.cli.options import COLLECTION_DIR_OPTION
 from photree.collection.id import format_collection_external_id
 from photree.collection.naming import ParsedCollectionName, parse_collection_name
@@ -16,7 +18,9 @@ from photree.foundation.layout import PHOTREE_DIR
 
 
 def format_collection_details(
-    dir_name: str, metadata: CollectionMetadata, parsed: ParsedCollectionName
+    dir_name: str,
+    metadata: CollectionMetadata,
+    parsed: ParsedCollectionName,
 ) -> list[str]:
     """``key: value`` detail lines (unindented) for one collection."""
     return [
@@ -38,7 +42,8 @@ def format_collection_details(
 
 @app.command("show")
 def show_cmd(
-    ctx: typer.Context, collection_dir: COLLECTION_DIR_OPTION = Path(".")
+    ctx: typer.Context,
+    collection_dir: COLLECTION_DIR_OPTION = Path(),
 ) -> None:
     """Display collection metadata and parsed name."""
     cwd = runtime_of(ctx).cwd()
@@ -54,7 +59,9 @@ def show_cmd(
         raise typer.Exit(code=1)
 
     details = format_collection_details(
-        collection_dir.name, metadata, parse_collection_name(collection_dir.name)
+        collection_dir.name,
+        metadata,
+        parse_collection_name(collection_dir.name),
     )
     typer.echo(f"Collection: {display_path(collection_dir, cwd)}")
     typer.echo(indent("\n".join(details)))

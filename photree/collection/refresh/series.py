@@ -10,7 +10,8 @@ from photree.dates import date_range
 
 
 def _compute_date_string(dates: list[str]) -> str:
-    """Compute a date string that covers all given album dates.
+    """
+    Compute a date string that covers all given album dates.
 
     Same date → that date. Different dates → min-max range.
     """
@@ -43,7 +44,8 @@ class _SeriesGroup:
 
 
 def _group_contiguous_series(albums: Iterable[AlbumInfo]) -> list[_SeriesGroup]:
-    """Group albums into contiguous runs of the same series.
+    """
+    Group albums into contiguous runs of the same series.
 
     Albums are sorted by name (chronological, since names start with dates).
     A series interrupted by albums without that series (or with a different
@@ -73,7 +75,8 @@ def series_targets(albums: tuple[AlbumInfo, ...]) -> list[SeriesTarget]:
         SeriesTarget(
             series_title=group.series_title,
             collection_name=_build_collection_name(
-                group.series_title, [a.parsed.date for a in public]
+                group.series_title,
+                [a.parsed.date for a in public],
             ),
             album_ids=tuple(sorted(a.album_id for a in public)),
         )

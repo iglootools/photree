@@ -1,5 +1,9 @@
-"""Regression tests for album-core bugs: stale derived files, EXIF cache paths,
-invalid dates, corrupt metadata, and media source name conflicts."""
+"""
+Regression tests for album-core bugs.
+
+Stale derived files, EXIF cache paths, invalid dates, corrupt metadata, and
+media source name conflicts.
+"""
 
 from datetime import datetime
 from pathlib import Path
@@ -67,7 +71,7 @@ class TestJpegRefresh:
         src, dst = tmp_path / "img", tmp_path / "jpg"
         _write(src / "IMG_0001.HEIC")
 
-        def failing_sips(s: Path, d: Path, *, dry_run: bool) -> Path | None:
+        def failing_sips(s: Path, _d: Path, *, dry_run: bool) -> Path | None:  # noqa: ARG001 - ConvertFile's signature
             raise SipsError(path=s, returncode=1, stderr="not an image")
 
         result = refresh_jpeg_dir(src, dst, convert_file=failing_sips)
@@ -77,7 +81,9 @@ class TestJpegRefresh:
 
     @pytest.mark.parametrize("max_workers", [None, 4])
     def test_skipped_file_is_not_reported_as_failure(
-        self, tmp_path: Path, max_workers: int | None
+        self,
+        tmp_path: Path,
+        max_workers: int | None,
     ) -> None:
         """Both paths report a deliberately skipped file the same way."""
         src, dst = tmp_path / "img", tmp_path / "jpg"
@@ -85,12 +91,15 @@ class TestJpegRefresh:
         _write(src / "IMG_0001.MOV")  # Live Photo video: no JPEG variant
         ends: list[tuple[str, bool]] = []
 
+        def record_end(name: str, *, success: bool) -> None:
+            ends.append((name, success))
+
         result = refresh_jpeg_dir(
             src,
             dst,
             convert_file=noop_convert_single,
             max_workers=max_workers,
-            on_file_end=lambda name, ok: ends.append((name, ok)),
+            on_file_end=record_end,
         )
 
         assert result.success
@@ -104,7 +113,7 @@ class TestJpegRefresh:
         _write(src / "b.jpg")
         calls: list[str] = []
 
-        def recording(s: Path, d: Path, *, dry_run: bool) -> Path | None:
+        def recording(s: Path, d: Path, *, dry_run: bool) -> Path | None:  # noqa: ARG001 - ConvertFile's signature
             calls.append(s.name)
             return d / s.name
 
@@ -115,7 +124,10 @@ class TestJpegRefresh:
 
     @pytest.mark.parametrize("src_exists", [True, False])
     def test_stale_jpegs_cleared_when_source_empty(
-        self, tmp_path: Path, src_exists: bool
+        self,
+        tmp_path: Path,
+        *,
+        src_exists: bool,
     ) -> None:
         src, dst = tmp_path / "img", tmp_path / "jpg"
         if src_exists:
@@ -191,7 +203,7 @@ class _FakeExifTool:
     def __init__(self, timestamp: str) -> None:
         self.timestamp = timestamp
 
-    def get_tags(self, files: list[str], tags: list[str]) -> list[dict[str, object]]:
+    def get_tags(self, files: list[str], tags: list[str]) -> list[dict[str, object]]:  # noqa: ARG002 - ExifTagReader's signature
         return [{"EXIF:DateTimeOriginal": self.timestamp} for _ in files]
 
 
@@ -213,7 +225,8 @@ class TestExifCachePaths:
         )
 
         cache = load_exif_cache(tmp_path, "main")
-        assert cache is not None and cache.is_current
+        assert cache is not None
+        assert cache.is_current
         assert {e.file_name for e in cache.files.values()} == {
             "main-jpg/clip.jpg",
             "main-vid/clip.MOV",
@@ -246,9 +259,9 @@ class TestExifCachePaths:
                             "mtime": 0.0,
                             "file-name": "clip.MOV",
                             "timestamp": None,
-                        }
-                    }
-                }
+                        },
+                    },
+                },
             ),
             encoding="utf-8",
         )
@@ -265,7 +278,8 @@ class TestExifCachePaths:
         assert set(cache.files) == {"main-jpg/clip", "main-vid/clip"}
 
     def test_cached_offset_timestamps_are_naive_wall_clock(
-        self, tmp_path: Path
+        self,
+        tmp_path: Path,
     ) -> None:
         # A cache mixing an offset timestamp (CreationDate) with a naive one
         # must compare like a fresh exiftool read: wall-clock, offset dropped.
@@ -341,8 +355,8 @@ class TestCorruptMetadata:
                         orig_height=1,
                         thumb_width=1,
                         thumb_height=1,
-                    )
-                }
+                    ),
+                },
             ),
         )
         state_file = tmp_path / ".photree/cache/faces/main.yaml"
@@ -383,13 +397,17 @@ class TestMediaSourceConflicts:
         _write(album / "std-main/orig-img/DSC_0001.JPG")
 
         result = run_album_check(
-            album, sips_available=True, exiftool=None, link_mode=LinkMode.HARDLINK
+            album,
+            sips_available=True,
+            exiftool=None,
+            link_mode=LinkMode.HARDLINK,
         )
 
         assert result.media_source_conflicts == ("main",)
         assert not result.success
         assert "media source conflict" in result.error_labels
-        assert result.naming is not None and result.naming.success
+        assert result.naming is not None
+        assert result.naming.success
         assert "ios-<name>/ and std-<name>/ both present for: main" in (
             format_album_preflight_checks(result)
         )
@@ -400,16 +418,23 @@ class TestMediaSourceConflicts:
         _write(conflicted / "std-main/orig-img/DSC_0001.JPG")
         healthy = tmp_path / "2024-07-15 - Next"
         _write(healthy / "ios-main/orig-img/IMG_0002.HEIC")
-        ends: list[tuple[str, bool, tuple[str, ...]]] = []
+        ends: list[tuple[str, bool, tuple[str, ...], tuple[str, ...]]] = []
+
+        def record_end(
+            name: str,
+            *,
+            success: bool,
+            error_labels: tuple[str, ...],
+            warning_labels: tuple[str, ...],
+        ) -> None:
+            ends.append((name, success, error_labels, warning_labels))
 
         batch_check(
             [conflicted, healthy],
             sips_available=True,
             link_mode=LinkMode.HARDLINK,
             check_naming=False,
-            on_end=lambda name, ok, errors, _warnings: ends.append(
-                (name, ok, tuple(errors))
-            ),
+            on_end=record_end,
         )
 
         assert len(ends) == 2

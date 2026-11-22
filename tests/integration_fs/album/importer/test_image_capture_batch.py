@@ -12,7 +12,7 @@ SEL_DIR = ios_import_dir("main")
 SEL_CSV = ios_import_csv("main")
 
 
-def _noop_convert(_src: Path, _dst_dir: Path, *, dry_run: bool) -> Path | None:
+def _noop_convert(_src: Path, _dst_dir: Path, *, dry_run: bool) -> Path | None:  # noqa: ARG001 - ConvertFile's signature
     """No-op converter for tests (avoids calling sips on fake HEIC files)."""
     return None
 
@@ -102,7 +102,9 @@ class TestBatchImport:
         (albums_dir / "no-photos" / SEL_DIR).mkdir(parents=True)
 
         result = run_batch_import(
-            albums_dir=albums_dir, image_capture_dir=ic_dir, convert_file=_noop_convert
+            albums_dir=albums_dir,
+            image_capture_dir=ic_dir,
+            convert_file=_noop_convert,
         )
 
         assert result.imported == 2
@@ -138,7 +140,9 @@ class TestBatchImport:
         ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0001.HEIC"])
 
         result = run_batch_import(
-            albums_dir=albums_dir, image_capture_dir=ic_dir, convert_file=_noop_convert
+            albums_dir=albums_dir,
+            image_capture_dir=ic_dir,
+            convert_file=_noop_convert,
         )
 
         assert result.imported == 0
@@ -169,14 +173,16 @@ class TestBatchImport:
         ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0001.HEIC", "IMG_0001.AAE"])
         _setup_album(albums_dir, "2024-07-04 - Valid", ["IMG_0001.HEIC"])
         _setup_album(
-            albums_dir, "2024-07-05 - Invalid", ["IMG_9999.HEIC"]
+            albums_dir,
+            "2024-07-05 - Invalid",
+            ["IMG_9999.HEIC"],
         )  # no IC match
 
         validation_errors: list[str] = []
         result = run_batch_import(
             albums_dir=albums_dir,
             image_capture_dir=ic_dir,
-            on_validation_error=lambda name, errs: validation_errors.append(name),
+            on_validation_error=lambda name, _errs: validation_errors.append(name),
             convert_file=_noop_convert,
         )
 
@@ -185,7 +191,7 @@ class TestBatchImport:
         assert "2024-07-05 - Invalid" in validation_errors
         # The result itself records the refusal, not just the callback.
         assert [v.album_dir.name for v in result.validation_failures] == [
-            "2024-07-05 - Invalid"
+            "2024-07-05 - Invalid",
         ]
         assert not result.success
         # valid album should NOT have been processed either
@@ -203,13 +209,15 @@ class TestBatchImport:
         _setup_album(albums_dir, "2024-07-02 - 01- Beach", ["IMG_0002.HEIC"])
 
         result = run_batch_import(
-            albums_dir=albums_dir, image_capture_dir=ic_dir, convert_file=_noop_convert
+            albums_dir=albums_dir,
+            image_capture_dir=ic_dir,
+            convert_file=_noop_convert,
         )
 
         assert result.refused
         assert result.imported == 0
         assert [a.name for a, _ in result.naming_check.naming_errors] == [
-            "2024-07-02 - 01- Beach"
+            "2024-07-02 - 01- Beach",
         ]
         assert result.naming_check.date_collisions == (
             ("2024-07-01", ("2024-07-01 - Dinner", "2024-07-01 - Hike")),
@@ -279,7 +287,9 @@ class TestBatchImportCsv:
         _setup_album_csv(albums_dir, "2024-07-06 - CSV Trip", ["IMG_0001.HEIC"])
 
         result = run_batch_import(
-            albums_dir=albums_dir, image_capture_dir=ic_dir, convert_file=_noop_convert
+            albums_dir=albums_dir,
+            image_capture_dir=ic_dir,
+            convert_file=_noop_convert,
         )
 
         assert result.imported == 1

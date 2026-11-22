@@ -1,3 +1,5 @@
+"""Text the CLI prints for the iOS fixes' results."""
+
 from typing import TYPE_CHECKING
 
 from photree.album.fix.ios.miscategorized import MiscategorizedAction
@@ -29,6 +31,7 @@ def rm_orphan_sidecar_summary(
     *,
     dry_run: bool = False,
 ) -> str:
+    """Return the line reporting the orphan sidecars removed, or that none were."""
     return _removal_summary(
         removed_by_dir,
         what="orphan sidecar(s)",
@@ -42,6 +45,7 @@ def prefer_higher_quality_summary(
     *,
     dry_run: bool = False,
 ) -> str:
+    """Return the line reporting the lower-quality duplicates removed, or none."""
     return _removal_summary(
         removed_by_dir,
         what="lower-quality duplicate(s)",
@@ -59,6 +63,7 @@ def miscategorized_summary(
     *,
     dry_run: bool = False,
 ) -> str:
+    """Return the line reporting the miscategorized files moved or removed."""
     total = heic_from_orig + heic_from_rendered + mov_from_orig + mov_from_rendered
     if total == 0:
         return (
@@ -89,7 +94,7 @@ def miscategorized_summary(
                 if mov_from_rendered
                 else []
             ),
-        ]
+        ],
     )
     return (
         f"Would {verb} {total} miscategorized file(s): {parts}."
@@ -139,6 +144,7 @@ def format_fix_ios_result(result: FixIosResult, *, dry_run: bool = False) -> lis
 
 
 def batch_fix_ios_summary(fixed: int, failed: int, *, dry_run: bool = False) -> str:
+    """Return the closing line for a batch iOS fix, preceded by a blank line."""
     return (
         f"\n{fixed} album(s) would be fixed, {failed} failed."
         if dry_run

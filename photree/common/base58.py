@@ -17,6 +17,11 @@ def base58_encode(data: bytes) -> str:
 
 
 def base58_decode(s: str) -> bytes:
+    """
+    Decode the base58 string *s* (Bitcoin alphabet) to bytes.
+
+    Raises :class:`ValueError` when *s* holds a character outside the alphabet.
+    """
     n = functools.reduce(lambda acc, c: acc * 58 + BASE58_ALPHABET.index(c), s, 0)
     leading_ones = len(s) - len(s.lstrip(BASE58_ALPHABET[0]))
     byte_length = max((n.bit_length() + 7) // 8, 1) if n else 0

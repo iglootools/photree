@@ -1,3 +1,5 @@
+"""The EXIF cache's on-disk models and layout constants."""
+
 from pydantic import Field
 
 from photree.foundation.model import PhotreeModel
@@ -18,20 +20,23 @@ refresh.
 
 
 class ExifCacheEntry(PhotreeModel):
+    """The cached EXIF timestamp of one browsable file, with its mtime when read."""
+
     mtime: float = Field(description="File modification time at cache time.")
     file_name: str = Field(
         description=(
             "Album-relative path of the browsable file "
             "(e.g. ``main-vid/IMG_0115.MOV``); a bare filename in version 1."
-        )
+        ),
     )
     timestamp: str | None = Field(
-        description="ISO-format EXIF timestamp, or None if no timestamp found."
+        description="ISO-format EXIF timestamp, or None if no timestamp found.",
     )
 
 
 class ExifCache(PhotreeModel):
-    """Per-media-source EXIF timestamp cache in ``.photree/cache/exif/{name}.yaml``.
+    """
+    Per-media-source EXIF timestamp cache in ``.photree/cache/exif/{name}.yaml``.
 
     ``files`` is keyed by ``{subdir}/{stem}`` (e.g. ``main-jpg/IMG_0410``).
     """
@@ -44,4 +49,5 @@ class ExifCache(PhotreeModel):
 
     @property
     def is_current(self) -> bool:
+        """Return whether the cache uses :data:`EXIF_CACHE_VERSION`'s layout."""
         return self.version == EXIF_CACHE_VERSION

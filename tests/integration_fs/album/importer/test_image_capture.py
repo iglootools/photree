@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 import pytest
@@ -30,7 +29,7 @@ SEL_CSV = ios_import_csv("main")
 STAGE_IMPORT_IOS_MAIN = "import-ios-main"
 
 
-def _noop_convert(_src: Path, _dst_dir: Path, *, dry_run: bool) -> Path | None:
+def _noop_convert(_src: Path, _dst_dir: Path, *, dry_run: bool) -> Path | None:  # noqa: ARG001 - ConvertFile's signature
     """No-op converter for tests (avoids calling sips on fake HEIC files)."""
     return None
 
@@ -163,7 +162,7 @@ class TestValidateImportPlan:
         errors, warnings = validate_import_plan(plan)
         assert not errors
         assert [(w.kind, w.file) for w in warnings] == [
-            (ValidationWarningKind.MISSING_RENDERED_SIDECAR, "IMG_E0410.HEIC")
+            (ValidationWarningKind.MISSING_RENDERED_SIDECAR, "IMG_E0410.HEIC"),
         ]
 
     def test_rendered_sidecar_without_rendered_media(self) -> None:
@@ -173,7 +172,7 @@ class TestValidateImportPlan:
         )
         errors, _warnings = validate_import_plan(plan)
         assert [(e.kind, e.files) for e in errors] == [
-            (ValidationErrorKind.ORPHAN_RENDERED_SIDECAR, ("IMG_O0410.AAE",))
+            (ValidationErrorKind.ORPHAN_RENDERED_SIDECAR, ("IMG_O0410.AAE",)),
         ]
 
     def test_heic_without_aae_warns(self) -> None:
@@ -184,7 +183,7 @@ class TestValidateImportPlan:
         errors, warnings = validate_import_plan(plan)
         assert not errors
         assert [(w.kind, w.file) for w in warnings] == [
-            (ValidationWarningKind.MISSING_ORIGINAL_SIDECAR, "IMG_0410.HEIC")
+            (ValidationWarningKind.MISSING_ORIGINAL_SIDECAR, "IMG_0410.HEIC"),
         ]
 
     def test_png_without_aae_is_fine(self) -> None:
@@ -285,7 +284,9 @@ class TestRunImport:
         )
 
         result = run_import(
-            album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
+            album_dir=album,
+            image_capture_dir=ic_dir,
+            convert_file=_noop_convert,
         )
 
         assert isinstance(result, AlbumImportResult)
@@ -299,7 +300,8 @@ class TestRunImport:
         assert not (album / "main-img" / "IMG_0410.HEIC").exists()
 
     def test_browsable_falls_back_to_orig_when_no_rendered(
-        self, tmp_path: Path
+        self,
+        tmp_path: Path,
     ) -> None:
         album = _setup_album(tmp_path, ["IMG_0100.HEIC"])
         ic_dir = _setup_image_capture_dir(
@@ -308,7 +310,9 @@ class TestRunImport:
         )
 
         result = run_import(
-            album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
+            album_dir=album,
+            image_capture_dir=ic_dir,
+            convert_file=_noop_convert,
         )
         assert result.unprocessed == ()
         assert (album / "main-img" / "IMG_0100.HEIC").exists()
@@ -321,7 +325,9 @@ class TestRunImport:
         )
 
         result = run_import(
-            album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
+            album_dir=album,
+            image_capture_dir=ic_dir,
+            convert_file=_noop_convert,
         )
         assert result.unprocessed == ()
         assert (album / "ios-main/orig-vid" / "IMG_0115.MOV").exists()
@@ -333,7 +339,9 @@ class TestRunImport:
         ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0001.HEIC"])
 
         run_import(
-            album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
+            album_dir=album,
+            image_capture_dir=ic_dir,
+            convert_file=_noop_convert,
         )
 
         assert not (album / SEL_DIR).exists()
@@ -359,7 +367,9 @@ class TestRunImport:
 
         with pytest.raises(NoImportTasksError) as exc_info:
             run_import(
-                album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
+                album_dir=album,
+                image_capture_dir=ic_dir,
+                convert_file=_noop_convert,
             )
         assert exc_info.value.album_dir == album
 
@@ -370,7 +380,9 @@ class TestRunImport:
 
         with pytest.raises(EmptyImageCaptureDirError) as exc_info:
             run_import(
-                album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
+                album_dir=album,
+                image_capture_dir=ic_dir,
+                convert_file=_noop_convert,
             )
         assert exc_info.value.image_capture_dir == ic_dir
 
@@ -382,7 +394,9 @@ class TestRunImport:
         )
 
         run_import(
-            album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
+            album_dir=album,
+            image_capture_dir=ic_dir,
+            convert_file=_noop_convert,
         )
 
         assert (album / "ios-main/orig-img" / "IMG_0001.HEIC").exists()
@@ -397,7 +411,9 @@ class TestRunImport:
         )
 
         result = run_import(
-            album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
+            album_dir=album,
+            image_capture_dir=ic_dir,
+            convert_file=_noop_convert,
         )
 
         assert "IMG_0001.HEIC" in result.processed
@@ -429,7 +445,9 @@ class TestRunImport:
         ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0410.HEIC", "IMG_0410.AAE"])
 
         run_import(
-            album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
+            album_dir=album,
+            image_capture_dir=ic_dir,
+            convert_file=_noop_convert,
         )
 
         # Re-create selection and IC files for a second import attempt
@@ -458,16 +476,18 @@ class TestRunImportLinkMode:
         )
 
         run_import(
-            album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
+            album_dir=album,
+            image_capture_dir=ic_dir,
+            convert_file=_noop_convert,
         )
 
         browsable = album / "main-img" / "IMG_E0410.HEIC"
         rendered = album / "ios-main/edit-img" / "IMG_E0410.HEIC"
-        assert os.stat(browsable).st_ino == os.stat(rendered).st_ino
+        assert browsable.stat().st_ino == rendered.stat().st_ino
 
         orig = album / "ios-main/orig-img" / "IMG_0410.HEIC"
         ic_file = ic_dir / "IMG_0410.HEIC"
-        assert os.stat(orig).st_ino != os.stat(ic_file).st_ino
+        assert orig.stat().st_ino != ic_file.stat().st_ino
 
     def test_symlink_mode_creates_symlinks_in_browsable(self, tmp_path: Path) -> None:
         album = _setup_album(tmp_path, ["IMG_0100.HEIC"])
@@ -482,7 +502,7 @@ class TestRunImportLinkMode:
 
         browsable = album / "main-img" / "IMG_0100.HEIC"
         assert browsable.is_symlink()
-        assert not os.path.isabs(os.readlink(browsable))
+        assert not browsable.readlink().is_absolute()
         assert (
             browsable.resolve()
             == (album / "ios-main/orig-img" / "IMG_0100.HEIC").resolve()
@@ -502,7 +522,7 @@ class TestRunImportLinkMode:
         browsable = album / "main-img" / "IMG_0100.HEIC"
         orig = album / "ios-main/orig-img" / "IMG_0100.HEIC"
         assert not browsable.is_symlink()
-        assert os.stat(browsable).st_ino != os.stat(orig).st_ino
+        assert browsable.stat().st_ino != orig.stat().st_ino
 
 
 class TestRunImportCsv:
@@ -511,7 +531,9 @@ class TestRunImportCsv:
         ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0410.HEIC", "IMG_0410.AAE"])
 
         result = run_import(
-            album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
+            album_dir=album,
+            image_capture_dir=ic_dir,
+            convert_file=_noop_convert,
         )
 
         assert result.unprocessed == ()
@@ -531,7 +553,9 @@ class TestRunImportCsv:
         )
 
         result = run_import(
-            album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
+            album_dir=album,
+            image_capture_dir=ic_dir,
+            convert_file=_noop_convert,
         )
 
         assert result.unprocessed == ()
@@ -548,7 +572,9 @@ class TestRunImportCsv:
         # IMG_9999 has no IC match. Rejecting unmatched entries is the CLI layer's
         # job, so run_import itself still imports the matched files.
         run_import(
-            album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
+            album_dir=album,
+            image_capture_dir=ic_dir,
+            convert_file=_noop_convert,
         )
 
         assert (album / "ios-main/orig-img" / "IMG_0410.HEIC").exists()
@@ -567,7 +593,9 @@ class TestRunImportCsv:
         ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0410.HEIC", "IMG_0410.AAE"])
 
         result = run_import(
-            album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
+            album_dir=album,
+            image_capture_dir=ic_dir,
+            convert_file=_noop_convert,
         )
 
         assert result.unprocessed == ()
@@ -581,9 +609,11 @@ class TestRunImportCsv:
 
 class TestSelectionCleanupByNumber:
     def test_live_photo_export_is_fully_consumed_and_reimport_works(
-        self, tmp_path: Path
+        self,
+        tmp_path: Path,
     ) -> None:
-        """A Live Photo exported from Photos yields both the HEIC and the MOV.
+        """
+        A Live Photo exported from Photos yields both the HEIC and the MOV.
 
         Both entries share one image number, so the merged selection keeps
         only one of them. The other used to be left behind, and the next
@@ -596,7 +626,9 @@ class TestSelectionCleanupByNumber:
         )
 
         result = run_import(
-            album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
+            album_dir=album,
+            image_capture_dir=ic_dir,
+            convert_file=_noop_convert,
         )
 
         assert result.unprocessed == ()
@@ -606,7 +638,9 @@ class TestSelectionCleanupByNumber:
         (album / SEL_DIR).mkdir()
         (album / SEL_DIR / "IMG_0002.HEIC").write_text("data")
         second = run_import(
-            album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
+            album_dir=album,
+            image_capture_dir=ic_dir,
+            convert_file=_noop_convert,
         )
 
         assert second.unprocessed == ()
@@ -618,7 +652,9 @@ class TestSelectionCleanupByNumber:
         ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0410.HEIC", "IMG_0410.AAE"])
 
         result = run_import(
-            album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
+            album_dir=album,
+            image_capture_dir=ic_dir,
+            convert_file=_noop_convert,
         )
 
         assert result.unprocessed == ()
@@ -628,7 +664,7 @@ class TestSelectionCleanupByNumber:
 
 class TestCollisionBeforeMutation:
     def _album_with_colliding_std_task(self, tmp_path: Path) -> tuple[Path, Path]:
-        """iOS task ``main`` is clean; std task ``nelu`` collides with its archive."""
+        """IOS task ``main`` is clean; std task ``nelu`` collides with its archive."""
         album = _setup_album(tmp_path, ["IMG_0001.HEIC"])
         ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0001.HEIC", "IMG_0001.AAE"])
         nelu = std_media_source("nelu")
@@ -644,7 +680,7 @@ class TestCollisionBeforeMutation:
         validation = validate_album_import(album, list_files(ic_dir))
 
         assert [i.detail for i in validation.errors] == [
-            ArchiveCollision(std_media_source("nelu"), ("a",))
+            ArchiveCollision(std_media_source("nelu"), ("a",)),
         ]
 
     def test_run_import_leaves_earlier_task_untouched(self, tmp_path: Path) -> None:
@@ -652,7 +688,9 @@ class TestCollisionBeforeMutation:
 
         with pytest.raises(ImportCollisionError) as exc_info:
             run_import(
-                album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
+                album_dir=album,
+                image_capture_dir=ic_dir,
+                convert_file=_noop_convert,
             )
 
         assert exc_info.value.keys == ("a",)

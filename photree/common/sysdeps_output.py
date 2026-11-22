@@ -1,4 +1,5 @@
-"""Rendering of system dependency statuses (Rich markup, unindented).
+"""
+Rendering of system dependency statuses (Rich markup, unindented).
 
 Pure formatting, shared by the CLI gate (``clihelpers.sysdeps``) and by the
 domain output layers that fold dependency checks into a wider report (the
@@ -26,6 +27,7 @@ def format_status(status: SystemDependencyStatus) -> str:
 
 
 def format_statuses(statuses: Iterable[SystemDependencyStatus]) -> str:
+    """Format each dependency as a check line (Rich markup), one per line."""
     return "\n".join(format_status(s) for s in statuses)
 
 

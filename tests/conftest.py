@@ -10,7 +10,8 @@ import pytest
 
 @pytest.fixture
 def monkeypatch() -> NoReturn:
-    """Replace pytest's fixture for every test: tests do not patch.
+    """
+    Replace pytest's fixture for every test: tests do not patch.
 
     Inject a fake through a parameter instead (docs/guidelines.md, Tests).
     The documented exceptions use ``pytest.MonkeyPatch``, which ruff bans
@@ -26,7 +27,8 @@ def monkeypatch() -> NoReturn:
 
 @pytest.fixture
 def chdir() -> Iterator[Callable[[Path], None]]:
-    """Change the working directory until the end of the test.
+    """
+    Change the working directory until the end of the test.
 
     Stands in for ``monkeypatch.chdir``, which went with the fixture above.
     """

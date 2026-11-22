@@ -1,4 +1,7 @@
-"""The loader takes its environment (``environ``, ``home``, platformdirs
+"""
+Tests of the config loader.
+
+The loader takes its environment (``environ``, ``home``, platformdirs
 lookups) as parameters, so these tests pass values instead of patching.
 """
 
@@ -55,8 +58,8 @@ class TestConfigSearchPaths:
         ]
 
     def test_xdg_is_first(self) -> None:
-        paths = config_search_paths(environ={"XDG_CONFIG_HOME": "/tmp/xdg-test"})
-        assert paths[0] == Path("/tmp/xdg-test/photree/config.toml")
+        paths = config_search_paths(environ={"XDG_CONFIG_HOME": "/tmp/xdg-test"})  # noqa: S108 - data only, never written
+        assert paths[0] == Path("/tmp/xdg-test/photree/config.toml")  # noqa: S108 - data only, never written
 
     def test_default_xdg_when_unset(self, tmp_path: Path) -> None:
         paths = config_search_paths(environ={}, home=tmp_path)
@@ -100,14 +103,16 @@ class TestLoadConfig:
 
     def test_parses_image_capture_dir(self, tmp_path: Path) -> None:
         cfg_file = _write_config(
-            tmp_path, '[importer]\nimage-capture-dir = "/some/path"\n'
+            tmp_path,
+            '[importer]\nimage-capture-dir = "/some/path"\n',
         )
         cfg = load_config(cfg_file)
         assert cfg.importer.image_capture_dir == Path("/some/path")
 
     def test_expands_tilde_against_home(self, tmp_path: Path) -> None:
         cfg_file = _write_config(
-            tmp_path, '[importer]\nimage-capture-dir = "~/Pictures/iPhone"\n'
+            tmp_path,
+            '[importer]\nimage-capture-dir = "~/Pictures/iPhone"\n',
         )
         cfg = load_config(cfg_file, home=tmp_path / "home")
         assert cfg.importer.image_capture_dir == tmp_path / "home/Pictures/iPhone"
@@ -163,7 +168,7 @@ class TestLoadConfig:
 
     def test_profiles_are_read_only(self, tmp_path: Path) -> None:
         cfg = load_config(
-            _write_config(tmp_path, '[exporter.profiles.a]\nshare-dir = "/x"\n')
+            _write_config(tmp_path, '[exporter.profiles.a]\nshare-dir = "/x"\n'),
         )
         with pytest.raises(TypeError):
             # Deliberately invalid: the test checks the runtime refuses the write too.
@@ -172,8 +177,9 @@ class TestLoadConfig:
     def test_profile_defaults(self, tmp_path: Path) -> None:
         cfg = load_config(
             _write_config(
-                tmp_path, '[exporter.profiles.minimal]\nshare-dir = "/mnt/share"\n'
-            )
+                tmp_path,
+                '[exporter.profiles.minimal]\nshare-dir = "/mnt/share"\n',
+            ),
         )
         p = cfg.exporter.profiles["minimal"]
         assert p.share_layout == ShareDirectoryLayout.FLAT
@@ -182,7 +188,8 @@ class TestLoadConfig:
 
     def test_profile_expands_tilde(self, tmp_path: Path) -> None:
         cfg_file = _write_config(
-            tmp_path, '[exporter.profiles.home]\nshare-dir = "~/Shared/Albums"\n'
+            tmp_path,
+            '[exporter.profiles.home]\nshare-dir = "~/Shared/Albums"\n',
         )
         cfg = load_config(cfg_file, home=tmp_path / "home")
         assert cfg.exporter.profiles["home"].share_dir == (
@@ -191,7 +198,8 @@ class TestLoadConfig:
 
     def test_profile_missing_share_dir_raises(self, tmp_path: Path) -> None:
         error = _load_error(
-            tmp_path, '[exporter.profiles.bad]\nshare-layout = "flat"\n'
+            tmp_path,
+            '[exporter.profiles.bad]\nshare-layout = "flat"\n',
         )
         assert (error.kind, error.field, error.profile) == (
             ConfigErrorKind.MISSING_KEY,
@@ -218,7 +226,11 @@ class TestLoadConfig:
     def test_profile_invalid_album_layout_raises(self, tmp_path: Path) -> None:
         error = _load_error(
             tmp_path,
-            '[exporter.profiles.bad]\nshare-dir = "/mnt/share"\nalbum-layout = "nope"\n',
+            dedent("""\
+                [exporter.profiles.bad]
+                share-dir = "/mnt/share"
+                album-layout = "nope"
+                """),
         )
         assert (error.kind, error.field, error.value) == (
             ConfigErrorKind.INVALID_VALUE,
@@ -272,6 +284,7 @@ class TestLoadConfigTypeErrors:
 
     def test_link_mode_not_a_string(self, tmp_path: Path) -> None:
         error = _load_error(
-            tmp_path, '[exporter.profiles.p]\nshare-dir = "/x"\nlink-mode = true\n'
+            tmp_path,
+            '[exporter.profiles.p]\nshare-dir = "/x"\nlink-mode = true\n',
         )
         assert (error.kind, error.field) == (ConfigErrorKind.INVALID_TYPE, "link-mode")

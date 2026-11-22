@@ -288,7 +288,7 @@ class TestComputeMediaSourceStats:
         assert result.total.on_disk_bytes < result.total.apparent_bytes
 
     def test_missing_optional_dirs(self, tmp_path: Path) -> None:
-        """iOS source with no edit dirs should not fail."""
+        """IOS source with no edit dirs should not fail."""
         album = tmp_path / "2024-07-14 - Test"
         _make_album(album)
         ms = MAIN_MEDIA_SOURCE
@@ -370,7 +370,10 @@ class TestComputeAlbumStats:
 
 class TestGalleryStats:
     def _make_simple_album(
-        self, tmp_path: Path, name: str, img_size: int = 100
+        self,
+        tmp_path: Path,
+        name: str,
+        img_size: int = 100,
     ) -> AlbumStats:
         album = tmp_path / name
         _make_album(album)

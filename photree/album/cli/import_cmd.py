@@ -1,10 +1,12 @@
+"""The ``photree album import`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
 from photree.album.check.output import format_naming_checks
-from photree.album.cli import app
+from photree.album.cli.app import app
 from photree.album.cli.import_preflight import run_import_preflight
 from photree.album.cli.media_source_conflict import exit_on_media_source_conflict
 from photree.album.cli.runtime import RunImportFn, album_runtime_of
@@ -50,7 +52,7 @@ def import_cmd(
             file_okay=False,
             resolve_path=True,
         ),
-    ] = Path("."),
+    ] = Path(),
     source: Annotated[
         Path | None,
         typer.Option(
@@ -63,6 +65,7 @@ def import_cmd(
     ] = None,
     config: CONFIG_OPTION = None,
     link_mode: LINK_MODE_OPTION = None,
+    *,
     dry_run: Annotated[
         bool,
         typer.Option(
@@ -87,7 +90,8 @@ def import_cmd(
         ),
     ] = False,
 ) -> None:
-    """Import an album's staged media into its media sources.
+    """
+    Import an album's staged media into its media sources.
 
     Discovers all ``to-import-{ios,std}-<name>`` staging entries in ALBUM_DIR
     and imports each into its target media source:
@@ -151,7 +155,8 @@ def _require_valid_name(
     *,
     cwd: Path,
 ) -> None:
-    """Pre-import light check: naming convention and date collisions.
+    """
+    Pre-import light check: naming convention and date collisions.
 
     The same check gates ``gallery import``; running it here surfaces a
     problem while the album is being filled rather than when it reaches the
@@ -172,12 +177,15 @@ def _require_valid_name(
 
 
 def _require_valid_tasks(
-    album_dir: Path, image_capture_dir: Path, album_display: Path
+    album_dir: Path,
+    image_capture_dir: Path,
+    album_display: Path,
 ) -> None:
     """Pre-validate every staging entry before importing any of them."""
     if not discover_import_tasks(album_dir):
         err_console.print(
-            f"No to-import-{{ios,std}}-<media-source> staging entries in {album_display}.",
+            f"No to-import-{{ios,std}}-<media-source> "
+            f"staging entries in {album_display}.",
             markup=False,
         )
         err_console.print(
@@ -194,7 +202,7 @@ def _require_valid_tasks(
         console.print("\n" + warnings)
     if validation.errors:
         err_console.print(
-            importer_output.validation_errors(album_dir.name, list(validation.errors))
+            importer_output.validation_errors(album_dir.name, list(validation.errors)),
         )
         raise typer.Exit(code=1)
 
@@ -237,7 +245,7 @@ def _run_import(
         except ImportCollisionError as exc:
             err_console.print(
                 importer_output.format_archive_collision(
-                    ArchiveCollision(exc.media_source, exc.keys)
+                    ArchiveCollision(exc.media_source, exc.keys),
                 ),
                 markup=False,
             )
@@ -257,8 +265,8 @@ def _post_import_exif_check(album_dir: Path, *, which: WhichFn) -> None:
         typer.echo("\nPost-Import Check:")
         console.print(
             format_naming_checks(
-                AlbumNamingResult(parsed=parsed, issues=(), exif_check=exif_check)
-            )
+                AlbumNamingResult(parsed=parsed, issues=(), exif_check=exif_check),
+            ),
         )
 
 
@@ -267,5 +275,5 @@ def _print_gallery_refresh_hint(album_dir: Path) -> None:
     if resolve_gallery_metadata(album_dir) is not None:
         typer.echo(
             "\nThis album is in a gallery: run 'photree gallery refresh' to update "
-            "face clusters and the browsable/ tree."
+            "face clusters and the browsable/ tree.",
         )

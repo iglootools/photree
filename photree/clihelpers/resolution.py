@@ -1,4 +1,5 @@
-"""Directory resolution helpers shared by every command surface.
+"""
+Directory resolution helpers shared by every command surface.
 
 ``resolve_gallery_or_exit`` lives here rather than in ``gallery/cli/ops.py``
 because ``collection`` and ``collections`` commands need it too, and importing
@@ -35,8 +36,8 @@ def format_gallery_not_found(exc: GalleryNotFoundError, cwd: Path) -> str:
             yaml_path = display_path(explicit / PHOTREE_DIR / GALLERY_YAML, cwd)
             return (
                 f"No gallery metadata found at {yaml_path}.\n"
-                f"Run 'photree gallery init --gallery-dir \"{display_path(explicit, cwd)}\"'"
-                " to initialize the gallery."
+                "Run 'photree gallery init --gallery-dir "
+                f'"{display_path(explicit, cwd)}"\' to initialize the gallery.'
             )
 
 
@@ -54,6 +55,11 @@ def resolve_gallery_or_exit(
     *,
     cwd: Path,
 ) -> Path:
+    """
+    Return the gallery root: *gallery_dir*, or the nearest one above *cwd*.
+
+    Prints why and exits 1 when no gallery metadata is found.
+    """
     try:
         return resolve_gallery_dir(gallery_dir, start_dir=cwd)
     except GalleryNotFoundError as exc:

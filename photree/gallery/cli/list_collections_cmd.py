@@ -1,3 +1,5 @@
+"""The ``photree gallery list-collections`` command."""
+
 import csv
 from pathlib import Path
 from typing import Annotated
@@ -21,7 +23,7 @@ from photree.collection.store.protocol import CollectionMetadata
 from photree.common.formatting import indent
 from photree.common.fs import display_path
 from photree.foundation.layout import COLLECTIONS_DIR
-from photree.gallery.cli import app
+from photree.gallery.cli.app import app
 
 _CSV_HEADER = [
     "id",
@@ -48,12 +50,16 @@ def list_collections_cmd(
         typer.Option(
             "--gallery-dir",
             "-g",
-            help="Gallery root directory (or resolved from cwd via .photree/gallery.yaml).",
+            help=(
+                "Gallery root directory (or resolved from cwd "
+                "via .photree/gallery.yaml)."
+            ),
             exists=True,
             file_okay=False,
             resolve_path=True,
         ),
     ] = None,
+    *,
     metadata: Annotated[
         bool,
         typer.Option(
@@ -79,7 +85,7 @@ def list_collections_cmd(
         case OutputFormat.CSV, _:
             _list_csv(collections, cwd, output_file)
         case OutputFormat.TEXT, _:
-            _list_text(collections, cwd, metadata)
+            _list_text(collections, cwd, show_metadata=metadata)
 
 
 def _member_counts(meta: CollectionMetadata | None) -> list[int]:
@@ -123,7 +129,7 @@ def _name_line(parsed: ParsedCollectionName) -> str:
             f"title={parsed.title}",
             *([f"location={parsed.location}"] if parsed.location is not None else []),
             *(["private"] if parsed.private else []),
-        ]
+        ],
     )
 
 
@@ -157,8 +163,8 @@ def _member_count_parts(meta: CollectionMetadata | None) -> list[str]:
     )
 
 
-def _text_block(col_dir: Path, cwd: Path, show_metadata: bool) -> str:
-    """The collection's path, then (optionally) its indented metadata."""
+def _text_block(col_dir: Path, cwd: Path, *, show_metadata: bool) -> str:
+    """Format the collection's path, then (optionally) its indented metadata."""
     if not show_metadata:
         return str(display_path(col_dir, cwd))
     meta = load_collection_metadata(col_dir)
@@ -171,6 +177,10 @@ def _text_block(col_dir: Path, cwd: Path, show_metadata: bool) -> str:
     return "\n".join([str(display_path(col_dir, cwd)), *(indent(d) for d in details)])
 
 
-def _list_text(collections: list[Path], cwd: Path, show_metadata: bool) -> None:
+def _list_text(collections: list[Path], cwd: Path, *, show_metadata: bool) -> None:
     typer.echo(f"Found {len(collections)} collection(s).\n")
-    typer.echo("\n".join(_text_block(c, cwd, show_metadata) for c in collections))
+    typer.echo(
+        "\n".join(
+            _text_block(c, cwd, show_metadata=show_metadata) for c in collections
+        ),
+    )

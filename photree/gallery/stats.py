@@ -1,4 +1,5 @@
-"""Gallery-level statistics: albums plus the things only a gallery has.
+"""
+Gallery-level statistics: albums plus the things only a gallery has.
 
 ``AlbumsStats`` (in ``album/stats``) covers any set of albums — `albums stats
 -d <dir>` produces one for a bare directory with no gallery anywhere. Collection
@@ -46,7 +47,7 @@ def compute_gallery_stats(albums: AlbumsStats, gallery_dir: Path) -> GalleryStat
             s
             for s in [albums.cache_storage, gallery_face_size]
             if s is not None and s.file_count > 0
-        ]
+        ],
     )
 
     return GalleryStats(

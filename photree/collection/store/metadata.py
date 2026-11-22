@@ -1,3 +1,5 @@
+"""Read and write a collection's ``.photree/collection.yaml``."""
+
 from pathlib import Path
 
 from photree.collection.store.protocol import COLLECTION_YAML, CollectionMetadata
@@ -10,7 +12,8 @@ from photree.foundation.metadata_io import (
 
 
 def load_collection_metadata(collection_dir: Path) -> CollectionMetadata | None:
-    """Read ``.photree/collection.yaml``, or ``None`` if missing.
+    """
+    Read ``.photree/collection.yaml``, or ``None`` if missing.
 
     Raises :class:`~photree.foundation.metadata_io.InvalidMetadataError` when the file
     exists but is unreadable: treating a corrupt file as absent would let
@@ -22,7 +25,8 @@ def load_collection_metadata(collection_dir: Path) -> CollectionMetadata | None:
 
 
 def save_collection_metadata(
-    collection_dir: Path, metadata: CollectionMetadata
+    collection_dir: Path,
+    metadata: CollectionMetadata,
 ) -> None:
     """Write :class:`CollectionMetadata` to ``.photree/collection.yaml``."""
     photree_dir = collection_dir / PHOTREE_DIR

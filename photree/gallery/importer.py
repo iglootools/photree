@@ -1,4 +1,5 @@
-"""Import existing album directories into a gallery.
+"""
+Import existing album directories into a gallery.
 
 Copies an album directory into the gallery's ``albums/YYYY/`` structure,
 then ensures it has an ID, up-to-date JPEGs, optimized links, and passes
@@ -42,18 +43,22 @@ type FaceFailures = tuple[tuple[str, FaceFailure], ...]
 
 
 class TargetExistsError(ValueError):
-    """The gallery already has a directory at the import target.
+    """
+    The gallery already has a directory at the import target.
 
     Carries the path as data so the CLI can render it with ``display_path``.
     """
 
     def __init__(self, target: Path) -> None:
+        """Build the error from the import target that already exists."""
         self.target = target
         super().__init__(f"Target already exists: {target}")
 
 
 @dataclass(frozen=True)
 class AlbumImportResult:
+    """The outcome of one album's import: where it went and what derived data failed."""
+
     album_name: str
     target_dir: Path
     id_generated: bool
@@ -78,7 +83,7 @@ def compute_target_dir(gallery_dir: Path, album_name: str) -> Path:
 
 
 def _hidden_sibling(target_dir: Path, suffix: str) -> Path:
-    """A dot-prefixed sibling of *target_dir*, invisible to album discovery."""
+    """Return a dot-prefixed sibling of *target_dir*, invisible to album discovery."""
     return target_dir.parent / f".{target_dir.name}.{suffix}"
 
 
@@ -109,7 +114,8 @@ class _Pipeline:
             return True
 
     def refresh_derived(self, work_dir: Path, *, dry_run: bool) -> AlbumRefreshResult:
-        """Rebuild derived data (browsable, JPEG, media IDs, EXIF, faces).
+        """
+        Rebuild derived data (browsable, JPEG, media IDs, EXIF, faces).
 
         Returns the refresh result, carrying the per-file JPEG conversion and
         face detection failures the refresh survived.
@@ -131,12 +137,22 @@ class _Pipeline:
             pass
         id_generated = self.generate_id(source_dir, dry_run=True)
         refreshed = self.refresh_derived(source_dir, dry_run=True)
-        return _import_result(source_dir, target_dir, id_generated, refreshed)
+        return _import_result(
+            source_dir,
+            target_dir,
+            id_generated=id_generated,
+            refreshed=refreshed,
+        )
 
     def build(
-        self, source_dir: Path, staging: Path, *, preserve_from: Path | None
+        self,
+        source_dir: Path,
+        staging: Path,
+        *,
+        preserve_from: Path | None,
     ) -> tuple[bool, AlbumRefreshResult]:
-        """Copy *source_dir* to *staging* and bring it to a finished state.
+        """
+        Copy *source_dir* to *staging* and bring it to a finished state.
 
         With *preserve_from*, that album's ID and media-id UUIDs replace the
         source's own metadata before the refresh (reimport).
@@ -155,6 +171,7 @@ class _Pipeline:
 def _import_result(
     source_dir: Path,
     target_dir: Path,
+    *,
     id_generated: bool,
     refreshed: AlbumRefreshResult,
 ) -> AlbumImportResult:
@@ -194,7 +211,8 @@ def _removed_on_failure(staging: Path) -> Generator[None]:
 
 
 def _restore_photree(metadata_src: Path, dst: Path) -> None:
-    """Replace ``dst/.photree`` with metadata preserved from *metadata_src*.
+    """
+    Replace ``dst/.photree`` with metadata preserved from *metadata_src*.
 
     Keeps only the album ID (``album.yaml``) and media-id UUIDs
     (``media-ids/``) from the existing gallery copy; the source's own
@@ -213,7 +231,8 @@ def _restore_photree(metadata_src: Path, dst: Path) -> None:
 
 
 def swap_into_place(existing_dir: Path, staging: Path, target_dir: Path) -> None:
-    """Replace the gallery album with the staged rebuild.
+    """
+    Replace the gallery album with the staged rebuild.
 
     Moves the live album aside, moves *staging* into *target_dir* (which may
     differ from *existing_dir* on a rename), then removes the old copy. Two
@@ -249,7 +268,8 @@ def import_album(
     refresh: RefreshFn = refresh_album_derived_data,
     new_id: Callable[[], str] = generate_album_id,
 ) -> AlbumImportResult:
-    """Import an album directory into a gallery.
+    """
+    Import an album directory into a gallery.
 
     1. Copy the album next to ``<gallery_dir>/albums/YYYY/<album_name>/``
     2. Generate album ID if missing
@@ -283,10 +303,17 @@ def import_album(
     staging = _hidden_sibling(target_dir, "import")
     with _removed_on_failure(staging):
         id_generated, refreshed = pipeline.build(
-            source_dir, staging, preserve_from=None
+            source_dir,
+            staging,
+            preserve_from=None,
         )
         staging.rename(target_dir)
-    return _import_result(source_dir, target_dir, id_generated, refreshed)
+    return _import_result(
+        source_dir,
+        target_dir,
+        id_generated=id_generated,
+        refreshed=refreshed,
+    )
 
 
 def reimport_album(
@@ -305,7 +332,8 @@ def reimport_album(
     refresh: RefreshFn = refresh_album_derived_data,
     new_id: Callable[[], str] = generate_album_id,
 ) -> AlbumImportResult:
-    """Replace an already-imported album's media with the source's.
+    """
+    Replace an already-imported album's media with the source's.
 
     Preserves the existing gallery copy's ``.photree/`` metadata (album ID +
     media-id UUIDs), rebuilds derived data from the new media, and swaps the
@@ -338,7 +366,14 @@ def reimport_album(
     staging = _hidden_sibling(target_dir, "reimport")
     with _removed_on_failure(staging):
         id_generated, refreshed = pipeline.build(
-            source_dir, staging, preserve_from=existing_dir
+            source_dir,
+            staging,
+            preserve_from=existing_dir,
         )
         swap_into_place(existing_dir, staging, target_dir)
-    return _import_result(source_dir, target_dir, id_generated, refreshed)
+    return _import_result(
+        source_dir,
+        target_dir,
+        id_generated=id_generated,
+        refreshed=refreshed,
+    )

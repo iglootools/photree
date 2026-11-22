@@ -1,4 +1,5 @@
-"""Reporting of iOS/std media source name clashes in album commands.
+"""
+Reporting of iOS/std media source name clashes in album commands.
 
 Public to the other CLI layers: the entry point (``photree.cli``) renders the
 same message when the error escapes a command.

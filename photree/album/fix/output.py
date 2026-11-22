@@ -1,3 +1,5 @@
+"""Text the CLI prints for the generic fixes' results."""
+
 from typing import TYPE_CHECKING
 
 from photree.album.fix.rm_upstream import RmUpstreamSkip, SignalSkipReason
@@ -12,10 +14,11 @@ def rm_upstream_summary(
     heic_rendered: int,
     heic_orig: int,
     mov_rendered: int,
-    mov_orig: int,
     *,
+    mov_orig: int,
     dry_run: bool = False,
 ) -> str:
+    """Return the line reporting the files rm-upstream removed, per directory."""
     parts = ", ".join(
         [
             *(
@@ -23,7 +26,7 @@ def rm_upstream_summary(
                     (
                         f"heic: {heic_jpeg} jpeg, {heic_browsable} main, "
                         f"{heic_rendered} edit, {heic_orig} orig"
-                    )
+                    ),
                 ]
                 if heic_jpeg or heic_browsable or heic_rendered or heic_orig
                 else []
@@ -33,7 +36,7 @@ def rm_upstream_summary(
                 if mov_rendered or mov_orig
                 else []
             ),
-        ]
+        ],
     )
     match (bool(parts), dry_run):
         case (True, True):
@@ -61,6 +64,7 @@ def rm_orphan_summary(
     *,
     dry_run: bool = False,
 ) -> str:
+    """Return the line reporting the orphans removed, or that none were found."""
     total = sum(len(files) for _, files in removed_by_dir)
     if total == 0:
         return "No orphans found." if dry_run else "Done. No orphans found."
@@ -109,6 +113,7 @@ def format_fix_result(result: FixResult, *, dry_run: bool = False) -> list[str]:
 
 
 def batch_fix_summary(fixed: int, failed: int, *, dry_run: bool = False) -> str:
+    """Return the closing line for a batch fix, preceded by a blank line."""
     return (
         f"\n{fixed} album(s) would be fixed, {failed} failed."
         if dry_run

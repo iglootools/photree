@@ -19,7 +19,8 @@ class TestPartitionSubdirectories:
         _mkdirs(tmp_path, "a/album-1/inner-album", "a/album-2", "b/leaf", ".hidden")
 
         matched, skipped = partition_subdirectories(
-            tmp_path, lambda p: p.name.startswith("album")
+            tmp_path,
+            lambda p: p.name.startswith("album"),
         )
 
         assert sorted(matched) == [tmp_path / "a/album-1", tmp_path / "a/album-2"]

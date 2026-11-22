@@ -1,4 +1,5 @@
-"""Rich progress bars for import commands, following the nbkp pattern.
+"""
+Rich progress bars for import commands, following the nbkp pattern.
 
 Each progress bar is transient (disappears after completion) and prints
 result lines (✓/✗) above the bar as each unit completes.
@@ -38,7 +39,7 @@ from photree.common.formatting import (
 )
 
 
-def _result_icon(success: bool) -> str:
+def _result_icon(*, success: bool) -> str:
     return CHECK if success else CROSS
 
 
@@ -54,7 +55,8 @@ def _new_progress() -> Progress:
 
 
 class _LazyProgress:
-    """Base for progress bars: lazily started Rich progress with one task.
+    """
+    Base for progress bars: lazily started Rich progress with one task.
 
     Starting on first use keeps a command that ends up doing nothing from
     flashing an empty bar. Every result-line method goes through
@@ -101,7 +103,8 @@ class _LazyProgress:
 
 
 class SilentProgressBar(_LazyProgress):
-    """Silent progress bar that shows a spinner and count but no per-file output.
+    """
+    Silent progress bar that shows a spinner and count but no per-file output.
 
     Usage::
 
@@ -110,17 +113,20 @@ class SilentProgressBar(_LazyProgress):
     """
 
     def __init__(self, total: int, description: str) -> None:
+        """Build the bar for *total* files and show it at once, with *description*."""
         super().__init__(total)
         self._description = f"{description}..."
         self._ensure_started(self._description)
 
-    def advance(self, _filename: str, _success: bool) -> None:
+    def advance(self, _filename: str, /, *, success: bool) -> None:  # noqa: ARG002 - FileEnd's signature
+        """Advance the bar by one file; the file name and *success* are ignored."""
         progress, task_id = self._ensure_started(self._description)
         progress.advance(task_id)
 
 
 class FileProgressBar(_LazyProgress):
-    """Progress bar for per-file operations — one check line per file.
+    """
+    Progress bar for per-file operations — one check line per file.
 
     Usage::
 
@@ -134,23 +140,27 @@ class FileProgressBar(_LazyProgress):
         description: str,
         done_description: str,
     ) -> None:
+        """Build the bar for *total* files and its in-progress and done descriptions."""
         super().__init__(total)
         self._description = description
         self._done_description = done_description
 
     def on_start(self, filename: str) -> None:
+        """Show *filename* as the file in progress."""
         self._ensure_started(f"{self._description} {markup_escape(filename)}...")
 
-    def on_end(self, filename: str, success: bool) -> None:
+    def on_end(self, filename: str, /, *, success: bool) -> None:
+        """Print *filename*'s result line and advance the bar."""
         name = markup_escape(filename)
         self._print_result(
             f"{self._description} {name}...",
-            f"{_result_icon(success)} {self._done_description} {name}",
+            f"{_result_icon(success=success)} {self._done_description} {name}",
         )
 
 
 class StageProgressBar(_LazyProgress):
-    """Progress bar for stage-based operations — one check line per stage.
+    """
+    Progress bar for stage-based operations — one check line per stage.
 
     Usage::
 
@@ -163,6 +173,7 @@ class StageProgressBar(_LazyProgress):
     """
 
     def __init__(self, total: int, labels: dict[str, str] | None = None) -> None:
+        """Build the bar for *total* stages, with display *labels* by stage name."""
         super().__init__(total)
         self._labels = labels or {}
 
@@ -170,16 +181,20 @@ class StageProgressBar(_LazyProgress):
         return f"{markup_escape(self._labels.get(stage, stage))}..."
 
     def on_start(self, stage: str) -> None:
+        """Show *stage* as the stage in progress."""
         self._ensure_started(self._stage_description(stage))
 
     def on_end(self, stage: str) -> None:
+        """Print *stage*'s done line and advance the bar."""
         self._print_result(
-            self._stage_description(stage), f"{CHECK} {markup_escape(stage)}"
+            self._stage_description(stage),
+            f"{CHECK} {markup_escape(stage)}",
         )
 
 
 class BatchProgressBar(_LazyProgress):
-    """Progress bar for batch operations — one check line per album/item.
+    """
+    Progress bar for batch operations — one check line per album/item.
 
     Usage::
 
@@ -195,11 +210,13 @@ class BatchProgressBar(_LazyProgress):
         description: str,
         done_description: str,
     ) -> None:
+        """Build the bar for *total* items and its in-progress and done descriptions."""
         super().__init__(total)
         self._description = description
         self._done_description = done_description
 
     def on_start(self, album_name: str) -> None:
+        """Show *album_name* as the item in progress."""
         self._ensure_started(f"{self._description} {markup_escape(album_name)}...")
 
     def on_end(
@@ -210,7 +227,13 @@ class BatchProgressBar(_LazyProgress):
         error_labels: tuple[str, ...] = (),
         warning_labels: tuple[str, ...] = (),
     ) -> None:
-        icon = WARNING if success and warning_labels else _result_icon(success)
+        """
+        Print *album_name*'s result line and advance the bar.
+
+        The line ends with the *error_labels* and *warning_labels*; a success with
+        warnings gets the warning icon.
+        """
+        icon = WARNING if success and warning_labels else _result_icon(success=success)
         errors = markup_escape(", ".join(error_labels))
         warnings = markup_escape(", ".join(warning_labels))
         fragments = [
@@ -225,10 +248,16 @@ class BatchProgressBar(_LazyProgress):
         )
 
     def on_skipped(self, album_name: str, reason: str, *, warn: bool = False) -> None:
+        """
+        Print a line saying *album_name* was skipped and why, and advance the bar.
+
+        *warn* shows the warning sign instead of the failure cross.
+        """
         icon = WARN_SIGN if warn else CROSS
         name = markup_escape(album_name)
         self._print_result(
-            f"Skipping {name}...", f"{icon} {name} ({markup_escape(reason)})"
+            f"Skipping {name}...",
+            f"{icon} {name} ({markup_escape(reason)})",
         )
 
 

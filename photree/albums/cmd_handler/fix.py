@@ -1,3 +1,5 @@
+"""Batch album fixing."""
+
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial
@@ -19,6 +21,8 @@ from photree.albums.cmd_handler import (
 
 @dataclass(frozen=True)
 class BatchFixResult:
+    """Result of batch album fixing: how many albums were fixed, failures, reports."""
+
     fixed: int
     failures: tuple[BatchFailure, ...] = ()
     # (album display name, report) for each album whose fix had something to say
@@ -26,6 +30,7 @@ class BatchFixResult:
 
     @property
     def failed_albums(self) -> tuple[Path, ...]:
+        """Return the directories of the albums that failed."""
         return tuple(f.album_dir for f in self.failures)
 
 
@@ -72,7 +77,8 @@ def batch_fix(
     on_end: OnEnd = None,
     generate_id: Callable[[], str] = generate_album_id,
 ) -> BatchFixResult:
-    """Fix multiple albums and return aggregated results.
+    """
+    Fix multiple albums and return aggregated results.
 
     Calls ``on_start(name)`` before and ``on_end(name, success, error_labels)`` after
     each album. *force* is passed to rm-upstream (see :func:`album.fix.run_fix`).

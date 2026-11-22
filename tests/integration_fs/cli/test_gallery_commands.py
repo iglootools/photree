@@ -69,14 +69,17 @@ def _dangling_collection(gallery: Path) -> Path:
 
 class TestGalleryCheckPhases:
     def test_collections_are_checked_when_there_are_no_albums(
-        self, tmp_path: Path
+        self,
+        tmp_path: Path,
     ) -> None:
         """Regression: "no albums" exited 0 before the collection phase ran."""
         gallery = _setup_gallery(tmp_path)
         _dangling_collection(gallery)
 
         result = runner.invoke(
-            app, ["gallery", "check", "-g", str(gallery)], obj=ALL_DEPS_RUNTIME
+            app,
+            ["gallery", "check", "-g", str(gallery)],
+            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 1
@@ -88,7 +91,9 @@ class TestGalleryCheckPhases:
 class TestFaceClusterThreshold:
     @pytest.mark.parametrize("value", ["-0.1", "1.5"])
     def test_metadata_set_rejects_out_of_range(
-        self, tmp_path: Path, value: str
+        self,
+        tmp_path: Path,
+        value: str,
     ) -> None:
         gallery = _setup_gallery(tmp_path)
 
@@ -159,7 +164,7 @@ class TestImportAllOutcome:
     def test_import_failure_fails_the_run(self, tmp_path: Path) -> None:
         source = tmp_path / "incoming" / "2024-07-14 - Hiking"
         result = BatchImportResult(
-            failures=(AlbumImportFailure(source, OSError("disk full")),)
+            failures=(AlbumImportFailure(source, OSError("disk full")),),
         )
 
         assert import_all_failed(result, [])
@@ -178,7 +183,9 @@ class TestImportAllOutcome:
 
 class TestExport:
     def test_exports_gallery_albums_by_default(
-        self, tmp_path: Path, chdir: Callable[[Path], None]
+        self,
+        tmp_path: Path,
+        chdir: Callable[[Path], None],
     ) -> None:
         """Regression: --gallery-dir was ignored and the cwd was scanned."""
         gallery = _setup_gallery(tmp_path)
@@ -218,7 +225,9 @@ class TestExport:
 
 class TestListCollections:
     def test_paths_are_relative_to_cwd(
-        self, tmp_path: Path, chdir: Callable[[Path], None]
+        self,
+        tmp_path: Path,
+        chdir: Callable[[Path], None],
     ) -> None:
         gallery = _setup_gallery(tmp_path)
         col_dir = _dangling_collection(gallery)

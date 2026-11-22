@@ -1,4 +1,5 @@
-"""CLI tests for ``albums import`` failure reporting.
+"""
+CLI tests for ``albums import`` failure reporting.
 
 A per-album failure used to be counted as a "skip" and its reason discarded,
 so a run where every album failed printed a success-shaped summary and exited
@@ -7,7 +8,7 @@ so a run where every album failed printed a success-shaped summary and exited
 
 from pathlib import Path
 
-from typer.testing import CliRunner
+from typer.testing import CliRunner, Result
 
 from photree.album.staging import ios_import_dir
 from photree.cli import app
@@ -24,7 +25,8 @@ def _write(path: Path, content: str = "data") -> None:
 
 
 def _image_capture_dir(
-    tmp_path: Path, names: tuple[str, ...] = ("IMG_0001.HEIC", "IMG_0001.AAE")
+    tmp_path: Path,
+    names: tuple[str, ...] = ("IMG_0001.HEIC", "IMG_0001.AAE"),
 ) -> Path:
     ic_dir = tmp_path / "image_capture"
     for name in names:
@@ -38,7 +40,7 @@ def _staged_album(parent: Path, name: str, selected: str = "IMG_0001.HEIC") -> P
     return album
 
 
-def _invoke(albums_dir: Path, ic_dir: Path):
+def _invoke(albums_dir: Path, ic_dir: Path) -> Result:
     return runner.invoke(
         app,
         [
@@ -56,7 +58,8 @@ def _invoke(albums_dir: Path, ic_dir: Path):
 
 class TestFailureReporting:
     def test_failure_reason_is_printed_and_exit_code_is_nonzero(
-        self, tmp_path: Path
+        self,
+        tmp_path: Path,
     ) -> None:
         ic_dir = _image_capture_dir(tmp_path)
         albums_dir = tmp_path / "albums"

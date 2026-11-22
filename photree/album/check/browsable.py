@@ -1,17 +1,20 @@
+"""Check that browsable directories hold the right variant of each media file."""
+
 import hashlib
-import os
-from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
 from photree.album.store.file_matching import dedup_media_dict
 from photree.album.store.media_source import KeyFn
 from photree.common.fs import list_files
+from photree.common.progress import FileEnd
 from photree.foundation.linking import LinkMode
 
 
 @dataclass(frozen=True)
 class FileComparison:
+    """How one browsable file compares with the archive file it comes from."""
+
     filename: str
     expected_source: str
     size_match: bool
@@ -21,6 +24,8 @@ class FileComparison:
 
 @dataclass(frozen=True)
 class MissingFile:
+    """A file expected in the browsable dir but absent from it."""
+
     filename: str
     source_dir: str  # e.g. "edit-img" or "orig-img"
 
@@ -44,6 +49,8 @@ class WrongSource:
 
 @dataclass(frozen=True)
 class BrowsableDirCheck:
+    """The outcome of checking one browsable directory against its archive."""
+
     correct: tuple[FileComparison, ...]
     missing: tuple[MissingFile, ...]
     extra: tuple[str, ...]
@@ -54,6 +61,7 @@ class BrowsableDirCheck:
 
     @property
     def success(self) -> bool:
+        """Return whether no file is missing, extra, misplaced or mismatched."""
         return (
             not self.missing
             and not self.extra
@@ -70,14 +78,14 @@ def _file_size(path: Path) -> int:
 
 def _file_sha256(path: Path) -> str:
     h = hashlib.sha256()
-    with open(path, "rb") as f:
+    with Path(path).open("rb") as f:
         for chunk in iter(lambda: f.read(8192), b""):
             h.update(chunk)
     return h.hexdigest()
 
 
 def _is_hardlink_to(main_path: Path, source_path: Path) -> bool:
-    return os.stat(main_path).st_ino == os.stat(source_path).st_ino
+    return main_path.stat().st_ino == source_path.stat().st_ino
 
 
 def _is_symlink_to(main_path: Path, source_path: Path) -> bool:
@@ -104,9 +112,11 @@ def _compare_file(
     link_mode: LinkMode,
     checksum: bool,
 ) -> tuple[FileComparison, WrongLinkMode | None]:
-    """Returns a ``(comparison, wrong_link_mode)`` tuple. If the file uses
-    the wrong link type, *wrong_link_mode* is set but the comparison may
-    still succeed (content is correct, just the link type is wrong).
+    """
+    Return a ``(comparison, wrong_link_mode)`` tuple for one browsable file.
+
+    If the file uses the wrong link type, *wrong_link_mode* is set but the
+    comparison may still succeed (content is correct, just the link type is wrong).
 
     If the main file is a hardlink or symlink to the source, content
     verification is skipped (the link guarantees correctness).
@@ -117,11 +127,15 @@ def _compare_file(
         if actual != link_mode
         else None
     )
-    return _compare_content(main_path, source_path, actual, checksum), wrong_lm
+    return _compare_content(main_path, source_path, actual, checksum=checksum), wrong_lm
 
 
 def _compare_content(
-    main_path: Path, source_path: Path, actual_link_mode: LinkMode, checksum: bool
+    main_path: Path,
+    source_path: Path,
+    actual_link_mode: LinkMode,
+    *,
+    checksum: bool,
 ) -> FileComparison:
     if actual_link_mode in (LinkMode.HARDLINK, LinkMode.SYMLINK):
         return FileComparison(
@@ -160,7 +174,8 @@ class _Classified:
 
 
 def _classify_comparison(
-    comparison: FileComparison, wrong_lm: WrongLinkMode | None
+    comparison: FileComparison,
+    wrong_lm: WrongLinkMode | None,
 ) -> _Classified:
     match (comparison.size_match, comparison.checksum_match):
         case (False, _):
@@ -180,7 +195,7 @@ def _classify_expected_file(
     *,
     link_mode: LinkMode,
     checksum: bool,
-    on_file_checked: Callable[[str, bool], None] | None,
+    on_file_checked: FileEnd | None,
 ) -> _Classified:
     classified = (
         _classify_comparison(
@@ -189,13 +204,13 @@ def _classify_expected_file(
                 source_dir / source_name,
                 link_mode=link_mode,
                 checksum=checksum,
-            )
+            ),
         )
         if expected_name in browsable_files
         else _Classified(missing=MissingFile(expected_name, source_dir.name))
     )
     if on_file_checked:
-        on_file_checked(expected_name, classified.correct is not None)
+        on_file_checked(expected_name, success=classified.correct is not None)
     return classified
 
 
@@ -205,7 +220,8 @@ def _expected_files(
     orig_dir: Path,
     edit_dir: Path,
 ) -> dict[str, tuple[str, Path]]:
-    """``{expected browsable name: (source name, source dir)}``.
+    """
+    Return ``{expected browsable name: (source name, source dir)}``.
 
     The edited variant when one exists, otherwise the original.
     """
@@ -247,9 +263,12 @@ def check_browsable_dir(
     key_fn: KeyFn,
     link_mode: LinkMode,
     checksum: bool = True,
-    on_file_checked: Callable[[str, bool], None] | None = None,
+    on_file_checked: FileEnd | None = None,
 ) -> BrowsableDirCheck:
-    """For each media key in orig_dir, the browsable_dir should contain
+    """
+    Check that the browsable dir holds the right variant of each media key.
+
+    For each media key in orig_dir, the browsable_dir should contain
     either the edited variant (if one exists in edit_dir) or the original.
     Files are matched using *key_fn* (image number for iOS, stem for std).
 

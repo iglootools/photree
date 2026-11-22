@@ -92,5 +92,5 @@ class TestCheckRenameCollisions:
         b = _album(tmp_path, "2024-01-01 - B")
         with pytest.raises(RenameCollisionError):
             check_rename_collisions(
-                (_action(a, "2024-01-01 - C"), _action(b, "2024-01-01 - C"))
+                (_action(a, "2024-01-01 - C"), _action(b, "2024-01-01 - C")),
             )

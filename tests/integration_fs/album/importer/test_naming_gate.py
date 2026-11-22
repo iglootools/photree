@@ -8,11 +8,11 @@ from photree.foundation.layout import PHOTREE_DIR
 
 
 def _existing_album(parent: Path, name: str) -> Path:
-    """An album discovered by ``discover_albums``: metadata plus an archive."""
+    """Create an album ``discover_albums`` finds: metadata plus an archive."""
     album = parent / name
     (album / PHOTREE_DIR).mkdir(parents=True)
     (album / PHOTREE_DIR / ALBUM_YAML).write_text(
-        "id: 0192d4e1-7c3f-7b4a-8c5e-f6a7b8c9d0e1\n"
+        "id: 0192d4e1-7c3f-7b4a-8c5e-f6a7b8c9d0e1\n",
     )
     (album / "ios-main" / "orig-img").mkdir(parents=True)
     return album

@@ -1,4 +1,5 @@
-"""Plan a gallery import and run pre-import validation.
+"""
+Plan a gallery import and run pre-import validation.
 
 Shared by ``gallery import`` and ``gallery import-all``. Produces a per-album
 plan (import new / reimport / skip) and collects all batch-level validation
@@ -43,6 +44,8 @@ class ImportAction(StrEnum):
 
 @dataclass(frozen=True)
 class AlbumPlan:
+    """What to do with one source album and where it ends up in the gallery."""
+
     source: Path
     action: ImportAction
     target: Path
@@ -83,12 +86,13 @@ class GalleryImportPlan:
 
     @property
     def has_errors(self) -> bool:
+        """Whether any batch-level validation failed, so nothing should be imported."""
         return bool(
             self.naming_errors
             or self.structure_errors
             or self.date_collisions
             or self.source_duplicate_ids
-            or self.clobber_conflicts
+            or self.clobber_conflicts,
         )
 
     @property
@@ -125,7 +129,8 @@ def _detect_collisions(
     plans: list[AlbumPlan],
     index: AlbumIndex,
 ) -> tuple[tuple[str, tuple[str, ...]], ...]:
-    """Detect date collisions over the gallery's *post-import* album names.
+    """
+    Detect date collisions over the gallery's *post-import* album names.
 
     Reflects the final state: NEW/REIMPORT albums contribute their target
     name; existing gallery albums contribute their current name unless they
@@ -158,7 +163,8 @@ def _clobber_conflict(
     target: Path,
     existing: Path | None,
 ) -> ClobberConflict | None:
-    """Detect a target name occupied by a *different* album.
+    """
+    Detect a target name occupied by a *different* album.
 
     Applies to both detection paths: an ID-less match on the target name, and
     an ID match whose source was renamed onto a name another album already
@@ -171,7 +177,10 @@ def _clobber_conflict(
     occupant = load_album_metadata(target)
     return (
         ClobberConflict(
-            source=source, existing=target, source_id=meta.id, existing_id=occupant.id
+            source=source,
+            existing=target,
+            source_id=meta.id,
+            existing_id=occupant.id,
         )
         if occupant is not None and occupant.id != meta.id
         else None
@@ -209,7 +218,8 @@ def plan_imports(
     *,
     reimport: bool,
 ) -> GalleryImportPlan:
-    """Plan the import of *albums* and collect all pre-import validation errors.
+    """
+    Plan the import of *albums* and collect all pre-import validation errors.
 
     The returned :class:`GalleryImportPlan` carries a per-album plan plus
     any naming, structure, collision, duplicate-ID, or clobber errors. The
@@ -225,7 +235,7 @@ def plan_imports(
     structure_errors = tuple(a for a in albums if not has_media_sources(a))
 
     source_duplicate_ids = _find_source_duplicate_ids(
-        [(a, meta) for a, meta in metas.items() if meta is not None]
+        [(a, meta) for a, meta in metas.items() if meta is not None],
     )
 
     # Albums with an unparseable name have no target and cannot be classified.

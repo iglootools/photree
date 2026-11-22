@@ -1,4 +1,5 @@
-"""Fix operations for iOS albums.
+"""
+Fix operations for iOS albums.
 
 Each function orchestrates a specific fix: deleting stale data, rebuilding
 from sources, and returning a structured result. CLI concerns (progress bars,
@@ -53,6 +54,8 @@ __all__ = [
 
 
 class FixIosValidationErrorKind(StrEnum):
+    """Why the requested iOS fix options are invalid."""
+
     MUTUALLY_EXCLUSIVE = "mutually-exclusive"
     NO_FIX_SPECIFIED = "no-fix-specified"
 
@@ -65,24 +68,33 @@ _MISCATEGORIZED_FLAGS = (
 
 
 class FixIosValidationError(ValueError):
-    """``flags`` lists the offending options (for ``MUTUALLY_EXCLUSIVE``). The
+    """
+    An invalid combination of iOS fix options.
+
+    ``flags`` lists the offending options (for ``MUTUALLY_EXCLUSIVE``). The
     message carries no command advice: each CLI scope suggests its own help.
     """
 
     def __init__(
-        self, kind: FixIosValidationErrorKind, flags: tuple[str, ...] = ()
+        self,
+        kind: FixIosValidationErrorKind,
+        flags: tuple[str, ...] = (),
     ) -> None:
+        """Build the error from its *kind* and, if exclusive, the offending *flags*."""
         self.kind = kind
         self.flags = flags
         super().__init__(
             f"{', '.join(flags)} are mutually exclusive."
             if kind == FixIosValidationErrorKind.MUTUALLY_EXCLUSIVE
-            else "No fix specified."
+            else "No fix specified.",
         )
 
 
 def _miscategorized_action(
-    *, rm: bool, rm_safe: bool, mv: bool
+    *,
+    rm: bool,
+    rm_safe: bool,
+    mv: bool,
 ) -> MiscategorizedAction | None:
     """Map the three mutually exclusive flags to an action (validated first)."""
     match (rm, rm_safe, mv):
@@ -99,7 +111,11 @@ def _miscategorized_action(
                 FixIosValidationErrorKind.MUTUALLY_EXCLUSIVE,
                 tuple(
                     flag
-                    for flag, on in zip(_MISCATEGORIZED_FLAGS, (rm, rm_safe, mv))
+                    for flag, on in zip(
+                        _MISCATEGORIZED_FLAGS,
+                        (rm, rm_safe, mv),
+                        strict=True,
+                    )
                     if on
                 ),
             )
@@ -113,9 +129,11 @@ def validate_fix_flags(
     rm_miscategorized_safe: bool,
     mv_miscategorized: bool,
 ) -> None:
-    """Raises :class:`FixIosValidationError` on invalid combinations."""
+    """Raise :class:`FixIosValidationError` on invalid combinations."""
     action = _miscategorized_action(
-        rm=rm_miscategorized, rm_safe=rm_miscategorized_safe, mv=mv_miscategorized
+        rm=rm_miscategorized,
+        rm_safe=rm_miscategorized_safe,
+        mv=mv_miscategorized,
     )
     if not (rm_orphan_sidecar or prefer_higher_quality_when_dups or action):
         raise FixIosValidationError(FixIosValidationErrorKind.NO_FIX_SPECIFIED)
@@ -123,6 +141,13 @@ def validate_fix_flags(
 
 @dataclass(frozen=True)
 class FixIosMiscategorizedResult:
+    """
+    The number of miscategorized files fixed, summed over the iOS sources.
+
+    ``*_from_orig`` counts edited files found in an ``orig-*`` directory,
+    ``*_from_rendered`` original files found in an ``edit-*`` directory.
+    """
+
     action: MiscategorizedAction
     heic_from_orig: int
     heic_from_rendered: int
@@ -132,7 +157,10 @@ class FixIosMiscategorizedResult:
 
 @dataclass(frozen=True)
 class FixIosResult:
-    """``None`` means the operation was not requested; an empty value means it
+    """
+    The outcome of each iOS fix operation.
+
+    ``None`` means the operation was not requested; an empty value means it
     ran and found nothing, which is reported as such.
     """
 
@@ -196,7 +224,10 @@ def run_fix_ios(
     rm_miscategorized_safe: bool = False,
     mv_miscategorized: bool = False,
 ) -> FixIosResult:
-    """An album without iOS media sources is reported through
+    """
+    Run the requested iOS fixes on one album.
+
+    An album without iOS media sources is reported through
     ``no_ios_media_sources`` rather than an empty result.
     """
     media_sources = [ms for ms in discover_media_sources(album_dir) if ms.is_ios]
@@ -204,19 +235,27 @@ def run_fix_ios(
         return FixIosResult(no_ios_media_sources=True)
 
     action = _miscategorized_action(
-        rm=rm_miscategorized, rm_safe=rm_miscategorized_safe, mv=mv_miscategorized
+        rm=rm_miscategorized,
+        rm_safe=rm_miscategorized_safe,
+        mv=mv_miscategorized,
     )
     return FixIosResult(
         rm_orphan_sidecar_removed_by_dir=(
             _removed_by_dir(
-                _rm_orphan_sidecar, album_dir, media_sources, dry_run=dry_run
+                _rm_orphan_sidecar,
+                album_dir,
+                media_sources,
+                dry_run=dry_run,
             )
             if rm_orphan_sidecar
             else None
         ),
         prefer_higher_quality_removed_by_dir=(
             _removed_by_dir(
-                _prefer_higher_quality, album_dir, media_sources, dry_run=dry_run
+                _prefer_higher_quality,
+                album_dir,
+                media_sources,
+                dry_run=dry_run,
             )
             if prefer_higher_quality_when_dups
             else None

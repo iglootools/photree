@@ -1,4 +1,5 @@
-from collections.abc import Callable
+"""Check that each image in a browsable img dir has its JPEG counterpart."""
+
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -8,30 +9,37 @@ from photree.album.formats import (
 )
 from photree.album.store.media_source import MediaSource
 from photree.common.fs import file_ext, list_files
+from photree.common.progress import FileEnd
 
 
 @dataclass(frozen=True)
 class JpegCheck:
+    """The expected JPEG files found present or missing, and the extra ones."""
+
     present: tuple[str, ...]
     missing: tuple[str, ...]
     extra: tuple[str, ...]
 
     @property
     def success(self) -> bool:
+        """Return whether no JPEG is missing or extra."""
         return not self.missing and not self.extra
 
 
 @dataclass(frozen=True)
 class AlbumJpegIntegrityResult:
+    """The JPEG check of each media source that has an img dir."""
+
     by_media_source: tuple[tuple[MediaSource, JpegCheck], ...]
 
     @property
     def success(self) -> bool:
+        """Return whether every media source's JPEG check passed."""
         return all(check.success for _, check in self.by_media_source)
 
 
 def _expected_jpeg_name(heic_filename: str) -> str | None:
-    """Return the expected JPEG filename for a main-img file, or None if not convertible."""
+    """Return the JPEG name a main-img file converts to, or None if it does not."""
     ext = file_ext(heic_filename)
     match True:
         case _ if ext in CONVERT_TO_JPEG_EXTENSIONS:
@@ -46,8 +54,16 @@ def check_jpeg_dir(
     main_img_dir: Path,
     main_jpg_dir: Path,
     *,
-    on_file_checked: Callable[[str, bool], None] | None = None,
+    on_file_checked: FileEnd | None = None,
 ) -> JpegCheck:
+    """
+    Check that *main_jpg_dir* holds one JPEG per image of *main_img_dir*.
+
+    Convertible images expect a ``.jpg`` of the same stem, and JPEG and
+    PNG images expect a copy of the same name; other files expect nothing.
+    *on_file_checked* is called with each present (``True``), missing or
+    extra (``False``) JPEG name.
+    """
     heic_files = list_files(main_img_dir)
     jpeg_files = set(list_files(main_jpg_dir))
 
@@ -63,11 +79,11 @@ def check_jpeg_dir(
 
     if on_file_checked:
         for name in present:
-            on_file_checked(name, True)
+            on_file_checked(name, success=True)
         for name in missing:
-            on_file_checked(name, False)
+            on_file_checked(name, success=False)
         for name in extra:
-            on_file_checked(name, False)
+            on_file_checked(name, success=False)
 
     return JpegCheck(
         present=tuple(present),
@@ -89,5 +105,5 @@ def check_album_jpeg_integrity(
             )
             for ms in media_sources
             if (album_dir / ms.img_dir).is_dir()
-        )
+        ),
     )

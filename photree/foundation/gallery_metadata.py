@@ -1,4 +1,5 @@
-"""Gallery metadata (``.photree/gallery.yaml``) and gallery resolution.
+"""
+Gallery metadata (``.photree/gallery.yaml``) and gallery resolution.
 
 These gallery-specific types live in the foundation layer rather than in the
 gallery package because the album and albums CLIs resolve the gallery's link
@@ -48,12 +49,14 @@ def save_gallery_metadata(gallery_dir: Path, metadata: GalleryMetadata) -> None:
     photree_dir = gallery_dir / PHOTREE_DIR
     photree_dir.mkdir(exist_ok=True)
     write_yaml(
-        photree_dir / GALLERY_YAML, metadata.model_dump(by_alias=True, mode="json")
+        photree_dir / GALLERY_YAML,
+        metadata.model_dump(by_alias=True, mode="json"),
     )
 
 
 def load_gallery_metadata(gallery_yaml_path: Path) -> GalleryMetadata:
-    """Read a ``gallery.yaml`` file and return :class:`GalleryMetadata`.
+    """
+    Read a ``gallery.yaml`` file and return :class:`GalleryMetadata`.
 
     Raises :class:`InvalidMetadataError` if the file is missing or malformed:
     callers reach this only after resolution found the file, so absence here
@@ -66,7 +69,8 @@ def load_gallery_metadata(gallery_yaml_path: Path) -> GalleryMetadata:
 
 
 class GalleryNotFoundError(ValueError):
-    """No ``.photree/gallery.yaml`` was found.
+    """
+    No ``.photree/gallery.yaml`` was found.
 
     ``explicit`` is the ``--gallery-dir`` that was given (``None`` when the
     search walked up from ``searched_from``). The message stays free of CLI
@@ -74,18 +78,20 @@ class GalleryNotFoundError(ValueError):
     """
 
     def __init__(self, *, explicit: Path | None, searched_from: Path) -> None:
+        """Build the error from the ``--gallery-dir`` given or the search's start."""
         self.explicit = explicit
         self.searched_from = searched_from
         super().__init__(
             f"No gallery metadata found at {explicit / PHOTREE_DIR / GALLERY_YAML}"
             if explicit is not None
             else f"No gallery metadata ({PHOTREE_DIR}/{GALLERY_YAML}) found in "
-            f"{searched_from} or its parent directories"
+            f"{searched_from} or its parent directories",
         )
 
 
 def resolve_gallery_dir(explicit: Path | None, *, start_dir: Path) -> Path:
-    """Resolve the gallery root directory.
+    """
+    Resolve the gallery root directory.
 
     Resolution order: explicit path > walk up from *start_dir* (the CLI passes
     its working directory) looking for ``.photree/gallery.yaml``.
@@ -109,7 +115,8 @@ def resolve_gallery_dir(explicit: Path | None, *, start_dir: Path) -> Path:
 
 
 def resolve_gallery_metadata(start_dir: Path) -> GalleryMetadata | None:
-    """Walk up from *start_dir* looking for ``.photree/gallery.yaml``.
+    """
+    Walk up from *start_dir* looking for ``.photree/gallery.yaml``.
 
     Returns the first :class:`GalleryMetadata` found, or ``None``.
     """

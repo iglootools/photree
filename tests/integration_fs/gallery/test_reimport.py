@@ -59,17 +59,19 @@ def _first_import(tmp_path: Path) -> tuple[Path, Path, Path]:
     source = tmp_path / "2024-07-14 - Hiking"
     _setup_ios_album(source)
     result = import_album(
-        source_dir=source, gallery_dir=gallery, convert_file=noop_convert_single
+        source_dir=source,
+        gallery_dir=gallery,
+        convert_file=noop_convert_single,
     )
     return gallery, source, result.target_dir
 
 
-class _RefreshFailed(Exception):
+class _RefreshFailedError(Exception):
     pass
 
 
 def _failing_refresh(*_args: object, **_kwargs: object) -> AlbumRefreshResult:
-    raise _RefreshFailed
+    raise _RefreshFailedError
 
 
 class TestReimportAlbum:
@@ -89,7 +91,8 @@ class TestReimportAlbum:
         )
 
         meta = load_album_metadata(target)
-        assert meta is not None and meta.id == original_id
+        assert meta is not None
+        assert meta.id == original_id
         # Existing key keeps its UUID; new key gets one.
         assert _uuid_for_key(target, "0001") == uuid_0001
         assert _uuid_for_key(target, "0002") is not None
@@ -142,7 +145,7 @@ class TestReimportAlbum:
         original_id = _album_id(target)
         _write(source / "ios-main/orig-img/IMG_0002.HEIC", "heic2")
 
-        with pytest.raises(_RefreshFailed):
+        with pytest.raises(_RefreshFailedError):
             reimport_album(
                 source_dir=source,
                 gallery_dir=gallery,
@@ -152,7 +155,8 @@ class TestReimportAlbum:
             )
 
         meta = load_album_metadata(target)
-        assert meta is not None and meta.id == original_id
+        assert meta is not None
+        assert meta.id == original_id
         assert (target / "ios-main/orig-img/IMG_0001.HEIC").is_file()
         assert not (target.parent / ".2024-07-14 - Hiking.reimport").exists()
         assert not (target.parent / ".2024-07-14 - Hiking.old").exists()
@@ -190,7 +194,8 @@ class TestReimportAlbum:
         assert not target.exists()
         assert new_target.is_dir()
         meta = load_album_metadata(new_target)
-        assert meta is not None and meta.id == original_id
+        assert meta is not None
+        assert meta.id == original_id
 
     def test_rename_onto_occupied_name_is_refused(self, tmp_path: Path) -> None:
         """Regression: the live album was moved aside, then the swap failed."""
@@ -223,7 +228,7 @@ class TestSwapIntoPlace:
         target = tmp_path / "albums" / "2024" / "2024-07-14 - Renamed"
         _write(target / "occupant.txt", "occupant")
 
-        with pytest.raises(OSError):
+        with pytest.raises(OSError):  # noqa: PT011 - rename's own error; errno and text vary by OS
             swap_into_place(existing, staging, target)
 
         assert (existing / "live.txt").read_text(encoding="utf-8") == "live"

@@ -1,3 +1,5 @@
+"""The ``photree gallery rename-from-csv`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
@@ -10,7 +12,7 @@ from photree.clihelpers.resolution import resolve_gallery_or_exit
 from photree.clihelpers.runtime import runtime_of
 from photree.common.formatting import indent
 from photree.common.fs import display_path
-from photree.gallery.cli import app
+from photree.gallery.cli.app import app
 from photree.gallery.cli.ops import build_index_or_exit
 
 
@@ -20,7 +22,9 @@ def rename_from_csv_cmd(
     csv_file: Annotated[
         Path,
         typer.Argument(
-            help="CSV with desired album state (from list-albums --format csv, edited).",
+            help=(
+                "CSV with desired album state (from list-albums --format csv, edited)."
+            ),
             exists=True,
             dir_okay=False,
             resolve_path=True,
@@ -31,12 +35,16 @@ def rename_from_csv_cmd(
         typer.Option(
             "--gallery-dir",
             "-g",
-            help="Gallery root directory (or resolved from cwd via .photree/gallery.yaml).",
+            help=(
+                "Gallery root directory (or resolved from cwd "
+                "via .photree/gallery.yaml)."
+            ),
             exists=True,
             file_okay=False,
             resolve_path=True,
         ),
     ] = None,
+    *,
     dry_run: Annotated[
         bool,
         typer.Option(
@@ -46,7 +54,8 @@ def rename_from_csv_cmd(
         ),
     ] = False,
 ) -> None:
-    """Rename albums from a CSV file (from list-albums --format csv, edited).
+    """
+    Rename albums from a CSV file (from list-albums --format csv, edited).
 
     Uses the album ID to look up each album in the gallery, then compares the
     current series, title, and location against the CSV values. Only albums
@@ -73,7 +82,7 @@ def rename_from_csv_cmd(
                         ]
                     ),
                     "\nResolve duplicates first with 'photree gallery fix --new-id'.",
-                ]
+                ],
             ),
             markup=False,
         )

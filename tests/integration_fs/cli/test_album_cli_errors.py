@@ -1,5 +1,8 @@
-"""CLI regressions for album commands: corrupt metadata, structured errors,
-and copy-pasteable suggestions."""
+"""
+CLI regressions for album commands.
+
+Corrupt metadata, structured errors, and copy-pasteable suggestions.
+"""
 
 from collections.abc import Callable
 from pathlib import Path
@@ -34,7 +37,7 @@ _TRUNCATED_YAML = "id: [0192d4e1"
 
 
 def _empty_config(tmp_path: Path) -> Path:
-    """An empty config file, so the test never reads the user's own config."""
+    """Write an empty config file, so the test never reads the user's own config."""
     config = tmp_path / "empty.toml"
     config.write_text("", encoding="utf-8")
     return config
@@ -61,7 +64,8 @@ def _corrupt_album(tmp_path: Path) -> Path:
     ],
 )
 def test_corrupt_album_yaml_is_never_overwritten(
-    tmp_path: Path, args: list[str]
+    tmp_path: Path,
+    args: list[str],
 ) -> None:
     """A truncated album.yaml must stop the command, not get a fresh ID."""
     album = _corrupt_album(tmp_path)
@@ -71,7 +75,7 @@ def test_corrupt_album_yaml_is_never_overwritten(
     assert result.exit_code != 0
     assert isinstance(result.exception, InvalidMetadataError)
     assert (album / ".photree/album.yaml").read_text(
-        encoding="utf-8"
+        encoding="utf-8",
     ) == _TRUNCATED_YAML
 
 
@@ -113,7 +117,8 @@ def test_rm_upstream_refusal_suggests_force(tmp_path: Path) -> None:
     (tmp_path / "nelu-vid").mkdir()
 
     result = runner.invoke(
-        app, ["album", "fix", "--rm-upstream", "--album-dir", str(tmp_path)]
+        app,
+        ["album", "fix", "--rm-upstream", "--album-dir", str(tmp_path)],
     )
 
     assert result.exit_code == 1
@@ -122,14 +127,16 @@ def test_rm_upstream_refusal_suggests_force(tmp_path: Path) -> None:
 
 
 def test_rm_media_error_uses_relative_path(
-    tmp_path: Path, chdir: Callable[[Path], None]
+    tmp_path: Path,
+    chdir: Callable[[Path], None],
 ) -> None:
     album = tmp_path / "album"
     _write(album / "ios-main/orig-img/IMG_0001.HEIC")
     chdir(tmp_path)
 
     result = runner.invoke(
-        app, ["album", "rm-media", "--album-dir", str(album), "unknown/IMG_0001.jpg"]
+        app,
+        ["album", "rm-media", "--album-dir", str(album), "unknown/IMG_0001.jpg"],
     )
 
     assert result.exit_code == 1
@@ -153,7 +160,8 @@ def test_media_source_conflict_is_reported_by_check(tmp_path: Path) -> None:
 
 def test_list_media_csv_keeps_stdout_clean(tmp_path: Path) -> None:
     result = runner.invoke(
-        app, ["album", "list-media", "--album-dir", str(tmp_path), "--format", "csv"]
+        app,
+        ["album", "list-media", "--album-dir", str(tmp_path), "--format", "csv"],
     )
 
     assert result.exit_code == 0
@@ -164,7 +172,8 @@ def test_list_media_csv_keeps_stdout_clean(tmp_path: Path) -> None:
 
 def test_list_media_rejects_unknown_format(tmp_path: Path) -> None:
     result = runner.invoke(
-        app, ["album", "list-media", "--album-dir", str(tmp_path), "--format", "json"]
+        app,
+        ["album", "list-media", "--album-dir", str(tmp_path), "--format", "json"],
     )
 
     assert result.exit_code == 2
@@ -223,7 +232,7 @@ _IMPORT_REFUSALS: list[tuple[Callable[[Path], Exception], str]] = [
         "Could not find any image capture files",
     ),
     (
-        lambda album: ImportCollisionError(std_media_source("nelu"), ("DSC_0001",)),
+        lambda _album: ImportCollisionError(std_media_source("nelu"), ("DSC_0001",)),
         "Rename to-import-std-nelu",
     ),
 ]
@@ -235,7 +244,8 @@ def test_import_refusal_is_reported_not_raised(
     error: Callable[[Path], Exception],
     expected: str,
 ) -> None:
-    """run_import's own refusals end in a message and exit 1, not a traceback.
+    """
+    run_import's own refusals end in a message and exit 1, not a traceback.
 
     The pre-validation refuses both first, so only a change between the two
     (the Image Capture directory emptied, the archive written to) reaches
@@ -259,12 +269,13 @@ def test_import_refusal_is_reported_not_raised(
 
 
 def test_import_refuses_date_collision_with_sibling(tmp_path: Path) -> None:
-    """album import runs the same light check as gallery import."""
+    """Album import runs the same light check as gallery import."""
     album = _std_staged_album(tmp_path)
     sibling = tmp_path / "2024-07-14 - Dinner"
     _write(sibling / "std-main/orig-img/DSC_0002.JPG")
     _write(
-        sibling / ".photree/album.yaml", "id: 0192d4e1-7c3f-7b4a-8c5e-f6a7b8c9d0e1\n"
+        sibling / ".photree/album.yaml",
+        "id: 0192d4e1-7c3f-7b4a-8c5e-f6a7b8c9d0e1\n",
     )
     (tmp_path / "ic").mkdir()
 
@@ -337,7 +348,8 @@ def test_gallery_fix_invalid_flags_suggest_help(tmp_path: Path) -> None:
 
 
 def test_export_missing_sentinel_suggests_quoted_relative_touch(
-    tmp_path: Path, chdir: Callable[[Path], None]
+    tmp_path: Path,
+    chdir: Callable[[Path], None],
 ) -> None:
     album = tmp_path / "2024-07-14 - Trip"
     _write(album / "main-jpg/IMG_0001.jpg")
@@ -372,7 +384,7 @@ def test_export_settings_error_is_structured(tmp_path: Path) -> None:
                 share_layout=ShareDirectoryLayout.FLAT,
                 album_layout=AlbumShareLayout.BROWSABLE_JPG,
                 link_mode=LinkMode.HARDLINK,
-            )
+            ),
         )
 
     assert exc_info.value.kind == ExportSettingsErrorKind.MISSING_SENTINEL

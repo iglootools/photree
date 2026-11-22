@@ -1,3 +1,5 @@
+"""The names of an album's metadata files and the model of ``album.yaml``."""
+
 from pydantic import Field
 
 from photree.foundation.model import PhotreeModel

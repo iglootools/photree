@@ -1,9 +1,11 @@
+"""The ``photree album init`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
-from photree.album.cli import app
+from photree.album.cli.app import app
 from photree.album.id import format_album_external_id, generate_album_id
 from photree.album.store.metadata import (
     album_metadata_path,
@@ -30,7 +32,7 @@ def init_cmd(
             file_okay=False,
             resolve_path=True,
         ),
-    ] = Path("."),
+    ] = Path(),
 ) -> None:
     """Initialize album metadata (.photree/album.yaml) with a new album ID."""
     cwd = runtime_of(ctx).cwd()
@@ -41,7 +43,7 @@ def init_cmd(
     metadata = load_album_metadata(album_dir)
     if metadata is not None:
         err_console.print(
-            f"Album already initialized: {format_album_external_id(metadata.id)}"
+            f"Album already initialized: {format_album_external_id(metadata.id)}",
         )
         err_console.print(indent(str(display_path(album_yaml, cwd))), markup=False)
         raise typer.Exit(code=1)
@@ -50,5 +52,5 @@ def init_cmd(
     save_album_metadata(album_dir, AlbumMetadata(id=generated_id))
     typer.echo(
         f"Created {display_path(album_yaml, cwd)}\n"
-        f"Album ID: {format_album_external_id(generated_id)}"
+        f"Album ID: {format_album_external_id(generated_id)}",
     )

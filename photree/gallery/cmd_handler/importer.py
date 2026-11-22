@@ -1,3 +1,5 @@
+"""Run planned gallery imports, one album or a batch, sharing exiftool across albums."""
+
 import shutil
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -15,12 +17,22 @@ from photree.gallery.import_plan import AlbumPlan, ImportAction
 from photree.gallery.importer import AlbumImportResult, FaceFailures, JpegFailures
 
 
+class UnexecutablePlanError(ValueError):
+    """A plan whose action cannot be executed reached the executor."""
+
+    def __init__(self, action: ImportAction, existing: Path | None) -> None:
+        """Build the error from the plan's action and its existing directory."""
+        self.action = action
+        self.existing = existing
+        super().__init__(f"cannot execute a {action} plan (existing dir: {existing})")
+
+
 def _execute_plan(
     plan: AlbumPlan,
     gallery_dir: Path,
     link_mode: LinkMode,
-    dry_run: bool,
     *,
+    dry_run: bool,
     exiftool: ExifTagReader | None = None,
     analyzer_factory: FaceAnalyzerFactory | None = None,
     max_workers: int | None = None,
@@ -57,23 +69,22 @@ def _execute_plan(
         case action, existing:
             # SKIP plans are filtered out by the caller, and the planner
             # always attaches the existing dir to a REIMPORT plan.
-            raise ValueError(
-                f"cannot execute a {action} plan (existing dir: {existing})"
-            )
+            raise UnexecutablePlanError(action, existing)
 
 
 def run_single_import(
     plan: AlbumPlan,
     gallery_dir: Path,
     link_mode: LinkMode,
-    dry_run: bool,
     *,
+    dry_run: bool,
     on_stage_start: Callable[[str], None] | None = None,
     on_stage_end: Callable[[str], None] | None = None,
     max_workers: int | None = None,
     which: WhichFn = shutil.which,
 ) -> AlbumImportResult:
-    """Execute a single album import/reimport with optional stage callbacks.
+    """
+    Execute a single album import/reimport with optional stage callbacks.
 
     Creates a shared exiftool and injects a memoized face analyzer factory
     (loaded lazily, only if a source has images to detect).
@@ -84,7 +95,7 @@ def run_single_import(
             plan,
             gallery_dir,
             link_mode,
-            dry_run,
+            dry_run=dry_run,
             exiftool=exiftool,
             analyzer_factory=memoized_face_analyzer_factory(),
             max_workers=max_workers,
@@ -95,7 +106,8 @@ def run_single_import(
 
 @dataclass(frozen=True)
 class AlbumImportFailure:
-    """Why one album of a batch did not import cleanly.
+    """
+    Why one album of a batch did not import cleanly.
 
     Either *error* is set (the import raised, nothing was placed in the
     gallery) or *jpeg_failures* / *face_failures* are non-empty (the album
@@ -111,11 +123,14 @@ class AlbumImportFailure:
 
 @dataclass(frozen=True)
 class BatchImportResult:
+    """The outcome of a batch import: the sources imported cleanly and the failures."""
+
     imported: tuple[Path, ...] = ()
     failures: tuple[AlbumImportFailure, ...] = ()
 
     @property
     def failed_albums(self) -> tuple[Path, ...]:
+        """Return the source directory of every album that did not import cleanly."""
         return tuple(f.source for f in self.failures)
 
 
@@ -123,8 +138,8 @@ def _import_one(
     plan: AlbumPlan,
     gallery_dir: Path,
     link_mode: LinkMode,
-    dry_run: bool,
     *,
+    dry_run: bool,
     exiftool: ExifTagReader | None,
     analyzer_factory: FaceAnalyzerFactory,
     max_workers: int | None,
@@ -135,7 +150,7 @@ def _import_one(
             plan,
             gallery_dir,
             link_mode,
-            dry_run,
+            dry_run=dry_run,
             exiftool=exiftool,
             analyzer_factory=analyzer_factory,
             max_workers=max_workers,
@@ -146,9 +161,11 @@ def _import_one(
 
 
 def import_failure_of(
-    source: Path, result: AlbumImportResult
+    source: Path,
+    result: AlbumImportResult,
 ) -> AlbumImportFailure | None:
-    """The failure of an album that imported, ``None`` when it is complete.
+    """
+    Return the failure of an album that imported, ``None`` when it is complete.
 
     An album whose JPEGs or face detection partly failed is in the gallery,
     but reported as failed so the batch does not exit 0 on a partial result.
@@ -168,14 +185,15 @@ def run_batch_import(
     plans: list[AlbumPlan],
     gallery_dir: Path,
     link_mode: LinkMode,
-    dry_run: bool,
     *,
+    dry_run: bool,
     on_start: Callable[[str], None] | None = None,
     on_end: Callable[[str, AlbumImportFailure | None], None] | None = None,
     max_workers: int | None = None,
     which: WhichFn = shutil.which,
 ) -> BatchImportResult:
-    """Import/reimport multiple albums into a gallery.
+    """
+    Import/reimport multiple albums into a gallery.
 
     A shared exiftool and a memoized face analyzer factory are reused across
     albums (the model loads once, on the first album with images to detect).
@@ -192,7 +210,7 @@ def run_batch_import(
                     plan,
                     gallery_dir,
                     link_mode,
-                    dry_run,
+                    dry_run=dry_run,
                     exiftool=exiftool,
                     analyzer_factory=analyzer_factory,
                     max_workers=max_workers,

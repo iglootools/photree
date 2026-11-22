@@ -1,3 +1,5 @@
+"""Check that an album has the directories its media sources need."""
+
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -6,6 +8,8 @@ from photree.album.store.media_source import MAIN_MEDIA_SOURCE, MediaSource
 
 @dataclass(frozen=True)
 class AlbumDirCheck:
+    """The required and optional album directories found present or absent."""
+
     present: tuple[str, ...]
     missing: tuple[str, ...]
     optional_present: tuple[str, ...] = ()
@@ -13,6 +17,7 @@ class AlbumDirCheck:
 
     @property
     def success(self) -> bool:
+        """Return whether no required directory is missing."""
         return len(self.missing) == 0
 
 
@@ -24,7 +29,11 @@ def check_album_dir_structure(
     album_dir: Path,
     media_sources: list[MediaSource],
 ) -> AlbumDirCheck:
-    """Per media source, at least one directory group must be fully present:
+    """
+    Check that each media source has the directories it needs.
+
+    Per media source, at least one directory group must be fully present:
+
     - Image group: ``{archive}/orig-img``, ``{name}-img``, ``{name}-jpg``
     - Video group: ``{archive}/orig-vid``, ``{name}-vid``
 

@@ -1,10 +1,13 @@
+"""Guards that fix operations run before touching a media source."""
+
 from pathlib import Path
 
 from photree.album.store.media_source import MediaSource
 
 
 class MissingArchiveError(FileNotFoundError):
-    """A std media source's archive directory is absent.
+    """
+    A std media source's archive directory is absent.
 
     Archive-dependent operations (rebuilding or pruning browsable dirs) would
     otherwise run against an incomplete media source. Carries the album and
@@ -12,11 +15,12 @@ class MissingArchiveError(FileNotFoundError):
     """
 
     def __init__(self, album_dir: Path, archive_dir: str) -> None:
+        """Build the error from the album and the missing archive's name."""
         self.album_dir = album_dir
         self.archive_dir = archive_dir
         super().__init__(
             f"Archive directory {archive_dir} does not exist in album "
-            f"{album_dir.name!r}; archive-dependent fixes cannot run without it."
+            f"{album_dir.name!r}; archive-dependent fixes cannot run without it.",
         )
 
 
@@ -24,12 +28,16 @@ class NotAnIosMediaSourceError(ValueError):
     """An iOS-only fix was asked to run on a std media source."""
 
     def __init__(self, media_source: str) -> None:
+        """Build the error from the std media source's name."""
         self.media_source = media_source
         super().__init__(f"Media source {media_source!r} is not an iOS media source")
 
 
 def require_archive(album_dir: Path, ms: MediaSource) -> None:
-    """Archive-dependent operations (rebuilding or pruning browsable dirs)
+    """
+    Raise when the media source has no archive directory.
+
+    Archive-dependent operations (rebuilding or pruning browsable dirs)
     require the source's ``{archive}/`` directory; guarding here prevents
     destructive operations from running against an incomplete media source.
     """
@@ -38,5 +46,6 @@ def require_archive(album_dir: Path, ms: MediaSource) -> None:
 
 
 def require_ios(ms: MediaSource) -> None:
+    """Raise :class:`NotAnIosMediaSourceError` when *ms* is not an iOS source."""
     if not ms.is_ios:
         raise NotAnIosMediaSourceError(ms.name)

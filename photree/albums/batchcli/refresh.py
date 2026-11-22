@@ -30,7 +30,9 @@ def run_batch_refresh(
     exit_if_no_albums(albums, display_base)
 
     with BatchProgressBar(
-        total=len(albums), description="Refreshing", done_description="refresh"
+        total=len(albums),
+        description="Refreshing",
+        done_description="refresh",
     ) as progress:
         result = batch_refresh(
             albums,
@@ -45,9 +47,7 @@ def run_batch_refresh(
             which=runtime.which,
             max_workers=runtime.cpu_count(),
             on_start=progress.on_start,
-            on_end=lambda name, success, errors: progress.on_end(
-                name, success=success, error_labels=errors
-            ),
+            on_end=progress.on_end,
         )
 
     typer.echo(
@@ -59,6 +59,6 @@ def run_batch_refresh(
             )
             + f", {len(result.failures)} failed.",
             dry_run=dry_run,
-        )
+        ),
     )
     exit_with_failures(result.failures, "refresh", cwd)

@@ -1,3 +1,5 @@
+"""The ``photree gallery metadata set`` command."""
+
 from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated
@@ -6,7 +8,7 @@ import typer
 
 from photree.clihelpers.resolution import resolve_gallery_or_exit
 from photree.clihelpers.runtime import runtime_of
-from photree.clihelpers.usage import usage_error
+from photree.clihelpers.usage import no_fields_error
 from photree.common.formatting import indent
 from photree.common.fs import display_path
 from photree.foundation.gallery_metadata import (
@@ -17,7 +19,7 @@ from photree.foundation.gallery_metadata import (
 )
 from photree.foundation.layout import PHOTREE_DIR
 from photree.foundation.linking import LinkMode
-from photree.gallery.cli.metadata import app
+from photree.gallery.cli.metadata.app import app
 from photree.gallery.cli.ops import require_valid_threshold
 
 
@@ -29,7 +31,10 @@ def set_cmd(
         typer.Option(
             "--gallery-dir",
             "-g",
-            help="Gallery root directory (or resolved from cwd via .photree/gallery.yaml).",
+            help=(
+                "Gallery root directory (or resolved from cwd "
+                "via .photree/gallery.yaml)."
+            ),
             exists=True,
             file_okay=False,
             resolve_path=True,
@@ -70,9 +75,8 @@ def set_cmd(
         if value is not None
     }
     if not requested:
-        raise usage_error(
-            "No fields specified. Use --link-mode, --faces-enabled,"
-            " or --face-cluster-threshold to set a value."
+        raise no_fields_error(
+            ("--link-mode", "--faces-enabled", "--face-cluster-threshold"),
         )
     require_valid_threshold(face_cluster_threshold, "--face-cluster-threshold")
 
@@ -91,8 +95,8 @@ def set_cmd(
             [
                 f"Updated {display_path(gallery_yaml_path, cwd)}",
                 *(indent(line) for line in _changed_fields(current, updated)),
-            ]
-        )
+            ],
+        ),
     )
 
 

@@ -47,7 +47,9 @@ def _setup_gallery(tmp_path: Path) -> Path:
 
 
 def _setup_album(
-    gallery: Path, name: str, album_id: str | None = None
+    gallery: Path,
+    name: str,
+    album_id: str | None = None,
 ) -> tuple[Path, str]:
     album_dir = gallery / "albums" / "2024" / name
     _write(album_dir / "ios-main" / "orig-img" / "IMG_0001.HEIC")
@@ -70,8 +72,8 @@ def _setup_album_with_media(gallery: Path, name: str) -> tuple[Path, str, str, s
                 "main": MediaSourceMediaMetadata(
                     images={img_id: "0001"},
                     videos={vid_id: "0002"},
-                )
-            }
+                ),
+            },
         ),
     )
     return album_dir, album_id, img_id, vid_id
@@ -194,16 +196,16 @@ class TestResolveByMediaFilename:
             album1,
             MediaMetadata(
                 media_sources={
-                    "main": MediaSourceMediaMetadata(images={img_id1: "0410"})
-                }
+                    "main": MediaSourceMediaMetadata(images={img_id1: "0410"}),
+                },
             ),
         )
         save_media_metadata(
             album2,
             MediaMetadata(
                 media_sources={
-                    "main": MediaSourceMediaMetadata(images={img_id2: "0410"})
-                }
+                    "main": MediaSourceMediaMetadata(images={img_id2: "0410"}),
+                },
             ),
         )
 
@@ -222,16 +224,16 @@ class TestResolveByMediaFilename:
             album1,
             MediaMetadata(
                 media_sources={
-                    "main": MediaSourceMediaMetadata(images={img_id1: "0410"})
-                }
+                    "main": MediaSourceMediaMetadata(images={img_id1: "0410"}),
+                },
             ),
         )
         save_media_metadata(
             album2,
             MediaMetadata(
                 media_sources={
-                    "main": MediaSourceMediaMetadata(images={img_id2: "0410"})
-                }
+                    "main": MediaSourceMediaMetadata(images={img_id2: "0410"}),
+                },
             ),
         )
 
@@ -244,7 +246,8 @@ class TestResolveByMediaFilename:
         assert result.members.images == (img_id1,)
 
     def test_invalid_album_date_does_not_crash_date_hint(self, tmp_path: Path) -> None:
-        """An album named with a non-existent date is skipped by the date hint.
+        """
+        An album named with a non-existent date is skipped by the date hint.
 
         Regression: dates.timestamp_in_range raises on such dates, which
         crashed the whole resolution instead of narrowing to the valid album.
@@ -259,8 +262,8 @@ class TestResolveByMediaFilename:
                 album,
                 MediaMetadata(
                     media_sources={
-                        "main": MediaSourceMediaMetadata(images={img_id: "0410"})
-                    }
+                        "main": MediaSourceMediaMetadata(images={img_id: "0410"}),
+                    },
                 ),
             )
 
@@ -273,7 +276,8 @@ class TestResolveByMediaFilename:
         assert result.members.images == (img_id1,)
 
     def test_single_match_in_invalid_date_album_has_no_warning(
-        self, tmp_path: Path
+        self,
+        tmp_path: Path,
     ) -> None:
         gallery = _setup_gallery(tmp_path)
         album, _ = _setup_album(gallery, "2024-02-30 - Not A Day")
@@ -282,8 +286,8 @@ class TestResolveByMediaFilename:
             album,
             MediaMetadata(
                 media_sources={
-                    "main": MediaSourceMediaMetadata(images={img_id: "0410"})
-                }
+                    "main": MediaSourceMediaMetadata(images={img_id: "0410"}),
+                },
             ),
         )
 
@@ -313,8 +317,8 @@ class TestResolveByMediaFilename:
             album_dir,
             MediaMetadata(
                 media_sources={
-                    "main": MediaSourceMediaMetadata(images={img_id: "DSC_1234"})
-                }
+                    "main": MediaSourceMediaMetadata(images={img_id: "DSC_1234"}),
+                },
             ),
         )
 
@@ -388,5 +392,5 @@ class TestResolveErrors:
         result = resolve_entries((_entry("2024-07-14 - Trip"), _entry(ext_id)), gallery)
         assert not result.success
         assert [(e.kind, e.duplicate_of) for e in result.errors] == [
-            (ResolutionErrorKind.DUPLICATE, "2024-07-14 - Trip")
+            (ResolutionErrorKind.DUPLICATE, "2024-07-14 - Trip"),
         ]

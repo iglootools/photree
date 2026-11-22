@@ -1,3 +1,5 @@
+"""The ``photree albums export`` command."""
+
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Annotated
@@ -13,7 +15,8 @@ from photree.album.exporter.settings import (
     resolve_export_settings,
     validate_export_settings,
 )
-from photree.albums.cli import ALBUM_DIR_OPTION, app
+from photree.albums.cli.app import app
+from photree.albums.cli.options import ALBUM_DIR_OPTION
 from photree.clihelpers.config_errors import format_config_error
 from photree.clihelpers.console import err_console
 from photree.clihelpers.options import (
@@ -26,7 +29,7 @@ from photree.clihelpers.options import (
 )
 from photree.clihelpers.progress import BatchProgressBar
 from photree.clihelpers.runtime import runtime_of
-from photree.clihelpers.usage import usage_error
+from photree.clihelpers.usage import mutually_exclusive_error
 from photree.common.formatting import indent
 from photree.common.fs import display_path
 from photree.config import ConfigError, PhotreeConfig
@@ -37,6 +40,7 @@ from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayo
 @app.command("export")
 def export_cmd(
     ctx: typer.Context,
+    *,
     base_dir: Annotated[
         Path | None,
         typer.Option(
@@ -56,7 +60,8 @@ def export_cmd(
     album_layout: ALBUM_LAYOUT_OPTION = None,
     link_mode: EXPORT_LINK_MODE_OPTION = None,
 ) -> None:
-    """Batch export multiple albums to a shared directory.
+    """
+    Batch export multiple albums to a shared directory.
 
     Either scan --dir for albums or provide explicit album directories via
     --album-dir (repeatable). The two options are mutually exclusive.
@@ -64,9 +69,9 @@ def export_cmd(
     runtime = runtime_of(ctx)
     cwd = runtime.cwd()
     if base_dir is not None and album_dirs is not None:
-        raise usage_error(
-            "--dir and --album-dir are mutually exclusive.\n"
-            "Run 'photree albums export --help' for usage."
+        raise mutually_exclusive_error(
+            ("--dir", "--album-dir"),
+            command="albums export",
         )
 
     settings = _resolve_settings_or_exit(
@@ -138,7 +143,9 @@ def _export(
     settings: ResolvedExportSettings,
 ) -> BatchExportResult:
     with BatchProgressBar(
-        total=len(albums), description="Exporting", done_description="export"
+        total=len(albums),
+        description="Exporting",
+        done_description="export",
     ) as progress:
         return batch.run_batch_export(
             base_dir=scan_dir,
@@ -150,7 +157,9 @@ def _export(
             on_exporting=progress.on_start,
             on_exported=lambda name: progress.on_end(name, success=True),
             on_error=lambda name, error: progress.on_end(
-                name, success=False, error_labels=(error,)
+                name,
+                success=False,
+                error_labels=(error,),
             ),
         )
 
@@ -168,11 +177,11 @@ def _report_failures(failed: Sequence[tuple[Path, str]], cwd: Path) -> None:
                 *(
                     indent(
                         "photree album export --album-dir "
-                        f'"{display_path(album_dir, cwd)}"'
+                        f'"{display_path(album_dir, cwd)}"',
                     )
                     for album_dir, _ in failed
                 ),
-            ]
+            ],
         ),
         markup=False,
     )

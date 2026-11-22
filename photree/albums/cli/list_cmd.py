@@ -1,10 +1,13 @@
+"""The ``photree albums list`` command."""
+
 from typing import Annotated
 
 import typer
 
 from photree.albums.batchcli.listing import run_batch_list_albums
 from photree.albums.batchcli.resolution import resolve_check_batch_albums
-from photree.albums.cli import ALBUM_DIR_OPTION, DIR_OPTION, app
+from photree.albums.cli.app import app
+from photree.albums.cli.options import ALBUM_DIR_OPTION, DIR_OPTION
 from photree.clihelpers.options import (
     OUTPUT_FILE_OPTION,
     OUTPUT_FORMAT_OPTION,
@@ -18,6 +21,7 @@ def list_cmd(
     ctx: typer.Context,
     base_dir: DIR_OPTION = None,
     album_dirs: ALBUM_DIR_OPTION = None,
+    *,
     metadata: Annotated[
         bool,
         typer.Option(

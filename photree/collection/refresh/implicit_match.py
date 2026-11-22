@@ -1,4 +1,5 @@
-"""Match series runs to existing implicit collections, preserving their IDs.
+"""
+Match series runs to existing implicit collections, preserving their IDs.
 
 Three tiers, in order: exact name, same title with overlapping members (the
 date range changed), identical members (the series title changed).
@@ -23,6 +24,7 @@ class ImplicitIndex:
 
     @staticmethod
     def build(existing: tuple[ExistingCollection, ...]) -> ImplicitIndex:
+        """Index the implicit collections among *existing* by name and by title."""
         implicit = tuple(
             col
             for col in existing
@@ -44,7 +46,8 @@ def _find_by_title_overlap(
     active_ids: frozenset[str],
     album_ids: tuple[str, ...],
 ) -> ExistingCollection | None:
-    """Find an implicit collection with the same title that shares members.
+    """
+    Find an implicit collection with the same title that shares members.
 
     Used when the date range changed (albums added/removed) but the series
     title is the same. Prefers the candidate with the most overlap (the first
@@ -82,9 +85,12 @@ def _find_renamed_implicit(
 
 
 def _match_existing(
-    target: SeriesTarget, index: ImplicitIndex, active_ids: frozenset[str]
+    target: SeriesTarget,
+    index: ImplicitIndex,
+    active_ids: frozenset[str],
 ) -> ExistingCollection | None:
-    """Match a target to an existing implicit collection not yet claimed.
+    """
+    Match a target to an existing implicit collection not yet claimed.
 
     1. Exact name match. 2. Same title, overlapping members (date range
     changed). 3. Identical members (series title changed).
@@ -97,7 +103,9 @@ def _match_existing(
             else None
         )
         or _find_by_title_overlap(
-            index.by_title.get(target.series_title, ()), active_ids, target.album_ids
+            index.by_title.get(target.series_title, ()),
+            active_ids,
+            target.album_ids,
         )
         or _find_renamed_implicit(index.implicit, active_ids, target.album_ids)
     )
@@ -105,6 +113,8 @@ def _match_existing(
 
 @dataclass(frozen=True)
 class GroupMatch:
+    """A series run paired with the existing implicit collection it updates, if any."""
+
     target: SeriesTarget
     existing: ExistingCollection | None
     conflict: bool = False
@@ -112,7 +122,8 @@ class GroupMatch:
 
 
 def match_groups(targets: list[SeriesTarget], index: ImplicitIndex) -> list[GroupMatch]:
-    """Match every target, each existing collection at most once.
+    """
+    Match every target, each existing collection at most once.
 
     A documented accumulator exception (loop-carried state): which IDs and
     names are already claimed depends on every earlier match, so the loop

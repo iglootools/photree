@@ -1,9 +1,12 @@
+"""The ``photree albums fix-ios`` command."""
+
 import typer
 
 from photree.album.fix.ios import FixIosValidationError, validate_fix_flags
 from photree.albums.batchcli.fix import run_batch_fix_ios
 from photree.albums.batchcli.resolution import resolve_batch_albums
-from photree.albums.cli import ALBUM_DIR_OPTION, DIR_OPTION, app
+from photree.albums.cli.app import app
+from photree.albums.cli.options import ALBUM_DIR_OPTION, DIR_OPTION
 from photree.clihelpers.options import (
     DRY_RUN_OPTION,
     MV_MISCATEGORIZED_OPTION,
@@ -13,7 +16,7 @@ from photree.clihelpers.options import (
     RM_ORPHAN_SIDECAR_OPTION,
 )
 from photree.clihelpers.runtime import runtime_of
-from photree.clihelpers.usage import usage_error
+from photree.clihelpers.usage import invalid_fix_error
 
 
 @app.command("fix-ios")
@@ -21,6 +24,7 @@ def fix_ios_cmd(
     ctx: typer.Context,
     base_dir: DIR_OPTION = None,
     album_dirs: ALBUM_DIR_OPTION = None,
+    *,
     prefer_higher_quality_when_dups: PREFER_HIGHER_QUALITY_OPTION = False,
     rm_orphan_sidecar: RM_ORPHAN_SIDECAR_OPTION = False,
     rm_miscategorized: RM_MISCATEGORIZED_OPTION = False,
@@ -40,10 +44,7 @@ def fix_ios_cmd(
             mv_miscategorized=mv_miscategorized,
         )
     except FixIosValidationError as exc:
-        raise usage_error(
-            f"{exc}\nRun 'photree albums fix-ios --help' for the available fixes.",
-            markup=False,
-        ) from exc
+        raise invalid_fix_error(exc, command="albums fix-ios") from exc
 
     albums, display_base = resolve_batch_albums(base_dir, album_dirs, cwd=cwd)
     run_batch_fix_ios(

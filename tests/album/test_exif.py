@@ -22,7 +22,8 @@ from photree.common.exif import (
 )
 
 requires_exiftool = pytest.mark.skipif(
-    not shutil.which("exiftool"), reason="exiftool not installed"
+    not shutil.which("exiftool"),
+    reason="exiftool not installed",
 )
 
 
@@ -141,7 +142,12 @@ class TestReadExifTimestamps:
 class TestParseTimestamp:
     def test_offset_dropped_keeping_wall_clock(self) -> None:
         assert parse_timestamp("2024:07:20 23:30:00+09:00") == datetime(
-            2024, 7, 20, 23, 30, 0
+            2024,
+            7,
+            20,
+            23,
+            30,
+            0,
         )
 
     def test_mixed_offset_and_naive_values_are_comparable(self) -> None:
@@ -151,7 +157,12 @@ class TestParseTimestamp:
             parse_timestamp("2024:07:20 10:00:00"),
         ]
         assert min(ts for ts in parsed if ts is not None) == datetime(
-            2024, 7, 20, 10, 0, 0
+            2024,
+            7,
+            20,
+            10,
+            0,
+            0,
         )
 
     def test_unparseable(self) -> None:
@@ -176,12 +187,13 @@ class TestExifWriting:
         img = _jpeg(tmp_path / "a.jpg")
         changes = write_exif_date([img], "2023-01-02", TIMESTAMP_TAGS)
         assert [(c.original, c.new_value) for c in changes] == [
-            ("2024:07:20 13:55:20", "2023:01:02 13:55:20")
+            ("2024:07:20 13:55:20", "2023:01:02 13:55:20"),
         ]
         assert _read(img) == datetime(2023, 1, 2, 13, 55, 20)
 
     def test_write_exif_date_skips_files_without_timestamp(
-        self, tmp_path: Path
+        self,
+        tmp_path: Path,
     ) -> None:
         img = _jpeg(tmp_path / "a.jpg", timestamp=None)
         assert write_exif_date([img], "2023-01-02", TIMESTAMP_TAGS) == ()

@@ -1,3 +1,5 @@
+"""Batch fixing of iOS-specific album issues."""
+
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial
@@ -16,6 +18,8 @@ from photree.albums.cmd_handler import (
 
 @dataclass(frozen=True)
 class BatchFixIosResult:
+    """Result of batch iOS fixing: how many albums were fixed, failures, reports."""
+
     fixed: int
     failures: tuple[BatchFailure, ...] = ()
     # (album display name, report) for each album whose fix had something to say
@@ -23,6 +27,7 @@ class BatchFixIosResult:
 
     @property
     def failed_albums(self) -> tuple[Path, ...]:
+        """Return the directories of the albums that failed."""
         return tuple(f.album_dir for f in self.failures)
 
 
@@ -39,7 +44,8 @@ def batch_fix_ios(
     on_start: OnStart = None,
     on_end: OnEnd = None,
 ) -> BatchFixIosResult:
-    """Fix iOS-specific issues on multiple albums.
+    """
+    Fix iOS-specific issues on multiple albums.
 
     Calls ``on_start(name)`` before and ``on_end(name, success, error_labels)`` after
     each album.

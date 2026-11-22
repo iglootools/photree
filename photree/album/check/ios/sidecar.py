@@ -1,3 +1,5 @@
+"""Check the AAE sidecars of an iOS archive's original and edited dirs."""
+
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -9,6 +11,8 @@ from photree.common.fs import file_ext, list_files
 
 
 class SidecarIssueKind(StrEnum):
+    """The kinds of AAE sidecar problem."""
+
     # An original HEIC without its IMG_XXXX.AAE (informational).
     MISSING_SIDECAR = "missing-sidecar"
     # An edited file without its IMG_OXXXX.AAE (informational).
@@ -30,12 +34,21 @@ class SidecarIssue:
 
 @dataclass(frozen=True)
 class SidecarCheck:
+    """
+    The sidecar problems of an archive.
+
+    *missing_sidecars* are informational; *orphan_sidecars* are errors.
+    """
+
     missing_sidecars: tuple[SidecarIssue, ...]
     orphan_sidecars: tuple[SidecarIssue, ...]
 
 
 def _missing_sidecars(
-    orig_dir: Path, orig_files: set[str], edit_dir: Path, edit_files: set[str]
+    orig_dir: Path,
+    orig_files: set[str],
+    edit_dir: Path,
+    edit_files: set[str],
 ) -> tuple[SidecarIssue, ...]:
     return (
         *[
@@ -55,7 +68,10 @@ def _missing_sidecars(
 
 
 def _orphan_sidecars(
-    orig_dir: Path, orig_files: set[str], edit_dir: Path, edit_files: set[str]
+    orig_dir: Path,
+    orig_files: set[str],
+    edit_dir: Path,
+    edit_files: set[str],
 ) -> tuple[SidecarIssue, ...]:
     orig_media_numbers = {ios_img_number(f) for f in orig_files if ios_is_media(f)}
     edit_media_numbers = {
@@ -84,6 +100,11 @@ def check_sidecars(
     orig_dir: Path,
     edit_dir: Path,
 ) -> SidecarCheck:
+    """
+    Find missing and orphan AAE sidecars in *orig_dir* and *edit_dir*.
+
+    A missing directory counts as empty.
+    """
     orig_files = set(list_files(orig_dir))
     edit_files = set(list_files(edit_dir))
     return SidecarCheck(

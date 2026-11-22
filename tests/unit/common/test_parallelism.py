@@ -22,7 +22,8 @@ class TestRunParallel:
 
     def test_captures_errors(self) -> None:
         def fail() -> None:
-            raise RuntimeError("boom")
+            message = "boom"
+            raise RuntimeError(message)
 
         tasks: list[tuple[str, Callable[[], None]]] = [("fail", fail)]
         parallel_results = run_parallel(tasks, max_workers=1)
@@ -38,12 +39,15 @@ class TestRunParallel:
         started: list[str] = []
         ended: list[tuple[str, bool]] = []
 
+        def record_end(key: str, *, success: bool) -> None:
+            ended.append((key, success))
+
         tasks: list[tuple[str, Callable[[], None]]] = [("x", lambda: None)]
         run_parallel(
             tasks,
             max_workers=1,
             on_start=started.append,
-            on_end=lambda k, s: ended.append((k, s)),
+            on_end=record_end,
         )
 
         assert started == ["x"]
@@ -52,14 +56,18 @@ class TestRunParallel:
     def test_on_end_called_on_failure(self) -> None:
         ended: list[tuple[str, bool]] = []
 
+        def record_end(key: str, *, success: bool) -> None:
+            ended.append((key, success))
+
         def fail() -> None:
-            raise ValueError("oops")
+            message = "oops"
+            raise ValueError(message)
 
         tasks: list[tuple[str, Callable[[], None]]] = [("f", fail)]
         run_parallel(
             tasks,
             max_workers=1,
-            on_end=lambda k, s: ended.append((k, s)),
+            on_end=record_end,
         )
 
         assert ended == [("f", False)]
@@ -87,7 +95,8 @@ class TestRunParallel:
 
     def test_failed_task_has_none_value(self) -> None:
         def fail() -> int:
-            raise RuntimeError("boom")
+            message = "boom"
+            raise RuntimeError(message)
 
         tasks = [("x", fail)]
         results = run_parallel(tasks, max_workers=1)

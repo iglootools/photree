@@ -1,4 +1,5 @@
-from collections.abc import Callable
+"""Integrity checks specific to iOS media sources."""
+
 from dataclasses import dataclass
 from enum import StrEnum
 from itertools import groupby
@@ -14,14 +15,21 @@ from photree.album.live_photo import (
     filter_live_photo_extras,
 )
 from photree.album.store.file_matching import ios_file_prefix, ios_is_media
-from photree.album.store.media_source import MediaSource, ios_img_number
+from photree.album.store.media_source import (
+    MediaSource,
+    MediaSourceType,
+    WrongMediaSourceTypeError,
+    ios_img_number,
+)
 from photree.common.fs import file_ext, list_files
+from photree.common.progress import FileEnd
 from photree.foundation.linking import LinkMode
 
 
 @dataclass(frozen=True)
 class DuplicateNumber:
-    """Several media files in *directory* share a prefix and image number.
+    """
+    Several media files in *directory* share a prefix and image number.
 
     E.g. ``IMG_E7658.HEIC`` + ``IMG_E7658.JPG``. *directory* is a directory
     name, as displayed.
@@ -33,6 +41,8 @@ class DuplicateNumber:
 
 
 class MiscategorizedKind(StrEnum):
+    """The ways a file can sit in the wrong iOS archive directory."""
+
     EDITED_IN_ORIG = "edited-in-orig"  # IMG_E* media in orig-*/
     EDITED_SIDECAR_IN_ORIG = "edited-sidecar-in-orig"  # IMG_O* in orig-*/
     ORIGINAL_IN_EDIT = "original-in-edit"  # IMG_XXXX media in edit-*/
@@ -50,6 +60,8 @@ class MiscategorizedFile:
 
 @dataclass(frozen=True)
 class IosMediaSourceIntegrityResult:
+    """The outcome of every integrity check on one iOS media source."""
+
     browsable_img: BrowsableDirCheck
     browsable_vid: BrowsableDirCheck
     browsable_jpg: JpegCheck
@@ -59,6 +71,12 @@ class IosMediaSourceIntegrityResult:
 
     @property
     def success(self) -> bool:
+        """
+        Return whether every error-level check passed.
+
+        Missing sidecars are warnings and do not count; see
+        :attr:`has_warnings`.
+        """
         # missing_sidecars are not checked here: iOS does not always produce
         # AAE sidecars (e.g. no edits applied, older iOS versions), so their
         # absence is informational, not an error.
@@ -79,9 +97,11 @@ class IosMediaSourceIntegrityResult:
 
 
 def _duplicate_key(
-    filename: str, img_extensions: frozenset[str]
+    filename: str,
+    img_extensions: frozenset[str],
 ) -> tuple[str, str, str]:
-    """``(prefix, number, media category)`` — what makes two files duplicates.
+    """
+    ``(prefix, number, media category)`` — what makes two files duplicates.
 
     An image and a video with the same prefix and number is a Live Photo, not
     a duplicate, hence the media category.
@@ -95,8 +115,12 @@ def check_duplicate_numbers(
     media_extensions: frozenset[str],
     img_extensions: frozenset[str] = frozenset(),
 ) -> tuple[DuplicateNumber, ...]:
-    """IMG_7552.HEIC + IMG_E7552.HEIC sharing number 7552 is normal (original + edited).
-    IMG_E7658.HEIC + IMG_E7658.JPG sharing number 7658 within the same 'E' prefix is a duplicate.
+    """
+    Find image numbers shared by files that are not variants of one photo.
+
+    IMG_7552.HEIC + IMG_E7552.HEIC sharing number 7552 is normal (original + edited).
+    IMG_E7658.HEIC + IMG_E7658.JPG sharing number 7658 within the same 'E' prefix is a
+    duplicate.
     IMG_0410.HEIC + IMG_0410.MOV sharing number 0410 with different media types
     is a Live Photo, not a duplicate.
     """
@@ -118,7 +142,10 @@ def check_miscategorized_files(
     orig_dir: Path,
     edit_dir: Path,
 ) -> tuple[MiscategorizedFile, ...]:
-    """Orig dirs should contain only original files (IMG_XXXX prefix).
+    """
+    Find files in the wrong archive directory.
+
+    Orig dirs should contain only original files (IMG_XXXX prefix).
     Edit dirs should contain only edited files (IMG_E/IMG_O prefix).
     """
     orig_files = list_files(orig_dir)
@@ -132,7 +159,9 @@ def check_miscategorized_files(
         ],
         *[
             MiscategorizedFile(
-                f, orig_dir.name, MiscategorizedKind.EDITED_SIDECAR_IN_ORIG
+                f,
+                orig_dir.name,
+                MiscategorizedKind.EDITED_SIDECAR_IN_ORIG,
             )
             for f in orig_files
             if ios_file_prefix(f) == "O"
@@ -144,7 +173,9 @@ def check_miscategorized_files(
         ],
         *[
             MiscategorizedFile(
-                f, edit_dir.name, MiscategorizedKind.ORIGINAL_SIDECAR_IN_EDIT
+                f,
+                edit_dir.name,
+                MiscategorizedKind.ORIGINAL_SIDECAR_IN_EDIT,
             )
             for f in edit_files
             if not ios_is_media(f) and ios_file_prefix(f) == ""
@@ -153,7 +184,8 @@ def check_miscategorized_files(
 
 
 def _detect_live_photo_vid_filenames(
-    album_dir: Path, ms: MediaSource
+    album_dir: Path,
+    ms: MediaSource,
 ) -> frozenset[str]:
     live_keys = detect_live_photo_keys(
         album_dir / ms.orig_img_dir,
@@ -179,7 +211,7 @@ def _check_browsable(
     *,
     link_mode: LinkMode,
     checksum: bool,
-    on_file_checked: Callable[[str, bool], None] | None,
+    on_file_checked: FileEnd | None,
 ) -> tuple[BrowsableDirCheck, BrowsableDirCheck]:
     img = check_browsable_dir(
         album_dir / ms.orig_img_dir,
@@ -217,7 +249,8 @@ def _check_ios_sidecars(album_dir: Path, ms: MediaSource) -> SidecarCheck:
 
 
 def _check_ios_duplicates(
-    album_dir: Path, ms: MediaSource
+    album_dir: Path,
+    ms: MediaSource,
 ) -> tuple[DuplicateNumber, ...]:
     all_media = IOS_IMG_EXTENSIONS | IOS_VID_EXTENSIONS
     return tuple(
@@ -225,7 +258,9 @@ def _check_ios_duplicates(
         for subdir_name in ms.all_subdirs
         if (album_dir / subdir_name).is_dir()
         for dup in check_duplicate_numbers(
-            album_dir / subdir_name, all_media, IOS_IMG_EXTENSIONS
+            album_dir / subdir_name,
+            all_media,
+            IOS_IMG_EXTENSIONS,
         )
     )
 
@@ -236,10 +271,17 @@ def check_ios_media_source_integrity(
     *,
     link_mode: LinkMode,
     checksum: bool = True,
-    on_file_checked: Callable[[str, bool], None] | None = None,
+    on_file_checked: FileEnd | None = None,
 ) -> IosMediaSourceIntegrityResult:
+    """
+    Check an iOS media source's archive, browsable dirs and sidecars.
+
+    Covers the browsable and JPEG dirs, AAE sidecars, duplicate image
+    numbers and files in the wrong archive directory. Raises
+    :class:`WrongMediaSourceTypeError` when *ms* is not an iOS source.
+    """
     if not ms.is_ios:
-        raise ValueError(f"media source '{ms.name}' is not an iOS media source")
+        raise WrongMediaSourceTypeError(ms.name, MediaSourceType.IOS)
 
     browsable_img, browsable_vid = _check_browsable(
         album_dir,
@@ -256,10 +298,12 @@ def check_ios_media_source_integrity(
         duplicate_numbers=_check_ios_duplicates(album_dir, ms),
         miscategorized=(
             *check_miscategorized_files(
-                album_dir / ms.orig_img_dir, album_dir / ms.edit_img_dir
+                album_dir / ms.orig_img_dir,
+                album_dir / ms.edit_img_dir,
             ),
             *check_miscategorized_files(
-                album_dir / ms.orig_vid_dir, album_dir / ms.edit_vid_dir
+                album_dir / ms.orig_vid_dir,
+                album_dir / ms.edit_vid_dir,
             ),
         ),
     )

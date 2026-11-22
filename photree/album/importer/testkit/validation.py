@@ -22,7 +22,9 @@ VALIDATION_ERRORS = [
     TaskIssue(
         std_media_source("nelu"),
         DuplicateStem(
-            directory="orig", stem="photo1", files=("photo1.heic", "photo1.jpg")
+            directory="orig",
+            stem="photo1",
+            files=("photo1.heic", "photo1.jpg"),
         ),
     ),
 ]

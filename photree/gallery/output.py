@@ -1,4 +1,5 @@
-"""User-facing messages for gallery import.
+"""
+User-facing messages for gallery import.
 
 Pure formatting helpers that return rich-markup strings, with user text
 (paths, album names, issue messages) escaped via ``markup_escape``; the CLI
@@ -40,7 +41,7 @@ def _structure_block(album: Path, cwd: Path) -> list[str]:
         (
             f"{CROSS} {_shown(album, cwd)} — no media source found "
             "(expected an ios-* or std-* archive directory)"
-        )
+        ),
     ]
 
 
@@ -99,12 +100,13 @@ def format_skipped(plans: list[AlbumPlan], cwd: Path) -> str:
                 f"{WARNING} {_shown(plan.existing or plan.target, cwd)}"
                 for plan in plans
             ),
-        ]
+        ],
     )
 
 
 def format_import_error(exc: ValueError | OSError, cwd: Path) -> str:
-    """Describe an import that raised, with paths relative to *cwd*.
+    """
+    Describe an import that raised, with paths relative to *cwd*.
 
     Plain text (print with ``markup=False``): it also feeds progress-bar
     labels, which escape it themselves.
@@ -117,14 +119,15 @@ def format_import_error(exc: ValueError | OSError, cwd: Path) -> str:
             )
         case OSError(filename=str() | Path() as filename):
             return f"{exc.strerror or type(exc).__name__}: " + str(
-                display_path(Path(filename), cwd)
+                display_path(Path(filename), cwd),
             )
         case _:
             return str(exc)
 
 
 def format_import_failure_labels(
-    failure: AlbumImportFailure, cwd: Path
+    failure: AlbumImportFailure,
+    cwd: Path,
 ) -> tuple[str, ...]:
     """One label per reason an album of a batch did not import cleanly (plain text)."""
     return (
@@ -144,7 +147,7 @@ def format_import_all_summary(
     *,
     dry_run: bool = False,
 ) -> str:
-    """The ``gallery import-all`` tally: imports, failures, check failures, skips."""
+    """Format the ``gallery import-all`` tally: imports, failures, checks, skips."""
     imported = len(result.imported)
     parts = [
         (
@@ -160,5 +163,5 @@ def format_import_all_summary(
 
 
 def import_all_failed(result: BatchImportResult, check_failed: list[Path]) -> bool:
-    """Whether ``gallery import-all`` exits 1: an import or a post-import check failed."""
+    """Tell whether ``gallery import-all`` exits 1: an import or a check failed."""
     return bool(result.failures or check_failed)

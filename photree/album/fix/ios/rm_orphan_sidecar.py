@@ -1,3 +1,5 @@
+"""The fix that removes iOS sidecars (AAE) whose media file is gone."""
+
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -22,10 +24,18 @@ def _find_orphan_sidecars(directory: Path) -> list[str]:
 
 @dataclass(frozen=True)
 class RmOrphanSidecarResult:
+    """
+    The orphan sidecars removed from a media source.
+
+    *removed_by_dir* pairs each directory name with the files removed from
+    it; directories with nothing removed are left out.
+    """
+
     removed_by_dir: tuple[tuple[str, tuple[str, ...]], ...]
 
     @property
     def total(self) -> int:
+        """Return the number of sidecars removed."""
         return sum(len(files) for _, files in self.removed_by_dir)
 
 
@@ -41,7 +51,7 @@ def rm_orphan_sidecar(
     *,
     dry_run: bool = False,
 ) -> RmOrphanSidecarResult:
-    """Scans orig-img/, edit-img/, orig-vid/, and edit-vid/."""
+    """Remove orphan sidecars from orig-img/, edit-img/, orig-vid/, and edit-vid/."""
     require_ios(ms)
     directories = (
         album_dir / ms.orig_img_dir,
@@ -54,5 +64,5 @@ def rm_orphan_sidecar(
             (d.name, removed)
             for d in directories
             if d.is_dir() and (removed := _remove_orphans_in_dir(d, dry_run=dry_run))
-        )
+        ),
     )

@@ -36,7 +36,9 @@ def _media_sources_desc(album_dir: Path) -> str:
 
 
 def _require_ids(
-    albums: list[Path], display_base: Path | None, cwd: Path
+    albums: list[Path],
+    display_base: Path | None,
+    cwd: Path,
 ) -> dict[Path, AlbumMetadata]:
     """Load every album's metadata, exiting with a fix suggestion if any lacks one."""
     metas = {album: load_album_metadata(album) for album in albums}
@@ -57,7 +59,7 @@ def _require_ids(
                         f"\nRun 'photree albums fix --id {target}' to generate "
                         "missing album IDs."
                     ),
-                ]
+                ],
             ),
             markup=False,
         )
@@ -96,7 +98,7 @@ def _parsed_summary(parsed: ParsedAlbumName) -> str:
             f"title={parsed.title}",
             *([f"location={parsed.location}"] if parsed.location is not None else []),
             *(["private"] if parsed.private else []),
-        ]
+        ],
     )
 
 
@@ -112,7 +114,10 @@ def _text_details(album_dir: Path, meta: AlbumMetadata) -> list[str]:
 
 
 def _text_lines(
-    metas: dict[Path, AlbumMetadata], names: dict[Path, str], *, metadata: bool
+    metas: dict[Path, AlbumMetadata],
+    names: dict[Path, str],
+    *,
+    metadata: bool,
 ) -> list[str]:
     return [
         f"Found {len(metas)} album(s).\n",
@@ -139,7 +144,8 @@ def run_batch_list_albums(
     output_file: Path | None = None,
     cwd: Path,
 ) -> None:
-    """Shared implementation for list-albums / albums list.
+    """
+    Shared implementation for list-albums / albums list.
 
     *output_file* applies to both formats.
     """

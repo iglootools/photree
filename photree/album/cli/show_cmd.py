@@ -1,9 +1,11 @@
+"""The ``photree album show`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
-from photree.album.cli import app
+from photree.album.cli.app import app
 from photree.album.cli.media_source_conflict import exit_on_media_source_conflict
 from photree.album.id import format_album_external_id
 from photree.album.naming import ParsedAlbumName, parse_album_name
@@ -27,7 +29,7 @@ def show_cmd(
             file_okay=False,
             resolve_path=True,
         ),
-    ] = Path("."),
+    ] = Path(),
 ) -> None:
     """Display album metadata and parsed name."""
     cwd = runtime_of(ctx).cwd()
@@ -45,7 +47,7 @@ def show_cmd(
         *(
             [
                 "media sources: "
-                + ", ".join(f"{c.name} ({c.media_source_type})" for c in media_sources)
+                + ", ".join(f"{c.name} ({c.media_source_type})" for c in media_sources),
             ]
             if media_sources
             else []

@@ -1,3 +1,5 @@
+"""The immutable records that album and albums statistics are made of."""
+
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -32,6 +34,8 @@ class RoleBreakdown:
 
 @dataclass(frozen=True)
 class FormatStats:
+    """Count and sizes of one extension's files, archive and derived bytes included."""
+
     extension: str  # e.g. ".heic", ".mov"
     file_count: int
     apparent_bytes: int
@@ -42,6 +46,8 @@ class FormatStats:
 
 @dataclass(frozen=True)
 class MediaSourceStats:
+    """Sizes and media counts of one media source of an album."""
+
     name: str
     media_source_type: MediaSourceType
     total: SizeStats
@@ -70,7 +76,10 @@ class MediaSourceTypeStats:
 
 @dataclass(frozen=True)
 class AggregateStats:
-    """Extracted so the same aggregation logic and output formatting code can be
+    """
+    Stats summed over albums.
+
+    Extracted so the same aggregation logic and output formatting code can be
     reused at both levels and for per-year breakdowns.
     """
 
@@ -91,6 +100,8 @@ class AggregateStats:
 
 @dataclass(frozen=True)
 class AlbumStats:
+    """Statistics of one album: per media source, summed, and its cache storage."""
+
     album_name: str
     album_year: str
     by_media_source: tuple[MediaSourceStats, ...]
@@ -100,6 +111,8 @@ class AlbumStats:
 
 @dataclass(frozen=True)
 class YearStats:
+    """Statistics summed over the albums of one year."""
+
     year: str
     album_count: int
     aggregate: AggregateStats
@@ -108,7 +121,8 @@ class YearStats:
 
 @dataclass(frozen=True)
 class AlbumsStats:
-    """Aggregated statistics across a set of albums.
+    """
+    Aggregated statistics across a set of albums.
 
     Deliberately knows nothing about galleries or collections: `albums stats
     -d <dir>` produces this for a bare directory of albums with no gallery

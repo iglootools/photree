@@ -13,13 +13,13 @@ from photree.album.importer.std import (
     import_std_source,
     validate_std_task,
 )
-from photree.album.importer.tasks import discover_import_tasks
+from photree.album.importer.tasks import ImportTask, discover_import_tasks
 from photree.album.staging import ios_import_dir, std_import_dir
 from photree.album.store.media_source import std_media_source
 from photree.common.fs import list_files
 
 
-def _noop_convert(_src: Path, _dst_dir: Path, *, dry_run: bool) -> Path | None:
+def _noop_convert(_src: Path, _dst_dir: Path, *, dry_run: bool) -> Path | None:  # noqa: ARG001 - ConvertFile's signature
     return None
 
 
@@ -39,7 +39,7 @@ def _setup_std_staging(
     return staging
 
 
-def _std_task(album: Path, name: str):
+def _std_task(album: Path, name: str) -> ImportTask:
     (task,) = [t for t in discover_import_tasks(album) if t.name == name and t.is_std]
     return task
 
@@ -168,7 +168,9 @@ class TestRunImportStd:
         (ic_dir / "IMG_0001.AAE").write_text("data")
 
         result = run_import(
-            album_dir=album, image_capture_dir=ic_dir, convert_file=_noop_convert
+            album_dir=album,
+            image_capture_dir=ic_dir,
+            convert_file=_noop_convert,
         )
 
         assert len(result.ios_results) == 1
@@ -179,7 +181,8 @@ class TestRunImportStd:
         assert "photo.jpg" in list_files(album / "nelu-img")
 
     def test_std_validation_blocks_via_validate_album_import(
-        self, tmp_path: Path
+        self,
+        tmp_path: Path,
     ) -> None:
         album = tmp_path / "album"
         _setup_std_staging(album, "nelu", orig=["a.jpg", "a.heic"])  # dup stems

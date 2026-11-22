@@ -1,10 +1,12 @@
+"""The ``photree album list-media`` command."""
+
 import csv
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
-from photree.album.cli import app
+from photree.album.cli.app import app
 from photree.album.id import (
     format_album_external_id,
     format_image_external_id,
@@ -41,7 +43,7 @@ def list_media_cmd(
             file_okay=False,
             resolve_path=True,
         ),
-    ] = Path("."),
+    ] = Path(),
     output_format: OUTPUT_FORMAT_OPTION = OutputFormat.TEXT,
     output_file: OUTPUT_FILE_OPTION = None,
 ) -> None:
@@ -142,5 +144,5 @@ def _format_text(
         ),
     ]
     return "\n".join(
-        [f"Album: {display_path(album_dir, cwd)}", *(indent(line) for line in body)]
+        [f"Album: {display_path(album_dir, cwd)}", *(indent(line) for line in body)],
     )

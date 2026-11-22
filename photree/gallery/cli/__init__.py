@@ -1,14 +1,4 @@
-import typer
-
-app = typer.Typer(
-    name="gallery",
-    help="Batch operations on multiple albums.",
-    no_args_is_help=True,
-)
-
-from photree.gallery.cli import metadata
-
-app.add_typer(metadata.app)
+"""The ``photree gallery`` command group, with every command registered on it."""
 
 # Imported for their side effect: each module registers its commands on `app`.
 # The redundant `x as x` alias tells ruff and pyright the import is intentional.
@@ -27,3 +17,6 @@ from photree.gallery.cli import refresh_cmd as refresh_cmd
 from photree.gallery.cli import rename_from_csv_cmd as rename_from_csv_cmd
 from photree.gallery.cli import show_cmd as show_cmd
 from photree.gallery.cli import stats_cmd as stats_cmd
+from photree.gallery.cli.app import app
+
+__all__ = ["app"]

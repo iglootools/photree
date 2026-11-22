@@ -37,6 +37,8 @@ def _collection_target_dir(gallery_dir: Path, name: str) -> Path:
 
 @dataclass(frozen=True)
 class ImplicitChanges:
+    """The implicit collections a refresh created, updated, renamed or deleted."""
+
     created: tuple[str, ...] = ()
     updated: tuple[str, ...] = ()
     renamed: tuple[tuple[str, str], ...] = ()
@@ -45,6 +47,7 @@ class ImplicitChanges:
 
     @staticmethod
     def merge(changes: Iterable[ImplicitChanges]) -> ImplicitChanges:
+        """Combine *changes* into one, concatenating each field in order."""
         all_changes = list(changes)
         return ImplicitChanges(
             created=tuple(n for c in all_changes for n in c.created),
@@ -56,7 +59,8 @@ class ImplicitChanges:
 
 
 def _implicit_metadata(
-    base: CollectionMetadata, album_ids: tuple[str, ...]
+    base: CollectionMetadata,
+    album_ids: tuple[str, ...],
 ) -> CollectionMetadata:
     return CollectionMetadata(
         id=base.id,
@@ -87,7 +91,7 @@ def _update_existing(
                     path=col.path,
                     target=new_path,
                 ),
-            )
+            ),
         )
     new_meta = _implicit_metadata(col.metadata, target.album_ids)
     if not dry_run and new_path != col.path:
@@ -120,7 +124,7 @@ def _create_implicit(
                     CollectionRefreshErrorKind.COLLECTION_TARGET_EXISTS,
                     target=target_dir,
                 ),
-            )
+            ),
         )
     if not dry_run:
         target_dir.mkdir(parents=True, exist_ok=True)
@@ -147,11 +151,17 @@ def _apply_match(
     match group_match.existing:
         case ExistingCollection() as col:
             return _update_existing(
-                gallery_dir, col, group_match.target, dry_run=dry_run
+                gallery_dir,
+                col,
+                group_match.target,
+                dry_run=dry_run,
             )
         case None:
             return _create_implicit(
-                gallery_dir, group_match.target, dry_run=dry_run, new_id=new_id
+                gallery_dir,
+                group_match.target,
+                dry_run=dry_run,
+                new_id=new_id,
             )
 
 
@@ -178,7 +188,8 @@ def refresh_implicit_collections(
     dry_run: bool,
     new_id: Callable[[], str],
 ) -> ImplicitChanges:
-    """Create, update, rename, and delete implicit collections from album series.
+    """
+    Create, update, rename, and delete implicit collections from album series.
 
     Nothing is written when any group fails to match: name conflicts are
     detected on the whole plan first.
@@ -202,5 +213,5 @@ def refresh_implicit_collections(
                 for m in matches
             ),
             _delete_orphaned_implicit(index, matches, dry_run=dry_run),
-        ]
+        ],
     )

@@ -1,3 +1,5 @@
+"""The ``photree gallery refresh`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
@@ -24,7 +26,7 @@ from photree.foundation.layout import PHOTREE_DIR
 from photree.gallery.browsable_refresh import (
     refresh_browsable as refresh_gallery_browsable,
 )
-from photree.gallery.cli import app
+from photree.gallery.cli.app import app
 from photree.gallery.cli.ops import run_face_clustering
 from photree.gallery.cli.refresh_output import (
     format_browsable_error,
@@ -42,12 +44,16 @@ def refresh_cmd(
         typer.Option(
             "--gallery-dir",
             "-g",
-            help="Gallery root directory (or resolved from cwd via .photree/gallery.yaml).",
+            help=(
+                "Gallery root directory (or resolved from cwd "
+                "via .photree/gallery.yaml)."
+            ),
             exists=True,
             file_okay=False,
             resolve_path=True,
         ),
     ] = None,
+    *,
     dry_run: DRY_RUN_OPTION = False,
     refresh_browsable: Annotated[
         bool,
@@ -112,7 +118,10 @@ def refresh_cmd(
 
 
 def _refresh_face_clusters(
-    gallery_dir: Path, *, dry_run: bool, force_full: bool
+    gallery_dir: Path,
+    *,
+    dry_run: bool,
+    force_full: bool,
 ) -> None:
     gallery_meta = load_gallery_metadata(gallery_dir / PHOTREE_DIR / GALLERY_YAML)
     if gallery_meta.faces_enabled:
@@ -166,7 +175,8 @@ def _refresh_browsable(gallery_dir: Path, cwd: Path, *, dry_run: bool) -> None:
     )
     if result.dangling_members:
         err_console.print(
-            indent(format_dangling_members(result.dangling_members, cwd)), markup=False
+            indent(format_dangling_members(result.dangling_members, cwd)),
+            markup=False,
         )
     if not result.success:
         err_console.print(
@@ -179,5 +189,5 @@ def _refresh_browsable(gallery_dir: Path, cwd: Path, *, dry_run: bool) -> None:
         f"{CHECK} browsable "
         f"({result.albums_rendered} album(s), "
         f"{result.collections_rendered} collection(s), "
-        f"{result.symlinks_created} symlink(s))"
+        f"{result.symlinks_created} symlink(s))",
     )

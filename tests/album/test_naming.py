@@ -185,7 +185,7 @@ class TestParseAlbumName:
 
     def test_location_with_series_and_private(self) -> None:
         result = parse_album_name(
-            "2024-06-15 - 01 - Rockies - Hike @ Banff NP [private]"
+            "2024-06-15 - 01 - Rockies - Hike @ Banff NP [private]",
         )
         assert result is not None
         assert result.part == "01"
@@ -402,7 +402,7 @@ class TestCheckAlbumNaming:
     def test_valid_with_all_fields(self) -> None:
         assert (
             check_album_naming(
-                "2024-06-15 - 01 - Rockies - Hike @ Banff NP, AB, CA [private]"
+                "2024-06-15 - 01 - Rockies - Hike @ Banff NP, AB, CA [private]",
             )
             == ()
         )

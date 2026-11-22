@@ -1,4 +1,5 @@
-"""rm-upstream fix operation.
+"""
+rm-upstream fix operation.
 
 Deleting a file from a browsable directory (``{name}-img/``, ``{name}-jpg/``,
 ``{name}-vid/``) is how a user curates an album; ``rm-upstream`` propagates
@@ -34,11 +35,15 @@ from photree.common.fs import delete_files, list_files
 
 
 class MediaKind(StrEnum):
+    """Which half of an archive, images or videos, a refusal is about."""
+
     IMAGES = "images"
     VIDEOS = "videos"
 
 
 class SignalSkipReason(StrEnum):
+    """Why a browsable directory was not used as a deletion signal."""
+
     MISSING = "missing"  # the directory does not exist
     NO_EXPECTED_FILES = "no-expected-files"  # exists, but holds none it should
 
@@ -53,23 +58,27 @@ class RmUpstreamSkip:
 
 
 class RmUpstreamRefusedError(ValueError):
-    """Propagating deletions would remove every item of an archive.
+    """
+    Propagating deletions would remove every item of an archive.
 
     Raised before anything is deleted. Pass ``force`` (``--force``) to proceed.
     """
 
     def __init__(self, media_source: str, kind: MediaKind, key_count: int) -> None:
+        """Build the error from the media source, the media kind and its key count."""
         self.media_source = media_source
         self.kind = kind
         self.key_count = key_count
         super().__init__(
             f"rm-upstream would delete all {key_count} {kind} of media source "
-            f"{media_source!r}; refusing without --force"
+            f"{media_source!r}; refusing without --force",
         )
 
 
 @dataclass(frozen=True)
 class RmUpstreamHeicResult:
+    """The image files rm-upstream removed, per directory: jpg, img, edit and orig."""
+
     removed_jpeg: tuple[str, ...]
     removed_browsable: tuple[str, ...]
     removed_rendered: tuple[str, ...]
@@ -78,12 +87,16 @@ class RmUpstreamHeicResult:
 
 @dataclass(frozen=True)
 class RmUpstreamMovResult:
+    """The video files rm-upstream removed, per directory: edit and orig."""
+
     removed_rendered: tuple[str, ...]
     removed_orig: tuple[str, ...]
 
 
 @dataclass(frozen=True)
 class RmUpstreamResult:
+    """The outcome of rm-upstream for one media source, with the signals skipped."""
+
     heic: RmUpstreamHeicResult
     mov: RmUpstreamMovResult
     skipped: tuple[RmUpstreamSkip, ...] = ()
@@ -109,7 +122,7 @@ class RmUpstreamPlan:
     skipped: tuple[RmUpstreamSkip, ...]
 
     def refusal(self) -> RmUpstreamRefusedError | None:
-        """The error to raise if this plan would empty an archive, else None."""
+        """Return the error to raise if this plan would empty an archive, else None."""
         wipes = [
             (kind, archive)
             for kind, keys, archive in (
@@ -135,7 +148,8 @@ def _signal_skip(
     require_expected: bool,
     force: bool,
 ) -> RmUpstreamSkip | None:
-    """Return why *directory* cannot be trusted as a deletion signal, if so.
+    """
+    Return why *directory* cannot be trusted as a deletion signal, if so.
 
     With *require_expected* (derived dirs), a directory holding none of its
     *expected* entries is not trusted either, unless *force*.
@@ -158,7 +172,8 @@ def _deleted_keys(
     force: bool,
     require_expected: bool = False,
 ) -> _Signal:
-    """Keys of *expected* (``{name: key}``) whose name is absent from *present*.
+    """
+    Keys of *expected* (``{name: key}``) whose name is absent from *present*.
 
     *present* is in the same unit as *expected*'s names (filenames or keys).
     """
@@ -175,13 +190,16 @@ def _deleted_keys(
         _Signal(skip=skip)
         if skip is not None
         else _Signal(
-            keys=frozenset(k for name, k in expected.items() if name not in present)
+            keys=frozenset(k for name, k in expected.items() if name not in present),
         )
     )
 
 
 def _plan_images(
-    album_dir: Path, ms: MediaSource, *, force: bool
+    album_dir: Path,
+    ms: MediaSource,
+    *,
+    force: bool,
 ) -> tuple[_Signal, _Signal]:
     """Signals from ``{name}-img/`` (vs. the archive) and ``{name}-jpg/`` (vs. img)."""
     key_fn = ms.key_fn
@@ -220,7 +238,8 @@ def _plan_images(
 
 
 def _plan_videos(album_dir: Path, ms: MediaSource, *, force: bool) -> _Signal:
-    """Signal from ``{name}-vid/``, compared by key with ``orig-vid/``.
+    """
+    Signal from ``{name}-vid/``, compared by key with ``orig-vid/``.
 
     Key-based (not by exact filename) so that edited videos (e.g.
     ``IMG_E0001.MOV``) are matched to their originals (``IMG_0001.MOV``).
@@ -238,8 +257,19 @@ def _plan_videos(album_dir: Path, ms: MediaSource, *, force: bool) -> _Signal:
 
 
 def plan_rm_upstream(
-    album_dir: Path, ms: MediaSource, *, force: bool = False
+    album_dir: Path,
+    ms: MediaSource,
+    *,
+    force: bool = False,
 ) -> RmUpstreamPlan:
+    """
+    Plan the keys to delete from *ms*'s browsable directories, without deleting.
+
+    With *force*, a ``{name}-jpg/`` holding none of its expected JPEGs is still
+    used as a signal. Raises
+    :class:`~photree.album.fix.helpers.MissingArchiveError` when a std source
+    has no archive directory.
+    """
     require_archive(album_dir, ms)
     from_img, from_jpg = _plan_images(album_dir, ms, force=force)
     from_vid = _plan_videos(album_dir, ms, force=force)
@@ -266,7 +296,11 @@ def check_rm_upstream_plans(plans: list[RmUpstreamPlan], *, force: bool) -> None
 
 
 def _delete_keys(
-    keys: frozenset[str], directory: Path, ms: MediaSource, *, dry_run: bool
+    keys: frozenset[str],
+    directory: Path,
+    ms: MediaSource,
+    *,
+    dry_run: bool,
 ) -> tuple[str, ...]:
     files = find_files_by_key(set(keys), directory, ms.key_fn) if keys else []
     delete_files(directory, files, dry_run=dry_run)
@@ -274,7 +308,10 @@ def _delete_keys(
 
 
 def apply_rm_upstream(
-    album_dir: Path, plan: RmUpstreamPlan, *, dry_run: bool
+    album_dir: Path,
+    plan: RmUpstreamPlan,
+    *,
+    dry_run: bool,
 ) -> RmUpstreamResult:
     """Delete every variant of the planned keys, browsable and archive alike."""
     ms = plan.ms
@@ -283,24 +320,42 @@ def apply_rm_upstream(
     return RmUpstreamResult(
         heic=RmUpstreamHeicResult(
             removed_jpeg=_delete_keys(
-                images, album_dir / ms.jpg_dir, ms, dry_run=dry_run
+                images,
+                album_dir / ms.jpg_dir,
+                ms,
+                dry_run=dry_run,
             ),
             removed_browsable=_delete_keys(
-                images, album_dir / ms.img_dir, ms, dry_run=dry_run
+                images,
+                album_dir / ms.img_dir,
+                ms,
+                dry_run=dry_run,
             ),
             removed_rendered=_delete_keys(
-                images, album_dir / ms.edit_img_dir, ms, dry_run=dry_run
+                images,
+                album_dir / ms.edit_img_dir,
+                ms,
+                dry_run=dry_run,
             ),
             removed_orig=_delete_keys(
-                images, album_dir / ms.orig_img_dir, ms, dry_run=dry_run
+                images,
+                album_dir / ms.orig_img_dir,
+                ms,
+                dry_run=dry_run,
             ),
         ),
         mov=RmUpstreamMovResult(
             removed_rendered=_delete_keys(
-                videos, album_dir / ms.edit_vid_dir, ms, dry_run=dry_run
+                videos,
+                album_dir / ms.edit_vid_dir,
+                ms,
+                dry_run=dry_run,
             ),
             removed_orig=_delete_keys(
-                videos, album_dir / ms.orig_vid_dir, ms, dry_run=dry_run
+                videos,
+                album_dir / ms.orig_vid_dir,
+                ms,
+                dry_run=dry_run,
             ),
         ),
         skipped=plan.skipped,
@@ -314,7 +369,8 @@ def rm_upstream(
     dry_run: bool = False,
     force: bool = False,
 ) -> RmUpstreamResult:
-    """Works for both iOS and std media sources.
+    """
+    Works for both iOS and std media sources.
 
     Images: deletions detected from {name}-jpg or {name}-img are
     propagated to {name}-jpg, {name}-img, edit-img, and orig-img.

@@ -1,4 +1,5 @@
-"""Media metadata I/O — per-media-source ID mappings.
+"""
+Media metadata I/O — per-media-source ID mappings.
 
 Each media source gets its own YAML file under ``.photree/media-ids/``:
 
@@ -25,6 +26,8 @@ from photree.foundation.model import PhotreeModel
 
 
 class MediaSourceMediaMetadata(PhotreeModel):
+    """The media IDs of one media source's images and videos."""
+
     images: dict[str, str] = Field(
         default_factory=dict,
         description="UUID -> key (image number for iOS, stem for std).",
@@ -36,6 +39,8 @@ class MediaSourceMediaMetadata(PhotreeModel):
 
 
 class MediaMetadata(PhotreeModel):
+    """The media IDs of an album, by media source name."""
+
     media_sources: dict[str, MediaSourceMediaMetadata] = Field(
         default_factory=dict,
         description="Media source name -> media ID mappings.",
@@ -60,8 +65,10 @@ def _load_source_file(path: Path) -> MediaSourceMediaMetadata:
 
 
 def load_media_metadata(album_dir: Path) -> MediaMetadata | None:
-    """Returns ``None`` when there is no media-ids file at all. A file that is
-    present but unreadable raises
+    """
+    Load the media IDs, or return ``None`` when there is no media-ids file at all.
+
+    A file that is present but unreadable raises
     :class:`~photree.foundation.metadata_io.InvalidMetadataError` rather than being
     skipped: dropping it would make the next refresh mint fresh UUIDs for every
     media item of that source, breaking collection references.
@@ -76,6 +83,12 @@ def load_media_metadata(album_dir: Path) -> MediaMetadata | None:
 
 
 def save_media_metadata(album_dir: Path, metadata: MediaMetadata) -> None:
+    """
+    Write one ``media-ids/{name}.yaml`` per media source of *metadata*.
+
+    Creates the directory when missing and deletes the files of media sources
+    that *metadata* no longer holds.
+    """
     ids_dir = _media_ids_dir(album_dir)
     ids_dir.mkdir(parents=True, exist_ok=True)
 

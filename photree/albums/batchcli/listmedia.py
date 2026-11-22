@@ -108,7 +108,8 @@ def run_batch_list_media(
     output_file: Path | None = None,
     cwd: Path,
 ) -> None:
-    """Shared implementation for albums list-media / gallery list-media.
+    """
+    Shared implementation for albums list-media / gallery list-media.
 
     *output_file* applies to both formats.
     """

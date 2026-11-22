@@ -1,3 +1,5 @@
+"""Import a collection's selection into its metadata as resolved members."""
+
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -36,7 +38,8 @@ class CollectionImportErrorKind(StrEnum):
 
 
 class CollectionImportError(Exception):
-    """The collection cannot be imported into.
+    """
+    The collection cannot be imported into.
 
     Structured (kind + path) so the CLI renders the message with
     ``display_path`` and a suggestion; see
@@ -44,6 +47,7 @@ class CollectionImportError(Exception):
     """
 
     def __init__(self, kind: CollectionImportErrorKind, collection_dir: Path) -> None:
+        """Build the error from why the import is refused and the collection's path."""
         self.kind = kind
         self.collection_dir = collection_dir
         super().__init__(f"{kind}: {collection_dir}")
@@ -51,6 +55,8 @@ class CollectionImportError(Exception):
 
 @dataclass(frozen=True)
 class CollectionImportResult:
+    """The outcome of importing one collection's selection, written or not."""
+
     collection_dir: Path
     collection_id: str
     members: ResolvedMembers
@@ -60,6 +66,7 @@ class CollectionImportResult:
 
     @property
     def success(self) -> bool:
+        """Whether every selection row was read and every entry resolved."""
         return not self.errors and not self.selection_errors
 
 
@@ -96,22 +103,26 @@ def _load_importable(collection_dir: Path) -> CollectionMetadata:
     match metadata:
         case None:
             raise CollectionImportError(
-                CollectionImportErrorKind.NO_METADATA, collection_dir
+                CollectionImportErrorKind.NO_METADATA,
+                collection_dir,
             )
         case CollectionMetadata(lifecycle=CollectionLifecycle.IMPLICIT):
             raise CollectionImportError(
-                CollectionImportErrorKind.IMPLICIT_COLLECTION, collection_dir
+                CollectionImportErrorKind.IMPLICIT_COLLECTION,
+                collection_dir,
             )
         case CollectionMetadata(members=CollectionMembers.SMART):
             raise CollectionImportError(
-                CollectionImportErrorKind.SMART_COLLECTION, collection_dir
+                CollectionImportErrorKind.SMART_COLLECTION,
+                collection_dir,
             )
         case _:
             return metadata
 
 
 def _merged_metadata(
-    metadata: CollectionMetadata, members: ResolvedMembers
+    metadata: CollectionMetadata,
+    members: ResolvedMembers,
 ) -> CollectionMetadata:
     return CollectionMetadata(
         id=metadata.id,
@@ -132,7 +143,8 @@ def import_collection_members(
     dry_run: bool = False,
     exiftool: ExifTagReader | None = None,
 ) -> CollectionImportResult:
-    """Resolve selection entries and merge into collection metadata.
+    """
+    Resolve selection entries and merge into collection metadata.
 
     Returns the result with resolved members or errors. On success (and
     not dry_run), saves updated metadata and cleans up selection sources.
@@ -156,13 +168,15 @@ def import_collection_members(
         )
     if not sources.merged:
         raise CollectionImportError(
-            CollectionImportErrorKind.NO_SELECTION, collection_dir
+            CollectionImportErrorKind.NO_SELECTION,
+            collection_dir,
         )
 
     result = resolve_entries(sources.merged, gallery_dir)
     if result.success and not dry_run:
         save_collection_metadata(
-            collection_dir, _merged_metadata(metadata, result.members)
+            collection_dir,
+            _merged_metadata(metadata, result.members),
         )
         _cleanup_selection(collection_dir)
 

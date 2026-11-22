@@ -1,3 +1,5 @@
+"""Suggest the commands that fix failed album checks."""
+
 import shlex
 from collections import defaultdict
 from textwrap import dedent
@@ -56,13 +58,20 @@ def _common_suggestions(
     browsable_issues = _has_browsable_issues(integrity)
     jpeg = integrity.browsable_jpg
     has_extra = bool(
-        integrity.browsable_img.extra or integrity.browsable_vid.extra or jpeg.extra
+        integrity.browsable_img.extra or integrity.browsable_vid.extra or jpeg.extra,
     )
     return [
         *([_refresh_browsable(flag, ms)] if browsable_issues else []),
         *([_refresh_jpeg(flag, ms)] if jpeg.missing and not browsable_issues else []),
         *([_rm_orphan(flag)] if has_extra else []),
     ]
+
+
+def _prefer_higher_quality(flag: str) -> str:
+    return dedent(f"""\
+        photree album fix-ios {flag} --prefer-higher-quality-when-dups --dry-run
+          Remove lower-quality duplicates (e.g. JPG when DNG or HEIC exists).
+          Use when multiple format variants exist for the same image number.""")
 
 
 def _ios_suggestions(integrity: IosMediaSourceIntegrityResult, flag: str) -> list[str]:
@@ -73,17 +82,14 @@ def _ios_suggestions(integrity: IosMediaSourceIntegrityResult, flag: str) -> lis
                 dedent(f"""\
                     photree album fix-ios {flag} --rm-orphan-sidecar --dry-run
                       Remove AAE sidecar files that have no matching media file in
-                      orig-img/, orig-vid/, edit-img/, or edit-vid/.""")
+                      orig-img/, orig-vid/, edit-img/, or edit-vid/."""),
             ]
             if integrity.sidecars.orphan_sidecars
             else []
         ),
         *(
             [
-                dedent(f"""\
-                    photree album fix-ios {flag} --prefer-higher-quality-when-dups --dry-run
-                      Remove lower-quality duplicates (e.g. JPG when DNG or HEIC exists).
-                      Use when multiple format variants exist for the same image number.""")
+                _prefer_higher_quality(flag),
             ]
             if integrity.duplicate_numbers
             else []
@@ -96,7 +102,7 @@ def _ios_suggestions(integrity: IosMediaSourceIntegrityResult, flag: str) -> lis
                       orig-img/) when they already exist in the correct one. Use
                       --rm-miscategorized to delete them without guaranteeing that
                       they are already in the correct directory, or
-                      --mv-miscategorized to move them.""")
+                      --mv-miscategorized to move them."""),
             ]
             if integrity.miscategorized
             else []
@@ -105,7 +111,9 @@ def _ios_suggestions(integrity: IosMediaSourceIntegrityResult, flag: str) -> lis
 
 
 def _std_suggestions(
-    integrity: StdMediaSourceIntegrityResult, flag: str, ms: MediaSource
+    integrity: StdMediaSourceIntegrityResult,
+    flag: str,
+    ms: MediaSource,
 ) -> list[str]:
     """Suggestions for the std-only checks (duplicate stems)."""
     dirs = ", ".join(sorted({f"{d.directory}/" for d in integrity.duplicate_stems}))
@@ -115,7 +123,7 @@ def _std_suggestions(
                 Remove or rename the files sharing a stem in {ms.archive_dir}
                 ({dirs}): std sources match variants by filename stem, so each
                 stem must be unique within a directory. Then run:
-                photree album refresh {flag} --refresh-browsable --dry-run""")
+                photree album refresh {flag} --refresh-browsable --dry-run"""),
         ]
         if integrity.duplicate_stems
         else []
@@ -127,6 +135,12 @@ def suggest_fixes(
     album_dir_flag: str,
     media_source: MediaSource,
 ) -> list[str]:
+    """
+    Suggest the commands that fix *integrity*'s failed checks.
+
+    Each suggestion is plain text naming a command and when to use it;
+    *album_dir_flag* is inserted into each command as is.
+    """
     common = _common_suggestions(integrity, album_dir_flag, media_source)
     match integrity:
         case IosMediaSourceIntegrityResult():
@@ -157,7 +171,10 @@ def _sh(path: str) -> str:
 
 
 def _fix_lines(
-    items: list[ExifMismatch], *, exif_date: str, album_dir: str
+    items: list[ExifMismatch],
+    *,
+    exif_date: str,
+    album_dir: str,
 ) -> list[str]:
     # Exclude .AAE sidecars: they carry no EXIF dates.
     upstream = sorted(
@@ -178,7 +195,11 @@ def _fix_lines(
 
 
 def _commands_for_date(
-    date: str, items: list[ExifMismatch], *, exif_date: str, album_dir: str
+    date: str,
+    items: list[ExifMismatch],
+    *,
+    exif_date: str,
+    album_dir: str,
 ) -> str:
     escaped_files = " ".join(_sh(m.file_name) for m in items)
     return "\n".join(
@@ -194,7 +215,7 @@ def _commands_for_date(
             ),
             "# rm: remove files from this album (remove --dry-run to apply)",
             f"photree album rm-media --dry-run -a {_sh(album_dir)} {escaped_files}",
-        ]
+        ],
     )
 
 
@@ -204,7 +225,8 @@ def suggest_exif_fixes(
     album_date: str,
     album_dir: str,
 ) -> list[str]:
-    """Generate fix, move, and rm command suggestions for EXIF mismatches.
+    """
+    Generate fix, move, and rm command suggestions for EXIF mismatches.
 
     Returns unindented lines (commands nested one level under the heading);
     the caller indents the block.
@@ -221,10 +243,13 @@ def suggest_exif_fixes(
             *(
                 indent(
                     _commands_for_date(
-                        date, items, exif_date=exif_date, album_dir=album_dir
-                    )
+                        date,
+                        items,
+                        exif_date=exif_date,
+                        album_dir=album_dir,
+                    ),
                 )
                 for date, items in sorted(by_date.items())
             ),
-        ]
+        ],
     ).splitlines()

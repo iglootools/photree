@@ -19,7 +19,9 @@ from photree.common.fs import display_path
 
 
 def _exit_if_unparseable(
-    albums: list[Path], display_base: Path | None, cwd: Path
+    albums: list[Path],
+    display_base: Path | None,
+    cwd: Path,
 ) -> None:
     unparseable = [a for a in albums if parse_album_name(a.name) is None]
     if unparseable:
@@ -37,7 +39,7 @@ def _exit_if_unparseable(
                         f"Run 'photree albums check{target}' to identify and fix "
                         "naming issues."
                     ),
-                ]
+                ],
             ),
             markup=False,
         )
@@ -51,7 +53,8 @@ def run_batch_stats(
     render: Callable[[stats_models.AlbumsStats], RenderableType] | None = None,
     cwd: Path,
 ) -> None:
-    """Shared implementation for gallery stats / albums stats.
+    """
+    Shared implementation for gallery stats / albums stats.
 
     *render* lets the gallery substitute its own report — one that adds the
     collection table — without this module knowing what a gallery is. The
@@ -66,21 +69,21 @@ def run_batch_stats(
         typer.echo(f"Found {len(albums)} album(s).\n")
 
     with BatchProgressBar(
-        total=len(albums), description="Computing stats", done_description="stats"
+        total=len(albums),
+        description="Computing stats",
+        done_description="stats",
     ) as progress:
         result = batch_stats(
             albums,
             display_fn=make_display_fn(display_base, cwd),
             on_start=progress.on_start,
-            on_end=lambda name, success, errors: progress.on_end(
-                name, success=success, error_labels=errors
-            ),
+            on_end=progress.on_end,
         )
 
     typer.echo("")
     console.print(
         render(result.stats)
         if render is not None
-        else stats_output.format_albums_stats(result.stats)
+        else stats_output.format_albums_stats(result.stats),
     )
     exit_with_failures(result.failures, "stats", cwd)

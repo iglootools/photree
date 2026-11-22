@@ -1,4 +1,5 @@
-"""Test data generation for demo and testing purposes.
+"""
+Test data generation for demo and testing purposes.
 
 Generates realistic Image Capture directories and album selection folders
 following the conventions documented in docs/domain.md.
@@ -33,7 +34,7 @@ _JPEG_BYTES = bytes.fromhex(
     "3a434445464748494a535455565758595a636465666768696a737475767778797a828384"
     "85868788898a92939495969798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4"
     "c5c6c7c8c9cad2d3d4d5d6d7d8d9dae2e3e4e5e6e7e8e9eaf2f3f4f5f6f7f8f9faffda00"
-    "0c03010002110311003f0028a28a00ffd9"
+    "0c03010002110311003f0028a28a00ffd9",
 )
 
 
@@ -78,6 +79,8 @@ def _write(path: Path, data: bytes) -> None:
 
 @dataclass(frozen=True)
 class SeedResult:
+    """The paths of a demo environment made by :func:`seed_demo`."""
+
     base_dir: Path
     image_capture_dir: Path
     album_dir: Path
@@ -139,7 +142,10 @@ def _convert_placeholders_to_heic(ic_dir: Path) -> None:
 
 
 def _seed_image_capture(ic_dir: Path, *, which: WhichFn) -> None:
-    """Covers HEIC photos with and without edits, ProRAW (DNG) with JPG edit,
+    """
+    Seed an Image Capture directory with every kind of iOS file.
+
+    Covers HEIC photos with and without edits, ProRAW (DNG) with JPG edit,
     JPEG original (Most Compatible mode), PNG screenshot, MOV videos with and
     without edits, and Live Photos.
     """
@@ -154,7 +160,8 @@ def _seed_image_capture(ic_dir: Path, *, which: WhichFn) -> None:
 
 
 def _seed_album(album_dir: Path) -> None:
-    """Generate an album with selection files in to-import-ios-main/.
+    """
+    Generate an album with selection files in to-import-ios-main/.
 
     The selection files are JPEG exports from Apple Photos, matching a subset
     of the Image Capture files. IMG_0004 is intentionally excluded to
@@ -185,7 +192,8 @@ def seed_demo(
     album_name: str = "2024-06-15 - Demo Album",
     which: WhichFn = shutil.which,
 ) -> SeedResult:
-    """Generate a complete demo environment with Image Capture files and an album.
+    """
+    Generate a complete demo environment with Image Capture files and an album.
 
     Creates:
     - ``base_dir/image-capture/`` — realistic Image Capture directory

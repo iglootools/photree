@@ -1,3 +1,5 @@
+"""Computation of storage and media statistics for albums and sets of them."""
+
 from collections.abc import Callable
 from dataclasses import dataclass
 from itertools import groupby
@@ -100,7 +102,9 @@ def _scan_role_dirs(
 
 
 def _scan_media_source_roles(
-    album_dir: Path, ms: MediaSource, seen_inodes: frozenset[InodeKey]
+    album_dir: Path,
+    ms: MediaSource,
+    seen_inodes: frozenset[InodeKey],
 ) -> tuple[tuple[_RoleStats, _RoleStats, _RoleStats], frozenset[InodeKey]]:
     """Scan archive, browsable and derived dirs in that order (dedup order)."""
     archive_dirs = (
@@ -109,10 +113,16 @@ def _scan_media_source_roles(
         else []
     )
     archive, seen = _scan_role_dirs(
-        album_dir, archive_dirs, seen_inodes, StorageRole.ARCHIVE
+        album_dir,
+        archive_dirs,
+        seen_inodes,
+        StorageRole.ARCHIVE,
     )
     browsable, seen = _scan_role_dirs(
-        album_dir, [ms.img_dir, ms.vid_dir], seen, StorageRole.BROWSABLE
+        album_dir,
+        [ms.img_dir, ms.vid_dir],
+        seen,
+        StorageRole.BROWSABLE,
     )
     derived, seen = _scan_role_dirs(album_dir, [ms.jpg_dir], seen, StorageRole.DERIVED)
     return (archive, browsable, derived), seen
@@ -123,7 +133,10 @@ def compute_media_source_stats(
     ms: MediaSource,
     seen_inodes: frozenset[InodeKey] = frozenset(),
 ) -> tuple[MediaSourceStats, frozenset[InodeKey]]:
-    """*seen_inodes* are inodes already counted by earlier media sources of the
+    """
+    Compute the stats of one media source.
+
+    *seen_inodes* are inodes already counted by earlier media sources of the
     same album; the updated set is returned for the next one.
     """
     has_archive = (album_dir / ms.archive_dir).is_dir()
@@ -155,17 +168,20 @@ class UnparseableAlbumNameError(ValueError):
     """Stats need the album year, parsed from a name that does not parse."""
 
     def __init__(self, album_dir: Path) -> None:
+        """Build the error from the album's directory."""
         self.album_dir = album_dir
         super().__init__(f"Album name {album_dir.name!r} cannot be parsed")
 
 
 def extract_year(album_name: str) -> str | None:
+    """Return the year of *album_name*, or ``None`` when the name does not parse."""
     parsed = parse_album_name(album_name)
     return parsed.date[:4] if parsed is not None else None
 
 
 def _compute_all_media_source_stats(
-    album_dir: Path, media_sources: list[MediaSource]
+    album_dir: Path,
+    media_sources: list[MediaSource],
 ) -> tuple[MediaSourceStats, ...]:
     # Documented exception (docs/guidelines.md): loop-carried state — the
     # seen-inode set flows from one media source to the next.
@@ -178,7 +194,10 @@ def _compute_all_media_source_stats(
 
 
 def compute_album_stats(album_dir: Path) -> AlbumStats:
-    """Raises :class:`UnparseableAlbumNameError` when the album name cannot be
+    """
+    Compute an album's stats.
+
+    Raises :class:`UnparseableAlbumNameError` when the album name cannot be
     parsed.
     """
     year = extract_year(album_dir.name)
@@ -186,7 +205,8 @@ def compute_album_stats(album_dir: Path) -> AlbumStats:
         raise UnparseableAlbumNameError(album_dir)
 
     ms_stats = _compute_all_media_source_stats(
-        album_dir, discover_media_sources(album_dir)
+        album_dir,
+        discover_media_sources(album_dir),
     )
     cache_size = scan_directory_size(album_dir / PHOTREE_DIR / CACHE_DIR)
 
@@ -202,8 +222,9 @@ def compute_album_stats(album_dir: Path) -> AlbumStats:
 def albums_stats_from_album_stats(
     album_stats_list: list[AlbumStats],
 ) -> AlbumsStats:
+    """Sum per-album stats into totals for the whole set and for each album year."""
     all_ms_names = sorted(
-        {ms.name for a in album_stats_list for ms in a.by_media_source}
+        {ms.name for a in album_stats_list for ms in a.by_media_source},
     )
 
     sorted_albums = sorted(album_stats_list, key=lambda a: a.album_year)
@@ -237,7 +258,7 @@ def compute_albums_stats(
     *,
     on_album_done: Callable[[str], None] | None = None,
 ) -> AlbumsStats:
-    """Raises :class:`ValueError` when any album name cannot be parsed."""
+    """Raise :class:`ValueError` when any album name cannot be parsed."""
     album_stats_list = [
         _compute_and_notify(album_dir, on_album_done) for album_dir in albums
     ]

@@ -1,3 +1,5 @@
+"""The ``photree gallery export`` command."""
+
 from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated
@@ -26,19 +28,20 @@ from photree.clihelpers.options import (
 from photree.clihelpers.progress import BatchProgressBar
 from photree.clihelpers.resolution import resolve_gallery_or_exit
 from photree.clihelpers.runtime import runtime_of
-from photree.clihelpers.usage import usage_error
+from photree.clihelpers.usage import mutually_exclusive_error
 from photree.common.formatting import indent
 from photree.common.fs import display_path
 from photree.config import ConfigError, PhotreeConfig
 from photree.foundation.layout import ALBUMS_DIR
 from photree.foundation.linking import LinkMode
 from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
-from photree.gallery.cli import app
+from photree.gallery.cli.app import app
 
 
 @app.command("export")
 def export_cmd(
     ctx: typer.Context,
+    *,
     base_dir: Annotated[
         Path | None,
         typer.Option(
@@ -83,7 +86,8 @@ def export_cmd(
     album_layout: ALBUM_LAYOUT_OPTION = None,
     link_mode: EXPORT_LINK_MODE_OPTION = None,
 ) -> None:
-    """Batch export the gallery's albums to a shared directory.
+    """
+    Batch export the gallery's albums to a shared directory.
 
     Exports every album of the gallery (--gallery-dir, or the gallery
     containing the current directory). Alternatively, scan --dir for albums
@@ -102,7 +106,7 @@ def export_cmd(
         if value is not None
     ]
     if len(given) > 1:
-        raise usage_error(f"{' and '.join(given)} are mutually exclusive.")
+        raise mutually_exclusive_error(given)
 
     settings = _resolve_settings_or_exit(
         profile=profile,
@@ -176,7 +180,9 @@ def _resolve_albums(
 
 def _export(albums: list[Path], settings: ResolvedExportSettings, cwd: Path) -> None:
     with BatchProgressBar(
-        total=len(albums), description="Exporting", done_description="export"
+        total=len(albums),
+        description="Exporting",
+        done_description="export",
     ) as progress:
         result = _batch.run_batch_export(
             album_dirs=albums,
@@ -187,7 +193,9 @@ def _export(albums: list[Path], settings: ResolvedExportSettings, cwd: Path) -> 
             on_exporting=progress.on_start,
             on_exported=lambda name: progress.on_end(name, success=True),
             on_error=lambda name, error: progress.on_end(
-                name, success=False, error_labels=(error,)
+                name,
+                success=False,
+                error_labels=(error,),
             ),
         )
 
@@ -201,7 +209,7 @@ def _export(albums: list[Path], settings: ResolvedExportSettings, cwd: Path) -> 
                         indent(f"{display_path(album_dir, cwd)}: {error}")
                         for album_dir, error in result.failed
                     ),
-                ]
+                ],
             ),
             markup=False,
         )

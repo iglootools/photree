@@ -281,11 +281,13 @@ class TestSelectionDateErrors:
         _setup_album(gallery, "2024-07-14 - Trip")
         col_dir = _setup_collection(tmp_path)
         (col_dir / SELECTION_CSV).write_text(
-            "entry,date\n2024-07-14 - Trip,yesterday\n", encoding="utf-8"
+            "entry,date\n2024-07-14 - Trip,yesterday\n",
+            encoding="utf-8",
         )
 
         result = runner.invoke(
-            app, ["collection", "import", "-c", str(col_dir), "-g", str(gallery)]
+            app,
+            ["collection", "import", "-c", str(col_dir), "-g", str(gallery)],
         )
 
         assert result.exit_code == 1

@@ -1,4 +1,5 @@
-"""Sync album names with collection lifecycles (refresh phase 2).
+"""
+Sync album names with collection lifecycles (refresh phase 2).
 
 An explicit collection owns its grouping, so the series is stripped from its
 albums' names; an implicit collection's title is added as the series of its
@@ -20,6 +21,8 @@ from photree.collection.store.protocol import CollectionLifecycle
 
 @dataclass(frozen=True)
 class TitleSync:
+    """The albums after syncing their series titles, the renames made and the errors."""
+
     albums: tuple[AlbumInfo, ...]
     """Albums as they are after the sync (renames applied, even on dry run)."""
 
@@ -32,7 +35,8 @@ def _synced_title(
     explicit_titles: frozenset[str],
     implicit_by_album: Mapping[str, ExistingCollection],
 ) -> ParsedAlbumName:
-    """The album name the collection lifecycles call for.
+    """
+    Return the album name the collection lifecycles call for.
 
     - Explicit collection owns the album's series → strip it from the name.
     - Implicit collection contains a series-less album → add its title.
@@ -74,7 +78,7 @@ def _plan_title_sync(
 def _rename_conflicts(
     plan: list[tuple[AlbumInfo, AlbumInfo]],
 ) -> tuple[CollectionRefreshError, ...]:
-    """Renames whose target is taken on disk or by another planned rename."""
+    """Return the renames whose target is taken on disk or by another planned rename."""
     targets = [new.path for _, new in plan]
     return tuple(
         CollectionRefreshError(
@@ -93,7 +97,8 @@ def sync_album_titles(
     *,
     dry_run: bool,
 ) -> TitleSync:
-    """Sync album titles with collection lifecycle changes.
+    """
+    Sync album titles with collection lifecycle changes.
 
     Returns the albums with their post-sync names, so later stages see the
     same names in a dry run as in a real one.

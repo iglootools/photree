@@ -1,3 +1,5 @@
+"""Planning, checking and executing album renames from an edited CSV."""
+
 import unicodedata
 from collections import Counter
 from collections.abc import Mapping
@@ -11,12 +13,15 @@ from photree.album.naming import ParsedAlbumName, parse_album_name, reconstruct_
 
 @dataclass(frozen=True)
 class RenameAction:
+    """One planned rename of an album directory within its parent."""
+
     album_path: Path
     current_name: str
     new_name: str
 
     @property
     def target(self) -> Path:
+        """Return the album's path after the rename."""
         return self.album_path.parent / self.new_name
 
 
@@ -32,7 +37,8 @@ class RenamePlanErrorKind(StrEnum):
 
 @dataclass(frozen=True)
 class RenamePlanError:
-    """An invalid CSV row.
+    """
+    An invalid CSV row.
 
     ``row`` is the 1-based data row (the header is not counted).
     ``album_name`` is set when the row's album was found.
@@ -69,9 +75,11 @@ def _parse_album_id(external_id: str) -> str | None:
 
 
 def _locate(
-    row_number: int, external_id: str, index: Mapping[str, Path]
+    row_number: int,
+    external_id: str,
+    index: Mapping[str, Path],
 ) -> Path | RenamePlanError:
-    """The album a row refers to, or why it cannot be found."""
+    """Return the album a row refers to, or why it cannot be found."""
     if not external_id:
         return RenamePlanError(RenamePlanErrorKind.EMPTY_ID, row_number, "")
     internal_id = _parse_album_id(external_id)
@@ -86,9 +94,12 @@ def _locate(
 
 
 def _plan_row(
-    row_number: int, row: Mapping[str, str], index: Mapping[str, Path]
+    row_number: int,
+    row: Mapping[str, str],
+    index: Mapping[str, Path],
 ) -> RenameAction | RenamePlanError | None:
-    """Process a single CSV row.
+    """
+    Process a single CSV row.
 
     Returns a :class:`RenameAction` when a rename is needed, a
     :class:`RenamePlanError` when the row is invalid, or ``None`` when no
@@ -121,7 +132,7 @@ def _plan_row(
                     series=csv_series,
                     title=csv_title,
                     location=csv_location,
-                )
+                ),
             )
             return RenameAction(located, located.name, new_name)
 
@@ -130,7 +141,8 @@ def plan_renames_from_csv(
     rows: list[dict[str, str]],
     index: Mapping[str, Path],
 ) -> tuple[tuple[RenameAction, ...], tuple[RenamePlanError, ...]]:
-    """Plan album renames from CSV rows against the album index.
+    """
+    Plan album renames from CSV rows against the album index.
 
     Each row must contain ``id``, ``series``, ``title``, ``location`` columns.
     Other columns are ignored.  Immutable fields (``date``, ``part``,
@@ -145,19 +157,20 @@ def plan_renames_from_csv(
 
 
 class RenameCollisionError(ValueError):
-    """Raised when a rename target conflicts with an existing directory
-    or with another planned rename's target."""
+    """A rename target clashes with an existing directory or another planned rename."""
 
     def __init__(self, current_name: str, new_name: str) -> None:
+        """Build the error from the album's current name and its colliding new name."""
         self.current_name = current_name
         self.new_name = new_name
         super().__init__(
-            f"Collision: {current_name} → {new_name} conflicts with existing directory"
+            f"Collision: {current_name} → {new_name} conflicts with existing directory",
         )
 
 
 def check_rename_collisions(actions: tuple[RenameAction, ...]) -> None:
-    """Check for target directory collisions among planned renames.
+    """
+    Check for target directory collisions among planned renames.
 
     Raises :class:`RenameCollisionError` if any target conflicts with an
     existing directory that is not itself being renamed, or if two renames
@@ -200,7 +213,8 @@ class RenamePhase(StrEnum):
 
 @dataclass(frozen=True)
 class RenameFailure:
-    """Why a rename run stopped.
+    """
+    Why a rename run stopped.
 
     Every rename done before the failure is rolled back (best effort);
     ``stranded`` lists the paths that could not be put back and need manual
@@ -215,12 +229,20 @@ class RenameFailure:
 
 @dataclass(frozen=True)
 class RenameExecution:
+    """
+    Outcome of a rename run.
+
+    ``renamed`` is the number of albums renamed: all of them on success, zero
+    on failure, since the renames done are rolled back.
+    """
+
     renamed: int
     failure: RenameFailure | None = None
 
 
 def _rename_all(moves: list[tuple[Path, Path]]) -> tuple[int, OSError | None]:
-    """Perform the moves in order, stopping at the first failure.
+    """
+    Perform the moves in order, stopping at the first failure.
 
     Returns how many moves were done and the error that stopped the run.
     """
@@ -243,23 +265,29 @@ def _reason(exc: OSError) -> str:
 
 
 def _failed_staging(
-    actions: tuple[RenameAction, ...], temps: list[Path], staged: int, exc: OSError
+    actions: tuple[RenameAction, ...],
+    temps: list[Path],
+    staged: int,
+    exc: OSError,
 ) -> RenameExecution:
     sources = [a.album_path for a in actions]
-    stranded = _undo(list(zip(sources[:staged], temps[:staged])))
+    stranded = _undo(list(zip(sources[:staged], temps[:staged], strict=True)))
     failure = RenameFailure(actions[staged], RenamePhase.STAGE, _reason(exc), stranded)
     return RenameExecution(renamed=0, failure=failure)
 
 
 def _failed_finalizing(
-    actions: tuple[RenameAction, ...], temps: list[Path], done: int, exc: OSError
+    actions: tuple[RenameAction, ...],
+    temps: list[Path],
+    done: int,
+    exc: OSError,
 ) -> RenameExecution:
     finals = [a.target for a in actions]
-    unrestored = _undo(list(zip(temps[:done], finals[:done])))
+    unrestored = _undo(list(zip(temps[:done], finals[:done], strict=True)))
     # Albums whose final name could not be undone are not in staging either.
     restorable = [
         (a.album_path, temp)
-        for a, temp, final in zip(actions, temps, finals)
+        for a, temp, final in zip(actions, temps, finals, strict=True)
         if final not in unrestored
     ]
     stranded = (*unrestored, *_undo(restorable))
@@ -268,7 +296,8 @@ def _failed_finalizing(
 
 
 def execute_renames(actions: tuple[RenameAction, ...]) -> RenameExecution:
-    """Execute planned renames, all or nothing (best effort).
+    """
+    Execute planned renames, all or nothing (best effort).
 
     Every album is first moved to a hidden staging name in its own parent,
     then to its new name. Renaming in place would fail on a swap (A↔B) or a
@@ -288,10 +317,14 @@ def execute_renames(actions: tuple[RenameAction, ...]) -> RenameExecution:
         )
         return RenameExecution(renamed=0, failure=failure)
 
-    staged, exc = _rename_all([(a.album_path, t) for a, t in zip(actions, temps)])
+    staged, exc = _rename_all(
+        [(a.album_path, t) for a, t in zip(actions, temps, strict=True)],
+    )
     if exc is not None:
         return _failed_staging(actions, temps, staged, exc)
-    done, exc = _rename_all([(t, a.target) for a, t in zip(actions, temps)])
+    done, exc = _rename_all(
+        [(t, a.target) for a, t in zip(actions, temps, strict=True)],
+    )
     if exc is not None:
         return _failed_finalizing(actions, temps, done, exc)
     return RenameExecution(renamed=len(actions))

@@ -50,7 +50,10 @@ class TestDetectLivePhotoKeys:
         (d / "IMG_0001.AAE").write_text("sidecar")
 
         keys = detect_live_photo_keys(
-            d, IOS_IMG_EXTENSIONS, IOS_VID_EXTENSIONS, ios_img_number
+            d,
+            IOS_IMG_EXTENSIONS,
+            IOS_VID_EXTENSIONS,
+            ios_img_number,
         )
         assert keys == frozenset({"0001"})
 
@@ -60,7 +63,10 @@ class TestDetectLivePhotoKeys:
         (d / "IMG_0001.HEIC").write_text("img")
 
         keys = detect_live_photo_keys(
-            d, IOS_IMG_EXTENSIONS, IOS_VID_EXTENSIONS, ios_img_number
+            d,
+            IOS_IMG_EXTENSIONS,
+            IOS_VID_EXTENSIONS,
+            ios_img_number,
         )
         assert keys == frozenset()
 
@@ -70,7 +76,10 @@ class TestDetectLivePhotoKeys:
         (d / "IMG_0001.MOV").write_text("vid")
 
         keys = detect_live_photo_keys(
-            d, IOS_IMG_EXTENSIONS, IOS_VID_EXTENSIONS, ios_img_number
+            d,
+            IOS_IMG_EXTENSIONS,
+            IOS_VID_EXTENSIONS,
+            ios_img_number,
         )
         assert keys == frozenset()
 
@@ -92,7 +101,10 @@ class TestComputeLivePhotoVideos:
         edit = tmp_path / "edit"
 
         videos = compute_live_photo_videos(
-            orig, edit, IOS_VID_EXTENSIONS, ios_img_number
+            orig,
+            edit,
+            IOS_VID_EXTENSIONS,
+            ios_img_number,
         )
         assert videos == [("IMG_0001.MOV", orig)]
 
@@ -105,7 +117,10 @@ class TestComputeLivePhotoVideos:
         (edit / "IMG_E0001.MOV").write_text("edit-vid")
 
         videos = compute_live_photo_videos(
-            orig, edit, IOS_VID_EXTENSIONS, ios_img_number
+            orig,
+            edit,
+            IOS_VID_EXTENSIONS,
+            ios_img_number,
         )
         assert videos == [("IMG_E0001.MOV", edit)]
 
@@ -247,7 +262,8 @@ class TestRunImportLivePhoto:
         assert "IMG_0001.MOV" in img_files
 
     def test_browsable_vid_does_not_contain_live_photo_video(
-        self, tmp_path: Path
+        self,
+        tmp_path: Path,
     ) -> None:
         ic = _setup_ic(
             tmp_path,
@@ -365,7 +381,8 @@ class TestCheckWithLivePhotos:
         assert dupes == ()
 
     def test_duplicate_numbers_still_flags_real_duplicates(
-        self, tmp_path: Path
+        self,
+        tmp_path: Path,
     ) -> None:
         d = tmp_path / "edit-img"
         d.mkdir()
@@ -375,7 +392,7 @@ class TestCheckWithLivePhotos:
         all_media = IOS_IMG_EXTENSIONS | IOS_VID_EXTENSIONS
         dupes = check_duplicate_numbers(d, all_media, IOS_IMG_EXTENSIONS)
         assert [(d.img_number, d.files) for d in dupes] == [
-            ("0001", ("IMG_E0001.HEIC", "IMG_E0001.JPG"))
+            ("0001", ("IMG_E0001.HEIC", "IMG_E0001.JPG")),
         ]
 
 

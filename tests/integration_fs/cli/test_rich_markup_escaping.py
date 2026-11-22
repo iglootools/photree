@@ -1,4 +1,5 @@
-"""User text must survive Rich markup.
+"""
+User text must survive Rich markup.
 
 Rich parses ``[...]`` as a markup tag and silently drops the ones it does not
 recognize, so an album named ``2024-07-14 - Hiking [private]`` used to print
@@ -59,7 +60,8 @@ def _gallery(tmp_path: Path) -> Path:
     gallery = tmp_path / "gallery"
     gallery.mkdir()
     save_gallery_metadata(
-        gallery, GalleryMetadata(link_mode=LinkMode.HARDLINK, faces_enabled=False)
+        gallery,
+        GalleryMetadata(link_mode=LinkMode.HARDLINK, faces_enabled=False),
     )
     return gallery
 
@@ -76,10 +78,13 @@ class TestMarkupEscape:
 
 class TestProgressBars:
     def test_batch_result_line_keeps_brackets(
-        self, capsys: pytest.CaptureFixture[str]
+        self,
+        capsys: pytest.CaptureFixture[str],
     ) -> None:
         with BatchProgressBar(
-            total=1, description="Checking", done_description="check"
+            total=1,
+            description="Checking",
+            done_description="check",
         ) as bar:
             bar.on_start(PRIVATE_ALBUM)
             bar.on_end(
@@ -94,19 +99,25 @@ class TestProgressBars:
         assert "| [x] warn" in out
 
     def test_batch_skipped_line_keeps_brackets(
-        self, capsys: pytest.CaptureFixture[str]
+        self,
+        capsys: pytest.CaptureFixture[str],
     ) -> None:
         with BatchProgressBar(
-            total=1, description="Importing", done_description="import"
+            total=1,
+            description="Importing",
+            done_description="import",
         ) as bar:
             bar.on_skipped(PRIVATE_ALBUM, "nothing in [staging]", warn=True)
         assert f"{PRIVATE_ALBUM} (nothing in [staging])" in capsys.readouterr().out
 
     def test_file_and_stage_lines_keep_brackets(
-        self, capsys: pytest.CaptureFixture[str]
+        self,
+        capsys: pytest.CaptureFixture[str],
     ) -> None:
         with FileProgressBar(
-            total=1, description="Checking", done_description="check"
+            total=1,
+            description="Checking",
+            done_description="check",
         ) as bar:
             bar.on_end("IMG [1].jpg", success=True)
         with StageProgressBar(total=1) as stage_bar:
@@ -118,7 +129,9 @@ class TestProgressBars:
 
 class TestAlbumsBatchFailures:
     def test_failed_album_listing_keeps_private_tag(
-        self, tmp_path: Path, chdir: Callable[[Path], None]
+        self,
+        tmp_path: Path,
+        chdir: Callable[[Path], None],
     ) -> None:
         _album(tmp_path, PRIVATE_ALBUM)
         chdir(tmp_path)
@@ -134,7 +147,9 @@ class TestAlbumsBatchFailures:
 
 class TestAlbumCheck:
     def test_preflight_and_troubleshoot_keep_brackets(
-        self, tmp_path: Path, chdir: Callable[[Path], None]
+        self,
+        tmp_path: Path,
+        chdir: Callable[[Path], None],
     ) -> None:
         album = _album(tmp_path, PRIVATE_ALBUM)
         # A second media source makes every media line carry a "[name] " prefix.
@@ -197,7 +212,9 @@ class TestGalleryImport:
 
 class TestCollectionCheck:
     def test_success_line_keeps_private_tag(
-        self, tmp_path: Path, chdir: Callable[[Path], None]
+        self,
+        tmp_path: Path,
+        chdir: Callable[[Path], None],
     ) -> None:
         gallery = _gallery(tmp_path)
         collection = gallery / "collections" / "Best of [private]"
@@ -209,7 +226,8 @@ class TestCollectionCheck:
         chdir(gallery)
 
         result = runner.invoke(
-            app, ["collection", "check", "-c", str(collection), "-g", str(gallery)]
+            app,
+            ["collection", "check", "-c", str(collection), "-g", str(gallery)],
         )
 
         assert result.exit_code == 0, result.output
@@ -225,7 +243,7 @@ class TestStatsTable:
                     CollectionMembers.MANUAL,
                     CollectionLifecycle.EXPLICIT,
                     CollectionStrategy.IMPORT,
-                ): 1
+                ): 1,
             },
             total_album_refs=0,
             total_collection_refs=0,

@@ -1,5 +1,8 @@
-"""Rendering of configuration errors, shared by every command that reads the
-config file (album/albums/gallery import and export, and the CLI entry point).
+"""
+Rendering of configuration errors.
+
+Shared by every command that reads the config file (album/albums/gallery
+import and export, and the CLI entry point).
 """
 
 from photree.config import ConfigError

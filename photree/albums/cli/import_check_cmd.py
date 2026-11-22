@@ -1,3 +1,5 @@
+"""The ``photree albums import-check`` command."""
+
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated
@@ -7,11 +9,11 @@ import typer
 from photree.album.cli.import_preflight import run_import_preflight
 from photree.album.importer.album_import import task_has_content
 from photree.album.importer.tasks import discover_import_tasks
-from photree.albums.cli import app
+from photree.albums.cli.app import app
 from photree.clihelpers.console import err_console
 from photree.clihelpers.progress import BatchProgressBar
 from photree.clihelpers.runtime import runtime_of
-from photree.clihelpers.usage import usage_error
+from photree.clihelpers.usage import mutually_exclusive_error
 from photree.common.formatting import indent
 from photree.common.fs import display_path
 
@@ -43,7 +45,8 @@ def _not_ready_reason(album_dir: Path) -> NotReadyReason | None:
 
 
 def _check_album(
-    album_dir: Path, progress: BatchProgressBar
+    album_dir: Path,
+    progress: BatchProgressBar,
 ) -> tuple[Path, NotReadyReason | None]:
     progress.on_start(album_dir.name)
     reason = _not_ready_reason(album_dir)
@@ -63,7 +66,7 @@ def _report_not_ready(not_ready: list[tuple[Path, NotReadyReason]], cwd: Path) -
                 *(
                     indent(
                         f"{display_path(album, cwd)}\n"
-                        f"{indent(_format_not_ready_reason(reason))}"
+                        f"{indent(_format_not_ready_reason(reason))}",
                     )
                     for album, reason in not_ready
                 ),
@@ -75,11 +78,11 @@ def _report_not_ready(not_ready: list[tuple[Path, NotReadyReason]], cwd: Path) -
                 *(
                     indent(
                         f"photree album import-check --album-dir "
-                        f'"{display_path(album, cwd)}"'
+                        f'"{display_path(album, cwd)}"',
                     )
                     for album, _ in not_ready
                 ),
-            ]
+            ],
         ),
         markup=False,
     )
@@ -129,7 +132,8 @@ def import_check_cmd(
         ),
     ] = None,
 ) -> None:
-    """Check system prerequisites and import tasks for batch import.
+    """
+    Check system prerequisites and import tasks for batch import.
 
     Runs shared preflight checks (sips, Image Capture directory) once, then
     checks each album for non-empty to-import-{ios,std}-<name> staging entries.
@@ -137,9 +141,9 @@ def import_check_cmd(
     runtime = runtime_of(ctx)
     cwd = runtime.cwd()
     if albums_dir is not None and album_dirs is not None:
-        raise usage_error(
-            "--dir and --album-dir are mutually exclusive.\n"
-            "Run 'photree albums import-check --help' for usage."
+        raise mutually_exclusive_error(
+            ("--dir", "--album-dir"),
+            command="albums import-check",
         )
 
     # Shared preflight (sips + IC directory, no per-album selection check)
@@ -157,7 +161,9 @@ def import_check_cmd(
 
     typer.echo(f"\nImport Tasks ({len(albums)} album(s)):")
     with BatchProgressBar(
-        total=len(albums), description="Checking", done_description="check"
+        total=len(albums),
+        description="Checking",
+        done_description="check",
     ) as progress:
         results = [_check_album(album_dir, progress) for album_dir in albums]
 
@@ -165,13 +171,15 @@ def import_check_cmd(
 
 
 def _summarize(
-    total: int, results: list[tuple[Path, NotReadyReason | None]], cwd: Path
+    total: int,
+    results: list[tuple[Path, NotReadyReason | None]],
+    cwd: Path,
 ) -> None:
     """Print the ready/not-ready counts; exit 1 with reasons if any is not ready."""
     not_ready = [(album, reason) for album, reason in results if reason is not None]
     typer.echo(
         f"\n{total - len(not_ready)} album(s) ready to import, "
-        f"{len(not_ready)} not ready."
+        f"{len(not_ready)} not ready.",
     )
     if not_ready:
         _report_not_ready(not_ready, cwd)

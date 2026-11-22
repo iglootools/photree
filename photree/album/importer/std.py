@@ -1,4 +1,5 @@
-"""Import a std (non-iOS) media source from a ``to-import-std-<name>/`` dir.
+"""
+Import a std (non-iOS) media source from a ``to-import-std-<name>/`` dir.
 
 The staging dir contains ``orig/`` and ``edit/`` subfolders whose files are
 imported directly into the std archive (``orig-img``/``orig-vid`` and
@@ -40,6 +41,13 @@ type StdValidationError = StdNoMediaError | DuplicateStem
 
 @dataclass(frozen=True)
 class StdImportResult:
+    """
+    The outcome of importing one std media source.
+
+    *imported* counts the media files copied; *skipped_non_media* lists the
+    staged files left out, as ``orig/<name>`` or ``edit/<name>``.
+    """
+
     media_source_name: str
     imported: int
     skipped_non_media: tuple[str, ...]
@@ -49,12 +57,19 @@ def _is_media(filename: str) -> bool:
     return file_ext(filename) in _MEDIA_EXTENSIONS
 
 
+class MissingStagingDirError(ValueError):
+    """A std import task carries no ``to-import-std`` staging directory."""
+
+    def __init__(self, task: str) -> None:
+        """Build the error from the name of the task that lacks one."""
+        self.task = task
+        super().__init__(f"std import task '{task}' has no to-import-std staging dir")
+
+
 def _staging_dir(task: ImportTask) -> Path:
     match task.staging_dir:
         case None:
-            raise ValueError(
-                f"std import task '{task.name}' has no to-import-std staging dir"
-            )
+            raise MissingStagingDirError(task.name)
         case staging:
             return staging
 
@@ -71,11 +86,19 @@ def _staged_media(task: ImportTask) -> list[str]:
 
 
 def has_media(task: ImportTask) -> bool:
+    """
+    Return whether the task's ``orig/`` or ``edit/`` holds a media file.
+
+    Raises :class:`MissingStagingDirError` when *task* has no staging dir.
+    """
     return bool(_staged_media(task))
 
 
 def validate_std_task(task: ImportTask) -> tuple[StdValidationError, ...]:
-    """Mirrors existing std media source rules (see
+    """
+    Validate a std import task.
+
+    Mirrors existing std media source rules (see
     :func:`photree.album.check.std.check_std_media_source_integrity`):
     requires at least one media file, and rejects duplicate stems within
     ``orig/`` or ``edit/``. An ``edit/`` file with no matching ``orig/`` stem
@@ -105,6 +128,11 @@ def _existing_archive_stems(album_dir: Path, ms: MediaSource) -> set[str]:
 
 
 def find_std_collision(album_dir: Path, task: ImportTask) -> ArchiveCollision | None:
+    """
+    Find the staged filename stems that the target archive already holds.
+
+    Matched by stem regardless of extension, across the four archive dirs.
+    """
     ms = task.media_source
     incoming = {Path(f).stem for f in _staged_media(task)}
     collisions = sorted(incoming & _existing_archive_stems(album_dir, ms))
@@ -112,7 +140,10 @@ def find_std_collision(album_dir: Path, task: ImportTask) -> ArchiveCollision | 
 
 
 def _archive_target(
-    album_dir: Path, filename: str, img_dst: str, vid_dst: str
+    album_dir: Path,
+    filename: str,
+    img_dst: str,
+    vid_dst: str,
 ) -> Path | None:
     """Archive dir a staged file goes to, or None when it is not media."""
     match file_ext(filename):
@@ -125,7 +156,9 @@ def _archive_target(
 
 
 def _plan_copies(
-    album_dir: Path, staging: Path, ms: MediaSource
+    album_dir: Path,
+    staging: Path,
+    ms: MediaSource,
 ) -> list[tuple[str, Path, Path | None]]:
     """``(display name, source file, archive dir or None)`` for every staged file."""
     subdir_targets = (
@@ -149,7 +182,10 @@ def import_std_source(
     *,
     dry_run: bool = False,
 ) -> StdImportResult:
-    """Splits each staging subfolder by extension into the archive's image/video
+    """
+    Import one std media source from its staging directory.
+
+    Splits each staging subfolder by extension into the archive's image/video
     directories, then (on a non-dry run) removes the staging directory.
 
     The archive collision check (:func:`find_std_collision`) is the caller's

@@ -76,7 +76,8 @@ class TestThreshold:
         second = refresh_face_clusters(gallery, distance_threshold=0.0)
 
         clusters = load_clusters(gallery)
-        assert clusters is not None and clusters.threshold == 0.0
+        assert clusters is not None
+        assert clusters.threshold == 0.0
         assert first.mode is FaceRefreshMode.FULL
         # Same threshold again: nothing to do (no spurious full re-cluster).
         assert second.mode is FaceRefreshMode.NONE
@@ -98,7 +99,8 @@ class TestCorruptState:
 
 class TestStages:
     def test_missing_index_runs_full_cluster_with_real_callbacks(
-        self, tmp_path: Path
+        self,
+        tmp_path: Path,
     ) -> None:
         """Regression: the fallback full re-cluster silenced stage callbacks."""
         gallery = _setup_gallery(tmp_path)
@@ -110,7 +112,9 @@ class TestStages:
         started: list[str] = []
         ended: list[str] = []
         result = refresh_face_clusters(
-            gallery, on_stage_start=started.append, on_stage_end=ended.append
+            gallery,
+            on_stage_start=started.append,
+            on_stage_end=ended.append,
         )
 
         assert result.mode is FaceRefreshMode.FULL

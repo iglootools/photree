@@ -12,13 +12,14 @@ FAKE_HOME = Path("/nonexistent/photree-test-home")
 
 
 def fake_which(*present: SystemDependency) -> WhichFn:
-    """A ``which`` that finds *present* and nothing else."""
+    """Return a ``which`` that finds *present* and nothing else."""
     names = {str(dependency) for dependency in present}
     return lambda name: f"/usr/bin/{name}" if name in names else None
 
 
 def fake_runtime(*present: SystemDependency, cpu_count: int = 2) -> Runtime:
-    """A CLI runtime on which only *present* are installed.
+    """
+    Return a CLI runtime on which only *present* are installed.
 
     Nothing of the developer's machine leaks in: the home directory does not
     exist, the environment is empty, and the platform config directories
@@ -41,7 +42,8 @@ def fake_runtime(*present: SystemDependency, cpu_count: int = 2) -> Runtime:
 
 
 def fake_album_runtime(
-    *present: SystemDependency, run_import: RunImportFn
+    *present: SystemDependency,
+    run_import: RunImportFn,
 ) -> AlbumRuntime:
     """:func:`fake_runtime` with a fake album import in place of the real one."""
     return replace(widen(fake_runtime(*present)), run_import=run_import)

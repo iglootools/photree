@@ -1,4 +1,5 @@
-"""EXIF cache state validation — verify cache presence for album.
+"""
+EXIF cache state validation — verify cache presence for album.
 
 During check, the EXIF cache is trusted without per-file mtime
 verification. The cache is validated at write time during album refresh.
@@ -16,14 +17,18 @@ from photree.foundation.layout import PHOTREE_DIR
 
 @dataclass(frozen=True)
 class ExifCacheStateCheck:
+    """The media sources that have no EXIF cache file."""
+
     missing_sources: tuple[str, ...]
 
     @property
     def success(self) -> bool:
+        """Return whether every media source has an EXIF cache file."""
         return len(self.missing_sources) == 0
 
     @property
     def issue_count(self) -> int:
+        """Return the number of media sources missing their EXIF cache file."""
         return len(self.missing_sources)
 
 
@@ -31,10 +36,12 @@ def check_exif_cache_state(
     album_dir: Path,
     media_sources: list[MediaSource],
 ) -> ExifCacheStateCheck | None:
-    """Returns ``None`` when there is nothing to check (no media source, or no
+    """
+    Check that each media source has an EXIF cache file.
+
+    Returns ``None`` when there is nothing to check (no media source, or no
     EXIF cache directory yet), and a check — successful or not — whenever the
-    cache exists. Only checks that each media source has a cache file —
-    trusts the cache content without per-file mtime verification.
+    cache exists. Trusts the cache content without per-file mtime verification.
     """
     cache_dir = album_dir / PHOTREE_DIR / EXIF_CACHE_DIR
     if not media_sources or not cache_dir.is_dir():
@@ -45,5 +52,5 @@ def check_exif_cache_state(
                 ms.name
                 for ms in media_sources
                 if not cache_path(album_dir, ms.name).is_file()
-            )
+            ),
         )

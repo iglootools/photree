@@ -26,7 +26,9 @@ def _setup_media_source(album_dir: Path) -> None:
 
 
 def _setup_album(
-    base_dir: Path, name: str, album_id: str | None = None
+    base_dir: Path,
+    name: str,
+    album_id: str | None = None,
 ) -> tuple[Path, str]:
     """Create a complete album directory. Returns (path, album_id)."""
     album_dir = base_dir / name

@@ -1,6 +1,5 @@
 """Generic file utilities (not photree-specific)."""
 
-import os
 import shutil
 from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
@@ -12,30 +11,30 @@ def display_path(path: Path, cwd: Path) -> Path:
 
 
 def list_files(directory: Path) -> list[str]:
-    """Return regular filenames in *directory*, excluding dotfiles (e.g. .DS_Store).
+    """
+    Return regular filenames in *directory*, excluding dotfiles (e.g. .DS_Store).
 
     Returns an empty list when *directory* does not exist.
     """
     if not directory.is_dir():
         return []
     return sorted(
-        f
-        for f in os.listdir(directory)
-        if not f.startswith(".") and (directory / f).is_file()
+        f.name
+        for f in directory.iterdir()
+        if not f.name.startswith(".") and f.is_file()
     )
 
 
 def list_dirs(directory: Path) -> list[str]:
-    """Return subdirectory names in *directory*, excluding dotdirs (e.g. .photree).
+    """
+    Return subdirectory names in *directory*, excluding dotdirs (e.g. .photree).
 
     Returns an empty list when *directory* does not exist.
     """
     if not directory.is_dir():
         return []
     return sorted(
-        f
-        for f in os.listdir(directory)
-        if not f.startswith(".") and (directory / f).is_dir()
+        f.name for f in directory.iterdir() if not f.name.startswith(".") and f.is_dir()
     )
 
 
@@ -51,7 +50,7 @@ def count_unique_media_numbers(directory: Path, extensions: frozenset[str]) -> i
             "".join(c for c in f if c.isdigit())
             for f in list_files(directory)
             if Path(f).suffix.lower() in extensions
-        }
+        },
     )
 
 
@@ -65,9 +64,11 @@ def _visible_subdirs(directory: Path) -> Iterator[Path]:
 
 
 def matching_subdirectories(
-    base_dir: Path, predicate: Callable[[Path], bool]
+    base_dir: Path,
+    predicate: Callable[[Path], bool],
 ) -> list[Path]:
-    """Recursively collect subdirectories of *base_dir* that satisfy *predicate*.
+    """
+    Recursively collect subdirectories of *base_dir* that satisfy *predicate*.
 
     When a directory matches, it is collected and its subtree is not descended
     into. *base_dir* itself is never returned. Returns an empty list when
@@ -87,9 +88,11 @@ def matching_subdirectories(
 
 
 def partition_subdirectories(
-    base_dir: Path, predicate: Callable[[Path], bool]
+    base_dir: Path,
+    predicate: Callable[[Path], bool],
 ) -> tuple[list[Path], list[Path]]:
-    """Recursively partition subdirectories of *base_dir* into matched and skipped.
+    """
+    Recursively partition subdirectories of *base_dir* into matched and skipped.
 
     Walks the tree like :func:`matching_subdirectories`: when a directory
     matches *predicate*, it is collected and its subtree is not descended

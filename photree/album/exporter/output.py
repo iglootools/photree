@@ -1,3 +1,5 @@
+"""Text the CLI prints for album exports: settings errors and summaries."""
+
 import shlex
 from pathlib import Path
 
@@ -8,9 +10,12 @@ from photree.foundation.layout import SHARE_SENTINEL
 
 
 def format_export_settings_error(
-    exc: ExportSettingsError, cwd: Path, command: str
+    exc: ExportSettingsError,
+    cwd: Path,
+    command: str,
 ) -> str:
-    """Plain text (print with ``markup=False``) with a copy-pasteable fix.
+    """
+    Plain text (print with ``markup=False``) with a copy-pasteable fix.
 
     *command* is the export command that failed, e.g. ``album export``.
     """
@@ -35,24 +40,29 @@ def format_export_settings_error(
                 f"Run 'photree {command} --help' for the export options."
             )
         case ExportSettingsErrorKind.MISSING_SENTINEL:
-            share_dir = display_path(exc.share_dir or Path("."), cwd)
+            share_dir = display_path(exc.share_dir or Path(), cwd)
             sentinel = shlex.quote(str(share_dir / SHARE_SENTINEL))
             return "\n".join(
                 [
-                    f"Share directory has no {SHARE_SENTINEL} sentinel file: {share_dir}",
+                    (
+                        f"Share directory has no {SHARE_SENTINEL} "
+                        f"sentinel file: {share_dir}"
+                    ),
                     "",
                     (
                         "To initialize a share directory, ensure the volume is"
                         " mounted and create the sentinel file:"
                     ),
                     indent(f"touch {sentinel}"),
-                ]
+                ],
             )
 
 
 def export_summary(album_name: str, files_copied: int, album_type: str) -> str:
+    """Return the closing line for one album export: its name, type and file count."""
     return f"Done. Exported {album_name} ({album_type}): {files_copied} file(s)."
 
 
 def batch_export_summary(exported: int, failed: int) -> str:
+    """Return the closing line for a batch export, preceded by a blank line."""
     return f"\nDone. {exported} album(s) exported, {failed} failed."

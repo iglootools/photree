@@ -86,7 +86,8 @@ class TestIsValidDate:
         assert is_valid_date(spec) is True
 
     @pytest.mark.parametrize(
-        "spec", ["2024-13-45", "2024-02-30", "2024-13", "2024-08--2024-07"]
+        "spec",
+        ["2024-13-45", "2024-02-30", "2024-13", "2024-08--2024-07"],
     )
     def test_invalid(self, spec: str) -> None:
         assert is_valid_date(spec) is False

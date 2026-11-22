@@ -1,3 +1,5 @@
+"""Batch face detection."""
+
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial
@@ -20,11 +22,14 @@ from photree.albums.cmd_handler import (
 
 @dataclass(frozen=True)
 class BatchDetectFacesResult:
+    """Result of batch face detection: how many albums succeeded, and failures."""
+
     succeeded: int
     failures: tuple[BatchFailure, ...] = ()
 
     @property
     def failed_albums(self) -> tuple[Path, ...]:
+        """Return the directories of the albums that failed."""
         return tuple(f.album_dir for f in self.failures)
 
 
@@ -64,7 +69,8 @@ def batch_detect_faces(
     on_end: OnEnd = None,
     max_workers: int | None = None,
 ) -> BatchDetectFacesResult:
-    """Run face detection on multiple albums with one shared (lazy) model.
+    """
+    Run face detection on multiple albums with one shared (lazy) model.
 
     Calls ``on_start(name)`` before and
     ``on_end(name, success, error_labels)`` after each album.
@@ -89,5 +95,6 @@ def batch_detect_faces(
     ]
     failures = failures_of(outcomes)
     return BatchDetectFacesResult(
-        succeeded=len(albums) - len(failures), failures=failures
+        succeeded=len(albums) - len(failures),
+        failures=failures,
     )

@@ -1,4 +1,5 @@
-"""Generic fix operations for all album media source types.
+"""
+Generic fix operations for all album media source types.
 
 Unlike :mod:`fix.ios` which requires iOS media sources, these operations
 work with both iOS and std media sources.
@@ -49,15 +50,21 @@ __all__ = [
 
 
 class FixValidationErrorKind(StrEnum):
+    """Why the requested fix options are invalid."""
+
     NO_FIX_SPECIFIED = "no-fix-specified"
 
 
 class FixValidationError(ValueError):
-    """The message carries no command advice: each CLI scope (album, albums,
+    """
+    No fix was requested.
+
+    The message carries no command advice: each CLI scope (album, albums,
     gallery) suggests its own ``--help``.
     """
 
     def __init__(self, kind: FixValidationErrorKind) -> None:
+        """Build the error from its *kind*."""
         self.kind = kind
         super().__init__("No fix specified.")
 
@@ -69,13 +76,15 @@ def validate_fix_flags(
     rm_upstream: bool,
     rm_orphan: bool,
 ) -> None:
-    """Raises :class:`FixValidationError` when no fix is specified."""
+    """Raise :class:`FixValidationError` when no fix is specified."""
     if not (fix_id or new_id or rm_upstream or rm_orphan):
         raise FixValidationError(FixValidationErrorKind.NO_FIX_SPECIFIED)
 
 
 @dataclass(frozen=True)
 class FixRmUpstreamResult:
+    """The number of files rm-upstream removed per directory, summed over sources."""
+
     heic_jpeg: int
     heic_browsable: int
     heic_rendered: int
@@ -86,6 +95,7 @@ class FixRmUpstreamResult:
 
     @staticmethod
     def from_results(results: list[RmUpstreamResult]) -> FixRmUpstreamResult:
+        """Sum the per-media-source *results* and collect every skipped signal."""
         return FixRmUpstreamResult(
             heic_jpeg=sum(len(r.heic.removed_jpeg) for r in results),
             heic_browsable=sum(len(r.heic.removed_browsable) for r in results),
@@ -99,7 +109,10 @@ class FixRmUpstreamResult:
 
 @dataclass(frozen=True)
 class FixResult:
-    """``None`` means the operation was not requested; an empty value means it
+    """
+    The outcome of each fix operation.
+
+    ``None`` means the operation was not requested; an empty value means it
     ran and found nothing, which is reported as such.
     """
 
@@ -109,18 +122,25 @@ class FixResult:
 
 
 def _run_rm_upstream(
-    album_dir: Path, media_sources: list[MediaSource], *, dry_run: bool, force: bool
+    album_dir: Path,
+    media_sources: list[MediaSource],
+    *,
+    dry_run: bool,
+    force: bool,
 ) -> FixRmUpstreamResult:
     """Plan every source first, so one refusal leaves the whole album untouched."""
     plans = [plan_rm_upstream(album_dir, ms, force=force) for ms in media_sources]
     check_rm_upstream_plans(plans, force=force)
     return FixRmUpstreamResult.from_results(
-        [apply_rm_upstream(album_dir, plan, dry_run=dry_run) for plan in plans]
+        [apply_rm_upstream(album_dir, plan, dry_run=dry_run) for plan in plans],
     )
 
 
 def _run_rm_orphan(
-    album_dir: Path, media_sources: list[MediaSource], *, dry_run: bool
+    album_dir: Path,
+    media_sources: list[MediaSource],
+    *,
+    dry_run: bool,
 ) -> tuple[tuple[str, tuple[str, ...]], ...]:
     return tuple(
         entry
@@ -138,8 +158,11 @@ def run_fix(
     rm_orphan_flag: bool = False,
     force: bool = False,
 ) -> FixResult:
-    """*force* lets rm-upstream use empty browsable dirs as deletion signals and
-    delete every item of an archive (see :mod:`.rm_upstream`).
+    """
+    Run the requested fixes on one album.
+
+    *force* lets rm-upstream use empty browsable dirs as deletion signals and
+    delete every item of an archive (see :mod:`photree.album.fix.rm_upstream`).
     """
     media_sources = discover_media_sources(album_dir)
     if not media_sources:

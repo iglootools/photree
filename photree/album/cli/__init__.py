@@ -1,10 +1,4 @@
-import typer
-
-app = typer.Typer(
-    name="album",
-    help="Album management commands.",
-    no_args_is_help=True,
-)
+"""The ``photree album`` commands, each registered on the group's app on import."""
 
 # Imported for their side effect: each module registers its commands on `app`.
 # The redundant `x as x` alias tells ruff and pyright the import is intentional.
@@ -23,3 +17,6 @@ from photree.album.cli import refresh_cmd as refresh_cmd
 from photree.album.cli import rm_media_cmd as rm_media_cmd
 from photree.album.cli import show_cmd as show_cmd
 from photree.album.cli import stats_cmd as stats_cmd
+from photree.album.cli.app import app
+
+__all__ = ["app"]

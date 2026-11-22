@@ -1,4 +1,5 @@
-"""Names of the import staging entries an album carries.
+"""
+Names of the import staging entries an album carries.
 
 Import staging entries are named ``to-import-{ios,std}-<media-source>``. Each
 targets a specific media source: iOS sources use the directory (and an
@@ -39,4 +40,5 @@ def std_import_dir(name: str) -> str:
 
 
 def is_import_staging_dir(name: str) -> bool:
+    """Return whether *name* is an iOS or std import staging entry's name."""
     return name.startswith((f"{TO_IMPORT_PREFIX}ios-", f"{TO_IMPORT_PREFIX}std-"))

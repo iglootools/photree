@@ -1,4 +1,5 @@
-"""Import preflight shared by the album and albums import commands.
+"""
+Import preflight shared by the album and albums import commands.
 
 Public to the ``albums`` CLI (``albums import``, ``albums import-check``):
 both scopes run the same checks and abort the same way.
@@ -27,7 +28,8 @@ def run_import_preflight(
     skip_heic_to_jpeg: bool = False,
     runtime: Runtime,
 ) -> Path:
-    """Prints all check lines first, then troubleshooting for failures at the end.
+    """
+    Print all check lines first, then troubleshooting for failures at the end.
 
     Reads the machine (binaries, home, config file, working directory) only
     through *runtime*.
@@ -35,7 +37,10 @@ def run_import_preflight(
     cwd = runtime.cwd()
     try:
         image_capture_dir = resolve_image_capture_dir(
-            source, config_path, home=runtime.home, load=runtime.load_config
+            source,
+            config_path,
+            home=runtime.home,
+            load=runtime.load_config,
         )
     except ConfigError as exc:
         err_console.print(format_config_error(exc), markup=False)
@@ -66,7 +71,7 @@ def run_import_preflight(
         # abort here is what keeps a missing binary from failing every album
         # individually, halfway through a batch.
         err_console.print(
-            "\nAborted before starting: preflight checks failed. Nothing was imported."
+            "\nAborted before starting: preflight checks failed. Nothing was imported.",
         )
         raise typer.Exit(code=1)
 

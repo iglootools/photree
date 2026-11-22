@@ -1,4 +1,5 @@
-"""Scan the gallery's albums and collections for a collection refresh.
+"""
+Scan the gallery's albums and collections for a collection refresh.
 
 Phase 1 of the refresh: every album name is light-checked and every
 metadata file read up front, so a refresh that will fail reports every
@@ -39,6 +40,8 @@ class AlbumInfo:
 
 @dataclass(frozen=True)
 class ExistingCollection:
+    """A collection found on disk, with its directory, metadata and folder name."""
+
     path: Path
     metadata: CollectionMetadata
     name: str
@@ -46,6 +49,8 @@ class ExistingCollection:
 
 @dataclass(frozen=True)
 class GalleryScan:
+    """The gallery's albums and collections, and the errors found reading them."""
+
     albums: tuple[AlbumInfo, ...]
     collections: tuple[ExistingCollection, ...]
     errors: tuple[CollectionRefreshError, ...]
@@ -61,7 +66,8 @@ def _try_scan_album(album_dir: Path) -> AlbumInfo | CollectionRefreshError:
             return AlbumInfo(path=album_dir, album_id=valid_meta.id, parsed=valid)
         case ((), ParsedAlbumName(), None):
             return CollectionRefreshError(
-                CollectionRefreshErrorKind.ALBUM_MISSING_METADATA, path=album_dir
+                CollectionRefreshErrorKind.ALBUM_MISSING_METADATA,
+                path=album_dir,
             )
         case _:
             return CollectionRefreshError(
@@ -77,7 +83,8 @@ def _try_scan_collection(col_dir: Path) -> ExistingCollection | CollectionRefres
         ExistingCollection(path=col_dir, metadata=meta, name=col_dir.name)
         if meta is not None
         else CollectionRefreshError(
-            CollectionRefreshErrorKind.COLLECTION_UNREADABLE_METADATA, path=col_dir
+            CollectionRefreshErrorKind.COLLECTION_UNREADABLE_METADATA,
+            path=col_dir,
         )
     )
 
@@ -85,6 +92,12 @@ def _try_scan_collection(col_dir: Path) -> ExistingCollection | CollectionRefres
 def scan_existing_collections(
     gallery_dir: Path,
 ) -> tuple[tuple[ExistingCollection, ...], tuple[CollectionRefreshError, ...]]:
+    """
+    Read every collection under the gallery's collections directory.
+
+    Return the collections that were read, then one error for each one whose
+    metadata is missing or unreadable.
+    """
     results = [
         _try_scan_collection(d)
         for d in discover_collections(gallery_dir / COLLECTIONS_DIR)
@@ -110,7 +123,8 @@ def _date_collision_errors(
 
 
 def scan_gallery(gallery_dir: Path) -> GalleryScan:
-    """Scan albums and collections; collect every reason to stop.
+    """
+    Scan albums and collections; collect every reason to stop.
 
     Collisions are only checked once every name parses, since an
     unparseable name has no date to collide on.

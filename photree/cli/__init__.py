@@ -1,3 +1,5 @@
+"""The ``photree`` console entry point and its root command group."""
+
 import sys
 from collections.abc import Callable
 
@@ -17,9 +19,12 @@ __all__ = ["app", "main"]
 
 
 def main(*, run: Callable[..., object] = app, runtime: Runtime | None = None) -> None:
-    """The console entry point: runs *run* (the app) with *runtime* (the real
-    one by default) as every command's ``ctx.obj``, turning the domain errors
-    no command handled into a message and an exit code instead of a traceback.
+    """
+    Run the console entry point.
+
+    Runs *run* (the app) with *runtime* (the real one by default) as every
+    command's ``ctx.obj``, turning the domain errors no command handled into a
+    message and an exit code instead of a traceback.
     """
     resolved = runtime if runtime is not None else Runtime()
     try:
@@ -41,7 +46,8 @@ def main(*, run: Callable[..., object] = app, runtime: Runtime | None = None) ->
         # Safety net for media source discovery not wrapped by the command: an
         # iOS/std name clash is a user-fixable album problem, not a traceback.
         err_console.print(
-            format_media_source_conflict(exc, resolved.cwd()), markup=False
+            format_media_source_conflict(exc, resolved.cwd()),
+            markup=False,
         )
         sys.exit(1)
     except ConfigError as exc:

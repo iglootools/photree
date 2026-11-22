@@ -1,4 +1,5 @@
-"""User-facing messages for the importer.
+"""
+User-facing messages for the importer.
 
 Every formatter returns Rich markup with user-derived text (paths, album and
 media source names, filenames, reasons) escaped via ``markup_escape``; print
@@ -62,6 +63,11 @@ def import_tasks_check(
     empty: bool = False,
     cwd: Path,
 ) -> str:
+    """
+    Return the preflight line for an album's import tasks.
+
+    A cross when no ``to-import-*`` entry was *found*, or when it is *empty*.
+    """
     shown = _shown(album_dir, cwd)
     match (found, empty):
         case (False, _):
@@ -76,6 +82,7 @@ def import_tasks_check(
 
 
 def import_tasks_troubleshoot(album_dir: Path, *, cwd: Path) -> str:
+    """Return how to create an iOS or std import staging dir in *album_dir*."""
     shown = _shown(album_dir, cwd)
     return dedent(f"""\
         Create an import staging directory inside your album directory.
@@ -97,7 +104,10 @@ def _format_ic_dir_warnings(check: ImageCaptureDirCheck) -> list[str]:
     return [
         *(
             [
-                "No recognized media files found (expected .heic, .jpg, .mov, .aae, etc.)."
+                (
+                    "No recognized media files found (expected "
+                    ".heic, .jpg, .mov, .aae, etc.)."
+                ),
             ]
             if not check.has_media_files
             else []
@@ -109,7 +119,7 @@ def _format_ic_dir_warnings(check: ImageCaptureDirCheck) -> list[str]:
                     f"files ({check.img_prefix_ratio:.0%}) have the IMG_ prefix "
                     f"(expected at least {IMG_PREFIX_THRESHOLD:.0%}). "
                     f"This may not be an Image Capture directory."
-                )
+                ),
             ]
             if check.has_media_files and check.has_low_img_prefix_ratio
             else []
@@ -119,10 +129,11 @@ def _format_ic_dir_warnings(check: ImageCaptureDirCheck) -> list[str]:
                 (
                     f"Found {len(check.subdirectory_names)} subdirectory(ies): "
                     f"{markup_escape(', '.join(check.subdirectory_names))}. "
-                    f"Image Capture exports to a flat directory without subdirectories. "
+                    "Image Capture exports to a flat directory "
+                    "without subdirectories. "
                     f"You may be pointing at the wrong level "
                     f"(e.g. ~/Pictures instead of ~/Pictures/<Device>)."
-                )
+                ),
             ]
             if check.has_subdirectories
             else []
@@ -138,6 +149,11 @@ def image_capture_dir_check_output(
     preflight_skipped: bool = False,
     cwd: Path,
 ) -> str:
+    """
+    Return the preflight line for the Image Capture directory.
+
+    A failed *check* adds one bullet per reason it does not look like one.
+    """
     shown = _shown(image_capture_dir, cwd)
     match (found, check, preflight_skipped):
         case (False, _, _):
@@ -164,6 +180,7 @@ def _import_tasks_line(result: ImportPreflightResult, cwd: Path) -> list[str]:
 
 
 def format_preflight_checks(result: ImportPreflightResult, *, cwd: Path) -> str:
+    """Return one line per import preflight check: dependencies, tasks, source."""
     return "\n".join(
         [
             *([format_statuses(result.system_deps)] if result.system_deps else []),
@@ -177,17 +194,19 @@ def format_preflight_checks(result: ImportPreflightResult, *, cwd: Path) -> str:
                         check=result.image_capture_dir_check,
                         preflight_skipped=result.image_capture_dir_preflight_skipped,
                         cwd=cwd,
-                    )
+                    ),
                 ]
                 if result.ios_import_required
                 else []
             ),
-        ]
+        ],
     )
 
 
 def format_preflight_troubleshoot(
-    result: ImportPreflightResult, *, cwd: Path
+    result: ImportPreflightResult,
+    *,
+    cwd: Path,
 ) -> str | None:
     """Format troubleshooting info for failed checks. Returns None if no failures."""
     missing_deps = result.missing_system_deps
@@ -205,6 +224,7 @@ def format_preflight_troubleshoot(
 
 
 def image_capture_dir_troubleshoot(check: ImageCaptureDirCheck) -> str:
+    """Return why the directory does not look like Image Capture's, and ``--force``."""
     return "\n".join(
         [
             "The source directory does not look like an Image Capture folder:",
@@ -212,7 +232,7 @@ def image_capture_dir_troubleshoot(check: ImageCaptureDirCheck) -> str:
             _bullets(_format_ic_dir_warnings(check)),
             "",
             "Use --force to skip this check and proceed anyway.",
-        ]
+        ],
     )
 
 
@@ -232,16 +252,23 @@ def import_error(exc: NoImportTasksError | EmptyImageCaptureDirError, cwd: Path)
 
 
 def batch_album_importing(album_name: str) -> str:
+    """Return the batch line announcing that *album_name* is being imported."""
     return f"Importing: {markup_escape(album_name)}"
 
 
 def batch_album_skipped(album_name: str, reason: str) -> str:
+    """Return the batch line saying *album_name* is skipped, and why."""
     return f"Skipping:  {markup_escape(album_name)} ({markup_escape(reason)})"
 
 
 def batch_summary(
-    imported: int, skipped: int, failed: int = 0, *, dry_run: bool = False
+    imported: int,
+    skipped: int,
+    failed: int = 0,
+    *,
+    dry_run: bool = False,
 ) -> str:
+    """Return the closing tally of a batch import, worded for a *dry_run* too."""
     tally = (
         f"{imported} album(s) would be imported"
         if dry_run
@@ -251,7 +278,10 @@ def batch_summary(
 
 
 def batch_failures(failures: Sequence[AlbumFailure], base: Path) -> str:
-    """The reason is what the batch loop swallowed previously; without it a run
+    """
+    Report each album that failed, with its reason.
+
+    The reason is what the batch loop swallowed previously; without it a run
     where every album failed was indistinguishable from one where every album
     was skipped.
     """
@@ -261,11 +291,11 @@ def batch_failures(failures: Sequence[AlbumFailure], base: Path) -> str:
             *(
                 indent(
                     f"{markup_escape(display_path(failure.album_dir, base))}\n"
-                    f"{indent(markup_escape(failure.reason))}"
+                    f"{indent(markup_escape(failure.reason))}",
                 )
                 for failure in failures
             ),
-        ]
+        ],
     )
 
 
@@ -311,7 +341,8 @@ def _ios_warning_message(warning: ValidationWarning) -> str:
 
 
 def format_archive_collision(collision: ArchiveCollision) -> str:
-    """One-line description of an archive collision, with the way out.
+    """
+    One-line description of an archive collision, with the way out.
 
     Plain text (print with ``markup=False``): :func:`format_task_issue`
     embeds it and escapes the whole line.
@@ -349,19 +380,20 @@ def _task_issue_message(detail: TaskIssueDetail) -> str:
 
 
 def format_task_issue(issue: TaskIssue) -> str:
-    """Format one validation issue, prefixed with its ``[type:source]``.
+    """
+    Format one validation issue, prefixed with its ``[type:source]``.
 
     Escaped for Rich: the ``[ios:main]`` prefix would otherwise be parsed as
     a markup tag and silently dropped.
     """
     ms = issue.media_source
     return markup_escape(
-        f"[{ms.media_source_type}:{ms.name}] {_task_issue_message(issue.detail)}"
+        f"[{ms.media_source_type}:{ms.name}] {_task_issue_message(issue.detail)}",
     )
 
 
 def naming_check_errors(check: ImportNamingCheck, cwd: Path) -> str:
-    """The light check failures blocking an import: names, then date collisions."""
+    """Report the light check failures blocking an import: names, then date clashes."""
     lines = [
         *(
             line
@@ -390,6 +422,7 @@ def naming_check_errors(check: ImportNamingCheck, cwd: Path) -> str:
 
 
 def validation_errors(album_name: str, errors: Sequence[TaskIssue]) -> str:
+    """Return the import-task errors of *album_name*, one bullet each."""
     bullet_list = _bullets([format_task_issue(e) for e in errors])
     return f"Validation failed for {markup_escape(album_name)}:\n{bullet_list}"
 
@@ -403,7 +436,7 @@ def _issue_section(title: str, issues: Sequence[TaskIssue]) -> list[str]:
 
 
 def validation_warnings(validation: AlbumImportValidation) -> str | None:
-    """The non-blocking warnings of a validation (dedup first). None if none."""
+    """Report a validation's non-blocking warnings (dedup first), or None if none."""
     sections = [
         *_issue_section("Dedup Warnings", validation.dedup_warnings),
         *_issue_section("Warnings", validation.warnings),
@@ -412,6 +445,7 @@ def validation_warnings(validation: AlbumImportValidation) -> str | None:
 
 
 def unprocessed_selection_files(files: tuple[str, ...]) -> str:
+    """Return the selection entries to remove before the next import, and why."""
     return "\n".join(
         [
             (
@@ -420,12 +454,13 @@ def unprocessed_selection_files(files: tuple[str, ...]) -> str:
             ),
             "Remove them before the next import, or it will conflict:",
             _bullets([markup_escape(f) for f in files]),
-        ]
+        ],
     )
 
 
 def import_problems(result: AlbumImportResult, album_display: str) -> str | None:
-    """Every problem of a finished import, ``None`` when there is none.
+    """
+    Every problem of a finished import, ``None`` when there is none.
 
     A problem makes ``album import`` exit 1. JPEG failures, face detection
     failures, and unprocessed selection files are independent: reporting only
@@ -435,8 +470,10 @@ def import_problems(result: AlbumImportResult, album_display: str) -> str | None
         [
             "The media imported, but its derived data is incomplete:\n"
             + derived_failures_report(
-                result.jpeg_failures, result.face_failures, album_display
-            )
+                result.jpeg_failures,
+                result.face_failures,
+                album_display,
+            ),
         ]
         if result.jpeg_failures or result.face_failures
         else []

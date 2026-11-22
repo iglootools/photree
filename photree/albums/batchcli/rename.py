@@ -61,7 +61,7 @@ def _print_plan(result: BatchRenameResult, cwd: Path) -> None:
     typer.echo(f"{result.row_count} row(s) in CSV, {len(result.actions)} change(s).\n")
     for action in result.actions:
         typer.echo(
-            indent(f"{display_path(action.album_path, cwd)}\n→ {action.new_name}")
+            indent(f"{display_path(action.album_path, cwd)}\n→ {action.new_name}"),
         )
         typer.echo()
 
@@ -86,7 +86,8 @@ def run_batch_rename_from_csv(
             markup=False,
         )
         err_console.print(
-            f"Fix the rows in {display_path(csv_file, cwd)} and re-run.", markup=False
+            f"Fix the rows in {display_path(csv_file, cwd)} and re-run.",
+            markup=False,
         )
         raise typer.Exit(code=1)
 
@@ -94,7 +95,7 @@ def run_batch_rename_from_csv(
         typer.echo(
             "CSV is empty. Nothing to rename."
             if result.row_count == 0
-            else f"{result.row_count} row(s) in CSV. Nothing to rename."
+            else f"{result.row_count} row(s) in CSV. Nothing to rename.",
         )
         raise typer.Exit(code=0)
 
@@ -106,8 +107,9 @@ def run_batch_rename_from_csv(
     if dry_run:
         typer.echo(
             format_dry_run(
-                f"{len(result.actions)} album(s) would be renamed.", dry_run=True
-            )
+                f"{len(result.actions)} album(s) would be renamed.",
+                dry_run=True,
+            ),
         )
     else:
         typer.echo(f"Renamed {result.renamed} album(s).")

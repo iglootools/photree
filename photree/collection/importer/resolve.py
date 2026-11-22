@@ -1,4 +1,5 @@
-"""Resolve collection import entries against a gallery.
+"""
+Resolve collection import entries against a gallery.
 
 Takes a list of selection entries (IDs, directory names, media filenames)
 and resolves each to a concrete member (album, collection, image, or video)
@@ -52,6 +53,8 @@ class MemberType(StrEnum):
 
 @dataclass(frozen=True)
 class ResolvedMembers:
+    """The internal IDs of the albums, collections, images and videos resolved."""
+
     albums: tuple[str, ...]
     collections: tuple[str, ...]
     images: tuple[str, ...]
@@ -68,7 +71,8 @@ class ResolutionErrorKind(StrEnum):
 
 @dataclass(frozen=True)
 class ResolutionError:
-    """A single resolution error.
+    """
+    A single resolution error.
 
     Fields beyond ``entry`` and ``kind`` are only meaningful for some kinds:
     ``match_count``/``unique_count``/``date_hint_missing`` for AMBIGUOUS,
@@ -95,12 +99,15 @@ class ResolutionWarning:
 
 @dataclass(frozen=True)
 class ResolutionResult:
+    """The members resolved from a selection, with the entries that failed or warned."""
+
     members: ResolvedMembers
     errors: tuple[ResolutionError, ...]
     warnings: tuple[ResolutionWarning, ...] = ()
 
     @property
     def success(self) -> bool:
+        """Whether every entry resolved."""
         return len(self.errors) == 0
 
 
@@ -117,8 +124,8 @@ _MEDIA_EXTENSIONS = IMG_EXTENSIONS | VID_EXTENSIONS
 
 
 def _looks_like_external_id(entry: str) -> bool:
-    parts = entry.split("_", 1)
-    return len(parts) == 2 and parts[0] in _EXTERNAL_PREFIXES
+    prefix, separator, _ = entry.partition("_")
+    return bool(separator) and prefix in _EXTERNAL_PREFIXES
 
 
 def _looks_like_uuid(entry: str) -> bool:
@@ -137,7 +144,8 @@ def _parse_external_id_safe(entry: str) -> str | None:
 
 
 def _extract_media_key(filename: str) -> str:
-    """Extract the matching key from a media filename.
+    """
+    Extract the matching key from a media filename.
 
     For IMG_-prefixed files (iOS convention): extract all digits.
     For other files: use the filename stem.
@@ -150,6 +158,8 @@ def _extract_media_key(filename: str) -> str:
 
 @dataclass(frozen=True)
 class ScannedAlbum:
+    """An album as seen by resolution: its ID, folder name, date and media keys."""
+
     album_id: str
     dir_name: str
     album_date: str | None
@@ -159,6 +169,8 @@ class ScannedAlbum:
 
 @dataclass(frozen=True)
 class ScannedCollection:
+    """A collection as seen by resolution: its ID and folder name."""
+
     collection_id: str
     dir_name: str
 
@@ -245,7 +257,8 @@ type _Request = _IdRequest | _NameRequest | _KeyRequest
 
 
 def _classify(value: str) -> _Request | None:
-    """Classify one entry; ``None`` for an unparseable external ID.
+    """
+    Classify one entry; ``None`` for an unparseable external ID.
 
     An unparseable ID is not looked up at all, so it ends up NOT_FOUND.
     """
@@ -262,7 +275,8 @@ def _classify(value: str) -> _Request | None:
                 else MemberType.VIDEO
             )
             return _KeyRequest(
-                _extract_media_key(value), _MediaRequest(media_type, value)
+                _extract_media_key(value),
+                _MediaRequest(media_type, value),
             )
         case _:
             return _NameRequest(value)
@@ -289,7 +303,10 @@ type _EntryMatch = tuple[str, _Match]  # (entry value, match)
 
 
 def _media_requesters(
-    key: str, media_id: str, media_type: MemberType, lookups: _PendingLookups
+    key: str,
+    media_id: str,
+    media_type: MemberType,
+    lookups: _PendingLookups,
 ) -> list[str]:
     """Entry values requesting this media item, by ID and/or by filename key."""
     by_key = lookups.wanted_media_keys.get(key)
@@ -336,7 +353,8 @@ def _album_matches(album: ScannedAlbum, lookups: _PendingLookups) -> list[_Entry
 
 
 def _collection_matches(
-    col: ScannedCollection, lookups: _PendingLookups
+    col: ScannedCollection,
+    lookups: _PendingLookups,
 ) -> list[_EntryMatch]:
     """Check a single collection against all pending entries."""
     as_collection = _Match(MemberType.COLLECTION, col.collection_id)
@@ -355,7 +373,8 @@ def _collection_matches(
 
 
 def _group_by_entry(
-    entries: tuple[SelectionEntry, ...], pairs: Iterable[_EntryMatch]
+    entries: tuple[SelectionEntry, ...],
+    pairs: Iterable[_EntryMatch],
 ) -> dict[str, list[_Match]]:
     """Group matches by entry value; every entry gets a (possibly empty) list."""
     # sorted() is stable, so matches keep their scan order within an entry.
@@ -370,7 +389,7 @@ def _check_date_mismatch(entry: SelectionEntry, m: _Match) -> list[ResolutionWar
     """Warn if a single-match media entry's date hint doesn't match the album date."""
     match (entry.date_hint, m.album_date):
         case (datetime() as hint, str() as album_date) if _has_media_extension(
-            entry.value
+            entry.value,
         ) and not timestamp_in_range(hint, album_date):
             return [ResolutionWarning(entry.value, hint, album_date)]
         case _:
@@ -378,9 +397,11 @@ def _check_date_mismatch(entry: SelectionEntry, m: _Match) -> list[ResolutionWar
 
 
 def _filter_by_date_hint(
-    entry_matches: list[_Match], date_hint: datetime
+    entry_matches: list[_Match],
+    date_hint: datetime,
 ) -> list[_Match]:
-    """Filter media matches by date hint using album date ranges.
+    """
+    Filter media matches by date hint using album date ranges.
 
     Uses album_date stored in each _Match (captured during scan),
     avoiding a re-scan.
@@ -393,7 +414,8 @@ def _filter_by_date_hint(
 
 
 def _resolve_entry(
-    entry: SelectionEntry, entry_matches: list[_Match]
+    entry: SelectionEntry,
+    entry_matches: list[_Match],
 ) -> _Match | ResolutionError:
     """Resolve one entry to its single match, or the reason it has none."""
     is_media = _has_media_extension(entry.value)
@@ -421,8 +443,12 @@ def _flag_duplicates(
     entries: tuple[SelectionEntry, ...],
     outcomes: list[_Match | ResolutionError],
 ) -> list[_Match | ResolutionError]:
-    """Turn every match of an item already claimed by an earlier entry into
-    a DUPLICATE error (the first entry keeps the item)."""
+    """
+    Flag duplicate matches.
+
+    Turn every match of an item already claimed by an earlier entry into
+    a DUPLICATE error (the first entry keeps the item).
+    """
     # Reversed so the dict keeps the *first* index per internal ID.
     first_index = {
         o.internal_id: i
@@ -451,9 +477,12 @@ def _build_results(
 ) -> ResolutionResult:
     """Convert raw matches into a ResolutionResult with error detection."""
     outcomes = _flag_duplicates(
-        entries, [_resolve_entry(e, matches[e.value]) for e in entries]
+        entries,
+        [_resolve_entry(e, matches[e.value]) for e in entries],
     )
-    resolved = [(e, o) for e, o in zip(entries, outcomes) if isinstance(o, _Match)]
+    resolved = [
+        (e, o) for e, o in zip(entries, outcomes, strict=True) if isinstance(o, _Match)
+    ]
     accepted = [m for _, m in resolved]
     return ResolutionResult(
         members=ResolvedMembers(
@@ -471,7 +500,8 @@ def resolve_entries(
     entries: tuple[SelectionEntry, ...],
     gallery_dir: Path,
 ) -> ResolutionResult:
-    """Resolve selection entries against the gallery.
+    """
+    Resolve selection entries against the gallery.
 
     1. Classify entries into lookup structures
     2. Scan albums and collections, matching against pending entries

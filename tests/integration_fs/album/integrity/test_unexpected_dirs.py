@@ -35,7 +35,8 @@ class TestCheckUnexpectedDirs:
         _setup_ios_album(album)
 
         result = check_unexpected_dirs(
-            album, media_sources=discover_media_sources(album)
+            album,
+            media_sources=discover_media_sources(album),
         )
         assert result.success
         assert result.unexpected == ()
@@ -45,7 +46,8 @@ class TestCheckUnexpectedDirs:
         _setup_std_album(album)
 
         result = check_unexpected_dirs(
-            album, media_sources=discover_media_sources(album)
+            album,
+            media_sources=discover_media_sources(album),
         )
         assert result.success
         assert result.unexpected == ()
@@ -56,7 +58,8 @@ class TestCheckUnexpectedDirs:
         (album / "random-folder").mkdir()
 
         result = check_unexpected_dirs(
-            album, media_sources=discover_media_sources(album)
+            album,
+            media_sources=discover_media_sources(album),
         )
         assert not result.success
         assert result.unexpected == ("random-folder",)
@@ -68,7 +71,8 @@ class TestCheckUnexpectedDirs:
         (album / "aaa-stray").mkdir()
 
         result = check_unexpected_dirs(
-            album, media_sources=discover_media_sources(album)
+            album,
+            media_sources=discover_media_sources(album),
         )
         assert not result.success
         assert result.unexpected == ("aaa-stray", "zzz-extra")
@@ -80,7 +84,8 @@ class TestCheckUnexpectedDirs:
         (album / std_import_dir("nelu")).mkdir()
 
         result = check_unexpected_dirs(
-            album, media_sources=discover_media_sources(album)
+            album,
+            media_sources=discover_media_sources(album),
         )
         assert result.success
 
@@ -90,7 +95,8 @@ class TestCheckUnexpectedDirs:
         (album / ".hidden-dir").mkdir()
 
         result = check_unexpected_dirs(
-            album, media_sources=discover_media_sources(album)
+            album,
+            media_sources=discover_media_sources(album),
         )
         assert result.success
 
@@ -100,7 +106,8 @@ class TestCheckUnexpectedDirs:
         _setup_std_album(album, name="bruno")
 
         result = check_unexpected_dirs(
-            album, media_sources=discover_media_sources(album)
+            album,
+            media_sources=discover_media_sources(album),
         )
         assert result.success
 
@@ -111,7 +118,8 @@ class TestCheckUnexpectedDirs:
         (album / "leftover").mkdir()
 
         result = check_unexpected_dirs(
-            album, media_sources=discover_media_sources(album)
+            album,
+            media_sources=discover_media_sources(album),
         )
         assert not result.success
         assert result.unexpected == ("leftover",)
@@ -122,7 +130,8 @@ class TestCheckUnexpectedDirs:
         (album / ios_import_dir("main")).mkdir()
 
         result = check_unexpected_dirs(
-            album, media_sources=discover_media_sources(album)
+            album,
+            media_sources=discover_media_sources(album),
         )
         assert result.success
 
@@ -132,7 +141,8 @@ class TestCheckUnexpectedDirs:
         (album / "stray").mkdir()
 
         result = check_unexpected_dirs(
-            album, media_sources=discover_media_sources(album)
+            album,
+            media_sources=discover_media_sources(album),
         )
         assert not result.success
         assert result.unexpected == ("stray",)

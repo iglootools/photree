@@ -124,7 +124,7 @@ class TestCheckBrowsableDir:
         album = tmp_path / "album"
         _setup_ios_album(album)
         (album / MAIN_MEDIA_SOURCE.img_dir / "IMG_E0001.HEIC").write_text(
-            "corrupted-different-size!!"
+            "corrupted-different-size!!",
         )
 
         result = check_browsable_dir(
@@ -144,7 +144,7 @@ class TestCheckBrowsableDir:
         # Same length as the source's "heic-rendered", so only the checksum can
         # catch the change; a different length would be reported as a size mismatch.
         (album / MAIN_MEDIA_SOURCE.img_dir / "IMG_E0001.HEIC").write_text(
-            "heic-RENDERED"
+            "heic-RENDERED",
         )
 
         result = check_browsable_dir(
@@ -161,12 +161,16 @@ class TestCheckBrowsableDir:
         assert len(result.checksum_mismatches) == 1
 
     def test_same_size_change_passes_without_checksum(self, tmp_path: Path) -> None:
-        """The size check alone cannot see a same-length change; that is what
-        ``checksum=True`` pays for."""
+        """
+        Pass a same-size change when the checksum is off.
+
+        The size check alone cannot see a same-length change; that is what
+        ``checksum=True`` pays for.
+        """
         album = tmp_path / "album"
         _setup_ios_album(album)
         (album / MAIN_MEDIA_SOURCE.img_dir / "IMG_E0001.HEIC").write_text(
-            "heic-RENDERED"
+            "heic-RENDERED",
         )
 
         result = check_browsable_dir(
@@ -254,7 +258,9 @@ class TestCheckSidecars:
         )
         assert result.missing_sidecars == (
             SidecarIssue(
-                "IMG_E0001.HEIC", "edit-img", SidecarIssueKind.MISSING_EDIT_SIDECAR
+                "IMG_E0001.HEIC",
+                "edit-img",
+                SidecarIssueKind.MISSING_EDIT_SIDECAR,
             ),
         )
 
@@ -282,7 +288,9 @@ class TestCheckSidecars:
         )
         assert result.orphan_sidecars == (
             SidecarIssue(
-                "IMG_O0001.AAE", "edit-img", SidecarIssueKind.ORPHAN_EDIT_SIDECAR
+                "IMG_O0001.AAE",
+                "edit-img",
+                SidecarIssueKind.ORPHAN_EDIT_SIDECAR,
             ),
         )
 
@@ -300,7 +308,9 @@ class TestCheckMiscategorizedFiles:
 
         assert warnings == (
             MiscategorizedFile(
-                "IMG_E0001.HEIC", "orig-img", MiscategorizedKind.EDITED_IN_ORIG
+                "IMG_E0001.HEIC",
+                "orig-img",
+                MiscategorizedKind.EDITED_IN_ORIG,
             ),
         )
 
@@ -315,7 +325,9 @@ class TestCheckMiscategorizedFiles:
 
         assert warnings == (
             MiscategorizedFile(
-                "IMG_0001.HEIC", "edit-img", MiscategorizedKind.ORIGINAL_IN_EDIT
+                "IMG_0001.HEIC",
+                "edit-img",
+                MiscategorizedKind.ORIGINAL_IN_EDIT,
             ),
         )
 
@@ -335,7 +347,8 @@ class TestCheckMiscategorizedFiles:
 
     def test_missing_dirs_are_safe(self, tmp_path: Path) -> None:
         warnings = check_miscategorized_files(
-            tmp_path / "ios-main/orig-img", tmp_path / "ios-main/edit-img"
+            tmp_path / "ios-main/orig-img",
+            tmp_path / "ios-main/edit-img",
         )
 
         assert warnings == ()
@@ -380,30 +393,27 @@ def _setup_symlinked_album(album: Path) -> None:
     _write(album / MAIN_MEDIA_SOURCE.edit_img_dir / "IMG_O0001.AAE", "aae-rendered")
 
     (album / MAIN_MEDIA_SOURCE.img_dir).mkdir(parents=True, exist_ok=True)
-    os.symlink(
+    Path(album / MAIN_MEDIA_SOURCE.img_dir / "IMG_E0001.HEIC").symlink_to(
         os.path.relpath(
             album / MAIN_MEDIA_SOURCE.edit_img_dir / "IMG_E0001.HEIC",
             album / MAIN_MEDIA_SOURCE.img_dir,
         ),
-        album / MAIN_MEDIA_SOURCE.img_dir / "IMG_E0001.HEIC",
     )
-    os.symlink(
+    Path(album / MAIN_MEDIA_SOURCE.img_dir / "IMG_0002.PNG").symlink_to(
         os.path.relpath(
             album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0002.PNG",
             album / MAIN_MEDIA_SOURCE.img_dir,
         ),
-        album / MAIN_MEDIA_SOURCE.img_dir / "IMG_0002.PNG",
     )
 
     _write(album / MAIN_MEDIA_SOURCE.orig_vid_dir / "IMG_0003.MOV", "mov-orig")
     (album / MAIN_MEDIA_SOURCE.edit_vid_dir).mkdir(parents=True, exist_ok=True)
     (album / MAIN_MEDIA_SOURCE.vid_dir).mkdir(parents=True, exist_ok=True)
-    os.symlink(
+    Path(album / MAIN_MEDIA_SOURCE.vid_dir / "IMG_0003.MOV").symlink_to(
         os.path.relpath(
             album / MAIN_MEDIA_SOURCE.orig_vid_dir / "IMG_0003.MOV",
             album / MAIN_MEDIA_SOURCE.vid_dir,
         ),
-        album / MAIN_MEDIA_SOURCE.vid_dir / "IMG_0003.MOV",
     )
 
     _write(album / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_E0001.jpg", "jpeg-converted")
@@ -482,11 +492,15 @@ class TestCheckIosAlbumIntegrity:
         _setup_ios_album(album)
 
         checked: list[tuple[str, bool]] = []
+
+        def record_checked(name: str, *, success: bool) -> None:
+            checked.append((name, success))
+
         check_album_integrity(
             album,
             link_mode=LinkMode.COPY,
             checksum=False,
-            on_file_checked=lambda f, ok: checked.append((f, ok)),
+            on_file_checked=record_checked,
             media_sources=discover_media_sources(album),
         )
         assert len(checked) > 0

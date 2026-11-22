@@ -1,3 +1,5 @@
+"""Finding the media sources of an album from its archive directories."""
+
 from pathlib import Path
 
 from photree.album.formats import IMG_EXTENSIONS, VID_EXTENSIONS
@@ -24,11 +26,13 @@ def _is_ios_source_dir(d: Path) -> bool:
 
 
 def is_std_source_dir(d: Path) -> bool:
+    """Tell whether *d* is a ``std-`` directory with ``orig-img/`` or ``orig-vid/``."""
     return _is_archive_dir(d, STD_DIR_PREFIX)
 
 
 class MediaSourceConflictError(ValueError):
-    """An album holds both ``ios-<name>/`` and ``std-<name>/`` for some names.
+    """
+    An album holds both ``ios-<name>/`` and ``std-<name>/`` for some names.
 
     Both archives would map to the same browsable directories (``<name>-img/``,
     ``<name>-jpg/``, ``<name>-vid/``) and the same ``media-ids/<name>.yaml``,
@@ -38,11 +42,12 @@ class MediaSourceConflictError(ValueError):
     """
 
     def __init__(self, album_dir: Path, names: tuple[str, ...]) -> None:
+        """Build the error from the album's directory and the conflicting names."""
         self.album_dir = album_dir
         self.names = names
         super().__init__(
             f"Album {album_dir.name!r} has both an iOS and a std archive for "
-            f"media source(s): {', '.join(names)}"
+            f"media source(s): {', '.join(names)}",
         )
 
 
@@ -63,7 +68,8 @@ def _archive_names(album_dir: Path) -> tuple[frozenset[str], frozenset[str]]:
 
 
 def find_media_source_conflicts(album_dir: Path) -> tuple[str, ...]:
-    """Return media source names backed by both an iOS and a std archive.
+    """
+    Return media source names backed by both an iOS and a std archive.
 
     Non-raising counterpart of :func:`discover_media_sources`, for checks that
     report the conflict instead of aborting on it.
@@ -73,7 +79,8 @@ def find_media_source_conflicts(album_dir: Path) -> tuple[str, ...]:
 
 
 def has_any_media_source(album_dir: Path) -> bool:
-    """Return whether *album_dir* holds at least one media source archive.
+    """
+    Return whether *album_dir* holds at least one media source archive.
 
     Does not raise on iOS/std name conflicts, so album *discovery* still finds
     a conflicted album and the command operating on it reports the problem.
@@ -83,7 +90,11 @@ def has_any_media_source(album_dir: Path) -> bool:
 
 
 def discover_media_sources(album_dir: Path) -> list[MediaSource]:
-    """Scans for:
+    """
+    Find an album's media sources.
+
+    Scans for:
+
     1. iOS media sources: ``ios-{name}/`` with ``orig-img/`` or ``orig-vid/``
     2. Std media sources: ``std-{name}/`` with ``orig-img/`` or ``orig-vid/``
 
@@ -111,7 +122,10 @@ _MEDIA_EXTENSIONS = IMG_EXTENSIONS | VID_EXTENSIONS
 
 
 def discover_browsable_media_files(album_dir: Path) -> list[Path]:
-    """Searches all media sources' ``{name}-jpg/`` and ``{name}-vid/``
+    """
+    Find the browsable media files of an album.
+
+    Searches all media sources' ``{name}-jpg/`` and ``{name}-vid/``
     directories. Falls back to recursive search from the album root
     when no media sources are found.
     """

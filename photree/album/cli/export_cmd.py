@@ -1,9 +1,11 @@
+"""The ``photree album export`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
-from photree.album.cli import app
+from photree.album.cli.app import app
 from photree.album.exporter import output as export_output
 from photree.album.exporter import single as album_export
 from photree.album.exporter.settings import (
@@ -34,6 +36,7 @@ from photree.dates import DatePrefixError
 @app.command("export")
 def export_cmd(
     ctx: typer.Context,
+    *,
     album_dir: Annotated[
         Path,
         typer.Option(
@@ -44,7 +47,7 @@ def export_cmd(
             file_okay=False,
             resolve_path=True,
         ),
-    ] = Path("."),
+    ] = Path(),
     share_dir: SHARE_DIR_OPTION = None,
     profile: PROFILE_OPTION = None,
     config: CONFIG_OPTION = None,
@@ -52,7 +55,8 @@ def export_cmd(
     album_layout: ALBUM_LAYOUT_OPTION = None,
     link_mode: EXPORT_LINK_MODE_OPTION = None,
 ) -> None:
-    """Export a single album to a shared directory.
+    """
+    Export a single album to a shared directory.
 
     Creates a subdirectory named after the album inside --share-dir.
 
@@ -101,18 +105,20 @@ def export_cmd(
 
     try:
         target_dir = export_compute_target_dir(
-            settings.share_dir, album_dir.name, settings.share_layout
+            settings.share_dir,
+            album_dir.name,
+            settings.share_layout,
         )
     except DatePrefixError as exc:
         err_console.print(
             f"Cannot place album under the '{settings.share_layout}' share"
-            f" layout: {markup_escape(exc)}."
+            f" layout: {markup_escape(exc)}.",
         )
         album_display = markup_escape(display_path(album_dir, cwd))
         err_console.print(
             "Rename the album to follow the naming convention, or run"
             f" 'photree album export --album-dir \"{album_display}\"'"
-            " with '--share-layout flat'."
+            " with '--share-layout flat'.",
         )
         raise typer.Exit(code=1) from exc
 
@@ -125,6 +131,8 @@ def export_cmd(
 
     typer.echo(
         export_output.export_summary(
-            result.album_name, result.files_copied, result.album_type
-        )
+            result.album_name,
+            result.files_copied,
+            result.album_type,
+        ),
     )

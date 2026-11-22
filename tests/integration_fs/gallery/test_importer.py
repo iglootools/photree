@@ -55,10 +55,10 @@ class TestComputeTargetDir:
     def test_month_and_year_precision_albums(self) -> None:
         # Valid names at every date precision land under their (start) year.
         assert compute_target_dir(Path("/gallery"), "2024-07 - Summer") == Path(
-            "/gallery/albums/2024/2024-07 - Summer"
+            "/gallery/albums/2024/2024-07 - Summer",
         )
         assert compute_target_dir(Path("/gallery"), "2024 - Family") == Path(
-            "/gallery/albums/2024/2024 - Family"
+            "/gallery/albums/2024/2024 - Family",
         )
 
     def test_invalid_name_raises(self) -> None:
@@ -207,13 +207,13 @@ class TestImportAlbum:
         album = tmp_path / "2024-07-14 - Hiking"
         _setup_ios_album(album)
 
-        class RefreshFailed(Exception):
+        class RefreshFailedError(Exception):
             pass
 
         def failing_refresh(*_args: object, **_kwargs: object) -> AlbumRefreshResult:
-            raise RefreshFailed
+            raise RefreshFailedError
 
-        with pytest.raises(RefreshFailed):
+        with pytest.raises(RefreshFailedError):
             import_album(
                 source_dir=album,
                 gallery_dir=gallery,
@@ -238,4 +238,5 @@ class TestImportAlbum:
         )
 
         meta = load_album_metadata(result.target_dir)
-        assert meta is not None and meta.id == fixed_id
+        assert meta is not None
+        assert meta.id == fixed_id

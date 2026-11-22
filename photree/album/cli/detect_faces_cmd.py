@@ -1,9 +1,11 @@
+"""The ``photree album detect-faces`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
-from photree.album.cli import app
+from photree.album.cli.app import app
 from photree.album.cli.media_source_conflict import exit_on_media_source_conflict
 from photree.album.faces.detect import memoized_face_analyzer_factory
 from photree.album.faces.failures import format_face_failures
@@ -28,7 +30,8 @@ def detect_faces_cmd(
             file_okay=False,
             resolve_path=True,
         ),
-    ] = Path("."),
+    ] = Path(),
+    *,
     dry_run: DRY_RUN_OPTION = False,
     redetect: Annotated[
         bool,
@@ -69,8 +72,8 @@ def detect_faces_cmd(
                 format_dry_run(
                     f"{ms_name}: {_source_summary(ms_result, dry_run=dry_run)}",
                     dry_run=dry_run,
-                )
-            )
+                ),
+            ),
         )
 
     if result.failures:
@@ -91,5 +94,5 @@ def _source_summary(ms_result: FaceSourceRefreshResult, *, dry_run: bool) -> str
                 else []
             ),
             *([f"{ms_result.failed} failed"] if ms_result.failed else []),
-        ]
+        ],
     )

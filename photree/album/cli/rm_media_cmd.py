@@ -1,14 +1,16 @@
+"""The ``photree album rm-media`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
 from photree.album import media
-from photree.album.cli import app
+from photree.album.cli.app import app
 from photree.album.cli.media_source_conflict import exit_on_media_source_conflict
 from photree.clihelpers.console import err_console
 from photree.clihelpers.runtime import runtime_of
-from photree.clihelpers.usage import usage_error
+from photree.clihelpers.usage import no_files_error
 from photree.common.formatting import format_dry_run
 from photree.common.fs import display_path
 
@@ -26,13 +28,14 @@ def rm_media_cmd(
             file_okay=False,
             resolve_path=True,
         ),
-    ] = Path("."),
+    ] = Path(),
     files: Annotated[
         list[str],
         typer.Argument(
             help="Relative file paths to remove (e.g. main-jpg/IMG_E3219.jpg).",
         ),
     ] = [],  # noqa: B006
+    *,
     dry_run: Annotated[
         bool,
         typer.Option(
@@ -42,14 +45,15 @@ def rm_media_cmd(
         ),
     ] = False,
 ) -> None:
-    """Remove media files and all their variants from an album.
+    """
+    Remove media files and all their variants from an album.
 
     For each specified file, resolves all associated variants by image number
     (iOS) or filename stem (std) across the media source's directory structure
     and removes them all. Any variant file can be used to identify the media.
     """
     if not files:
-        raise usage_error("No files specified.")
+        raise no_files_error()
 
     cwd = runtime_of(ctx).cwd()
     with exit_on_media_source_conflict(cwd):
@@ -63,6 +67,6 @@ def rm_media_cmd(
         format_dry_run(
             media.media_op_summary("remove", result.files_by_dir, dry_run=dry_run),
             dry_run=dry_run,
-        )
+        ),
     )
     typer.echo(media.media_op_check_suggestions([str(display_path(album_dir, cwd))]))

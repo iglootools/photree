@@ -1,3 +1,5 @@
+"""The ``photree gallery check`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
@@ -21,7 +23,7 @@ from photree.clihelpers.runtime import runtime_of
 from photree.collection.check import check_all_collections
 from photree.common.formatting import CHECK, CROSS, indent, markup_escape
 from photree.common.fs import display_path
-from photree.gallery.cli import app
+from photree.gallery.cli.app import app
 from photree.gallery.faces.check import (
     AlbumFaceDataChanged,
     AlbumFaceDataNotIndexed,
@@ -40,12 +42,16 @@ def check_cmd(
         typer.Option(
             "--gallery-dir",
             "-g",
-            help="Gallery root directory (or resolved from cwd via .photree/gallery.yaml).",
+            help=(
+                "Gallery root directory (or resolved from cwd "
+                "via .photree/gallery.yaml)."
+            ),
             exists=True,
             file_okay=False,
             resolve_path=True,
         ),
     ] = None,
+    *,
     checksum: CHECKSUM_OPTION = True,
     fatal_warnings: FATAL_WARNINGS_OPTION = False,
     fatal_sidecar_arg: FATAL_SIDECAR_OPTION = False,
@@ -61,7 +67,8 @@ def check_cmd(
         ),
     ] = False,
 ) -> None:
-    """Check all albums and collections in the gallery.
+    """
+    Check all albums and collections in the gallery.
 
     Every phase (albums, collections, face clusters) runs even when an earlier
     one fails, so one invocation reports every problem; the exit code is 1 if
@@ -114,7 +121,7 @@ def _check_collections(gallery_dir: Path, cwd: Path) -> bool:
                 f"{icon} {markup_escape(display_path(result.collection_dir, cwd))}",
                 *(indent(markup_escape(issue.message), 2) for issue in result.issues),
             ]
-        )
+        ),
     )
     failed = [r.collection_dir for r in col_results if not r.success]
     if failed:
@@ -124,11 +131,12 @@ def _check_collections(gallery_dir: Path, cwd: Path) -> bool:
                     "\nTo investigate, run:",
                     *(
                         indent(
-                            f"'photree collection check --dir \"{display_path(d, cwd)}\"'"
+                            "'photree collection check --dir "
+                            f'"{display_path(d, cwd)}"\'',
                         )
                         for d in failed
                     ),
-                ]
+                ],
             ),
             markup=False,
         )
@@ -139,7 +147,8 @@ def _check_faces(gallery_dir: Path, cwd: Path) -> bool:
     """Validate face cluster consistency. Returns whether it passed."""
     typer.echo("\nFace clusters:")
     result = run_with_spinner(
-        "Checking face clusters...", lambda: check_face_clusters(gallery_dir)
+        "Checking face clusters...",
+        lambda: check_face_clusters(gallery_dir),
     )
     if result is None:
         return True
@@ -147,14 +156,14 @@ def _check_faces(gallery_dir: Path, cwd: Path) -> bool:
         console.print(
             f"{CHECK} face clusters "
             f"({result.clusters.face_count} face(s),"
-            f" {result.clusters.cluster_count} cluster(s))"
+            f" {result.clusters.cluster_count} cluster(s))",
         )
         return True
 
     console.print(f"{CROSS} face clusters ({len(result.issues)} issue(s))")
     typer.echo("\n".join(indent(_format_face_issue(i, cwd), 2) for i in result.issues))
     err_console.print(
-        indent("Run 'photree gallery cluster-faces --redetect' to rebuild.", 2)
+        indent("Run 'photree gallery cluster-faces --redetect' to rebuild.", 2),
     )
     return False
 

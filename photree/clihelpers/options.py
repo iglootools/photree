@@ -1,3 +1,5 @@
+"""Typer option types shared by several commands."""
+
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated
@@ -9,7 +11,8 @@ from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayo
 
 
 class OutputFormat(StrEnum):
-    """Output format of the list commands.
+    """
+    Output format of the list commands.
 
     An enum rather than a free ``str`` so Typer rejects ``--format json``
     instead of silently falling back to text.
@@ -88,7 +91,9 @@ CHECK_EXIF_DATE_MATCH_OPTION = Annotated[
     bool,
     typer.Option(
         "--check-exif-date-match/--no-check-exif-date-match",
-        help="Enable/disable EXIF timestamp vs album date validation (default: enabled).",
+        help=(
+            "Enable/disable EXIF timestamp vs album date validation (default: enabled)."
+        ),
     ),
 ]
 
@@ -104,7 +109,10 @@ RM_UPSTREAM_OPTION = Annotated[
     bool,
     typer.Option(
         "--rm-upstream",
-        help="Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.",
+        help=(
+            "Propagate deletions from browsing dirs "
+            "(main-jpg, main-vid) to upstream dirs."
+        ),
     ),
 ]
 
@@ -155,7 +163,10 @@ RM_MISCATEGORIZED_SAFE_OPTION = Annotated[
     bool,
     typer.Option(
         "--rm-miscategorized-safe",
-        help="Delete miscategorized files only if they already exist in the correct directory.",
+        help=(
+            "Delete miscategorized files only if they already "
+            "exist in the correct directory."
+        ),
     ),
 ]
 
@@ -170,7 +181,9 @@ MV_MISCATEGORIZED_OPTION = Annotated[
 DRY_RUN_OPTION = Annotated[
     bool,
     typer.Option(
-        "--dry-run", "-n", help="Print what would happen without modifying files."
+        "--dry-run",
+        "-n",
+        help="Print what would happen without modifying files.",
     ),
 ]
 
@@ -190,7 +203,10 @@ SHARE_DIR_OPTION = Annotated[
     typer.Option(
         "--share-dir",
         "-s",
-        help="Base directory to export into (subdirectories with album names are created).",
+        help=(
+            "Base directory to export into (subdirectories "
+            "with album names are created)."
+        ),
         file_okay=False,
         resolve_path=True,
     ),
@@ -237,6 +253,9 @@ EXPORT_LINK_MODE_OPTION = Annotated[
     LinkMode | None,
     typer.Option(
         "--link-mode",
-        help="How to create main files in all layout: hardlink (default), symlink, or copy.",
+        help=(
+            "How to create main files in all layout: "
+            "hardlink (default), symlink, or copy."
+        ),
     ),
 ]

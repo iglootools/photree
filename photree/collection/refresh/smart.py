@@ -32,7 +32,8 @@ def _smart_metadata(
     albums: tuple[_DatedMember, ...],
     collections: tuple[_DatedMember, ...],
 ) -> CollectionMetadata | None:
-    """The members a date-range smart collection should have, or ``None``.
+    """
+    Return the members a date-range smart collection should have, or ``None``.
 
     ``None`` for collections whose members are not date-derived: manual ones,
     album-series ones (owned by the implicit refresh), and undated ones.
@@ -75,7 +76,8 @@ def refresh_smart_collections(
     *,
     dry_run: bool,
 ) -> tuple[str, ...]:
-    """Materialize members for smart collections by date range.
+    """
+    Materialize members for smart collections by date range.
 
     Returns the names of the updated collections.
     """

@@ -1,4 +1,5 @@
-"""Human-readable rendering of collection import errors and results.
+"""
+Human-readable rendering of collection import errors and results.
 
 The importer reports structured data (kinds + fields); this module turns it
 into messages. Formatters return unindented lines — the caller indents.
@@ -59,6 +60,7 @@ def format_import_error(exc: CollectionImportError, cwd: Path) -> str:
 
 
 def format_resolution_error(error: ResolutionError) -> str:
+    """Return the one-line message for a selection entry that did not resolve."""
     match error.kind:
         case ResolutionErrorKind.NOT_FOUND:
             reason = "not found in gallery"
@@ -80,6 +82,7 @@ def format_resolution_error(error: ResolutionError) -> str:
 
 
 def format_resolution_warning(warning: ResolutionWarning) -> str:
+    """Return the one-line message for a date hint that misses its album's date."""
     return (
         f"warning: [{warning.entry}] date hint {warning.date_hint.isoformat()} "
         f"does not match album date {warning.album_date}"
@@ -87,6 +90,7 @@ def format_resolution_warning(warning: ResolutionWarning) -> str:
 
 
 def format_selection_error(error: SelectionError, cwd: Path) -> str:
+    """Return the one-line message for an unusable row, located as ``csv_path:line``."""
     location = f"{display_path(error.csv_path, cwd)}:{error.line}"
     match error.kind:
         case SelectionErrorKind.INVALID_DATE:

@@ -2,7 +2,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-from pytest import MonkeyPatch  # noqa: TID251 -- (c) PATH emptied, to show preflight does not read it, see docs/guidelines.md (Tests)
+from pytest import MonkeyPatch  # noqa: PT013, TID251 -- (c) PATH emptied, to show preflight does not read it, see docs/guidelines.md (Tests)
 
 from photree.album.importer.preflight import (
     check_image_capture_dir,
@@ -38,7 +38,8 @@ class TestResolveImageCaptureDir:
         assert resolve_image_capture_dir(tmp_path / "src", config) == tmp_path / "src"
 
     def test_explicit_missing_config_is_an_error_even_with_source(
-        self, tmp_path: Path
+        self,
+        tmp_path: Path,
     ) -> None:
         missing = tmp_path / "nope.toml"
         with pytest.raises(ConfigError) as info:
@@ -52,7 +53,9 @@ class TestResolveImageCaptureDir:
 
     def test_default_is_under_injected_home(self, tmp_path: Path) -> None:
         resolved = resolve_image_capture_dir(
-            None, self._config(tmp_path), home=lambda: tmp_path / "home"
+            None,
+            self._config(tmp_path),
+            home=lambda: tmp_path / "home",
         )
         assert resolved == tmp_path / "home" / "Pictures" / "iPhone"
 
@@ -114,7 +117,8 @@ class TestCheckImageCaptureDir:
 
 
 class TestSystemDeps:
-    """``run_preflight`` folds caller-probed dependency statuses into its result.
+    """
+    ``run_preflight`` folds caller-probed dependency statuses into its result.
 
     It takes them as a parameter rather than reading PATH, so these drive every
     branch directly.
@@ -129,10 +133,12 @@ class TestSystemDeps:
             self._ic_dir(tmp_path),
             system_deps=(
                 SystemDependencyStatus(
-                    dependency=SystemDependency.SIPS, available=True
+                    dependency=SystemDependency.SIPS,
+                    available=True,
                 ),
                 SystemDependencyStatus(
-                    dependency=SystemDependency.EXIFTOOL, available=False
+                    dependency=SystemDependency.EXIFTOOL,
+                    available=False,
                 ),
             ),
         )
@@ -160,7 +166,8 @@ class TestSystemDeps:
             self._ic_dir(tmp_path),
             system_deps=(
                 SystemDependencyStatus(
-                    dependency=SystemDependency.EXIFTOOL, available=True
+                    dependency=SystemDependency.EXIFTOOL,
+                    available=True,
                 ),
             ),
         )

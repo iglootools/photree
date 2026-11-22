@@ -1,4 +1,5 @@
-"""Output formatting for album checks (preflight + integrity).
+"""
+Output formatting for album checks (preflight + integrity).
 
 Formatters return unindented lines; nested detail lines are indented relative
 to their heading with :func:`~photree.common.formatting.indent`, and the call
@@ -66,20 +67,23 @@ def _bullets(items: Sequence[str]) -> list[str]:
 def jpeg_failures_report(
     failures: tuple[tuple[str, JpegConversionFailure], ...],
 ) -> str:
+    """Format the files that could not be converted to JPEG, as Rich markup."""
     return "\n".join(
         [
             f"{CROSS} jpeg: {len(failures)} file(s) could not be converted",
             *(
                 indent(
-                    markup_escape(f"{source}/{failure.filename}: {failure.reason}"), 2
+                    markup_escape(f"{source}/{failure.filename}: {failure.reason}"),
+                    2,
                 )
                 for source, failure in failures
             ),
-        ]
+        ],
     )
 
 
 def face_failures_report(failures: tuple[tuple[str, FaceFailure], ...]) -> str:
+    """Format the images face detection failed on, as Rich markup."""
     return "\n".join(
         [
             f"{CROSS} face detection failed for {len(failures)} image(s)",
@@ -87,7 +91,7 @@ def face_failures_report(failures: tuple[tuple[str, FaceFailure], ...]) -> str:
                 indent(markup_escape(line), 2)
                 for line in format_face_failures(failures)
             ),
-        ]
+        ],
     )
 
 
@@ -96,7 +100,10 @@ def derived_failures_report(
     face_failures: tuple[tuple[str, FaceFailure], ...],
     album_dir: str,
 ) -> str:
-    """Shared by every command that refreshes derived data (refresh, import,
+    """
+    Report the per-file failures of a refresh of derived data.
+
+    Shared by every command that refreshes derived data (refresh, import,
     gallery import), so a partial refresh reads — and is retried — the same
     way everywhere. Rich markup, with user text escaped.
     """
@@ -125,11 +132,12 @@ def derived_failures_report(
                 if face_failures
                 else []
             ),
-        ]
+        ],
     )
 
 
-def sips_check(available: bool) -> str:
+def sips_check(*, available: bool) -> str:
+    """Format the sips availability line, as Rich markup."""
     if available:
         return f"{CHECK} sips"
     else:
@@ -137,10 +145,16 @@ def sips_check(available: bool) -> str:
 
 
 def sips_troubleshoot() -> str:
+    """Return the troubleshooting text for a missing sips."""
     return format_missing_troubleshoot([SystemDependency.SIPS])
 
 
-def exiftool_check(available: bool) -> str:
+def exiftool_check(*, available: bool) -> str:
+    """
+    Format the exiftool availability line, as Rich markup.
+
+    A missing exiftool is not a failure: the EXIF checks are skipped.
+    """
     if available:
         return f"{CHECK} exiftool"
     else:
@@ -148,6 +162,7 @@ def exiftool_check(available: bool) -> str:
 
 
 def media_sources_check(summary: AlbumMediaSourceSummary) -> str:
+    """Format the media sources line, as Rich markup."""
     if not summary.media_sources:
         return f"{CROSS} media sources: none detected"
     else:
@@ -172,6 +187,7 @@ def media_source_conflicts_check(conflicts: tuple[str, ...]) -> str:
 
 
 def media_source_conflicts_troubleshoot(conflicts: tuple[str, ...]) -> str:
+    """Return the troubleshooting text for media source name clashes."""
     names = markup_escape(", ".join(conflicts))
     return (
         f"Media source name(s) used by both an iOS and a std archive: {names}.\n"
@@ -180,7 +196,8 @@ def media_source_conflicts_troubleshoot(conflicts: tuple[str, ...]) -> str:
     )
 
 
-def album_id_check_line(has_id: bool, album_id: str | None = None) -> str:
+def album_id_check_line(*, has_id: bool, album_id: str | None = None) -> str:
+    """Format the album ID line, as Rich markup."""
     if has_id and album_id is not None:
         return f"{CHECK} album id: {format_album_external_id(album_id)}"
     else:
@@ -188,6 +205,7 @@ def album_id_check_line(has_id: bool, album_id: str | None = None) -> str:
 
 
 def media_metadata_check_line(check: MediaMetadataCheck) -> str:
+    """Format the media metadata line, as Rich markup."""
     stale_parts = [
         *([f"{len(check.new_keys)} new"] if check.new_keys else []),
         *([f"{len(check.stale_keys)} removed"] if check.stale_keys else []),
@@ -212,6 +230,7 @@ def album_dir_check(
     optional_present: tuple[str, ...] = (),
     optional_absent: tuple[str, ...] = (),
 ) -> str:
+    """Format one line per required and optional album directory, as Rich markup."""
     lines = [
         *[f"{CHECK} dir: {markup_escape(d)}/" for d in present],
         *[f"{CROSS} dir: {markup_escape(d)}/ (missing)" for d in missing],
@@ -225,6 +244,7 @@ def album_dir_check(
 
 
 def unexpected_dirs_check_line(check: UnexpectedDirsCheck) -> str:
+    """Format the unexpected directories check, as Rich markup."""
     if check.success:
         return f"{CHECK} no unexpected directories"
     else:
@@ -232,7 +252,7 @@ def unexpected_dirs_check_line(check: UnexpectedDirsCheck) -> str:
             [
                 f"{CROSS} unexpected directories:",
                 *[indent(f"{markup_escape(d)}/", 2) for d in check.unexpected],
-            ]
+            ],
         )
 
 
@@ -242,11 +262,12 @@ def format_naming_checks(
     fatal_exif: bool = False,
     album_dir: str = ".",
 ) -> str:
+    """Format the naming and EXIF date checks, as Rich markup."""
     return "\n".join(
         [
             *_format_naming_line(result),
             *_format_exif_line(result, fatal_exif=fatal_exif, album_dir=album_dir),
-        ]
+        ],
     )
 
 
@@ -261,7 +282,10 @@ def _format_naming_line(result: AlbumNamingResult) -> list[str]:
 
 
 def _format_exif_line(
-    result: AlbumNamingResult, *, fatal_exif: bool, album_dir: str
+    result: AlbumNamingResult,
+    *,
+    fatal_exif: bool,
+    album_dir: str,
 ) -> list[str]:
     icon = CROSS if fatal_exif else WARNING
     match result.exif_check:
@@ -277,7 +301,7 @@ def _format_exif_line(
                         (
                             f"{icon} exif: no file matches the album date"
                             f" ({exif_check.album_date}) exactly"
-                        )
+                        ),
                     ]
                     if exif_check.no_exact_album_date_match
                     else []
@@ -286,7 +310,9 @@ def _format_exif_line(
 
 
 def _format_exif_mismatches(
-    exif_check: ExifTimestampCheck, icon: str, album_dir: str
+    exif_check: ExifTimestampCheck,
+    icon: str,
+    album_dir: str,
 ) -> list[str]:
     n = len(exif_check.mismatches)
     max_examples = 5
@@ -333,18 +359,19 @@ def format_batch_naming_issues(result: BatchNamingResult) -> str:
                         *(indent(markup_escape(album), 2) for album in albums),
                     )
                 ),
-            ]
+            ],
         )
 
 
 def _issues_block(icon: str, label: str, issues: Sequence[str]) -> str:
     """*label* and *issues* are plain text, escaped here."""
     return "\n".join(
-        [f"{icon} {markup_escape(label)}: {len(issues)} issue(s)", *_bullets(issues)]
+        [f"{icon} {markup_escape(label)}: {len(issues)} issue(s)", *_bullets(issues)],
     )
 
 
 def format_browsable_dir_check(label: str, check: BrowsableDirCheck) -> str:
+    """Format one browsable directory's check, as Rich markup."""
     if check.success:
         return f"{CHECK} {markup_escape(label)}: {len(check.correct)} file(s) verified"
     else:
@@ -355,7 +382,8 @@ def format_browsable_dir_check(label: str, check: BrowsableDirCheck) -> str:
             ],
             *[f"extra: {f}" for f in check.extra],
             *[
-                f"wrong source: {w.filename} (should be {w.expected}, edited version exists)"
+                f"wrong source: {w.filename} (should be "
+                f"{w.expected}, edited version exists)"
                 for w in check.wrong_source
             ],
             *[
@@ -367,7 +395,8 @@ def format_browsable_dir_check(label: str, check: BrowsableDirCheck) -> str:
                 for c in check.size_mismatches
             ],
             *[
-                f"checksum mismatch: {c.filename} (expected match with {c.expected_source})"
+                f"checksum mismatch: {c.filename} (expected "
+                f"match with {c.expected_source})"
                 for c in check.checksum_mismatches
             ],
         ]
@@ -375,6 +404,7 @@ def format_browsable_dir_check(label: str, check: BrowsableDirCheck) -> str:
 
 
 def format_jpeg_check(check: JpegCheck, label: str) -> str:
+    """Format one JPEG directory's check, as Rich markup."""
     if check.success:
         return f"{CHECK} {markup_escape(label)}: {len(check.present)} file(s) verified"
     else:
@@ -386,6 +416,7 @@ def format_jpeg_check(check: JpegCheck, label: str) -> str:
 
 
 def format_sidecar_issue(issue: SidecarIssue) -> str:
+    """Describe a sidecar issue in plain text (not escaped)."""
     match issue.kind:
         case SidecarIssueKind.MISSING_SIDECAR:
             return f"{issue.file} has no AAE sidecar in {issue.directory}/"
@@ -400,6 +431,11 @@ def format_sidecar_issue(issue: SidecarIssue) -> str:
 
 
 def format_sidecar_check(check: SidecarCheck, *, fatal_sidecar: bool = False) -> str:
+    """
+    Format the sidecar check, as Rich markup.
+
+    Missing sidecars are shown as warnings unless *fatal_sidecar* is set.
+    """
     issues = [
         *(format_sidecar_issue(i) for i in check.orphan_sidecars),
         *(f"(info) {format_sidecar_issue(i)}" for i in check.missing_sidecars),
@@ -413,6 +449,7 @@ def format_sidecar_check(check: SidecarCheck, *, fatal_sidecar: bool = False) ->
 
 
 def format_duplicate_number(dup: DuplicateNumber) -> str:
+    """Describe a duplicate image number in plain text (not escaped)."""
     return (
         f"{dup.directory}/: number {dup.img_number} has multiple media files "
         f"with same prefix: {', '.join(dup.files)}"
@@ -420,6 +457,7 @@ def format_duplicate_number(dup: DuplicateNumber) -> str:
 
 
 def format_duplicate_stem(dup: DuplicateStem) -> str:
+    """Describe a duplicate stem in plain text (not escaped)."""
     return (
         f"{dup.directory}/: stem {dup.stem} has multiple media files: "
         f"{', '.join(dup.files)}"
@@ -427,6 +465,7 @@ def format_duplicate_stem(dup: DuplicateStem) -> str:
 
 
 def format_miscategorized_file(mf: MiscategorizedFile) -> str:
+    """Describe a file in the wrong archive directory in plain text (not escaped)."""
     match mf.kind:
         case MiscategorizedKind.EDITED_IN_ORIG:
             looks_like = "an edited file (IMG_E prefix)"
@@ -443,7 +482,9 @@ def format_duplicate_numbers(dups: tuple[DuplicateNumber, ...]) -> str | None:
     """Format duplicate number issues. Returns None if there are none."""
     return (
         _issues_block(
-            CROSS, "duplicate numbers", [format_duplicate_number(d) for d in dups]
+            CROSS,
+            "duplicate numbers",
+            [format_duplicate_number(d) for d in dups],
         )
         if dups
         else None
@@ -464,9 +505,12 @@ def format_miscategorized(files: tuple[MiscategorizedFile, ...]) -> str | None:
 
 
 def format_duplicate_stems(dups: tuple[DuplicateStem, ...]) -> str:
+    """Format the duplicate stems check, as Rich markup."""
     return (
         _issues_block(
-            CROSS, "duplicate stems", [format_duplicate_stem(d) for d in dups]
+            CROSS,
+            "duplicate stems",
+            [format_duplicate_stem(d) for d in dups],
         )
         if dups
         else f"{CHECK} no duplicate stems"
@@ -506,7 +550,10 @@ def format_integrity_checks(
     *,
     fatal_sidecar: bool = False,
 ) -> str:
-    """Single media source: no prefix (identical output to previous behavior).
+    """
+    Format the integrity checks of every media source.
+
+    Single media source: no prefix (identical output to previous behavior).
     Multiple media sources: each section prefixed with ``[name]``.
     """
     multi = len(result.by_media_source) > 1
@@ -532,7 +579,10 @@ def _format_media_source_section(
     match ms_result:
         case IosMediaSourceIntegrityResult():
             return _format_ios_media_source_integrity(
-                ms, ms_result, p, fatal_sidecar=fatal_sidecar
+                ms,
+                ms_result,
+                p,
+                fatal_sidecar=fatal_sidecar,
             )
         case StdMediaSourceIntegrityResult():
             return [
@@ -542,6 +592,7 @@ def _format_media_source_section(
 
 
 def format_jpeg_integrity_checks(result: AlbumJpegIntegrityResult) -> str:
+    """Format the JPEG check of each media source, as Rich markup."""
     multi = len(result.by_media_source) > 1
     return "\n".join(
         format_jpeg_check(
@@ -553,6 +604,7 @@ def format_jpeg_integrity_checks(result: AlbumJpegIntegrityResult) -> str:
 
 
 def format_face_sync_issue(issue: FaceSyncIssue) -> str:
+    """Describe a face ``.npz``/``.yaml`` sync issue in plain text (not escaped)."""
     match issue.kind:
         case FaceSyncIssueKind.MISSING_NPZ:
             detail = ".yaml records faces but the .npz is missing"
@@ -566,6 +618,7 @@ def format_face_sync_issue(issue: FaceSyncIssue) -> str:
 
 
 def format_face_state_check(check: FaceStateCheck) -> str:
+    """Format the face state check, as Rich markup."""
     if check.success:
         return f"{CHECK} face state"
     else:
@@ -586,12 +639,15 @@ def format_face_state_check(check: FaceStateCheck) -> str:
                         ),
                     )
                 ),
-            ]
+            ],
         )
 
 
 def _format_issue_group(
-    label: str, items: tuple[str, ...], *, max_shown: int = 5
+    label: str,
+    items: tuple[str, ...],
+    *,
+    max_shown: int = 5,
 ) -> list[str]:
     """Format a group of issues with truncation."""
     return (
@@ -609,6 +665,7 @@ def _format_issue_group(
 
 
 def format_exif_cache_check(check: ExifCacheStateCheck) -> str:
+    """Format the EXIF cache check, as Rich markup."""
     if check.success:
         return f"{CHECK} exif cache"
     else:
@@ -625,7 +682,7 @@ def format_exif_cache_check(check: ExifCacheStateCheck) -> str:
                         ),
                     )
                 ),
-            ]
+            ],
         )
 
 
@@ -651,9 +708,9 @@ def _format_system_section(result: AlbumPreflightResult) -> str:
     return "\n".join(
         [
             "System:",
-            sips_check(result.sips_available),
-            exiftool_check(result.exiftool_available),
-        ]
+            sips_check(available=result.sips_available),
+            exiftool_check(available=result.exiftool_available),
+        ],
     )
 
 
@@ -663,7 +720,12 @@ def _format_structure_section(result: AlbumPreflightResult) -> str:
         [
             "Structure:",
             *(
-                [album_id_check_line(id_check.has_id, id_check.album_id)]
+                [
+                    album_id_check_line(
+                        has_id=id_check.has_id,
+                        album_id=id_check.album_id,
+                    ),
+                ]
                 if id_check is not None
                 else []
             ),
@@ -687,12 +749,12 @@ def _format_structure_section(result: AlbumPreflightResult) -> str:
                 if result.media_metadata_check is not None
                 else []
             ),
-        ]
+        ],
     )
 
 
 def _directory_structure_line(check: AlbumDirCheck) -> str:
-    """Collapsed directory structure check — single line on success, details on failure."""
+    """Format the directory structure check: one line on success, details on failure."""
     total_present = len(check.present) + len(check.optional_present)
     opt_absent = len(check.optional_absent)
 
@@ -702,7 +764,9 @@ def _directory_structure_line(check: AlbumDirCheck) -> str:
             *([f"{opt_absent} optional absent"] if opt_absent else []),
         ]
         return format_check_line(
-            "directory structure", success=True, summary=", ".join(parts)
+            "directory structure",
+            success=True,
+            summary=", ".join(parts),
         )
     else:
         return format_check_line(
@@ -717,7 +781,9 @@ def _directory_structure_line(check: AlbumDirCheck) -> str:
 
 
 def _format_media_section(
-    result: AlbumPreflightResult, *, fatal_sidecar: bool
+    result: AlbumPreflightResult,
+    *,
+    fatal_sidecar: bool,
 ) -> str | None:
     if result.integrity is None and result.jpeg_check is None:
         return None
@@ -728,8 +794,9 @@ def _format_media_section(
                 *(
                     [
                         format_integrity_checks(
-                            result.integrity, fatal_sidecar=fatal_sidecar
-                        )
+                            result.integrity,
+                            fatal_sidecar=fatal_sidecar,
+                        ),
                     ]
                     if result.integrity is not None
                     else []
@@ -739,12 +806,15 @@ def _format_media_section(
                     if result.jpeg_check is not None
                     else []
                 ),
-            ]
+            ],
         )
 
 
 def _format_naming_section(
-    result: AlbumPreflightResult, *, fatal_exif: bool, album_dir: str
+    result: AlbumPreflightResult,
+    *,
+    fatal_exif: bool,
+    album_dir: str,
 ) -> str | None:
     if result.naming is None:
         return None
@@ -753,9 +823,11 @@ def _format_naming_section(
             [
                 "Naming:",
                 format_naming_checks(
-                    result.naming, fatal_exif=fatal_exif, album_dir=album_dir
+                    result.naming,
+                    fatal_exif=fatal_exif,
+                    album_dir=album_dir,
                 ),
-            ]
+            ],
         )
 
 
@@ -776,7 +848,7 @@ def _format_cache_section(result: AlbumPreflightResult) -> str | None:
                     if result.exif_cache_check is not None
                     else []
                 ),
-            ]
+            ],
         )
 
 
@@ -812,16 +884,17 @@ def format_fatal_warnings(
             ),
             *(
                 indent(
-                    f"{CROSS} exif: {markup_escape(f'{m.file_name}  {m.timestamp}')}"
+                    f"{CROSS} exif: {markup_escape(f'{m.file_name}  {m.timestamp}')}",
                 )
                 for m in exif_mismatches
             ),
-        ]
+        ],
     )
 
 
 def _integrity_suggestions(
-    result: AlbumPreflightResult, album_dir_flag: str
+    result: AlbumPreflightResult,
+    album_dir_flag: str,
 ) -> list[str]:
     """Fix suggestions for every media source's integrity failures (iOS and std)."""
     return [
@@ -834,7 +907,8 @@ def _integrity_suggestions(
 
 
 def _missing_dirs_suggestions(
-    result: AlbumPreflightResult, album_dir_flag: str
+    result: AlbumPreflightResult,
+    album_dir_flag: str,
 ) -> list[str]:
     """Missing browsable directories → suggest refresh --refresh-browsable."""
     missing_browsable = frozenset(result.dir_check.missing) & frozenset(
@@ -847,7 +921,7 @@ def _missing_dirs_suggestions(
             dedent(f"""\
                 photree album refresh {album_dir_flag} --refresh-browsable
                   Rebuild browsable directories ({", ".join(sorted(missing_browsable))})
-                  from archive sources, then regenerate JPEGs.""")
+                  from archive sources, then regenerate JPEGs."""),
         ]
         if missing_browsable
         else []
@@ -855,13 +929,14 @@ def _missing_dirs_suggestions(
 
 
 def _media_metadata_suggestions(
-    result: AlbumPreflightResult, album_dir_flag: str
+    result: AlbumPreflightResult,
+    album_dir_flag: str,
 ) -> list[str]:
     return (
         [
             dedent(f"""\
                 photree album refresh {album_dir_flag}
-                  Generate or update media IDs in .photree/media-ids/.""")
+                  Generate or update media IDs in .photree/media-ids/."""),
         ]
         if result.media_metadata_check is not None
         and not result.media_metadata_check.in_sync
@@ -873,7 +948,7 @@ def format_album_preflight_troubleshoot(
     result: AlbumPreflightResult,
     album_dir: str = ".",
 ) -> str | None:
-    """Format troubleshooting info for failed album checks. Returns None if no failures."""
+    """Format troubleshooting for failed album checks, or return None if none failed."""
     album_dir_flag = f'--album-dir "{album_dir}"'
     all_suggestions = [
         *_missing_dirs_suggestions(result, album_dir_flag),
@@ -892,7 +967,7 @@ def format_album_preflight_troubleshoot(
                 "Suggested fixes (remove --dry-run to apply):\n\n"
                 # Suggestions are plain text quoting the album dir and media
                 # source names, so they are escaped as a whole.
-                + "\n\n".join(markup_escape(s) for s in all_suggestions)
+                + "\n\n".join(markup_escape(s) for s in all_suggestions),
             ]
             if all_suggestions
             else []
@@ -902,6 +977,7 @@ def format_album_preflight_troubleshoot(
 
 
 def batch_check_summary(passed: int, failed: int, warned: int = 0) -> str:
+    """Format the closing line of a batch check with its album counts."""
     parts = [
         f"{passed} album(s) passed",
         *([f"{warned} with warnings"] if warned else []),
@@ -927,14 +1003,14 @@ def duplicate_ids_report(
             [
                 f"{CROSS} duplicate {kind} id: {format_id(dup_id)}",
                 *(indent(markup_escape(display_path(p, base)), 2) for p in paths),
-            ]
+            ],
         )
         for dup_id, paths in duplicates.items()
     )
 
 
 def no_duplicate_ids_line(kind: str) -> str:
-    """The success counterpart of :func:`duplicate_ids_report`."""
+    """Return the success counterpart of :func:`duplicate_ids_report`."""
     return f"{CHECK} no duplicate {kind} ids"
 
 
@@ -944,7 +1020,8 @@ def batch_check_retry_flags(
     fatal_sidecar: bool,
     fatal_exif_date_match: bool,
 ) -> str:
-    """Reconstruct the flags needed to reproduce a batch check on one album.
+    """
+    Reconstruct the flags needed to reproduce a batch check on one album.
 
     A suggested command that silently drops the caller's flags would not
     reproduce the failure it is suggested for.
@@ -954,5 +1031,5 @@ def batch_check_retry_flags(
             " --fatal-warnings" if fatal_warnings else "",
             " --fatal-sidecar" if fatal_sidecar else "",
             " --no-fatal-exif-date-match" if not fatal_exif_date_match else "",
-        ]
+        ],
     )

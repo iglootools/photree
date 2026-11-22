@@ -1,11 +1,8 @@
-import typer
+"""The ``photree collection metadata`` command group, with its commands registered."""
 
-app = typer.Typer(
-    name="metadata",
-    help="Collection metadata management.",
-    no_args_is_help=True,
-)
-
-# Imported for its side effect: the module registers its commands on `app`.
+# Imported for their side effect: each module registers its commands on `app`.
 # The redundant `x as x` alias tells ruff and pyright the import is intentional.
 from photree.collection.cli.metadata import set_cmd as set_cmd
+from photree.collection.cli.metadata.app import app
+
+__all__ = ["app"]

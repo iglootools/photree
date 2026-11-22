@@ -434,7 +434,8 @@ class TestRmMiscategorizedSafe:
         )
         _setup_dir(tmp_path / "ios-main/edit-img", ["IMG_E0001.HEIC", "IMG_0099.HEIC"])
         _setup_dir(
-            tmp_path / "ios-main/orig-img", ["IMG_0099.HEIC"]
+            tmp_path / "ios-main/orig-img",
+            ["IMG_0099.HEIC"],
         )  # 0099 exists in orig too
 
         result = rm_miscategorized_safe(tmp_path, MC)

@@ -1,4 +1,5 @@
-"""Face state validation — verify face data consistency with album contents.
+"""
+Face state validation — verify face data consistency with album contents.
 
 During check, the face state is trusted without per-file mtime
 verification. The state is validated at write time during album refresh.
@@ -25,6 +26,8 @@ from photree.album.store.media_source import MediaSource
 
 
 class FaceSyncIssueKind(StrEnum):
+    """The ways a media source's face ``.npz`` and ``.yaml`` files disagree."""
+
     # Refresh writes the .npz and the .yaml together, so one without the
     # other means a write was interrupted or a file was deleted by hand.
     MISSING_NPZ = "missing-npz"  # .yaml records faces, .npz is absent
@@ -43,15 +46,19 @@ class FaceSyncIssue:
 
 @dataclass(frozen=True)
 class FaceStateCheck:
+    """The outcome of checking an album's face detection state."""
+
     model_mismatch: bool
     npz_yaml_sync_errors: tuple[FaceSyncIssue, ...]
 
     @property
     def success(self) -> bool:
+        """Return whether the model matches and every ``.npz``/``.yaml`` agrees."""
         return not self.model_mismatch and len(self.npz_yaml_sync_errors) == 0
 
     @property
     def issue_count(self) -> int:
+        """Return the problem count: one for a model mismatch, plus each sync error."""
         return (1 if self.model_mismatch else 0) + len(self.npz_yaml_sync_errors)
 
 
@@ -62,9 +69,11 @@ def check_face_state(
     model_version: str = DEFAULT_MODEL_VERSION,
     media_sources: list[MediaSource],
 ) -> FaceStateCheck | None:
-    """Returns ``None`` if no face data exists. Trusts the state without
-    per-file mtime verification — the state is validated at write time
-    during album refresh.
+    """
+    Check the face detection state, or return ``None`` if no face data exists.
+
+    Trusts the state without per-file mtime verification — the state is
+    validated at write time during album refresh.
     """
     has_any_face_data = any(
         state_path(album_dir, ms.name).is_file()
@@ -76,7 +85,10 @@ def check_face_state(
     else:
         per_source = [
             _check_source(
-                album_dir, ms, model_name=model_name, model_version=model_version
+                album_dir,
+                ms,
+                model_name=model_name,
+                model_version=model_version,
             )
             for ms in media_sources
         ]

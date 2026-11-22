@@ -1,3 +1,5 @@
+"""The ``photree gallery cluster-faces`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
@@ -15,7 +17,7 @@ from photree.clihelpers.sysdeps import (
 )
 from photree.foundation.gallery_metadata import GALLERY_YAML, load_gallery_metadata
 from photree.foundation.layout import PHOTREE_DIR
-from photree.gallery.cli import app
+from photree.gallery.cli.app import app
 from photree.gallery.cli.ops import require_valid_threshold, run_face_clustering
 
 
@@ -27,12 +29,16 @@ def cluster_faces_cmd(
         typer.Option(
             "--gallery-dir",
             "-g",
-            help="Gallery root directory (or resolved from cwd via .photree/gallery.yaml).",
+            help=(
+                "Gallery root directory (or resolved from cwd "
+                "via .photree/gallery.yaml)."
+            ),
             exists=True,
             file_okay=False,
             resolve_path=True,
         ),
     ] = None,
+    *,
     dry_run: DRY_RUN_OPTION = False,
     redetect: Annotated[
         bool,
@@ -52,7 +58,10 @@ def cluster_faces_cmd(
         float | None,
         typer.Option(
             "--threshold",
-            help="Cosine distance threshold for clustering (0.0-1.0). Overrides gallery.yaml.",
+            help=(
+                "Cosine distance threshold for clustering "
+                "(0.0-1.0). Overrides gallery.yaml."
+            ),
         ),
     ] = None,
 ) -> None:

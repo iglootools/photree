@@ -1,3 +1,5 @@
+"""Bring an album's EXIF cache up to date with its browsable files."""
+
 import shutil
 from collections.abc import Mapping
 from contextlib import nullcontext
@@ -26,21 +28,32 @@ from photree.common.sysdeps import WhichFn
 
 @dataclass(frozen=True)
 class ExifCacheSourceResult:
+    """
+    The outcome of one media source's EXIF cache refresh, as file counts.
+
+    *cached* entries were kept as they were, *refreshed* ones were (or, in a dry
+    run, would be) re-read, and *pruned* ones dropped because their file is gone.
+    """
+
     cached: int
     refreshed: int
     pruned: int
 
     @property
     def changed(self) -> bool:
+        """Return whether any entry was re-read or pruned."""
         return self.refreshed > 0 or self.pruned > 0
 
 
 @dataclass(frozen=True)
 class ExifCacheRefreshResult:
+    """The outcome of an album's EXIF cache refresh, per media source name."""
+
     by_media_source: tuple[tuple[str, ExifCacheSourceResult], ...]
 
     @property
     def changed(self) -> bool:
+        """Return whether any media source's cache changed."""
         return any(r.changed for _, r in self.by_media_source)
 
 
@@ -52,7 +65,10 @@ def refresh_exif_cache(
     dry_run: bool = False,
     which: WhichFn = shutil.which,
 ) -> ExifCacheRefreshResult:
-    """When *force* is True, re-read all files regardless of mtime.
+    """
+    Refresh the EXIF cache of each media source.
+
+    When *force* is True, re-read all files regardless of mtime.
     *exiftool* can be shared across albums in batch operations; when it is
     ``None`` a transient one is started (and closed) for this album, if
     *which* finds the binary.
@@ -71,11 +87,15 @@ def refresh_exif_cache(
                 (
                     ms.name,
                     _refresh_source(
-                        album_dir, ms, exiftool=et, force=force, dry_run=dry_run
+                        album_dir,
+                        ms,
+                        exiftool=et,
+                        force=force,
+                        dry_run=dry_run,
                     ),
                 )
                 for ms in sources
-            )
+            ),
         )
 
 
@@ -112,7 +132,7 @@ def _plan_source(album_dir: Path, ms: MediaSource, *, force: bool) -> _SourcePla
         keys_to_refresh=tuple(
             sorted(current_files)
             if force
-            else _keys_needing_refresh(current_files, album_dir, existing)
+            else _keys_needing_refresh(current_files, album_dir, existing),
         ),
         stale_keys=frozenset(existing.files) - frozenset(current_files),
     )
@@ -134,7 +154,9 @@ def _refresh_source(
         if not dry_run and load_exif_cache(album_dir, ms.name) != plan.existing:
             save_exif_cache(album_dir, ms.name, plan.existing)
         return ExifCacheSourceResult(
-            cached=len(plan.current_files), refreshed=0, pruned=0
+            cached=len(plan.current_files),
+            refreshed=0,
+            pruned=0,
         )
 
     if dry_run:
@@ -156,7 +178,10 @@ def _apply_plan(
 ) -> ExifCacheSourceResult:
     """Read EXIF for new/changed files, merge with the kept entries, and save."""
     new_entries = _read_exif_for_keys(
-        plan.keys_to_refresh, plan.current_files, album_dir, exiftool=exiftool
+        plan.keys_to_refresh,
+        plan.current_files,
+        album_dir,
+        exiftool=exiftool,
     )
     retained = {
         k: v
@@ -176,14 +201,18 @@ def _apply_plan(
 
 
 def cache_key(subdir: str, filename: str) -> str:
-    """Scoped by directory so that ``main-jpg/clip.jpg`` and ``main-vid/clip.mp4``
-    (same stem, different media) do not collide.
+    """
+    Return the cache key of a file, scoped by its directory.
+
+    Scoping by directory keeps ``main-jpg/clip.jpg`` and ``main-vid/clip.mp4``
+    (same stem, different media) from colliding.
     """
     return f"{subdir}/{Path(filename).stem}"
 
 
 def _scan_browsable_files(album_dir: Path, ms: MediaSource) -> dict[str, str]:
-    """Scan browsable directories and return ``{cache_key: relative_path}``.
+    """
+    Scan browsable directories and return ``{cache_key: relative_path}``.
 
     Scans ``{name}-jpg/`` and ``{name}-vid/`` (the directories used for
     EXIF date checking).
@@ -231,7 +260,7 @@ def _read_exif_for_keys(
             file_name=current_files[key],
             timestamp=ts.isoformat() if ts is not None else None,
         )
-        for key, ts in zip(keys, timestamps)
+        for key, ts in zip(keys, timestamps, strict=True)
     }
 
 

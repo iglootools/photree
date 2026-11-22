@@ -1,3 +1,5 @@
+"""Album and media IDs: generation, and their external ``prefix_base58`` form."""
+
 import uuid as _uuid
 from enum import StrEnum
 
@@ -9,10 +11,12 @@ VIDEO_ID_PREFIX = "video"
 
 
 def generate_album_id() -> str:
+    """Return a new album ID: a UUIDv7 string."""
     return str(_uuid.uuid7())
 
 
 def generate_media_id() -> str:
+    """Return a new image or video ID: a UUIDv7 string."""
     return str(_uuid.uuid7())
 
 
@@ -22,6 +26,8 @@ def format_external_id(type_prefix: str, internal_id: str) -> str:
 
 
 class InvalidExternalIdKind(StrEnum):
+    """Why an external ID failed to parse."""
+
     WRONG_PREFIX = "wrong-prefix"
     """No ``prefix_`` part, or a prefix other than the expected one."""
     MALFORMED = "malformed"
@@ -32,10 +38,14 @@ class InvalidExternalIdError(ValueError):
     """An external ID that does not parse as ``<expected_prefix>_<base58>``."""
 
     def __init__(
-        self, value: str, expected_prefix: str, kind: InvalidExternalIdKind
+        self,
+        value: str,
+        expected_prefix: str,
+        kind: InvalidExternalIdKind,
     ) -> None:
+        """Build the error from the ID given, the prefix expected and the kind."""
         super().__init__(
-            f"Invalid external ID '{value}' ({kind}), expected '{expected_prefix}_...'"
+            f"Invalid external ID '{value}' ({kind}), expected '{expected_prefix}_...'",
         )
         self.value = value
         self.expected_prefix = expected_prefix
@@ -43,13 +53,18 @@ class InvalidExternalIdError(ValueError):
 
 
 def parse_external_id(external_id: str, expected_prefix: str) -> str:
-    """Raises :class:`InvalidExternalIdError` on a wrong prefix or an encoded
+    """
+    Parse an external album ID.
+
+    Raises :class:`InvalidExternalIdError` on a wrong prefix or an encoded
     part that is not a base58-encoded UUID.
     """
     prefix, sep, encoded = external_id.partition("_")
     if not sep or prefix != expected_prefix:
         raise InvalidExternalIdError(
-            external_id, expected_prefix, InvalidExternalIdKind.WRONG_PREFIX
+            external_id,
+            expected_prefix,
+            InvalidExternalIdKind.WRONG_PREFIX,
         )
     else:
         try:
@@ -58,25 +73,40 @@ def parse_external_id(external_id: str, expected_prefix: str) -> str:
             # base58_decode rejects characters outside the alphabet;
             # UUID(bytes=...) rejects anything that is not exactly 16 bytes.
             raise InvalidExternalIdError(
-                external_id, expected_prefix, InvalidExternalIdKind.MALFORMED
+                external_id,
+                expected_prefix,
+                InvalidExternalIdKind.MALFORMED,
             ) from exc
 
 
 def format_album_external_id(internal_id: str) -> str:
+    """Return the ``album_<base58>`` external form of an album's UUID."""
     return format_external_id(ALBUM_ID_PREFIX, internal_id)
 
 
 def format_image_external_id(internal_id: str) -> str:
+    """Return the ``image_<base58>`` external form of an image's UUID."""
     return format_external_id(IMAGE_ID_PREFIX, internal_id)
 
 
 def format_video_external_id(internal_id: str) -> str:
+    """Return the ``video_<base58>`` external form of a video's UUID."""
     return format_external_id(VIDEO_ID_PREFIX, internal_id)
 
 
 def parse_image_external_id(external_id: str) -> str:
+    """
+    Return the UUID string of an ``image_<base58>`` external ID.
+
+    Raises :class:`InvalidExternalIdError` when it does not parse.
+    """
     return parse_external_id(external_id, IMAGE_ID_PREFIX)
 
 
 def parse_video_external_id(external_id: str) -> str:
+    """
+    Return the UUID string of a ``video_<base58>`` external ID.
+
+    Raises :class:`InvalidExternalIdError` when it does not parse.
+    """
     return parse_external_id(external_id, VIDEO_ID_PREFIX)

@@ -1,4 +1,5 @@
-"""Gallery face manifest I/O — load/save manifest, clusters, and checksums.
+"""
+Gallery face manifest I/O — load/save manifest, clusters, and checksums.
 
 A file that exists but cannot be read raises
 :class:`~photree.foundation.metadata_io.InvalidMetadataError` rather than reading as
@@ -35,18 +36,22 @@ def gallery_faces_dir(gallery_dir: Path) -> Path:
 
 
 def manifest_path(gallery_dir: Path) -> Path:
+    """Return the path of the gallery's face manifest file."""
     return gallery_faces_dir(gallery_dir) / FACE_MANIFEST_FILE
 
 
 def clusters_path(gallery_dir: Path) -> Path:
+    """Return the path of the gallery's face clusters file."""
     return gallery_faces_dir(gallery_dir) / FACE_CLUSTERS_FILE
 
 
 def checksums_path(gallery_dir: Path) -> Path:
+    """Return the path of the gallery's per-album face checksums file."""
     return gallery_faces_dir(gallery_dir) / FACE_CHECKSUMS_FILE
 
 
 def faiss_index_path(gallery_dir: Path) -> Path:
+    """Return the path of the gallery's FAISS face index file."""
     return gallery_faces_dir(gallery_dir) / FACE_INDEX_FILE
 
 
@@ -63,33 +68,54 @@ def _save_yaml(path: Path, model: BaseModel) -> None:
 
 
 def load_manifest(gallery_dir: Path) -> FaceManifest | None:
+    """
+    Read the gallery's face manifest, or ``None`` if it does not exist.
+
+    Raises :class:`~photree.foundation.metadata_io.InvalidMetadataError` when it is
+    corrupt.
+    """
     return _load_yaml(manifest_path(gallery_dir), FaceManifest)
 
 
 def save_manifest(gallery_dir: Path, manifest: FaceManifest) -> None:
+    """Write *manifest* as the gallery's face manifest, creating its directory."""
     _save_yaml(manifest_path(gallery_dir), manifest)
 
 
 def load_clusters(gallery_dir: Path) -> FaceClusteringResult | None:
+    """
+    Read the gallery's face clusters, or ``None`` if they do not exist.
+
+    Raises :class:`~photree.foundation.metadata_io.InvalidMetadataError` when the
+    file is corrupt.
+    """
     return _load_yaml(clusters_path(gallery_dir), FaceClusteringResult)
 
 
 def save_clusters(gallery_dir: Path, result: FaceClusteringResult) -> None:
+    """Write *result* as the gallery's face clusters, creating its directory."""
     _save_yaml(clusters_path(gallery_dir), result)
 
 
 def load_checksums(gallery_dir: Path) -> AlbumFaceChecksums | None:
+    """
+    Read the gallery's per-album face checksums, or ``None`` if they do not exist.
+
+    Raises :class:`~photree.foundation.metadata_io.InvalidMetadataError` when the
+    file is corrupt.
+    """
     return _load_yaml(checksums_path(gallery_dir), AlbumFaceChecksums)
 
 
 def save_checksums(gallery_dir: Path, checksums: AlbumFaceChecksums) -> None:
+    """Write *checksums* as the gallery's per-album face checksums, making its dir."""
     _save_yaml(checksums_path(gallery_dir), checksums)
 
 
 def compute_npz_checksum(npz_path: Path) -> str:
     """Return the SHA-256 hex digest of an ``.npz`` file."""
     h = hashlib.sha256()
-    with open(npz_path, "rb") as f:
+    with Path(npz_path).open("rb") as f:
         for chunk in iter(lambda: f.read(8192), b""):
             h.update(chunk)
     return h.hexdigest()

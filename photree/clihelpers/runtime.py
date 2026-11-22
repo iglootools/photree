@@ -1,4 +1,5 @@
-"""The ports a CLI command runs with, real by default.
+"""
+The ports a CLI command runs with, real by default.
 
 A command reads the machine and the process only through its runtime: which
 binaries are installed, the working directory, the home directory, the
@@ -55,6 +56,6 @@ class Runtime:
 
 
 def runtime_of(ctx: typer.Context) -> Runtime:
-    """The runtime on *ctx* (a test's), else the real one."""
+    """Return the runtime on *ctx* (a test's), else the real one."""
     found = ctx.find_object(Runtime)
     return found if found is not None else Runtime()

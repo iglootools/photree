@@ -1,3 +1,5 @@
+"""The fix that removes browsable and edit files whose original is gone."""
+
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -26,15 +28,25 @@ def _find_orphan_files(
 
 @dataclass(frozen=True)
 class RmOrphanDirResult:
+    """
+    The orphans removed from one media kind's directories.
+
+    *removed_by_dir* pairs each directory name with the files removed from
+    it; directories with nothing removed are left out.
+    """
+
     removed_by_dir: tuple[tuple[str, tuple[str, ...]], ...]
 
     @property
     def total(self) -> int:
+        """Return the number of files removed."""
         return sum(len(files) for _, files in self.removed_by_dir)
 
 
 @dataclass(frozen=True)
 class RmOrphanResult:
+    """The orphans removed from a media source, for images and videos."""
+
     heic: RmOrphanDirResult
     mov: RmOrphanDirResult
 
@@ -46,7 +58,7 @@ def _rm_orphans_in_dir(
     *,
     dry_run: bool,
 ) -> tuple[str, tuple[str, ...]] | None:
-    """Remove orphan files from a single directory. Returns (dir_name, removed) or None."""
+    """Remove a directory's orphan files, returning ``(dir_name, removed)`` or None."""
     if not directory.is_dir():
         return None
     orphans = _find_orphan_files(orig_keys, directory, key_fn)
@@ -70,7 +82,7 @@ def _rm_orphans_in_dirs(
             for d in directories
             if (result := _rm_orphans_in_dir(orig_keys, d, key_fn, dry_run=dry_run))
             is not None
-        )
+        ),
     )
 
 
@@ -80,7 +92,8 @@ def rm_orphan(
     *,
     dry_run: bool = False,
 ) -> RmOrphanResult:
-    """Works for both iOS and std media sources.
+    """
+    Works for both iOS and std media sources.
 
     Images: files in edit-img, {name}-img, and {name}-jpg whose
     key is not present in orig-img are deleted.

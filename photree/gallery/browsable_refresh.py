@@ -1,4 +1,5 @@
-"""Render a browsable directory structure with symlinks.
+"""
+Render a browsable directory structure with symlinks.
 
 Creates ``<gallery-dir>/browsable/`` with a hierarchy of symlinks
 organized by visibility (public/private), type (albums/collections),
@@ -49,6 +50,8 @@ class BrowsableRefreshErrorKind(StrEnum):
 
 @dataclass(frozen=True)
 class BrowsableRefreshError:
+    """A problem that stopped part of the browsable tree from being rendered."""
+
     kind: BrowsableRefreshErrorKind
     path: Path
     collection_id: str | None = None
@@ -65,7 +68,8 @@ class DanglingMemberKind(StrEnum):
 
 @dataclass(frozen=True)
 class DanglingMember:
-    """A collection member ID that resolves to nothing in the gallery.
+    """
+    A collection member ID that resolves to nothing in the gallery.
 
     Rendering skips it, so it is reported rather than failing the refresh:
     the browsable tree is a derived view and the rest of it is still valid.
@@ -78,6 +82,8 @@ class DanglingMember:
 
 @dataclass(frozen=True)
 class BrowsableRefreshResult:
+    """What the browsable refresh rendered, and the errors and dangling members."""
+
     albums_rendered: int = 0
     collections_rendered: int = 0
     symlinks_created: int = 0
@@ -86,11 +92,13 @@ class BrowsableRefreshResult:
 
     @property
     def success(self) -> bool:
+        """Whether the refresh hit no error; dangling members do not count."""
         return len(self.errors) == 0
 
 
 def _validate_browsable_dir(browsable_dir: Path) -> BrowsableRefreshError | None:
-    """Validate that browsable/ only contains directories and symlinks.
+    """
+    Validate that browsable/ only contains directories and symlinks.
 
     Returns an error naming the first regular file found, else ``None``.
     """
@@ -148,7 +156,8 @@ class _MediaLocation:
     key: str
 
     def matches(self, filename: str) -> bool:
-        """Whether *filename* belongs to this item, by its source's key rule.
+        """
+        Whether *filename* belongs to this item, by its source's key rule.
 
         The rule follows the media source type, not the filename: a std
         source may hold ``IMG_1234.JPG`` files, which are keyed by stem.
@@ -173,11 +182,13 @@ def _try_scan_album(album_dir: Path) -> _AlbumEntry | BrowsableRefreshError:
     parsed = parse_album_name(album_dir.name)
     if meta is None:
         return BrowsableRefreshError(
-            BrowsableRefreshErrorKind.ALBUM_MISSING_METADATA, album_dir
+            BrowsableRefreshErrorKind.ALBUM_MISSING_METADATA,
+            album_dir,
         )
     if parsed is None:
         return BrowsableRefreshError(
-            BrowsableRefreshErrorKind.ALBUM_UNPARSEABLE_NAME, album_dir
+            BrowsableRefreshErrorKind.ALBUM_UNPARSEABLE_NAME,
+            album_dir,
         )
     return _AlbumEntry(
         path=album_dir,
@@ -256,7 +267,8 @@ def _scan_collection_entries(
         },
         tuple(
             BrowsableRefreshError(
-                BrowsableRefreshErrorKind.COLLECTION_UNREADABLE_METADATA, col_dir
+                BrowsableRefreshErrorKind.COLLECTION_UNREADABLE_METADATA,
+                col_dir,
             )
             for col_dir, meta in loaded
             if meta is None
@@ -269,7 +281,8 @@ def _dangling_members(
     albums: Mapping[str, _AlbumEntry],
     media_locations: Mapping[str, _MediaLocation],
 ) -> tuple[DanglingMember, ...]:
-    """Member IDs of every collection that resolve to nothing.
+    """
+    Member IDs of every collection that resolve to nothing.
 
     Computed once per collection (not per rendering, since a sub-collection
     renders once per parent) so each dangling ID is reported once.
@@ -299,7 +312,7 @@ def _make_relative_symlink(target: Path, link: Path) -> None:
     """Create a relative symlink from *link* pointing to *target*."""
     link.parent.mkdir(parents=True, exist_ok=True)
     rel_target = os.path.relpath(target, link.parent)
-    os.symlink(rel_target, link)
+    Path(link).symlink_to(rel_target)
 
 
 def _symlink_dir_if_exists(src: Path, link: Path) -> int:
@@ -324,7 +337,7 @@ def _render_album(album: _AlbumEntry, target_dir: Path) -> int:
 
 
 def _matching_files(loc: _MediaLocation, pick_dir: _DirPicker) -> list[Path]:
-    """The browsable files of one media item in the directory *pick_dir* names."""
+    """Return one media item's browsable files in the directory *pick_dir* names."""
     browsable_dir = loc.album_path / pick_dir(loc.media_source)
     return (
         [f for f in browsable_dir.iterdir() if f.is_file() and loc.matches(f.name)]
@@ -339,7 +352,8 @@ def _render_media_files(
     target_subdir: Path,
     pick_dir: _DirPicker,
 ) -> int:
-    """Symlink individual media files into target_subdir. Returns count.
+    """
+    Symlink individual media files into target_subdir. Returns count.
 
     Symlinks are prefixed with the album name and media source to
     prevent collisions when multiple albums or sources contain files
@@ -400,10 +414,16 @@ def _render_collection(
         visited | {collection.collection_id},
     )
     image_count = _render_media_files(
-        collection.image_ids, gallery.media_locations, col_target / "images", _image_dir
+        collection.image_ids,
+        gallery.media_locations,
+        col_target / "images",
+        _image_dir,
     )
     video_count = _render_media_files(
-        collection.video_ids, gallery.media_locations, col_target / "videos", _video_dir
+        collection.video_ids,
+        gallery.media_locations,
+        col_target / "videos",
+        _video_dir,
     )
     return album_count + sub_count + image_count + video_count, sub_errors
 
@@ -414,7 +434,8 @@ def _render_collections(
     gallery: _Gallery,
     visited: frozenset[str],
 ) -> tuple[int, tuple[BrowsableRefreshError, ...]]:
-    """Render several collections; sum their symlinks and gather their errors.
+    """
+    Render several collections; sum their symlinks and gather their errors.
 
     ``None`` entries (dangling member IDs, reported separately) are skipped.
     """
@@ -450,7 +471,8 @@ def _collection_target_dir(browsable_dir: Path, col: _CollectionEntry) -> Path:
 
 
 def _render_all(
-    gallery: _Gallery, browsable_dir: Path
+    gallery: _Gallery,
+    browsable_dir: Path,
 ) -> tuple[int, tuple[BrowsableRefreshError, ...]]:
     """Render every album and collection. Returns (symlinks, errors)."""
     album_symlinks = sum(
@@ -471,7 +493,8 @@ def refresh_browsable(
     *,
     dry_run: bool = False,
 ) -> BrowsableRefreshResult:
-    """Render the browsable directory structure.
+    """
+    Render the browsable directory structure.
 
     1. Validate the existing browsable/ directory and scan the gallery
     2. Remove the existing browsable/ directory

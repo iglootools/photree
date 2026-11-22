@@ -1,4 +1,5 @@
-"""Media file formats photree recognizes, and how each one is handled.
+"""
+Media file formats photree recognizes, and how each one is handled.
 
 Domain knowledge (see docs/domain.md, "Supported formats"), independent of
 where files are stored: which extensions are images, videos, or iOS sidecars,
