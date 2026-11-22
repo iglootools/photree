@@ -10,6 +10,17 @@ invalid values are reported. For the workflows these settings serve, see
 The file is TOML. Everything in it is optional, and every field has a
 command-line flag that overrides it, so photree runs without one.
 
+<!-- toc -->
+**On this page**
+
+- [Location](#location)
+- [Which commands read it](#which-commands-read-it)
+- [Fields](#fields)
+  - [`[importer]`](#importer)
+  - [`[exporter.profiles.<name>]`](#exporterprofilesname)
+- [Errors](#errors)
+<!-- tocstop -->
+
 ## Location
 
 The first of these that exists is used:
