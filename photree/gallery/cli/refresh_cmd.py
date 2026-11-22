@@ -18,7 +18,7 @@ from ...collection.refresh import (
     STAGE_TITLE_SYNC,
     refresh_collections,
 )
-from ...common.formatting import CHECK, indent
+from ...common.formatting import CHECK, format_dry_run, indent
 from ...foundation.gallery_metadata import GALLERY_YAML, load_gallery_metadata
 from ...foundation.layout import PHOTREE_DIR
 from ..browsable_refresh import refresh_browsable as refresh_gallery_browsable
@@ -124,7 +124,7 @@ def _refresh_face_clusters(
 
 def _refresh_collections(gallery_dir: Path, cwd: Path, *, dry_run: bool) -> None:
     """Implicit detection + smart materialization; exit 1 on any error."""
-    typer.echo("\nCollections:")
+    typer.echo(format_dry_run("\nCollections:", dry_run=dry_run))
     with StageProgressBar(
         total=4,
         labels={
@@ -157,7 +157,7 @@ def _refresh_collections(gallery_dir: Path, cwd: Path, *, dry_run: bool) -> None
 
 def _refresh_browsable(gallery_dir: Path, cwd: Path, *, dry_run: bool) -> None:
     """Re-render the browsable/ tree; exit 1 on any error."""
-    typer.echo("\nBrowsable:")
+    typer.echo(format_dry_run("\nBrowsable:", dry_run=dry_run))
     result = run_with_spinner(
         "Rendering browsable structure...",
         lambda: refresh_gallery_browsable(gallery_dir, dry_run=dry_run),

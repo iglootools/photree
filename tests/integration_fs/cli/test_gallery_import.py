@@ -128,4 +128,5 @@ class TestDryRun:
         )
 
         assert result.exit_code == 0
+        assert "[dry-run] 1 album(s) would be imported, 0 failed." in result.output
         assert not (gallery / "albums" / "2024" / "2024-07-14 - Hiking").exists()

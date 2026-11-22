@@ -61,6 +61,19 @@ class TestAlbumRefresh:
         assert result.exit_code == 0
         assert load_media_metadata(album) is None
 
+    def test_dry_run_labels_summary_line(self, tmp_path: Path) -> None:
+        album = tmp_path / "album"
+        _setup_album(album, images=False)
+
+        result = runner.invoke(
+            app,
+            ["album", "refresh", "-a", str(album), "-n"],
+            obj=ALL_DEPS_RUNTIME,
+        )
+
+        assert result.exit_code == 0
+        assert "[dry-run] ✓ album refresh planned" in result.output
+
     def test_idempotent(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_album(album, images=False)

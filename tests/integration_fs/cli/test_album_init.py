@@ -114,6 +114,16 @@ class TestAlbumsInit:
         assert result.exit_code == 0
         assert load_album_metadata(a1) is None
 
+    def test_dry_run_labels_batch_summary(self, tmp_path: Path) -> None:
+        _setup_media_source(tmp_path / "2024-07-14 - Trip A")
+
+        result = runner.invoke(
+            app, ["albums", "init", "-d", str(tmp_path), "--dry-run"]
+        )
+
+        assert result.exit_code == 0
+        assert "[dry-run] 1 album(s) would be initialized, 0 failed." in result.output
+
     def test_explicit_album_dirs(self, tmp_path: Path) -> None:
         a1 = tmp_path / "2024-07-14 - Trip A"
         a2 = tmp_path / "2024-07-15 - Trip B"
@@ -148,3 +158,17 @@ class TestAlbumsInit:
         )
         assert result.exit_code == 2
         assert "mutually exclusive" in result.output
+
+
+class TestAlbumFixId:
+    def test_dry_run_labels_the_action_line(self, tmp_path: Path) -> None:
+        album = tmp_path / "2024-07-14 - Trip A"
+        _setup_media_source(album)
+
+        result = runner.invoke(
+            app, ["album", "fix", "--id", "--dry-run", "--album-dir", str(album)]
+        )
+
+        assert result.exit_code == 0
+        assert result.output == "[dry-run] Would generate album ID.\n"
+        assert load_album_metadata(album) is None

@@ -13,6 +13,8 @@ def rm_upstream_summary(
     heic_orig: int,
     mov_rendered: int,
     mov_orig: int,
+    *,
+    dry_run: bool = False,
 ) -> str:
     parts = ", ".join(
         [
@@ -33,10 +35,15 @@ def rm_upstream_summary(
             ),
         ]
     )
-    if parts:
-        return f"Done. Removed {parts}."
-    else:
-        return "Done. Nothing to remove."
+    match (bool(parts), dry_run):
+        case (True, True):
+            return f"Would remove {parts}."
+        case (True, False):
+            return f"Done. Removed {parts}."
+        case (False, True):
+            return "Nothing to remove."
+        case _:
+            return "Done. Nothing to remove."
 
 
 def rm_upstream_skip_line(skip: RmUpstreamSkip) -> str:
@@ -51,15 +58,21 @@ def rm_upstream_skip_line(skip: RmUpstreamSkip) -> str:
 
 def rm_orphan_summary(
     removed_by_dir: tuple[tuple[str, tuple[str, ...]], ...],
+    *,
+    dry_run: bool = False,
 ) -> str:
     total = sum(len(files) for _, files in removed_by_dir)
     if total == 0:
-        return "Done. No orphans found."
+        return "No orphans found." if dry_run else "Done. No orphans found."
     parts = ", ".join(f"{len(files)} from {name}" for name, files in removed_by_dir)
-    return f"Done. Removed {total} orphan(s): {parts}."
+    return (
+        f"Would remove {total} orphan(s): {parts}."
+        if dry_run
+        else f"Done. Removed {total} orphan(s): {parts}."
+    )
 
 
-def _rm_upstream_lines(ru: FixRmUpstreamResult) -> list[str]:
+def _rm_upstream_lines(ru: FixRmUpstreamResult, *, dry_run: bool) -> list[str]:
     return [
         *(rm_upstream_skip_line(skip) for skip in ru.skipped),
         rm_upstream_summary(
@@ -69,11 +82,13 @@ def _rm_upstream_lines(ru: FixRmUpstreamResult) -> list[str]:
             heic_orig=ru.heic_orig,
             mov_rendered=ru.mov_rendered,
             mov_orig=ru.mov_orig,
+            dry_run=dry_run,
         ),
     ]
 
 
-def format_fix_result(result: FixResult) -> list[str]:
+def format_fix_result(result: FixResult, *, dry_run: bool = False) -> list[str]:
+    """One line per requested fix; a dry run says what each would remove."""
     return [
         *(
             ["No media sources found; nothing to fix."]
@@ -81,17 +96,21 @@ def format_fix_result(result: FixResult) -> list[str]:
             else []
         ),
         *(
-            _rm_upstream_lines(result.rm_upstream_result)
+            _rm_upstream_lines(result.rm_upstream_result, dry_run=dry_run)
             if result.rm_upstream_result is not None
             else []
         ),
         *(
-            [rm_orphan_summary(result.rm_orphan_removed_by_dir)]
+            [rm_orphan_summary(result.rm_orphan_removed_by_dir, dry_run=dry_run)]
             if result.rm_orphan_removed_by_dir is not None
             else []
         ),
     ]
 
 
-def batch_fix_summary(fixed: int, failed: int) -> str:
-    return f"\nDone. {fixed} album(s) fixed, {failed} failed."
+def batch_fix_summary(fixed: int, failed: int, *, dry_run: bool = False) -> str:
+    return (
+        f"\n{fixed} album(s) would be fixed, {failed} failed."
+        if dry_run
+        else f"\nDone. {fixed} album(s) fixed, {failed} failed."
+    )

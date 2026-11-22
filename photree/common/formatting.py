@@ -14,6 +14,9 @@ CROSS = "[red]\u2717[/red]"
 # Distinct warning sign (\u26a0) for outcomes that are neither success nor failure,
 # e.g. an album skipped because a to-import-* dir has nothing to import.
 WARN_SIGN = "[dark_orange]\u26a0[/dark_orange]"
+# Plain text, unlike the constants above: Rich would parse it as a style tag,
+# so print it through ``format_dry_run``.
+DRY_RUN_LABEL = "[dry-run]"
 
 
 def markup_escape(value: object) -> str:
@@ -36,6 +39,20 @@ def indent(text: str, level: int = 1) -> str:
     they nest, so the same helper renders correctly at any level.
     """
     return textwrap.indent(text, INDENT * level)
+
+
+def format_dry_run(text: str, *, dry_run: bool, markup: bool = False) -> str:
+    """Start *text* with ``DRY_RUN_LABEL`` when *dry_run*, after any leading newlines.
+
+    A line describing an action takes the label; a block (a summary, a
+    section, a batch tally) takes it once, on its header or summary line.
+    Pass ``markup=True`` when *text* is Rich markup printed with
+    ``console.print``: the label is then escaped, so Rich does not swallow it
+    as an unknown tag.
+    """
+    body = text.lstrip("\n")
+    label = markup_escape(DRY_RUN_LABEL) if markup else DRY_RUN_LABEL
+    return f"{text[: len(text) - len(body)]}{label} {body}" if dry_run else text
 
 
 def rich_warning_text(text: str) -> str:

@@ -6,6 +6,7 @@ import typer
 
 from ...clihelpers.progress import BatchProgressBar
 from ...clihelpers.runtime import Runtime
+from ...common.formatting import format_dry_run
 from ...foundation.gallery_metadata import resolve_link_mode
 from ..cmd_handler.refresh import batch_refresh
 from .failures import exit_if_no_albums, exit_with_failures
@@ -50,6 +51,14 @@ def run_batch_refresh(
         )
 
     typer.echo(
-        f"\nDone. {result.refreshed} album(s) refreshed, {len(result.failures)} failed."
+        format_dry_run(
+            (
+                f"\n{result.refreshed} album(s) would be refreshed"
+                if dry_run
+                else f"\nDone. {result.refreshed} album(s) refreshed"
+            )
+            + f", {len(result.failures)} failed.",
+            dry_run=dry_run,
+        )
     )
     exit_with_failures(result.failures, "refresh", cwd)

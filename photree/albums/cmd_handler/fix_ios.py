@@ -49,7 +49,7 @@ def batch_fix_ios(
             rm_miscategorized_safe=rm_miscategorized_safe,
             mv_miscategorized=mv_miscategorized,
         )
-        return "\n".join(format_fix_ios_result(result))
+        return "\n".join(format_fix_ios_result(result, dry_run=dry_run))
 
     outcomes = [
         run_album_step(

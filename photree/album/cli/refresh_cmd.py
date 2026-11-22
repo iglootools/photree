@@ -4,11 +4,12 @@ from typing import Annotated
 import typer
 
 from ...clihelpers.console import console, err_console
+from ...clihelpers.options import DRY_RUN_OPTION
 from ...clihelpers.progress import run_with_spinner
 from ...clihelpers.runtime import runtime_of
 from ...clihelpers.sysdeps import refresh_deps, require_system_deps
 from ...common.exif import exiftool_session
-from ...common.formatting import CHECK
+from ...common.formatting import CHECK, format_dry_run
 from ...common.fs import display_path
 from ...foundation.gallery_metadata import resolve_link_mode
 from ..check.output import derived_failures_report
@@ -32,10 +33,7 @@ def refresh_cmd(
             resolve_path=True,
         ),
     ] = Path("."),
-    dry_run: Annotated[
-        bool,
-        typer.Option("--dry-run", help="Show what would change without writing."),
-    ] = False,
+    dry_run: DRY_RUN_OPTION = False,
     refresh_browsable: Annotated[
         bool,
         typer.Option(
@@ -100,7 +98,13 @@ def refresh_cmd(
         _report_failures(result, album_dir=display_path(album_dir, cwd))
         raise typer.Exit(code=1)
 
-    console.print(f"{CHECK} album refresh complete")
+    console.print(
+        format_dry_run(
+            f"{CHECK} album refresh {'planned' if dry_run else 'complete'}",
+            dry_run=dry_run,
+            markup=True,
+        )
+    )
 
 
 def _report_failures(result: AlbumRefreshResult, *, album_dir: Path) -> None:

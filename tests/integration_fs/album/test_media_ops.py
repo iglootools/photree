@@ -7,6 +7,7 @@ from photree.album.media import (
     MediaOpError,
     MediaOpErrorKind,
     format_media_op_error,
+    media_op_summary,
     move_media,
     resolve_variants,
     rm_media,
@@ -385,3 +386,18 @@ class TestRmMedia:
         assert _names(album / "ios-main/orig-vid") == set()
         assert _names(album / "ios-main/edit-vid") == set()
         assert _names(album / "main-vid") == set()
+
+
+class TestMediaOpSummary:
+    def test_summary_counts_files_by_directory(self) -> None:
+        assert media_op_summary("move", (("orig-img", ("a", "b")),)) == (
+            "Done. Moved 2 file(s): 2 from orig-img."
+        )
+
+    def test_dry_run_summary_says_what_would_happen(self) -> None:
+        assert media_op_summary(
+            "remove", (("orig-img", ("a", "b")),), dry_run=True
+        ) == ("Would remove 2 file(s): 2 from orig-img.")
+
+    def test_summary_names_the_verb_when_nothing_matched(self) -> None:
+        assert media_op_summary("remove", ()) == "Done. No files to remove."

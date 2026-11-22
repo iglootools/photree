@@ -6,7 +6,7 @@ from pathlib import Path
 import typer
 
 from ...clihelpers.console import err_console
-from ...common.formatting import indent
+from ...common.formatting import format_dry_run, indent
 from ...common.fs import display_path
 from ..cmd_handler.rename import BatchRenameResult, batch_rename_from_csv
 from ..renamer import (
@@ -104,6 +104,10 @@ def run_batch_rename_from_csv(
         raise typer.Exit(code=1)
 
     if dry_run:
-        typer.echo(f"[dry run] {len(result.actions)} album(s) would be renamed.")
+        typer.echo(
+            format_dry_run(
+                f"{len(result.actions)} album(s) would be renamed.", dry_run=True
+            )
+        )
     else:
         typer.echo(f"Renamed {result.renamed} album(s).")

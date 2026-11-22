@@ -4,9 +4,10 @@ from typing import Annotated
 import typer
 
 from ...clihelpers.console import err_console
+from ...clihelpers.options import DRY_RUN_OPTION
 from ...clihelpers.runtime import runtime_of
 from ...clihelpers.sysdeps import FACE_DETECTION_DEPS, require_system_deps
-from ...common.formatting import indent
+from ...common.formatting import format_dry_run, indent
 from ..faces.detect import memoized_face_analyzer_factory
 from ..faces.failures import format_face_failures
 from ..faces.refresh import FaceSourceRefreshResult, refresh_face_data
@@ -28,10 +29,7 @@ def detect_faces_cmd(
             resolve_path=True,
         ),
     ] = Path("."),
-    dry_run: Annotated[
-        bool,
-        typer.Option("--dry-run", help="Show what would change without writing."),
-    ] = False,
+    dry_run: DRY_RUN_OPTION = False,
     redetect: Annotated[
         bool,
         typer.Option(
@@ -66,7 +64,14 @@ def detect_faces_cmd(
         raise typer.Exit(code=0)
 
     for ms_name, ms_result in result.by_media_source:
-        typer.echo(indent(f"{ms_name}: {_source_summary(ms_result)}"))
+        typer.echo(
+            indent(
+                format_dry_run(
+                    f"{ms_name}: {_source_summary(ms_result, dry_run=dry_run)}",
+                    dry_run=dry_run,
+                )
+            )
+        )
 
     if result.failures:
         err_console.print("\nFailed images:")
@@ -75,10 +80,10 @@ def detect_faces_cmd(
         raise typer.Exit(code=1)
 
 
-def _source_summary(ms_result: FaceSourceRefreshResult) -> str:
+def _source_summary(ms_result: FaceSourceRefreshResult, *, dry_run: bool) -> str:
     return ", ".join(
         [
-            f"{ms_result.processed} processed",
+            f"{ms_result.processed} {'would be processed' if dry_run else 'processed'}",
             f"{ms_result.skipped} skipped",
             *(
                 [f"{ms_result.faces_detected} face(s)"]

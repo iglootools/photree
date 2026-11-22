@@ -14,6 +14,7 @@ from ...clihelpers.options import (
 )
 from ...clihelpers.runtime import runtime_of
 from ...clihelpers.usage import usage_error
+from ...common.formatting import format_dry_run
 from ...common.fs import display_path
 from ..fix.ios import (
     FixIosValidationError,
@@ -99,8 +100,8 @@ def fix_ios_cmd(
         )
         raise typer.Exit(code=1)
 
-    for line in format_fix_ios_result(result):
-        typer.echo(line)
+    for line in format_fix_ios_result(result, dry_run=dry_run):
+        typer.echo(format_dry_run(line, dry_run=dry_run))
 
 
 def _report_move_conflict(exc: MiscategorizedMoveConflictError, album: Path) -> None:

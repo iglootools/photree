@@ -6,6 +6,7 @@ import typer
 from ...clihelpers.console import err_console
 from ...clihelpers.runtime import runtime_of
 from ...clihelpers.usage import usage_error
+from ...common.formatting import format_dry_run
 from ...common.fs import display_path
 from .. import media
 from . import app
@@ -58,5 +59,10 @@ def rm_media_cmd(
             err_console.print(media.format_media_op_error(exc, cwd), markup=False)
             raise typer.Exit(code=1) from None
 
-    typer.echo(media.media_op_summary("Removed", result.files_by_dir))
+    typer.echo(
+        format_dry_run(
+            media.media_op_summary("remove", result.files_by_dir, dry_run=dry_run),
+            dry_run=dry_run,
+        )
+    )
     typer.echo(media.media_op_check_suggestions([str(display_path(album_dir, cwd))]))

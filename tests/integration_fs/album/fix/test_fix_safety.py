@@ -183,6 +183,17 @@ class TestFixReporting:
         assert result.rm_orphan_removed_by_dir == ()
         assert format_fix_result(result) == ["Done. No orphans found."]
 
+    def test_dry_run_says_what_would_be_removed(self, tmp_path: Path) -> None:
+        _setup_dir(tmp_path / "std-nelu/orig-img", ["sunset.heic"])
+        _setup_dir(tmp_path / "std-nelu/edit-img", ["sunset.jpg", "orphan.jpg"])
+
+        result = run_fix(tmp_path, dry_run=True, rm_orphan_flag=True)
+
+        assert format_fix_result(result, dry_run=True) == [
+            "Would remove 1 orphan(s): 1 from edit-img."
+        ]
+        assert (tmp_path / "std-nelu/edit-img/orphan.jpg").exists()
+
     def test_no_media_sources_is_reported(self, tmp_path: Path) -> None:
         result = run_fix(tmp_path, dry_run=False, rm_orphan_flag=True)
 

@@ -12,6 +12,7 @@ from ...clihelpers.options import (
 )
 from ...clihelpers.runtime import runtime_of
 from ...clihelpers.usage import usage_error
+from ...common.formatting import format_dry_run
 from ...common.fs import display_path
 from .. import fix as album_fixes
 from ..fix import FixValidationError, MissingArchiveError, RmUpstreamRefusedError
@@ -107,7 +108,7 @@ def _fix_album_id(album_dir: Path, *, new_id: bool, dry_run: bool) -> None:
         case (AlbumMetadata() as m, False, _):
             typer.echo(f"Album already has an ID: {format_album_external_id(m.id)}")
         case (_, _, True):
-            typer.echo("[dry-run] Would generate album ID.")
+            typer.echo(format_dry_run("Would generate album ID.", dry_run=True))
         case _:
             generated_id = generate_album_id()
             save_album_metadata(album_dir, AlbumMetadata(id=generated_id))
@@ -153,5 +154,5 @@ def _run_archive_fixes(
             )
             raise typer.Exit(code=1) from exc
 
-    for line in format_fix_result(result):
-        typer.echo(line)
+    for line in format_fix_result(result, dry_run=dry_run):
+        typer.echo(format_dry_run(line, dry_run=dry_run))

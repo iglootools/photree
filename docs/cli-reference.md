@@ -93,7 +93,7 @@ $ photree album detect-faces [OPTIONS]
 **Options**:
 
 * `-a, --album-dir <directory>`: Album directory.  [default: .]
-* `--dry-run`: Show what would change without writing.
+* `-n, --dry-run`: Print what would happen without modifying files.
 * `--redetect`: Re-run face detection on all images (reuses cached thumbnails).
 * `--refresh-thumbs`: Refresh face detection thumbnails from originals.
 * `--help`: Show this message and exit.
@@ -370,7 +370,7 @@ $ photree album refresh [OPTIONS]
 **Options**:
 
 * `-a, --album-dir <directory>`: Album directory.  [default: .]
-* `--dry-run`: Show what would change without writing.
+* `-n, --dry-run`: Print what would happen without modifying files.
 * `--refresh-browsable`: Force rebuild all browsable directories (skip check gate).
 * `--refresh-jpeg`: Force rebuild all JPEG directories (skip check gate).
 * `--refresh-exif-cache`: Force re-read all EXIF timestamps.

@@ -109,7 +109,7 @@ class TestAlbumsRenameFromCsv:
             ],
         )
         assert result.exit_code == 0
-        assert "dry run" in result.output.lower()
+        assert "[dry-run] 1 album(s) would be renamed." in result.output
         assert (tmp_path / "2024-06-15 - Trip").is_dir()
 
     def test_no_changes(self, tmp_path: Path) -> None:
