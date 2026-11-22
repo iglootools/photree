@@ -14,6 +14,19 @@ database.
 
 [![asciicast](https://asciinema.org/a/k5OGXUFoUjF2SKSf.svg)](https://asciinema.org/a/k5OGXUFoUjF2SKSf)
 
+<!-- toc -->
+**On this page**
+
+- [Main Use Cases](#main-use-cases)
+- [Non-Goals](#non-goals)
+- [Known Limitations](#known-limitations)
+- [Philosophy](#philosophy)
+- [Related Projects](#related-projects)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Contribute](#contribute)
+<!-- tocstop -->
+
 ## Main Use Cases
 
 - **Import iOS photos** into organized album directories, preserving originals,
