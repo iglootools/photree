@@ -12,7 +12,7 @@ A CLI tool to import, organize, verify, and export iOS photo albums as plain
 directories — preserving originals, edits, and sidecars without any proprietary
 database.
 
-[![asciicast](https://asciinema.org/a/k5OGXUFoUjF2SKSf.svg)](https://asciinema.org/a/k5OGXUFoUjF2SKSf)
+[![asciicast](demo/demo.svg)](https://asciinema.org/a/k5OGXUFoUjF2SKSf)
 
 <!-- toc -->
 **On this page**
