@@ -212,7 +212,7 @@ def _restore_photree(metadata_src: Path, dst: Path) -> None:
         save_media_metadata(dst, media_meta)
 
 
-def _swap_into_place(existing_dir: Path, staging: Path, target_dir: Path) -> None:
+def swap_into_place(existing_dir: Path, staging: Path, target_dir: Path) -> None:
     """Replace the gallery album with the staged rebuild.
 
     Moves the live album aside, moves *staging* into *target_dir* (which may
@@ -340,5 +340,5 @@ def reimport_album(
         id_generated, refreshed = pipeline.build(
             source_dir, staging, preserve_from=existing_dir
         )
-        _swap_into_place(existing_dir, staging, target_dir)
+        swap_into_place(existing_dir, staging, target_dir)
     return _import_result(source_dir, target_dir, id_generated, refreshed)

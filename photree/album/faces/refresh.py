@@ -164,7 +164,7 @@ def _plan_source(
         existing_state=existing_state,
         current_files=current_files,
         keys_to_process=tuple(
-            _keys_needing_processing(
+            keys_needing_processing(
                 current_files,
                 album_dir / ms.orig_img_dir,
                 existing_state,
@@ -281,7 +281,7 @@ def _model_version_changed(
     return state.model_name != model_name or state.model_version != model_version
 
 
-def _keys_needing_processing(
+def keys_needing_processing(
     current_files: Mapping[str, str],
     orig_dir: Path,
     state: FaceProcessingState,
@@ -295,11 +295,11 @@ def _keys_needing_processing(
     return sorted(
         key
         for key, filename in current_files.items()
-        if _needs_processing(key, filename, orig_dir, state)
+        if needs_processing(key, filename, orig_dir, state)
     )
 
 
-def _needs_processing(
+def needs_processing(
     key: str,
     filename: str,
     orig_dir: Path,
@@ -342,8 +342,7 @@ def _run_detection(
 
     analyzer = get_analyzer()
     detection_results = [
-        _detect_single(tr, album_dir / ms.orig_img_dir, analyzer)
-        for tr in thumb_results
+        detect_single(tr, album_dir / ms.orig_img_dir, analyzer) for tr in thumb_results
     ]
 
     new_faces = [
@@ -365,7 +364,7 @@ def _run_detection(
     )
 
 
-def _detect_single(
+def detect_single(
     tr: ThumbnailResult,
     orig_dir: Path,
     analyzer: FaceDetector,
@@ -408,7 +407,7 @@ def _keys_needing_thumbnail(
         for key in keys
         if regenerate
         or not (thumb_dir / thumb_filename(key)).is_file()
-        or _needs_processing(key, current_files[key], orig_dir, existing_state)
+        or needs_processing(key, current_files[key], orig_dir, existing_state)
     ]
 
 
@@ -471,7 +470,7 @@ def _generate_thumbnails(
         needs_thumb, current_files, orig_dir, thumb_dir, max_workers=max_workers
     )
     reused = [
-        _reuse_thumbnail(
+        reuse_thumbnail(
             key,
             current_files[key],
             thumb_dir / thumb_filename(key),
@@ -508,7 +507,7 @@ def _failures(
     ]
 
 
-def _reuse_thumbnail(
+def reuse_thumbnail(
     key: str,
     file_name: str,
     thumb_path: Path,

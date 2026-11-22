@@ -23,7 +23,7 @@ def _is_ios_source_dir(d: Path) -> bool:
     return _is_archive_dir(d, IOS_DIR_PREFIX)
 
 
-def _is_std_source_dir(d: Path) -> bool:
+def is_std_source_dir(d: Path) -> bool:
     return _is_archive_dir(d, STD_DIR_PREFIX)
 
 
@@ -57,9 +57,7 @@ def _archive_names(album_dir: Path) -> tuple[frozenset[str], frozenset[str]]:
             if _is_ios_source_dir(d)
         ),
         frozenset(
-            d.name.removeprefix(STD_DIR_PREFIX)
-            for d in subdirs
-            if _is_std_source_dir(d)
+            d.name.removeprefix(STD_DIR_PREFIX) for d in subdirs if is_std_source_dir(d)
         ),
     )
 

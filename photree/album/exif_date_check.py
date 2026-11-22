@@ -195,7 +195,7 @@ def _read_timestamps_from_cache_or_exiftool(
     *,
     exiftool: ExifTagReader | None,
 ) -> list[tuple[Path, datetime]]:
-    cached = _try_read_from_cache(album_dir)
+    cached = try_read_from_cache(album_dir)
     if cached is not None:
         return cached
 
@@ -205,7 +205,7 @@ def _read_timestamps_from_cache_or_exiftool(
     return read_exif_timestamps_by_file(files, exiftool=exiftool)
 
 
-def _try_read_from_cache(album_dir: Path) -> list[tuple[Path, datetime]] | None:
+def try_read_from_cache(album_dir: Path) -> list[tuple[Path, datetime]] | None:
     """Returns ``None`` if any media source has no cache file, or one written in
     an older layout (see ``exif_cache.protocol.EXIF_CACHE_VERSION``). An empty
     cache file (written for sources with no browsable files) is valid.

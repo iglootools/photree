@@ -159,7 +159,7 @@ class UnparseableAlbumNameError(ValueError):
         super().__init__(f"Album name {album_dir.name!r} cannot be parsed")
 
 
-def _extract_year(album_name: str) -> str | None:
+def extract_year(album_name: str) -> str | None:
     parsed = parse_album_name(album_name)
     return parsed.date[:4] if parsed is not None else None
 
@@ -181,7 +181,7 @@ def compute_album_stats(album_dir: Path) -> AlbumStats:
     """Raises :class:`UnparseableAlbumNameError` when the album name cannot be
     parsed.
     """
-    year = _extract_year(album_dir.name)
+    year = extract_year(album_dir.name)
     if year is None:
         raise UnparseableAlbumNameError(album_dir)
 

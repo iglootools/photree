@@ -204,7 +204,7 @@ def _report_skips(scan: AlbumScan, on_skipped: OnSkipped | None) -> None:
             on_skipped(album_dir.name, _empty_task_reason(album_dir), warn=True)
 
 
-def _result_failure(album_dir: Path, result: AlbumImportResult) -> AlbumFailure | None:
+def result_failure(album_dir: Path, result: AlbumImportResult) -> AlbumFailure | None:
     """An import that ran to completion can still have failed in part.
 
     Every partial failure is reported: listing only the first would hide the
@@ -254,7 +254,7 @@ def _import_one(
     if callbacks.on_importing:
         callbacks.on_importing(album_dir.name)
     try:
-        failure = _result_failure(
+        failure = result_failure(
             album_dir,
             album_import.run_import(
                 album_dir=album_dir,

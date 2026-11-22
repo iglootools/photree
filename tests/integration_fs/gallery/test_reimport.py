@@ -13,10 +13,10 @@ from photree.foundation.gallery_metadata import (
 from photree.foundation.linking import LinkMode
 from photree.gallery.importer import (
     TargetExistsError,
-    _swap_into_place,
     compute_target_dir,
     import_album,
     reimport_album,
+    swap_into_place,
 )
 
 
@@ -218,7 +218,7 @@ class TestSwapIntoPlace:
         _write(target / "occupant.txt", "occupant")
 
         with pytest.raises(OSError):
-            _swap_into_place(existing, staging, target)
+            swap_into_place(existing, staging, target)
 
         assert (existing / "live.txt").read_text(encoding="utf-8") == "live"
         assert not (target.parent / ".2024-07-14 - Renamed.old").exists()

@@ -2,8 +2,8 @@ from pathlib import Path
 
 from photree.album.store.media_source import MediaSourceType, std_media_source
 from photree.album.store.media_sources_discovery import (
-    _is_std_source_dir,
     discover_media_sources,
+    is_std_source_dir,
 )
 
 
@@ -25,27 +25,27 @@ class TestIsStdSourceDir:
     def test_std_with_orig_img(self, tmp_path: Path) -> None:
         d = tmp_path / "std-nelu"
         _setup_dir(d / "orig-img", ["sunset.heic"])
-        assert _is_std_source_dir(d) is True
+        assert is_std_source_dir(d) is True
 
     def test_std_with_orig_vid(self, tmp_path: Path) -> None:
         d = tmp_path / "std-nelu"
         _setup_dir(d / "orig-vid", ["clip.mov"])
-        assert _is_std_source_dir(d) is True
+        assert is_std_source_dir(d) is True
 
     def test_std_without_orig_dirs(self, tmp_path: Path) -> None:
         d = tmp_path / "std-nelu"
         d.mkdir(parents=True)
-        assert _is_std_source_dir(d) is False
+        assert is_std_source_dir(d) is False
 
     def test_not_std_prefix(self, tmp_path: Path) -> None:
         d = tmp_path / "nelu-img"
         _setup_dir(d / "orig-img", ["sunset.heic"])
-        assert _is_std_source_dir(d) is False
+        assert is_std_source_dir(d) is False
 
     def test_file_not_dir(self, tmp_path: Path) -> None:
         f = tmp_path / "std-nelu"
         f.write_text("not a dir")
-        assert _is_std_source_dir(f) is False
+        assert is_std_source_dir(f) is False
 
 
 class TestDiscoverMediaSourcesStd:

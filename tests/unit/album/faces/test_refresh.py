@@ -15,11 +15,11 @@ from photree.album.faces.protocol import (
 from photree.album.faces.refresh import (
     FaceRefreshResult,
     FaceSourceRefreshResult,
-    _detect_single,
-    _keys_needing_processing,
-    _needs_processing,
-    _reuse_thumbnail,
+    detect_single,
+    keys_needing_processing,
+    needs_processing,
     refresh_face_data,
+    reuse_thumbnail,
 )
 
 
@@ -62,7 +62,7 @@ class TestNeedsProcessing:
         (orig_dir / "IMG_0410.HEIC").write_text("data")
 
         state = FaceProcessingState()
-        assert _needs_processing("0410", "IMG_0410.HEIC", orig_dir, state)
+        assert needs_processing("0410", "IMG_0410.HEIC", orig_dir, state)
 
     def test_unchanged_file_skipped(self, tmp_path: Path) -> None:
         orig_dir = tmp_path / "orig-img"
@@ -83,7 +83,7 @@ class TestNeedsProcessing:
                 ),
             }
         )
-        assert not _needs_processing("0410", "IMG_0410.HEIC", orig_dir, state)
+        assert not needs_processing("0410", "IMG_0410.HEIC", orig_dir, state)
 
     def test_changed_mtime_needs_processing(self, tmp_path: Path) -> None:
         orig_dir = tmp_path / "orig-img"
@@ -103,7 +103,7 @@ class TestNeedsProcessing:
                 ),
             }
         )
-        assert _needs_processing("0410", "IMG_0410.HEIC", orig_dir, state)
+        assert needs_processing("0410", "IMG_0410.HEIC", orig_dir, state)
 
 
 class TestKeysNeedingProcessing:
@@ -114,7 +114,7 @@ class TestKeysNeedingProcessing:
 
         files = {"0410": "IMG_0410.HEIC", "0411": "IMG_0411.HEIC"}
         state = FaceProcessingState()
-        result = _keys_needing_processing(
+        result = keys_needing_processing(
             files, orig_dir, state, model_changed=False, redetect=True
         )
         assert result == ["0410", "0411"]
@@ -125,7 +125,7 @@ class TestKeysNeedingProcessing:
 
         files = {"0410": "IMG_0410.HEIC"}
         state = FaceProcessingState()
-        result = _keys_needing_processing(
+        result = keys_needing_processing(
             files, orig_dir, state, model_changed=True, redetect=False
         )
         assert result == ["0410"]
@@ -150,7 +150,7 @@ class TestKeysNeedingProcessing:
                 ),
             }
         )
-        result = _keys_needing_processing(
+        result = keys_needing_processing(
             {"0410": "IMG_0410.HEIC", "0411": "IMG_0411.HEIC"},
             orig_dir,
             state,
@@ -184,7 +184,7 @@ class TestFailureReporting:
             thumb_height=480,
         )
 
-        faces, state_key, failure = _detect_single(tr, Path("/nonexistent"), _Boom())
+        faces, state_key, failure = detect_single(tr, Path("/nonexistent"), _Boom())
 
         assert faces is None
         assert state_key is None
@@ -238,7 +238,7 @@ class TestFailureAccounting:
             def get(self, img: np.ndarray) -> list[Any]:
                 raise AssertionError("analyzer must not see an unreadable image")
 
-        faces, state_key, failure = _detect_single(tr, orig_dir, _NeverCalled())
+        faces, state_key, failure = detect_single(tr, orig_dir, _NeverCalled())
 
         assert faces is None and state_key is None
         assert failure is not None
@@ -261,7 +261,7 @@ class TestFailureAccounting:
 
 class TestReuseThumbnail:
     def test_without_previous_state_is_a_failure(self, tmp_path: Path) -> None:
-        result = _reuse_thumbnail("0410", "IMG_0410.HEIC", tmp_path / "x.jpg", None)
+        result = reuse_thumbnail("0410", "IMG_0410.HEIC", tmp_path / "x.jpg", None)
 
         assert isinstance(result, FaceFailure)
         assert result.stage == FaceFailureStage.THUMBNAIL
@@ -272,9 +272,7 @@ class TestReuseThumbnail:
         thumb = tmp_path / "0410.jpg"
         thumb.write_text("not a jpeg", encoding="utf-8")
 
-        result = _reuse_thumbnail(
-            "0410", "IMG_0410.HEIC", thumb, _processed(4032, 3024)
-        )
+        result = reuse_thumbnail("0410", "IMG_0410.HEIC", thumb, _processed(4032, 3024))
 
         assert isinstance(result, FaceFailure)
 
@@ -284,9 +282,7 @@ class TestReuseThumbnail:
         thumb = tmp_path / "0410.jpg"
         cv2.imwrite(str(thumb), np.zeros((48, 64, 3), dtype=np.uint8))
 
-        result = _reuse_thumbnail(
-            "0410", "IMG_0410.HEIC", thumb, _processed(4032, 3024)
-        )
+        result = reuse_thumbnail("0410", "IMG_0410.HEIC", thumb, _processed(4032, 3024))
 
         assert isinstance(result, ThumbnailResult)
         assert (result.orig_width, result.orig_height) == (4032, 3024)
