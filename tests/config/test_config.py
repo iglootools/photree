@@ -166,7 +166,8 @@ class TestLoadConfig:
             _write_config(tmp_path, '[exporter.profiles.a]\nshare-dir = "/x"\n')
         )
         with pytest.raises(TypeError):
-            cfg.exporter.profiles["b"] = cfg.exporter.profiles["a"]  # type: ignore[index]
+            # Deliberately invalid: the test checks the runtime refuses the write too.
+            cfg.exporter.profiles["b"] = cfg.exporter.profiles["a"]  # pyright: ignore[reportIndexIssue]
 
     def test_profile_defaults(self, tmp_path: Path) -> None:
         cfg = load_config(

@@ -23,7 +23,7 @@ def _setup_dir(path: Path, filenames: list[str]) -> Path:
     return path
 
 
-def _files(directory: Path) -> set[str]:
+def _files(directory: Path) -> set[Path]:
     if not directory.is_dir():
         return set()
     return {f for f in directory.iterdir() if f.is_file()}

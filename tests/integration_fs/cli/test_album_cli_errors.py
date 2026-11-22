@@ -217,19 +217,19 @@ def _std_staged_album(tmp_path: Path) -> Path:
     return album
 
 
-@pytest.mark.parametrize(
-    ("error", "expected"),
-    [
-        (
-            lambda album: EmptyImageCaptureDirError(album.parent / "ic"),
-            "Could not find any image capture files",
-        ),
-        (
-            lambda album: ImportCollisionError(std_media_source("nelu"), ("DSC_0001",)),
-            "Rename to-import-std-nelu",
-        ),
-    ],
-)
+_IMPORT_REFUSALS: list[tuple[Callable[[Path], Exception], str]] = [
+    (
+        lambda album: EmptyImageCaptureDirError(album.parent / "ic"),
+        "Could not find any image capture files",
+    ),
+    (
+        lambda album: ImportCollisionError(std_media_source("nelu"), ("DSC_0001",)),
+        "Rename to-import-std-nelu",
+    ),
+]
+
+
+@pytest.mark.parametrize(("error", "expected"), _IMPORT_REFUSALS)
 def test_import_refusal_is_reported_not_raised(
     tmp_path: Path,
     error: Callable[[Path], Exception],

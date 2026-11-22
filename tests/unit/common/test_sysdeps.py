@@ -3,6 +3,7 @@ import pytest
 from photree.common.sysdeps import (
     MissingSystemDependencyError,
     SystemDependency,
+    WhichFn,
     check_system_dependencies,
     install_hint,
     is_available,
@@ -12,7 +13,7 @@ from photree.common.sysdeps import (
 )
 
 
-def _which(*present: SystemDependency):
+def _which(*present: SystemDependency) -> WhichFn:
     """Build a ``which`` stub that resolves only *present* dependencies."""
     names = {str(d) for d in present}
     return lambda name: f"/usr/bin/{name}" if name in names else None

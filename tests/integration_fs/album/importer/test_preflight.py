@@ -152,7 +152,7 @@ class TestSystemDeps:
         assert result.success
         assert result.missing_system_deps == ()
 
-    def test_does_not_read_path(self, tmp_path: Path, monkeypatch) -> None:
+    def test_does_not_read_path(self, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
         """An empty PATH must not change the outcome — the caller owns probing."""
         monkeypatch.setenv("PATH", str(tmp_path / "empty"))
 

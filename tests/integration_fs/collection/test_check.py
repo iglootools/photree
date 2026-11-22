@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from pathlib import Path
 
 from photree.album.id import generate_album_id, generate_media_id
@@ -45,7 +46,14 @@ def _setup_album(gallery: Path, name: str) -> tuple[Path, str]:
 def _setup_collection(
     gallery: Path,
     name: str,
-    **kwargs: object,
+    *,
+    members: CollectionMembers = CollectionMembers.MANUAL,
+    lifecycle: CollectionLifecycle = CollectionLifecycle.EXPLICIT,
+    strategy: CollectionStrategy = CollectionStrategy.IMPORT,
+    albums: Sequence[str] = (),
+    collections: Sequence[str] = (),
+    images: Sequence[str] = (),
+    videos: Sequence[str] = (),
 ) -> tuple[Path, str]:
     col_dir = gallery / "collections" / "2024" / name
     col_dir.mkdir(parents=True)
@@ -54,13 +62,13 @@ def _setup_collection(
         col_dir,
         CollectionMetadata(
             id=cid,
-            members=kwargs.get("members", CollectionMembers.MANUAL),
-            lifecycle=kwargs.get("lifecycle", CollectionLifecycle.EXPLICIT),
-            strategy=kwargs.get("strategy", CollectionStrategy.IMPORT),
-            albums=kwargs.get("albums", []),
-            collections=kwargs.get("collections", []),
-            images=kwargs.get("images", []),
-            videos=kwargs.get("videos", []),
+            members=members,
+            lifecycle=lifecycle,
+            strategy=strategy,
+            albums=list(albums),
+            collections=list(collections),
+            images=list(images),
+            videos=list(videos),
         ),
     )
     return col_dir, cid

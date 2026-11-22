@@ -1,6 +1,10 @@
 from pathlib import Path
 
-from photree.album.store.media_source import MediaSourceType, std_media_source
+from photree.album.store.media_source import (
+    MediaSource,
+    MediaSourceType,
+    std_media_source,
+)
 from photree.album.store.media_sources_discovery import (
     discover_media_sources,
     is_std_source_dir,
@@ -15,7 +19,7 @@ def _setup_dir(path: Path, filenames: list[str]) -> Path:
 
 
 def _ms_names_and_types(
-    sources: list,
+    sources: list[MediaSource],
 ) -> list[tuple[str, MediaSourceType]]:
     """Extract (name, type) pairs for easy assertion."""
     return [(ms.name, ms.media_source_type) for ms in sources]

@@ -106,7 +106,7 @@ class TestResolveVariants:
         from_orig = resolve_variants(album, ["ios-main/orig-img/IMG_0410.HEIC"])
         from_edit = resolve_variants(album, ["ios-main/edit-img/IMG_E0410.HEIC"])
 
-        def _all_files(r: list) -> set:
+        def _all_files(r: list[tuple[str, list[str]]]) -> set[str]:
             return {f for _, files in r for f in files}
 
         assert _all_files(from_jpg) == _all_files(from_orig) == _all_files(from_edit)
