@@ -272,11 +272,12 @@ def media_op_summary(
     verb: str,
     files_by_dir: tuple[tuple[str, tuple[str, ...]], ...],
 ) -> str:
+    """Summarize a media operation; *verb* is its infinitive ("move", "remove")."""
     total = sum(len(files) for _, files in files_by_dir)
     if total == 0:
-        return f"Done. No files to {verb.lower()}."
+        return f"Done. No files to {verb}."
     parts = ", ".join(f"{len(files)} from {name}" for name, files in files_by_dir)
-    return f"Done. {verb} {total} file(s): {parts}."
+    return f"Done. {verb.capitalize()}d {total} file(s): {parts}."
 
 
 def media_op_check_suggestions(album_dirs: list[str]) -> str:

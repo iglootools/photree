@@ -58,5 +58,5 @@ def rm_media_cmd(
             err_console.print(media.format_media_op_error(exc, cwd), markup=False)
             raise typer.Exit(code=1) from None
 
-    typer.echo(media.media_op_summary("Removed", result.files_by_dir))
+    typer.echo(media.media_op_summary("remove", result.files_by_dir))
     typer.echo(media.media_op_check_suggestions([str(display_path(album_dir, cwd))]))
