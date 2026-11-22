@@ -78,10 +78,10 @@ has no version matrix), and the only version `requires-python` in
 code may use any feature of that version; ruff's `target-version` and pyright's
 `pythonVersion` are set to match.
 
-The shared rule is to
-[target only the latest stable Python](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md#target-only-the-latest-stable-python),
+The shared rule is for an application to
+[target the latest stable Python](https://github.com/iglootools/common/blob/main/guidelines/project-setup/python-tooling.md#target-the-latest-stable-python-unless-others-install-the-package),
 and to stay on the newest one a lagging dependency supports
-([When a dependency lags](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md#when-a-dependency-lags)).
+([When a dependency lags](https://github.com/iglootools/common/blob/main/guidelines/project-setup/python-tooling.md#when-a-dependency-lags)).
 **Documented exception:** photree is on 3.14 rather than 3.15 because
 onnxruntime (pulled in by the face-detection stack) publishes no cp315 wheels,
 so `uv lock` cannot resolve on 3.15. Move to 3.15 when it does — check
