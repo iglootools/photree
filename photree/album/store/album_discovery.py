@@ -1,17 +1,33 @@
+"""Finding the albums, and the would-be albums, under a directory."""
+
 from pathlib import Path
 
-from ...common.fs import matching_subdirectories, partition_subdirectories
-from ...foundation.layout import PHOTREE_DIR
-from .media_sources_discovery import has_any_media_source
-from .protocol import ALBUM_YAML
+from photree.album.store.media_sources_discovery import has_any_media_source
+from photree.album.store.protocol import ALBUM_YAML
+from photree.common.fs import matching_subdirectories, partition_subdirectories
+from photree.foundation.layout import PHOTREE_DIR
+
+
+class AlbumSelectionError(ValueError):
+    """Albums were selected both by base directory and by list, or by neither."""
+
+    def __init__(self, parameters: tuple[str, str]) -> None:
+        """Build the error from the two parameters exactly one of which is required."""
+        self.parameters = parameters
+        super().__init__(
+            f"Exactly one of {parameters[0]} or {parameters[1]} must be provided",
+        )
 
 
 def is_album(directory: Path) -> bool:
-    """A directory is an album if it contains ``.photree/album.yaml``
+    """
+    Tell whether a directory is an album.
+
+    A directory is an album if it contains ``.photree/album.yaml``
     **and** at least one media source (iOS or std).
     """
     return (directory / PHOTREE_DIR / ALBUM_YAML).is_file() and has_any_media_source(
-        directory
+        directory,
     )
 
 
@@ -21,7 +37,11 @@ def has_media_sources(directory: Path) -> bool:
 
 
 def discover_albums(base_dir: Path) -> list[Path]:
-    """A directory is considered an album when it contains:
+    """
+    Find the albums under *base_dir*.
+
+    A directory is considered an album when it contains:
+
     1. A ``.photree/album.yaml`` file (album metadata), **and**
     2. At least one media source archive (``ios-{name}/`` or ``std-{name}/``)
 
@@ -31,7 +51,8 @@ def discover_albums(base_dir: Path) -> list[Path]:
 
 
 def discover_potential_albums(base_dir: Path) -> tuple[list[Path], list[Path]]:
-    """Returns ``(albums, skipped)``:
+    """
+    Return ``(albums, skipped)``, the directories that could become albums and the rest.
 
     - *albums*: subdirectories with at least one media source. Recursion
       stops at each match.

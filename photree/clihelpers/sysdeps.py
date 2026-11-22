@@ -1,4 +1,5 @@
-"""CLI gate for external binary (system dependency) requirements.
+"""
+CLI gate for external binary (system dependency) requirements.
 
 Commands that shell out to ``sips`` or ``exiftool`` call
 :func:`require_system_deps` before doing any work. Probing up front turns
@@ -11,15 +12,15 @@ from textwrap import dedent
 
 import typer
 
-from ..common.sysdeps import (
+from photree.clihelpers.console import console, err_console
+from photree.common.sysdeps import (
     SystemDependency,
     SystemDependencyStatus,
     WhichFn,
     check_system_dependencies,
     missing_dependencies,
 )
-from ..common.sysdeps_output import format_missing_troubleshoot, format_statuses
-from .console import console, err_console
+from photree.common.sysdeps_output import format_missing_troubleshoot, format_statuses
 
 # Requirement sets, named so commands declare intent rather than a binary list.
 # Every command's requirement is declared here and nowhere else, so adding a
@@ -33,7 +34,8 @@ CHECK_DEPS: tuple[SystemDependency, ...] = (SystemDependency.SIPS,)
 
 
 def import_deps(*, skip_heic_to_jpeg: bool = False) -> tuple[SystemDependency, ...]:
-    """External binaries an import needs.
+    """
+    External binaries an import needs.
 
     ``exiftool`` is always required: import ends with a derived-data refresh
     that populates the EXIF timestamp cache. ``sips`` is only needed for the
@@ -48,6 +50,7 @@ def import_deps(*, skip_heic_to_jpeg: bool = False) -> tuple[SystemDependency, .
 
 
 def refresh_deps() -> tuple[SystemDependency, ...]:
+    """Return the external binaries a refresh needs: ``sips`` and ``exiftool``."""
     return import_deps()
 
 
@@ -64,7 +67,8 @@ def require_system_deps(
     abort_message: str | None = _ABORT_MESSAGE,
     which: WhichFn,
 ) -> tuple[SystemDependencyStatus, ...]:
-    """Print dependency check lines, exiting before any work if one is missing.
+    """
+    Print dependency check lines, exiting before any work if one is missing.
 
     Pass ``header=None`` when the caller already printed a section header
     (e.g. the import preflight block, which renders its own checks alongside).

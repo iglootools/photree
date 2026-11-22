@@ -8,7 +8,9 @@ class TestResultLinesWithoutOnStart:
 
     def test_batch_on_end(self, capsys: pytest.CaptureFixture[str]) -> None:
         with BatchProgressBar(
-            total=1, description="Checking", done_description="check"
+            total=1,
+            description="Checking",
+            done_description="check",
         ) as bar:
             bar.on_end("2024-07-14 - Trip", success=False, error_labels=("ids",))
         out = capsys.readouterr().out
@@ -23,10 +25,13 @@ class TestResultLinesWithoutOnStart:
 
 class TestBatchSuffix:
     def test_errors_and_warnings_both_rendered(
-        self, capsys: pytest.CaptureFixture[str]
+        self,
+        capsys: pytest.CaptureFixture[str],
     ) -> None:
         with BatchProgressBar(
-            total=1, description="Checking", done_description="check"
+            total=1,
+            description="Checking",
+            done_description="check",
         ) as bar:
             bar.on_start("a")
             bar.on_end("a", success=True, warning_labels=("exif",))

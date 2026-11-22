@@ -10,6 +10,7 @@ from photree.album.exporter.single import (
 )
 from photree.album.store.media_source import MAIN_MEDIA_SOURCE, std_media_source
 from photree.config import ConfigError, ConfigErrorKind
+from photree.dates import DatePrefixError, DatePrefixKind
 from photree.foundation.layout import PHOTREE_DIR
 from photree.foundation.linking import LinkMode
 from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
@@ -24,14 +25,17 @@ def _setup_dir(path: Path, filenames: list[str]) -> Path:
 
 def _setup_ios_album(album_dir: Path) -> Path:
     _setup_dir(
-        album_dir / MAIN_MEDIA_SOURCE.orig_img_dir, ["IMG_0001.HEIC", "IMG_0002.HEIC"]
+        album_dir / MAIN_MEDIA_SOURCE.orig_img_dir,
+        ["IMG_0001.HEIC", "IMG_0002.HEIC"],
     )
     _setup_dir(album_dir / MAIN_MEDIA_SOURCE.edit_img_dir, ["IMG_E0001.HEIC"])
     _setup_dir(
-        album_dir / MAIN_MEDIA_SOURCE.img_dir, ["IMG_E0001.HEIC", "IMG_0002.HEIC"]
+        album_dir / MAIN_MEDIA_SOURCE.img_dir,
+        ["IMG_E0001.HEIC", "IMG_0002.HEIC"],
     )
     _setup_dir(
-        album_dir / MAIN_MEDIA_SOURCE.jpg_dir, ["IMG_E0001.JPEG", "IMG_0002.JPEG"]
+        album_dir / MAIN_MEDIA_SOURCE.jpg_dir,
+        ["IMG_E0001.JPEG", "IMG_0002.JPEG"],
     )
     _setup_dir(album_dir / MAIN_MEDIA_SOURCE.orig_vid_dir, ["IMG_0010.MOV"])
     _setup_dir(album_dir / MAIN_MEDIA_SOURCE.edit_vid_dir, ["IMG_E0010.MOV"])
@@ -42,28 +46,38 @@ def _setup_ios_album(album_dir: Path) -> Path:
 class TestComputeTargetDir:
     def test_flat_layout(self) -> None:
         result = compute_target_dir(
-            Path("/share"), "my-album", ShareDirectoryLayout.FLAT
+            Path("/share"),
+            "my-album",
+            ShareDirectoryLayout.FLAT,
         )
         assert result == Path("/share/my-album")
 
     def test_albums_layout(self) -> None:
         result = compute_target_dir(
-            Path("/share"), "2024-06-15 - Vacation", ShareDirectoryLayout.ALBUMS
+            Path("/share"),
+            "2024-06-15 - Vacation",
+            ShareDirectoryLayout.ALBUMS,
         )
         assert result == Path("/share/2024/2024-06-15 - Vacation")
 
     def test_albums_layout_various_years(self) -> None:
         assert compute_target_dir(
-            Path("/share"), "2020-12-25 - Christmas", ShareDirectoryLayout.ALBUMS
+            Path("/share"),
+            "2020-12-25 - Christmas",
+            ShareDirectoryLayout.ALBUMS,
         ) == Path("/share/2020/2020-12-25 - Christmas")
 
     def test_albums_layout_invalid_name_raises(self) -> None:
-        with pytest.raises(ValueError):
+        with pytest.raises(DatePrefixError) as info:
             compute_target_dir(Path("/share"), "no-date", ShareDirectoryLayout.ALBUMS)
+        assert info.value.kind is DatePrefixKind.YEAR
+        assert info.value.name == "no-date"
 
     def test_by_month_layout(self) -> None:
         result = compute_target_dir(
-            Path("/share"), "2024-06-15 - Vacation", ShareDirectoryLayout.BY_MONTH
+            Path("/share"),
+            "2024-06-15 - Vacation",
+            ShareDirectoryLayout.BY_MONTH,
         )
         assert result == Path("/share/2024-06/2024-06-15 - Vacation")
 
@@ -75,8 +89,10 @@ class TestComputeTargetDir:
         ) == Path("/share/2024-06/2024-06-15--2024-07-17 - Trip")
 
     def test_by_month_layout_invalid_name_raises(self) -> None:
-        with pytest.raises(ValueError):
+        with pytest.raises(DatePrefixError) as info:
             compute_target_dir(Path("/share"), "no-date", ShareDirectoryLayout.BY_MONTH)
+        assert info.value.kind is DatePrefixKind.MONTH
+        assert info.value.name == "no-date"
 
 
 class TestExportOtherAlbum:
@@ -142,7 +158,9 @@ class TestExportIosMainJpg:
         target = tmp_path / "share" / "trip"
 
         result = export_album(
-            album_dir, target, album_layout=AlbumShareLayout.BROWSABLE_JPG
+            album_dir,
+            target,
+            album_layout=AlbumShareLayout.BROWSABLE_JPG,
         )
 
         assert result.album_type == "ios"
@@ -172,7 +190,9 @@ class TestExportIosMain:
         target = tmp_path / "share" / "trip"
 
         result = export_album(
-            album_dir, target, album_layout=AlbumShareLayout.BROWSABLE
+            album_dir,
+            target,
+            album_layout=AlbumShareLayout.BROWSABLE,
         )
 
         assert result.album_type == "ios"
@@ -195,7 +215,9 @@ class TestExportIosMain:
         target = tmp_path / "share" / "minimal"
 
         result = export_album(
-            album_dir, target, album_layout=AlbumShareLayout.BROWSABLE
+            album_dir,
+            target,
+            album_layout=AlbumShareLayout.BROWSABLE,
         )
 
         assert (target / "main-img" / "IMG_0001.HEIC").exists()
@@ -206,7 +228,8 @@ class TestExportIosMain:
 
 class TestExportIosAll:
     def test_copies_orig_rendered_jpeg_and_recreates_browsable(
-        self, tmp_path: Path
+        self,
+        tmp_path: Path,
     ) -> None:
         album_dir = _setup_ios_album(tmp_path / "trip")
         target = tmp_path / "share" / "trip"
@@ -253,7 +276,8 @@ class TestExportIosAll:
         assert not (target / "extra-dir").exists()
 
     def test_copies_album_metadata_without_cache(self, tmp_path: Path) -> None:
-        """The ``all`` layout keeps the album and media IDs, like ``archive``.
+        """
+        The ``all`` layout keeps the album and media IDs, like ``archive``.
 
         It used to export an empty ``.photree/``, so the exported album lost
         its identity and could not be re-imported as the same album.
@@ -365,7 +389,8 @@ class TestExportPlainArchive:
 
 class TestExplicitConfigIsAlwaysLoaded:
     def test_missing_explicit_config_without_profile_is_an_error(
-        self, tmp_path: Path
+        self,
+        tmp_path: Path,
     ) -> None:
         # Regression: without --profile the config was never read, so a
         # mistyped --config path was silently ignored.

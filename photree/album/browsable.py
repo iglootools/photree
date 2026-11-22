@@ -1,4 +1,5 @@
-"""Rebuild browsable directories from orig/edited archive sources.
+"""
+Rebuild browsable directories from orig/edited archive sources.
 
 The browsable directories contain the "best" version of each media file:
 - If an edited version exists, use it
@@ -15,10 +16,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..common.fs import list_files
-from ..foundation.linking import LinkMode
-from .store.file_matching import dedup_media_dict
-from .store.media_source import KeyFn
+from photree.album.store.file_matching import dedup_media_dict
+from photree.album.store.media_source import KeyFn
+from photree.common.fs import list_files
+from photree.common.progress import FileEnd
+from photree.foundation.linking import LinkMode
 
 
 def compute_browsable_files(
@@ -27,7 +29,8 @@ def compute_browsable_files(
     media_extensions: frozenset[str],
     key_fn: KeyFn,
 ) -> list[tuple[str, Path]]:
-    """Compute which files should populate a browsable dir: (filename, source_dir) pairs.
+    """
+    Compute which files should populate a browsable dir: (filename, source_dir) pairs.
 
     For each media key in orig, picks the edited version if available,
     otherwise the original.
@@ -62,7 +65,26 @@ _LINK_MODE_VERBS: dict[LinkMode, str] = {
 }
 
 
+class CrossDeviceHardlinkError(OSError):
+    """A hardlink was asked for between two filesystems, which cannot hold one."""
+
+    def __init__(self, src: Path, dst: Path) -> None:
+        """Build the error from the file and the link that could not be made."""
+        self.src = src
+        self.dst = dst
+        super().__init__(
+            f"Cannot create hardlink across filesystems: {src} → {dst}. "
+            "Use --link-mode symlink instead.",
+        )
+
+
 def place_file(src: Path, dst: Path, link_mode: LinkMode) -> None:
+    """
+    Create *dst* from *src* as a copy, hardlink or relative symlink.
+
+    Raises :class:`CrossDeviceHardlinkError` when a hardlink is asked for
+    across filesystems; other OS errors propagate unchanged.
+    """
     match link_mode:
         case LinkMode.COPY:
             shutil.copy(src, dst)
@@ -71,18 +93,17 @@ def place_file(src: Path, dst: Path, link_mode: LinkMode) -> None:
                 os.link(src, dst)
             except OSError as exc:
                 if exc.errno == errno.EXDEV:
-                    raise OSError(
-                        f"Cannot create hardlink across filesystems: {src} → {dst}. "
-                        f"Use --link-mode symlink instead."
-                    ) from exc
+                    raise CrossDeviceHardlinkError(src, dst) from exc
                 raise
         case LinkMode.SYMLINK:
             rel_src = os.path.relpath(src, dst.parent)
-            os.symlink(rel_src, dst)
+            Path(dst).symlink_to(rel_src)
 
 
 @dataclass(frozen=True)
 class RefreshBrowsableDirResult:
+    """The outcome of one browsable directory refresh."""
+
     copied: int
 
 
@@ -96,13 +117,19 @@ def refresh_browsable_dir(
     link_mode: LinkMode = LinkMode.HARDLINK,
     dry_run: bool = False,
     on_file_start: Callable[[str], None] | None = None,
-    on_file_end: Callable[[str, bool], None] | None = None,
+    on_file_end: FileEnd | None = None,
 ) -> RefreshBrowsableDirResult:
-    """The directory is cleared even when the archive is empty or missing, so files of deleted
-    media do not survive the refresh.
+    """
+    Rebuild the browsable directory from the archive.
+
+    The directory is cleared even when the archive is empty or missing, so files of
+    deleted media do not survive the refresh.
     """
     files_to_copy = compute_browsable_files(
-        orig_dir, edit_dir, media_extensions, key_fn
+        orig_dir,
+        edit_dir,
+        media_extensions,
+        key_fn,
     )
 
     if not dry_run:
@@ -116,19 +143,20 @@ def refresh_browsable_dir(
             place_file(source_dir / filename, browsable_dir / filename, link_mode)
 
         if on_file_end:
-            on_file_end(filename, True)
+            on_file_end(filename, success=True)
 
     return RefreshBrowsableDirResult(copied=len(files_to_copy))
 
 
 def _clear_browsable_dir(browsable_dir: Path, *, create: bool) -> None:
-    """Remove every entry of *browsable_dir*; create it when *create* is set.
+    """
+    Remove every entry of *browsable_dir*; create it when *create* is set.
 
     An empty archive leaves an existing browsable dir empty rather than
     creating one that never existed.
     """
     if browsable_dir.is_dir():
-        for f in os.listdir(browsable_dir):
-            (browsable_dir / f).unlink()
+        for f in browsable_dir.iterdir():
+            f.unlink()
     if create:
         browsable_dir.mkdir(parents=True, exist_ok=True)

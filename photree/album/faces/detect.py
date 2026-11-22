@@ -1,4 +1,5 @@
-"""InsightFace wrapper — face detection, alignment, and embedding extraction.
+"""
+InsightFace wrapper — face detection, alignment, and embedding extraction.
 
 Handles thumbnail generation via ``sips`` and feeds resized JPEGs to
 InsightFace for analysis. Supports CoreML execution provider on M-series
@@ -15,13 +16,14 @@ from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import numpy as np
 
-from ...common.native_stderr import filter_native_stderr
-from ...common.sips import get_dimensions, resize_to_jpeg
-from .protocol import DEFAULT_MODEL_NAME, THUMB_MAX_DIMENSION
+from photree.album.faces.protocol import DEFAULT_MODEL_NAME, THUMB_MAX_DIMENSION
+from photree.common.native_stderr import filter_native_stderr
+from photree.common.sips import get_dimensions, resize_to_jpeg
 
 
 def is_ort_device_discovery_noise(line: str) -> bool:
-    """Match onnxruntime's ``GetPciBusId`` warning.
+    """
+    Match onnxruntime's ``GetPciBusId`` warning.
 
     onnxruntime creates its native environment, at WARNING severity, when the
     module is imported — before ``set_default_logger_severity`` can be called.
@@ -44,6 +46,17 @@ if TYPE_CHECKING:
 type FaceAnalyzerFactory = Callable[[], FaceAnalysis]
 
 
+class InsightFace(Protocol):
+    """
+    The part of an insightface ``Face`` photree reads without ``getattr``.
+
+    The landmarks and the normalized embedding depend on the models loaded, so
+    they are read with ``getattr`` and a fallback.
+    """
+
+    embedding: np.ndarray
+
+
 class FaceDetector(Protocol):
     """Finds the faces in an image: a prepared :class:`FaceAnalysis`, or a test fake."""
 
@@ -56,7 +69,8 @@ _PREFERRED_PROVIDERS = ("CoreMLExecutionProvider", "CPUExecutionProvider")
 
 
 def select_providers(available: list[str]) -> list[str]:
-    """Return the preferred execution providers that are actually available.
+    """
+    Return the preferred execution providers that are actually available.
 
     onnxruntime warns once per model (five for ``buffalo_l``) when asked for a
     provider it does not have, e.g. CoreML on Linux. Requesting only available
@@ -68,7 +82,8 @@ def select_providers(available: list[str]) -> list[str]:
 def create_face_analyzer(
     model_name: str = DEFAULT_MODEL_NAME,
 ) -> FaceAnalysis:
-    """Create and prepare an InsightFace :class:`FaceAnalysis` instance.
+    """
+    Create and prepare an InsightFace :class:`FaceAnalysis` instance.
 
     Prefers ``CoreMLExecutionProvider`` (M-series Neural Engine) with
     fallback to ``CPUExecutionProvider``.
@@ -79,8 +94,8 @@ def create_face_analyzer(
     # Imported here, not at module level: insightface and onnxruntime take
     # ~0.5 s to import, which every CLI invocation would otherwise pay.
     with filter_native_stderr(is_ort_device_discovery_noise):
-        import onnxruntime  # pyright: ignore[reportMissingTypeStubs]
-        from insightface.app import FaceAnalysis  # pyright: ignore[reportMissingTypeStubs]
+        import onnxruntime  # pyright: ignore[reportMissingTypeStubs]  # noqa: PLC0415 - ML stack, kept out of CLI startup
+        from insightface.app import FaceAnalysis  # pyright: ignore[reportMissingTypeStubs]  # noqa: PLC0415 - ML stack, kept out of CLI startup
 
     # Suppress insightface's verbose stdout (model loading messages) and
     # FutureWarning from deprecated scikit-image API calls.
@@ -89,7 +104,7 @@ def create_face_analyzer(
         contextlib.redirect_stdout(io.StringIO()),
     ):
         warnings.filterwarnings("ignore", category=FutureWarning, module="insightface")
-        available = cast(list[str], onnxruntime.get_available_providers())  # pyright: ignore[reportUnknownMemberType]
+        available = cast("list[str]", onnxruntime.get_available_providers())  # pyright: ignore[reportUnknownMemberType]
         app = FaceAnalysis(name=model_name, providers=select_providers(available))
         app.prepare(ctx_id=0, det_size=(640, 640))  # pyright: ignore[reportUnknownMemberType]
     return app
@@ -100,7 +115,8 @@ def memoized_face_analyzer_factory(
     *,
     create: Callable[[str], FaceAnalysis] = create_face_analyzer,
 ) -> FaceAnalyzerFactory:
-    """Return a factory that builds the analyzer once and caches it.
+    """
+    Return a factory that builds the analyzer once and caches it.
 
     The composition root (CLI) injects this into the import/refresh pipeline.
     The model loads on the first call (i.e. when a source actually has images
@@ -122,6 +138,8 @@ def memoized_face_analyzer_factory(
 
 @dataclass(frozen=True)
 class ThumbnailResult:
+    """A thumbnail generated for one image, with original and thumbnail pixel sizes."""
+
     key: str
     file_name: str
     thumb_path: Path
@@ -162,6 +180,8 @@ def generate_thumbnail(
 
 @dataclass(frozen=True)
 class DetectedFace:
+    """One face found in an image: detection score, box, landmarks and embedding."""
+
     key: str
     face_index: int
     det_score: float
@@ -171,18 +191,20 @@ class DetectedFace:
 
 
 class UnreadableThumbnailError(OSError):
-    """OpenCV could not decode a thumbnail (missing, truncated, or not an image).
+    """
+    OpenCV could not decode a thumbnail (missing, truncated, or not an image).
 
     Raised rather than returning no faces: an unreadable image must be
     recorded as a detection failure, not as "this photo has no faces".
     """
 
     def __init__(self, image_path: Path) -> None:
+        """Build the error from the path of the unreadable thumbnail."""
         self.image_path = image_path
         super().__init__(f"cannot read image {image_path.name}")
 
 
-def _face_landmarks(face: Any) -> np.ndarray:
+def _face_landmarks(face: InsightFace) -> np.ndarray:
     """Return the 5-point landmarks, preferring the 106-point model's first five."""
     landmark_106 = getattr(face, "landmark_2d_106", None)
     kps = getattr(face, "kps", None)
@@ -194,7 +216,7 @@ def _face_landmarks(face: Any) -> np.ndarray:
         return np.zeros((5, 2), dtype=np.float32)
 
 
-def _face_embedding(face: Any) -> np.ndarray:
+def _face_embedding(face: InsightFace) -> np.ndarray:
     """Return the L2-normalized embedding when available, else the raw one."""
     normed = getattr(face, "normed_embedding", None)
     return (normed if normed is not None else face.embedding).astype(np.float32)
@@ -205,11 +227,13 @@ def detect_faces(
     image_path: Path,
     analyzer: FaceDetector,
 ) -> list[DetectedFace]:
-    """Returns an empty list when no faces are found. Raises
-    :class:`UnreadableThumbnailError` when the image cannot be read.
+    """
+    Detect the faces in one image, returning an empty list when there are none.
+
+    Raises :class:`UnreadableThumbnailError` when the image cannot be read.
     """
     # Imported here, not at module level: cv2 costs ~0.14 s at CLI startup.
-    import cv2
+    import cv2  # noqa: PLC0415 - ML stack, kept out of CLI startup
 
     img = cv2.imread(str(image_path))
     if img is None:

@@ -1,4 +1,5 @@
-"""Collection naming convention parsing and validation.
+"""
+Collection naming convention parsing and validation.
 
 Target format::
 
@@ -16,7 +17,7 @@ This module performs **no** filesystem mutations.
 import re
 from dataclasses import dataclass
 
-from ..dates import DATE_PREFIX_RE, parse_year_prefix
+from photree.dates import DATE_PREFIX_RE, parse_year_prefix
 
 # Matches "[tag1, tag2]" at the end of a name (same as album naming)
 _TAGS_RE = re.compile(r"\s*\[([^\]]+)\]\s*$")
@@ -24,6 +25,8 @@ _TAGS_RE = re.compile(r"\s*\[([^\]]+)\]\s*$")
 
 @dataclass(frozen=True)
 class ParsedCollectionName:
+    """The parts of a collection folder name: date, title, location and private tag."""
+
     date: str | None
     title: str
     location: str | None = None
@@ -31,7 +34,8 @@ class ParsedCollectionName:
 
 
 def parse_collection_name(name: str) -> ParsedCollectionName:
-    """Parse a collection folder name into components.
+    """
+    Parse a collection folder name into components.
 
     Unlike album names, the date prefix is optional. A name without a
     recognized date prefix is treated as a dateless collection.
@@ -69,6 +73,7 @@ def parse_collection_name(name: str) -> ParsedCollectionName:
 
 
 def reconstruct_collection_name(parsed: ParsedCollectionName) -> str:
+    """Return the collection folder name for *parsed*, the inverse of parsing it."""
     title_with_location = (
         f"{parsed.title} @ {parsed.location}"
         if parsed.location is not None
@@ -83,7 +88,8 @@ def reconstruct_collection_name(parsed: ParsedCollectionName) -> str:
 
 
 def parse_collection_year(name: str) -> str | None:
-    """Extract the start year from a collection name, or ``None`` for dateless.
+    """
+    Extract the start year from a collection name, or ``None`` for dateless.
 
     Used for placing collections in ``collections/YYYY/`` directories.
     """

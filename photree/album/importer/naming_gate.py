@@ -1,4 +1,5 @@
-"""Light check (naming + date collisions) run before ``album import``.
+"""
+Light check (naming + date collisions) run before ``album import``.
 
 The same check gates ``gallery import``, which tests collisions against the
 gallery's albums. An album being filled outside the gallery cannot see those,
@@ -12,39 +13,51 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..naming import (
+from photree.album.naming import (
     NamingIssue,
     check_album_naming,
     check_batch_date_collisions,
     parse_album_name,
 )
-from ..store.album_discovery import discover_albums
+from photree.album.store.album_discovery import discover_albums
 
 
 @dataclass(frozen=True)
 class ImportNamingCheck:
+    """
+    The outcome of the light check run before an import.
+
+    *naming_errors* pairs each badly named album with its issues;
+    *date_collisions* pairs each colliding date with the album names on it.
+    """
+
     naming_errors: tuple[tuple[Path, tuple[NamingIssue, ...]], ...] = ()
     date_collisions: tuple[tuple[str, tuple[str, ...]], ...] = ()
 
     @property
     def success(self) -> bool:
+        """Return whether no album name is invalid and no date collides."""
         return not self.naming_errors and not self.date_collisions
 
 
 def _peers(albums: Sequence[Path]) -> list[Path]:
-    """The albums being imported plus their sibling albums, without duplicates."""
+    """Return the albums being imported and their sibling albums, deduplicated."""
     parents = dict.fromkeys(a.parent for a in albums)
     return list(
         dict.fromkeys(
-            [*albums, *(peer for parent in parents for peer in discover_albums(parent))]
-        )
+            [
+                *albums,
+                *(peer for parent in parents for peer in discover_albums(parent)),
+            ],
+        ),
     )
 
 
 def _date_collisions(
     albums: Sequence[Path],
 ) -> tuple[tuple[str, tuple[str, ...]], ...]:
-    """Collisions among *albums* and their siblings that involve one of *albums*.
+    """
+    Collisions among *albums* and their siblings that involve one of *albums*.
 
     Collisions between siblings alone are left to ``albums check``: they are
     not this import's to block.
@@ -55,12 +68,18 @@ def _date_collisions(
             (p.name, parsed)
             for p in _peers(albums)
             if (parsed := parse_album_name(p.name)) is not None
-        ]
+        ],
     ).date_collisions
     return tuple(c for c in collisions if names & set(c[1]))
 
 
 def check_import_naming(albums: Sequence[Path]) -> ImportNamingCheck:
+    """
+    Check the names of *albums* and their date collisions, before an import.
+
+    Collisions are tested against the albums next to each one, and only those
+    involving one of *albums* are reported.
+    """
     return ImportNamingCheck(
         naming_errors=tuple(
             (a, issues) for a in albums if (issues := check_album_naming(a.name))

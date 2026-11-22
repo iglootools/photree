@@ -1,4 +1,5 @@
-"""MediaSource — a named source of photos within an album.
+"""
+MediaSource — a named source of photos within an album.
 
 Holds the model, its two kinds (iOS, std), the archive/browsable directory
 names each kind lays out, and the key functions that identify a media item
@@ -20,11 +21,16 @@ type KeyFn = Callable[[str], str]
 
 
 def ios_img_number(filename: str) -> str:
-    """Extract the numeric portion of a filename (e.g. ``"0410"`` from ``"IMG_0410.HEIC"``)."""
+    """
+    Extract the numeric portion of a filename.
+
+    For example ``"0410"`` from ``"IMG_0410.HEIC"``.
+    """
     return "".join(c for c in filename if c.isdigit())
 
 
 def stem_key(filename: str) -> str:
+    """Return the stem of *filename*, the key of a std media item."""
     return Path(filename).stem
 
 
@@ -35,9 +41,23 @@ class MediaSourceType(StrEnum):
     STD = "std"  # archival (std-{name}/) + browsable ({name}-img/, etc.)
 
 
+class WrongMediaSourceTypeError(ValueError):
+    """A media source of one type was handed to code that handles only the other."""
+
+    def __init__(self, media_source: str, expected: MediaSourceType) -> None:
+        """Build the error from the media source's name and the type the code needs."""
+        self.media_source = media_source
+        self.expected = expected
+        article = {MediaSourceType.IOS: "an iOS", MediaSourceType.STD: "a std"}
+        super().__init__(
+            f"media source '{media_source}' is not {article[expected]} media source",
+        )
+
+
 @dataclass(frozen=True)
 class MediaSource:
-    """A named source of photos within an album.
+    """
+    A named source of photos within an album.
 
     Both **iOS** and **std** (standard) media sources have archival
     directories (under ``ios-{name}/`` or ``std-{name}/``) with identical
@@ -60,15 +80,20 @@ class MediaSource:
 
     @property
     def is_ios(self) -> bool:
+        """Tell whether this is an iOS media source."""
         return self.media_source_type == MediaSourceType.IOS
 
     @property
     def is_std(self) -> bool:
+        """Tell whether this is a std media source."""
         return self.media_source_type == MediaSourceType.STD
 
     @property
     def key_fn(self) -> KeyFn:
-        """iOS sources match by image number (digits extracted from filename).
+        """
+        Return the function that matches files across directories.
+
+        IOS sources match by image number (digits extracted from filename).
         Std sources match by filename stem.
         """
         match self.media_source_type:
@@ -89,14 +114,17 @@ class MediaSource:
 
     @property
     def image_subdirs(self) -> tuple[str, ...]:
+        """Return the original, browsable and JPEG image directories."""
         return (self.orig_img_dir, self.img_dir, self.jpg_dir)
 
     @property
     def video_subdirs(self) -> tuple[str, ...]:
+        """Return the original and browsable video directories."""
         return (self.orig_vid_dir, self.vid_dir)
 
     @property
     def required_subdirs(self) -> tuple[str, ...]:
+        """Return the image and video directories every media source has."""
         return (*self.image_subdirs, *self.video_subdirs)
 
     @property
@@ -106,10 +134,12 @@ class MediaSource:
 
     @property
     def all_subdirs(self) -> tuple[str, ...]:
+        """Return the required directories followed by the edit-only ones."""
         return (*self.required_subdirs, *self.optional_subdirs)
 
 
 def ios_media_source(name: str) -> MediaSource:
+    """Return the iOS media source named *name*, archived under ``ios-{name}/``."""
     archive = f"{IOS_DIR_PREFIX}{name}"
     return MediaSource(
         name=name,
@@ -126,7 +156,10 @@ def ios_media_source(name: str) -> MediaSource:
 
 
 def std_media_source(name: str) -> MediaSource:
-    """The archive directory structure is identical to iOS
+    """
+    Return a std media source.
+
+    The archive directory structure is identical to iOS
     (``orig-img/``, ``edit-img/``, ``orig-vid/``, ``edit-vid/``).
     Std sources match files by filename stem and skip iOS-specific
     integrity checks and fixes.

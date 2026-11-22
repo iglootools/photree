@@ -1,18 +1,20 @@
+"""The ``photree gallery list-media`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
-from ...albums.batchcli.listmedia import run_batch_list_media
-from ...albums.batchcli.resolution import resolve_check_batch_albums
-from ...clihelpers.options import (
+from photree.albums.batchcli.listmedia import run_batch_list_media
+from photree.albums.batchcli.resolution import resolve_check_batch_albums
+from photree.clihelpers.options import (
     OUTPUT_FILE_OPTION,
     OUTPUT_FORMAT_OPTION,
     OutputFormat,
 )
-from ...clihelpers.resolution import resolve_gallery_or_exit
-from ...clihelpers.runtime import runtime_of
-from . import app
+from photree.clihelpers.resolution import resolve_gallery_or_exit
+from photree.clihelpers.runtime import runtime_of
+from photree.gallery.cli.app import app
 
 
 @app.command("list-media")
@@ -23,7 +25,10 @@ def list_media_cmd(
         typer.Option(
             "--gallery-dir",
             "-g",
-            help="Gallery root directory (or resolved from cwd via .photree/gallery.yaml).",
+            help=(
+                "Gallery root directory (or resolved from cwd "
+                "via .photree/gallery.yaml)."
+            ),
             exists=True,
             file_okay=False,
             resolve_path=True,

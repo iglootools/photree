@@ -1,13 +1,17 @@
+"""Indexing albums by the ID in their ``.photree/album.yaml``."""
+
 import itertools
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..album.store.metadata import load_album_metadata
+from photree.album.store.metadata import load_album_metadata
 
 
 @dataclass(frozen=True)
 class AlbumIndex:
+    """Album paths by album ID, with the IDs that several albums share."""
+
     id_to_path: Mapping[str, Path]
     """Internal UUID → album path (first occurrence when duplicates exist)."""
 
@@ -16,19 +20,22 @@ class AlbumIndex:
 
 
 class MissingAlbumIdError(Exception):
-    """Raised when discovered albums lack a ``.photree/album.yaml`` ID.
+    """
+    Raised when discovered albums lack a ``.photree/album.yaml`` ID.
 
     A plain class rather than a frozen dataclass: raising assigns
     ``__traceback__``, which a frozen dataclass forbids.
     """
 
     def __init__(self, albums: tuple[Path, ...]) -> None:
+        """Build the error from the albums that have no ID."""
         self.albums = albums
         super().__init__(f"{len(albums)} album(s) without an ID")
 
 
 def build_album_index(albums: list[Path]) -> AlbumIndex:
-    """Build an ID→path index from a list of album paths.
+    """
+    Build an ID→path index from a list of album paths.
 
     Raises :class:`MissingAlbumIdError` if any album lacks an ID.
     """
@@ -59,7 +66,8 @@ def build_album_index(albums: list[Path]) -> AlbumIndex:
 def find_duplicate_album_ids(
     albums: list[Path],
 ) -> dict[str, list[Path]]:
-    """Find albums that share the same ID.
+    """
+    Find albums that share the same ID.
 
     Returns a dict mapping each duplicated album ID to the list of paths
     that share it. Albums without metadata are silently skipped.
@@ -81,12 +89,14 @@ class AlbumIdNotFoundError(KeyError):
     """An album ID is absent from the gallery index (``album_id`` attribute)."""
 
     def __init__(self, album_id: str) -> None:
+        """Build the error from the album ID that was not found."""
         self.album_id = album_id
         super().__init__(f"Album ID not found in gallery index: {album_id}")
 
 
 def resolve_album_path_by_id(index: Mapping[str, Path], album_id: str) -> Path:
-    """Look up an album path by internal UUID.
+    """
+    Look up an album path by internal UUID.
 
     Raises :class:`AlbumIdNotFoundError` (a :class:`KeyError`) when *album_id*
     is not in the index.

@@ -48,7 +48,7 @@ def _state(face_count: int) -> FaceProcessingState:
                 orig_height=3024,
                 thumb_width=640,
                 thumb_height=480,
-            )
+            ),
         },
     )
 
@@ -123,7 +123,7 @@ class TestExifCacheState:
 class TestIntegrityOutputLabels:
     def test_ios_labels_use_media_source_dirs(self) -> None:
         result = AlbumIntegrityResult(
-            by_media_source=((ios_media_source("bruno"), IOS_INTEGRITY_OK),)
+            by_media_source=((ios_media_source("bruno"), IOS_INTEGRITY_OK),),
         )
 
         output = format_integrity_checks(result)
@@ -137,7 +137,7 @@ class TestIntegrityOutputLabels:
 class TestStdDuplicateStems:
     def test_duplicate_stems_are_printed(self) -> None:
         result = AlbumIntegrityResult(
-            by_media_source=((std_media_source("nelu"), STD_INTEGRITY_FAILURES),)
+            by_media_source=((std_media_source("nelu"), STD_INTEGRITY_FAILURES),),
         )
 
         output = format_integrity_checks(result)
@@ -149,7 +149,7 @@ class TestStdDuplicateStems:
         preflight = replace(
             PREFLIGHT_OK,
             integrity=AlbumIntegrityResult(
-                by_media_source=((std_media_source("nelu"), STD_INTEGRITY_FAILURES),)
+                by_media_source=((std_media_source("nelu"), STD_INTEGRITY_FAILURES),),
             ),
         )
 

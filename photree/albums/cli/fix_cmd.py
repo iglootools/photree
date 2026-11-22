@@ -1,19 +1,22 @@
+"""The ``photree albums fix`` command."""
+
 from typing import Annotated
 
 import typer
 
-from ...album.fix import FixValidationError, validate_fix_flags
-from ...clihelpers.options import (
+from photree.album.fix import FixValidationError, validate_fix_flags
+from photree.albums.batchcli.fix import run_batch_fix
+from photree.albums.batchcli.resolution import resolve_check_batch_albums
+from photree.albums.cli.app import app
+from photree.albums.cli.options import ALBUM_DIR_OPTION, DIR_OPTION
+from photree.clihelpers.options import (
     DRY_RUN_OPTION,
     FORCE_OPTION,
     RM_ORPHAN_OPTION,
     RM_UPSTREAM_OPTION,
 )
-from ...clihelpers.runtime import runtime_of
-from ...clihelpers.usage import usage_error
-from ..batchcli.fix import run_batch_fix
-from ..batchcli.resolution import resolve_check_batch_albums
-from . import ALBUM_DIR_OPTION, DIR_OPTION, app
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.usage import invalid_fix_error
 
 
 @app.command("fix")
@@ -21,6 +24,7 @@ def fix_cmd(
     ctx: typer.Context,
     base_dir: DIR_OPTION = None,
     album_dirs: ALBUM_DIR_OPTION = None,
+    *,
     fix_id: Annotated[
         bool,
         typer.Option("--id", help="Generate missing album IDs (.photree/album.yaml)."),
@@ -45,10 +49,7 @@ def fix_cmd(
             rm_orphan=rm_orphan,
         )
     except FixValidationError as exc:
-        raise usage_error(
-            f"{exc}\nRun 'photree albums fix --help' for the available fixes.",
-            markup=False,
-        ) from exc
+        raise invalid_fix_error(exc, command="albums fix") from exc
 
     albums, display_base = resolve_check_batch_albums(base_dir, album_dirs, cwd=cwd)
 

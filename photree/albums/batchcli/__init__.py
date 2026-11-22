@@ -1,4 +1,5 @@
-"""Batch CLI layer shared by the ``albums`` and ``gallery`` command groups.
+"""
+Batch CLI layer shared by the ``albums`` and ``gallery`` command groups.
 
 Each ``run_batch_*`` function creates progress bars, calls the corresponding
 command handler (``albums.cmd_handler``), displays results, and raises

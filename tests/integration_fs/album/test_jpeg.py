@@ -96,12 +96,15 @@ class TestRefreshJpegDir:
         started: list[str] = []
         ended: list[tuple[str, bool]] = []
 
+        def record_end(name: str, *, success: bool) -> None:
+            ended.append((name, success))
+
         refresh_jpeg_dir(
             src_dir,
             dst_dir,
             convert_file=_fake_convert,
             on_file_start=started.append,
-            on_file_end=lambda f, s: ended.append((f, s)),
+            on_file_end=record_end,
         )
 
         assert started == ["IMG_0001.HEIC"]

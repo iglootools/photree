@@ -1,4 +1,4 @@
-"""Face clustering — FAISS index management, agglomerative clustering, medoid matching."""
+"""Face clustering: FAISS index, agglomerative clustering, medoid matching."""
 
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
@@ -6,13 +6,21 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 import numpy.typing as npt
 
-from .protocol import DEFAULT_CLUSTER_THRESHOLD
+from photree.gallery.faces.protocol import DEFAULT_CLUSTER_THRESHOLD
 
 # faiss, scipy and sklearn are imported inside the functions that use them, not
 # here: this module is reachable from the CLI, and loading them would slow down
 # every invocation, most of which never cluster faces.
 if TYPE_CHECKING:
     import faiss
+
+# Above this many faces, a full distance matrix costs too much memory (O(N^2)), so
+# clustering only links each face to its nearest neighbours.
+_SPARSE_CONNECTIVITY_MIN_FACES = 10_000
+_SPARSE_CONNECTIVITY_NEIGHBOURS = 50
+# An embeddings matrix has one row per face; anything else holds no faces yet.
+_MATRIX_NDIM = 2
+_EMBEDDING_DIM = 512
 
 
 # faiss's stubs overload add and search for torch.Tensor as well as numpy arrays.
@@ -25,20 +33,23 @@ def add_to_index(index: faiss.IndexFlatIP, vectors: npt.NDArray[np.float32]) -> 
 
 
 def _search_index(
-    index: faiss.IndexFlatIP, queries: npt.NDArray[np.float32], k: int
+    index: faiss.IndexFlatIP,
+    queries: npt.NDArray[np.float32],
+    k: int,
 ) -> tuple[npt.NDArray[np.float32], npt.NDArray[np.int64]]:
     """Return the similarities and row indices of each query's *k* nearest rows."""
     return index.search(queries, k)  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
 
 
 def build_faiss_index(embeddings: np.ndarray) -> faiss.IndexFlatIP:
-    """Build a FAISS inner-product index from L2-normalized embeddings.
+    """
+    Build a FAISS inner-product index from L2-normalized embeddings.
 
     For normalized vectors, inner product = cosine similarity.
     """
-    import faiss
+    import faiss  # noqa: PLC0415 - ML stack, kept out of CLI startup
 
-    dim = embeddings.shape[1] if embeddings.ndim == 2 else 512
+    dim = embeddings.shape[1] if embeddings.ndim == _MATRIX_NDIM else _EMBEDDING_DIM
     index = faiss.IndexFlatIP(dim)
     if len(embeddings) > 0:
         add_to_index(index, embeddings.astype(np.float32))
@@ -46,7 +57,8 @@ def build_faiss_index(embeddings: np.ndarray) -> faiss.IndexFlatIP:
 
 
 def save_faiss_index(index: faiss.IndexFlatIP, path: Path) -> None:
-    import faiss
+    """Write the FAISS *index* to *path*, creating its parent directories."""
+    import faiss  # noqa: PLC0415 - ML stack, kept out of CLI startup
 
     path.parent.mkdir(parents=True, exist_ok=True)
     faiss.write_index(index, str(path))
@@ -54,11 +66,11 @@ def save_faiss_index(index: faiss.IndexFlatIP, path: Path) -> None:
 
 def load_faiss_index(path: Path) -> faiss.IndexFlatIP | None:
     """Load a FAISS index from disk, or ``None`` if the file is missing."""
-    import faiss
+    import faiss  # noqa: PLC0415 - ML stack, kept out of CLI startup
 
     if not path.is_file():
         return None
-    return cast(faiss.IndexFlatIP, faiss.read_index(str(path)))
+    return cast("faiss.IndexFlatIP", faiss.read_index(str(path)))
 
 
 def cluster_embeddings(
@@ -66,7 +78,8 @@ def cluster_embeddings(
     *,
     distance_threshold: float = DEFAULT_CLUSTER_THRESHOLD,
 ) -> np.ndarray:
-    """Cluster face embeddings into identity groups.
+    """
+    Cluster face embeddings into identity groups.
 
     Returns an array of cluster labels (int32), one per face.
     Uses agglomerative clustering with cosine distance and average linkage.
@@ -81,12 +94,17 @@ def cluster_embeddings(
         return np.array([0], dtype=np.int32)
 
     # scikit-learn ships no type information.
-    from sklearn.cluster import (  # pyright: ignore[reportMissingTypeStubs]
+    from sklearn.cluster import (  # pyright: ignore[reportMissingTypeStubs]  # noqa: PLC0415 - ML stack, kept out of CLI startup
         AgglomerativeClustering,
     )
 
     connectivity = (
-        _build_sparse_connectivity(embeddings, k=min(50, n - 1)) if n > 10_000 else None
+        _build_sparse_connectivity(
+            embeddings,
+            k=min(_SPARSE_CONNECTIVITY_NEIGHBOURS, n - 1),
+        )
+        if n > _SPARSE_CONNECTIVITY_MIN_FACES
+        else None
     )
 
     clustering = AgglomerativeClustering(
@@ -99,20 +117,21 @@ def cluster_embeddings(
         connectivity=connectivity,
     )
     # scikit-learn leaves fit_predict's parameters and result unannotated.
-    labels = cast(np.ndarray, clustering.fit_predict(embeddings))  # pyright: ignore[reportUnknownMemberType]
+    labels = cast("np.ndarray", clustering.fit_predict(embeddings))  # pyright: ignore[reportUnknownMemberType]
     return labels.astype(np.int32)
 
 
 def _build_sparse_connectivity(embeddings: np.ndarray, *, k: int) -> object:
-    """Build a sparse k-NN connectivity matrix using FAISS.
+    """
+    Build a sparse k-NN connectivity matrix using FAISS.
 
     Returns a binary adjacency matrix where entry (i, j) = 1 iff
     j is among the k nearest neighbors of i.
     """
-    import faiss
+    import faiss  # noqa: PLC0415 - ML stack, kept out of CLI startup
 
     # SciPy ships no type information for scipy.sparse.
-    from scipy.sparse import lil_matrix  # pyright: ignore[reportMissingTypeStubs]
+    from scipy.sparse import lil_matrix  # pyright: ignore[reportMissingTypeStubs]  # noqa: PLC0415 - ML stack, kept out of CLI startup
 
     index = faiss.IndexFlatIP(embeddings.shape[1])
     add_to_index(index, embeddings.astype(np.float32))
@@ -138,7 +157,8 @@ def assign_to_nearest_cluster(
     distance_threshold: float = DEFAULT_CLUSTER_THRESHOLD,
     next_cluster_id: int = 0,
 ) -> np.ndarray:
-    """Assign new faces to existing clusters or create singleton clusters.
+    """
+    Assign new faces to existing clusters or create singleton clusters.
 
     For each new face, finds the nearest face in the existing index.
     If the cosine distance is within the threshold, assigns it to that
@@ -151,11 +171,15 @@ def assign_to_nearest_cluster(
 
     if index.ntotal == 0:
         return np.arange(
-            next_cluster_id, next_cluster_id + len(new_embeddings), dtype=np.int32
+            next_cluster_id,
+            next_cluster_id + len(new_embeddings),
+            dtype=np.int32,
         )
 
     similarities, nn_indices = _search_index(
-        index, new_embeddings.astype(np.float32), 1
+        index,
+        new_embeddings.astype(np.float32),
+        1,
     )
 
     return _assign_labels(
@@ -175,7 +199,8 @@ def _assign_labels(
     distance_threshold: float,
     next_cluster_id: int,
 ) -> np.ndarray:
-    """Assign each face to an existing cluster or a new singleton.
+    """
+    Assign each face to an existing cluster or a new singleton.
 
     Stateful: ``next_cluster_id`` increments for each new singleton, so
     this cannot be a pure comprehension without accumulating state.
@@ -183,7 +208,7 @@ def _assign_labels(
     labels = np.empty(len(similarities), dtype=np.int32)
     current_id = next_cluster_id
 
-    for i, (sim, nn_idx) in enumerate(zip(similarities, nn_indices)):
+    for i, (sim, nn_idx) in enumerate(zip(similarities, nn_indices, strict=True)):
         cosine_distance = 1.0 - sim
         if cosine_distance <= distance_threshold and nn_idx >= 0:
             labels[i] = existing_labels[nn_idx]
@@ -203,7 +228,8 @@ def compute_medoids(
     embeddings: np.ndarray,
     labels: np.ndarray,
 ) -> dict[int, int]:
-    """Compute the medoid index for each cluster.
+    """
+    Compute the medoid index for each cluster.
 
     The medoid is the face closest to the cluster centroid.
     Returns ``{cluster_label: face_index}``.
@@ -236,7 +262,8 @@ def match_clusters_by_medoid(
     *,
     threshold: float = DEFAULT_CLUSTER_THRESHOLD,
 ) -> dict[int, str]:
-    """Match new cluster labels to old cluster UUIDs via medoid similarity.
+    """
+    Match new cluster labels to old cluster UUIDs via medoid similarity.
 
     For each old cluster, computes its medoid embedding. For each new cluster,
     finds the old cluster whose medoid is most similar. If similarity exceeds
@@ -251,7 +278,8 @@ def match_clusters_by_medoid(
     new_medoids = compute_medoids(new_embeddings, new_labels)
 
     old_medoid_index, old_medoid_labels = _build_medoid_index(
-        old_embeddings, old_medoids
+        old_embeddings,
+        old_medoids,
     )
 
     return _match_new_to_old(
@@ -265,13 +293,14 @@ def match_clusters_by_medoid(
 
 
 def _build_medoid_index(
-    embeddings: np.ndarray, medoids: dict[int, int]
+    embeddings: np.ndarray,
+    medoids: dict[int, int],
 ) -> tuple[faiss.IndexFlatIP, list[int]]:
     """Build a FAISS index of medoid embeddings for nearest-neighbor matching."""
-    import faiss
+    import faiss  # noqa: PLC0415 - ML stack, kept out of CLI startup
 
     medoid_embeddings = np.stack([embeddings[idx] for idx in medoids.values()]).astype(
-        np.float32
+        np.float32,
     )
     medoid_labels = list(medoids.keys())
 
@@ -289,7 +318,8 @@ def _match_new_to_old(
     *,
     threshold: float,
 ) -> dict[int, str]:
-    """Match each new cluster's medoid to the nearest old cluster.
+    """
+    Match each new cluster's medoid to the nearest old cluster.
 
     Greedy: each old UUID is used at most once (first match wins).
     """

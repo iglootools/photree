@@ -1,12 +1,14 @@
+"""``albums detect-faces`` wrapper."""
+
 from pathlib import Path
 
 import typer
 
-from ...clihelpers.progress import BatchProgressBar
-from ...common.formatting import format_dry_run
-from ..cmd_handler.detect_faces import batch_detect_faces
-from .failures import exit_if_no_albums, exit_with_failures
-from .resolution import make_display_fn
+from photree.albums.batchcli.failures import exit_if_no_albums, exit_with_failures
+from photree.albums.batchcli.resolution import make_display_fn
+from photree.albums.cmd_handler.detect_faces import batch_detect_faces
+from photree.clihelpers.progress import BatchProgressBar
+from photree.common.formatting import format_dry_run
 
 
 def run_batch_detect_faces(
@@ -35,9 +37,7 @@ def run_batch_detect_faces(
             display_fn=make_display_fn(display_base, cwd),
             max_workers=max_workers,
             on_start=progress.on_start,
-            on_end=lambda name, success, errors: progress.on_end(
-                name, success=success, error_labels=errors
-            ),
+            on_end=progress.on_end,
         )
 
     tally = (
@@ -46,6 +46,6 @@ def run_batch_detect_faces(
         else f"Done. {result.succeeded} album(s) processed"
     )
     typer.echo(
-        format_dry_run(f"\n{tally}, {len(result.failures)} failed.", dry_run=dry_run)
+        format_dry_run(f"\n{tally}, {len(result.failures)} failed.", dry_run=dry_run),
     )
     exit_with_failures(result.failures, "detect-faces", cwd)

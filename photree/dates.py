@@ -1,4 +1,5 @@
-"""The date grammar shared by album and collection names.
+"""
+The date grammar shared by album and collection names.
 
 A date *spec* is the ``DATE`` component of a name (see docs/domain.md, "Album
 Naming")::
@@ -39,12 +40,14 @@ type DateRange = tuple[date, date]
 
 
 class InvalidDateError(ValueError):
-    """A date spec matches the grammar but is not a real date range.
+    """
+    A date spec matches the grammar but is not a real date range.
 
     E.g. ``2024-02-30`` or ``2024-13``, or a range ending before it starts.
     """
 
     def __init__(self, spec: str) -> None:
+        """Build the error from the date spec that is not a real date range."""
         self.spec = spec
         super().__init__(f"date {spec!r} is not a valid date range")
 
@@ -59,17 +62,19 @@ class DatePrefixKind(StrEnum):
 
 
 class DatePrefixError(ValueError):
-    """A name lacks the date prefix needed to place it by year/month.
+    """
+    A name lacks the date prefix needed to place it by year/month.
 
     Only album placement (gallery import, export layouts) places names by
     their date prefix, so the message speaks of an album name.
     """
 
     def __init__(self, name: str, kind: DatePrefixKind) -> None:
+        """Build the error from the name and the date prefix it lacks."""
         expected = "YYYY" if kind is DatePrefixKind.YEAR else "YYYY-MM"
         super().__init__(
             f'album name "{name}" does not start with a {expected} date;'
-            ' expected "DATE - <Title>" (e.g. "2024-06-15 - Summer Vacation")'
+            ' expected "DATE - <Title>" (e.g. "2024-06-15 - Summer Vacation")',
         )
         self.name = name
         self.kind = kind
@@ -81,7 +86,8 @@ def is_day_precision(spec: str) -> bool:
 
 
 def _single_date_bounds(single: str) -> DateRange | None:
-    """First and last day covered by a single (non-range) date.
+    """
+    First and last day covered by a single (non-range) date.
 
     ``None`` when it is not a real calendar date.
     """
@@ -102,7 +108,8 @@ def _single_date_bounds(single: str) -> DateRange | None:
 
 
 def date_range(spec: str) -> DateRange | None:
-    """The inclusive ``(start, end)`` range denoted by *spec*.
+    """
+    Return the inclusive ``(start, end)`` range denoted by *spec*.
 
     Handles all precisions and ranges of mixed precision. ``None`` if
     unparseable, not a real calendar date, or a range that ends before it
@@ -128,7 +135,8 @@ def range_contains(outer: DateRange, inner: DateRange) -> bool:
 
 
 def ranges_overlap(a: DateRange, b: DateRange) -> bool:
-    """Whether two ranges share at least one day.
+    """
+    Whether two ranges share at least one day.
 
     Ranges are inclusive of both ends, so sharing a single boundary day
     (``2019-06-30`` in both) is an overlap.
@@ -137,7 +145,8 @@ def ranges_overlap(a: DateRange, b: DateRange) -> bool:
 
 
 def timestamp_in_range(timestamp: datetime, spec: str) -> bool:
-    """Whether *timestamp* falls within the range denoted by *spec*.
+    """
+    Whether *timestamp* falls within the range denoted by *spec*.
 
     All cases use an exclusive end:
 
@@ -160,7 +169,8 @@ def timestamp_in_range(timestamp: datetime, spec: str) -> bool:
 
 
 def timestamp_on_day(timestamp: datetime, spec: str) -> bool:
-    """Whether *timestamp* falls exactly on the day *spec* denotes.
+    """
+    Whether *timestamp* falls exactly on the day *spec* denotes.
 
     Always ``True`` for specs that are not day precision (there is no single
     day to match). Callers validate *spec* first.
@@ -169,7 +179,8 @@ def timestamp_on_day(timestamp: datetime, spec: str) -> bool:
 
 
 def parse_year_prefix(name: str) -> str:
-    """Extract the ``YYYY`` year a name starts with.
+    """
+    Extract the ``YYYY`` year a name starts with.
 
     Any date precision works (``2024``, ``2024-06``, ``2024-06-15``, ranges):
     the year is the start year. Raises :class:`DatePrefixError` when the name
@@ -183,7 +194,8 @@ def parse_year_prefix(name: str) -> str:
 
 
 def parse_month_prefix(name: str) -> str:
-    """Extract the ``YYYY-MM`` month a name starts with.
+    """
+    Extract the ``YYYY-MM`` month a name starts with.
 
     For date ranges (``YYYY-MM-DD--YYYY-MM-DD``), the start month is returned
     (the prefix is matched). Raises :class:`DatePrefixError` when the name

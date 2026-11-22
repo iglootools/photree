@@ -1,11 +1,28 @@
+"""The ``photree album check`` command."""
+
 from contextlib import nullcontext
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
-from ...clihelpers.console import console, err_console
-from ...clihelpers.options import (
+from photree.album import check as album_check
+from photree.album import naming as album_naming
+from photree.album.check import output as preflight_output
+from photree.album.cli.app import app
+from photree.album.cli.media_source_conflict import format_media_source_conflict
+from photree.album.exif_cache.refresh import (
+    refresh_exif_cache as refresh_album_exif_cache,
+)
+from photree.album.formats import IMG_EXTENSIONS, VID_EXTENSIONS
+from photree.album.store.album_discovery import discover_albums
+from photree.album.store.media_sources_discovery import (
+    MediaSourceConflictError,
+    discover_media_sources,
+    find_media_source_conflicts,
+)
+from photree.clihelpers.console import console, err_console
+from photree.clihelpers.options import (
     CHECK_DATE_PART_COLLISION_OPTION,
     CHECK_EXIF_DATE_MATCH_OPTION,
     CHECK_NAMING_OPTION,
@@ -14,29 +31,12 @@ from ...clihelpers.options import (
     FATAL_SIDECAR_OPTION,
     FATAL_WARNINGS_OPTION,
 )
-from ...clihelpers.progress import SilentProgressBar
-from ...clihelpers.runtime import runtime_of
-from ...common.exif import exiftool_session
-from ...common.fs import count_unique_media_numbers, display_path
-from ...common.sysdeps import WhichFn
-from ...foundation.gallery_metadata import resolve_link_mode
-from .. import (
-    check as album_check,
-)
-from .. import (
-    naming as album_naming,
-)
-from ..check import output as preflight_output
-from ..exif_cache.refresh import refresh_exif_cache as refresh_album_exif_cache
-from ..formats import IMG_EXTENSIONS, VID_EXTENSIONS
-from ..store.album_discovery import discover_albums
-from ..store.media_sources_discovery import (
-    MediaSourceConflictError,
-    discover_media_sources,
-    find_media_source_conflicts,
-)
-from . import app
-from .media_source_conflict import format_media_source_conflict
+from photree.clihelpers.progress import SilentProgressBar
+from photree.clihelpers.runtime import runtime_of
+from photree.common.exif import exiftool_session
+from photree.common.fs import count_unique_media_numbers, display_path
+from photree.common.sysdeps import WhichFn
+from photree.foundation.gallery_metadata import resolve_link_mode
 
 
 @app.command("check")
@@ -52,7 +52,8 @@ def check_cmd(
             file_okay=False,
             resolve_path=True,
         ),
-    ] = Path("."),
+    ] = Path(),
+    *,
     checksum: CHECKSUM_OPTION = True,
     fatal_warnings: FATAL_WARNINGS_OPTION = False,
     fatal_sidecar_arg: FATAL_SIDECAR_OPTION = False,
@@ -94,7 +95,7 @@ def check_cmd(
             fatal_sidecar=fatal_sidecar,
             fatal_exif=fatal_exif,
             album_dir=album_dir_display,
-        )
+        ),
     )
     # Evaluated before the failure test (not short-circuited by it) so the
     # collision report is printed even when the album check already failed.
@@ -121,7 +122,8 @@ def _require_no_media_source_conflict(album_dir: Path, cwd: Path) -> None:
     if conflicts:
         err_console.print(
             format_media_source_conflict(
-                MediaSourceConflictError(album_dir, conflicts), cwd
+                MediaSourceConflictError(album_dir, conflicts),
+                cwd,
             ),
             markup=False,
         )
@@ -186,17 +188,21 @@ def _print_troubleshooting(
     fatal_exif: bool,
 ) -> None:
     troubleshoot = preflight_output.format_album_preflight_troubleshoot(
-        result, album_dir=album_dir_display
+        result,
+        album_dir=album_dir_display,
     )
     if troubleshoot:
         typer.echo("")
         err_console.print(troubleshoot)
     if result.success and result.has_fatal_warnings(
-        fatal_sidecar=fatal_sidecar, fatal_exif=fatal_exif
+        fatal_sidecar=fatal_sidecar,
+        fatal_exif=fatal_exif,
     ):
         typer.echo("")
         err_console.print(
             preflight_output.format_fatal_warnings(
-                result, fatal_sidecar=fatal_sidecar, fatal_exif=fatal_exif
+                result,
+                fatal_sidecar=fatal_sidecar,
+                fatal_exif=fatal_exif,
             ),
         )

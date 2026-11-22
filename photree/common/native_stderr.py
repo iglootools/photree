@@ -1,4 +1,5 @@
-"""Filter what native (C/C++) code writes to stderr.
+"""
+Filter what native (C/C++) code writes to stderr.
 
 Native libraries write straight to file descriptor 2, bypassing ``sys.stderr``,
 so ``contextlib.redirect_stderr`` cannot touch their output. This captures the

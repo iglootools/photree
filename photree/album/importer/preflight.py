@@ -1,17 +1,18 @@
-import os
+"""Check that an album import can run, before anything is copied."""
+
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ...common.sysdeps import (
+from photree.album.importer.album_import import task_has_content
+from photree.album.importer.tasks import discover_import_tasks
+from photree.common.sysdeps import (
     SystemDependency,
     SystemDependencyStatus,
     missing_dependencies,
 )
-from ...config import PhotreeConfig, load_config
-from .album_import import task_has_content
-from .tasks import discover_import_tasks
+from photree.config import PhotreeConfig, load_config
 
 
 def default_image_capture_dir(home: Path) -> Path:
@@ -26,7 +27,8 @@ def resolve_image_capture_dir(
     home: Callable[[], Path] = Path.home,
     load: Callable[[str | None], PhotreeConfig] = load_config,
 ) -> Path:
-    """Resolve the Image Capture directory: CLI flag > config > default.
+    """
+    Resolve the Image Capture directory: CLI flag > config > default.
 
     *home* is only called when neither the flag nor the config provides a
     directory, so tests can drive the fallback without touching ``$HOME``.
@@ -54,6 +56,8 @@ IMG_PREFIX_THRESHOLD = 0.5  # at least 50% of files must start with IMG_
 
 
 class SelectionStatus(StrEnum):
+    """Whether an album has import tasks, and whether any has something to import."""
+
     OK = "ok"
     NOT_FOUND = "not-found"
     EMPTY = "empty"
@@ -61,6 +65,8 @@ class SelectionStatus(StrEnum):
 
 @dataclass(frozen=True)
 class ImportPreflightResult:
+    """The outcome of every check that must pass before an import runs."""
+
     system_deps: tuple[SystemDependencyStatus, ...]
     selection_status: SelectionStatus | None  # None if no album_dir provided
     selection_path: Path | None  # album dir (holds the to-import-* entries)
@@ -72,10 +78,16 @@ class ImportPreflightResult:
 
     @property
     def missing_system_deps(self) -> tuple[SystemDependency, ...]:
+        """Return the system dependencies the probe did not find."""
         return missing_dependencies(self.system_deps)
 
     @property
     def success(self) -> bool:
+        """
+        Return whether the import can run.
+
+        The Image Capture directory counts only when an iOS import is required.
+        """
         system_deps_ok = not self.missing_system_deps
         selection_ok = self.selection_status in (SelectionStatus.OK, None)
         ic_ok = self.image_capture_dir_found and (
@@ -89,6 +101,12 @@ class ImportPreflightResult:
 
 @dataclass(frozen=True)
 class ImageCaptureDirCheck:
+    """
+    What a directory holds, to tell whether it looks like Image Capture's output.
+
+    *subdirectory_names* keeps at most the first five names, sorted.
+    """
+
     has_media_files: bool
     img_prefixed_count: int
     total_file_count: int
@@ -96,6 +114,7 @@ class ImageCaptureDirCheck:
 
     @property
     def img_prefix_ratio(self) -> float:
+        """Return the share of files named ``IMG_*``, from 0 to 1 (0 with no file)."""
         return (
             self.img_prefixed_count / self.total_file_count
             if self.total_file_count
@@ -104,14 +123,17 @@ class ImageCaptureDirCheck:
 
     @property
     def has_low_img_prefix_ratio(self) -> bool:
+        """Return whether the ``IMG_*`` share is below :data:`IMG_PREFIX_THRESHOLD`."""
         return self.img_prefix_ratio < IMG_PREFIX_THRESHOLD
 
     @property
     def has_subdirectories(self) -> bool:
+        """Return whether it has a subdirectory, which Image Capture never makes."""
         return len(self.subdirectory_names) > 0
 
     @property
     def success(self) -> bool:
+        """Return whether the directory looks like an Image Capture output directory."""
         return (
             self.has_media_files
             and not self.has_low_img_prefix_ratio
@@ -121,7 +143,7 @@ class ImageCaptureDirCheck:
 
 def check_image_capture_dir(path: Path) -> ImageCaptureDirCheck:
     """Check whether *path* looks like an Image Capture output directory."""
-    entries = os.listdir(path)
+    entries = [p.name for p in path.iterdir()]
     files = [e for e in entries if (path / e).is_file()]
     subdirs = [e for e in entries if (path / e).is_dir()]
 
@@ -134,7 +156,7 @@ def check_image_capture_dir(path: Path) -> ImageCaptureDirCheck:
 
 
 def _check_import_tasks(album_dir: Path) -> tuple[SelectionStatus, bool]:
-    """Returns ``(status, ios_import_required)``."""
+    """Return ``(status, ios_import_required)``."""
     tasks = discover_import_tasks(album_dir)
     ios_required = any(t.is_ios for t in tasks)
     if not tasks:
@@ -153,7 +175,10 @@ def run_preflight(
     album_dir: Path | None = None,
     force: bool = False,
 ) -> ImportPreflightResult:
-    """*system_deps* is probed by the caller rather than here, so this stays a
+    """
+    Check that an import can run.
+
+    *system_deps* is probed by the caller rather than here, so this stays a
     pure function of the filesystem it is handed — PATH is the CLI layer's
     business, and tests can drive every branch without touching it.
     """

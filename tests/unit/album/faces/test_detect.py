@@ -8,7 +8,7 @@ class TestMemoizedFaceAnalyzerFactory:
         calls = 0
         sentinel = object()
 
-        def _fake_create(model_name: str) -> Any:
+        def _fake_create(model_name: str) -> Any:  # noqa: ANN401 - stands in for insightface's untyped FaceAnalysis
             nonlocal calls
             calls += 1
             assert model_name == "buffalo_l"

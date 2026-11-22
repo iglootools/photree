@@ -1,4 +1,5 @@
-"""Gallery face cluster consistency checks.
+"""
+Gallery face cluster consistency checks.
 
 Pure validation of the gallery-level face data against itself (cluster indices
 vs. manifest) and against the per-album face caches (checksums). Returns
@@ -8,12 +9,17 @@ structured issues; the CLI layer renders them.
 from dataclasses import dataclass
 from pathlib import Path
 
-from ...album.faces.protocol import FACES_DIR
-from ...album.store.album_discovery import discover_albums
-from ...album.store.metadata import load_album_metadata
-from ...foundation.layout import ALBUMS_DIR, PHOTREE_DIR
-from .manifest import compute_npz_checksum, load_checksums, load_clusters, load_manifest
-from .protocol import FaceClusteringResult
+from photree.album.faces.protocol import FACES_DIR
+from photree.album.store.album_discovery import discover_albums
+from photree.album.store.metadata import load_album_metadata
+from photree.foundation.layout import ALBUMS_DIR, PHOTREE_DIR
+from photree.gallery.faces.manifest import (
+    compute_npz_checksum,
+    load_checksums,
+    load_clusters,
+    load_manifest,
+)
+from photree.gallery.faces.protocol import FaceClusteringResult
 
 
 @dataclass(frozen=True)
@@ -58,11 +64,14 @@ type FaceClusterIssue = (
 
 @dataclass(frozen=True)
 class FaceClusterCheck:
+    """The gallery's face clusters and the consistency issues found in them."""
+
     clusters: FaceClusteringResult
     issues: tuple[FaceClusterIssue, ...]
 
     @property
     def success(self) -> bool:
+        """Whether the face clusters have no issues."""
         return not self.issues
 
 
@@ -84,21 +93,23 @@ def check_face_clusters(gallery_dir: Path) -> FaceClusterCheck | None:
 
 
 def _index_bounds_issues(
-    clusters: FaceClusteringResult, manifest_size: int
+    clusters: FaceClusteringResult,
+    manifest_size: int,
 ) -> list[FaceClusterIssue]:
     """Clusters whose face indices fall outside the manifest."""
     return [
         ClusterIndexOutOfBounds(cluster_id=cluster.id, count=oob)
         for cluster in clusters.clusters
         for oob in [
-            sum(1 for idx in cluster.face_indices if idx < 0 or idx >= manifest_size)
+            sum(1 for idx in cluster.face_indices if idx < 0 or idx >= manifest_size),
         ]
         if oob
     ]
 
 
 def _face_count_issues(
-    clusters: FaceClusteringResult, manifest_size: int
+    clusters: FaceClusteringResult,
+    manifest_size: int,
 ) -> list[FaceClusterIssue]:
     """``clusters.face_count`` disagreeing with the manifest size."""
     return (
@@ -121,7 +132,8 @@ def _album_checksum_issues(gallery_dir: Path) -> list[FaceClusterIssue]:
 
 
 def _single_album_issues(
-    album_dir: Path, stored_albums: dict[str, dict[str, str]]
+    album_dir: Path,
+    stored_albums: dict[str, dict[str, str]],
 ) -> list[FaceClusterIssue]:
     meta = load_album_metadata(album_dir)
     faces_dir = album_dir / PHOTREE_DIR / FACES_DIR
@@ -137,7 +149,9 @@ def _single_album_issues(
 
 
 def _checksum_issue(
-    album_dir: Path, npz_file: Path, album_checksums: dict[str, str]
+    album_dir: Path,
+    npz_file: Path,
+    album_checksums: dict[str, str],
 ) -> FaceClusterIssue | None:
     match album_checksums.get(npz_file.stem):
         case None:

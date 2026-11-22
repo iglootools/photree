@@ -3,9 +3,12 @@
 from collections.abc import Callable
 from pathlib import Path
 
-from .id import generate_collection_id
-from .store.metadata import load_collection_metadata, save_collection_metadata
-from .store.protocol import (
+from photree.collection.id import generate_collection_id
+from photree.collection.store.metadata import (
+    load_collection_metadata,
+    save_collection_metadata,
+)
+from photree.collection.store.protocol import (
     CollectionLifecycle,
     CollectionMembers,
     CollectionMetadata,
@@ -17,6 +20,7 @@ class CollectionAlreadyInitializedError(Exception):
     """The collection already has metadata; its ID must not be replaced."""
 
     def __init__(self, collection_dir: Path, existing_id: str) -> None:
+        """Build the error from the collection's directory and the ID it already has."""
         self.collection_dir = collection_dir
         self.existing_id = existing_id
         super().__init__(f"Collection already initialized: {collection_dir}")
@@ -30,7 +34,8 @@ def init_collection(
     strategy: CollectionStrategy,
     new_id: Callable[[], str] = generate_collection_id,
 ) -> CollectionMetadata:
-    """Write fresh metadata for *collection_dir* and return it.
+    """
+    Write fresh metadata for *collection_dir* and return it.
 
     Raises :class:`CollectionAlreadyInitializedError` when metadata exists,
     and :class:`~photree.foundation.metadata_io.InvalidMetadataError` when it exists but
@@ -41,7 +46,10 @@ def init_collection(
     if existing is not None:
         raise CollectionAlreadyInitializedError(collection_dir, existing.id)
     metadata = CollectionMetadata(
-        id=new_id(), members=members, lifecycle=lifecycle, strategy=strategy
+        id=new_id(),
+        members=members,
+        lifecycle=lifecycle,
+        strategy=strategy,
     )
     save_collection_metadata(collection_dir, metadata)
     return metadata

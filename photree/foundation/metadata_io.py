@@ -1,4 +1,5 @@
-"""Metadata errors and YAML I/O.
+"""
+Metadata errors and YAML I/O.
 
 Every ``.photree/*.yaml`` store distinguishes *absent* (``None``: nothing
 has been written yet) from *present but unreadable* (an error). Folding the
@@ -16,20 +17,23 @@ from pydantic import BaseModel, ValidationError
 
 
 class InvalidMetadataError(ValueError):
-    """A metadata file exists but its content cannot be used.
+    """
+    A metadata file exists but its content cannot be used.
 
     Carries the path and reason as structured data so the CLI can render the
     path with ``display_path`` and tests can assert on fields, not prose.
     """
 
     def __init__(self, path: Path, reason: str) -> None:
+        """Build the error from the metadata file's path and why it cannot be used."""
         self.path = path
         self.reason = reason
         super().__init__(f"Invalid metadata in {path}: {reason}")
 
 
 def load_yaml_mapping(path: Path) -> dict[str, object] | None:
-    """Read a YAML mapping, or ``None`` if *path* does not exist.
+    """
+    Read a YAML mapping, or ``None`` if *path* does not exist.
 
     Raises :class:`InvalidMetadataError` when the file exists but is not
     parseable YAML or does not hold a mapping (empty and truncated files
@@ -43,10 +47,12 @@ def load_yaml_mapping(path: Path) -> dict[str, object] | None:
         raise InvalidMetadataError(path, f"not valid YAML ({exc})") from exc
     if not isinstance(raw, dict):
         raise InvalidMetadataError(
-            path, f"expected a YAML mapping, got {type(raw).__name__}"
+            path,
+            f"expected a YAML mapping, got {type(raw).__name__}",
         )
-    # isinstance cannot check the keys' type; the models callers validate *raw* against do.
-    return cast(dict[str, object], raw)
+    # isinstance cannot check the keys' type; the models callers validate *raw* against
+    # do.
+    return cast("dict[str, object]", raw)
 
 
 def validate_metadata[M: BaseModel](path: Path, model_cls: type[M], raw: object) -> M:
@@ -66,7 +72,8 @@ def write_yaml(path: Path, data: object) -> None:
 
 
 def read_or_none[T](load: Callable[[Path], T | None], directory: Path) -> T | None:
-    """Load *directory*'s metadata, mapping unreadable content to ``None``.
+    """
+    Load *directory*'s metadata, mapping unreadable content to ``None``.
 
     Only for gallery-wide scans whose callers turn ``None`` into a per-item
     error (never into "absent, create a fresh one"): one corrupt file is then

@@ -1,4 +1,5 @@
-"""Export layout enums: how albums are organized within a share directory.
+"""
+Export layout enums: how albums are organized within a share directory.
 
 They live in the foundation layer (rather than in ``album.exporter``) so that
 ``clihelpers`` and ``config`` can reference them without depending on the

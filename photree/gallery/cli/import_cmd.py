@@ -1,22 +1,23 @@
+"""The ``photree gallery import`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
-from ...clihelpers.options import REIMPORT_OPTION
-from ...clihelpers.resolution import resolve_gallery_or_exit
-from ...clihelpers.runtime import runtime_of
-from ...clihelpers.sysdeps import import_deps, require_system_deps
-from ...foundation.gallery_metadata import (
+from photree.clihelpers.options import REIMPORT_OPTION
+from photree.clihelpers.resolution import resolve_gallery_or_exit
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.sysdeps import import_deps, require_system_deps
+from photree.foundation.gallery_metadata import (
     GALLERY_YAML,
     load_gallery_metadata,
     resolve_link_mode,
 )
-from ...foundation.layout import PHOTREE_DIR
-from ...foundation.linking import LinkMode
-from ..import_plan import ImportAction
-from . import app
-from .ops import (
+from photree.foundation.layout import PHOTREE_DIR
+from photree.foundation.linking import LinkMode
+from photree.gallery.cli.app import app
+from photree.gallery.cli.ops import (
     build_index_or_exit,
     plan_imports_or_exit,
     print_single_import_result,
@@ -24,6 +25,7 @@ from .ops import (
     run_face_clustering,
     run_single_import,
 )
+from photree.gallery.import_plan import ImportAction
 
 
 @app.command("import")
@@ -45,7 +47,10 @@ def import_cmd(
         typer.Option(
             "--gallery-dir",
             "-g",
-            help="Gallery root directory (or resolved from cwd via .photree/gallery.yaml).",
+            help=(
+                "Gallery root directory (or resolved from cwd "
+                "via .photree/gallery.yaml)."
+            ),
             exists=True,
             file_okay=False,
             resolve_path=True,
@@ -58,6 +63,7 @@ def import_cmd(
             help="How to create main files: hardlink (default), symlink, or copy.",
         ),
     ] = None,
+    *,
     dry_run: Annotated[
         bool,
         typer.Option(
@@ -78,7 +84,11 @@ def import_cmd(
     index = build_index_or_exit(resolved_gallery, cwd)
 
     import_plan = plan_imports_or_exit(
-        [album_dir], index, resolved_gallery, cwd, reimport=reimport
+        [album_dir],
+        index,
+        resolved_gallery,
+        cwd,
+        reimport=reimport,
     )
     plan = import_plan.plans[0]
 
@@ -90,12 +100,12 @@ def import_cmd(
         plan,
         resolved_gallery,
         resolved_lm,
-        dry_run,
+        dry_run=dry_run,
         max_workers=runtime.cpu_count(),
         which=which,
         cwd=cwd,
     )
-    print_single_import_result(result, cwd, dry_run, which=which)
+    print_single_import_result(result, cwd, dry_run=dry_run, which=which)
 
     gallery_meta = load_gallery_metadata(resolved_gallery / PHOTREE_DIR / GALLERY_YAML)
     if gallery_meta.faces_enabled and not dry_run:

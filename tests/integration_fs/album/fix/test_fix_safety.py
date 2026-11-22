@@ -105,7 +105,7 @@ class TestRmUpstreamSignals:
                 tmp_path,
                 dry_run=False,
                 rm_upstream_flag=True,
-            )
+            ),
         )
 
         assert any("main-jpg" in line and "missing" in line for line in lines)
@@ -150,7 +150,8 @@ class TestRmUpstreamAllKeysRefusal:
         assert result.mov.removed_orig == ("clip.mov",)
 
     def test_run_fix_refusal_leaves_other_sources_untouched(
-        self, tmp_path: Path
+        self,
+        tmp_path: Path,
     ) -> None:
         """All sources are planned first: one refusal means no deletion at all."""
         # "main" has a legitimate deletion, "nelu" would be emptied.
@@ -190,7 +191,7 @@ class TestFixReporting:
         result = run_fix(tmp_path, dry_run=True, rm_orphan_flag=True)
 
         assert format_fix_result(result, dry_run=True) == [
-            "Would remove 1 orphan(s): 1 from edit-img."
+            "Would remove 1 orphan(s): 1 from edit-img.",
         ]
         assert (tmp_path / "std-nelu/edit-img/orphan.jpg").exists()
 
@@ -204,7 +205,9 @@ class TestFixReporting:
         _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC"])
 
         result = run_fix_ios(
-            tmp_path, dry_run=False, prefer_higher_quality_when_dups=True
+            tmp_path,
+            dry_run=False,
+            prefer_higher_quality_when_dups=True,
         )
 
         assert format_fix_ios_result(result) == ["Done. No duplicates found."]
@@ -216,7 +219,7 @@ class TestFixReporting:
 
         assert result.no_ios_media_sources
         assert format_fix_ios_result(result) == [
-            "No iOS media sources found; nothing to fix."
+            "No iOS media sources found; nothing to fix.",
         ]
 
 

@@ -18,7 +18,8 @@ def _write(path: Path, content: str = "data") -> None:
 
 
 def _setup_album(album_dir: Path, *, images: bool = True) -> None:
-    """Create a minimal album with archive, browsable, and JPEG dirs in sync.
+    """
+    Create a minimal album with archive, browsable, and JPEG dirs in sync.
 
     With images, face detection has work to do — and fails on the fake media,
     which the refresh now reports. Tests about other steps use videos only.
@@ -42,7 +43,9 @@ class TestAlbumRefresh:
         _setup_album(album, images=False)
 
         result = runner.invoke(
-            app, ["album", "refresh", "-a", str(album)], obj=ALL_DEPS_RUNTIME
+            app,
+            ["album", "refresh", "-a", str(album)],
+            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 0
@@ -80,7 +83,9 @@ class TestAlbumRefresh:
 
         runner.invoke(app, ["album", "refresh", "-a", str(album)], obj=ALL_DEPS_RUNTIME)
         result = runner.invoke(
-            app, ["album", "refresh", "-a", str(album)], obj=ALL_DEPS_RUNTIME
+            app,
+            ["album", "refresh", "-a", str(album)],
+            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 0
@@ -91,7 +96,9 @@ class TestAlbumRefresh:
         _setup_album(album)
 
         result = runner.invoke(
-            app, ["album", "refresh", "-a", str(album)], obj=ALL_DEPS_RUNTIME
+            app,
+            ["album", "refresh", "-a", str(album)],
+            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 1

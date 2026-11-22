@@ -1,4 +1,5 @@
-"""Command handlers for batch album operations.
+"""
+Command handlers for batch album operations.
 
 Each module contains a single handler function + its result dataclass.
 These functions orchestrate domain operations, accept ``on_*`` callbacks
@@ -11,10 +12,13 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
+from photree.common.progress import ItemEnd
+
 
 @dataclass(frozen=True)
 class BatchFailure:
-    """One album that failed, and why.
+    """
+    One album that failed, and why.
 
     The reason is the point: a batch that reports only *which* albums failed
     forces the user to re-run each one individually to learn anything, which
@@ -26,13 +30,15 @@ class BatchFailure:
 
 
 class AlbumStepError(Exception):
-    """An album step that failed without crashing: reported, batch continues.
+    """
+    An album step that failed without crashing: reported, batch continues.
 
     ``labels`` are the short per-item labels shown on the progress line;
     ``reason`` is the one-line summary kept in the :class:`BatchFailure`.
     """
 
     def __init__(self, reason: str, labels: tuple[str, ...] = ()) -> None:
+        """Build the error from its *reason* and *labels*, which default to *reason*."""
         self.reason = reason
         self.labels = labels or (reason,)
         super().__init__(reason)
@@ -49,7 +55,7 @@ class StepOutcome[T]:
 
 
 type OnStart = Callable[[str], None] | None
-type OnEnd = Callable[[str, bool, tuple[str, ...]], None] | None
+type OnEnd = ItemEnd | None
 
 
 def run_album_step[T](
@@ -60,7 +66,8 @@ def run_album_step[T](
     on_start: OnStart = None,
     on_end: OnEnd = None,
 ) -> StepOutcome[T]:
-    """Run *step* for one album, reporting progress and capturing any failure.
+    """
+    Run *step* for one album, reporting progress and capturing any failure.
 
     Every exception becomes a :class:`BatchFailure` carrying its message:
     one bad album must never abort the batch nor be counted as a success.
@@ -75,13 +82,13 @@ def run_album_step[T](
         failure, labels = BatchFailure(album_dir, str(exc)), (str(exc),)
     else:
         if on_end:
-            on_end(name, True, ())
+            on_end(name, success=True, error_labels=())
         return StepOutcome(album_dir, name, value, None)
     if on_end:
-        on_end(name, False, labels)
+        on_end(name, success=False, error_labels=labels)
     return StepOutcome(album_dir, name, None, failure)
 
 
 def failures_of[T](outcomes: Iterable[StepOutcome[T]]) -> tuple[BatchFailure, ...]:
-    """The failures among *outcomes*, in order."""
+    """Return the failures among *outcomes*, in order."""
     return tuple(o.failure for o in outcomes if o.failure is not None)

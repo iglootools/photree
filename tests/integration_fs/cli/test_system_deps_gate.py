@@ -1,4 +1,5 @@
-"""CLI tests for the system-dependency gate.
+"""
+CLI tests for the system-dependency gate.
 
 Batch operations probe ``sips`` / ``exiftool`` before doing any work, so a
 machine missing one fails the whole run up front instead of failing every
@@ -46,14 +47,16 @@ def _gallery(tmp_path: Path) -> Path:
     gallery = tmp_path / "gallery"
     gallery.mkdir()
     save_gallery_metadata(
-        gallery, GalleryMetadata(link_mode=LinkMode.HARDLINK, faces_enabled=False)
+        gallery,
+        GalleryMetadata(link_mode=LinkMode.HARDLINK, faces_enabled=False),
     )
     return gallery
 
 
 class TestAlbumsImportGate:
     def test_missing_exiftool_aborts_before_importing_anything(
-        self, tmp_path: Path
+        self,
+        tmp_path: Path,
     ) -> None:
         runtime = fake_runtime(SystemDependency.SIPS)
         ic_dir = _image_capture_dir(tmp_path)
@@ -119,7 +122,9 @@ class TestAlbumImportGate:
         album = _staged_album(tmp_path / "albums", "2024-07-14 - Hiking")
 
         result = runner.invoke(
-            app, ["album", "import", "-a", str(album), "-s", str(ic_dir)], obj=runtime
+            app,
+            ["album", "import", "-a", str(album), "-s", str(ic_dir)],
+            obj=runtime,
         )
 
         assert result.exit_code == 1
@@ -129,7 +134,8 @@ class TestAlbumImportGate:
 
 class TestGalleryImportGate:
     def test_import_all_aborts_before_touching_the_gallery(
-        self, tmp_path: Path
+        self,
+        tmp_path: Path,
     ) -> None:
         runtime = fake_runtime(SystemDependency.SIPS)
         gallery = _gallery(tmp_path)

@@ -119,7 +119,8 @@ class TestCollectionInit:
         col = tmp_path / "my-collection"
         col.mkdir()
         result = runner.invoke(
-            app, ["collection", "init", "--collection-dir", str(col)]
+            app,
+            ["collection", "init", "--collection-dir", str(col)],
         )
         assert result.exit_code == 0, result.output
         assert load_collection_metadata(col) is not None

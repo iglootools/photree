@@ -1,4 +1,5 @@
-"""Collection validation checks.
+"""
+Collection validation checks.
 
 Validates:
 - All member IDs (album, collection, image, video) exist in the gallery
@@ -12,29 +13,29 @@ from datetime import date
 from enum import StrEnum
 from pathlib import Path
 
-from ..album.id import (
+from photree.album.id import (
     format_album_external_id,
     format_image_external_id,
     format_video_external_id,
 )
-from ..album.naming import ParsedAlbumName, parse_album_name
-from ..album.store.album_discovery import discover_albums
-from ..album.store.media_metadata import MediaMetadata, load_media_metadata
-from ..album.store.metadata import load_album_metadata
-from ..dates import date_range, range_contains, ranges_overlap
-from ..foundation.layout import ALBUMS_DIR, COLLECTIONS_DIR, PHOTREE_DIR
-from ..foundation.metadata_io import InvalidMetadataError
-from .id import format_collection_external_id
-from .naming import ParsedCollectionName, parse_collection_name
-from .store.collection_discovery import discover_collections
-from .store.metadata import load_collection_metadata
-from .store.protocol import (
+from photree.album.naming import ParsedAlbumName, parse_album_name
+from photree.album.store.album_discovery import discover_albums
+from photree.album.store.media_metadata import MediaMetadata, load_media_metadata
+from photree.album.store.metadata import load_album_metadata
+from photree.collection.id import format_collection_external_id
+from photree.collection.naming import ParsedCollectionName, parse_collection_name
+from photree.collection.store.collection_discovery import discover_collections
+from photree.collection.store.metadata import load_collection_metadata
+from photree.collection.store.protocol import (
     COLLECTION_YAML,
     CollectionMembers,
     CollectionMetadata,
     CollectionStrategy,
     validate_collection_config,
 )
+from photree.dates import date_range, range_contains, ranges_overlap
+from photree.foundation.layout import ALBUMS_DIR, COLLECTIONS_DIR, PHOTREE_DIR
+from photree.foundation.metadata_io import InvalidMetadataError
 
 
 class CollectionIssueCode(StrEnum):
@@ -62,17 +63,22 @@ class CollectionIssueCode(StrEnum):
 
 @dataclass(frozen=True)
 class CollectionCheckIssue:
+    """One problem found in a collection: its kind and a human-readable message."""
+
     code: CollectionIssueCode
     message: str
 
 
 @dataclass(frozen=True)
 class CollectionCheckResult:
+    """The issues found in one collection directory."""
+
     collection_dir: Path
     issues: tuple[CollectionCheckIssue, ...]
 
     @property
     def success(self) -> bool:
+        """Whether the collection has no issues."""
         return len(self.issues) == 0
 
 
@@ -121,7 +127,9 @@ class _CollectionEntry:
 def _scan_albums(gallery_dir: Path) -> list[_AlbumEntry]:
     return [
         _AlbumEntry(
-            meta.id, parse_album_name(album_dir.name), load_media_metadata(album_dir)
+            meta.id,
+            parse_album_name(album_dir.name),
+            load_media_metadata(album_dir),
         )
         for album_dir in discover_albums(gallery_dir / ALBUMS_DIR)
         for meta in [load_album_metadata(album_dir)]
@@ -171,6 +179,12 @@ def _media_owners(albums: list[_AlbumEntry], *, videos: bool) -> dict[str, str]:
 
 
 def build_gallery_lookup(gallery_dir: Path) -> _GalleryLookup:
+    """
+    Scan *gallery_dir* once and index what every collection check looks up.
+
+    Reads the metadata of every album, its media and every collection, so one
+    lookup can be shared by all the collections checked in the gallery.
+    """
     albums = _scan_albums(gallery_dir)
     collections = _scan_collections(gallery_dir)
     image_owners = _media_owners(albums, videos=False)
@@ -228,7 +242,10 @@ _MEDIA_FORMATTERS: dict[str, Callable[[str], str]] = {
 
 
 def _check_missing_ids(
-    ids: list[str], known: frozenset[str], code: CollectionIssueCode, label: str
+    ids: list[str],
+    known: frozenset[str],
+    code: CollectionIssueCode,
+    label: str,
 ) -> list[CollectionCheckIssue]:
     fmt = _MEDIA_FORMATTERS.get(label, str)
     return [
@@ -239,7 +256,8 @@ def _check_missing_ids(
 
 
 def _check_member_existence(
-    metadata: CollectionMetadata, lookup: _GalleryLookup
+    metadata: CollectionMetadata,
+    lookup: _GalleryLookup,
 ) -> list[CollectionCheckIssue]:
     return [
         *_check_missing_ids(
@@ -312,11 +330,13 @@ def _check_collection_config(
 ) -> list[CollectionCheckIssue]:
     """Validate members + lifecycle + strategy combination."""
     error = validate_collection_config(
-        metadata.members, metadata.lifecycle, metadata.strategy
+        metadata.members,
+        metadata.lifecycle,
+        metadata.strategy,
     )
     if error is not None:
         return [
-            CollectionCheckIssue(CollectionIssueCode.INVALID_COLLECTION_CONFIG, error)
+            CollectionCheckIssue(CollectionIssueCode.INVALID_COLLECTION_CONFIG, error),
         ]
     else:
         return []
@@ -335,7 +355,7 @@ def _check_smart_no_media(
                     CollectionIssueCode.SMART_HAS_IMAGES,
                     f"smart collection has {len(metadata.images)} image member(s) "
                     f"— smart collections can only contain albums and collections",
-                )
+                ),
             ]
             if metadata.images
             else []
@@ -346,7 +366,7 @@ def _check_smart_no_media(
                     CollectionIssueCode.SMART_HAS_VIDEOS,
                     f"smart collection has {len(metadata.videos)} video member(s) "
                     f"— smart collections can only contain albums and collections",
-                )
+                ),
             ]
             if metadata.videos
             else []
@@ -359,7 +379,8 @@ def _check_chapter_no_overlap(
     metadata: CollectionMetadata,
     lookup: _GalleryLookup,
 ) -> list[CollectionCheckIssue]:
-    """Chapter collections must not overlap in date range with other chapters.
+    """
+    Chapter collections must not overlap in date range with other chapters.
 
     Compares against every chapter of the gallery (``lookup.chapters``), not
     just the siblings in the same ``collections/YYYY/`` directory.
@@ -377,7 +398,8 @@ def _check_chapter_no_overlap(
                 f"chapter '{other.dir_name}' ({other.date})",
             )
             for other_id, other in sorted(
-                lookup.chapters.items(), key=lambda item: item[1].dir_name
+                lookup.chapters.items(),
+                key=lambda item: item[1].dir_name,
             )
             # Sharing a single boundary day (2019-06-30 in both) is an overlap.
             if other_id != metadata.id
@@ -389,9 +411,10 @@ def _check_chapter_no_overlap(
 
 
 def _private_smart_issues(
-    metadata: CollectionMetadata, lookup: _GalleryLookup
+    metadata: CollectionMetadata,
+    lookup: _GalleryLookup,
 ) -> list[CollectionCheckIssue]:
-    """A private smart collection should only include private members."""
+    """Report private smart collection members that are not private."""
     return [
         *[
             CollectionCheckIssue(
@@ -415,9 +438,10 @@ def _private_smart_issues(
 
 
 def _non_private_issues(
-    metadata: CollectionMetadata, lookup: _GalleryLookup
+    metadata: CollectionMetadata,
+    lookup: _GalleryLookup,
 ) -> list[CollectionCheckIssue]:
-    """A non-private collection cannot have any private member."""
+    """Report the private members of a non-private collection."""
     return [
         *[
             CollectionCheckIssue(
@@ -458,7 +482,8 @@ def _check_private_viral(
     metadata: CollectionMetadata,
     lookup: _GalleryLookup,
 ) -> list[CollectionCheckIssue]:
-    """Enforce private tag virality.
+    """
+    Enforce private tag virality.
 
     - Non-private collections cannot have private members (albums,
       collections, or media from private albums).
@@ -481,7 +506,7 @@ def _check_private_viral(
 def _load_for_check(
     collection_dir: Path,
 ) -> CollectionMetadata | CollectionCheckIssue:
-    """The collection's metadata, or the issue that makes it unusable."""
+    """Return the collection's metadata, or the issue that makes it unusable."""
     try:
         metadata = load_collection_metadata(collection_dir)
     except InvalidMetadataError as exc:
@@ -493,13 +518,16 @@ def _load_for_check(
         metadata
         if metadata is not None
         else CollectionCheckIssue(
-            CollectionIssueCode.NO_METADATA, f"missing {PHOTREE_DIR}/{COLLECTION_YAML}"
+            CollectionIssueCode.NO_METADATA,
+            f"missing {PHOTREE_DIR}/{COLLECTION_YAML}",
         )
     )
 
 
 def _metadata_issues(
-    collection_dir: Path, metadata: CollectionMetadata, lookup: _GalleryLookup
+    collection_dir: Path,
+    metadata: CollectionMetadata,
+    lookup: _GalleryLookup,
 ) -> tuple[CollectionCheckIssue, ...]:
     return (
         *_check_collection_config(metadata),
@@ -515,6 +543,11 @@ def check_collection(
     collection_dir: Path,
     lookup: _GalleryLookup,
 ) -> CollectionCheckResult:
+    """
+    Check one collection against the gallery indexed in *lookup*.
+
+    A missing or unreadable metadata file is reported as an issue, not raised.
+    """
     match _load_for_check(collection_dir):
         case CollectionCheckIssue() as issue:
             issues: tuple[CollectionCheckIssue, ...] = (issue,)
@@ -526,6 +559,7 @@ def check_collection(
 def check_all_collections(
     gallery_dir: Path,
 ) -> list[CollectionCheckResult]:
+    """Check every collection in *gallery_dir*, one result per collection directory."""
     lookup = build_gallery_lookup(gallery_dir)
     return [
         check_collection(col_dir, lookup)

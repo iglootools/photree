@@ -1,9 +1,11 @@
-"""Generic parallel task execution via :class:`~concurrent.futures.ThreadPoolExecutor`."""
+"""Parallel task execution on a :class:`~concurrent.futures.ThreadPoolExecutor`."""
 
 import os
 from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
+
+from photree.common.progress import FileEnd
 
 
 @dataclass(frozen=True)
@@ -28,10 +30,11 @@ def run_parallel[T](
     *,
     max_workers: int | None = None,
     on_start: Callable[[str], None] | None = None,
-    on_end: Callable[[str, bool], None] | None = None,
+    on_end: FileEnd | None = None,
     cpu_count: Callable[[], int | None] = os.cpu_count,
 ) -> list[ParallelResult[T]]:
-    """Run *tasks* in parallel via :class:`ThreadPoolExecutor`.
+    """
+    Run *tasks* in parallel via :class:`ThreadPoolExecutor`.
 
     Each task is a ``(key, callable)`` pair. The callable's return value
     is captured in :attr:`ParallelResult.value` on success.
@@ -56,16 +59,16 @@ def _run_task[T](
     key: str,
     fn: Callable[[], T],
     on_start: Callable[[str], None] | None,
-    on_end: Callable[[str, bool], None] | None,
+    on_end: FileEnd | None,
 ) -> ParallelResult[T]:
     if on_start:
         on_start(key)
     try:
         value = fn()
         if on_end:
-            on_end(key, True)
+            on_end(key, success=True)
         return ParallelResult(key=key, success=True, value=value)
     except Exception as exc:
         if on_end:
-            on_end(key, False)
+            on_end(key, success=False)
         return ParallelResult(key=key, success=False, exception=exc)

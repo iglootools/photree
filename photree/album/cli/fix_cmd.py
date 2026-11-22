@@ -1,27 +1,33 @@
+"""The ``photree album fix`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
-from ...clihelpers.console import err_console
-from ...clihelpers.options import (
+from photree.album import fix as album_fixes
+from photree.album.cli.app import app
+from photree.album.cli.media_source_conflict import exit_on_media_source_conflict
+from photree.album.fix import (
+    FixValidationError,
+    MissingArchiveError,
+    RmUpstreamRefusedError,
+)
+from photree.album.fix.output import format_fix_result
+from photree.album.id import format_album_external_id, generate_album_id
+from photree.album.store.metadata import load_album_metadata, save_album_metadata
+from photree.album.store.protocol import AlbumMetadata
+from photree.clihelpers.console import err_console
+from photree.clihelpers.options import (
     DRY_RUN_OPTION,
     FORCE_OPTION,
     RM_ORPHAN_OPTION,
     RM_UPSTREAM_OPTION,
 )
-from ...clihelpers.runtime import runtime_of
-from ...clihelpers.usage import usage_error
-from ...common.formatting import format_dry_run
-from ...common.fs import display_path
-from .. import fix as album_fixes
-from ..fix import FixValidationError, MissingArchiveError, RmUpstreamRefusedError
-from ..fix.output import format_fix_result
-from ..id import format_album_external_id, generate_album_id
-from ..store.metadata import load_album_metadata, save_album_metadata
-from ..store.protocol import AlbumMetadata
-from . import app
-from .media_source_conflict import exit_on_media_source_conflict
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.usage import invalid_fix_error
+from photree.common.formatting import format_dry_run
+from photree.common.fs import display_path
 
 
 @app.command("fix")
@@ -37,7 +43,8 @@ def fix_cmd(
             file_okay=False,
             resolve_path=True,
         ),
-    ] = Path("."),
+    ] = Path(),
+    *,
     fix_id: Annotated[
         bool,
         typer.Option(
@@ -57,7 +64,8 @@ def fix_cmd(
     force: FORCE_OPTION = False,
     dry_run: DRY_RUN_OPTION = False,
 ) -> None:
-    """Fix album issues. Works on all media source types (iOS + std).
+    """
+    Fix album issues. Works on all media source types (iOS + std).
 
     --id: Generates a missing album ID in .photree/album.yaml. Skips
     albums that already have an ID.
@@ -80,10 +88,7 @@ def fix_cmd(
             rm_orphan=rm_orphan,
         )
     except FixValidationError as exc:
-        raise usage_error(
-            f"{exc}\nRun 'photree album fix --help' to see the available fixes.",
-            markup=False,
-        ) from exc
+        raise invalid_fix_error(exc, command="album fix") from exc
 
     if fix_id or new_id:
         _fix_album_id(album_dir, new_id=new_id, dry_run=dry_run)

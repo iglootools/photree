@@ -1,4 +1,5 @@
-"""Text rendering for ``gallery refresh`` results.
+"""
+Text rendering for ``gallery refresh`` results.
 
 Formatters return unindented lines; callers indent them. Paths are rendered
 relative to the working directory, and every error carries a copy-pasteable
@@ -7,20 +8,20 @@ next step.
 
 from pathlib import Path
 
-from ...album.id import (
+from photree.album.id import (
     format_album_external_id,
     format_image_external_id,
     format_video_external_id,
 )
-from ...collection.id import format_collection_external_id
-from ...collection.refresh.result import (
+from photree.collection.id import format_collection_external_id
+from photree.collection.refresh.result import (
     CollectionRefreshError,
     CollectionRefreshErrorKind,
     CollectionRefreshResult,
 )
-from ...common.formatting import indent
-from ...common.fs import display_path
-from ..browsable_refresh import (
+from photree.common.formatting import indent
+from photree.common.fs import display_path
+from photree.gallery.browsable_refresh import (
     BrowsableRefreshError,
     BrowsableRefreshErrorKind,
     DanglingMember,
@@ -49,7 +50,7 @@ def format_collection_refresh_error(err: CollectionRefreshError, cwd: Path) -> s
                     f"album {_path(err.path, cwd)}: name breaks the naming convention",
                     *(indent(issue.message) for issue in err.naming_issues),
                     f"Rename the album; run {_album_check(err.path, cwd)} for details.",
-                ]
+                ],
             )
         case CollectionRefreshErrorKind.ALBUM_MISSING_METADATA:
             return (
@@ -165,11 +166,11 @@ def format_dangling_members(members: tuple[DanglingMember, ...], cwd: Path) -> s
             *(
                 indent(
                     f"{_path(m.collection_path, cwd)}: {m.kind} "
-                    f"{_member_external_id(m)}"
+                    f"{_member_external_id(m)}",
                 )
                 for m in members
             ),
             "To investigate, run:",
             *(indent(_collection_check(c, cwd)) for c in collections),
-        ]
+        ],
     )

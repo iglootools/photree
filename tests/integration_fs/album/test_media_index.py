@@ -55,7 +55,7 @@ class TestFindDuplicateMediaIds:
                         "main": MediaSourceMediaMetadata(
                             images={shared_id: "0410"},
                         ),
-                    }
+                    },
                 ),
             )
 
@@ -95,7 +95,7 @@ class TestFindDuplicateMediaIds:
                         "main": MediaSourceMediaMetadata(
                             videos={shared_id: "0115"},
                         ),
-                    }
+                    },
                 ),
             )
 

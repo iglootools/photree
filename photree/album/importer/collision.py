@@ -1,4 +1,5 @@
-"""Archive collisions: incoming media whose key already exists in the target source.
+"""
+Archive collisions: incoming media whose key already exists in the target source.
 
 Both importers (iOS by image number, std by filename stem) refuse to copy a
 key that the target archive already holds. The check runs before any mutation
@@ -9,12 +10,13 @@ media source can never leave another source half-imported.
 
 from dataclasses import dataclass
 
-from ..store.media_source import MediaSource
+from photree.album.store.media_source import MediaSource
 
 
 @dataclass(frozen=True)
 class ArchiveCollision:
-    """Incoming keys that already exist in *media_source*'s archive.
+    """
+    Incoming keys that already exist in *media_source*'s archive.
 
     Keys are image numbers for iOS sources and filename stems for std sources.
     """
@@ -24,14 +26,18 @@ class ArchiveCollision:
 
 
 class ImportCollisionError(ValueError):
+    """Raised when an import would copy keys that *media_source*'s archive holds."""
+
     def __init__(self, media_source: MediaSource, keys: tuple[str, ...]) -> None:
+        """Build the error from the target media source and its colliding keys."""
         self.media_source = media_source
         self.keys = keys
         super().__init__(
             f"import would conflict with {len(keys)} existing key(s) "
-            f"in media source '{media_source.name}'"
+            f"in media source '{media_source.name}'",
         )
 
     @classmethod
     def from_collision(cls, collision: ArchiveCollision) -> ImportCollisionError:
+        """Build the error from a collision found during validation."""
         return cls(collision.media_source, collision.keys)

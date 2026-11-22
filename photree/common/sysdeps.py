@@ -1,4 +1,5 @@
-"""External binary (system dependency) discovery.
+"""
+External binary (system dependency) discovery.
 
 photree shells out to a small set of external binaries. They are probed once,
 up front, so a batch operation aborts before touching the filesystem instead of
@@ -48,6 +49,7 @@ def purpose(dependency: SystemDependency) -> str:
 
 
 def install_hint(dependency: SystemDependency) -> str:
+    """Return the user-facing advice on how to get *dependency* installed."""
     return _INSTALL_HINT[dependency]
 
 
@@ -76,7 +78,8 @@ def check_system_dependencies(
     """Probe *dependencies*, preserving order and dropping duplicates."""
     return tuple(
         SystemDependencyStatus(
-            dependency=dependency, available=is_available(dependency, which=which)
+            dependency=dependency,
+            available=is_available(dependency, which=which),
         )
         # dict.fromkeys de-duplicates while keeping first-seen order, so a
         # caller can concatenate requirement lists without worrying about
@@ -88,17 +91,20 @@ def check_system_dependencies(
 def missing_dependencies(
     statuses: Iterable[SystemDependencyStatus],
 ) -> tuple[SystemDependency, ...]:
+    """Return the dependencies that *statuses* report unavailable, in order."""
     return tuple(s.dependency for s in statuses if not s.available)
 
 
 class MissingSystemDependencyError(Exception):
-    """Raised when a required external binary is not on PATH.
+    """
+    Raised when a required external binary is not on PATH.
 
     Carries the missing dependencies as structured data so callers (and tests)
     can inspect them without parsing the message.
     """
 
     def __init__(self, missing: tuple[SystemDependency, ...]) -> None:
+        """Build the error from the dependencies that are not on PATH."""
         self.missing = missing
         names = ", ".join(str(d) for d in missing)
         super().__init__(f"Required system dependency not found: {names}")
@@ -109,7 +115,8 @@ def require(
     *,
     which: WhichFn = shutil.which,
 ) -> None:
-    """Raise :class:`MissingSystemDependencyError` if any dependency is absent.
+    """
+    Raise :class:`MissingSystemDependencyError` if any dependency is absent.
 
     Library-level guard for code paths that are not fronted by the CLI gate in
     :mod:`photree.clihelpers.sysdeps`.

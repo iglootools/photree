@@ -1,4 +1,5 @@
-"""The ports a CLI command runs with, real by default.
+"""
+The ports a CLI command runs with, real by default.
 
 A command reads the machine and the process only through its runtime: which
 binaries are installed, the working directory, the home directory, the
@@ -16,9 +17,9 @@ from pathlib import Path
 import typer
 from platformdirs import site_config_dir, user_config_dir
 
-from ..common.sysdeps import WhichFn
-from ..config import PhotreeConfig, load_config
-from ..config.loader import ConfigDirFn
+from photree.common.sysdeps import WhichFn
+from photree.config import PhotreeConfig, load_config
+from photree.config.loader import ConfigDirFn
 
 
 @dataclass(frozen=True)
@@ -55,6 +56,6 @@ class Runtime:
 
 
 def runtime_of(ctx: typer.Context) -> Runtime:
-    """The runtime on *ctx* (a test's), else the real one."""
+    """Return the runtime on *ctx* (a test's), else the real one."""
     found = ctx.find_object(Runtime)
     return found if found is not None else Runtime()

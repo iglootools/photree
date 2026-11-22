@@ -1,13 +1,20 @@
+"""Export of many albums at once, isolating per-album failures."""
+
 import shutil
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import NamedTuple
 
-from ...foundation.linking import LinkMode
-from ...foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
-from ..store.album_discovery import discover_albums as discover_photree_albums
-from .single import compute_target_dir, export_album
+from photree.album.exporter.single import compute_target_dir, export_album
+from photree.album.store.album_discovery import (
+    AlbumSelectionError,
+)
+from photree.album.store.album_discovery import (
+    discover_albums as discover_photree_albums,
+)
+from photree.foundation.linking import LinkMode
+from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 
 
 class ExportFailure(NamedTuple):
@@ -19,12 +26,17 @@ class ExportFailure(NamedTuple):
 
 @dataclass(frozen=True)
 class BatchExportResult:
+    """The counts of a batch export: albums exported and the failures."""
+
     exported: int = 0
     failed: tuple[ExportFailure, ...] = ()
 
 
 def discover_albums(base_dir: Path) -> list[Path]:
-    """Returns photree albums (recursively, via ``fs.discover_albums``) plus
+    """
+    Return the directories to export under *base_dir*.
+
+    Photree albums (recursively, via ``fs.discover_albums``) plus
     immediate subdirectories that are not already covered — i.e. plain
     directories without ``.photree/album.yaml`` that can be exported as-is.
     """
@@ -50,7 +62,8 @@ class _ExportOptions:
 
 
 def _resolve_albums(
-    base_dir: Path | None, album_dirs: Sequence[Path] | None
+    base_dir: Path | None,
+    album_dirs: Sequence[Path] | None,
 ) -> list[Path]:
     match (base_dir, album_dirs):
         case (Path() as base, None):
@@ -58,7 +71,7 @@ def _resolve_albums(
         case (None, [*dirs]):
             return dirs
         case _:
-            raise ValueError("Exactly one of base_dir or album_dirs must be provided")
+            raise AlbumSelectionError(("base_dir", "album_dirs"))
 
 
 def _export_one(
@@ -74,7 +87,9 @@ def _export_one(
         on_exporting(album_name)
     try:
         target_dir = compute_target_dir(
-            options.share_dir, album_name, options.share_layout
+            options.share_dir,
+            album_name,
+            options.share_layout,
         )
         export_album(
             album_dir,
@@ -107,10 +122,14 @@ def run_batch_export(
     on_exported: Callable[[str], None] | None = None,
     on_error: Callable[[str, str], None] | None = None,
 ) -> BatchExportResult:
-    """Provide exactly one of *base_dir* (discover albums) or *album_dirs*
+    """
+    Export each album, isolating per-album failures.
+
+    Provide exactly one of *base_dir* (discover albums) or *album_dirs*
     (explicit list).
 
     Callbacks are optional hooks for the CLI layer:
+
     - ``on_exporting(album_name)`` — called before exporting
     - ``on_exported(album_name)`` — called after success
     - ``on_error(album_name, message)`` — called on failure

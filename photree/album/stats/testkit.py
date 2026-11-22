@@ -1,8 +1,10 @@
 """Fake stats data for demo and testing purposes."""
 
-from ..store.media_source import MediaSourceType
-from .aggregate import media_source_type_stats, merge_media_source_type_stats
-from .models import (
+from photree.album.stats.aggregate import (
+    media_source_type_stats,
+    merge_media_source_type_stats,
+)
+from photree.album.stats.models import (
     AggregateStats,
     AlbumsStats,
     AlbumStats,
@@ -12,6 +14,7 @@ from .models import (
     SizeStats,
     YearStats,
 )
+from photree.album.store.media_source import MediaSourceType
 
 
 def _gb(n: float) -> int:
@@ -38,7 +41,9 @@ _IOS_MAIN = MediaSourceStats(
     media_source_type=MediaSourceType.IOS,
     total=SizeStats(file_count=1842, apparent_bytes=_gb(48.3), on_disk_bytes=_gb(32.1)),
     archive=SizeStats(
-        file_count=980, apparent_bytes=_gb(28.5), on_disk_bytes=_gb(28.5)
+        file_count=980,
+        apparent_bytes=_gb(28.5),
+        on_disk_bytes=_gb(28.5),
     ),
     original=SizeStats(file_count=490, apparent_bytes=_gb(16.2), on_disk_bytes=0),
     derived=SizeStats(file_count=372, apparent_bytes=_gb(3.6), on_disk_bytes=_gb(3.6)),
@@ -47,29 +52,43 @@ _IOS_MAIN = MediaSourceStats(
     unique_live_photos=0,
     images=_rb(
         total=SizeStats(
-            file_count=1234, apparent_bytes=_gb(22.4), on_disk_bytes=_gb(14.8)
+            file_count=1234,
+            apparent_bytes=_gb(22.4),
+            on_disk_bytes=_gb(14.8),
         ),
         archive=SizeStats(
-            file_count=620, apparent_bytes=_gb(17.0), on_disk_bytes=_gb(17.0)
+            file_count=620,
+            apparent_bytes=_gb(17.0),
+            on_disk_bytes=_gb(17.0),
         ),
         derived=SizeStats(
-            file_count=372, apparent_bytes=_gb(3.6), on_disk_bytes=_gb(3.6)
+            file_count=372,
+            apparent_bytes=_gb(3.6),
+            on_disk_bytes=_gb(3.6),
         ),
     ),
     videos=_rb(
         total=SizeStats(
-            file_count=84, apparent_bytes=_gb(24.1), on_disk_bytes=_gb(16.0)
+            file_count=84,
+            apparent_bytes=_gb(24.1),
+            on_disk_bytes=_gb(16.0),
         ),
         archive=SizeStats(
-            file_count=56, apparent_bytes=_gb(10.8), on_disk_bytes=_gb(10.8)
+            file_count=56,
+            apparent_bytes=_gb(10.8),
+            on_disk_bytes=_gb(10.8),
         ),
     ),
     sidecars=_rb(
         total=SizeStats(
-            file_count=524, apparent_bytes=_mb(42.5), on_disk_bytes=_mb(42.5)
+            file_count=524,
+            apparent_bytes=_mb(42.5),
+            on_disk_bytes=_mb(42.5),
         ),
         archive=SizeStats(
-            file_count=524, apparent_bytes=_mb(42.5), on_disk_bytes=_mb(42.5)
+            file_count=524,
+            apparent_bytes=_mb(42.5),
+            on_disk_bytes=_mb(42.5),
         ),
     ),
     by_format=(
@@ -94,10 +113,14 @@ _PLAIN_NELU = MediaSourceStats(
     unique_live_photos=0,
     images=_rb(
         total=SizeStats(
-            file_count=186, apparent_bytes=_gb(6.2), on_disk_bytes=_gb(6.2)
+            file_count=186,
+            apparent_bytes=_gb(6.2),
+            on_disk_bytes=_gb(6.2),
         ),
         derived=SizeStats(
-            file_count=62, apparent_bytes=_gb(1.1), on_disk_bytes=_gb(1.1)
+            file_count=62,
+            apparent_bytes=_gb(1.1),
+            on_disk_bytes=_gb(1.1),
         ),
     ),
     videos=_rb(total=SizeStats(0, 0, 0)),
@@ -112,10 +135,14 @@ _PLAIN_NELU = MediaSourceStats(
 _AGGREGATE_ALBUM = AggregateStats(
     total=SizeStats(file_count=2028, apparent_bytes=_gb(54.5), on_disk_bytes=_gb(38.3)),
     archive=SizeStats(
-        file_count=980, apparent_bytes=_gb(28.5), on_disk_bytes=_gb(28.5)
+        file_count=980,
+        apparent_bytes=_gb(28.5),
+        on_disk_bytes=_gb(28.5),
     ),
     original=SizeStats(
-        file_count=614, apparent_bytes=_gb(21.3), on_disk_bytes=_gb(5.1)
+        file_count=614,
+        apparent_bytes=_gb(21.3),
+        on_disk_bytes=_gb(5.1),
     ),
     derived=SizeStats(file_count=434, apparent_bytes=_gb(4.7), on_disk_bytes=_gb(4.7)),
     unique_pictures=434,
@@ -123,29 +150,43 @@ _AGGREGATE_ALBUM = AggregateStats(
     unique_live_photos=0,
     images=_rb(
         total=SizeStats(
-            file_count=1420, apparent_bytes=_gb(28.6), on_disk_bytes=_gb(21.0)
+            file_count=1420,
+            apparent_bytes=_gb(28.6),
+            on_disk_bytes=_gb(21.0),
         ),
         archive=SizeStats(
-            file_count=620, apparent_bytes=_gb(17.0), on_disk_bytes=_gb(17.0)
+            file_count=620,
+            apparent_bytes=_gb(17.0),
+            on_disk_bytes=_gb(17.0),
         ),
         derived=SizeStats(
-            file_count=434, apparent_bytes=_gb(4.7), on_disk_bytes=_gb(4.7)
+            file_count=434,
+            apparent_bytes=_gb(4.7),
+            on_disk_bytes=_gb(4.7),
         ),
     ),
     videos=_rb(
         total=SizeStats(
-            file_count=84, apparent_bytes=_gb(24.1), on_disk_bytes=_gb(16.0)
+            file_count=84,
+            apparent_bytes=_gb(24.1),
+            on_disk_bytes=_gb(16.0),
         ),
         archive=SizeStats(
-            file_count=56, apparent_bytes=_gb(10.8), on_disk_bytes=_gb(10.8)
+            file_count=56,
+            apparent_bytes=_gb(10.8),
+            on_disk_bytes=_gb(10.8),
         ),
     ),
     sidecars=_rb(
         total=SizeStats(
-            file_count=524, apparent_bytes=_mb(42.5), on_disk_bytes=_mb(42.5)
+            file_count=524,
+            apparent_bytes=_mb(42.5),
+            on_disk_bytes=_mb(42.5),
         ),
         archive=SizeStats(
-            file_count=524, apparent_bytes=_mb(42.5), on_disk_bytes=_mb(42.5)
+            file_count=524,
+            apparent_bytes=_mb(42.5),
+            on_disk_bytes=_mb(42.5),
         ),
     ),
     by_format=(
@@ -176,14 +217,20 @@ _ALBUM_2024_A = AlbumStats(
     by_media_source=(_IOS_MAIN,),
     aggregate=AggregateStats(
         total=SizeStats(
-            file_count=1842, apparent_bytes=_gb(48.3), on_disk_bytes=_gb(32.1)
+            file_count=1842,
+            apparent_bytes=_gb(48.3),
+            on_disk_bytes=_gb(32.1),
         ),
         archive=SizeStats(
-            file_count=980, apparent_bytes=_gb(28.5), on_disk_bytes=_gb(28.5)
+            file_count=980,
+            apparent_bytes=_gb(28.5),
+            on_disk_bytes=_gb(28.5),
         ),
         original=SizeStats(file_count=490, apparent_bytes=_gb(16.2), on_disk_bytes=0),
         derived=SizeStats(
-            file_count=372, apparent_bytes=_gb(3.6), on_disk_bytes=_gb(3.6)
+            file_count=372,
+            apparent_bytes=_gb(3.6),
+            on_disk_bytes=_gb(3.6),
         ),
         unique_pictures=372,
         unique_videos=28,
@@ -210,43 +257,63 @@ _ALBUM_2025 = AlbumStats(
     by_media_source=(_IOS_MAIN,),
     aggregate=AggregateStats(
         total=SizeStats(
-            file_count=620, apparent_bytes=_gb(15.8), on_disk_bytes=_gb(10.5)
+            file_count=620,
+            apparent_bytes=_gb(15.8),
+            on_disk_bytes=_gb(10.5),
         ),
         archive=SizeStats(
-            file_count=310, apparent_bytes=_gb(9.2), on_disk_bytes=_gb(9.2)
+            file_count=310,
+            apparent_bytes=_gb(9.2),
+            on_disk_bytes=_gb(9.2),
         ),
         original=SizeStats(file_count=155, apparent_bytes=_gb(5.3), on_disk_bytes=0),
         derived=SizeStats(
-            file_count=155, apparent_bytes=_gb(1.3), on_disk_bytes=_gb(1.3)
+            file_count=155,
+            apparent_bytes=_gb(1.3),
+            on_disk_bytes=_gb(1.3),
         ),
         unique_pictures=145,
         unique_videos=10,
         unique_live_photos=0,
         images=_rb(
             total=SizeStats(
-                file_count=455, apparent_bytes=_gb(8.5), on_disk_bytes=_gb(5.6)
+                file_count=455,
+                apparent_bytes=_gb(8.5),
+                on_disk_bytes=_gb(5.6),
             ),
             archive=SizeStats(
-                file_count=230, apparent_bytes=_gb(5.8), on_disk_bytes=_gb(5.8)
+                file_count=230,
+                apparent_bytes=_gb(5.8),
+                on_disk_bytes=_gb(5.8),
             ),
             derived=SizeStats(
-                file_count=155, apparent_bytes=_gb(1.3), on_disk_bytes=_gb(1.3)
+                file_count=155,
+                apparent_bytes=_gb(1.3),
+                on_disk_bytes=_gb(1.3),
             ),
         ),
         videos=_rb(
             total=SizeStats(
-                file_count=30, apparent_bytes=_gb(6.8), on_disk_bytes=_gb(4.5)
+                file_count=30,
+                apparent_bytes=_gb(6.8),
+                on_disk_bytes=_gb(4.5),
             ),
             archive=SizeStats(
-                file_count=20, apparent_bytes=_gb(3.2), on_disk_bytes=_gb(3.2)
+                file_count=20,
+                apparent_bytes=_gb(3.2),
+                on_disk_bytes=_gb(3.2),
             ),
         ),
         sidecars=_rb(
             total=SizeStats(
-                file_count=135, apparent_bytes=_mb(11.2), on_disk_bytes=_mb(11.2)
+                file_count=135,
+                apparent_bytes=_mb(11.2),
+                on_disk_bytes=_mb(11.2),
             ),
             archive=SizeStats(
-                file_count=135, apparent_bytes=_mb(11.2), on_disk_bytes=_mb(11.2)
+                file_count=135,
+                apparent_bytes=_mb(11.2),
+                on_disk_bytes=_mb(11.2),
             ),
         ),
         by_format=(
@@ -262,13 +329,19 @@ _ALBUM_2025 = AlbumStats(
 
 _GALLERY_AGGREGATE = AggregateStats(
     total=SizeStats(
-        file_count=4490, apparent_bytes=_gb(118.6), on_disk_bytes=_gb(80.9)
+        file_count=4490,
+        apparent_bytes=_gb(118.6),
+        on_disk_bytes=_gb(80.9),
     ),
     archive=SizeStats(
-        file_count=2270, apparent_bytes=_gb(66.2), on_disk_bytes=_gb(66.2)
+        file_count=2270,
+        apparent_bytes=_gb(66.2),
+        on_disk_bytes=_gb(66.2),
     ),
     original=SizeStats(
-        file_count=1259, apparent_bytes=_gb(42.8), on_disk_bytes=_gb(5.1)
+        file_count=1259,
+        apparent_bytes=_gb(42.8),
+        on_disk_bytes=_gb(5.1),
     ),
     derived=SizeStats(file_count=961, apparent_bytes=_gb(9.6), on_disk_bytes=_gb(9.6)),
     unique_pictures=951,
@@ -276,29 +349,43 @@ _GALLERY_AGGREGATE = AggregateStats(
     unique_live_photos=0,
     images=_rb(
         total=SizeStats(
-            file_count=3109, apparent_bytes=_gb(59.5), on_disk_bytes=_gb(41.4)
+            file_count=3109,
+            apparent_bytes=_gb(59.5),
+            on_disk_bytes=_gb(41.4),
         ),
         archive=SizeStats(
-            file_count=1470, apparent_bytes=_gb(39.8), on_disk_bytes=_gb(39.8)
+            file_count=1470,
+            apparent_bytes=_gb(39.8),
+            on_disk_bytes=_gb(39.8),
         ),
         derived=SizeStats(
-            file_count=961, apparent_bytes=_gb(9.6), on_disk_bytes=_gb(9.6)
+            file_count=961,
+            apparent_bytes=_gb(9.6),
+            on_disk_bytes=_gb(9.6),
         ),
     ),
     videos=_rb(
         total=SizeStats(
-            file_count=198, apparent_bytes=_gb(55.0), on_disk_bytes=_gb(36.5)
+            file_count=198,
+            apparent_bytes=_gb(55.0),
+            on_disk_bytes=_gb(36.5),
         ),
         archive=SizeStats(
-            file_count=132, apparent_bytes=_gb(24.8), on_disk_bytes=_gb(24.8)
+            file_count=132,
+            apparent_bytes=_gb(24.8),
+            on_disk_bytes=_gb(24.8),
         ),
     ),
     sidecars=_rb(
         total=SizeStats(
-            file_count=1183, apparent_bytes=_mb(96.2), on_disk_bytes=_mb(96.2)
+            file_count=1183,
+            apparent_bytes=_mb(96.2),
+            on_disk_bytes=_mb(96.2),
         ),
         archive=SizeStats(
-            file_count=1183, apparent_bytes=_mb(96.2), on_disk_bytes=_mb(96.2)
+            file_count=1183,
+            apparent_bytes=_mb(96.2),
+            on_disk_bytes=_mb(96.2),
         ),
     ),
     by_format=(
@@ -331,13 +418,19 @@ ALBUMS_STATS = AlbumsStats(
                     on_disk_bytes=_gb(70.4),
                 ),
                 archive=SizeStats(
-                    file_count=1960, apparent_bytes=_gb(57.0), on_disk_bytes=_gb(57.0)
+                    file_count=1960,
+                    apparent_bytes=_gb(57.0),
+                    on_disk_bytes=_gb(57.0),
                 ),
                 original=SizeStats(
-                    file_count=1104, apparent_bytes=_gb(37.5), on_disk_bytes=_gb(5.1)
+                    file_count=1104,
+                    apparent_bytes=_gb(37.5),
+                    on_disk_bytes=_gb(5.1),
                 ),
                 derived=SizeStats(
-                    file_count=806, apparent_bytes=_gb(8.3), on_disk_bytes=_gb(8.3)
+                    file_count=806,
+                    apparent_bytes=_gb(8.3),
+                    on_disk_bytes=_gb(8.3),
                 ),
                 unique_pictures=806,
                 unique_videos=56,
@@ -354,7 +447,9 @@ ALBUMS_STATS = AlbumsStats(
                         on_disk_bytes=_gb(34.0),
                     ),
                     derived=SizeStats(
-                        file_count=806, apparent_bytes=_gb(8.3), on_disk_bytes=_gb(8.3)
+                        file_count=806,
+                        apparent_bytes=_gb(8.3),
+                        on_disk_bytes=_gb(8.3),
                     ),
                 ),
                 videos=_rb(

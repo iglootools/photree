@@ -1,4 +1,5 @@
-"""Shared helpers for gallery CLI commands.
+"""
+Shared helpers for gallery CLI commands.
 
 Gallery-specific resolution, index building, and import stage helpers
 used by gallery command modules. Extracted to keep command modules focused on
@@ -8,35 +9,34 @@ argument parsing and orchestration.
 from pathlib import Path
 
 import typer
+from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from ...album import (
-    check as album_check,
-)
-from ...album.check import output as preflight_output
-from ...album.id import format_album_external_id
-from ...album.store.album_discovery import discover_potential_albums
-from ...album.store.metadata import load_album_metadata
-from ...clihelpers.console import console, err_console
-from ...clihelpers.progress import BatchProgressBar, StageProgressBar
-from ...clihelpers.usage import usage_error
-from ...common.exif import exiftool_session
-from ...common.formatting import CHECK, format_dry_run, indent
-from ...common.fs import display_path
-from ...common.sysdeps import WhichFn
-from ...foundation.gallery_metadata import resolve_link_mode
-from ...foundation.linking import LinkMode
-from .. import (
+from photree.album import check as album_check
+from photree.album.check import output as preflight_output
+from photree.album.id import format_album_external_id
+from photree.album.store.album_discovery import discover_potential_albums
+from photree.album.store.metadata import load_album_metadata
+from photree.clihelpers.console import console, err_console
+from photree.clihelpers.progress import BatchProgressBar, StageProgressBar
+from photree.clihelpers.usage import invalid_value_error
+from photree.common.exif import exiftool_session
+from photree.common.formatting import CHECK, format_dry_run, indent
+from photree.common.fs import display_path
+from photree.common.sysdeps import WhichFn
+from photree.foundation.gallery_metadata import resolve_link_mode
+from photree.foundation.linking import LinkMode
+from photree.gallery import (
     AlbumIndex,
     MissingAlbumIdError,
     build_album_id_to_path_index,
 )
-from ..cmd_handler.importer import BatchImportResult
-from ..cmd_handler.importer import run_batch_import as _run_batch_import
-from ..cmd_handler.importer import run_single_import as _run_single_import
-from ..cmd_handler.post_import_check import (
+from photree.gallery.cmd_handler.importer import BatchImportResult
+from photree.gallery.cmd_handler.importer import run_batch_import as _run_batch_import
+from photree.gallery.cmd_handler.importer import run_single_import as _run_single_import
+from photree.gallery.cmd_handler.post_import_check import (
     run_batch_post_import_check as _run_batch_post_import_check,
 )
-from ..faces.face_refresh import (
+from photree.gallery.faces.face_refresh import (
     STAGE_BUILD_INDEX,
     STAGE_CLUSTER,
     STAGE_SAVE,
@@ -44,14 +44,14 @@ from ..faces.face_refresh import (
     GalleryFaceRefreshResult,
     refresh_face_clusters,
 )
-from ..import_plan import (
+from photree.gallery.import_plan import (
     AlbumPlan,
     GalleryImportPlan,
     ImportAction,
     plan_imports,
 )
-from ..importer import AlbumImportResult
-from ..output import (
+from photree.gallery.importer import AlbumImportResult
+from photree.gallery.output import (
     format_import_error,
     format_import_errors,
     format_import_failure_labels,
@@ -61,8 +61,6 @@ from ..output import (
 
 def build_index_or_exit(gallery_dir: Path, cwd: Path) -> AlbumIndex:
     """Build the gallery album index, or exit on missing IDs."""
-    from rich.progress import Progress, SpinnerColumn, TextColumn
-
     try:
         with Progress(
             SpinnerColumn(),
@@ -78,7 +76,7 @@ def build_index_or_exit(gallery_dir: Path, cwd: Path) -> AlbumIndex:
                     "Albums with missing IDs found:",
                     *(indent(str(display_path(p, cwd))) for p in exc.albums),
                     "\nRun 'photree gallery fix --id' to generate missing album IDs.",
-                ]
+                ],
             ),
             markup=False,
         )
@@ -102,6 +100,7 @@ def plan_imports_or_exit(
 
 
 def render_skipped(plans: list[AlbumPlan], cwd: Path) -> None:
+    """Print the albums skipped as already imported and a blank line, if any."""
     if not plans:
         return
     console.print(format_skipped(plans, cwd))
@@ -123,8 +122,8 @@ def run_single_import(
     plan: AlbumPlan,
     gallery_dir: Path,
     link_mode: LinkMode,
-    dry_run: bool,
     *,
+    dry_run: bool,
     max_workers: int | None = None,
     which: WhichFn,
     cwd: Path,
@@ -134,7 +133,7 @@ def run_single_import(
         format_dry_run(
             "Reimport:" if plan.action is ImportAction.REIMPORT else "Import:",
             dry_run=dry_run,
-        )
+        ),
     )
     with StageProgressBar(total=3, labels=_stage_labels(plan)) as progress:
         try:
@@ -142,7 +141,7 @@ def run_single_import(
                 plan,
                 gallery_dir,
                 link_mode,
-                dry_run,
+                dry_run=dry_run,
                 on_stage_start=progress.on_start,
                 on_stage_end=progress.on_end,
                 max_workers=max_workers,
@@ -159,8 +158,8 @@ def run_single_import(
 def print_single_import_result(
     result: AlbumImportResult,
     cwd: Path,
-    dry_run: bool,
     *,
+    dry_run: bool,
     which: WhichFn,
 ) -> None:
     """Display import result and run post-import preflight check."""
@@ -177,7 +176,7 @@ def print_single_import_result(
                 result.jpeg_failures,
                 result.face_failures,
                 str(display_path(result.target_dir, cwd)),
-            )
+            ),
         )
         raise typer.Exit(code=1)
 
@@ -212,7 +211,8 @@ def resolve_import_all_albums(
     *,
     cwd: Path,
 ) -> tuple[list[Path], list[Path]]:
-    """Resolve album list for batch import from --dir or --album-dir.
+    """
+    Resolve album list for batch import from --dir or --album-dir.
 
     Returns ``(albums, skipped)``. When --dir is used, the scan is
     recursive: *albums* are directories with at least one media source,
@@ -231,21 +231,23 @@ def run_batch_import(
     plans: list[AlbumPlan],
     gallery_dir: Path,
     link_mode: LinkMode,
-    dry_run: bool,
     *,
+    dry_run: bool,
     max_workers: int | None = None,
     which: WhichFn,
     cwd: Path,
 ) -> BatchImportResult:
     """Execute batch import/reimport with progress bar."""
     with BatchProgressBar(
-        total=len(plans), description="Importing", done_description="import"
+        total=len(plans),
+        description="Importing",
+        done_description="import",
     ) as progress:
         return _run_batch_import(
             plans,
             gallery_dir,
             link_mode,
-            dry_run,
+            dry_run=dry_run,
             max_workers=max_workers,
             which=which,
             on_start=progress.on_start,
@@ -266,7 +268,8 @@ def run_batch_post_import_check(
     *,
     which: WhichFn,
 ) -> list[Path]:
-    """Run post-import checks on all imported albums.
+    """
+    Run post-import checks on all imported albums.
 
     The albums are checked against the gallery's configured link mode (not a
     ``--link-mode`` override given to the import). Returns the list of albums
@@ -277,7 +280,7 @@ def run_batch_post_import_check(
         description="Checking",
         done_description="check",
     ) as check_progress:
-        check_failed = _run_batch_post_import_check(
+        return _run_batch_post_import_check(
             imported_targets,
             link_mode=resolve_link_mode(None, gallery_dir),
             # The import gate (import_deps) already required sips.
@@ -285,22 +288,18 @@ def run_batch_post_import_check(
             which=which,
             display_fn=lambda p: str(display_path(p, cwd)),
             on_start=check_progress.on_start,
-            on_end=lambda name, success, errors: check_progress.on_end(
-                name, success=success, error_labels=errors
-            ),
+            on_end=check_progress.on_end,
         )
-
-    return check_failed
 
 
 def require_valid_threshold(threshold: float | None, option: str) -> None:
     """Usage error unless *threshold* is unset or a cosine distance in [0.0, 1.0]."""
     if threshold is not None and not 0.0 <= threshold <= 1.0:
-        raise usage_error(
-            f"Invalid {option} {threshold}: expected a cosine distance between "
-            "0.0 and 1.0 (lower = stricter).\n"
-            f"Run 'photree gallery metadata set --help' for details.",
-            markup=False,
+        raise invalid_value_error(
+            name=option,
+            value=threshold,
+            expected="a cosine distance between 0.0 and 1.0 (lower = stricter)",
+            command="gallery metadata set",
         )
 
 

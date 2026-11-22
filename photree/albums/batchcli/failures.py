@@ -1,4 +1,5 @@
-"""Rendering shared by every batch operation.
+"""
+Rendering shared by every batch operation.
 
 Domain-specific rendering belongs with its domain (``album/check/output.py``,
 ``album/fix/output.py``, …). What lives here is the part that is the same
@@ -14,10 +15,10 @@ from pathlib import Path
 
 import typer
 
-from ...clihelpers.console import err_console
-from ...common.formatting import indent, markup_escape
-from ...common.fs import display_path
-from ..cmd_handler import BatchFailure
+from photree.albums.cmd_handler import BatchFailure
+from photree.clihelpers.console import err_console
+from photree.common.formatting import indent, markup_escape
+from photree.common.fs import display_path
 
 
 def batch_failures_report(failures: Iterable[BatchFailure], base: Path) -> str:
@@ -30,7 +31,7 @@ def batch_failures_report(failures: Iterable[BatchFailure], base: Path) -> str:
                 + indent(markup_escape(f.reason), 2)
                 for f in failures
             ),
-        ]
+        ],
     )
 
 
@@ -41,7 +42,8 @@ def investigate_commands(
     *,
     extra_flags: str = "",
 ) -> str:
-    """Copy-pasteable single-album commands for reproducing each failure.
+    """
+    Copy-pasteable single-album commands for reproducing each failure.
 
     *command* is the single-album verb (``check``, ``fix``, ``refresh``, …).
     Paths are relative to *base* so the suggestion runs as printed.
@@ -53,12 +55,12 @@ def investigate_commands(
                 indent(
                     markup_escape(
                         f"photree album {command} --album-dir "
-                        f'"{display_path(album_dir, base)}"{extra_flags}'
-                    )
+                        f'"{display_path(album_dir, base)}"{extra_flags}',
+                    ),
                 )
                 for album_dir in albums
             ),
-        ]
+        ],
     )
 
 
@@ -74,7 +76,8 @@ def exit_with_failures(
     *,
     extra_flags: str = "",
 ) -> None:
-    """Print each failure with its reason and a retry command, then exit 1.
+    """
+    Print each failure with its reason and a retry command, then exit 1.
 
     Does nothing when there are no failures.
     """
@@ -82,8 +85,11 @@ def exit_with_failures(
         err_console.print(batch_failures_report(failures, base))
         err_console.print(
             investigate_commands(
-                command, [f.album_dir for f in failures], base, extra_flags=extra_flags
-            )
+                command,
+                [f.album_dir for f in failures],
+                base,
+                extra_flags=extra_flags,
+            ),
         )
         raise typer.Exit(code=1)
 

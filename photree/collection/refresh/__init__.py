@@ -1,4 +1,5 @@
-"""Refresh implicit collections and smart collection members.
+"""
+Refresh implicit collections and smart collection members.
 
 Called by ``gallery refresh`` to:
 1. Detect album series → create/update/rename/delete implicit collections
@@ -21,12 +22,15 @@ from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-from ..id import generate_collection_id
-from .implicit import ImplicitChanges, refresh_implicit_collections
-from .result import CollectionRefreshResult
-from .scan import scan_existing_collections, scan_gallery
-from .smart import refresh_smart_collections
-from .title_sync import TitleSync, sync_album_titles
+from photree.collection.id import generate_collection_id
+from photree.collection.refresh.implicit import (
+    ImplicitChanges,
+    refresh_implicit_collections,
+)
+from photree.collection.refresh.result import CollectionRefreshResult
+from photree.collection.refresh.scan import scan_existing_collections, scan_gallery
+from photree.collection.refresh.smart import refresh_smart_collections
+from photree.collection.refresh.title_sync import TitleSync, sync_album_titles
 
 # Refresh stage names (for progress callbacks)
 STAGE_SCAN_ALBUMS = "scan-albums"
@@ -50,9 +54,10 @@ class _Notifier:
 
 
 def _partial_result(
-    implicit: ImplicitChanges, sync: TitleSync
+    implicit: ImplicitChanges,
+    sync: TitleSync,
 ) -> CollectionRefreshResult:
-    """The result as of the end of the implicit stage."""
+    """Return the result as of the end of the implicit stage."""
     return CollectionRefreshResult(
         created=implicit.created,
         updated=implicit.updated,
@@ -71,7 +76,8 @@ def refresh_collections(
     on_stage_end: Callable[[str], None] | None = None,
     new_id: Callable[[], str] = generate_collection_id,
 ) -> CollectionRefreshResult:
-    """Refresh all collections in the gallery.
+    """
+    Refresh all collections in the gallery.
 
     1. Scan and validate album names (light check, no EXIF)
     2. Sync album titles with existing collection lifecycle changes
@@ -91,7 +97,11 @@ def refresh_collections(
 
     with notifier.stage(STAGE_IMPLICIT_REFRESH):
         implicit = refresh_implicit_collections(
-            gallery_dir, sync.albums, scan.collections, dry_run=dry_run, new_id=new_id
+            gallery_dir,
+            sync.albums,
+            scan.collections,
+            dry_run=dry_run,
+            new_id=new_id,
         )
     partial = _partial_result(implicit, sync)
     if implicit.errors:
@@ -101,7 +111,9 @@ def refresh_collections(
         # Re-scan: the implicit stage may have renamed or created collections.
         collections, rescan_errors = scan_existing_collections(gallery_dir)
         smart_updated = refresh_smart_collections(
-            sync.albums, collections, dry_run=dry_run
+            sync.albums,
+            collections,
+            dry_run=dry_run,
         )
     return replace(
         partial,

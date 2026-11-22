@@ -1,4 +1,5 @@
-"""Media file matching utilities.
+"""
+Media file matching utilities.
 
 Provides key-function-parameterized grouping, deduplication, and file
 finding that work for both iOS (image-number matching) and std
@@ -13,13 +14,13 @@ from collections.abc import Callable
 from itertools import groupby
 from pathlib import Path
 
-from ...common.fs import file_ext, list_files
-from ..formats import (
+from photree.album.formats import (
     IOS_IMG_EXTENSIONS,
     IOS_VID_EXTENSIONS,
     PICTURE_PRIORITY_EXTENSIONS,
 )
-from .media_source import ios_img_number
+from photree.album.store.media_source import ios_img_number
+from photree.common.fs import file_ext, list_files
 
 
 def pick_media_priority(candidates: list[str]) -> str:
@@ -40,7 +41,10 @@ def group_by_key(
     media_extensions: frozenset[str],
     key_fn: Callable[[str], str],
 ) -> dict[str, list[str]]:
-    """Groups are ordered by key; within a group, files keep their input order
+    """
+    Group files by key.
+
+    Groups are ordered by key; within a group, files keep their input order
     (the sort is stable), which :func:`pick_media_priority` relies on for its
     fallback.
     """
@@ -65,16 +69,21 @@ def find_files_by_key(
     directory: Path,
     key_fn: Callable[[str], str],
 ) -> list[str]:
+    """Return the sorted names of the files in *directory* whose key is in *keys*."""
     return sorted(f for f in list_files(directory) if key_fn(f) in keys)
 
 
 def ios_is_media(filename: str) -> bool:
+    """Tell whether *filename* has an iOS image or video extension."""
     ext = file_ext(filename)
     return ext in IOS_IMG_EXTENSIONS or ext in IOS_VID_EXTENSIONS
 
 
 def ios_file_prefix(filename: str) -> str:
-    """``IMG_E`` → ``'E'`` (edited), ``IMG_O`` → ``'O'`` (edited metadata),
+    """
+    Return the prefix of an iOS file name.
+
+    ``IMG_E`` → ``'E'`` (edited), ``IMG_O`` → ``'O'`` (edited metadata),
     ``IMG_`` → ``''`` (original).
     """
     match filename.lower()[:5]:
@@ -90,6 +99,7 @@ def ios_find_files_by_number(
     numbers: set[str],
     directory: Path,
 ) -> list[str]:
+    """Return the sorted names of the files in *directory* numbered in *numbers*."""
     return find_files_by_key(numbers, directory, ios_img_number)
 
 
@@ -97,4 +107,5 @@ def std_find_files_by_stem(
     stems: set[str],
     directory: Path,
 ) -> list[str]:
+    """Return the sorted names of the files in *directory* with a stem in *stems*."""
     return sorted(f for f in list_files(directory) if Path(f).stem in stems)

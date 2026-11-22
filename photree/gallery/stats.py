@@ -1,4 +1,5 @@
-"""Gallery-level statistics: albums plus the things only a gallery has.
+"""
+Gallery-level statistics: albums plus the things only a gallery has.
 
 ``AlbumsStats`` (in ``album/stats``) covers any set of albums — `albums stats
 -d <dir>` produces one for a bare directory with no gallery anywhere. Collection
@@ -15,14 +16,14 @@ from pathlib import Path
 from rich.console import Group
 from rich.text import Text
 
-from ..album.stats.aggregate import merge_size_stats
-from ..album.stats.models import AlbumsStats, SizeStats
-from ..album.stats.output import LEGEND, albums_stats_renderables
-from ..album.stats.scan import scan_directory_size
-from ..collection.stats import compute_gallery_collection_stats
-from ..collection.stats.models import GalleryCollectionStats
-from ..collection.stats.output import format_collections_overview
-from .faces.manifest import gallery_faces_dir
+from photree.album.stats.aggregate import merge_size_stats
+from photree.album.stats.models import AlbumsStats, SizeStats
+from photree.album.stats.output import LEGEND, albums_stats_renderables
+from photree.album.stats.scan import scan_directory_size
+from photree.collection.stats import compute_gallery_collection_stats
+from photree.collection.stats.models import GalleryCollectionStats
+from photree.collection.stats.output import format_collections_overview
+from photree.gallery.faces.manifest import gallery_faces_dir
 
 
 @dataclass(frozen=True)
@@ -46,7 +47,7 @@ def compute_gallery_stats(albums: AlbumsStats, gallery_dir: Path) -> GalleryStat
             s
             for s in [albums.cache_storage, gallery_face_size]
             if s is not None and s.file_count > 0
-        ]
+        ],
     )
 
     return GalleryStats(

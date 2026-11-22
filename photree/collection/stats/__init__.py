@@ -1,16 +1,28 @@
+"""Statistics over the collections of a gallery."""
+
 from collections import Counter
 from pathlib import Path
 
-from ...foundation.layout import COLLECTIONS_DIR
-from ..store.collection_discovery import discover_collections
-from ..store.metadata import load_collection_metadata
-from ..store.protocol import CollectionLifecycle, CollectionMembers, CollectionStrategy
-from .models import CollectionStatsEntry, GalleryCollectionStats
+from photree.collection.stats.models import CollectionStatsEntry, GalleryCollectionStats
+from photree.collection.store.collection_discovery import discover_collections
+from photree.collection.store.metadata import load_collection_metadata
+from photree.collection.store.protocol import (
+    CollectionLifecycle,
+    CollectionMembers,
+    CollectionStrategy,
+)
+from photree.foundation.layout import COLLECTIONS_DIR
 
 
 def compute_gallery_collection_stats(
     gallery_dir: Path,
 ) -> GalleryCollectionStats:
+    """
+    Count the collections of *gallery_dir* and the members they reference.
+
+    Directories without metadata are skipped; corrupt metadata raises
+    :class:`~photree.foundation.metadata_io.InvalidMetadataError`.
+    """
     entries = [
         CollectionStatsEntry(
             name=col_dir.name,

@@ -1,14 +1,10 @@
+"""Read and write the EXIF capture dates of an album's media files."""
+
 from datetime import datetime
 from pathlib import Path
 
-from ..common.exif import (
-    ExifDateChange,
-    ExifTagReader,
-    write_exif_date,
-)
-from ..common.exif import (
-    read_exif_timestamps_by_file as _generic_read_by_file,
-)
+from photree.common.exif import ExifDateChange, ExifTagReader, write_exif_date
+from photree.common.exif import read_exif_timestamps_by_file as _generic_read_by_file
 
 # Tag priority for timestamp extraction (first match wins):
 #
@@ -33,6 +29,12 @@ def read_exif_timestamps_by_file(
     *,
     exiftool: ExifTagReader | None = None,
 ) -> list[tuple[Path, datetime]]:
+    """
+    Return ``(file, capture timestamp)`` pairs for the *files* whose date is readable.
+
+    Reads the tags in :data:`TIMESTAMP_TAGS` order and silently skips files with
+    none of them. Runs a transient exiftool when *exiftool* is ``None``.
+    """
     return _generic_read_by_file(files, TIMESTAMP_TAGS, exiftool=exiftool)
 
 
@@ -40,7 +42,9 @@ def set_exif_date(
     files: list[Path],
     date: str,
 ) -> tuple[ExifDateChange, ...]:
-    """Returns one change per file actually rewritten (see
-    :func:`common.exif.write_exif_date`).
+    """
+    Set the EXIF date of an album's files, returning one change per file rewritten.
+
+    See :func:`common.exif.write_exif_date`.
     """
     return write_exif_date(files, date, TIMESTAMP_TAGS)

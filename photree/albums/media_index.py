@@ -1,13 +1,16 @@
+"""Finding media IDs shared by several albums."""
+
 import itertools
 from pathlib import Path
 
-from ..album.store.media_metadata import load_media_metadata
+from photree.album.store.media_metadata import load_media_metadata
 
 
 def find_duplicate_media_ids(
     albums: list[Path],
 ) -> dict[str, list[Path]]:
-    """Find media UUIDs that appear in more than one album.
+    """
+    Find media UUIDs that appear in more than one album.
 
     Returns a dict mapping each duplicated media ID to the list of album
     paths that share it. Albums without ``.photree/media-ids/`` are

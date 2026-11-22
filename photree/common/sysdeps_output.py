@@ -1,4 +1,5 @@
-"""Rendering of system dependency statuses (Rich markup, unindented).
+"""
+Rendering of system dependency statuses (Rich markup, unindented).
 
 Pure formatting, shared by the CLI gate (``clihelpers.sysdeps``) and by the
 domain output layers that fold dependency checks into a wider report (the
@@ -7,8 +8,13 @@ import preflight, ``check`` troubleshooting).
 
 from collections.abc import Iterable
 
-from .formatting import CHECK, CROSS
-from .sysdeps import SystemDependency, SystemDependencyStatus, install_hint, purpose
+from photree.common.formatting import CHECK, CROSS
+from photree.common.sysdeps import (
+    SystemDependency,
+    SystemDependencyStatus,
+    install_hint,
+    purpose,
+)
 
 
 def format_status(status: SystemDependencyStatus) -> str:
@@ -21,6 +27,7 @@ def format_status(status: SystemDependencyStatus) -> str:
 
 
 def format_statuses(statuses: Iterable[SystemDependencyStatus]) -> str:
+    """Format each dependency as a check line (Rich markup), one per line."""
     return "\n".join(format_status(s) for s in statuses)
 
 

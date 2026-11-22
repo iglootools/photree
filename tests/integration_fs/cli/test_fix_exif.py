@@ -11,7 +11,8 @@ from photree.cli import app
 runner = CliRunner()
 
 requires_exiftool = pytest.mark.skipif(
-    not shutil.which("exiftool"), reason="exiftool not installed"
+    not shutil.which("exiftool"),
+    reason="exiftool not installed",
 )
 
 
@@ -26,7 +27,7 @@ class TestFlagSelection:
         assert result.exit_code == 2
         assert "Specify exactly one" in result.output
 
-    def test_two_flags(self, tmp_path: Path) -> None:
+    def test_two_flags(self) -> None:
         result = runner.invoke(
             app,
             ["album", "fix-exif", "--shift-date", "1", "--shift-time", "2", "x.jpg"],
@@ -36,7 +37,8 @@ class TestFlagSelection:
 
     def test_invalid_date(self) -> None:
         result = runner.invoke(
-            app, ["album", "fix-exif", "--set-date", "2024-07", "x.jpg"]
+            app,
+            ["album", "fix-exif", "--set-date", "2024-07", "x.jpg"],
         )
         assert result.exit_code == 2
         assert "expected YYYY-MM-DD" in result.output
@@ -59,7 +61,8 @@ class TestExecution:
         not_media = tmp_path / "notes.txt"
         not_media.write_text("hello", encoding="utf-8")
         result = runner.invoke(
-            app, ["album", "fix-exif", "--shift-time", "-2", str(not_media)]
+            app,
+            ["album", "fix-exif", "--shift-time", "-2", str(not_media)],
         )
         assert result.exit_code == 1
         assert "✓ fix-exif" not in result.output

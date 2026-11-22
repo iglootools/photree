@@ -1,20 +1,28 @@
+"""Integrity checks specific to std media sources."""
+
 from collections.abc import Callable
 from dataclasses import dataclass
 from itertools import groupby
 from pathlib import Path
 from typing import TypedDict
 
-from ...common.fs import file_ext, list_files
-from ...foundation.linking import LinkMode
-from ..formats import IMG_EXTENSIONS, VID_EXTENSIONS
-from ..store.media_source import MediaSource
-from .browsable import BrowsableDirCheck, check_browsable_dir
-from .jpeg import JpegCheck, check_jpeg_dir
+from photree.album.check.browsable import BrowsableDirCheck, check_browsable_dir
+from photree.album.check.jpeg import JpegCheck, check_jpeg_dir
+from photree.album.formats import IMG_EXTENSIONS, VID_EXTENSIONS
+from photree.album.store.media_source import (
+    MediaSource,
+    MediaSourceType,
+    WrongMediaSourceTypeError,
+)
+from photree.common.fs import file_ext, list_files
+from photree.common.progress import FileEnd
+from photree.foundation.linking import LinkMode
 
 
 @dataclass(frozen=True)
 class DuplicateStem:
-    """Several media files in *directory* share *stem* (e.g. ``a.heic`` + ``a.jpg``).
+    """
+    Several media files in *directory* share *stem* (e.g. ``a.heic`` + ``a.jpg``).
 
     *directory* is the directory's name relative to its parent (``orig``,
     ``orig-img``, ...), which is how the formatters display it.
@@ -30,8 +38,10 @@ def _stem(filename: str) -> str:
 
 
 def check_duplicate_stems(
-    directory: Path, media_extensions: frozenset[str]
+    directory: Path,
+    media_extensions: frozenset[str],
 ) -> tuple[DuplicateStem, ...]:
+    """Find the media files in *directory* that share a filename stem."""
     media = sorted(
         (f for f in list_files(directory) if file_ext(f) in media_extensions),
         key=_stem,
@@ -45,6 +55,8 @@ def check_duplicate_stems(
 
 @dataclass(frozen=True)
 class StdMediaSourceIntegrityResult:
+    """The outcome of every integrity check on one std media source."""
+
     browsable_img: BrowsableDirCheck
     browsable_vid: BrowsableDirCheck
     browsable_jpg: JpegCheck
@@ -52,6 +64,7 @@ class StdMediaSourceIntegrityResult:
 
     @property
     def success(self) -> bool:
+        """Return whether the browsable and JPEG checks passed and no stem repeats."""
         return (
             self.browsable_img.success
             and self.browsable_vid.success
@@ -64,7 +77,7 @@ class _BrowsableOptions(TypedDict):
     key_fn: Callable[[str], str]
     link_mode: LinkMode
     checksum: bool
-    on_file_checked: Callable[[str, bool], None] | None
+    on_file_checked: FileEnd | None
 
 
 def check_std_media_source_integrity(
@@ -73,13 +86,16 @@ def check_std_media_source_integrity(
     *,
     link_mode: LinkMode,
     checksum: bool = True,
-    on_file_checked: Callable[[str, bool], None] | None = None,
+    on_file_checked: FileEnd | None = None,
 ) -> StdMediaSourceIntegrityResult:
-    """Only runs on std media sources that have an archive directory
+    """
+    Check a std media source's archive against its browsable dirs.
+
+    Only runs on std media sources that have an archive directory
     (``std-{name}/``) on disk.
     """
     if not ms.is_std:
-        raise ValueError(f"media source '{ms.name}' is not a std media source")
+        raise WrongMediaSourceTypeError(ms.name, MediaSourceType.STD)
 
     browsable_opts = _BrowsableOptions(
         key_fn=ms.key_fn,

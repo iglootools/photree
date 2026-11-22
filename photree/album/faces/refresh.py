@@ -1,3 +1,5 @@
+"""Refresh of an album's face cache: detect new images, prune removed ones."""
+
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from functools import partial
@@ -6,14 +8,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ...common.fs import list_files
-from ...common.parallelism import ParallelResult, run_parallel
-from ...common.sips import get_dimensions
-from ..formats import IMG_EXTENSIONS, IOS_IMG_EXTENSIONS
-from ..store.file_matching import dedup_media_dict
-from ..store.media_source import MediaSource
-from ..store.media_sources_discovery import discover_media_sources
-from .detect import (
+from photree.album.faces.detect import (
     DetectedFace,
     FaceAnalyzerFactory,
     FaceDetector,
@@ -22,14 +17,14 @@ from .detect import (
     generate_thumbnail,
     thumb_filename,
 )
-from .failures import FaceFailure, FaceFailureStage
-from .protocol import (
+from photree.album.faces.failures import FaceFailure, FaceFailureStage
+from photree.album.faces.protocol import (
     DEFAULT_MODEL_NAME,
     DEFAULT_MODEL_VERSION,
     FaceProcessedKey,
     FaceProcessingState,
 )
-from .store import (
+from photree.album.faces.store import (
     FaceData,
     filter_face_data,
     load_face_data,
@@ -39,6 +34,14 @@ from .store import (
     save_face_state,
     thumbs_dir,
 )
+from photree.album.formats import IMG_EXTENSIONS, IOS_IMG_EXTENSIONS
+from photree.album.store.file_matching import dedup_media_dict
+from photree.album.store.media_source import MediaSource
+from photree.album.store.media_sources_discovery import discover_media_sources
+from photree.common.fs import list_files
+from photree.common.parallelism import ParallelResult, run_parallel
+from photree.common.progress import FileEnd
+from photree.common.sips import get_dimensions
 
 if TYPE_CHECKING:
     # Annotation only: importing insightface costs ~0.3 s at CLI startup.
@@ -48,6 +51,8 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class FaceSourceRefreshResult:
+    """The outcome of refreshing one media source's face data: counts and failures."""
+
     processed: int  # images successfully analysed (failures excluded)
     skipped: int  # images already up to date
     faces_detected: int
@@ -55,23 +60,29 @@ class FaceSourceRefreshResult:
 
     @property
     def failed(self) -> int:
+        """Return the number of images that could not be analysed."""
         return len(self.failures)
 
     @property
     def changed(self) -> bool:
+        """Return whether any image was analysed or failed."""
         return self.processed > 0 or self.failed > 0
 
 
 @dataclass(frozen=True)
 class FaceRefreshResult:
+    """The outcome of refreshing an album's face data, per media source name."""
+
     by_media_source: tuple[tuple[str, FaceSourceRefreshResult], ...]
 
     @property
     def total_faces(self) -> int:
+        """Return the number of faces detected across every media source."""
         return sum(r.faces_detected for _, r in self.by_media_source)
 
     @property
     def changed(self) -> bool:
+        """Return whether any media source's refresh changed something."""
         return any(r.changed for _, r in self.by_media_source)
 
     @property
@@ -94,10 +105,13 @@ def refresh_face_data(
     refresh_thumbs: bool = False,
     dry_run: bool = False,
     on_source_start: Callable[[str], None] | None = None,
-    on_source_end: Callable[[str, bool], None] | None = None,
+    on_source_end: FileEnd | None = None,
     max_workers: int | None = None,
 ) -> FaceRefreshResult:
-    """Face detection is an injected capability. When *analyzer_factory* is
+    """
+    Refresh the face data of each media source.
+
+    Face detection is an injected capability. When *analyzer_factory* is
     ``None`` no detector is available and face detection is skipped entirely;
     the composition root (CLI) is responsible for injecting one. The factory
     is invoked lazily — only once a source actually has images to process —
@@ -170,7 +184,7 @@ def _plan_source(
                 existing_state,
                 model_changed=model_changed,
                 redetect=redetect,
-            )
+            ),
         ),
         stale_keys=frozenset(existing_state.processed_keys) - frozenset(current_files),
         model_changed=model_changed,
@@ -188,7 +202,7 @@ def _refresh_source(
     refresh_thumbs: bool,
     dry_run: bool,
     on_source_start: Callable[[str], None] | None,
-    on_source_end: Callable[[str, bool], None] | None,
+    on_source_end: FileEnd | None,
     max_workers: int | None,
 ) -> FaceSourceRefreshResult:
     if on_source_start:
@@ -217,7 +231,7 @@ def _refresh_source(
     )
 
     if on_source_end:
-        on_source_end(ms.name, not result.failures)
+        on_source_end(ms.name, success=not result.failures)
     return result
 
 
@@ -276,7 +290,9 @@ def _scan_current_images(album_dir: Path, ms: MediaSource) -> dict[str, str]:
 
 
 def _model_version_changed(
-    state: FaceProcessingState, model_name: str, model_version: str
+    state: FaceProcessingState,
+    model_name: str,
+    model_version: str,
 ) -> bool:
     return state.model_name != model_name or state.model_version != model_version
 
@@ -289,6 +305,12 @@ def keys_needing_processing(
     model_changed: bool,
     redetect: bool,
 ) -> list[str]:
+    """
+    Return the sorted keys of *current_files* that need face detection.
+
+    Every key when *redetect* or *model_changed*; otherwise only the keys
+    :func:`needs_processing` selects.
+    """
     if redetect or model_changed:
         return sorted(current_files.keys())
 
@@ -305,6 +327,12 @@ def needs_processing(
     orig_dir: Path,
     state: FaceProcessingState,
 ) -> bool:
+    """
+    Return whether the image *key* needs face detection.
+
+    True when *state* has no entry for it, or when its file in *orig_dir*
+    exists with an mtime other than the recorded one.
+    """
     entry = state.processed_keys.get(key)
     if entry is None:
         return True
@@ -323,7 +351,7 @@ def _run_detection(
     get_analyzer: Callable[[], FaceAnalysis],
     max_workers: int | None,
 ) -> tuple[list[DetectedFace], dict[str, FaceProcessedKey], tuple[FaceFailure, ...]]:
-    """Returns ``(new_faces, new_state_keys, failures)``."""
+    """Return ``(new_faces, new_state_keys, failures)``."""
     thumb_dir = thumbs_dir(album_dir, ms.name)
     thumb_results, thumb_failures = _generate_thumbnails(
         keys_to_process,
@@ -350,7 +378,7 @@ def _run_detection(
     ]
     new_state_keys = {
         tr.key: state_key
-        for tr, (_, state_key, _) in zip(thumb_results, detection_results)
+        for tr, (_, state_key, _) in zip(thumb_results, detection_results, strict=True)
         if state_key is not None
     }
 
@@ -369,7 +397,10 @@ def detect_single(
     orig_dir: Path,
     analyzer: FaceDetector,
 ) -> tuple[list[DetectedFace] | None, FaceProcessedKey | None, FaceFailure | None]:
-    """Detection is best-effort per image — one unreadable file must not abandon
+    """
+    Detect the faces of one image, carrying a failure out instead of raising.
+
+    Detection is best-effort per image — one unreadable file must not abandon
     the album — but the reason is carried out rather than dropped, so the
     caller can tell the user which image failed and why.
     """
@@ -384,13 +415,14 @@ def detect_single(
             thumb_width=tr.thumb_width,
             thumb_height=tr.thumb_height,
         )
-        return (detected, state_key, None)
     except Exception as exc:
         return (
             None,
             None,
             FaceFailure(key=tr.key, stage=FaceFailureStage.DETECTION, reason=str(exc)),
         )
+    else:
+        return (detected, state_key, None)
 
 
 def _keys_needing_thumbnail(
@@ -450,7 +482,8 @@ def _generate_thumbnails(
     regenerate: bool,
     max_workers: int | None,
 ) -> tuple[list[ThumbnailResult], tuple[FaceFailure, ...]]:
-    """Generate (or reuse) thumbnails for *keys*.
+    """
+    Generate (or reuse) thumbnails for *keys*.
 
     A key whose thumbnail fails used to vanish from the returned list, so the
     image was never analysed and never counted — indistinguishable from one
@@ -467,7 +500,11 @@ def _generate_thumbnails(
         regenerate=regenerate,
     )
     generated = _generate_new_thumbnails(
-        needs_thumb, current_files, orig_dir, thumb_dir, max_workers=max_workers
+        needs_thumb,
+        current_files,
+        orig_dir,
+        thumb_dir,
+        max_workers=max_workers,
     )
     reused = [
         reuse_thumbnail(
@@ -500,7 +537,8 @@ def _failures(
 ) -> list[FaceFailure]:
     return [
         _thumbnail_failure(
-            pr.key, pr.error or "thumbnail generation produced no result"
+            pr.key,
+            pr.error or "thumbnail generation produced no result",
         )
         for pr in generated
         if not (pr.success and pr.value is not None)
@@ -513,7 +551,8 @@ def reuse_thumbnail(
     thumb_path: Path,
     previous: FaceProcessedKey | None,
 ) -> ThumbnailResult | FaceFailure:
-    """Build a ThumbnailResult for an existing thumbnail, or record why not.
+    """
+    Build a ThumbnailResult for an existing thumbnail, or record why not.
 
     Original dimensions come from the previous processing state: a thumbnail is
     only reused for a key that was already processed at the same mtime, so the
@@ -578,7 +617,7 @@ def _save_updated_state(
 
 
 def _no_change_result(plan: _SourcePlan) -> FaceSourceRefreshResult:
-    """Result when nothing is written: a no-op, or a dry run of *plan*."""
+    """Return the result when nothing is written: a no-op, or a dry run of *plan*."""
     return FaceSourceRefreshResult(
         processed=len(plan.keys_to_process),
         skipped=len(plan.current_keys) - len(plan.keys_to_process),

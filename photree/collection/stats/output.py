@@ -1,10 +1,16 @@
+"""Rich renderings of the gallery's collection statistics."""
+
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from ...common.formatting import indent, markup_escape
-from ..store.protocol import CollectionLifecycle, CollectionMembers, CollectionStrategy
-from .models import GalleryCollectionStats
+from photree.collection.stats.models import GalleryCollectionStats
+from photree.collection.store.protocol import (
+    CollectionLifecycle,
+    CollectionMembers,
+    CollectionStrategy,
+)
+from photree.common.formatting import indent, markup_escape
 
 _TABLE_BOX = None  # borderless
 
@@ -45,6 +51,7 @@ def format_collections_overview(stats: GalleryCollectionStats) -> Panel:
 
 
 def format_collections_table(stats: GalleryCollectionStats) -> Table:
+    """Return a table of every collection with its kind and member counts."""
     table = Table(title="Collections", box=_TABLE_BOX)
     table.add_column("Name")
     table.add_column("Members")

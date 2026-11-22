@@ -109,7 +109,8 @@ class TestAlbumsInit:
         _setup_media_source(a1)
 
         result = runner.invoke(
-            app, ["albums", "init", "-d", str(tmp_path), "--dry-run"]
+            app,
+            ["albums", "init", "-d", str(tmp_path), "--dry-run"],
         )
         assert result.exit_code == 0
         assert load_album_metadata(a1) is None
@@ -118,7 +119,8 @@ class TestAlbumsInit:
         _setup_media_source(tmp_path / "2024-07-14 - Trip A")
 
         result = runner.invoke(
-            app, ["albums", "init", "-d", str(tmp_path), "--dry-run"]
+            app,
+            ["albums", "init", "-d", str(tmp_path), "--dry-run"],
         )
 
         assert result.exit_code == 0
@@ -136,7 +138,7 @@ class TestAlbumsInit:
         assert load_album_metadata(a2) is not None
 
     def test_discovers_albums_without_album_yaml(self, tmp_path: Path) -> None:
-        """--dir mode should find directories with media sources even without album.yaml."""
+        """--dir finds directories with media sources even without album.yaml."""
         a1 = tmp_path / "2024-07-14 - Trip A"
         _setup_media_source(a1)
         # No _mark_album — album.yaml does not exist yet
@@ -154,7 +156,8 @@ class TestAlbumsInit:
         a1 = tmp_path / "album"
         a1.mkdir()
         result = runner.invoke(
-            app, ["albums", "init", "-d", str(tmp_path), "-a", str(a1)]
+            app,
+            ["albums", "init", "-d", str(tmp_path), "-a", str(a1)],
         )
         assert result.exit_code == 2
         assert "mutually exclusive" in result.output
@@ -166,7 +169,8 @@ class TestAlbumFixId:
         _setup_media_source(album)
 
         result = runner.invoke(
-            app, ["album", "fix", "--id", "--dry-run", "--album-dir", str(album)]
+            app,
+            ["album", "fix", "--id", "--dry-run", "--album-dir", str(album)],
         )
 
         assert result.exit_code == 0

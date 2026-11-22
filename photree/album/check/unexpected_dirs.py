@@ -1,17 +1,22 @@
+"""Check for album directories that belong to no media source."""
+
 from dataclasses import dataclass
 from pathlib import Path
 
-from ...common.fs import list_dirs
-from ..staging import is_import_staging_dir
-from ..store.media_source import MediaSource
+from photree.album.staging import is_import_staging_dir
+from photree.album.store.media_source import MediaSource
+from photree.common.fs import list_dirs
 
 
 @dataclass(frozen=True)
 class UnexpectedDirsCheck:
+    """The album directories that belong to no media source."""
+
     unexpected: tuple[str, ...]
 
     @property
     def success(self) -> bool:
+        """Return whether the album has no unexpected directory."""
         return len(self.unexpected) == 0
 
 
@@ -19,7 +24,10 @@ def check_unexpected_dirs(
     album_dir: Path,
     media_sources: list[MediaSource],
 ) -> UnexpectedDirsCheck:
-    """Expected directories are ``to-import-{ios,std}-<name>`` staging dirs plus
+    """
+    Find directories in the album that belong to no media source.
+
+    Expected directories are ``to-import-{ios,std}-<name>`` staging dirs plus
     all directories belonging to discovered media sources.  Dotdirs (e.g.
     ``.photree/``) are excluded by :func:`list_dirs` and never flagged.
     """

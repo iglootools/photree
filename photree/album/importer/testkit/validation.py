@@ -1,9 +1,9 @@
 """Fake validation errors for demo and testing purposes."""
 
-from ...check.std import DuplicateStem
-from ...store.media_source import ios_media_source, std_media_source
-from ..album_import import TaskIssue
-from ..image_capture import ValidationError, ValidationErrorKind
+from photree.album.check.std import DuplicateStem
+from photree.album.importer.album_import import TaskIssue
+from photree.album.importer.image_capture import ValidationError, ValidationErrorKind
+from photree.album.store.media_source import ios_media_source, std_media_source
 
 VALIDATION_ERRORS = [
     TaskIssue(
@@ -22,7 +22,9 @@ VALIDATION_ERRORS = [
     TaskIssue(
         std_media_source("nelu"),
         DuplicateStem(
-            directory="orig", stem="photo1", files=("photo1.heic", "photo1.jpg")
+            directory="orig",
+            stem="photo1",
+            files=("photo1.heic", "photo1.jpg"),
         ),
     ),
 ]

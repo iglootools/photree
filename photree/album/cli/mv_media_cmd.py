@@ -1,15 +1,17 @@
+"""The ``photree album mv-media`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
-from ...clihelpers.console import err_console
-from ...clihelpers.runtime import runtime_of
-from ...common.formatting import format_dry_run
-from ...common.fs import display_path
-from .. import media
-from . import app
-from .media_source_conflict import exit_on_media_source_conflict
+from photree.album import media
+from photree.album.cli.app import app
+from photree.album.cli.media_source_conflict import exit_on_media_source_conflict
+from photree.clihelpers.console import err_console
+from photree.clihelpers.runtime import runtime_of
+from photree.common.formatting import format_dry_run
+from photree.common.fs import display_path
 
 
 @app.command("mv-media")
@@ -43,6 +45,7 @@ def mv_media_cmd(
             help="Relative file paths to move (e.g. main-jpg/IMG_E3219.jpg).",
         ),
     ],
+    *,
     dry_run: Annotated[
         bool,
         typer.Option(
@@ -52,7 +55,8 @@ def mv_media_cmd(
         ),
     ] = False,
 ) -> None:
-    """Move media files and all their variants from one album to another.
+    """
+    Move media files and all their variants from one album to another.
 
     For each specified file, resolves all associated variants by image number
     (iOS) or filename stem (std) across the media source's directory structure
@@ -70,13 +74,13 @@ def mv_media_cmd(
         format_dry_run(
             media.media_op_summary("move", result.files_by_dir, dry_run=dry_run),
             dry_run=dry_run,
-        )
+        ),
     )
     typer.echo(
         media.media_op_check_suggestions(
             [
                 str(display_path(source_album, cwd)),
                 str(display_path(dest_album, cwd)),
-            ]
-        )
+            ],
+        ),
     )

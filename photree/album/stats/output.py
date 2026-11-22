@@ -1,4 +1,5 @@
-"""Rich table formatting for album and gallery statistics.
+"""
+Rich table formatting for album and gallery statistics.
 
 Table cells are Rich markup: user-chosen names (media sources) are escaped
 with ``markup_escape``.
@@ -13,9 +14,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from ...common.formatting import indent, markup_escape
-from ..store.media_source import MediaSourceType
-from .models import (
+from photree.album.stats.models import (
     AggregateStats,
     AlbumsStats,
     AlbumStats,
@@ -24,8 +23,13 @@ from .models import (
     SizeStats,
     YearStats,
 )
+from photree.album.store.media_source import MediaSourceType
+from photree.common.formatting import indent, markup_escape
 
 _UNITS = ("B", "KiB", "MiB", "GiB", "TiB")
+_UNIT_STEP = 1024
+# Values below this get two decimals, so a small size keeps three significant digits.
+_TWO_DECIMALS_BELOW = 10
 
 _SIZE_STYLE = "cyan"
 _TABLE_BOX = rich.box.SIMPLE
@@ -33,13 +37,17 @@ _TABLE_BOX = rich.box.SIMPLE
 
 def _format_bytes(n: int) -> str:
     """Format *n* bytes as a human-readable string using binary (1024) units."""
-    if n < 1024:
+    if n < _UNIT_STEP:
         return f"{n} B"
     value = float(n)
     for unit in _UNITS[1:]:
-        value /= 1024
-        if value < 1024 or unit == _UNITS[-1]:
-            return f"{value:.1f} {unit}" if value >= 10 else f"{value:.2f} {unit}"
+        value /= _UNIT_STEP
+        if value < _UNIT_STEP or unit == _UNITS[-1]:
+            return (
+                f"{value:.1f} {unit}"
+                if value >= _TWO_DECIMALS_BELOW
+                else f"{value:.2f} {unit}"
+            )
     return f"{value:.1f} {_UNITS[-1]}"
 
 
@@ -74,7 +82,11 @@ def _size_columns(table: Table) -> None:
 
 
 def _size_cells(
-    total: int, on_disk: int, archive: int, derived: int, cache: int = 0
+    total: int,
+    on_disk: int,
+    archive: int,
+    derived: int,
+    cache: int = 0,
 ) -> tuple[str, str, str, str, str, str]:
     browsable = total - archive - derived - cache
     return (
@@ -88,7 +100,11 @@ def _size_cells(
 
 
 def _bold_size_cells(
-    total: int, on_disk: int, archive: int, derived: int, cache: int = 0
+    total: int,
+    on_disk: int,
+    archive: int,
+    derived: int,
+    cache: int = 0,
 ) -> tuple[str, str, str, str, str, str]:
     browsable = total - archive - derived - cache
     return (
@@ -117,7 +133,10 @@ _LEGEND_ENTRIES = (
     ),
     (
         "Browsable",
-        "Best-version files in {name}-img/ and {name}-vid/ (typically links to archive)",
+        (
+            "Best-version files in {name}-img/ and "
+            "{name}-vid/ (typically links to archive)"
+        ),
     ),
     ("Derived", "JPEG conversions in {name}-jpg/"),
     ("Cache", "Derived data in .photree/cache/ (EXIF timestamps, face detection)"),
@@ -133,7 +152,7 @@ LEGEND = Text.from_markup(
             *(
                 indent(
                     f"[bold]{term}[/bold]"
-                    f"{' ' * (_LEGEND_TERM_WIDTH - len(term))}{description}"
+                    f"{' ' * (_LEGEND_TERM_WIDTH - len(term))}{description}",
                 )
                 for term, description in _LEGEND_ENTRIES
             ),
@@ -141,10 +160,10 @@ LEGEND = Text.from_markup(
             indent(
                 "[bold]Year[/bold]"
                 f"{' ' * (_LEGEND_TERM_WIDTH - len('Year'))}"
-                "Albums with date ranges are attributed to the start year"
+                "Albums with date ranges are attributed to the start year",
             ),
-        ]
-    )
+        ],
+    ),
 )
 
 
@@ -191,7 +210,9 @@ def _overview_counts(
 
 
 def _overview_sizes(
-    agg: AggregateStats, *, cache_storage: SizeStats | None
+    agg: AggregateStats,
+    *,
+    cache_storage: SizeStats | None,
 ) -> list[tuple[str, str]]:
     """Key/value rows describing storage use."""
     cb = _cache_bytes(cache_storage)
@@ -213,7 +234,7 @@ def _overview_sizes(
         (
             "On-disk size",
             sized(
-                _format_bytes(agg.total.on_disk_bytes + _cache_on_disk(cache_storage))
+                _format_bytes(agg.total.on_disk_bytes + _cache_on_disk(cache_storage)),
             ),
         ),
         ("Apparent size", sized(_format_bytes(agg.total.apparent_bytes + cb))),
@@ -297,7 +318,9 @@ def _add_size_rows(table: Table, rows: list[tuple[str, _Row]]) -> None:
 
 
 def _media_type_table(
-    agg: AggregateStats, *, cache_storage: SizeStats | None = None
+    agg: AggregateStats,
+    *,
+    cache_storage: SizeStats | None = None,
 ) -> Table:
     """Breakdown by media type (images / videos / sidecars)."""
     table = Table(title="By Media Type", box=_TABLE_BOX)
@@ -376,7 +399,9 @@ def _per_media_source_table(
 
 
 def _format_table(
-    agg: AggregateStats, *, cache_storage: SizeStats | None = None
+    agg: AggregateStats,
+    *,
+    cache_storage: SizeStats | None = None,
 ) -> Table:
     """Breakdown by file extension, sorted by size descending."""
     table = Table(title="By Format", box=_TABLE_BOX)
@@ -507,19 +532,23 @@ def _add_year_total_row(table: Table, rows: list[_YearRow]) -> None:
 
 
 def format_album_stats(stats: AlbumStats) -> Group:
+    """Render one album's stats as Rich tables followed by the legend."""
     return with_legend(
         _format_aggregate_tables(
             stats.aggregate,
             media_sources=stats.by_media_source,
             cache_storage=stats.cache_storage,
-        )
+        ),
     )
 
 
 def albums_stats_renderables(
-    stats: AlbumsStats, *, cache_storage: SizeStats | None = None
+    stats: AlbumsStats,
+    *,
+    cache_storage: SizeStats | None = None,
 ) -> Sequence[RenderableType]:
-    """Everything in an albums-stats report except the trailing legend.
+    """
+    Everything in an albums-stats report except the trailing legend.
 
     Exposed so the gallery report can insert its collection section between
     the year table and the legend without duplicating the tables above it.
@@ -540,8 +569,10 @@ def albums_stats_renderables(
 
 
 def with_legend(renderables: Sequence[RenderableType]) -> Group:
+    """Group *renderables* with the legend appended after a blank line."""
     return Group(*renderables, Text(""), LEGEND)
 
 
 def format_albums_stats(stats: AlbumsStats) -> Group:
+    """Render the stats of a set of albums as Rich tables followed by the legend."""
     return with_legend(albums_stats_renderables(stats))

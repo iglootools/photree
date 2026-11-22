@@ -1,29 +1,28 @@
+"""The ``photree gallery import-all`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
-from ...clihelpers.console import err_console
-from ...clihelpers.options import REIMPORT_OPTION
-from ...clihelpers.resolution import resolve_gallery_or_exit
-from ...clihelpers.runtime import runtime_of
-from ...clihelpers.sysdeps import import_deps, require_system_deps
-from ...clihelpers.usage import usage_error
-from ...common.formatting import format_dry_run, indent, markup_escape
-from ...common.fs import display_path
-from ...common.sysdeps import WhichFn
-from ...foundation.gallery_metadata import (
+from photree.clihelpers.console import err_console
+from photree.clihelpers.options import REIMPORT_OPTION
+from photree.clihelpers.resolution import resolve_gallery_or_exit
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.sysdeps import import_deps, require_system_deps
+from photree.clihelpers.usage import mutually_exclusive_error
+from photree.common.formatting import format_dry_run, indent, markup_escape
+from photree.common.fs import display_path
+from photree.common.sysdeps import WhichFn
+from photree.foundation.gallery_metadata import (
     GALLERY_YAML,
     load_gallery_metadata,
     resolve_link_mode,
 )
-from ...foundation.layout import PHOTREE_DIR
-from ...foundation.linking import LinkMode
-from ..cmd_handler.importer import BatchImportResult
-from ..import_plan import AlbumPlan
-from ..output import format_import_all_summary, import_all_failed
-from . import app
-from .ops import (
+from photree.foundation.layout import PHOTREE_DIR
+from photree.foundation.linking import LinkMode
+from photree.gallery.cli.app import app
+from photree.gallery.cli.ops import (
     build_index_or_exit,
     plan_imports_or_exit,
     render_skipped,
@@ -32,6 +31,9 @@ from .ops import (
     run_batch_post_import_check,
     run_face_clustering,
 )
+from photree.gallery.cmd_handler.importer import BatchImportResult
+from photree.gallery.import_plan import AlbumPlan
+from photree.gallery.output import format_import_all_summary, import_all_failed
 
 
 @app.command("import-all")
@@ -64,7 +66,10 @@ def import_all_cmd(
         typer.Option(
             "--gallery-dir",
             "-g",
-            help="Gallery root directory (or resolved from cwd via .photree/gallery.yaml).",
+            help=(
+                "Gallery root directory (or resolved from cwd "
+                "via .photree/gallery.yaml)."
+            ),
             exists=True,
             file_okay=False,
             resolve_path=True,
@@ -77,6 +82,7 @@ def import_all_cmd(
             help="How to create main files: hardlink (default), symlink, or copy.",
         ),
     ] = None,
+    *,
     dry_run: Annotated[
         bool,
         typer.Option(
@@ -87,7 +93,8 @@ def import_all_cmd(
     ] = False,
     reimport: REIMPORT_OPTION = False,
 ) -> None:
-    """Batch import album directories into the gallery.
+    """
+    Batch import album directories into the gallery.
 
     Either scan --dir for immediate subdirectories, or provide explicit
     album directories via --album-dir (repeatable). Copies each album to
@@ -99,7 +106,7 @@ def import_all_cmd(
     cwd = runtime.cwd()
     which = runtime.which
     if base_dir is not None and album_dirs is not None:
-        raise usage_error("--dir and --album-dir are mutually exclusive.")
+        raise mutually_exclusive_error(("--dir", "--album-dir"))
 
     require_system_deps(import_deps(), which=which)
 
@@ -109,7 +116,11 @@ def import_all_cmd(
     albums = _resolve_albums_or_exit(base_dir, album_dirs, cwd)
     index = build_index_or_exit(resolved_gallery, cwd)
     import_plan = plan_imports_or_exit(
-        albums, index, resolved_gallery, cwd, reimport=reimport
+        albums,
+        index,
+        resolved_gallery,
+        cwd,
+        reimport=reimport,
     )
     render_skipped(import_plan.skipped, cwd)
 
@@ -124,7 +135,7 @@ def import_all_cmd(
         to_import,
         resolved_gallery,
         resolved_lm,
-        dry_run,
+        dry_run=dry_run,
         max_workers=runtime.cpu_count(),
         which=which,
         cwd=cwd,
@@ -142,17 +153,22 @@ def import_all_cmd(
         format_dry_run(
             "\n"
             + format_import_all_summary(
-                result, check_failed, len(import_plan.skipped), dry_run=dry_run
+                result,
+                check_failed,
+                len(import_plan.skipped),
+                dry_run=dry_run,
             ),
             dry_run=dry_run,
-        )
+        ),
     )
     if import_all_failed(result, check_failed):
         raise typer.Exit(code=1)
 
 
 def _resolve_albums_or_exit(
-    base_dir: Path | None, album_dirs: list[Path] | None, cwd: Path
+    base_dir: Path | None,
+    album_dirs: list[Path] | None,
+    cwd: Path,
 ) -> list[Path]:
     """Resolve the source albums, reporting skipped non-album directories."""
     albums, non_albums = resolve_import_all_albums(base_dir, album_dirs, cwd=cwd)
@@ -163,8 +179,8 @@ def _resolve_albums_or_exit(
                     f"Skipped {len(non_albums)} non-album director(ies):",
                     *(indent(str(display_path(s, cwd))) for s in non_albums),
                     "",
-                ]
-            )
+                ],
+            ),
         )
     if not albums:
         typer.echo("No album directories found.")
@@ -198,13 +214,13 @@ def _post_import_check(
                         indent(
                             markup_escape(
                                 "'photree album check --album-dir "
-                                f'"{display_path(target_dir, cwd)}"\''
-                            )
+                                f'"{display_path(target_dir, cwd)}"\'',
+                            ),
                         )
                         for target_dir in check_failed
                     ),
-                ]
-            )
+                ],
+            ),
         )
     return check_failed
 

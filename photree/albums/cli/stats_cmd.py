@@ -1,9 +1,12 @@
+"""The ``photree albums stats`` command."""
+
 import typer
 
-from ...clihelpers.runtime import runtime_of
-from ..batchcli.resolution import resolve_check_batch_albums
-from ..batchcli.stats import run_batch_stats
-from . import ALBUM_DIR_OPTION, DIR_OPTION, app
+from photree.albums.batchcli.resolution import resolve_check_batch_albums
+from photree.albums.batchcli.stats import run_batch_stats
+from photree.albums.cli.app import app
+from photree.albums.cli.options import ALBUM_DIR_OPTION, DIR_OPTION
+from photree.clihelpers.runtime import runtime_of
 
 
 @app.command("stats")

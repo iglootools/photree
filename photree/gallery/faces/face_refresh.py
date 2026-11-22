@@ -9,12 +9,12 @@ from uuid import uuid7
 
 import numpy as np
 
-from ...album.faces.protocol import FACES_DIR
-from ...album.faces.store import load_face_data
-from ...album.store.album_discovery import discover_albums
-from ...album.store.metadata import load_album_metadata
-from ...foundation.layout import ALBUMS_DIR, PHOTREE_DIR
-from .clustering import (
+from photree.album.faces.protocol import FACES_DIR
+from photree.album.faces.store import load_face_data
+from photree.album.store.album_discovery import discover_albums
+from photree.album.store.metadata import load_album_metadata
+from photree.foundation.layout import ALBUMS_DIR, PHOTREE_DIR
+from photree.gallery.faces.clustering import (
     add_to_index,
     assign_to_nearest_cluster,
     build_faiss_index,
@@ -23,7 +23,7 @@ from .clustering import (
     match_clusters_by_medoid,
     save_faiss_index,
 )
-from .manifest import (
+from photree.gallery.faces.manifest import (
     compute_npz_checksum,
     faiss_index_path,
     load_checksums,
@@ -33,7 +33,7 @@ from .manifest import (
     save_clusters,
     save_manifest,
 )
-from .protocol import (
+from photree.gallery.faces.protocol import (
     DEFAULT_CLUSTER_THRESHOLD,
     AlbumFaceChecksums,
     FaceCluster,
@@ -75,10 +75,12 @@ class FaceRefreshMode(StrEnum):
 
 @dataclass(frozen=True)
 class GalleryFaceRefreshResult:
-    """Result of a gallery face clustering refresh.
+    """
+    Result of a gallery face clustering refresh.
 
-    Failures raise (e.g. :class:`~photree.foundation.metadata_io.InvalidMetadataError` for
-    a corrupt ``clusters.yaml``) instead of being folded into the result: a
+    Failures raise (e.g.
+    :class:`~photree.foundation.metadata_io.InvalidMetadataError` for a corrupt
+    ``clusters.yaml``) instead of being folded into the result: a
     refresh that cannot read its previous state must not save a new one.
     """
 
@@ -113,7 +115,7 @@ class _ChangeSet:
     @property
     def has_changes(self) -> bool:
         return bool(
-            self.new_sources or self.modified_sources or self.removed_album_sources
+            self.new_sources or self.modified_sources or self.removed_album_sources,
         )
 
 
@@ -156,7 +158,8 @@ def refresh_face_clusters(
     on_stage_end: Callable[[str], None] | None = None,
     new_id: Callable[[], str] = _new_cluster_id,
 ) -> GalleryFaceRefreshResult:
-    """Refresh face clustering for the entire gallery.
+    """
+    Refresh face clustering for the entire gallery.
 
     *distance_threshold* ``None`` means the default; ``0.0`` is a valid
     (strictest) threshold, not a missing one.
@@ -200,18 +203,23 @@ def _extendable_index(
     *,
     force_full: bool,
 ) -> faiss.IndexFlatIP | None:
-    """The saved index when new faces can be added to it, else ``None`` (full).
+    """
+    Return the saved index when new faces can be added to it, else ``None`` (full).
 
     A missing index cannot be extended, so it forces a full re-cluster too.
     """
     needs_full = _needs_full_recluster(
-        changes, existing, force_full=force_full, threshold=run.threshold
+        changes,
+        existing,
+        force_full=force_full,
+        threshold=run.threshold,
     )
     return None if needs_full else load_faiss_index(faiss_index_path(run.gallery_dir))
 
 
 def _is_stale_empty(changes: _ChangeSet, existing: FaceClusteringResult | None) -> bool:
-    """Clusters are empty although album face data exists.
+    """
+    Clusters are empty although album face data exists.
 
     Handles a previous run that saved checksums before the ``.npz`` files
     were populated: nothing looks changed, yet nothing was ever clustered.
@@ -263,7 +271,8 @@ def _run_full_cluster(
     labels = cluster_embeddings(embeddings, distance_threshold=run.threshold)
     old_uuid_map = _recover_old_uuid_map(run, existing, embeddings, labels)
     clusters = _build_cluster_list(
-        labels, _assign_cluster_uuids(labels, old_uuid_map, run.new_id)
+        labels,
+        _assign_cluster_uuids(labels, old_uuid_map, run.new_id),
     )
     run.end(STAGE_CLUSTER)
 
@@ -306,7 +315,8 @@ def _run_incremental(
     all_labels = _assign_new_faces(run, index, existing_labels, new_embeddings)
     old_uuids = _extract_existing_label_uuids(existing, all_labels)
     clusters = _build_cluster_list(
-        all_labels, _assign_cluster_uuids(all_labels, old_uuids, run.new_id)
+        all_labels,
+        _assign_cluster_uuids(all_labels, old_uuids, run.new_id),
     )
     run.end(STAGE_CLUSTER)
 
@@ -492,9 +502,11 @@ def _extract_existing_label_uuids(
 
 
 def _labels_from_clusters(
-    result: FaceClusteringResult, manifest: FaceManifest
+    result: FaceClusteringResult,
+    manifest: FaceManifest,
 ) -> np.ndarray:
-    """Reconstruct per-face labels from cluster assignments.
+    """
+    Reconstruct per-face labels from cluster assignments.
 
     Numpy array mutation is inherent here — cannot be expressed as a
     single comprehension.
@@ -529,7 +541,8 @@ def _assign_cluster_uuids(
 
 
 def _build_cluster_list(
-    labels: np.ndarray, cluster_map: dict[int, str]
+    labels: np.ndarray,
+    cluster_map: dict[int, str],
 ) -> list[FaceCluster]:
     """Build the list of :class:`FaceCluster` from labels and UUID assignments."""
     return [
@@ -578,7 +591,7 @@ def _build_checksums(sources: tuple[_AlbumFaceSource, ...]) -> AlbumFaceChecksum
                 if src.album_id == album_id
             }
             for album_id in dict.fromkeys(src.album_id for src in sources)
-        }
+        },
     )
 
 

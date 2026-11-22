@@ -1,4 +1,5 @@
-"""Foundation layer — the small set of types every other package builds on.
+"""
+Foundation layer — the small set of types every other package builds on.
 
 Depends only on ``common``, ``dates`` and third-party libraries, never on a
 domain package, so album, collection, gallery, config and the CLI helpers can

@@ -1,9 +1,11 @@
+"""The ``photree check system`` command."""
+
 import typer
 
-from ...clihelpers.runtime import runtime_of
-from ...clihelpers.sysdeps import require_system_deps
-from ...common.sysdeps import SystemDependency
-from . import app
+from photree.check.cli.app import app
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.sysdeps import require_system_deps
+from photree.common.sysdeps import SystemDependency
 
 
 @app.command("system")

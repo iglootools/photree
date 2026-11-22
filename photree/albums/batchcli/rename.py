@@ -5,17 +5,17 @@ from pathlib import Path
 
 import typer
 
-from ...clihelpers.console import err_console
-from ...common.formatting import format_dry_run, indent
-from ...common.fs import display_path
-from ..cmd_handler.rename import BatchRenameResult, batch_rename_from_csv
-from ..renamer import (
+from photree.albums.cmd_handler.rename import BatchRenameResult, batch_rename_from_csv
+from photree.albums.renamer import (
     RenameCollisionError,
     RenameFailure,
     RenamePhase,
     RenamePlanError,
     RenamePlanErrorKind,
 )
+from photree.clihelpers.console import err_console
+from photree.common.formatting import format_dry_run, indent
+from photree.common.fs import display_path
 
 
 def format_rename_plan_error(error: RenamePlanError) -> str:
@@ -61,7 +61,7 @@ def _print_plan(result: BatchRenameResult, cwd: Path) -> None:
     typer.echo(f"{result.row_count} row(s) in CSV, {len(result.actions)} change(s).\n")
     for action in result.actions:
         typer.echo(
-            indent(f"{display_path(action.album_path, cwd)}\n→ {action.new_name}")
+            indent(f"{display_path(action.album_path, cwd)}\n→ {action.new_name}"),
         )
         typer.echo()
 
@@ -86,7 +86,8 @@ def run_batch_rename_from_csv(
             markup=False,
         )
         err_console.print(
-            f"Fix the rows in {display_path(csv_file, cwd)} and re-run.", markup=False
+            f"Fix the rows in {display_path(csv_file, cwd)} and re-run.",
+            markup=False,
         )
         raise typer.Exit(code=1)
 
@@ -94,7 +95,7 @@ def run_batch_rename_from_csv(
         typer.echo(
             "CSV is empty. Nothing to rename."
             if result.row_count == 0
-            else f"{result.row_count} row(s) in CSV. Nothing to rename."
+            else f"{result.row_count} row(s) in CSV. Nothing to rename.",
         )
         raise typer.Exit(code=0)
 
@@ -106,8 +107,9 @@ def run_batch_rename_from_csv(
     if dry_run:
         typer.echo(
             format_dry_run(
-                f"{len(result.actions)} album(s) would be renamed.", dry_run=True
-            )
+                f"{len(result.actions)} album(s) would be renamed.",
+                dry_run=True,
+            ),
         )
     else:
         typer.echo(f"Renamed {result.renamed} album(s).")

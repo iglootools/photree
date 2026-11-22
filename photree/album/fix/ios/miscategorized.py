@@ -1,32 +1,38 @@
+"""The fix for iOS files in the wrong archive directory (orig vs edit)."""
+
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ....common.fs import delete_files, list_files, move_files
-from ...store.file_matching import ios_file_prefix
-from ...store.media_source import MediaSource
-from ..helpers import require_ios
+from photree.album.fix.helpers import require_ios
+from photree.album.store.file_matching import ios_file_prefix
+from photree.album.store.media_source import MediaSource
+from photree.common.fs import delete_files, list_files, move_files
 
 
 class MiscategorizedAction(StrEnum):
+    """What to do with a file found in the wrong archive directory."""
+
     RM = "rm"  # delete it
     RM_SAFE = "rm-safe"  # delete it only if it already exists in the right dir
     MV = "mv"  # move it to the right dir
 
 
 class MiscategorizedMoveConflictError(FileExistsError):
-    """Moving miscategorized files would overwrite files in the target dir.
+    """
+    Moving miscategorized files would overwrite files in the target dir.
 
     Raised before anything is moved. ``conflicts`` are filenames present in
     both directories; ``--rm-miscategorized-safe`` removes such duplicates.
     """
 
     def __init__(self, target_dir: str, conflicts: tuple[str, ...]) -> None:
+        """Build the error from the target directory's name and the clashing files."""
         self.target_dir = target_dir
         self.conflicts = conflicts
         super().__init__(
             f"Moving into {target_dir} would overwrite {len(conflicts)} "
-            f"existing file(s): {', '.join(conflicts)}"
+            f"existing file(s): {', '.join(conflicts)}",
         )
 
 
@@ -34,7 +40,9 @@ def _find_miscategorized(
     orig_dir: Path,
     edit_dir: Path,
 ) -> tuple[list[str], list[str]]:
-    """Returns (edited_in_orig, orig_in_edit) -- files that are in the wrong dir.
+    """
+    Return ``(edited_in_orig, orig_in_edit)``: the files that are in the wrong dir.
+
     Edited files are those with IMG_E or IMG_O prefix.
     Original files are those without E/O prefix.
     """
@@ -49,17 +57,27 @@ def _find_miscategorized(
 
 @dataclass(frozen=True)
 class MiscategorizedDirResult:
+    """
+    The files fixed in one orig/edit directory pair.
+
+    *fixed_from_orig* holds the edited files found in the orig directory,
+    *fixed_from_rendered* the original files found in the edit directory.
+    """
+
     fixed_from_orig: tuple[str, ...]
     fixed_from_rendered: tuple[str, ...]
 
 
 @dataclass(frozen=True)
 class MiscategorizedResult:
+    """The miscategorized files fixed in a media source, for images and videos."""
+
     heic: MiscategorizedDirResult
     mov: MiscategorizedDirResult
 
     @property
     def total(self) -> int:
+        """Return the number of files fixed across both pairs."""
         return (
             len(self.heic.fixed_from_orig)
             + len(self.heic.fixed_from_rendered)
@@ -120,8 +138,11 @@ def fix_miscategorized(
     action: MiscategorizedAction,
     dry_run: bool = False,
 ) -> MiscategorizedResult:
-    """Raises :class:`~..helpers.NotAnIosMediaSourceError` for std sources, and
-    :class:`MiscategorizedMoveConflictError` when a move would overwrite.
+    """
+    Move files that sit in the wrong archive directory.
+
+    Raises :class:`~photree.album.fix.helpers.NotAnIosMediaSourceError` for std
+    sources, and :class:`MiscategorizedMoveConflictError` when a move would overwrite.
     """
     require_ios(ms)
     return MiscategorizedResult(
@@ -148,7 +169,10 @@ def rm_miscategorized(
 ) -> MiscategorizedResult:
     """Delete files that are in the wrong directory (edited in orig or vice versa)."""
     return fix_miscategorized(
-        album_dir, ms, action=MiscategorizedAction.RM, dry_run=dry_run
+        album_dir,
+        ms,
+        action=MiscategorizedAction.RM,
+        dry_run=dry_run,
     )
 
 
@@ -158,9 +182,12 @@ def rm_miscategorized_safe(
     *,
     dry_run: bool = False,
 ) -> MiscategorizedResult:
-    """Delete miscategorized files only if they already exist in the correct directory."""
+    """Delete miscategorized files only where the correct directory has them already."""
     return fix_miscategorized(
-        album_dir, ms, action=MiscategorizedAction.RM_SAFE, dry_run=dry_run
+        album_dir,
+        ms,
+        action=MiscategorizedAction.RM_SAFE,
+        dry_run=dry_run,
     )
 
 
@@ -170,6 +197,16 @@ def mv_miscategorized(
     *,
     dry_run: bool = False,
 ) -> MiscategorizedResult:
+    """
+    Move files that sit in the wrong archive directory to the right one.
+
+    Raises :class:`~photree.album.fix.helpers.NotAnIosMediaSourceError` for
+    std sources, and :class:`MiscategorizedMoveConflictError`, before moving
+    anything, when a move would overwrite a file.
+    """
     return fix_miscategorized(
-        album_dir, ms, action=MiscategorizedAction.MV, dry_run=dry_run
+        album_dir,
+        ms,
+        action=MiscategorizedAction.MV,
+        dry_run=dry_run,
     )

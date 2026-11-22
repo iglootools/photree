@@ -59,13 +59,15 @@ class TestCheckSystemDependencies:
 class TestMissingDependencies:
     def test_only_absent_ones(self) -> None:
         statuses = check_system_dependencies(
-            tuple(SystemDependency), which=_which(SystemDependency.SIPS)
+            tuple(SystemDependency),
+            which=_which(SystemDependency.SIPS),
         )
         assert missing_dependencies(statuses) == (SystemDependency.EXIFTOOL,)
 
     def test_none_missing(self) -> None:
         statuses = check_system_dependencies(
-            tuple(SystemDependency), which=_which(*SystemDependency)
+            tuple(SystemDependency),
+            which=_which(*SystemDependency),
         )
         assert missing_dependencies(statuses) == ()
 
@@ -84,7 +86,8 @@ class TestRequire:
 class TestMetadata:
     @pytest.mark.parametrize("dependency", list(SystemDependency))
     def test_every_dependency_documents_itself(
-        self, dependency: SystemDependency
+        self,
+        dependency: SystemDependency,
     ) -> None:
         assert purpose(dependency)
         assert install_hint(dependency)

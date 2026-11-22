@@ -1,4 +1,5 @@
-"""Shared UI constants and formatting helpers.
+"""
+Shared UI constants and formatting helpers.
 
 All constants use Rich markup and must be printed via ``console.print``.
 """
@@ -20,7 +21,8 @@ DRY_RUN_LABEL = "[dry-run]"
 
 
 def markup_escape(value: object) -> str:
-    """Escape *value* for interpolation into a Rich markup string.
+    """
+    Escape *value* for interpolation into a Rich markup string.
 
     Rich parses ``[...]`` as markup tags and silently drops the ones it does
     not recognize, so an album named ``2024-07-14 - Hiking [private]`` would
@@ -33,7 +35,8 @@ def markup_escape(value: object) -> str:
 
 
 def indent(text: str, level: int = 1) -> str:
-    """Prefix every non-empty line of *text* with *level* indentation units.
+    """
+    Prefix every non-empty line of *text* with *level* indentation units.
 
     Formatting helpers return unindented lines; the call site decides how deep
     they nest, so the same helper renders correctly at any level.
@@ -42,7 +45,8 @@ def indent(text: str, level: int = 1) -> str:
 
 
 def format_dry_run(text: str, *, dry_run: bool, markup: bool = False) -> str:
-    """Start *text* with ``DRY_RUN_LABEL`` when *dry_run*, after any leading newlines.
+    """
+    Start *text* with ``DRY_RUN_LABEL`` when *dry_run*, after any leading newlines.
 
     A line describing an action takes the label; a block (a summary, a
     section, a batch tally) takes it once, on its header or summary line.
@@ -67,7 +71,8 @@ def format_check_line(
     summary: str = "",
     details: tuple[str, ...] = (),
 ) -> str:
-    """Format a check result as a single line with optional details.
+    """
+    Format a check result as a single line with optional details.
 
     Success: ``✓ label (summary)``
     Failure: ``✗ label (summary)`` followed by indented details.

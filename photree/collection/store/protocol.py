@@ -1,8 +1,10 @@
+"""The schema of a collection's ``.photree/collection.yaml`` and its enums."""
+
 from enum import StrEnum
 
 from pydantic import Field
 
-from ...foundation.model import PhotreeModel
+from photree.foundation.model import PhotreeModel
 
 COLLECTION_YAML = "collection.yaml"
 
@@ -76,7 +78,8 @@ class CollectionMetadata(PhotreeModel):
     )
     albums: list[str] = Field(default_factory=list, description="Album internal UUIDs.")
     collections: list[str] = Field(
-        default_factory=list, description="Collection internal UUIDs."
+        default_factory=list,
+        description="Collection internal UUIDs.",
     )
     images: list[str] = Field(default_factory=list, description="Image internal UUIDs.")
     videos: list[str] = Field(default_factory=list, description="Video internal UUIDs.")

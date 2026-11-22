@@ -10,13 +10,15 @@ class TestParseCollectionName:
     def test_date_and_title(self) -> None:
         parsed = parse_collection_name("2024-07-14 - Hiking the Rockies")
         assert parsed == ParsedCollectionName(
-            date="2024-07-14", title="Hiking the Rockies"
+            date="2024-07-14",
+            title="Hiking the Rockies",
         )
 
     def test_date_range_and_title(self) -> None:
         parsed = parse_collection_name("2024-07--2024-08 - Summer Road Trip")
         assert parsed == ParsedCollectionName(
-            date="2024-07--2024-08", title="Summer Road Trip"
+            date="2024-07--2024-08",
+            title="Summer Road Trip",
         )
 
     def test_year_only_and_title(self) -> None:
@@ -38,30 +40,38 @@ class TestParseCollectionName:
     def test_with_location(self) -> None:
         parsed = parse_collection_name("2024-07 - Summer Trip @ Banff NP, AB, CA")
         assert parsed == ParsedCollectionName(
-            date="2024-07", title="Summer Trip", location="Banff NP, AB, CA"
+            date="2024-07",
+            title="Summer Trip",
+            location="Banff NP, AB, CA",
         )
 
     def test_dateless_with_location(self) -> None:
         parsed = parse_collection_name("Road Trips @ Western Canada")
         assert parsed == ParsedCollectionName(
-            date=None, title="Road Trips", location="Western Canada"
+            date=None,
+            title="Road Trips",
+            location="Western Canada",
         )
 
     def test_with_private_tag(self) -> None:
         parsed = parse_collection_name("2024-07 - Summer Trip [private]")
         assert parsed == ParsedCollectionName(
-            date="2024-07", title="Summer Trip", private=True
+            date="2024-07",
+            title="Summer Trip",
+            private=True,
         )
 
     def test_dateless_with_private_tag(self) -> None:
         parsed = parse_collection_name("Secret Stuff [private]")
         assert parsed == ParsedCollectionName(
-            date=None, title="Secret Stuff", private=True
+            date=None,
+            title="Secret Stuff",
+            private=True,
         )
 
     def test_location_and_private(self) -> None:
         parsed = parse_collection_name(
-            "2024-07 - Summer Trip @ Banff NP, AB, CA [private]"
+            "2024-07 - Summer Trip @ Banff NP, AB, CA [private]",
         )
         assert parsed == ParsedCollectionName(
             date="2024-07",
@@ -94,7 +104,10 @@ class TestReconstructCollectionName:
 
     def test_location_and_private(self) -> None:
         parsed = ParsedCollectionName(
-            date="2024-07", title="Trip", location="Banff", private=True
+            date="2024-07",
+            title="Trip",
+            location="Banff",
+            private=True,
         )
         assert reconstruct_collection_name(parsed) == "2024-07 - Trip @ Banff [private]"
 

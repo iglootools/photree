@@ -1,22 +1,24 @@
+"""The ``photree album refresh`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
-from ...clihelpers.console import console, err_console
-from ...clihelpers.options import DRY_RUN_OPTION
-from ...clihelpers.progress import run_with_spinner
-from ...clihelpers.runtime import runtime_of
-from ...clihelpers.sysdeps import refresh_deps, require_system_deps
-from ...common.exif import exiftool_session
-from ...common.formatting import CHECK, format_dry_run
-from ...common.fs import display_path
-from ...foundation.gallery_metadata import resolve_link_mode
-from ..check.output import derived_failures_report
-from ..faces.detect import memoized_face_analyzer_factory
-from ..refresh import AlbumRefreshResult, refresh_album_derived_data
-from . import app
-from .media_source_conflict import exit_on_media_source_conflict
+from photree.album.check.output import derived_failures_report
+from photree.album.cli.app import app
+from photree.album.cli.media_source_conflict import exit_on_media_source_conflict
+from photree.album.faces.detect import memoized_face_analyzer_factory
+from photree.album.refresh import AlbumRefreshResult, refresh_album_derived_data
+from photree.clihelpers.console import console, err_console
+from photree.clihelpers.options import DRY_RUN_OPTION
+from photree.clihelpers.progress import run_with_spinner
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.sysdeps import refresh_deps, require_system_deps
+from photree.common.exif import exiftool_session
+from photree.common.formatting import CHECK, format_dry_run
+from photree.common.fs import display_path
+from photree.foundation.gallery_metadata import resolve_link_mode
 
 
 @app.command("refresh")
@@ -32,7 +34,8 @@ def refresh_cmd(
             file_okay=False,
             resolve_path=True,
         ),
-    ] = Path("."),
+    ] = Path(),
+    *,
     dry_run: DRY_RUN_OPTION = False,
     refresh_browsable: Annotated[
         bool,
@@ -70,7 +73,7 @@ def refresh_cmd(
         ),
     ] = False,
 ) -> None:
-    """Refresh all derived album data (browsable, JPEG, media IDs, EXIF cache, faces)."""
+    """Refresh derived album data (browsable, JPEG, media IDs, EXIF cache, faces)."""
     runtime = runtime_of(ctx)
     cwd = runtime.cwd()
     which = runtime.which
@@ -103,7 +106,7 @@ def refresh_cmd(
             f"{CHECK} album refresh {'planned' if dry_run else 'complete'}",
             dry_run=dry_run,
             markup=True,
-        )
+        ),
     )
 
 
@@ -111,6 +114,8 @@ def _report_failures(result: AlbumRefreshResult, *, album_dir: Path) -> None:
     """Print every JPEG and face-detection failure, each with its retry command."""
     err_console.print(
         derived_failures_report(
-            result.jpeg_failures, result.face_failures, str(album_dir)
-        )
+            result.jpeg_failures,
+            result.face_failures,
+            str(album_dir),
+        ),
     )

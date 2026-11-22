@@ -2,12 +2,12 @@
 
 from pathlib import Path
 
-from ....common.sysdeps import SystemDependency, SystemDependencyStatus
-from ..preflight import (
+from photree.album.importer.preflight import (
     ImageCaptureDirCheck,
     ImportPreflightResult,
     SelectionStatus,
 )
+from photree.common.sysdeps import SystemDependency, SystemDependencyStatus
 
 
 def _deps(*, available: bool) -> tuple[SystemDependencyStatus, ...]:

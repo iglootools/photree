@@ -115,7 +115,7 @@ class TestRmUpstreamStd:
 
         result = rm_upstream(tmp_path, STD)
 
-        assert "beach.png" in [f for f in result.heic.removed_orig]
+        assert "beach.png" in result.heic.removed_orig
         assert "sunset.heic" in _names(tmp_path / "std-nelu/orig-img")
         assert "beach.png" not in _names(tmp_path / "std-nelu/orig-img")
 

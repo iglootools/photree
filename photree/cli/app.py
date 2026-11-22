@@ -1,21 +1,23 @@
+"""The root ``photree`` command group, with every command group added."""
+
 import importlib.metadata
 from typing import Annotated
 
 import typer
 
-from ..album import cli as album
-from ..albums import cli as albums
-from ..check import cli as check
-from ..collection import cli as collection
-from ..collections import cli as collections
-from ..demo.cli import cmd as demo
-from ..gallery import cli as gallery
+from photree.album import cli as album
+from photree.albums import cli as albums
+from photree.check import cli as check
+from photree.collection import cli as collection
+from photree.collections import cli as collections
+from photree.demo.cli import cmd as demo
+from photree.gallery import cli as gallery
 
 
-def _version_callback(value: bool) -> None:
+def _version_callback(*, value: bool) -> None:
     if value:
         typer.echo(importlib.metadata.version("photree"))
-        raise typer.Exit()
+        raise typer.Exit
 
 
 app = typer.Typer(
@@ -38,7 +40,7 @@ def main_callback(
         ),
     ] = None,
 ) -> None:
-    pass
+    """Manage photos in a directory tree."""
 
 
 app.add_typer(album.app)

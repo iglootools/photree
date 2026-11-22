@@ -1,4 +1,5 @@
-"""Face pipeline failure records — pure data, no ML dependencies.
+"""
+Face pipeline failure records — pure data, no ML dependencies.
 
 Kept apart from :mod:`.refresh` so the check/import/refresh output layers can
 report failures without importing the face-detection stack at CLI startup.
@@ -9,6 +10,8 @@ from enum import StrEnum
 
 
 class FaceFailureStage(StrEnum):
+    """The step of the face pipeline at which an image failed."""
+
     THUMBNAIL = "thumbnail"
     DETECTION = "detection"
 

@@ -1,22 +1,24 @@
+"""The ``photree gallery cluster-faces`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
-from ...albums.batchcli.refresh import run_batch_refresh
-from ...albums.batchcli.resolution import resolve_check_batch_albums
-from ...clihelpers.options import DRY_RUN_OPTION
-from ...clihelpers.resolution import resolve_gallery_or_exit
-from ...clihelpers.runtime import runtime_of
-from ...clihelpers.sysdeps import (
+from photree.albums.batchcli.refresh import run_batch_refresh
+from photree.albums.batchcli.resolution import resolve_check_batch_albums
+from photree.clihelpers.options import DRY_RUN_OPTION
+from photree.clihelpers.resolution import resolve_gallery_or_exit
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.sysdeps import (
     FACE_DETECTION_DEPS,
     refresh_deps,
     require_system_deps,
 )
-from ...foundation.gallery_metadata import GALLERY_YAML, load_gallery_metadata
-from ...foundation.layout import PHOTREE_DIR
-from . import app
-from .ops import require_valid_threshold, run_face_clustering
+from photree.foundation.gallery_metadata import GALLERY_YAML, load_gallery_metadata
+from photree.foundation.layout import PHOTREE_DIR
+from photree.gallery.cli.app import app
+from photree.gallery.cli.ops import require_valid_threshold, run_face_clustering
 
 
 @app.command("cluster-faces")
@@ -27,12 +29,16 @@ def cluster_faces_cmd(
         typer.Option(
             "--gallery-dir",
             "-g",
-            help="Gallery root directory (or resolved from cwd via .photree/gallery.yaml).",
+            help=(
+                "Gallery root directory (or resolved from cwd "
+                "via .photree/gallery.yaml)."
+            ),
             exists=True,
             file_okay=False,
             resolve_path=True,
         ),
     ] = None,
+    *,
     dry_run: DRY_RUN_OPTION = False,
     redetect: Annotated[
         bool,
@@ -52,7 +58,10 @@ def cluster_faces_cmd(
         float | None,
         typer.Option(
             "--threshold",
-            help="Cosine distance threshold for clustering (0.0-1.0). Overrides gallery.yaml.",
+            help=(
+                "Cosine distance threshold for clustering "
+                "(0.0-1.0). Overrides gallery.yaml."
+            ),
         ),
     ] = None,
 ) -> None:

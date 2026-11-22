@@ -4,15 +4,19 @@ from pathlib import Path
 
 import typer
 
-from ...album.fix.ios.output import batch_fix_ios_summary
-from ...album.fix.output import batch_fix_summary
-from ...clihelpers.console import console
-from ...clihelpers.progress import BatchProgressBar
-from ...common.formatting import format_dry_run
-from ..cmd_handler.fix import batch_fix
-from ..cmd_handler.fix_ios import batch_fix_ios
-from .failures import album_reports_block, exit_if_no_albums, exit_with_failures
-from .resolution import make_display_fn
+from photree.album.fix.ios.output import batch_fix_ios_summary
+from photree.album.fix.output import batch_fix_summary
+from photree.albums.batchcli.failures import (
+    album_reports_block,
+    exit_if_no_albums,
+    exit_with_failures,
+)
+from photree.albums.batchcli.resolution import make_display_fn
+from photree.albums.cmd_handler.fix import batch_fix
+from photree.albums.cmd_handler.fix_ios import batch_fix_ios
+from photree.clihelpers.console import console
+from photree.clihelpers.progress import BatchProgressBar
+from photree.common.formatting import format_dry_run
 
 
 def _print_reports(reports: tuple[tuple[str, str], ...]) -> None:
@@ -37,7 +41,9 @@ def run_batch_fix(
     exit_if_no_albums(albums, display_base)
 
     with BatchProgressBar(
-        total=len(albums), description="Fixing", done_description="fix"
+        total=len(albums),
+        description="Fixing",
+        done_description="fix",
     ) as progress:
         result = batch_fix(
             albums,
@@ -49,9 +55,7 @@ def run_batch_fix(
             force=force,
             display_fn=make_display_fn(display_base, cwd),
             on_start=progress.on_start,
-            on_end=lambda name, success, errors: progress.on_end(
-                name, success=success, error_labels=errors
-            ),
+            on_end=progress.on_end,
         )
 
     _print_reports(result.album_reports)
@@ -60,7 +64,7 @@ def run_batch_fix(
             batch_fix_summary(result.fixed, len(result.failures), dry_run=dry_run),
             dry_run=dry_run,
             markup=True,
-        )
+        ),
     )
     # The single-album retry must carry the same fixes, or it only prints
     # "No fix specified".
@@ -95,7 +99,9 @@ def run_batch_fix_ios(
     exit_if_no_albums(albums, display_base, noun="iOS album")
 
     with BatchProgressBar(
-        total=len(albums), description="Fixing", done_description="fix-ios"
+        total=len(albums),
+        description="Fixing",
+        done_description="fix-ios",
     ) as progress:
         result = batch_fix_ios(
             albums,
@@ -107,9 +113,7 @@ def run_batch_fix_ios(
             mv_miscategorized=mv_miscategorized,
             display_fn=make_display_fn(display_base, cwd),
             on_start=progress.on_start,
-            on_end=lambda name, success, errors: progress.on_end(
-                name, success=success, error_labels=errors
-            ),
+            on_end=progress.on_end,
         )
 
     _print_reports(result.album_reports)
@@ -118,6 +122,6 @@ def run_batch_fix_ios(
             batch_fix_ios_summary(result.fixed, len(result.failures), dry_run=dry_run),
             dry_run=dry_run,
             markup=True,
-        )
+        ),
     )
     exit_with_failures(result.failures, "fix-ios", cwd)

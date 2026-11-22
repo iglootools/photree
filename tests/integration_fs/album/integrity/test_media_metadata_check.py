@@ -39,7 +39,8 @@ class TestMediaMetadataCheckInSync:
         refresh_media_metadata(album)
 
         result = check_media_metadata(
-            album, media_sources=discover_media_sources(album)
+            album,
+            media_sources=discover_media_sources(album),
         )
 
         assert result.has_media_metadata
@@ -57,7 +58,8 @@ class TestMediaMetadataCheckMissing:
         _setup_ios_album(album)
 
         result = check_media_metadata(
-            album, media_sources=discover_media_sources(album)
+            album,
+            media_sources=discover_media_sources(album),
         )
 
         assert not result.has_media_metadata
@@ -73,7 +75,8 @@ class TestMediaMetadataCheckNewFiles:
         _write(album / "ios-main" / "orig-img" / "IMG_0412.HEIC")
 
         result = check_media_metadata(
-            album, media_sources=discover_media_sources(album)
+            album,
+            media_sources=discover_media_sources(album),
         )
 
         assert not result.in_sync
@@ -88,7 +91,8 @@ class TestMediaMetadataCheckNewFiles:
         _write(album / "ios-main" / "orig-vid" / "IMG_0200.MOV")
 
         result = check_media_metadata(
-            album, media_sources=discover_media_sources(album)
+            album,
+            media_sources=discover_media_sources(album),
         )
 
         assert not result.in_sync
@@ -105,7 +109,8 @@ class TestMediaMetadataCheckStaleFiles:
         (album / "ios-main" / "orig-img" / "IMG_0410.HEIC").unlink()
 
         result = check_media_metadata(
-            album, media_sources=discover_media_sources(album)
+            album,
+            media_sources=discover_media_sources(album),
         )
 
         assert not result.in_sync
@@ -128,12 +133,13 @@ class TestMediaMetadataCheckDuplicateIds:
                         images={dup_id: "0410"},
                         videos={dup_id: "0115"},
                     ),
-                }
+                },
             ),
         )
 
         result = check_media_metadata(
-            album, media_sources=discover_media_sources(album)
+            album,
+            media_sources=discover_media_sources(album),
         )
 
         assert not result.in_sync
@@ -159,12 +165,13 @@ class TestMediaMetadataCheckStaleMediaSource:
                     images={generate_media_id(): "9999"},
                     videos={},
                 ),
-            }
+            },
         )
         save_media_metadata(album, meta)
 
         result = check_media_metadata(
-            album, media_sources=discover_media_sources(album)
+            album,
+            media_sources=discover_media_sources(album),
         )
 
         assert not result.in_sync

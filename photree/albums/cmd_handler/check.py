@@ -1,20 +1,20 @@
+"""Batch album checking."""
+
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from ...album import (
-    check as album_check,
-)
-from ...album.id import format_album_external_id
-from ...common.exif import ExifTagReader
-from ...foundation.linking import LinkMode
-
-type OnCheckEnd = Callable[[str, bool, tuple[str, ...], tuple[str, ...]], None]
+from photree.album import check as album_check
+from photree.album.id import format_album_external_id
+from photree.common.exif import ExifTagReader
+from photree.common.progress import CheckedItemEnd
+from photree.foundation.linking import LinkMode
 
 
 @dataclass(frozen=True)
 class BatchCheckResult:
-    """Result of batch album checking.
+    """
+    Result of batch album checking.
 
     ``failed_albums`` includes albums whose check itself crashed (their reason
     is the error label reported through ``on_end``).
@@ -60,7 +60,7 @@ def _check_one(
     album_dir: Path,
     album_name: str,
     opts: CheckOptions,
-    on_end: OnCheckEnd | None,
+    on_end: CheckedItemEnd | None,
 ) -> _AlbumOutcome:
     result = album_check.run_album_check(
         album_dir,
@@ -78,9 +78,9 @@ def _check_one(
     if on_end:
         on_end(
             _album_label(album_name, result),
-            ok,
-            err_labels,
-            result.non_fatal_warning_labels(**fatal),
+            success=ok,
+            error_labels=err_labels,
+            warning_labels=result.non_fatal_warning_labels(**fatal),
         )
     return _AlbumOutcome(album_dir, ok, ok and result.has_warnings)
 
@@ -90,7 +90,7 @@ def _check_one_safely(
     album_name: str,
     opts: CheckOptions,
     on_start: Callable[[str], None] | None,
-    on_end: OnCheckEnd | None,
+    on_end: CheckedItemEnd | None,
 ) -> _AlbumOutcome:
     """Check one album; an album whose check crashes is a failure, not an abort."""
     if on_start:
@@ -99,7 +99,12 @@ def _check_one_safely(
         return _check_one(album_dir, album_name, opts, on_end)
     except Exception as exc:
         if on_end:
-            on_end(album_name, False, (str(exc),), ())
+            on_end(
+                album_name,
+                success=False,
+                error_labels=(str(exc),),
+                warning_labels=(),
+            )
         return _AlbumOutcome(album_dir, ok=False, has_warnings=False)
 
 
@@ -115,9 +120,10 @@ def batch_check(
     check_naming: bool = True,
     display_fn: Callable[[Path], str] = lambda p: p.name,
     on_start: Callable[[str], None] | None = None,
-    on_end: OnCheckEnd | None = None,
+    on_end: CheckedItemEnd | None = None,
 ) -> BatchCheckResult:
-    """Check multiple albums and return aggregated results.
+    """
+    Check multiple albums and return aggregated results.
 
     Calls ``on_start(name)`` before and
     ``on_end(name, success, error_labels, warning_labels)`` after each album.

@@ -1,3 +1,5 @@
+"""The ``photree demo`` command group, which renders sample output for development."""
+
 import tempfile
 from collections.abc import Callable
 from pathlib import Path
@@ -9,34 +11,27 @@ from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.text import Text
 
-from ...album.check import output as preflight_output
-from ...album.check.output import format_integrity_checks
-from ...album.check.testkit import (
+from photree.album.check import output as preflight_output
+from photree.album.check.output import format_integrity_checks
+from photree.album.check.testkit import (
     INTEGRITY_FAILURES,
     INTEGRITY_OK,
     PREFLIGHT_FAILURES,
     PREFLIGHT_OK,
     PREFLIGHT_STD,
 )
-from ...album.fix.output import (
-    rm_upstream_summary,
-)
-from ...album.importer import output as importer_output
-from ...album.importer.testkit import SeedResult, seed_demo
-from ...album.importer.testkit.preflight import (
-    IC_CHECK_OK,
-    IC_CHECK_WARNINGS,
-)
-from ...album.importer.testkit.preflight import (
+from photree.album.fix.output import rm_upstream_summary
+from photree.album.importer import output as importer_output
+from photree.album.importer.testkit import SeedResult, seed_demo
+from photree.album.importer.testkit.preflight import IC_CHECK_OK, IC_CHECK_WARNINGS
+from photree.album.importer.testkit.preflight import (
     PREFLIGHT_FAILURES as IMPORT_PREFLIGHT_FAILURES,
 )
-from ...album.importer.testkit.preflight import (
-    PREFLIGHT_OK as IMPORT_PREFLIGHT_OK,
-)
-from ...album.importer.testkit.validation import VALIDATION_ERRORS
-from ...album.stats.output import format_album_stats, format_albums_stats
-from ...album.stats.testkit import ALBUM_STATS, ALBUMS_STATS
-from ...clihelpers.console import console
+from photree.album.importer.testkit.preflight import PREFLIGHT_OK as IMPORT_PREFLIGHT_OK
+from photree.album.importer.testkit.validation import VALIDATION_ERRORS
+from photree.album.stats.output import format_album_stats, format_albums_stats
+from photree.album.stats.testkit import ALBUM_STATS, ALBUMS_STATS
+from photree.clihelpers.console import console
 
 app = typer.Typer(
     name="demo",
@@ -59,7 +54,7 @@ def _panel(title: str, content: str) -> None:
             border_style="cyan",
             padding=(0, 1),
             expand=False,
-        )
+        ),
     )
     console.print()
 
@@ -69,11 +64,11 @@ def _panel(title: str, content: str) -> None:
 _SAMPLES: tuple[tuple[str, Callable[[], str]], ...] = (
     (
         "preflight_output.sips_check(available=True)",
-        lambda: preflight_output.sips_check(True),
+        lambda: preflight_output.sips_check(available=True),
     ),
     (
         "preflight_output.sips_check(available=False)",
-        lambda: preflight_output.sips_check(False),
+        lambda: preflight_output.sips_check(available=False),
     ),
     (
         "preflight_output.sips_troubleshoot()",
@@ -155,7 +150,8 @@ _SAMPLES: tuple[tuple[str, Callable[[], str]], ...] = (
         "album_output.format_album_preflight_troubleshoot (failures)",
         lambda: (
             preflight_output.format_album_preflight_troubleshoot(
-                PREFLIGHT_FAILURES, album_dir="/path/to/album"
+                PREFLIGHT_FAILURES,
+                album_dir="/path/to/album",
             )
             or "(none)"
         ),
@@ -164,7 +160,8 @@ _SAMPLES: tuple[tuple[str, Callable[[], str]], ...] = (
         "album_output.format_album_preflight_troubleshoot (all ok — returns None)",
         lambda: (
             preflight_output.format_album_preflight_troubleshoot(
-                PREFLIGHT_OK, album_dir="/path/to/album"
+                PREFLIGHT_OK,
+                album_dir="/path/to/album",
             )
             or "(none)"
         ),
@@ -172,31 +169,41 @@ _SAMPLES: tuple[tuple[str, Callable[[], str]], ...] = (
     (
         "importer_output.import_tasks_check (ok)",
         lambda: importer_output.import_tasks_check(
-            Path("/albums/trip-paris"), found=True, cwd=_SAMPLE_CWD
+            Path("/albums/trip-paris"),
+            found=True,
+            cwd=_SAMPLE_CWD,
         ),
     ),
     (
         "importer_output.import_tasks_check (not found)",
         lambda: importer_output.import_tasks_check(
-            Path("/albums/trip-paris"), found=False, cwd=_SAMPLE_CWD
+            Path("/albums/trip-paris"),
+            found=False,
+            cwd=_SAMPLE_CWD,
         ),
     ),
     (
         "importer_output.import_tasks_check (empty)",
         lambda: importer_output.import_tasks_check(
-            Path("/albums/trip-paris"), found=True, empty=True, cwd=_SAMPLE_CWD
+            Path("/albums/trip-paris"),
+            found=True,
+            empty=True,
+            cwd=_SAMPLE_CWD,
         ),
     ),
     (
         "importer_output.import_tasks_troubleshoot",
         lambda: importer_output.import_tasks_troubleshoot(
-            Path("/albums/trip-paris"), cwd=_SAMPLE_CWD
+            Path("/albums/trip-paris"),
+            cwd=_SAMPLE_CWD,
         ),
     ),
     (
         "importer_output.image_capture_dir_check_output (not found)",
         lambda: importer_output.image_capture_dir_check_output(
-            Path("~/Pictures/iPhone"), found=False, cwd=_SAMPLE_CWD
+            Path("~/Pictures/iPhone"),
+            found=False,
+            cwd=_SAMPLE_CWD,
         ),
     ),
     (
@@ -211,7 +218,10 @@ _SAMPLES: tuple[tuple[str, Callable[[], str]], ...] = (
     (
         "importer_output.image_capture_dir_check_output (ok)",
         lambda: importer_output.image_capture_dir_check_output(
-            Path("~/Pictures/iPhone"), found=True, check=IC_CHECK_OK, cwd=_SAMPLE_CWD
+            Path("~/Pictures/iPhone"),
+            found=True,
+            check=IC_CHECK_OK,
+            cwd=_SAMPLE_CWD,
         ),
     ),
     (
@@ -230,20 +240,23 @@ _SAMPLES: tuple[tuple[str, Callable[[], str]], ...] = (
     (
         "importer_output.format_preflight_checks (all ok)",
         lambda: importer_output.format_preflight_checks(
-            IMPORT_PREFLIGHT_OK, cwd=_SAMPLE_CWD
+            IMPORT_PREFLIGHT_OK,
+            cwd=_SAMPLE_CWD,
         ),
     ),
     (
         "importer_output.format_preflight_checks (failures)",
         lambda: importer_output.format_preflight_checks(
-            IMPORT_PREFLIGHT_FAILURES, cwd=_SAMPLE_CWD
+            IMPORT_PREFLIGHT_FAILURES,
+            cwd=_SAMPLE_CWD,
         ),
     ),
     (
         "importer_output.format_preflight_troubleshoot (failures)",
         lambda: (
             importer_output.format_preflight_troubleshoot(
-                IMPORT_PREFLIGHT_FAILURES, cwd=_SAMPLE_CWD
+                IMPORT_PREFLIGHT_FAILURES,
+                cwd=_SAMPLE_CWD,
             )
             or "(none)"
         ),
@@ -252,7 +265,8 @@ _SAMPLES: tuple[tuple[str, Callable[[], str]], ...] = (
         "importer_output.format_preflight_troubleshoot (all ok — returns None)",
         lambda: (
             importer_output.format_preflight_troubleshoot(
-                IMPORT_PREFLIGHT_OK, cwd=_SAMPLE_CWD
+                IMPORT_PREFLIGHT_OK,
+                cwd=_SAMPLE_CWD,
             )
             or "(none)"
         ),
@@ -264,7 +278,8 @@ _SAMPLES: tuple[tuple[str, Callable[[], str]], ...] = (
     (
         "importer_output.batch_album_skipped()",
         lambda: importer_output.batch_album_skipped(
-            "empty-album", "no to-import-{ios,std}-<name> directory"
+            "empty-album",
+            "no to-import-{ios,std}-<name> directory",
         ),
     ),
     (
@@ -278,7 +293,7 @@ _SAMPLES: tuple[tuple[str, Callable[[], str]], ...] = (
     (
         "importer_output.unprocessed_selection_files()",
         lambda: importer_output.unprocessed_selection_files(
-            ("IMG_0001.HEIC", "IMG_0002.HEIC")
+            ("IMG_0001.HEIC", "IMG_0002.HEIC"),
         ),
     ),
 )

@@ -1,10 +1,21 @@
+"""The ``photree album fix-ios`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
-from ...clihelpers.console import err_console
-from ...clihelpers.options import (
+from photree.album.cli.app import app
+from photree.album.cli.media_source_conflict import exit_on_media_source_conflict
+from photree.album.fix.ios import (
+    FixIosValidationError,
+    MiscategorizedMoveConflictError,
+    run_fix_ios,
+    validate_fix_flags,
+)
+from photree.album.fix.ios.output import format_fix_ios_result
+from photree.clihelpers.console import err_console
+from photree.clihelpers.options import (
     DRY_RUN_OPTION,
     MV_MISCATEGORIZED_OPTION,
     PREFER_HIGHER_QUALITY_OPTION,
@@ -12,19 +23,10 @@ from ...clihelpers.options import (
     RM_MISCATEGORIZED_SAFE_OPTION,
     RM_ORPHAN_SIDECAR_OPTION,
 )
-from ...clihelpers.runtime import runtime_of
-from ...clihelpers.usage import usage_error
-from ...common.formatting import format_dry_run
-from ...common.fs import display_path
-from ..fix.ios import (
-    FixIosValidationError,
-    MiscategorizedMoveConflictError,
-    run_fix_ios,
-    validate_fix_flags,
-)
-from ..fix.ios.output import format_fix_ios_result
-from . import app
-from .media_source_conflict import exit_on_media_source_conflict
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.usage import invalid_fix_error
+from photree.common.formatting import format_dry_run
+from photree.common.fs import display_path
 
 
 @app.command("fix-ios")
@@ -40,7 +42,8 @@ def fix_ios_cmd(
             file_okay=False,
             resolve_path=True,
         ),
-    ] = Path("."),
+    ] = Path(),
+    *,
     prefer_higher_quality_when_dups: PREFER_HIGHER_QUALITY_OPTION = False,
     rm_orphan_sidecar: RM_ORPHAN_SIDECAR_OPTION = False,
     rm_miscategorized: RM_MISCATEGORIZED_OPTION = False,
@@ -48,7 +51,8 @@ def fix_ios_cmd(
     mv_miscategorized: MV_MISCATEGORIZED_OPTION = False,
     dry_run: DRY_RUN_OPTION = False,
 ) -> None:
-    """Fix iOS-specific album issues. At least one fix flag must be specified.
+    """
+    Fix iOS-specific album issues. At least one fix flag must be specified.
 
     Available fixes:
 
@@ -80,10 +84,7 @@ def fix_ios_cmd(
     try:
         validate_fix_flags(**flags)
     except FixIosValidationError as exc:
-        raise usage_error(
-            f"{exc}\nRun 'photree album fix-ios --help' to see the available fixes.",
-            markup=False,
-        ) from exc
+        raise invalid_fix_error(exc, command="album fix-ios") from exc
 
     cwd = runtime_of(ctx).cwd()
     with exit_on_media_source_conflict(cwd):
@@ -96,7 +97,7 @@ def fix_ios_cmd(
     if result.no_ios_media_sources:
         err_console.print(
             "No iOS media sources found. fix-ios only supports iOS albums; "
-            "run 'photree album fix --help' for fixes that apply to all sources."
+            "run 'photree album fix --help' for fixes that apply to all sources.",
         )
         raise typer.Exit(code=1)
 

@@ -17,7 +17,11 @@ def _write(path: Path, content: str = "data") -> None:
 
 
 def _make_source(
-    base: Path, name: str, *, album_id: str | None = None, media: bool = True
+    base: Path,
+    name: str,
+    *,
+    album_id: str | None = None,
+    media: bool = True,
 ) -> Path:
     d = base / name
     d.mkdir(parents=True, exist_ok=True)
@@ -69,7 +73,9 @@ class TestPlanImportsActions:
         gallery = tmp_path / "gallery"
         album_id = generate_album_id()
         source = _make_source(
-            tmp_path / "src", "2024-07-14 - Hiking", album_id=album_id
+            tmp_path / "src",
+            "2024-07-14 - Hiking",
+            album_id=album_id,
         )
         existing = gallery / "albums" / "2024" / "2024-07-14 - Hiking"
         index = AlbumIndex(id_to_path={album_id: existing}, duplicates={})
@@ -104,7 +110,9 @@ class TestPlanImportsErrors:
     def test_clobber_conflict(self, tmp_path: Path) -> None:
         gallery = tmp_path / "gallery"
         source = _make_source(
-            tmp_path / "src", "2024-07-14 - Hiking", album_id=generate_album_id()
+            tmp_path / "src",
+            "2024-07-14 - Hiking",
+            album_id=generate_album_id(),
         )
         # A *different* album already occupies the target name.
         target = gallery / "albums" / "2024" / "2024-07-14 - Hiking"
@@ -151,7 +159,8 @@ class TestPlanImportsErrors:
 
 class TestPlanImportsRenamedSource:
     def test_rename_onto_other_album_is_a_clobber_conflict(
-        self, tmp_path: Path
+        self,
+        tmp_path: Path,
     ) -> None:
         """Regression: the ID match short-circuited the clobber check."""
         gallery = tmp_path / "gallery"
@@ -163,7 +172,8 @@ class TestPlanImportsRenamedSource:
         save_album_metadata(occupied, AlbumMetadata(id=occupant_id))
         source = _make_source(tmp_path / "src", occupied.name, album_id=album_id)
         index = AlbumIndex(
-            id_to_path={album_id: existing, occupant_id: occupied}, duplicates={}
+            id_to_path={album_id: existing, occupant_id: occupied},
+            duplicates={},
         )
 
         result = plan_imports([source], index, gallery, reimport=True)
@@ -183,7 +193,9 @@ class TestPlanImportsRenamedSource:
         album_id = generate_album_id()
         existing = gallery / "albums" / "2024" / "2024-07-14 - Hiking"
         source = _make_source(
-            tmp_path / "src", "2024-07-14 - Hiking the Rockies", album_id=album_id
+            tmp_path / "src",
+            "2024-07-14 - Hiking the Rockies",
+            album_id=album_id,
         )
         index = AlbumIndex(id_to_path={album_id: existing}, duplicates={})
 

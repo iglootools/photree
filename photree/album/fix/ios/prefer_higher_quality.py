@@ -1,17 +1,21 @@
+"""The fix that keeps only the best format of each iOS image number."""
+
 from dataclasses import dataclass
 from pathlib import Path
 
-from ....common.fs import delete_files, file_ext, list_files
-from ...formats import IOS_IMG_EXTENSIONS, PICTURE_PRIORITY_EXTENSIONS
-from ...store.file_matching import group_by_key, pick_media_priority
-from ...store.media_source import MediaSource, ios_img_number
-from ..helpers import require_ios
+from photree.album.fix.helpers import require_ios
+from photree.album.formats import IOS_IMG_EXTENSIONS, PICTURE_PRIORITY_EXTENSIONS
+from photree.album.store.file_matching import group_by_key, pick_media_priority
+from photree.album.store.media_source import MediaSource, ios_img_number
+from photree.common.fs import delete_files, file_ext, list_files
 
 
 def _find_lower_quality_dups_in_dir(
-    directory: Path, media_extensions: frozenset[str]
+    directory: Path,
+    media_extensions: frozenset[str],
 ) -> list[str]:
-    """Find files outranked by another format of the same image number.
+    """
+    Find files outranked by another format of the same image number.
 
     Only numbers with at least one priority format (DNG, HEIC) are
     touched: between equal-rank formats (JPG vs PNG) there is no
@@ -32,10 +36,18 @@ def _find_lower_quality_dups_in_dir(
 
 @dataclass(frozen=True)
 class PreferHigherQualityResult:
+    """
+    The lower-quality duplicates removed from a media source.
+
+    *removed_by_dir* pairs each directory name with the files removed from
+    it; directories with nothing removed are left out.
+    """
+
     removed_by_dir: tuple[tuple[str, tuple[str, ...]], ...]
 
     @property
     def total(self) -> int:
+        """Return the number of files removed."""
         return sum(len(files) for _, files in self.removed_by_dir)
 
 
@@ -51,9 +63,11 @@ def prefer_higher_quality_when_dups(
     *,
     dry_run: bool = False,
 ) -> PreferHigherQualityResult:
-    """Scans all image subdirectories. For each image number that has multiple
-    format variants, keeps the single highest-quality file (DNG > HEIC > others)
-    and deletes the rest.
+    """
+    Keep the highest-quality variant of each image number and delete the rest.
+
+    Scans all image subdirectories. For each image number that has multiple
+    format variants, keeps the single highest-quality file (DNG > HEIC > others).
     """
     require_ios(ms)
     directories = (
@@ -67,5 +81,5 @@ def prefer_higher_quality_when_dups(
             (d.name, removed)
             for d in directories
             if d.is_dir() and (removed := _remove_dups_in_dir(d, dry_run=dry_run))
-        )
+        ),
     )

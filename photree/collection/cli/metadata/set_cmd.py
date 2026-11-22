@@ -1,16 +1,20 @@
+"""The ``photree collection metadata set`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
-from ....clihelpers.console import err_console
-from ....clihelpers.runtime import runtime_of
-from ....clihelpers.usage import usage_error
-from ....common.formatting import indent
-from ....common.fs import display_path
-from ....foundation.layout import PHOTREE_DIR
-from ...store.metadata import load_collection_metadata, save_collection_metadata
-from ...store.protocol import (
+from photree.clihelpers.console import err_console
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.usage import no_fields_error
+from photree.collection.cli.metadata.app import app
+from photree.collection.cli.options import COLLECTION_DIR_OPTION
+from photree.collection.store.metadata import (
+    load_collection_metadata,
+    save_collection_metadata,
+)
+from photree.collection.store.protocol import (
     COLLECTION_YAML,
     CollectionLifecycle,
     CollectionMembers,
@@ -18,8 +22,9 @@ from ...store.protocol import (
     CollectionStrategy,
     validate_collection_config,
 )
-from ..options import COLLECTION_DIR_OPTION
-from . import app
+from photree.common.formatting import indent
+from photree.common.fs import display_path
+from photree.foundation.layout import PHOTREE_DIR
 
 
 def _load_or_exit(collection_dir: Path, cwd: Path) -> CollectionMetadata:
@@ -52,10 +57,12 @@ def _apply_settings(
                 "strategy": strategy,
             }.items()
             if v is not None
-        }
+        },
     )
     validation_error = validate_collection_config(
-        updated.members, updated.lifecycle, updated.strategy
+        updated.members,
+        updated.lifecycle,
+        updated.strategy,
     )
     if validation_error is not None:
         err_console.print(validation_error, markup=False)
@@ -64,7 +71,8 @@ def _apply_settings(
 
 
 def _format_changes(
-    current: CollectionMetadata, updated: CollectionMetadata
+    current: CollectionMetadata,
+    updated: CollectionMetadata,
 ) -> list[str]:
     """``field: old -> new`` lines (unindented) for each changed setting."""
     return [
@@ -81,7 +89,7 @@ def _format_changes(
 @app.command("set")
 def set_cmd(
     ctx: typer.Context,
-    collection_dir: COLLECTION_DIR_OPTION = Path("."),
+    collection_dir: COLLECTION_DIR_OPTION = Path(),
     members: Annotated[
         CollectionMembers | None,
         typer.Option(
@@ -93,23 +101,26 @@ def set_cmd(
         CollectionLifecycle | None,
         typer.Option(
             "--lifecycle",
-            help="How the collection is managed: explicit (user) or implicit (from album series).",
+            help=(
+                "How the collection is managed: explicit (user) "
+                "or implicit (from album series)."
+            ),
         ),
     ] = None,
     strategy: Annotated[
         CollectionStrategy | None,
         typer.Option(
             "--strategy",
-            help="Rule for member selection: import, date-range, album-series, or chapter.",
+            help=(
+                "Rule for member selection: import, "
+                "date-range, album-series, or chapter."
+            ),
         ),
     ] = None,
 ) -> None:
     """Update collection metadata fields."""
     if members is None and lifecycle is None and strategy is None:
-        raise usage_error(
-            "No fields specified. Use --members, --lifecycle, and/or --strategy "
-            "to set a value."
-        )
+        raise no_fields_error(("--members", "--lifecycle", "--strategy"))
 
     cwd = runtime_of(ctx).cwd()
     current = _load_or_exit(collection_dir, cwd)

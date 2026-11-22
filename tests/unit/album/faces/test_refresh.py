@@ -1,6 +1,6 @@
 import shutil
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 import cv2
 import numpy as np
@@ -43,14 +43,20 @@ class TestAnalyzerInjection:
         assert not (tmp_path / ".photree" / "cache" / "faces").exists()
 
     def test_factory_not_invoked_without_processable_images(
-        self, tmp_path: Path
+        self,
+        tmp_path: Path,
     ) -> None:
-        """The factory is lazy: placeholder files yield no thumbnails, so the
-        model is never built."""
+        """
+        Build no model when no source has processable images.
+
+        The factory is lazy: placeholder files yield no thumbnails, so the
+        model is never built.
+        """
         _make_ios_source(tmp_path)
 
-        def _factory():
-            raise AssertionError("analyzer factory should not be invoked")
+        def _factory() -> NoReturn:
+            message = "analyzer factory should not be invoked"
+            raise AssertionError(message)
 
         refresh_face_data(tmp_path, analyzer_factory=_factory)
 
@@ -81,7 +87,7 @@ class TestNeedsProcessing:
                     thumb_width=640,
                     thumb_height=480,
                 ),
-            }
+            },
         )
         assert not needs_processing("0410", "IMG_0410.HEIC", orig_dir, state)
 
@@ -101,7 +107,7 @@ class TestNeedsProcessing:
                     thumb_width=640,
                     thumb_height=480,
                 ),
-            }
+            },
         )
         assert needs_processing("0410", "IMG_0410.HEIC", orig_dir, state)
 
@@ -115,7 +121,11 @@ class TestKeysNeedingProcessing:
         files = {"0410": "IMG_0410.HEIC", "0411": "IMG_0411.HEIC"}
         state = FaceProcessingState()
         result = keys_needing_processing(
-            files, orig_dir, state, model_changed=False, redetect=True
+            files,
+            orig_dir,
+            state,
+            model_changed=False,
+            redetect=True,
         )
         assert result == ["0410", "0411"]
 
@@ -126,7 +136,11 @@ class TestKeysNeedingProcessing:
         files = {"0410": "IMG_0410.HEIC"}
         state = FaceProcessingState()
         result = keys_needing_processing(
-            files, orig_dir, state, model_changed=True, redetect=False
+            files,
+            orig_dir,
+            state,
+            model_changed=True,
+            redetect=False,
         )
         assert result == ["0410"]
 
@@ -148,7 +162,7 @@ class TestKeysNeedingProcessing:
                     thumb_width=640,
                     thumb_height=480,
                 ),
-            }
+            },
         )
         result = keys_needing_processing(
             {"0410": "IMG_0410.HEIC", "0411": "IMG_0411.HEIC"},
@@ -161,7 +175,8 @@ class TestKeysNeedingProcessing:
 
 
 class TestFailureReporting:
-    """Per-image failures must carry a reason, not just a count.
+    """
+    Per-image failures must carry a reason, not just a count.
 
     Detection is best-effort — one unreadable file must not abandon the album —
     but the reason used to be discarded by a bare ``except Exception``, and a
@@ -171,8 +186,9 @@ class TestFailureReporting:
 
     def test_detection_failure_carries_key_stage_and_reason(self) -> None:
         class _Boom:
-            def get(self, img: np.ndarray) -> list[Any]:
-                raise RuntimeError("model exploded")
+            def get(self, img: np.ndarray) -> list[Any]:  # noqa: ARG002 - FaceDetector's signature
+                message = "model exploded"
+                raise RuntimeError(message)
 
         tr = ThumbnailResult(
             key="0410",
@@ -195,21 +211,26 @@ class TestFailureReporting:
 
     def test_result_exposes_failures_per_media_source(self) -> None:
         failure = FaceFailure(
-            key="0410", stage=FaceFailureStage.THUMBNAIL, reason="sips said no"
+            key="0410",
+            stage=FaceFailureStage.THUMBNAIL,
+            reason="sips said no",
         )
         result = FaceRefreshResult(
             by_media_source=(
                 (
                     "main",
                     FaceSourceRefreshResult(
-                        processed=1, skipped=0, faces_detected=0, failures=(failure,)
+                        processed=1,
+                        skipped=0,
+                        faces_detected=0,
+                        failures=(failure,),
                     ),
                 ),
                 (
                     "bruno",
                     FaceSourceRefreshResult(processed=2, skipped=0, faces_detected=3),
                 ),
-            )
+            ),
         )
 
         assert result.failures == (("main", failure),)
@@ -235,12 +256,14 @@ class TestFailureAccounting:
         )
 
         class _NeverCalled:
-            def get(self, img: np.ndarray) -> list[Any]:
-                raise AssertionError("analyzer must not see an unreadable image")
+            def get(self, img: np.ndarray) -> list[Any]:  # noqa: ARG002 - FaceDetector's signature
+                message = "analyzer must not see an unreadable image"
+                raise AssertionError(message)
 
         faces, state_key, failure = detect_single(tr, orig_dir, _NeverCalled())
 
-        assert faces is None and state_key is None
+        assert faces is None
+        assert state_key is None
         assert failure is not None
         assert failure.stage == FaceFailureStage.DETECTION
 
@@ -248,8 +271,9 @@ class TestFailureAccounting:
         """Placeholder bytes cannot be thumbnailed: 1 failure, 0 processed."""
         _make_ios_source(tmp_path)
 
-        def _factory():
-            raise AssertionError("analyzer factory should not be invoked")
+        def _factory() -> NoReturn:
+            message = "analyzer factory should not be invoked"
+            raise AssertionError(message)
 
         result = refresh_face_data(tmp_path, analyzer_factory=_factory)
 
@@ -267,7 +291,8 @@ class TestReuseThumbnail:
         assert result.stage == FaceFailureStage.THUMBNAIL
 
     def test_unreadable_thumbnail_is_a_failure_not_a_crash(
-        self, tmp_path: Path
+        self,
+        tmp_path: Path,
     ) -> None:
         thumb = tmp_path / "0410.jpg"
         thumb.write_text("not a jpeg", encoding="utf-8")

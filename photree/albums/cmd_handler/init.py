@@ -1,12 +1,14 @@
+"""Batch initialization of album metadata."""
+
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
 
-from ...album.id import format_album_external_id, generate_album_id
-from ...album.store.metadata import load_album_metadata, save_album_metadata
-from ...album.store.protocol import AlbumMetadata
-from . import (
+from photree.album.id import format_album_external_id, generate_album_id
+from photree.album.store.metadata import load_album_metadata, save_album_metadata
+from photree.album.store.protocol import AlbumMetadata
+from photree.albums.cmd_handler import (
     AlbumStepError,
     BatchFailure,
     OnEnd,
@@ -18,20 +20,30 @@ from . import (
 
 @dataclass(frozen=True)
 class BatchInitResult:
+    """Result of batch init: how many albums were initialized, and failures."""
+
     initialized: int
     failures: tuple[BatchFailure, ...] = ()
 
     @property
     def failed_albums(self) -> tuple[Path, ...]:
+        """Return the directories of the albums that failed."""
         return tuple(f.album_dir for f in self.failures)
+
+
+class AlreadyInitializedError(AlbumStepError):
+    """The album already has an ID, so init leaves it alone."""
+
+    def __init__(self, album_id: str) -> None:
+        """Build the error from the album's existing external ID."""
+        self.album_id = album_id
+        super().__init__(f"already initialized: {album_id}")
 
 
 def _init_one(album_dir: Path, *, dry_run: bool, new_id: Callable[[], str]) -> None:
     metadata = load_album_metadata(album_dir)
     if metadata is not None:
-        raise AlbumStepError(
-            f"already initialized: {format_album_external_id(metadata.id)}"
-        )
+        raise AlreadyInitializedError(format_album_external_id(metadata.id))
     if not dry_run:
         save_album_metadata(album_dir, AlbumMetadata(id=new_id()))
 
@@ -45,7 +57,8 @@ def batch_init(
     on_start: OnStart = None,
     on_end: OnEnd = None,
 ) -> BatchInitResult:
-    """Initialize album metadata for multiple albums.
+    """
+    Initialize album metadata for multiple albums.
 
     Calls ``on_start(name)`` before and
     ``on_end(name, success, error_labels)`` after each album.

@@ -3,19 +3,15 @@
 from dataclasses import dataclass
 from datetime import date
 
-from ...dates import DateRange, date_range, range_contains
-from ..naming import (
-    parse_collection_name,
-)
-from ..store.metadata import (
-    save_collection_metadata,
-)
-from ..store.protocol import (
+from photree.collection.naming import parse_collection_name
+from photree.collection.refresh.scan import AlbumInfo, ExistingCollection
+from photree.collection.store.metadata import save_collection_metadata
+from photree.collection.store.protocol import (
     CollectionMembers,
     CollectionMetadata,
     CollectionStrategy,
 )
-from .scan import AlbumInfo, ExistingCollection
+from photree.dates import DateRange, date_range, range_contains
 
 
 @dataclass(frozen=True)
@@ -36,7 +32,8 @@ def _smart_metadata(
     albums: tuple[_DatedMember, ...],
     collections: tuple[_DatedMember, ...],
 ) -> CollectionMetadata | None:
-    """The members a date-range smart collection should have, or ``None``.
+    """
+    Return the members a date-range smart collection should have, or ``None``.
 
     ``None`` for collections whose members are not date-derived: manual ones,
     album-series ones (owned by the implicit refresh), and undated ones.
@@ -79,7 +76,8 @@ def refresh_smart_collections(
     *,
     dry_run: bool,
 ) -> tuple[str, ...]:
-    """Materialize members for smart collections by date range.
+    """
+    Materialize members for smart collections by date range.
 
     Returns the names of the updated collections.
     """

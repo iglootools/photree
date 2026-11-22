@@ -1,4 +1,5 @@
-"""Album naming convention parsing and validation.
+"""
+Album naming convention parsing and validation.
 
 Target format::
 
@@ -20,7 +21,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from enum import StrEnum
 
-from ..dates import DATE_PREFIX_RE, is_day_precision, is_valid_date
+from photree.dates import DATE_PREFIX_RE, is_day_precision, is_valid_date
 
 _TAGS_RE = re.compile(r"\s*\[([^\]]+)\]\s*$")
 
@@ -45,7 +46,7 @@ _LEGACY_DATE_RE = re.compile(
     r"|\d{4}-\d{2}-\d{2}-\d{2}-\d{2}"  # YYYY-MM-DD-MM-DD
     r"|\d{4}-\d{2}-\d{2}-\d{2}"  # YYYY-MM-DD-DD
     r"|\d{4}-\d{2}-\d{2}(?:,\d{2})+"  # YYYY-MM-DD,DD,... an enumerated list of days
-    r") *- *"
+    r") *- *",
 )
 
 VALID_TAGS = frozenset({"private"})
@@ -53,6 +54,14 @@ VALID_TAGS = frozenset({"private"})
 
 @dataclass(frozen=True)
 class ParsedAlbumName:
+    """
+    The components of an album name.
+
+    *date* is the raw date spec, *part* the two-digit part number, and
+    *location* the text after `` @ `` in the title; *private* is set by the
+    ``[private]`` tag.
+    """
+
     date: str
     part: str | None
     private: bool
@@ -62,6 +71,8 @@ class ParsedAlbumName:
 
 
 class NamingIssueCode(StrEnum):
+    """The kinds of problem an album name check reports."""
+
     NAME_TOO_LONG = "name-too-long"
     INVALID_DATE_FORMAT = "invalid-date-format"
     INVALID_DATE = "invalid-date"
@@ -75,6 +86,8 @@ class NamingIssueCode(StrEnum):
 
 @dataclass(frozen=True)
 class NamingIssue:
+    """One problem found in an album name, with its message for the user."""
+
     code: NamingIssueCode
     message: str
 
@@ -87,6 +100,7 @@ class BatchNamingResult:
 
     @property
     def success(self) -> bool:
+        """Return whether no two albums collide on a date."""
         return not self.date_collisions
 
 
@@ -108,7 +122,8 @@ def _split_part_prefix(remainder: str) -> tuple[str | None, str]:
 
 
 def _split_series(body: str, part: str | None) -> tuple[str | None, str | None, str]:
-    """Split the body into ``(series, part, raw_title)``.
+    """
+    Split the body into ``(series, part, raw_title)``.
 
     With two or more `` - `` segments the first is the series; a following
     bare two-digit segment is a ``Series - XX - Title`` part number (only when
@@ -137,7 +152,7 @@ def _split_location(raw_title: str) -> tuple[str, str | None]:
 
 
 def parse_album_name(name: str) -> ParsedAlbumName | None:
-    """Returns ``None`` if the name does not start with a valid date prefix."""
+    """Parse an album name, or return ``None`` if it lacks a valid date prefix."""
     without_tags, tags = _split_tags(name)
     dm = DATE_PREFIX_RE.match(without_tags)
     if dm is None:
@@ -183,7 +198,7 @@ def _length_issues(album_name: str) -> list[NamingIssue]:
             NamingIssue(
                 NamingIssueCode.NAME_TOO_LONG,
                 f"name is {name_bytes} bytes (max {MAX_NAME_BYTES})",
-            )
+            ),
         ]
         if name_bytes > MAX_NAME_BYTES
         else []
@@ -200,7 +215,8 @@ def _unparseable_issue(album_name: str) -> NamingIssue:
         )
         if _LEGACY_DATE_RE.match(album_name)
         else NamingIssue(
-            NamingIssueCode.UNPARSEABLE, "name does not match expected format"
+            NamingIssueCode.UNPARSEABLE,
+            "name does not match expected format",
         )
     )
 
@@ -230,7 +246,7 @@ def _date_issues(parsed: ParsedAlbumName) -> list[NamingIssue]:
                     NamingIssueCode.INVALID_DATE,
                     f'date "{parsed.date}" is not a valid calendar date '
                     "or its range ends before it starts",
-                )
+                ),
             ]
             if not is_valid_date(parsed.date)
             else []
@@ -241,7 +257,7 @@ def _date_issues(parsed: ParsedAlbumName) -> list[NamingIssue]:
                     NamingIssueCode.PART_REQUIRES_DAY_DATE,
                     "part number is only allowed for single-day dates "
                     f'(YYYY-MM-DD), got date "{parsed.date}"',
-                )
+                ),
             ]
             if parsed.part is not None and not is_day_precision(parsed.date)
             else []
@@ -257,7 +273,7 @@ def _spacing_issues(album_name: str, parsed: ParsedAlbumName) -> list[NamingIssu
             NamingIssue(
                 NamingIssueCode.NON_CANONICAL_SPACING,
                 f'name is not in canonical form (expected "{canonical}")',
-            )
+            ),
         ]
         if album_name != canonical
         else []
@@ -265,7 +281,7 @@ def _spacing_issues(album_name: str, parsed: ParsedAlbumName) -> list[NamingIssu
 
 
 def _separator_issues(album_name: str) -> list[NamingIssue]:
-    """A `` - `` separator missing a space, e.g. ``01- Title``."""
+    """Find a `` - `` separator missing a space, e.g. ``01- Title``."""
     without_tags, _ = _split_tags(album_name)
     return [
         NamingIssue(
@@ -278,7 +294,10 @@ def _separator_issues(album_name: str) -> list[NamingIssue]:
 
 
 def check_album_naming(album_name: str) -> tuple[NamingIssue, ...]:
-    """This only inspects the name string — no filesystem access needed.
+    """
+    Check an album name against the naming rules.
+
+    Inspects only the name string — no filesystem access needed.
     Suitable as a pre-import check.
     """
     parsed = parse_album_name(album_name)
@@ -297,9 +316,11 @@ def check_album_naming(album_name: str) -> tuple[NamingIssue, ...]:
 def check_batch_date_collisions(
     albums: list[tuple[str, ParsedAlbumName]],
 ) -> BatchNamingResult:
-    """Flags groups of albums on the same single-day date whose part numbers
-    do not disambiguate them: either some album lacks a part, or two
-    albums share the same part value.
+    """
+    Find albums on the same single-day date that their part numbers do not tell apart.
+
+    Flags groups where either some album lacks a part, or two albums share the
+    same part value.
 
     *albums* is a list of ``(album_name, parsed)`` tuples.
     """

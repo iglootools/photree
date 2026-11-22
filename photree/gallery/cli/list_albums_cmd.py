@@ -1,18 +1,20 @@
+"""The ``photree gallery list-albums`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
-from ...albums.batchcli.listing import run_batch_list_albums
-from ...albums.batchcli.resolution import resolve_check_batch_albums
-from ...clihelpers.options import (
+from photree.albums.batchcli.listing import run_batch_list_albums
+from photree.albums.batchcli.resolution import resolve_check_batch_albums
+from photree.clihelpers.options import (
     OUTPUT_FILE_OPTION,
     OUTPUT_FORMAT_OPTION,
     OutputFormat,
 )
-from ...clihelpers.resolution import resolve_gallery_or_exit
-from ...clihelpers.runtime import runtime_of
-from . import app
+from photree.clihelpers.resolution import resolve_gallery_or_exit
+from photree.clihelpers.runtime import runtime_of
+from photree.gallery.cli.app import app
 
 
 @app.command("list-albums")
@@ -23,12 +25,16 @@ def list_albums_cmd(
         typer.Option(
             "--gallery-dir",
             "-g",
-            help="Gallery root directory (or resolved from cwd via .photree/gallery.yaml).",
+            help=(
+                "Gallery root directory (or resolved from cwd "
+                "via .photree/gallery.yaml)."
+            ),
             exists=True,
             file_okay=False,
             resolve_path=True,
         ),
     ] = None,
+    *,
     metadata: Annotated[
         bool,
         typer.Option(

@@ -1,4 +1,5 @@
-"""macOS ``sips`` wrapper — image conversion, resizing, and metadata queries.
+"""
+macOS ``sips`` wrapper — image conversion, resizing, and metadata queries.
 
 All functions build argument lists rather than shell strings to avoid quoting
 issues.
@@ -9,7 +10,8 @@ from pathlib import Path
 
 
 class SipsError(OSError):
-    """A ``sips`` invocation failed.
+    """
+    A ``sips`` invocation failed.
 
     ``subprocess`` captures sips' diagnostics on the ``CalledProcessError``'s
     ``stderr`` attribute, which ``str(exc)`` does not print — so the one line
@@ -25,12 +27,14 @@ class SipsError(OSError):
     """
 
     def __init__(self, *, path: Path, returncode: int, stderr: str) -> None:
+        """Build the error from the image, sips' exit code and its stderr."""
         self.path = path
         self.returncode = returncode
         self.stderr = stderr
         super().__init__(self.__str__())
 
     def __str__(self) -> str:
+        """Return the image's name and sips' stderr, or its exit code without one."""
         detail = self.stderr.strip() or f"sips exited {self.returncode}"
         return f"{self.path.name}: {detail}"
 
@@ -50,7 +54,8 @@ def _run(args: list[str], *, path: Path) -> subprocess.CompletedProcess[str]:
 
 
 def convert_to_jpeg(src: Path, dst: Path) -> None:
-    """Convert *src* to JPEG via ``sips``, writing to *dst*.
+    """
+    Convert *src* to JPEG via ``sips``, writing to *dst*.
 
     Preserves EXIF metadata. Works with HEIC, DNG, JPEG, PNG, etc.
     """
@@ -58,11 +63,17 @@ def convert_to_jpeg(src: Path, dst: Path) -> None:
 
 
 def convert_to_heic(src: Path, dst: Path) -> None:
+    """
+    Convert *src* to HEIC via ``sips``, writing to *dst*.
+
+    Raises :class:`SipsError` when ``sips`` fails.
+    """
     _run(["sips", "-s", "format", "heic", str(src), "--out", str(dst)], path=src)
 
 
 def resize_to_jpeg(src: Path, dst: Path, *, max_dimension: int) -> None:
-    """Convert *src* to a resized JPEG (longest edge ≤ *max_dimension*).
+    """
+    Convert *src* to a resized JPEG (longest edge ≤ *max_dimension*).
 
     Uses ``--resampleHeightWidthMax`` so the aspect ratio is preserved.
     """
@@ -85,7 +96,8 @@ def resize_to_jpeg(src: Path, dst: Path, *, max_dimension: int) -> None:
 def get_dimensions(path: Path) -> tuple[int, int]:
     """Return ``(width, height)`` of an image file via ``sips``."""
     result = _run(
-        ["sips", "-g", "pixelWidth", "-g", "pixelHeight", str(path)], path=path
+        ["sips", "-g", "pixelWidth", "-g", "pixelHeight", str(path)],
+        path=path,
     )
     # The first output line is the file path (which may itself contain ":"),
     # so only the indented "key: value" property lines are parsed.

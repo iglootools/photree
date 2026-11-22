@@ -1,10 +1,10 @@
+"""The outcome of a collection refresh and the errors that stop one."""
+
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ...album.naming import (
-    NamingIssue,
-)
+from photree.album.naming import NamingIssue
 
 
 class CollectionRefreshErrorKind(StrEnum):
@@ -34,7 +34,8 @@ class CollectionRefreshErrorKind(StrEnum):
 
 @dataclass(frozen=True)
 class CollectionRefreshError:
-    """An error encountered during collection refresh.
+    """
+    An error encountered during collection refresh.
 
     Which fields are set depends on :attr:`kind` (see
     :class:`CollectionRefreshErrorKind`). Paths are absolute; the CLI renders
@@ -51,6 +52,8 @@ class CollectionRefreshError:
 
 @dataclass(frozen=True)
 class CollectionRefreshResult:
+    """What a collection refresh changed, by name, and the errors that stopped it."""
+
     created: tuple[str, ...] = ()
     updated: tuple[str, ...] = ()
     renamed: tuple[tuple[str, str], ...] = ()  # old name, then new name
@@ -60,4 +63,5 @@ class CollectionRefreshResult:
 
     @property
     def success(self) -> bool:
+        """Whether the refresh hit no error."""
         return len(self.errors) == 0

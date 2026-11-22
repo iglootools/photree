@@ -1,31 +1,46 @@
 """Fake check results for demo and testing purposes."""
 
-from ..store.media_source import MAIN_MEDIA_SOURCE, std_media_source
-from . import (
+from photree.album.check import (
     AlbumDirCheck,
     AlbumIdCheck,
     AlbumIntegrityResult,
     AlbumMediaSourceSummary,
     AlbumPreflightResult,
 )
-from .browsable import BrowsableDirCheck, FileComparison, MissingFile, WrongSource
-from .ios import (
+from photree.album.check.browsable import (
+    BrowsableDirCheck,
+    FileComparison,
+    MissingFile,
+    WrongSource,
+)
+from photree.album.check.ios import (
     IosMediaSourceIntegrityResult,
     MiscategorizedFile,
     MiscategorizedKind,
 )
-from .ios.sidecar import SidecarCheck, SidecarIssue, SidecarIssueKind
-from .jpeg import AlbumJpegIntegrityResult, JpegCheck
-from .std import DuplicateStem, StdMediaSourceIntegrityResult
-from .unexpected_dirs import UnexpectedDirsCheck
+from photree.album.check.ios.sidecar import SidecarCheck, SidecarIssue, SidecarIssueKind
+from photree.album.check.jpeg import AlbumJpegIntegrityResult, JpegCheck
+from photree.album.check.std import DuplicateStem, StdMediaSourceIntegrityResult
+from photree.album.check.unexpected_dirs import UnexpectedDirsCheck
+from photree.album.store.media_source import MAIN_MEDIA_SOURCE, std_media_source
 
 _STD_MEDIA_SOURCE = std_media_source("nelu")
 
 
 _BROWSABLE_OK = BrowsableDirCheck(
     correct=(
-        FileComparison("IMG_E0001.HEIC", "IMG_E0001.HEIC", True, True),
-        FileComparison("IMG_0002.PNG", "IMG_0002.PNG", True, True),
+        FileComparison(
+            "IMG_E0001.HEIC",
+            "IMG_E0001.HEIC",
+            size_match=True,
+            checksum_match=True,
+        ),
+        FileComparison(
+            "IMG_0002.PNG",
+            "IMG_0002.PNG",
+            size_match=True,
+            checksum_match=True,
+        ),
     ),
     missing=(),
     extra=(),
@@ -36,7 +51,14 @@ _BROWSABLE_OK = BrowsableDirCheck(
 )
 
 _BROWSABLE_VID_OK = BrowsableDirCheck(
-    correct=(FileComparison("IMG_0003.MOV", "IMG_0003.MOV", True, True),),
+    correct=(
+        FileComparison(
+            "IMG_0003.MOV",
+            "IMG_0003.MOV",
+            size_match=True,
+            checksum_match=True,
+        ),
+    ),
     missing=(),
     extra=(),
     wrong_source=(),
@@ -61,7 +83,14 @@ _BROWSABLE_FAILURES = BrowsableDirCheck(
     extra=("STRAY_FILE.HEIC",),
     wrong_source=(WrongSource("IMG_0002.HEIC", "IMG_E0002.HEIC"),),
     wrong_link_mode=(),
-    size_mismatches=(FileComparison("IMG_0003.HEIC", "IMG_0003.HEIC", False, None),),
+    size_mismatches=(
+        FileComparison(
+            "IMG_0003.HEIC",
+            "IMG_0003.HEIC",
+            size_match=False,
+            checksum_match=None,
+        ),
+    ),
     checksum_mismatches=(),
 )
 
@@ -90,7 +119,9 @@ IOS_INTEGRITY_FAILURES = IosMediaSourceIntegrityResult(
         missing_sidecars=(
             SidecarIssue("IMG_0001.HEIC", "orig-img", SidecarIssueKind.MISSING_SIDECAR),
             SidecarIssue(
-                "IMG_E0002.HEIC", "edit-img", SidecarIssueKind.MISSING_EDIT_SIDECAR
+                "IMG_E0002.HEIC",
+                "edit-img",
+                SidecarIssueKind.MISSING_EDIT_SIDECAR,
             ),
         ),
         orphan_sidecars=(
@@ -99,10 +130,14 @@ IOS_INTEGRITY_FAILURES = IosMediaSourceIntegrityResult(
     ),
     miscategorized=(
         MiscategorizedFile(
-            "IMG_E0410.HEIC", "orig-img", MiscategorizedKind.EDITED_IN_ORIG
+            "IMG_E0410.HEIC",
+            "orig-img",
+            MiscategorizedKind.EDITED_IN_ORIG,
         ),
         MiscategorizedFile(
-            "IMG_0100.HEIC", "edit-img", MiscategorizedKind.ORIGINAL_IN_EDIT
+            "IMG_0100.HEIC",
+            "edit-img",
+            MiscategorizedKind.ORIGINAL_IN_EDIT,
         ),
     ),
 )
@@ -110,8 +145,18 @@ IOS_INTEGRITY_FAILURES = IosMediaSourceIntegrityResult(
 
 _STD_BROWSABLE_OK = BrowsableDirCheck(
     correct=(
-        FileComparison("photo1.heic", "photo1.heic", True, True),
-        FileComparison("photo2.jpg", "photo2.jpg", True, True),
+        FileComparison(
+            "photo1.heic",
+            "photo1.heic",
+            size_match=True,
+            checksum_match=True,
+        ),
+        FileComparison(
+            "photo2.jpg",
+            "photo2.jpg",
+            size_match=True,
+            checksum_match=True,
+        ),
     ),
     missing=(),
     extra=(),
@@ -122,7 +167,9 @@ _STD_BROWSABLE_OK = BrowsableDirCheck(
 )
 
 _STD_VID_OK = BrowsableDirCheck(
-    correct=(FileComparison("clip1.mov", "clip1.mov", True, True),),
+    correct=(
+        FileComparison("clip1.mov", "clip1.mov", size_match=True, checksum_match=True),
+    ),
     missing=(),
     extra=(),
     wrong_source=(),
@@ -156,22 +203,22 @@ STD_INTEGRITY_FAILURES = StdMediaSourceIntegrityResult(
 
 
 INTEGRITY_OK = AlbumIntegrityResult(
-    by_media_source=((MAIN_MEDIA_SOURCE, IOS_INTEGRITY_OK),)
+    by_media_source=((MAIN_MEDIA_SOURCE, IOS_INTEGRITY_OK),),
 )
 
 INTEGRITY_FAILURES = AlbumIntegrityResult(
-    by_media_source=((MAIN_MEDIA_SOURCE, IOS_INTEGRITY_FAILURES),)
+    by_media_source=((MAIN_MEDIA_SOURCE, IOS_INTEGRITY_FAILURES),),
 )
 
 JPEG_INTEGRITY_OK = AlbumJpegIntegrityResult(
     by_media_source=(
         (MAIN_MEDIA_SOURCE, _JPEG_OK),
         (_STD_MEDIA_SOURCE, JpegCheck(present=("photo1.jpg",), missing=(), extra=())),
-    )
+    ),
 )
 
 JPEG_INTEGRITY_FAILURES = AlbumJpegIntegrityResult(
-    by_media_source=((MAIN_MEDIA_SOURCE, _JPEG_FAILURES),)
+    by_media_source=((MAIN_MEDIA_SOURCE, _JPEG_FAILURES),),
 )
 
 
@@ -194,7 +241,8 @@ PREFLIGHT_OK = AlbumPreflightResult(
     media_source_summary=AlbumMediaSourceSummary(media_sources=(MAIN_MEDIA_SOURCE,)),
     dir_check=_IOS_DIR_CHECK_OK,
     album_id_check=AlbumIdCheck(
-        has_id=True, album_id="01234567-89ab-7def-8123-456789abcdef"
+        has_id=True,
+        album_id="01234567-89ab-7def-8123-456789abcdef",
     ),
     unexpected_dirs_check=UnexpectedDirsCheck(unexpected=()),
     integrity=INTEGRITY_OK,
@@ -222,18 +270,19 @@ PREFLIGHT_STD = AlbumPreflightResult(
     sips_available=True,
     exiftool_available=True,
     media_source_summary=AlbumMediaSourceSummary(
-        media_sources=(std_media_source("main"),)
+        media_sources=(std_media_source("main"),),
     ),
     dir_check=AlbumDirCheck(
         present=("std-main/orig-img", "main-img", "main-jpg"),
         missing=(),
     ),
     album_id_check=AlbumIdCheck(
-        has_id=True, album_id="01234567-89ab-7def-8123-456789abcdef"
+        has_id=True,
+        album_id="01234567-89ab-7def-8123-456789abcdef",
     ),
     unexpected_dirs_check=UnexpectedDirsCheck(unexpected=()),
     integrity=AlbumIntegrityResult(
-        by_media_source=((std_media_source("main"), STD_INTEGRITY_OK),)
+        by_media_source=((std_media_source("main"), STD_INTEGRITY_OK),),
     ),
     jpeg_check=JPEG_INTEGRITY_OK,
 )

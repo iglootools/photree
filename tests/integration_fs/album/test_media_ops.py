@@ -36,7 +36,7 @@ def _mark_album(album: Path) -> None:
 
 
 def _setup_ios_album(album: Path) -> None:
-    """Create a minimal iOS album with one image (0410) that has orig, edit, main, jpg."""
+    """Create an iOS album with one image (0410) in orig, edit, main and jpg."""
     _setup_dir(album / PHOTREE_DIR, [])
     _mark_album(album)
     _setup_dir(
@@ -66,7 +66,8 @@ def _setup_std_album(album: Path, media_source_name: str = "nelu") -> None:
     _setup_dir(album / PHOTREE_DIR, [])
     _mark_album(album)
     _setup_dir(
-        album / f"std-{media_source_name}/orig-img", ["sunset.heic", "beach.png"]
+        album / f"std-{media_source_name}/orig-img",
+        ["sunset.heic", "beach.png"],
     )
     _setup_dir(album / f"{media_source_name}-img", ["sunset.heic", "beach.png"])
     _setup_dir(album / f"{media_source_name}-jpg", ["sunset.jpg", "beach.png"])
@@ -198,7 +199,8 @@ class TestResolveVariants:
         _setup_dir(album / "main-jpg", ["IMG_0410.jpg", "IMG_0411.jpg"])
 
         result = resolve_variants(
-            album, ["main-jpg/IMG_0410.jpg", "main-jpg/IMG_0411.jpg"]
+            album,
+            ["main-jpg/IMG_0410.jpg", "main-jpg/IMG_0411.jpg"],
         )
 
         all_files = {f for _, files in result for f in files}
@@ -396,7 +398,9 @@ class TestMediaOpSummary:
 
     def test_dry_run_summary_says_what_would_happen(self) -> None:
         assert media_op_summary(
-            "remove", (("orig-img", ("a", "b")),), dry_run=True
+            "remove",
+            (("orig-img", ("a", "b")),),
+            dry_run=True,
         ) == ("Would remove 2 file(s): 2 from orig-img.")
 
     def test_summary_names_the_verb_when_nothing_matched(self) -> None:

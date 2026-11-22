@@ -1,13 +1,16 @@
+"""The ``photree albums detect-faces`` command."""
+
 from typing import Annotated
 
 import typer
 
-from ...clihelpers.options import DRY_RUN_OPTION
-from ...clihelpers.runtime import runtime_of
-from ...clihelpers.sysdeps import FACE_DETECTION_DEPS, require_system_deps
-from ..batchcli.detect_faces import run_batch_detect_faces
-from ..batchcli.resolution import resolve_check_batch_albums
-from . import ALBUM_DIR_OPTION, DIR_OPTION, app
+from photree.albums.batchcli.detect_faces import run_batch_detect_faces
+from photree.albums.batchcli.resolution import resolve_check_batch_albums
+from photree.albums.cli.app import app
+from photree.albums.cli.options import ALBUM_DIR_OPTION, DIR_OPTION
+from photree.clihelpers.options import DRY_RUN_OPTION
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.sysdeps import FACE_DETECTION_DEPS, require_system_deps
 
 
 @app.command("detect-faces")
@@ -15,6 +18,7 @@ def detect_faces_cmd(
     ctx: typer.Context,
     base_dir: DIR_OPTION = None,
     album_dirs: ALBUM_DIR_OPTION = None,
+    *,
     dry_run: DRY_RUN_OPTION = False,
     redetect: Annotated[
         bool,

@@ -1,4 +1,5 @@
-"""Image-to-JPEG conversion logic.
+"""
+Image-to-JPEG conversion logic.
 
 - HEIC and DNG (ProRAW) files are converted to JPEG using macOS ``sips``
   (preserves EXIF metadata).
@@ -16,10 +17,14 @@ from functools import partial
 from pathlib import Path
 from typing import Protocol
 
-from ..common.fs import file_ext, list_files
-from ..common.parallelism import ParallelResult, run_parallel
-from ..common.sips import convert_to_jpeg
-from .formats import CONVERT_TO_JPEG_EXTENSIONS, COPY_AS_IS_TO_JPEG_EXTENSIONS
+from photree.album.formats import (
+    CONVERT_TO_JPEG_EXTENSIONS,
+    COPY_AS_IS_TO_JPEG_EXTENSIONS,
+)
+from photree.common.fs import file_ext, list_files
+from photree.common.parallelism import ParallelResult, run_parallel
+from photree.common.progress import FileEnd
+from photree.common.sips import convert_to_jpeg
 
 
 class JpegAction(StrEnum):
@@ -31,6 +36,7 @@ class JpegAction(StrEnum):
 
 
 def jpeg_action(filename: str) -> JpegAction:
+    """Return whether *filename*'s JPEG variant is converted, copied, or skipped."""
     match file_ext(filename):
         case ext if ext in CONVERT_TO_JPEG_EXTENSIONS:
             return JpegAction.CONVERT
@@ -52,15 +58,23 @@ def jpeg_name(filename: str) -> str | None:
 
 
 class ConvertFile(Protocol):
-    """Produce the JPEG variant of *src* in *dst_dir*.
+    """
+    Produce the JPEG variant of *src* in *dst_dir*.
 
     Returns the destination path, or ``None`` when the file was skipped.
     Implementations must be safe to call from worker threads.
     """
 
     def __call__(  # noqa: DC02 -- a Protocol member, called through ConvertFile
-        self, src: Path, dst_dir: Path, /, *, dry_run: bool
-    ) -> Path | None: ...
+        self,
+        src: Path,
+        dst_dir: Path,
+        /,
+        *,
+        dry_run: bool,
+    ) -> Path | None:
+        """Return the JPEG written (in a dry run, to write), or ``None`` if skipped."""
+        ...
 
 
 def _produce_jpeg(
@@ -85,7 +99,8 @@ def _produce_jpeg(
 
 
 def convert_single_file(src: Path, dst_dir: Path, *, dry_run: bool) -> Path | None:
-    """Convert or copy a single file to the JPEG output directory.
+    """
+    Convert or copy a single file to the JPEG output directory.
 
     - HEIC/HEIF/DNG → converted to JPEG via ``sips`` (preserves EXIF metadata)
     - JPEG/JPG/PNG → copied as-is
@@ -94,29 +109,35 @@ def convert_single_file(src: Path, dst_dir: Path, *, dry_run: bool) -> Path | No
     return _produce_jpeg(src, dst_dir, dry_run=dry_run, convert=convert_to_jpeg)
 
 
-def noop_convert_single(_src: Path, _dst_dir: Path, *, dry_run: bool) -> Path | None:
+def noop_convert_single(_src: Path, _dst_dir: Path, *, dry_run: bool) -> Path | None:  # noqa: ARG001 - ConvertFile's signature
     """No-op converter that skips HEIC-to-JPEG conversion entirely."""
     return None
 
 
 def copy_convert_single(src: Path, dst_dir: Path, *, dry_run: bool) -> Path | None:
-    """Copy-only converter: copies all files as-is without sips conversion.
+    """
+    Copy-only converter: copies all files as-is without sips conversion.
 
-    Use in integration tests on platforms where sips is unavailable. HEIC/DNG files are copied
-    rather than converted, so the output is not true JPEG.
+    Use in integration tests on platforms where sips is unavailable. HEIC/DNG files are
+    copied rather than converted, so the output is not true JPEG.
     """
     return _produce_jpeg(src, dst_dir, dry_run=dry_run, convert=shutil.copy)
 
 
 @dataclass(frozen=True)
 class JpegConversionFailure:
+    """A file whose JPEG variant could not be produced, with the reason."""
+
     filename: str
     reason: str
 
 
 @dataclass(frozen=True)
 class RefreshResult:
-    """*converted* and *copied* count files that actually landed in the
+    """
+    The outcome of a JPEG directory refresh.
+
+    *converted* and *copied* count files that actually landed in the
     destination; a file that raised is counted in *failed* instead.
     """
 
@@ -127,6 +148,7 @@ class RefreshResult:
 
     @property
     def success(self) -> bool:
+        """Return whether every file's JPEG variant was produced."""
         return not self.failed
 
 
@@ -144,11 +166,14 @@ def refresh_jpeg_dir(
     *,
     dry_run: bool = False,
     on_file_start: Callable[[str], None] | None = None,
-    on_file_end: Callable[[str, bool], None] | None = None,
+    on_file_end: FileEnd | None = None,
     convert_file: ConvertFile = convert_single_file,
     max_workers: int | None = None,
 ) -> RefreshResult:
-    """The destination is cleared even when the source is empty or missing, so
+    """
+    Rebuild the JPEG directory from the source directory.
+
+    The destination is cleared even when the source is empty or missing, so
     JPEGs of deleted images do not survive the refresh.
 
     Calls ``on_file_start(filename)`` before and ``on_file_end(filename, success)``
@@ -170,7 +195,10 @@ def refresh_jpeg_dir(
     ]
     results = (
         run_parallel(
-            tasks, max_workers=max_workers, on_start=on_file_start, on_end=on_file_end
+            tasks,
+            max_workers=max_workers,
+            on_start=on_file_start,
+            on_end=on_file_end,
         )
         if max_workers is not None and max_workers > 1
         else _run_sequential(tasks, on_start=on_file_start, on_end=on_file_end)
@@ -182,7 +210,7 @@ def _run_sequential(
     tasks: Sequence[tuple[str, Callable[[], Path | None]]],
     *,
     on_start: Callable[[str], None] | None,
-    on_end: Callable[[str, bool], None] | None,
+    on_end: FileEnd | None,
 ) -> list[ParallelResult[Path | None]]:
     """Run *tasks* one by one, with the same per-file contract as run_parallel."""
     # Documented exception (docs/guidelines.md): a per-item try/except in a
@@ -199,15 +227,18 @@ def _run_sequential(
         except OSError as exc:
             result = ParallelResult(key=key, success=False, exception=exc)
         if on_end:
-            on_end(key, result.success)
+            on_end(key, success=result.success)
         results.append(result)
     return results
 
 
 def _summarize(
-    results: Sequence[ParallelResult[Path | None]], *, skipped: int
+    results: Sequence[ParallelResult[Path | None]],
+    *,
+    skipped: int,
 ) -> RefreshResult:
-    """Count outcomes from the results, not from the plan.
+    """
+    Count outcomes from the results, not from the plan.
 
     Tallying before the work runs reports every file as converted even when
     sips failed on half of them. A converter returning ``None`` (e.g.

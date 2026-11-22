@@ -1,11 +1,14 @@
+"""Check albums once a gallery import has placed them."""
+
 import shutil
 from collections.abc import Callable
 from pathlib import Path
 
-from ...album import check as album_check
-from ...common.exif import ExifTagReader, exiftool_session
-from ...common.sysdeps import WhichFn
-from ...foundation.linking import LinkMode
+from photree.album import check as album_check
+from photree.common.exif import ExifTagReader, exiftool_session
+from photree.common.progress import ItemEnd
+from photree.common.sysdeps import WhichFn
+from photree.foundation.linking import LinkMode
 
 
 def run_batch_post_import_check(
@@ -15,13 +18,15 @@ def run_batch_post_import_check(
     sips_available: bool,
     display_fn: Callable[[Path], str] = lambda p: p.name,
     on_start: Callable[[str], None] | None = None,
-    on_end: Callable[[str, bool, tuple[str, ...]], None] | None = None,
+    on_end: ItemEnd | None = None,
     which: WhichFn = shutil.which,
 ) -> list[Path]:
-    """Run post-import checks on imported albums.
+    """
+    Run post-import checks on imported albums.
 
     *sips_available* is probed and *link_mode* resolved by the caller (the CLI
-    layer owns PATH and gallery lookups). Returns the list of albums that failed checking.
+    layer owns PATH and gallery lookups). Returns the list of albums that failed
+    checking.
     """
     with exiftool_session(which=which) as exiftool:
         passed = [
@@ -47,7 +52,7 @@ def _check_one(
     sips_available: bool,
     exiftool: ExifTagReader | None,
     on_start: Callable[[str], None] | None,
-    on_end: Callable[[str, bool, tuple[str, ...]], None] | None,
+    on_end: ItemEnd | None,
 ) -> bool:
     """Check one imported album, notifying start and end. Returns success."""
     if on_start:
@@ -59,5 +64,9 @@ def _check_one(
         link_mode=link_mode,
     )
     if on_end:
-        on_end(target_name, check_result.success, check_result.error_labels)
+        on_end(
+            target_name,
+            success=check_result.success,
+            error_labels=check_result.error_labels,
+        )
     return check_result.success

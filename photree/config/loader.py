@@ -1,11 +1,15 @@
-"""TOML configuration loading with platform-aware search paths.
+"""
+TOML configuration loading with platform-aware search paths.
 
 Search order (first existing file wins):
 
 1. Explicit ``--config`` path
-2. ``$XDG_CONFIG_HOME/photree/config.toml`` (defaults to ``~/.config/photree/config.toml``)
-3. Platform user config dir (macOS: ``~/Library/Application Support/photree/config.toml``)
-4. Platform site config dir (macOS: ``/Library/Application Support/photree/config.toml``)
+2. ``$XDG_CONFIG_HOME/photree/config.toml`` (defaults to
+   ``~/.config/photree/config.toml``)
+3. Platform user config dir (macOS:
+   ``~/Library/Application Support/photree/config.toml``)
+4. Platform site config dir (macOS:
+   ``/Library/Application Support/photree/config.toml``)
 
 The process environment, home directory, and platformdirs lookups are
 parameters (defaulting to the real ones) so tests pass values instead of
@@ -22,9 +26,7 @@ from typing import cast
 
 from platformdirs import site_config_dir, user_config_dir
 
-from ..foundation.linking import LinkMode
-from ..foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
-from .protocol import (
+from photree.config.protocol import (
     ConfigError,
     ConfigErrorKind,
     ExporterConfig,
@@ -32,6 +34,8 @@ from .protocol import (
     ImporterConfig,
     PhotreeConfig,
 )
+from photree.foundation.linking import LinkMode
+from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 
 _APP = "photree"
 _FILENAME = "config.toml"
@@ -49,7 +53,8 @@ def config_search_paths(
     user_dir: ConfigDirFn = user_config_dir,
     site_dir: ConfigDirFn = site_config_dir,
 ) -> list[Path]:
-    """Config file search paths in priority order.
+    """
+    Config file search paths in priority order.
 
     Order: XDG > platform user config > platform site config.
     On Linux, XDG and platform user config resolve to the same path
@@ -76,7 +81,8 @@ def find_config_file(
     user_dir: ConfigDirFn = user_config_dir,
     site_dir: ConfigDirFn = site_config_dir,
 ) -> Path | None:
-    """Find the configuration file using the search order.
+    """
+    Find the configuration file using the search order.
 
     Returns ``None`` when no config file is found (config is optional).
     Raises :class:`ConfigError` when an explicit *config_path* does not exist.
@@ -89,7 +95,10 @@ def find_config_file(
             return p
     else:
         search = config_search_paths(
-            environ=environ, home=home, user_dir=user_dir, site_dir=site_dir
+            environ=environ,
+            home=home,
+            user_dir=user_dir,
+            site_dir=site_dir,
         )
         return next((p for p in search if p.is_file()), None)
 
@@ -101,14 +110,21 @@ def find_config_file(
 
 
 def _table(
-    raw: Mapping[str, object], key: str, *, field: str, profile: str | None = None
+    raw: Mapping[str, object],
+    key: str,
+    *,
+    field: str,
+    profile: str | None = None,
 ) -> Mapping[str, object]:
     """Return sub-table *key* of *raw* (empty when absent)."""
     return _as_table(raw.get(key, {}), field=field, profile=profile)
 
 
 def _as_table(
-    value: object, *, field: str, profile: str | None = None
+    value: object,
+    *,
+    field: str,
+    profile: str | None = None,
 ) -> Mapping[str, object]:
     if not isinstance(value, dict):
         raise ConfigError(
@@ -120,11 +136,15 @@ def _as_table(
         )
     else:
         # TOML table keys are always strings; isinstance alone cannot say so.
-        return cast(Mapping[str, object], value)
+        return cast("Mapping[str, object]", value)
 
 
 def _optional_str(
-    raw: Mapping[str, object], key: str, *, field: str, profile: str | None = None
+    raw: Mapping[str, object],
+    key: str,
+    *,
+    field: str,
+    profile: str | None = None,
 ) -> str | None:
     value = raw.get(key)
     if value is not None and not isinstance(value, str):
@@ -148,7 +168,11 @@ def _required_str(raw: Mapping[str, object], key: str, *, profile: str) -> str:
 
 
 def _enum[E: StrEnum](
-    raw: Mapping[str, object], key: str, enum_cls: type[E], default: E, profile: str
+    raw: Mapping[str, object],
+    key: str,
+    enum_cls: type[E],
+    default: E,
+    profile: str,
 ) -> E:
     """Parse optional key *key* into *enum_cls*, raising ConfigError if invalid."""
     value = _optional_str(raw, key, field=key, profile=profile)
@@ -170,7 +194,7 @@ def _expand_user(value: str, home: Path) -> Path:
         case ("~", _, rest):
             return home / rest
         case _:
-            return Path(os.path.expanduser(value))
+            return Path(value).expanduser()
 
 
 def _parse_profile(name: str, section: object, home: Path) -> ExporterProfile:
@@ -179,7 +203,11 @@ def _parse_profile(name: str, section: object, home: Path) -> ExporterProfile:
     return ExporterProfile(
         share_dir=_expand_user(_required_str(table, "share-dir", profile=name), home),
         share_layout=_enum(
-            table, "share-layout", ShareDirectoryLayout, ShareDirectoryLayout.FLAT, name
+            table,
+            "share-layout",
+            ShareDirectoryLayout,
+            ShareDirectoryLayout.FLAT,
+            name,
         ),
         album_layout=_enum(
             table,
@@ -195,14 +223,16 @@ def _parse_profile(name: str, section: object, home: Path) -> ExporterProfile:
 def _parse_importer(raw: Mapping[str, object], home: Path) -> ImporterConfig:
     section = _table(raw, "importer", field="importer")
     image_capture_dir = _optional_str(
-        section, "image-capture-dir", field="importer.image-capture-dir"
+        section,
+        "image-capture-dir",
+        field="importer.image-capture-dir",
     )
     return ImporterConfig(
         image_capture_dir=(
             _expand_user(image_capture_dir, home)
             if image_capture_dir is not None
             else None
-        )
+        ),
     )
 
 
@@ -214,18 +244,20 @@ def _parse_exporter(raw: Mapping[str, object], home: Path) -> ExporterConfig:
             {
                 name: _parse_profile(name, profile, home)
                 for name, profile in profiles.items()
-            }
-        )
+            },
+        ),
     )
 
 
 def _read_toml(path: Path) -> dict[str, object]:
     try:
-        with open(path, "rb") as f:
+        with Path(path).open("rb") as f:
             return tomllib.load(f)
     except tomllib.TOMLDecodeError as e:
         raise ConfigError(
-            ConfigErrorKind.INVALID_TOML, path=path, expected=str(e)
+            ConfigErrorKind.INVALID_TOML,
+            path=path,
+            expected=str(e),
         ) from e
 
 
@@ -237,14 +269,19 @@ def load_config(
     user_dir: ConfigDirFn = user_config_dir,
     site_dir: ConfigDirFn = site_config_dir,
 ) -> PhotreeConfig:
-    """Load configuration from a TOML file.
+    """
+    Load configuration from a TOML file.
 
     Returns a default (empty) config when no config file is found. Raises
     :class:`ConfigError` for a missing explicit file, invalid TOML, or a
     value of the wrong type or outside its allowed set.
     """
     path = find_config_file(
-        config_path, environ=environ, home=home, user_dir=user_dir, site_dir=site_dir
+        config_path,
+        environ=environ,
+        home=home,
+        user_dir=user_dir,
+        site_dir=site_dir,
     )
     if path is None:
         return _EMPTY_CONFIG

@@ -1,15 +1,19 @@
+"""Resolution and validation of the export settings: share dir and layouts."""
+
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ...config import PhotreeConfig, load_config
-from ...foundation.layout import SHARE_SENTINEL
-from ...foundation.linking import LinkMode
-from ...foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
+from photree.config import PhotreeConfig, load_config
+from photree.foundation.layout import SHARE_SENTINEL
+from photree.foundation.linking import LinkMode
+from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 
 
 class ExportSettingsErrorKind(StrEnum):
+    """Why export settings are invalid, one kind per error message."""
+
     UNKNOWN_PROFILE = "unknown-profile"
     NO_SHARE_DIR = "no-share-dir"
     ALBUMS_LAYOUT_NEEDS_ALL = "albums-layout-needs-all"
@@ -17,7 +21,10 @@ class ExportSettingsErrorKind(StrEnum):
 
 
 class ExportSettingsError(ValueError):
-    """Carries the failure as data (*kind* plus the fields relevant to it) so the
+    """
+    Invalid export settings.
+
+    Carries the failure as data (*kind* plus the fields relevant to it) so the
     CLI renders paths relative to the cwd; ``str()`` is a plain fallback.
     """
 
@@ -30,6 +37,7 @@ class ExportSettingsError(ValueError):
         album_layout: AlbumShareLayout | None = None,
         share_dir: Path | None = None,
     ) -> None:
+        """Build the error from its *kind* and the fields that kind reports."""
         super().__init__(f"invalid export settings: {kind}")
         self.kind = kind
         self.profile = profile
@@ -40,6 +48,8 @@ class ExportSettingsError(ValueError):
 
 @dataclass(frozen=True)
 class ResolvedExportSettings:
+    """The export settings after merging CLI flags, the profile and the defaults."""
+
     share_dir: Path
     share_layout: ShareDirectoryLayout
     album_layout: AlbumShareLayout
@@ -56,7 +66,8 @@ def resolve_export_settings(
     config_path: str | None,
     load: Callable[[str | None], PhotreeConfig] = load_config,
 ) -> ResolvedExportSettings:
-    """Resolve export settings: CLI flags > profile > defaults.
+    """
+    Resolve export settings: CLI flags > profile > defaults.
 
     *load* loads the config file (the CLI passes its runtime's).
 
@@ -108,7 +119,7 @@ def resolve_export_settings(
 
 
 def validate_export_settings(settings: ResolvedExportSettings) -> None:
-    """Raises :class:`ExportSettingsError` on validation failure."""
+    """Raise :class:`ExportSettingsError` on validation failure."""
     if (
         settings.share_layout == ShareDirectoryLayout.ALBUMS
         and settings.album_layout != AlbumShareLayout.ALL
@@ -120,5 +131,6 @@ def validate_export_settings(settings: ResolvedExportSettings) -> None:
 
     if not (settings.share_dir / SHARE_SENTINEL).exists():
         raise ExportSettingsError(
-            ExportSettingsErrorKind.MISSING_SENTINEL, share_dir=settings.share_dir
+            ExportSettingsErrorKind.MISSING_SENTINEL,
+            share_dir=settings.share_dir,
         )

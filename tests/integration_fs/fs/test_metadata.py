@@ -227,17 +227,18 @@ class TestGalleryMetadata:
         path.write_text(
             yaml.safe_dump(
                 GalleryMetadata(link_mode=LinkMode.SYMLINK).model_dump(
-                    by_alias=True, mode="json"
+                    by_alias=True,
+                    mode="json",
                 ),
                 default_flow_style=False,
                 sort_keys=False,
-            )
+            ),
         )
 
         loaded = load_gallery_metadata(path)
         assert loaded.link_mode == LinkMode.SYMLINK
 
-    def test_yaml_uses_kebab_case(self, tmp_path: Path) -> None:
+    def test_yaml_uses_kebab_case(self) -> None:
         meta = GalleryMetadata(link_mode=LinkMode.COPY)
         dumped = yaml.safe_dump(
             meta.model_dump(by_alias=True, mode="json"),
@@ -356,7 +357,9 @@ class TestYamlMetadataIO:
 
     @pytest.mark.parametrize("content", ["", "- a\n- b\n", "key: [unclosed\n"])
     def test_present_but_unusable_file_raises(
-        self, tmp_path: Path, content: str
+        self,
+        tmp_path: Path,
+        content: str,
     ) -> None:
         path = tmp_path / "bad.yaml"
         path.write_text(content, encoding="utf-8")

@@ -1,24 +1,28 @@
+"""Check that an album's media IDs match the media files on disk."""
+
 from collections import Counter
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from ...common.fs import list_files
-from ..formats import (
+from photree.album.formats import (
     IMG_EXTENSIONS,
     IOS_IMG_EXTENSIONS,
     IOS_VID_EXTENSIONS,
     VID_EXTENSIONS,
 )
-from ..store.file_matching import dedup_media_dict
-from ..store.media_metadata import (
+from photree.album.store.file_matching import dedup_media_dict
+from photree.album.store.media_metadata import (
     MediaSourceMediaMetadata,
     load_media_metadata,
 )
-from ..store.media_source import KeyFn, MediaSource
+from photree.album.store.media_source import KeyFn, MediaSource
+from photree.common.fs import list_files
 
 
 class MediaType(StrEnum):
+    """Whether a media file is an image or a video."""
+
     IMAGE = "image"
     VIDEO = "video"
 
@@ -42,6 +46,8 @@ class DuplicateId:
 
 @dataclass(frozen=True)
 class MediaMetadataCheck:
+    """The outcome of comparing ``.photree/media-ids`` with the files on disk."""
+
     has_media_metadata: bool
     image_count: int = 0
     video_count: int = 0
@@ -54,6 +60,7 @@ class MediaMetadataCheck:
 
     @property
     def in_sync(self) -> bool:
+        """Return whether media IDs exist, match the files and are all unique."""
         return (
             self.has_media_metadata
             and not self.new_keys
@@ -69,7 +76,7 @@ def _scan_keys(
     key_fn: KeyFn,
 ) -> set[str]:
     return set(
-        dedup_media_dict(list_files(album_dir / directory), extensions, key_fn).keys()
+        dedup_media_dict(list_files(album_dir / directory), extensions, key_fn).keys(),
     )
 
 
@@ -79,7 +86,7 @@ def _diff_keys(
     ms_name: str,
     media_type: MediaType,
 ) -> tuple[tuple[UnmatchedKey, ...], tuple[UnmatchedKey, ...]]:
-    """Returns ``(new_entries, stale_entries)`` as sorted tuples."""
+    """Return ``(new_entries, stale_entries)`` as sorted tuples."""
     new = tuple(
         UnmatchedKey(ms_name, media_type, k) for k in sorted(disk_keys - existing_keys)
     )
@@ -129,7 +136,8 @@ def _check_media_source(
 
 
 def _stale_source_result(
-    ms_name: str, ms_meta: MediaSourceMediaMetadata
+    ms_name: str,
+    ms_meta: MediaSourceMediaMetadata,
 ) -> _SourceCheckResult:
     """Build a check result for a media source that no longer exists on disk."""
     return _SourceCheckResult(
@@ -195,6 +203,6 @@ def check_media_metadata(
         new_keys=tuple(entry for r in all_results for entry in r.new),
         stale_keys=tuple(entry for r in all_results for entry in r.stale),
         duplicate_ids=_find_duplicate_ids(
-            [uuid for r in all_results for uuid in r.uuids]
+            [uuid for r in all_results for uuid in r.uuids],
         ),
     )

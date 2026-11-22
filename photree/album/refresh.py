@@ -1,54 +1,59 @@
+"""Refresh of an album's derived data: media IDs, browsable dirs, JPEGs, caches."""
+
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..common.exif import ExifTagReader
-from ..common.fs import list_files
-from ..foundation.linking import LinkMode
-from .browsable import refresh_browsable_dir
-from .check.browsable import check_browsable_dir
-from .check.jpeg import check_jpeg_dir
-from .check.media_metadata import check_media_metadata
-from .exif_cache.refresh import refresh_exif_cache
-from .faces.detect import FaceAnalyzerFactory
-from .faces.failures import FaceFailure
-from .faces.refresh import refresh_face_data
-from .formats import (
+from photree.album.browsable import refresh_browsable_dir
+from photree.album.check.browsable import check_browsable_dir
+from photree.album.check.jpeg import check_jpeg_dir
+from photree.album.check.media_metadata import check_media_metadata
+from photree.album.exif_cache.refresh import refresh_exif_cache
+from photree.album.faces.detect import FaceAnalyzerFactory
+from photree.album.faces.failures import FaceFailure
+from photree.album.faces.refresh import refresh_face_data
+from photree.album.formats import (
     IMG_EXTENSIONS,
     IOS_IMG_EXTENSIONS,
     IOS_VID_EXTENSIONS,
     VID_EXTENSIONS,
 )
-from .id import generate_media_id
-from .jpeg import (
+from photree.album.id import generate_media_id
+from photree.album.jpeg import (
     ConvertFile,
     JpegConversionFailure,
     convert_single_file,
     refresh_jpeg_dir,
 )
-from .live_photo import (
+from photree.album.live_photo import (
     augment_browsable_img_with_live_photo_videos,
     compute_live_photo_videos,
     detect_live_photo_keys,
     filter_live_photo_extras,
 )
-from .store.file_matching import dedup_media_dict
-from .store.media_metadata import (
+from photree.album.store.file_matching import dedup_media_dict
+from photree.album.store.media_metadata import (
     MediaMetadata,
     MediaSourceMediaMetadata,
     load_media_metadata,
     save_media_metadata,
 )
-from .store.media_source import KeyFn, MediaSource
-from .store.media_sources_discovery import discover_media_sources
+from photree.album.store.media_source import KeyFn, MediaSource
+from photree.album.store.media_sources_discovery import discover_media_sources
+from photree.common.exif import ExifTagReader
+from photree.common.fs import list_files
+from photree.foundation.linking import LinkMode
 
 
 @dataclass(frozen=True)
 class AlbumRefreshResult:
-    """Carries the per-file failures the refresh survived, so a caller can report
-    them. A JPEG that failed to convert leaves a gap in ``{name}-jpg/`` that is
-    otherwise invisible until the next ``album check``; an image whose face
-    detection failed is silently missing from face clustering.
+    """
+    The outcome of a refresh, with the per-file failures it survived.
+
+    Carries them so a caller can report them. A JPEG that failed to convert
+    leaves a gap in ``{name}-jpg/`` that is otherwise invisible until the next
+    ``album check``; an image whose face detection failed is silently missing
+    from face clustering.
 
     Both fields are ``(media_source_name, failure)`` pairs.
     """
@@ -58,11 +63,19 @@ class AlbumRefreshResult:
 
     @property
     def success(self) -> bool:
+        """Return whether no JPEG conversion or face detection failed."""
         return not self.jpeg_failures and not self.face_failures
 
 
 @dataclass(frozen=True)
 class ReconcileResult:
+    """
+    The media IDs after reconciling them with the keys present on disk.
+
+    *updated* maps each media ID to its key; the counts are the keys that
+    got a new ID and the IDs dropped because their key is gone.
+    """
+
     updated: dict[str, str]
     new_count: int
     removed_count: int
@@ -70,6 +83,8 @@ class ReconcileResult:
 
 @dataclass(frozen=True)
 class MediaSourceRefreshResult:
+    """The media IDs one media source gained and lost, for images and videos."""
+
     new_images: int
     new_videos: int
     removed_images: int
@@ -77,6 +92,7 @@ class MediaSourceRefreshResult:
 
     @property
     def changed(self) -> bool:
+        """Return whether any media ID was added or removed."""
         return (
             self.new_images > 0
             or self.new_videos > 0
@@ -87,14 +103,18 @@ class MediaSourceRefreshResult:
 
 @dataclass(frozen=True)
 class RefreshResult:
+    """The outcome of refreshing an album's media IDs, per media source name."""
+
     by_media_source: tuple[tuple[str, MediaSourceRefreshResult], ...]
 
     @property
     def total_new(self) -> int:
+        """Return the number of new media IDs across every media source."""
         return sum(r.new_images + r.new_videos for _, r in self.by_media_source)
 
     @property
     def changed(self) -> bool:
+        """Return whether any media source's media IDs changed."""
         return any(r.changed for _, r in self.by_media_source)
 
 
@@ -127,7 +147,7 @@ def _scan_keys(
     key_fn: KeyFn,
 ) -> set[str]:
     return set(
-        dedup_media_dict(list_files(album_dir / directory), extensions, key_fn).keys()
+        dedup_media_dict(list_files(album_dir / directory), extensions, key_fn).keys(),
     )
 
 
@@ -177,7 +197,10 @@ def refresh_media_metadata(
     dry_run: bool = False,
     new_id: Callable[[], str] = generate_media_id,
 ) -> RefreshResult:
-    """Assigns new UUIDs (from *new_id*) to media files not yet tracked, removes
+    """
+    Bring the media IDs in sync with the files on disk.
+
+    Assigns new UUIDs (from *new_id*) to media files not yet tracked, removes
     stale entries for files no longer on disk.
     """
     existing = load_media_metadata(album_dir) or MediaMetadata()
@@ -222,7 +245,10 @@ def refresh_album_derived_data(
     refresh_face_thumbs: bool = False,
     dry_run: bool = False,
 ) -> AlbumRefreshResult:
-    """Runs 5 steps in order, each gated by a check to skip when up-to-date:
+    """
+    Refresh an album's derived data, skipping each step that is up to date.
+
+    Runs 5 steps in order, each gated by a check:
 
     1. **Browsable dirs** (main-img, main-vid) — gated by
        ``check_browsable_dir`` (no checksum, fast file-listing check).
@@ -262,7 +288,10 @@ def refresh_album_derived_data(
     )
     _refresh_media_ids_if_stale(album_dir, media_sources, dry_run=dry_run)
     refresh_exif_cache(
-        album_dir, exiftool=exiftool, force=force_exif_cache, dry_run=dry_run
+        album_dir,
+        exiftool=exiftool,
+        force=force_exif_cache,
+        dry_run=dry_run,
     )
     faces = refresh_face_data(
         album_dir,
@@ -277,7 +306,10 @@ def refresh_album_derived_data(
 
 
 def _refresh_media_ids_if_stale(
-    album_dir: Path, media_sources: list[MediaSource], *, dry_run: bool
+    album_dir: Path,
+    media_sources: list[MediaSource],
+    *,
+    dry_run: bool,
 ) -> None:
 
     meta_check = check_media_metadata(album_dir, media_sources=media_sources)
@@ -299,7 +331,11 @@ def _refresh_browsable_dirs(
     for ms in media_sources:
         img_ext, vid_ext = _media_extensions(ms)
         if force or not _browsable_img_is_fresh(
-            album_dir, ms, img_ext=img_ext, vid_ext=vid_ext, link_mode=link_mode
+            album_dir,
+            ms,
+            img_ext=img_ext,
+            vid_ext=vid_ext,
+            link_mode=link_mode,
         ):
             _rebuild_browsable_img(album_dir, ms, img_ext, vid_ext, link_mode)
         if force or not _browsable_is_fresh(
@@ -343,7 +379,10 @@ def _rebuild_browsable_img(
 
 
 def _rebuild_browsable_vid(
-    album_dir: Path, ms: MediaSource, vid_ext: frozenset[str], link_mode: LinkMode
+    album_dir: Path,
+    ms: MediaSource,
+    vid_ext: frozenset[str],
+    link_mode: LinkMode,
 ) -> None:
 
     refresh_browsable_dir(
@@ -388,7 +427,10 @@ def _browsable_img_is_fresh(
     vid_ext: frozenset[str],
     link_mode: LinkMode,
 ) -> bool:
-    """For iOS media sources, accounts for Live Photo companion videos that
+    """
+    Tell whether the browsable img dir is up to date.
+
+    For iOS media sources, accounts for Live Photo companion videos that
     are expected to be present in the browsable img dir alongside images.
     """
     orig = album_dir / ms.orig_img_dir
@@ -428,7 +470,10 @@ def _live_photo_vid_filenames(
     if not live_keys:
         return frozenset()
     videos = compute_live_photo_videos(
-        orig, album_dir / ms.edit_img_dir, vid_ext, ms.key_fn
+        orig,
+        album_dir / ms.edit_img_dir,
+        vid_ext,
+        ms.key_fn,
     )
     return frozenset(name for name, _ in videos)
 
@@ -442,8 +487,11 @@ def _refresh_jpeg_dirs(
     force: bool,
     dry_run: bool,
 ) -> tuple[tuple[str, JpegConversionFailure], ...]:
-    """Returns ``(media_source_name, failure)`` pairs for files that could not be
-    converted, so the caller can report which source they belong to.
+    """
+    Refresh each JPEG dir, returning the files that could not be converted.
+
+    Returns ``(media_source_name, failure)`` pairs, so the caller can report
+    which source they belong to.
     """
     stale = [
         ms
@@ -452,7 +500,8 @@ def _refresh_jpeg_dirs(
         and (
             force
             or not check_jpeg_dir(
-                album_dir / ms.img_dir, album_dir / ms.jpg_dir
+                album_dir / ms.img_dir,
+                album_dir / ms.jpg_dir,
             ).success
         )
     ]

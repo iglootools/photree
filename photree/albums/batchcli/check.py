@@ -7,24 +7,24 @@ from pathlib import Path
 
 import typer
 
-from ...album import naming as album_naming
-from ...album.check import output as preflight_output
-from ...album.check.output import batch_check_summary
-from ...album.exif_cache.refresh import refresh_exif_cache as _refresh_exif
-from ...album.id import format_album_external_id, format_image_external_id
-from ...album.naming import BatchNamingResult
-from ...clihelpers.console import console, err_console
-from ...clihelpers.progress import BatchProgressBar, run_with_spinner
-from ...clihelpers.sysdeps import CHECK_DEPS, EXIF_DEPS, require_system_deps
-from ...common.exif import ExifTagReader, exiftool_session
-from ...common.sysdeps import WhichFn
-from ...foundation.gallery_metadata import resolve_link_mode
-from ..cmd_handler import BatchFailure, failures_of, run_album_step
-from ..cmd_handler.check import BatchCheckResult, batch_check
-from ..index import find_duplicate_album_ids
-from ..media_index import find_duplicate_media_ids
-from .failures import batch_failures_report, investigate_commands
-from .resolution import make_display_fn
+from photree.album import naming as album_naming
+from photree.album.check import output as preflight_output
+from photree.album.check.output import batch_check_summary
+from photree.album.exif_cache.refresh import refresh_exif_cache as _refresh_exif
+from photree.album.id import format_album_external_id, format_image_external_id
+from photree.album.naming import BatchNamingResult
+from photree.albums.batchcli.failures import batch_failures_report, investigate_commands
+from photree.albums.batchcli.resolution import make_display_fn
+from photree.albums.cmd_handler import BatchFailure, failures_of, run_album_step
+from photree.albums.cmd_handler.check import BatchCheckResult, batch_check
+from photree.albums.index import find_duplicate_album_ids
+from photree.albums.media_index import find_duplicate_media_ids
+from photree.clihelpers.console import console, err_console
+from photree.clihelpers.progress import BatchProgressBar, run_with_spinner
+from photree.clihelpers.sysdeps import CHECK_DEPS, EXIF_DEPS, require_system_deps
+from photree.common.exif import ExifTagReader, exiftool_session
+from photree.common.sysdeps import WhichFn
+from photree.foundation.gallery_metadata import resolve_link_mode
 
 
 @dataclass(frozen=True)
@@ -60,7 +60,7 @@ class _CrossAlbumResult:
     failed_albums: frozenset[Path]
 
 
-def _conclude(success: bool, *, exit_on_failure: bool) -> bool:
+def _conclude(*, success: bool, exit_on_failure: bool) -> bool:
     if not success and exit_on_failure:
         raise typer.Exit(code=1)
     return success
@@ -82,7 +82,8 @@ def run_batch_check(
     which: WhichFn,
     cwd: Path,
 ) -> bool:
-    """Shared implementation for gallery check / albums check.
+    """
+    Shared implementation for gallery check / albums check.
 
     Returns ``True`` when every album passed (or there were none). With
     ``exit_on_failure`` (the default) a failed run raises ``typer.Exit(1)``
@@ -100,7 +101,8 @@ def run_batch_check(
     )
     # --refresh-exif-cache cannot degrade without exiftool, so it is required.
     require_system_deps(
-        (*CHECK_DEPS, *EXIF_DEPS) if refresh_exif_cache else CHECK_DEPS, which=which
+        (*CHECK_DEPS, *EXIF_DEPS) if refresh_exif_cache else CHECK_DEPS,
+        which=which,
     )
     checked = _run_per_album_checks(
         albums,
@@ -123,8 +125,8 @@ def run_batch_check(
         lambda: _compute_cross_album_checks(albums, flags),
     )
     _print_cross_album(cross_album, cwd)
-    success = _report(albums, result, cross_album, refresh_failures, flags, cwd)
-    return _conclude(success, exit_on_failure=exit_on_failure)
+    success = _report(albums, result, cross_album, refresh_failures, flags, cwd=cwd)
+    return _conclude(success=success, exit_on_failure=exit_on_failure)
 
 
 def _run_per_album_checks(
@@ -137,16 +139,18 @@ def _run_per_album_checks(
     refresh_exif_cache: bool,
     which: WhichFn,
 ) -> tuple[BatchCheckResult, tuple[BatchFailure, ...]] | None:
-    """Optionally refresh EXIF caches, then check each album.
+    """
+    Optionally refresh EXIF caches, then check each album.
 
     Returns ``None`` when there are no albums. The exiftool process lives
     exactly as long as this call, so no exit path can leak it.
     """
     with exiftool_session(
-        enabled=check_exif_date_match or refresh_exif_cache, which=which
+        enabled=check_exif_date_match or refresh_exif_cache,
+        which=which,
     ) as et:
         if not refresh_exif_cache:
-            console.print(preflight_output.exiftool_check(et is not None))
+            console.print(preflight_output.exiftool_check(available=et is not None))
         if not albums:
             return None
         refresh_failures = (
@@ -157,7 +161,9 @@ def _run_per_album_checks(
 
 
 def _refresh_exif_caches(
-    albums: list[Path], exiftool: ExifTagReader | None, cwd: Path
+    albums: list[Path],
+    exiftool: ExifTagReader | None,
+    cwd: Path,
 ) -> tuple[BatchFailure, ...]:
     """Refresh every album's EXIF cache; a failing album is reported, not fatal."""
     typer.echo("\nRefreshing EXIF cache...")
@@ -182,7 +188,9 @@ def _check_albums(
     cwd: Path,
 ) -> BatchCheckResult:
     with BatchProgressBar(
-        total=len(albums), description="Checking", done_description="check"
+        total=len(albums),
+        description="Checking",
+        done_description="check",
     ) as progress:
         return batch_check(
             albums,
@@ -196,12 +204,7 @@ def _check_albums(
             check_naming=flags.check_naming,
             display_fn=make_display_fn(display_base, cwd),
             on_start=progress.on_start,
-            on_end=lambda name, success, errors, warnings: progress.on_end(
-                name,
-                success=success,
-                error_labels=errors,
-                warning_labels=warnings,
-            ),
+            on_end=progress.on_end,
         )
 
 
@@ -209,7 +212,7 @@ def _print_cross_album(cross_album: _CrossAlbumResult, cwd: Path) -> None:
     typer.echo("\nCross-album checks:")
     if cross_album.naming_result is not None:
         console.print(
-            preflight_output.format_batch_naming_issues(cross_album.naming_result)
+            preflight_output.format_batch_naming_issues(cross_album.naming_result),
         )
     for kind, duplicates, format_id in (
         ("album", cross_album.duplicate_ids, format_album_external_id),
@@ -218,8 +221,11 @@ def _print_cross_album(cross_album: _CrossAlbumResult, cwd: Path) -> None:
         if duplicates:
             err_console.print(
                 preflight_output.duplicate_ids_report(
-                    kind, {k: list(v) for k, v in duplicates.items()}, cwd, format_id
-                )
+                    kind,
+                    {k: list(v) for k, v in duplicates.items()},
+                    cwd,
+                    format_id,
+                ),
             )
         else:
             console.print(preflight_output.no_duplicate_ids_line(kind))
@@ -231,6 +237,7 @@ def _report(
     cross_album: _CrossAlbumResult,
     refresh_failures: tuple[BatchFailure, ...],
     flags: _CheckFlags,
+    *,
     cwd: Path,
 ) -> bool:
     """Print the summary (and retry commands); ``True`` when nothing failed."""
@@ -241,21 +248,25 @@ def _report(
             *result.failed_albums,
             *cross_album.failed_albums,
             *(f.album_dir for f in refresh_failures),
-        }
+        },
     )
     warned = len(set(result.warned_albums) - failed)
     console.print(batch_check_summary(len(albums) - len(failed), len(failed), warned))
     if failed:
         err_console.print(
             investigate_commands(
-                "check", sorted(failed), cwd, extra_flags=flags.retry_flags()
-            )
+                "check",
+                sorted(failed),
+                cwd,
+                extra_flags=flags.retry_flags(),
+            ),
         )
     return not failed
 
 
 def _date_collision_check(
-    albums: list[Path], flags: _CheckFlags
+    albums: list[Path],
+    flags: _CheckFlags,
 ) -> tuple[BatchNamingResult | None, frozenset[Path]]:
     if not (flags.check_naming and flags.check_date_part_collision):
         return None, frozenset()
@@ -264,14 +275,15 @@ def _date_collision_check(
             (album.name, parsed)
             for album in albums
             if (parsed := album_naming.parse_album_name(album.name)) is not None
-        ]
+        ],
     )
     colliding = {name for _, names in naming_result.date_collisions for name in names}
     return naming_result, frozenset(a for a in albums if a.name in colliding)
 
 
 def _compute_cross_album_checks(
-    albums: list[Path], flags: _CheckFlags
+    albums: list[Path],
+    flags: _CheckFlags,
 ) -> _CrossAlbumResult:
     """Run cross-album checks (date collisions, duplicate IDs)."""
     naming_result, colliding = _date_collision_check(albums, flags)
@@ -288,6 +300,6 @@ def _compute_cross_album_checks(
                 *colliding,
                 *(p for paths in duplicate_ids.values() for p in paths),
                 *(p for paths in duplicate_media_ids.values() for p in paths),
-            }
+            },
         ),
     )

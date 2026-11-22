@@ -1,6 +1,8 @@
+"""Merging of size, format and media-source stats into totals."""
+
 from collections.abc import Iterable
 
-from .models import (
+from photree.album.stats.models import (
     AggregateStats,
     FormatStats,
     MediaSourceStats,
@@ -11,6 +13,7 @@ from .models import (
 
 
 def merge_size_stats(stats: Iterable[SizeStats]) -> SizeStats:
+    """Return the sum of the file counts and byte sizes of *stats*."""
     stats_list = list(stats)
     return SizeStats(
         file_count=sum(s.file_count for s in stats_list),
@@ -20,6 +23,7 @@ def merge_size_stats(stats: Iterable[SizeStats]) -> SizeStats:
 
 
 def merge_role_breakdowns(breakdowns: Iterable[RoleBreakdown]) -> RoleBreakdown:
+    """Return the sum of *breakdowns*, total, archive and derived each summed apart."""
     bd_list = list(breakdowns)
     return RoleBreakdown(
         total=merge_size_stats(b.total for b in bd_list),
@@ -92,6 +96,7 @@ def merge_media_source_type_stats(
 def aggregate_media_sources(
     sources: Iterable[MediaSourceStats],
 ) -> AggregateStats:
+    """Sum the stats of one album's media sources into the album's aggregate."""
     source_list = list(sources)
     return AggregateStats(
         total=merge_size_stats(ms.total for ms in source_list),
@@ -111,6 +116,7 @@ def aggregate_media_sources(
 
 
 def merge_aggregates(aggregates: Iterable[AggregateStats]) -> AggregateStats:
+    """Sum aggregates, such as those of several albums, into one."""
     agg_list = list(aggregates)
     return AggregateStats(
         total=merge_size_stats(a.total for a in agg_list),

@@ -1,4 +1,5 @@
-"""Discover per-media-source import tasks from ``to-import-*`` directories.
+"""
+Discover per-media-source import tasks from ``to-import-*`` directories.
 
 An album may carry multiple import staging entries, one per media source:
 
@@ -11,20 +12,23 @@ An album may carry multiple import staging entries, one per media source:
 from dataclasses import dataclass
 from pathlib import Path
 
-from ...common.fs import list_dirs, list_files
-from ..staging import STAGING_CSV_RE, STAGING_DIR_RE
-from ..store.media_source import (
+from photree.album.staging import STAGING_CSV_RE, STAGING_DIR_RE
+from photree.album.store.media_source import (
     DEFAULT_MEDIA_SOURCE,
     MediaSource,
     MediaSourceType,
     ios_media_source,
     std_media_source,
 )
+from photree.common.fs import list_dirs, list_files
 
 
 @dataclass(frozen=True)
 class ImportTask:
-    """iOS tasks carry ``selection_dir`` and/or ``selection_csv`` (a filename
+    """
+    One media source to import.
+
+    iOS tasks carry ``selection_dir`` and/or ``selection_csv`` (a filename
     selection list). Std tasks carry ``staging_dir`` (files imported directly).
     """
 
@@ -35,19 +39,23 @@ class ImportTask:
 
     @property
     def name(self) -> str:
+        """Return the name of the media source to import into."""
         return self.media_source.name
 
     @property
     def is_ios(self) -> bool:
+        """Return whether the task imports an iOS media source."""
         return self.media_source.is_ios
 
     @property
     def is_std(self) -> bool:
+        """Return whether the task imports a std media source."""
         return self.media_source.is_std
 
 
 def _staging_dirs(album_dir: Path, kind: MediaSourceType) -> dict[str, Path]:
-    """``{media source name: to-import-<kind>-<name>/}`` in *album_dir*.
+    """
+    ``{media source name: to-import-<kind>-<name>/}`` in *album_dir*.
 
     ``list_dirs`` returns ``[]`` for a missing *album_dir*.
     """
@@ -59,7 +67,7 @@ def _staging_dirs(album_dir: Path, kind: MediaSourceType) -> dict[str, Path]:
 
 
 def discover_import_tasks(album_dir: Path) -> list[ImportTask]:
-    """Returns tasks sorted with ``main`` first, then by name, iOS before std."""
+    """Return tasks sorted with ``main`` first, then by name, iOS before std."""
     ios_dirs = _staging_dirs(album_dir, MediaSourceType.IOS)
     std_dirs = _staging_dirs(album_dir, MediaSourceType.STD)
     ios_csvs = {
@@ -93,4 +101,5 @@ def discover_import_tasks(album_dir: Path) -> list[ImportTask]:
 
 
 def has_import_tasks(album_dir: Path) -> bool:
+    """Return whether *album_dir* holds any ``to-import-*`` dir or iOS CSV."""
     return bool(discover_import_tasks(album_dir))

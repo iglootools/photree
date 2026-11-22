@@ -27,7 +27,8 @@ def _make_clustered_embeddings(
     dim: int = 512,
     spread: float = 0.05,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Generate embeddings with known cluster structure.
+    """
+    Generate embeddings with known cluster structure.
 
     Returns (embeddings, true_labels).
     """
@@ -118,12 +119,17 @@ class TestAssignToNearestCluster:
 
         # Add a new face similar to cluster 0
         new_face = emb[0:1] + np.random.default_rng(99).normal(
-            0, 0.02, (1, 512)
+            0,
+            0.02,
+            (1, 512),
         ).astype(np.float32)
         new_face = new_face / np.linalg.norm(new_face, axis=1, keepdims=True)
 
         new_labels = assign_to_nearest_cluster(
-            index, true_labels, new_face, distance_threshold=0.45
+            index,
+            true_labels,
+            new_face,
+            distance_threshold=0.45,
         )
         assert new_labels[0] == 0
 
@@ -135,7 +141,11 @@ class TestAssignToNearestCluster:
         # Very different new face
         new_face = _make_embeddings(1, seed=999)
         new_labels = assign_to_nearest_cluster(
-            index, labels, new_face, distance_threshold=0.1, next_cluster_id=1
+            index,
+            labels,
+            new_face,
+            distance_threshold=0.1,
+            next_cluster_id=1,
         )
         assert new_labels[0] >= 1  # new cluster
 
@@ -145,7 +155,10 @@ class TestAssignToNearestCluster:
         new_emb = _make_embeddings(3)
 
         new_labels = assign_to_nearest_cluster(
-            index, labels, new_emb, next_cluster_id=0
+            index,
+            labels,
+            new_emb,
+            next_cluster_id=0,
         )
         assert list(new_labels) == [0, 1, 2]
 
@@ -166,7 +179,12 @@ class TestMatchClustersByMedoid:
         old_ids = {0: "uuid-a", 1: "uuid-b"}
 
         matched = match_clusters_by_medoid(
-            emb, labels, old_ids, emb, labels, threshold=0.45
+            emb,
+            labels,
+            old_ids,
+            emb,
+            labels,
+            threshold=0.45,
         )
 
         assert matched.get(0) == "uuid-a"

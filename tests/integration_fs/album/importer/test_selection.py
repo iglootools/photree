@@ -76,7 +76,7 @@ class TestReadSelection:
         # Dir entry preferred: JPEG from dir, not HEIC from CSV
         assert sources.merged == ("IMG_0410.JPEG",)
 
-    def test_none_sources_returns_empty(self, tmp_path: Path) -> None:
+    def test_none_sources_returns_empty(self) -> None:
         sources = read_selection(None, None)
         assert sources.dir_files == ()
         assert sources.csv_files == ()
@@ -101,7 +101,7 @@ class TestHasSelection:
     def test_neither(self, tmp_path: Path) -> None:
         assert has_selection(tmp_path / SEL_DIR, tmp_path / SEL_CSV) is False
 
-    def test_none_sources(self, tmp_path: Path) -> None:
+    def test_none_sources(self) -> None:
         assert has_selection(None, None) is False
 
     def test_empty_dir_no_csv(self, tmp_path: Path) -> None:

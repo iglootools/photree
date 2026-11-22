@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 from photree.album.browsable import RefreshBrowsableDirResult, refresh_browsable_dir
@@ -17,10 +16,12 @@ def _setup_dir(path: Path, filenames: list[str]) -> Path:
 class TestRefreshBrowsableDir:
     def test_uses_rendered_when_available(self, tmp_path: Path) -> None:
         orig = _setup_dir(
-            tmp_path / "ios-main/orig-img", ["IMG_0410.HEIC", "IMG_0410.AAE"]
+            tmp_path / "ios-main/orig-img",
+            ["IMG_0410.HEIC", "IMG_0410.AAE"],
         )
         rendered = _setup_dir(
-            tmp_path / "ios-main/edit-img", ["IMG_E0410.HEIC", "IMG_O0410.AAE"]
+            tmp_path / "ios-main/edit-img",
+            ["IMG_E0410.HEIC", "IMG_O0410.AAE"],
         )
         browsable = tmp_path / "main-img"
 
@@ -41,7 +42,8 @@ class TestRefreshBrowsableDir:
 
     def test_falls_back_to_orig_when_no_rendered(self, tmp_path: Path) -> None:
         orig = _setup_dir(
-            tmp_path / "ios-main/orig-img", ["IMG_0100.HEIC", "IMG_0100.AAE"]
+            tmp_path / "ios-main/orig-img",
+            ["IMG_0100.HEIC", "IMG_0100.AAE"],
         )
         rendered = tmp_path / "ios-main/edit-img"  # does not exist
         browsable = tmp_path / "main-img"
@@ -165,7 +167,8 @@ class TestRefreshBrowsableDir:
         """When duplicate numbers exist, HEIC is preferred over JPG."""
         orig = _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC"])
         rendered = _setup_dir(
-            tmp_path / "ios-main/edit-img", ["IMG_E0001.HEIC", "IMG_E0001.JPG"]
+            tmp_path / "ios-main/edit-img",
+            ["IMG_E0001.HEIC", "IMG_E0001.JPG"],
         )
         browsable = tmp_path / "main-img"
 
@@ -184,7 +187,8 @@ class TestRefreshBrowsableDir:
     def test_dng_priority_over_heic(self, tmp_path: Path) -> None:
         """When duplicate numbers exist, DNG (ProRAW) is preferred over HEIC."""
         orig = _setup_dir(
-            tmp_path / "ios-main/orig-img", ["IMG_0001.DNG", "IMG_0001.HEIC"]
+            tmp_path / "ios-main/orig-img",
+            ["IMG_0001.DNG", "IMG_0001.HEIC"],
         )
         rendered = tmp_path / "ios-main/edit-img"
         browsable = tmp_path / "main-img"
@@ -203,7 +207,8 @@ class TestRefreshBrowsableDir:
 
     def test_ignores_dotfiles(self, tmp_path: Path) -> None:
         orig = _setup_dir(
-            tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", ".DS_Store"]
+            tmp_path / "ios-main/orig-img",
+            ["IMG_0001.HEIC", ".DS_Store"],
         )
         rendered = tmp_path / "ios-main/edit-img"
         browsable = tmp_path / "main-img"
@@ -238,7 +243,7 @@ class TestRefreshBrowsableDirLinkMode:
         browsable_file = browsable / "IMG_0001.HEIC"
         orig_file = orig / "IMG_0001.HEIC"
         assert browsable_file.exists()
-        assert os.stat(browsable_file).st_ino == os.stat(orig_file).st_ino
+        assert browsable_file.stat().st_ino == orig_file.stat().st_ino
 
     def test_symlink_mode_creates_relative_symlinks(self, tmp_path: Path) -> None:
         orig = _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC"])
@@ -256,8 +261,8 @@ class TestRefreshBrowsableDirLinkMode:
 
         browsable_file = browsable / "IMG_0001.HEIC"
         assert browsable_file.is_symlink()
-        target = os.readlink(browsable_file)
-        assert not os.path.isabs(target)
+        target = browsable_file.readlink()
+        assert not target.is_absolute()
         assert browsable_file.resolve() == (orig / "IMG_0001.HEIC").resolve()
 
     def test_copy_mode_creates_independent_copy(self, tmp_path: Path) -> None:
@@ -278,7 +283,7 @@ class TestRefreshBrowsableDirLinkMode:
         orig_file = orig / "IMG_0001.HEIC"
         assert browsable_file.exists()
         assert not browsable_file.is_symlink()
-        assert os.stat(browsable_file).st_ino != os.stat(orig_file).st_ino
+        assert browsable_file.stat().st_ino != orig_file.stat().st_ino
 
     def test_hardlink_clears_existing_before_relinking(self, tmp_path: Path) -> None:
         orig = _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC"])
@@ -333,11 +338,11 @@ class TestRefreshBrowsableDirLinkMode:
         browsable_file = browsable / "IMG_E0001.HEIC"
         rendered_file = rendered / "IMG_E0001.HEIC"
         assert browsable_file.exists()
-        assert os.stat(browsable_file).st_ino == os.stat(rendered_file).st_ino
+        assert browsable_file.stat().st_ino == rendered_file.stat().st_ino
 
 
 class TestRefreshBrowsableDirStd:
-    """Tests for refresh_browsable_dir with std-style filenames (stem-based matching)."""
+    """Tests for refresh_browsable_dir with std filenames (stem-based matching)."""
 
     def test_picks_orig_by_stem(self, tmp_path: Path) -> None:
         orig = _setup_dir(tmp_path / "std-nelu/orig-img", ["sunset.heic", "beach.png"])
@@ -382,7 +387,8 @@ class TestRefreshBrowsableDirStd:
             ["sunset.heic", "beach.png", "mountains.jpg"],
         )
         edit = _setup_dir(
-            tmp_path / "std-nelu/edit-img", ["sunset.jpg", "mountains.jpg"]
+            tmp_path / "std-nelu/edit-img",
+            ["sunset.jpg", "mountains.jpg"],
         )
         browsable = tmp_path / "nelu-img"
 

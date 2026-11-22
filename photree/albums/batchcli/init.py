@@ -1,12 +1,14 @@
+"""``albums init`` wrapper."""
+
 from pathlib import Path
 
 import typer
 
-from ...clihelpers.progress import BatchProgressBar
-from ...common.formatting import format_dry_run
-from ..cmd_handler.init import batch_init
-from .failures import exit_if_no_albums, exit_with_failures
-from .resolution import make_display_fn
+from photree.albums.batchcli.failures import exit_if_no_albums, exit_with_failures
+from photree.albums.batchcli.resolution import make_display_fn
+from photree.albums.cmd_handler.init import batch_init
+from photree.clihelpers.progress import BatchProgressBar
+from photree.common.formatting import format_dry_run
 
 
 def run_batch_init(
@@ -16,19 +18,20 @@ def run_batch_init(
     dry_run: bool = False,
     cwd: Path,
 ) -> None:
+    """Initialize the metadata of *albums*, print a summary, exit 1 on any failure."""
     exit_if_no_albums(albums, display_base)
 
     with BatchProgressBar(
-        total=len(albums), description="Initializing", done_description="init"
+        total=len(albums),
+        description="Initializing",
+        done_description="init",
     ) as progress:
         result = batch_init(
             albums,
             dry_run=dry_run,
             display_fn=make_display_fn(display_base, cwd),
             on_start=progress.on_start,
-            on_end=lambda name, success, errors: progress.on_end(
-                name, success=success, error_labels=errors
-            ),
+            on_end=progress.on_end,
         )
 
     typer.echo(
@@ -40,6 +43,6 @@ def run_batch_init(
             )
             + f", {len(result.failures)} failed.",
             dry_run=dry_run,
-        )
+        ),
     )
     exit_with_failures(result.failures, "init", cwd)

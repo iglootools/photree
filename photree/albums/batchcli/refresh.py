@@ -4,13 +4,13 @@ from pathlib import Path
 
 import typer
 
-from ...clihelpers.progress import BatchProgressBar
-from ...clihelpers.runtime import Runtime
-from ...common.formatting import format_dry_run
-from ...foundation.gallery_metadata import resolve_link_mode
-from ..cmd_handler.refresh import batch_refresh
-from .failures import exit_if_no_albums, exit_with_failures
-from .resolution import make_display_fn
+from photree.albums.batchcli.failures import exit_if_no_albums, exit_with_failures
+from photree.albums.batchcli.resolution import make_display_fn
+from photree.albums.cmd_handler.refresh import batch_refresh
+from photree.clihelpers.progress import BatchProgressBar
+from photree.clihelpers.runtime import Runtime
+from photree.common.formatting import format_dry_run
+from photree.foundation.gallery_metadata import resolve_link_mode
 
 
 def run_batch_refresh(
@@ -30,7 +30,9 @@ def run_batch_refresh(
     exit_if_no_albums(albums, display_base)
 
     with BatchProgressBar(
-        total=len(albums), description="Refreshing", done_description="refresh"
+        total=len(albums),
+        description="Refreshing",
+        done_description="refresh",
     ) as progress:
         result = batch_refresh(
             albums,
@@ -45,9 +47,7 @@ def run_batch_refresh(
             which=runtime.which,
             max_workers=runtime.cpu_count(),
             on_start=progress.on_start,
-            on_end=lambda name, success, errors: progress.on_end(
-                name, success=success, error_labels=errors
-            ),
+            on_end=progress.on_end,
         )
 
     typer.echo(
@@ -59,6 +59,6 @@ def run_batch_refresh(
             )
             + f", {len(result.failures)} failed.",
             dry_run=dry_run,
-        )
+        ),
     )
     exit_with_failures(result.failures, "refresh", cwd)

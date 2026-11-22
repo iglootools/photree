@@ -1,3 +1,5 @@
+"""The base model for photree's YAML metadata files."""
+
 from pydantic import BaseModel, ConfigDict
 
 

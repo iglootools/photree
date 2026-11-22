@@ -1,12 +1,15 @@
+"""Find collection directories: those holding ``.photree/collection.yaml``."""
+
 from pathlib import Path
 
-from ...common.fs import matching_subdirectories
-from ...foundation.layout import PHOTREE_DIR
-from .protocol import COLLECTION_YAML
+from photree.collection.store.protocol import COLLECTION_YAML
+from photree.common.fs import matching_subdirectories
+from photree.foundation.layout import PHOTREE_DIR
 
 
 def is_collection(directory: Path) -> bool:
-    """Check if a directory is a photree collection.
+    """
+    Check if a directory is a photree collection.
 
     A directory is a collection if it contains ``.photree/collection.yaml``.
     """
@@ -14,7 +17,8 @@ def is_collection(directory: Path) -> bool:
 
 
 def discover_collections(base_dir: Path) -> list[Path]:
-    """Recursively discover collection directories under *base_dir*.
+    """
+    Recursively discover collection directories under *base_dir*.
 
     The *base_dir* itself is never returned as a collection.
     """

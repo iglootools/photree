@@ -1,12 +1,14 @@
+"""The ``photree album import-check`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
-from ...clihelpers.options import CONFIG_OPTION
-from ...clihelpers.runtime import runtime_of
-from . import app
-from .import_preflight import run_import_preflight
+from photree.album.cli.app import app
+from photree.album.cli.import_preflight import run_import_preflight
+from photree.clihelpers.options import CONFIG_OPTION
+from photree.clihelpers.runtime import runtime_of
 
 
 @app.command("import-check")
@@ -22,7 +24,7 @@ def import_check_cmd(
             file_okay=False,
             resolve_path=True,
         ),
-    ] = Path("."),
+    ] = Path(),
     source: Annotated[
         Path | None,
         typer.Option(

@@ -1,29 +1,31 @@
+"""The ``photree collection import`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
 import typer
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from ...clihelpers.console import console, err_console
-from ...clihelpers.resolution import resolve_gallery_or_exit
-from ...clihelpers.runtime import runtime_of
-from ...clihelpers.sysdeps import EXIF_DEPS, require_system_deps
-from ...common.exif import ExifTagReader, exiftool_session
-from ...common.formatting import format_dry_run, indent
-from ...common.fs import display_path
-from ..id import format_collection_external_id
-from ..importer.import_members import (
+from photree.clihelpers.console import console, err_console
+from photree.clihelpers.resolution import resolve_gallery_or_exit
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.sysdeps import EXIF_DEPS, require_system_deps
+from photree.collection.cli.app import app
+from photree.collection.id import format_collection_external_id
+from photree.collection.importer.import_members import (
     CollectionImportError,
     CollectionImportResult,
     import_collection_members,
 )
-from ..importer.output import (
+from photree.collection.importer.output import (
     format_import_error,
     format_member_counts,
     format_resolution_warning,
     format_result_errors,
 )
-from . import app
+from photree.common.exif import ExifTagReader, exiftool_session
+from photree.common.formatting import format_dry_run, indent
+from photree.common.fs import display_path
 
 
 def _run_import(
@@ -43,7 +45,10 @@ def _run_import(
         ) as progress:
             progress.add_task("Resolving members...", total=None)
             return import_collection_members(
-                collection_dir, gallery_dir, dry_run=dry_run, exiftool=exiftool
+                collection_dir,
+                gallery_dir,
+                dry_run=dry_run,
+                exiftool=exiftool,
             )
     except CollectionImportError as exc:
         err_console.print(format_import_error(exc, cwd), markup=False)
@@ -72,16 +77,19 @@ def _print_result(result: CollectionImportResult, *, dry_run: bool, cwd: Path) -
         indent(
             "\n".join(
                 [
-                    f"Collection: {format_collection_external_id(result.collection_id)}",
+                    (
+                        "Collection: "
+                        f"{format_collection_external_id(result.collection_id)}"
+                    ),
                     *format_member_counts(result.members),
-                ]
-            )
-        )
+                ],
+            ),
+        ),
     )
     typer.echo(
         format_dry_run("\nNo changes made.", dry_run=True)
         if dry_run
-        else "Import complete."
+        else "Import complete.",
     )
 
 
@@ -98,18 +106,22 @@ def import_cmd(
             file_okay=False,
             resolve_path=True,
         ),
-    ] = Path("."),
+    ] = Path(),
     gallery_dir: Annotated[
         Path | None,
         typer.Option(
             "--gallery-dir",
             "-g",
-            help="Gallery root directory (or resolved from cwd via .photree/gallery.yaml).",
+            help=(
+                "Gallery root directory (or resolved from cwd "
+                "via .photree/gallery.yaml)."
+            ),
             exists=True,
             file_okay=False,
             resolve_path=True,
         ),
     ] = None,
+    *,
     dry_run: Annotated[
         bool,
         typer.Option(

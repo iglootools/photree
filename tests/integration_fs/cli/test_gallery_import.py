@@ -1,4 +1,5 @@
-"""CLI tests for ``gallery import`` / ``gallery import-all``.
+"""
+CLI tests for ``gallery import`` / ``gallery import-all``.
 
 These cover the fast control-flow paths (validation gate, skip, clobber,
 dry-run) that exit before any real media conversion or face-model loading.
@@ -30,7 +31,8 @@ def _setup_gallery(tmp_path: Path) -> Path:
     gallery = tmp_path / "gallery"
     gallery.mkdir()
     save_gallery_metadata(
-        gallery, GalleryMetadata(link_mode=LinkMode.HARDLINK, faces_enabled=False)
+        gallery,
+        GalleryMetadata(link_mode=LinkMode.HARDLINK, faces_enabled=False),
     )
     return gallery
 
@@ -58,7 +60,8 @@ class TestValidationGate:
         _make_source(base, "2024-07-14 - Evening")
 
         result = runner.invoke(
-            app, ["gallery", "import-all", "-d", str(base), "-g", str(gallery)]
+            app,
+            ["gallery", "import-all", "-d", str(base), "-g", str(gallery)],
         )
 
         assert result.exit_code == 1
@@ -69,7 +72,8 @@ class TestValidationGate:
         source = _make_source(tmp_path / "src", "not-an-album-name")
 
         result = runner.invoke(
-            app, ["gallery", "import", "-a", str(source), "-g", str(gallery)]
+            app,
+            ["gallery", "import", "-a", str(source), "-g", str(gallery)],
         )
 
         assert result.exit_code == 1
@@ -80,7 +84,9 @@ class TestSkip:
     def test_already_imported_is_skipped(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
         _place_gallery_album(
-            gallery, "2024-07-14 - Hiking", album_id=generate_album_id()
+            gallery,
+            "2024-07-14 - Hiking",
+            album_id=generate_album_id(),
         )
         source = _make_source(tmp_path / "src", "2024-07-14 - Hiking")
 
@@ -98,11 +104,15 @@ class TestClobberGuard:
     def test_different_album_same_name_refused(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
         _place_gallery_album(
-            gallery, "2024-07-14 - Hiking", album_id=generate_album_id()
+            gallery,
+            "2024-07-14 - Hiking",
+            album_id=generate_album_id(),
         )
         # Source carries a *different* ID than the gallery occupant.
         source = _make_source(
-            tmp_path / "src", "2024-07-14 - Hiking", album_id=generate_album_id()
+            tmp_path / "src",
+            "2024-07-14 - Hiking",
+            album_id=generate_album_id(),
         )
 
         result = runner.invoke(

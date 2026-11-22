@@ -87,7 +87,9 @@ class TestCheckMemberExistence:
     def test_missing_album_member(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
         col_dir, _ = _setup_collection(
-            gallery, "2024-07 - July", albums=["nonexistent-id"]
+            gallery,
+            "2024-07 - July",
+            albums=["nonexistent-id"],
         )
 
         lookup = build_gallery_lookup(gallery)
@@ -98,7 +100,9 @@ class TestCheckMemberExistence:
     def test_missing_image_member(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
         col_dir, _ = _setup_collection(
-            gallery, "2024-07 - July", images=["nonexistent-id"]
+            gallery,
+            "2024-07 - July",
+            images=["nonexistent-id"],
         )
 
         lookup = build_gallery_lookup(gallery)
@@ -114,8 +118,8 @@ class TestCheckMemberExistence:
             album_dir,
             MediaMetadata(
                 media_sources={
-                    "main": MediaSourceMediaMetadata(images={img_id: "0001"})
-                }
+                    "main": MediaSourceMediaMetadata(images={img_id: "0001"}),
+                },
             ),
         )
         col_dir, _ = _setup_collection(gallery, "2024-07 - July", images=[img_id])
@@ -127,7 +131,9 @@ class TestCheckMemberExistence:
     def test_missing_collection_member(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
         col_dir, _ = _setup_collection(
-            gallery, "2024-07 - July", collections=["nonexistent-id"]
+            gallery,
+            "2024-07 - July",
+            collections=["nonexistent-id"],
         )
 
         lookup = build_gallery_lookup(gallery)
@@ -270,7 +276,9 @@ class TestCheckChapterOverlap:
         gallery = _setup_gallery(tmp_path)
         paris, _ = _setup_chapter(gallery, "2017", "2017-01-01--2019-06-29 - Paris")
         montreal, _ = _setup_chapter(
-            gallery, "2019", "2019-06-30--2022-12-31 - Montreal"
+            gallery,
+            "2019",
+            "2019-06-30--2022-12-31 - Montreal",
         )
         lookup = build_gallery_lookup(gallery)
 
@@ -278,7 +286,8 @@ class TestCheckChapterOverlap:
         assert check_collection(montreal, lookup).success
 
     def test_date_range_collection_does_not_count_as_chapter(
-        self, tmp_path: Path
+        self,
+        tmp_path: Path,
     ) -> None:
         gallery = _setup_gallery(tmp_path)
         montreal, _ = _setup_chapter(gallery, "2019", "2019--2022 - Montreal")
@@ -297,7 +306,8 @@ class TestCheckInvalidMetadata:
         gallery = _setup_gallery(tmp_path)
         col_dir, _ = _setup_collection(gallery, "2024-07 - July")
         (col_dir / ".photree" / "collection.yaml").write_text(
-            "- not a mapping\n", encoding="utf-8"
+            "- not a mapping\n",
+            encoding="utf-8",
         )
 
         result = check_collection(col_dir, build_gallery_lookup(gallery))

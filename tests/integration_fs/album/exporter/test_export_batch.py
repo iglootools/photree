@@ -148,7 +148,8 @@ class TestBatchExport:
         assert (target / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.HEIC").exists()
 
     def test_albums_share_layout_invalid_name_fails_gracefully(
-        self, tmp_path: Path
+        self,
+        tmp_path: Path,
     ) -> None:
         album = _setup_ios_album(tmp_path / "no-date-album")
         share_dir = tmp_path / "share"

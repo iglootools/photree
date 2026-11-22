@@ -1,21 +1,23 @@
+"""The ``photree gallery fix`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
-from ...album.fix import FixValidationError, validate_fix_flags
-from ...albums.batchcli.fix import run_batch_fix
-from ...albums.batchcli.resolution import resolve_check_batch_albums
-from ...clihelpers.options import (
+from photree.album.fix import FixValidationError, validate_fix_flags
+from photree.albums.batchcli.fix import run_batch_fix
+from photree.albums.batchcli.resolution import resolve_check_batch_albums
+from photree.clihelpers.options import (
     DRY_RUN_OPTION,
     FORCE_OPTION,
     RM_ORPHAN_OPTION,
     RM_UPSTREAM_OPTION,
 )
-from ...clihelpers.resolution import resolve_gallery_or_exit
-from ...clihelpers.runtime import runtime_of
-from ...clihelpers.usage import usage_error
-from . import app
+from photree.clihelpers.resolution import resolve_gallery_or_exit
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.usage import invalid_fix_error
+from photree.gallery.cli.app import app
 
 
 @app.command("fix")
@@ -26,12 +28,16 @@ def fix_cmd(
         typer.Option(
             "--gallery-dir",
             "-g",
-            help="Gallery root directory (or resolved from cwd via .photree/gallery.yaml).",
+            help=(
+                "Gallery root directory (or resolved from cwd "
+                "via .photree/gallery.yaml)."
+            ),
             exists=True,
             file_okay=False,
             resolve_path=True,
         ),
     ] = None,
+    *,
     fix_id: Annotated[
         bool,
         typer.Option("--id", help="Generate missing album IDs (.photree/album.yaml)."),
@@ -56,10 +62,7 @@ def fix_cmd(
             rm_orphan=rm_orphan,
         )
     except FixValidationError as exc:
-        raise usage_error(
-            f"{exc}\nRun 'photree gallery fix --help' for the available fixes.",
-            markup=False,
-        ) from exc
+        raise invalid_fix_error(exc, command="gallery fix") from exc
 
     resolved = resolve_gallery_or_exit(gallery_dir, cwd=cwd)
     albums, display_base = resolve_check_batch_albums(resolved, None, cwd=cwd)

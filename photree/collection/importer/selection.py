@@ -1,4 +1,5 @@
-"""Read collection import selection from ``to-import/`` and ``to-import.csv``.
+"""
+Read collection import selection from ``to-import/`` and ``to-import.csv``.
 
 Each entry is one of:
 - An album directory name (e.g. ``2024-07-14 - Hiking the Rockies``)
@@ -18,10 +19,10 @@ from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
 
-from ...album.exif import read_exif_timestamps_by_file
-from ...album.formats import IMG_EXTENSIONS, VID_EXTENSIONS
-from ...common.exif import ExifTagReader
-from ...common.fs import file_ext, list_files
+from photree.album.exif import read_exif_timestamps_by_file
+from photree.album.formats import IMG_EXTENSIONS, VID_EXTENSIONS
+from photree.common.exif import ExifTagReader
+from photree.common.fs import file_ext, list_files
 
 SELECTION_DIR = "to-import"
 SELECTION_CSV = "to-import.csv"
@@ -46,7 +47,8 @@ class SelectionErrorKind(StrEnum):
 
 @dataclass(frozen=True)
 class SelectionError:
-    """A selection row that cannot be used as written.
+    """
+    A selection row that cannot be used as written.
 
     ``line`` is the 1-based line number in the CSV (the header is line 1),
     so the user can jump straight to it.
@@ -100,7 +102,7 @@ def _read_csv_rows(csv_path: Path) -> list[_CsvRow]:
     """Rows with a non-empty entry; empty when the file does not exist."""
     if not csv_path.is_file():
         return []
-    with open(csv_path, encoding="utf-8", newline="") as f:
+    with Path(csv_path).open(encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
         return [
             _CsvRow(
@@ -116,7 +118,8 @@ def _read_csv_rows(csv_path: Path) -> list[_CsvRow]:
 def _read_csv(
     csv_path: Path,
 ) -> tuple[list[SelectionEntry], list[SelectionError]]:
-    """Read a two-column CSV (entry, date) with header.
+    """
+    Read a two-column CSV (entry, date) with header.
 
     A date that matches none of the accepted formats is reported as a
     :class:`SelectionError` rather than dropped: it was written to
@@ -128,7 +131,11 @@ def _read_csv(
     ]
     errors = [
         SelectionError(
-            SelectionErrorKind.INVALID_DATE, csv_path, row.line, row.entry, row.date
+            SelectionErrorKind.INVALID_DATE,
+            csv_path,
+            row.line,
+            row.entry,
+            row.date,
         )
         for row, parsed in rows
         if row.date and parsed is None
@@ -148,7 +155,8 @@ def _read_dir_entries(
     *,
     exiftool: ExifTagReader | None = None,
 ) -> list[SelectionEntry]:
-    """Read entries from the selection directory.
+    """
+    Read entries from the selection directory.
 
     For media files, reads EXIF dates to populate ``date_hint``.
     For non-media files, the filename is the entry with no date hint.
@@ -162,7 +170,8 @@ def _read_dir_entries(
         {
             path.name: ts
             for path, ts in read_exif_timestamps_by_file(
-                [selection_dir / f for f in media_files], exiftool=exiftool
+                [selection_dir / f for f in media_files],
+                exiftool=exiftool,
             )
         }
         if media_files
@@ -187,7 +196,8 @@ def read_selection(
     *,
     exiftool: ExifTagReader | None = None,
 ) -> CollectionSelectionSources:
-    """Read selection entries from ``to-import/`` and ``to-import.csv``.
+    """
+    Read selection entries from ``to-import/`` and ``to-import.csv``.
 
     Entries are deduplicated by value (first occurrence wins, dir entries
     first). For ``to-import/`` media files, EXIF dates are read into
@@ -206,7 +216,13 @@ def read_selection(
 def has_selection(
     collection_dir: Path,
 ) -> bool:
+    """
+    Check whether *collection_dir* has anything to import.
+
+    True when ``to-import/`` holds a file or ``to-import.csv`` has a row; reads no
+    EXIF.
+    """
     # Quick check without EXIF reading
     return bool(list_files(collection_dir / SELECTION_DIR)) or bool(
-        _read_csv_rows(collection_dir / SELECTION_CSV)
+        _read_csv_rows(collection_dir / SELECTION_CSV),
     )

@@ -45,7 +45,9 @@ def _setup_media_source(album_dir: Path) -> None:
 
 
 def _setup_album(
-    base_dir: Path, name: str, album_id: str | None = None
+    base_dir: Path,
+    name: str,
+    album_id: str | None = None,
 ) -> tuple[Path, str]:
     """Create a complete album directory. Returns (path, album_id)."""
     album_dir = base_dir / name
@@ -193,7 +195,7 @@ class TestPlanRenamesFromCsv:
                 "series": "",
                 "title": "Trip to Paris",
                 "location": "",
-            }
+            },
         ]
         actions, errors = plan_renames_from_csv(rows, index)
         assert actions == ()
@@ -209,7 +211,7 @@ class TestPlanRenamesFromCsv:
                 "series": "Europe",
                 "title": "Trip to Paris",
                 "location": "",
-            }
+            },
         ]
         actions, errors = plan_renames_from_csv(rows, index)
         assert len(actions) == 1
@@ -256,7 +258,7 @@ class TestPlanRenamesFromCsv:
                 "series": "",
                 "title": nfc_title,
                 "location": "",
-            }
+            },
         ]
         actions, errors = plan_renames_from_csv(rows, index)
         assert actions == ()
@@ -278,7 +280,8 @@ class TestPlanRenamesFromCsv:
 
 
 class TestGalleryStatsWithoutCache:
-    """``gallery stats`` must work before anything has populated a cache.
+    """
+    ``gallery stats`` must work before anything has populated a cache.
 
     Regression: the cache-merge filter tested ``s.file_count > 0`` on a value
     that is ``None`` until some album has a ``.photree/cache/`` directory, so

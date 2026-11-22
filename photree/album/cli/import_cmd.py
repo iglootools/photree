@@ -1,40 +1,42 @@
+"""The ``photree album import`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
-from ...clihelpers.console import console, err_console
-from ...clihelpers.options import CONFIG_OPTION, LINK_MODE_OPTION
-from ...clihelpers.progress import StageProgressBar
-from ...common.exif import ExifTagReader, exiftool_session
-from ...common.formatting import format_dry_run
-from ...common.fs import display_path, list_files
-from ...common.sysdeps import WhichFn
-from ...foundation.gallery_metadata import (
-    resolve_gallery_metadata,
-    resolve_link_mode,
-)
-from ...foundation.linking import LinkMode
-from ..check.output import format_naming_checks
-from ..exif_date_check import AlbumNamingResult, check_exif_date_match
-from ..faces.detect import memoized_face_analyzer_factory
-from ..importer import output as importer_output
-from ..importer.album_import import (
+from photree.album.check.output import format_naming_checks
+from photree.album.cli.app import app
+from photree.album.cli.import_preflight import run_import_preflight
+from photree.album.cli.media_source_conflict import exit_on_media_source_conflict
+from photree.album.cli.runtime import RunImportFn, album_runtime_of
+from photree.album.exif_date_check import AlbumNamingResult, check_exif_date_match
+from photree.album.faces.detect import memoized_face_analyzer_factory
+from photree.album.importer import output as importer_output
+from photree.album.importer.album_import import (
     AlbumImportResult,
     EmptyImageCaptureDirError,
     NoImportTasksError,
     import_stage_labels,
     validate_album_import,
 )
-from ..importer.collision import ArchiveCollision, ImportCollisionError
-from ..importer.naming_gate import check_import_naming
-from ..importer.tasks import discover_import_tasks
-from ..jpeg import convert_single_file, noop_convert_single
-from ..naming import parse_album_name
-from . import app
-from .import_preflight import run_import_preflight
-from .media_source_conflict import exit_on_media_source_conflict
-from .runtime import RunImportFn, album_runtime_of
+from photree.album.importer.collision import ArchiveCollision, ImportCollisionError
+from photree.album.importer.naming_gate import check_import_naming
+from photree.album.importer.tasks import discover_import_tasks
+from photree.album.jpeg import convert_single_file, noop_convert_single
+from photree.album.naming import parse_album_name
+from photree.clihelpers.console import console, err_console
+from photree.clihelpers.options import CONFIG_OPTION, LINK_MODE_OPTION
+from photree.clihelpers.progress import StageProgressBar
+from photree.common.exif import ExifTagReader, exiftool_session
+from photree.common.formatting import format_dry_run
+from photree.common.fs import display_path, list_files
+from photree.common.sysdeps import WhichFn
+from photree.foundation.gallery_metadata import (
+    resolve_gallery_metadata,
+    resolve_link_mode,
+)
+from photree.foundation.linking import LinkMode
 
 
 @app.command("import")
@@ -50,7 +52,7 @@ def import_cmd(
             file_okay=False,
             resolve_path=True,
         ),
-    ] = Path("."),
+    ] = Path(),
     source: Annotated[
         Path | None,
         typer.Option(
@@ -63,6 +65,7 @@ def import_cmd(
     ] = None,
     config: CONFIG_OPTION = None,
     link_mode: LINK_MODE_OPTION = None,
+    *,
     dry_run: Annotated[
         bool,
         typer.Option(
@@ -87,7 +90,8 @@ def import_cmd(
         ),
     ] = False,
 ) -> None:
-    """Import an album's staged media into its media sources.
+    """
+    Import an album's staged media into its media sources.
 
     Discovers all ``to-import-{ios,std}-<name>`` staging entries in ALBUM_DIR
     and imports each into its target media source:
@@ -151,7 +155,8 @@ def _require_valid_name(
     *,
     cwd: Path,
 ) -> None:
-    """Pre-import light check: naming convention and date collisions.
+    """
+    Pre-import light check: naming convention and date collisions.
 
     The same check gates ``gallery import``; running it here surfaces a
     problem while the album is being filled rather than when it reaches the
@@ -172,12 +177,15 @@ def _require_valid_name(
 
 
 def _require_valid_tasks(
-    album_dir: Path, image_capture_dir: Path, album_display: Path
+    album_dir: Path,
+    image_capture_dir: Path,
+    album_display: Path,
 ) -> None:
     """Pre-validate every staging entry before importing any of them."""
     if not discover_import_tasks(album_dir):
         err_console.print(
-            f"No to-import-{{ios,std}}-<media-source> staging entries in {album_display}.",
+            f"No to-import-{{ios,std}}-<media-source> "
+            f"staging entries in {album_display}.",
             markup=False,
         )
         err_console.print(
@@ -194,7 +202,7 @@ def _require_valid_tasks(
         console.print("\n" + warnings)
     if validation.errors:
         err_console.print(
-            importer_output.validation_errors(album_dir.name, list(validation.errors))
+            importer_output.validation_errors(album_dir.name, list(validation.errors)),
         )
         raise typer.Exit(code=1)
 
@@ -237,7 +245,7 @@ def _run_import(
         except ImportCollisionError as exc:
             err_console.print(
                 importer_output.format_archive_collision(
-                    ArchiveCollision(exc.media_source, exc.keys)
+                    ArchiveCollision(exc.media_source, exc.keys),
                 ),
                 markup=False,
             )
@@ -257,8 +265,8 @@ def _post_import_exif_check(album_dir: Path, *, which: WhichFn) -> None:
         typer.echo("\nPost-Import Check:")
         console.print(
             format_naming_checks(
-                AlbumNamingResult(parsed=parsed, issues=(), exif_check=exif_check)
-            )
+                AlbumNamingResult(parsed=parsed, issues=(), exif_check=exif_check),
+            ),
         )
 
 
@@ -267,5 +275,5 @@ def _print_gallery_refresh_hint(album_dir: Path) -> None:
     if resolve_gallery_metadata(album_dir) is not None:
         typer.echo(
             "\nThis album is in a gallery: run 'photree gallery refresh' to update "
-            "face clusters and the browsable/ tree."
+            "face clusters and the browsable/ tree.",
         )

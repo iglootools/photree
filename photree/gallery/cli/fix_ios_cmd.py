@@ -1,12 +1,14 @@
+"""The ``photree gallery fix-ios`` command."""
+
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
-from ...album.fix.ios import FixIosValidationError, validate_fix_flags
-from ...albums.batchcli.fix import run_batch_fix_ios
-from ...albums.batchcli.resolution import resolve_batch_albums
-from ...clihelpers.options import (
+from photree.album.fix.ios import FixIosValidationError, validate_fix_flags
+from photree.albums.batchcli.fix import run_batch_fix_ios
+from photree.albums.batchcli.resolution import resolve_batch_albums
+from photree.clihelpers.options import (
     DRY_RUN_OPTION,
     MV_MISCATEGORIZED_OPTION,
     PREFER_HIGHER_QUALITY_OPTION,
@@ -14,10 +16,10 @@ from ...clihelpers.options import (
     RM_MISCATEGORIZED_SAFE_OPTION,
     RM_ORPHAN_SIDECAR_OPTION,
 )
-from ...clihelpers.resolution import resolve_gallery_or_exit
-from ...clihelpers.runtime import runtime_of
-from ...clihelpers.usage import usage_error
-from . import app
+from photree.clihelpers.resolution import resolve_gallery_or_exit
+from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.usage import invalid_fix_error
+from photree.gallery.cli.app import app
 
 
 @app.command("fix-ios")
@@ -34,6 +36,7 @@ def fix_ios_cmd(
             resolve_path=True,
         ),
     ] = None,
+    *,
     prefer_higher_quality_when_dups: PREFER_HIGHER_QUALITY_OPTION = False,
     rm_orphan_sidecar: RM_ORPHAN_SIDECAR_OPTION = False,
     rm_miscategorized: RM_MISCATEGORIZED_OPTION = False,
@@ -53,10 +56,7 @@ def fix_ios_cmd(
             mv_miscategorized=mv_miscategorized,
         )
     except FixIosValidationError as exc:
-        raise usage_error(
-            f"{exc}\nRun 'photree gallery fix-ios --help' for the available fixes.",
-            markup=False,
-        ) from exc
+        raise invalid_fix_error(exc, command="gallery fix-ios") from exc
     resolved = resolve_gallery_or_exit(gallery_dir, cwd=cwd)
     albums, display_base = resolve_batch_albums(resolved, None, cwd=cwd)
     run_batch_fix_ios(

@@ -1,4 +1,5 @@
-"""The album-level ports of a CLI command, on top of the shared runtime.
+"""
+The album-level ports of a CLI command, on top of the shared runtime.
 
 :class:`~photree.clihelpers.runtime.Runtime` sits below ``album`` in the
 layering, so it cannot name album operations. :class:`AlbumRuntime` adds
@@ -10,9 +11,9 @@ from dataclasses import dataclass, fields
 
 import typer
 
-from ...clihelpers.runtime import Runtime
-from ..importer import album_import
-from ..importer.album_import import AlbumImportResult
+from photree.album.importer import album_import
+from photree.album.importer.album_import import AlbumImportResult
+from photree.clihelpers.runtime import Runtime
 
 type RunImportFn = Callable[..., AlbumImportResult]
 
@@ -35,9 +36,11 @@ def widen(base: Runtime) -> AlbumRuntime:
 
 
 def album_runtime_of(ctx: typer.Context) -> AlbumRuntime:
-    """The runtime on *ctx* (a test's, or the one ``main`` passes), widened
-    with the real album operations unless it already carries some; else the
-    real one.
+    """
+    Return the album runtime on *ctx*, else the real one.
+
+    The runtime on *ctx* (a test's, or the one ``main`` passes) is widened
+    with the real album operations unless it already carries some.
     """
     found = ctx.find_object(Runtime)
     return widen(found) if found is not None else AlbumRuntime()

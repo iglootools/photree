@@ -34,7 +34,8 @@ class TestList:
         _album(tmp_path, "2024-07-14 - Hiking")
 
         result = runner.invoke(
-            app, ["albums", "list", "-d", str(tmp_path), "--format", "json"]
+            app,
+            ["albums", "list", "-d", str(tmp_path), "--format", "json"],
         )
 
         assert result.exit_code == 2
@@ -46,7 +47,8 @@ class TestList:
         out = tmp_path / "out.txt"
 
         result = runner.invoke(
-            app, ["albums", "list", "-d", str(albums_dir), "-o", str(out)]
+            app,
+            ["albums", "list", "-d", str(albums_dir), "-o", str(out)],
         )
 
         assert result.exit_code == 0, result.output
@@ -93,7 +95,8 @@ class TestList:
         _album(tmp_path, "2024-07-14 - Hiking")
 
         result = runner.invoke(
-            app, ["albums", "list-media", "-d", str(tmp_path), "--format", "xml"]
+            app,
+            ["albums", "list-media", "-d", str(tmp_path), "--format", "xml"],
         )
 
         assert result.exit_code == 2
@@ -173,14 +176,24 @@ class TestRunBatchCheck:
 class TestRunAlbumStep:
     def test_exception_becomes_failure(self, tmp_path: Path) -> None:
         def boom() -> None:
-            raise OSError("disk on fire")
+            message = "disk on fire"
+            raise OSError(message)
 
         ends: list[tuple[str, bool, tuple[str, ...]]] = []
+
+        def record_end(
+            album: str,
+            *,
+            success: bool,
+            error_labels: tuple[str, ...],
+        ) -> None:
+            ends.append((album, success, error_labels))
+
         outcome = run_album_step(
             tmp_path,
             boom,
             name="a",
-            on_end=lambda album, ok, labels: ends.append((album, ok, labels)),
+            on_end=record_end,
         )
 
         assert outcome.failure is not None
@@ -189,14 +202,24 @@ class TestRunAlbumStep:
 
     def test_step_error_keeps_labels(self, tmp_path: Path) -> None:
         def soft_fail() -> None:
-            raise AlbumStepError("2 files failed", ("x", "y"))
+            message = "2 files failed"
+            raise AlbumStepError(message, ("x", "y"))
 
         ends: list[tuple[str, bool, tuple[str, ...]]] = []
+
+        def record_end(
+            album: str,
+            *,
+            success: bool,
+            error_labels: tuple[str, ...],
+        ) -> None:
+            ends.append((album, success, error_labels))
+
         outcome = run_album_step(
             tmp_path,
             soft_fail,
             name="a",
-            on_end=lambda album, ok, labels: ends.append((album, ok, labels)),
+            on_end=record_end,
         )
 
         assert outcome.failure is not None
@@ -242,7 +265,7 @@ class TestBatchImportRetryCommands:
         failure = AlbumFailure(tmp_path / "A", "copy failed")
 
         assert retry_commands(failure, tmp_path) == [
-            'photree album import --album-dir "A"'
+            'photree album import --album-dir "A"',
         ]
 
     def test_partial_failure_is_not_retried_with_import(self, tmp_path: Path) -> None:

@@ -1,4 +1,5 @@
-"""Output sink shared by the ``list*`` wrappers.
+"""
+Output sink shared by the ``list*`` wrappers.
 
 ``--output/-o`` applies to every format: text listings are written to the
 file just like CSV ones. (It used to be silently ignored in text mode, so
@@ -11,7 +12,7 @@ from pathlib import Path
 
 import typer
 
-from ...clihelpers.csvout import csv_output
+from photree.clihelpers.csvout import csv_output
 
 
 def write_text(lines: Iterable[str], output_file: Path | None) -> None:
@@ -26,7 +27,9 @@ def write_text(lines: Iterable[str], output_file: Path | None) -> None:
 
 
 def write_csv(
-    header: Sequence[str], rows: Iterable[Sequence[str]], output_file: Path | None
+    header: Sequence[str],
+    rows: Iterable[Sequence[str]],
+    output_file: Path | None,
 ) -> None:
     """Write a CSV (header first) to *output_file*, or to stdout."""
     with csv_output(output_file) as out:

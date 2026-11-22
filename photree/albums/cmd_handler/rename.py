@@ -1,9 +1,11 @@
+"""Batch album renaming from a CSV file."""
+
 import csv as csv_mod
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..renamer import (
+from photree.albums.renamer import (
     RenameAction,
     RenameFailure,
     RenamePlanError,
@@ -15,7 +17,8 @@ from ..renamer import (
 
 @dataclass(frozen=True)
 class BatchRenameResult:
-    """Result of batch album renaming.
+    """
+    Result of batch album renaming.
 
     ``failure`` is set when executing the renames failed part-way (the run is
     rolled back as far as possible; see :class:`RenameFailure`).
@@ -34,17 +37,21 @@ def batch_rename_from_csv(
     *,
     dry_run: bool = False,
 ) -> BatchRenameResult:
-    """Plan and execute album renames from a CSV file.
+    """
+    Plan and execute album renames from a CSV file.
 
     Raises :class:`RenameCollisionError` when renames would collide.
     """
-    with open(csv_file, encoding="utf-8", newline="") as f:
+    with Path(csv_file).open(encoding="utf-8", newline="") as f:
         rows = list(csv_mod.DictReader(f))
 
     actions, errors = plan_renames_from_csv(rows, index)
     if errors or not actions:
         return BatchRenameResult(
-            row_count=len(rows), actions=(), errors=errors, renamed=0
+            row_count=len(rows),
+            actions=(),
+            errors=errors,
+            renamed=0,
         )
 
     check_rename_collisions(actions)

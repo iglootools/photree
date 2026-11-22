@@ -1,8 +1,14 @@
+"""The ``photree albums check`` command."""
+
 from typing import Annotated
 
 import typer
 
-from ...clihelpers.options import (
+from photree.albums.batchcli.check import run_batch_check
+from photree.albums.batchcli.resolution import resolve_check_batch_albums
+from photree.albums.cli.app import app
+from photree.albums.cli.options import ALBUM_DIR_OPTION, DIR_OPTION
+from photree.clihelpers.options import (
     CHECK_DATE_PART_COLLISION_OPTION,
     CHECK_EXIF_DATE_MATCH_OPTION,
     CHECK_NAMING_OPTION,
@@ -11,10 +17,7 @@ from ...clihelpers.options import (
     FATAL_SIDECAR_OPTION,
     FATAL_WARNINGS_OPTION,
 )
-from ...clihelpers.runtime import runtime_of
-from ..batchcli.check import run_batch_check
-from ..batchcli.resolution import resolve_check_batch_albums
-from . import ALBUM_DIR_OPTION, DIR_OPTION, app
+from photree.clihelpers.runtime import runtime_of
 
 
 @app.command("check")
@@ -22,6 +25,7 @@ def check_cmd(
     ctx: typer.Context,
     base_dir: DIR_OPTION = None,
     album_dirs: ALBUM_DIR_OPTION = None,
+    *,
     checksum: CHECKSUM_OPTION = True,
     fatal_warnings: FATAL_WARNINGS_OPTION = False,
     fatal_sidecar_arg: FATAL_SIDECAR_OPTION = False,
