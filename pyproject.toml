@@ -183,9 +183,6 @@ max-statements = 30
 "pytest.MonkeyPatch".msg = "Inject a fake through a parameter instead of patching (docs/guidelines.md, Tests)."
 
 [tool.pytest.ini_options]
-markers = [
-  "integration_fs: filesystem integration tests (full workflow)",
-]
 filterwarnings = [
   "ignore::DeprecationWarning:importlib._bootstrap", # FAISS SWIG bindings
 ]
