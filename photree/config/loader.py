@@ -5,7 +5,7 @@ Search order (first existing file wins):
 
 1. Explicit ``--config`` path
 2. ``$XDG_CONFIG_HOME/photree/config.toml`` (defaults to
-   ``~/.config/photree/config.toml``)
+   ``~/.config/photree/config.toml`` when it is unset, empty or relative)
 3. Platform user config dir (macOS:
    ``~/Library/Application Support/photree/config.toml``)
 4. Platform site config dir (macOS:
@@ -64,13 +64,24 @@ def config_search_paths(
     *home* defaults to :meth:`Path.home`.
     """
     resolved_home = home if home is not None else Path.home()
-    xdg = environ.get("XDG_CONFIG_HOME", str(resolved_home / ".config"))
     candidates = [
-        Path(xdg) / _APP / _FILENAME,
+        _xdg_config_home(environ, resolved_home) / _APP / _FILENAME,
         Path(user_dir(_APP)) / _FILENAME,
         Path(site_dir(_APP)) / _FILENAME,
     ]
     return list(dict.fromkeys(candidates))
+
+
+def _xdg_config_home(environ: Mapping[str, str], home: Path) -> Path:
+    """
+    Return ``$XDG_CONFIG_HOME``, or ``~/.config`` when it is unset, empty or relative.
+
+    The XDG Base Directory spec says an empty value counts as unset and a
+    relative one is invalid and ignored: taken as is, either would make photree
+    read a ``photree/config.toml`` relative to wherever it runs.
+    """
+    value = Path(environ.get("XDG_CONFIG_HOME") or home / ".config")
+    return value if value.is_absolute() else home / ".config"
 
 
 def find_config_file(

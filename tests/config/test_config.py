@@ -66,6 +66,15 @@ class TestConfigSearchPaths:
         paths = config_search_paths(environ={}, home=tmp_path)
         assert paths[0] == tmp_path / ".config" / "photree" / "config.toml"
 
+    @pytest.mark.parametrize("xdg", ["", "relative/dir"])
+    def test_default_xdg_when_empty_or_relative(
+        self,
+        tmp_path: Path,
+        xdg: str,
+    ) -> None:
+        paths = config_search_paths(environ={"XDG_CONFIG_HOME": xdg}, home=tmp_path)
+        assert paths[0] == tmp_path / ".config" / "photree" / "config.toml"
+
 
 class TestFindConfigFile:
     def test_explicit_path(self, tmp_path: Path) -> None:

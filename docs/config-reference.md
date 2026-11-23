@@ -27,7 +27,7 @@ The first of these that exists is used:
 
 1. the file passed with `--config <path>` — an error if it does not exist
 2. `$XDG_CONFIG_HOME/photree/config.toml` (`~/.config/photree/config.toml` when
-   `XDG_CONFIG_HOME` is unset)
+   `XDG_CONFIG_HOME` is unset, empty or a relative path)
 3. the platform user config directory (macOS:
    `~/Library/Application Support/photree/config.toml`; on Linux the same path
    as 2)
