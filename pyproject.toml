@@ -278,6 +278,7 @@ source_modules = [
   "photree.albums.cmd_handler",
   "photree.albums.index",
   "photree.albums.media_index",
+  "photree.albums.output",
   "photree.albums.renamer",
   "photree.collection.check",
   "photree.collection.id",

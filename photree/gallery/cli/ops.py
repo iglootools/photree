@@ -16,11 +16,12 @@ from photree.album.check import output as preflight_output
 from photree.album.id import format_album_external_id
 from photree.album.store.album_discovery import discover_potential_albums
 from photree.album.store.metadata import load_album_metadata
+from photree.albums.output import format_missing_ids_report
 from photree.clihelpers.console import console, err_console
 from photree.clihelpers.progress import BatchProgressBar, StageProgressBar
 from photree.clihelpers.usage import invalid_value_error
 from photree.common.exif import exiftool_session
-from photree.common.formatting import CHECK, format_dry_run, indent
+from photree.common.formatting import CHECK, format_dry_run
 from photree.common.fs import display_path
 from photree.common.sysdeps import WhichFn
 from photree.foundation.gallery_metadata import resolve_link_mode
@@ -71,13 +72,7 @@ def build_index_or_exit(gallery_dir: Path, cwd: Path) -> AlbumIndex:
             return build_album_id_to_path_index(gallery_dir)
     except MissingAlbumIdError as exc:
         err_console.print(
-            "\n".join(
-                [
-                    "Albums with missing IDs found:",
-                    *(indent(str(display_path(p, cwd))) for p in exc.albums),
-                    "\nRun 'photree gallery fix --id' to generate missing album IDs.",
-                ],
-            ),
+            format_missing_ids_report(exc.albums, "photree gallery fix --id", cwd),
             markup=False,
         )
         raise typer.Exit(code=1) from exc

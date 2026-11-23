@@ -11,6 +11,7 @@ from photree.album.store.metadata import load_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.albums.batchcli.resolution import display_name
 from photree.albums.batchcli.sink import write_csv, write_text
+from photree.albums.output import format_missing_ids_report
 from photree.clihelpers.console import err_console
 from photree.clihelpers.options import OutputFormat
 from photree.common.formatting import indent
@@ -51,15 +52,10 @@ def _require_ids(
             else " ".join(f'--album-dir "{display_path(a, cwd)}"' for a in missing)
         )
         err_console.print(
-            "\n".join(
-                [
-                    "Albums with missing IDs found:",
-                    *(indent(str(display_path(p, cwd))) for p in missing),
-                    (
-                        f"\nRun 'photree albums fix --id {target}' to generate "
-                        "missing album IDs."
-                    ),
-                ],
+            format_missing_ids_report(
+                missing,
+                f"photree albums fix --id {target}",
+                cwd,
             ),
             markup=False,
         )

@@ -11,6 +11,7 @@ from photree.albums.batchcli.resolution import resolve_check_batch_albums
 from photree.albums.cli.app import app
 from photree.albums.cli.options import ALBUM_DIR_OPTION, DIR_OPTION
 from photree.albums.index import AlbumIndex, MissingAlbumIdError, build_album_index
+from photree.albums.output import format_missing_ids_report
 from photree.clihelpers.console import err_console
 from photree.clihelpers.options import DRY_RUN_OPTION
 from photree.clihelpers.runtime import runtime_of
@@ -59,22 +60,15 @@ def _build_index_or_exit(albums: list[Path], cwd: Path) -> AlbumIndex:
     try:
         index = build_album_index(albums)
     except MissingAlbumIdError as exc:
-        err_console.print(_missing_ids_report(exc.albums, cwd), markup=False)
+        err_console.print(
+            format_missing_ids_report(exc.albums, "photree albums fix --id", cwd),
+            markup=False,
+        )
         raise typer.Exit(code=1) from exc
     if index.duplicates:
         err_console.print(_duplicate_ids_report(index, cwd), markup=False)
         raise typer.Exit(code=1)
     return index
-
-
-def _missing_ids_report(albums: tuple[Path, ...], cwd: Path) -> str:
-    return "\n".join(
-        [
-            "Albums with missing IDs found:",
-            *(indent(str(display_path(p, cwd))) for p in albums),
-            "\nRun 'photree albums fix --id' to generate missing album IDs.",
-        ],
-    )
 
 
 def _duplicate_ids_report(index: AlbumIndex, cwd: Path) -> str:
