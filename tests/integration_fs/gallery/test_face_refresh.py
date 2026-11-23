@@ -55,7 +55,7 @@ def _setup_album_with_faces(gallery: Path, name: str, axes: list[int]) -> Path:
             det_scores=np.ones(n, dtype=np.float32),
             bboxes=np.zeros((n, 4), dtype=np.float32),
             landmarks=np.zeros((n, 5, 2), dtype=np.float32),
-            embeddings=np.stack([_embedding(a) for a in axes]),
+            embeddings=np.array([_embedding(a) for a in axes]).reshape(n, 512),
         ),
     )
     return album_dir
@@ -199,3 +199,20 @@ class TestIncrementalRefresh:
 
         assert result.mode is FaceRefreshMode.NONE
         assert result.total_faces == 2
+
+    def test_album_without_faces_is_recorded_as_ingested(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Regression: a faceless album stayed new forever and failed the check."""
+        gallery = _setup_gallery(tmp_path)
+        _setup_album_with_faces(gallery, "2024-07-14 - Trip", [0])
+        refresh_face_clusters(gallery)
+        _setup_album_with_faces(gallery, "2024-07-15 - Landscapes", [])
+
+        first = refresh_face_clusters(gallery)
+        second = refresh_face_clusters(gallery)
+
+        assert first.mode is FaceRefreshMode.INCREMENTAL
+        assert second.mode is FaceRefreshMode.NONE
+        _assert_check_passes(gallery)

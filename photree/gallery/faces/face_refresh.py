@@ -295,9 +295,11 @@ def _run_incremental(
     run.start(STAGE_BUILD_INDEX)
     manifest = load_manifest(run.gallery_dir) or FaceManifest()
     new_refs, new_embeddings_list = _collect_all_faces(changes.new_sources)
+    ingested_sources = (*changes.new_sources, *changes.unchanged_sources)
     if not new_embeddings_list:
         run.end(STAGE_BUILD_INDEX)
-        run.skip(STAGE_CLUSTER, STAGE_SAVE)
+        run.skip(STAGE_CLUSTER)
+        _save_checksums_stage(run, ingested_sources)
         return GalleryFaceRefreshResult(
             total_faces=index.ntotal,
             total_clusters=existing.cluster_count if existing else 0,
@@ -325,7 +327,7 @@ def _run_incremental(
         index,
         FaceManifest(faces=[*manifest.faces, *new_refs]),
         clusters,
-        (*changes.new_sources, *changes.unchanged_sources),
+        ingested_sources,
     )
     return GalleryFaceRefreshResult(
         total_faces=len(all_labels),
@@ -572,6 +574,18 @@ def _save_stage(
     save_faiss_index(index, faiss_index_path(run.gallery_dir))
     save_manifest(run.gallery_dir, manifest)
     save_clusters(run.gallery_dir, result)
+    save_checksums(run.gallery_dir, _build_checksums(sources))
+    run.end(STAGE_SAVE)
+
+
+def _save_checksums_stage(run: _Run, sources: tuple[_AlbumFaceSource, ...]) -> None:
+    """
+    Stage 4 when the new sources hold no faces: record their checksums only.
+
+    The index, manifest and clusters are unchanged, but the checksums are what
+    mark a source ingested: left out, every refresh would see it as new again.
+    """
+    run.start(STAGE_SAVE)
     save_checksums(run.gallery_dir, _build_checksums(sources))
     run.end(STAGE_SAVE)
 
