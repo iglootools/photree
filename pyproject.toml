@@ -316,8 +316,10 @@ as_packages = false
 source_modules = [
   "photree.album",
   "photree.albums",
+  "photree.check",
   "photree.collection",
   "photree.collections",
+  "photree.demo",
   "photree.gallery",
 ]
 forbidden_modules = [
