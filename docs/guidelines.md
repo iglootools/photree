@@ -13,6 +13,7 @@ them.
 - [Exceptions](#exceptions)
   - [Defer an import inside the function that needs it, not with `lazy import`](#defer-an-import-inside-the-function-that-needs-it-not-with-lazy-import)
   - [Keep an accumulator for loop-carried state and per-item `try`/`except`](#keep-an-accumulator-for-loop-carried-state-and-per-item-tryexcept)
+  - [Select the output format with `--format text|csv`, and write a file with `-o/--output`](#select-the-output-format-with---format-textcsv-and-write-a-file-with--o--output)
 - [Rules](#rules)
   - [Read `.photree/*.yaml` through `metadata_io`](#read-photreeyaml-through-metadata_io)
   - [Add each new non-CLI domain subpackage to the CLI-layer contract](#add-each-new-non-cli-domain-subpackage-to-the-cli-layer-contract)
@@ -76,6 +77,19 @@ holds the loops that must not swallow errors, where clarity matters most.
 
 **Never retires:** a comprehension can neither carry state between elements
 nor catch an exception per item.
+
+### Select the output format with `--format text|csv`, and write a file with `-o/--output`
+
+Overrides
+[general.md › Select the output format with `-o/--output`, and write a file with `-f/--file`](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#select-the-output-format-with--o--output-and-write-a-file-with--f--file):
+photree's listing commands select their format with `--format`, `text` (the
+default) or `csv`, and write the output to a file with `-o/--output FILE`.
+
+**Why:** the flags predate the shared rule, and renaming them breaks every
+script and alias that passes them, which only a major release may do.
+
+**Retires when:** photree's next major release, which moves the format to
+`-o/--output` (`human`, the default, and `csv`) and the file to `-f/--file`.
 
 ## Rules
 

@@ -210,13 +210,16 @@ paths with `display_path`.
 
 ## CSV Output
 
-Commands with `--format csv` follow this pattern:
+photree selects the output format with `--format text|csv` and writes a file
+with `-o/--output FILE`, a
+[documented exception](../guidelines.md#select-the-output-format-with---format-textcsv-and-write-a-file-with--o--output)
+to the shared flags until its next major release. Commands with
+`--format csv` follow this pattern:
 
-- `--format` option: `text` (default) or `csv`, declared with the shared
-  `OUTPUT_FORMAT_OPTION` (an `OutputFormat` enum, so an unknown value is
-  rejected rather than silently rendered as text)
-- `--output -o` option (`OUTPUT_FILE_OPTION`): write to file instead of
-  stdout, for every format
+- `--format` is declared with the shared `OUTPUT_FORMAT_OPTION`, an
+  `OutputFormat` enum, so an unknown value is rejected rather than silently
+  rendered as text
+- `-o/--output` is declared with `OUTPUT_FILE_OPTION`, for every format
 - CSV always includes a header row
 - Write to stdout or file, close file in `finally`
 - When `--format csv`, suppress non-CSV output (e.g., "No albums found"
