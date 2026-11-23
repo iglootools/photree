@@ -372,6 +372,10 @@ photree gallery export --share-dir ~/MEGAsync/to-share --album-layout main-jpg
 The share directory must contain a `.photree-share` sentinel file to prevent
 accidental exports.
 
+Re-exporting into the same share directory mirrors each album: files an
+earlier export left there that the album no longer has (deleted media, a
+directory the new album layout drops) are removed.
+
 A typical MEGA backup profile combines `by-month` + `archive`:
 
 ```bash

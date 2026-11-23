@@ -123,6 +123,8 @@ class TestExportOtherAlbum:
 
         assert first.files_copied == 2
         assert second.files_copied == 2
+        assert (first.files_removed, second.files_removed) == (1, 0)
+        assert not (target / "old.jpg").exists()
 
     def test_copies_nested_directories(self, tmp_path: Path) -> None:
         album_dir = tmp_path / "vacation"
@@ -405,3 +407,71 @@ class TestExplicitConfigIsAlwaysLoaded:
                 config_path=str(missing),
             )
         assert info.value.kind == ConfigErrorKind.FILE_NOT_FOUND
+
+
+class TestReexportMirrorsTheAlbum:
+    """A re-export removes what the album no longer has, whatever the layout."""
+
+    def test_media_deleted_since_is_removed(self, tmp_path: Path) -> None:
+        album_dir = _setup_ios_album(tmp_path / "trip")
+        target = tmp_path / "share" / "trip"
+        export_album(album_dir, target)
+        (album_dir / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_0002.JPEG").unlink()
+
+        result = export_album(album_dir, target)
+
+        assert result.files_removed == 1
+        assert not (target / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_0002.JPEG").exists()
+        assert (target / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_E0001.JPEG").exists()
+
+    def test_all_layout_does_not_rebuild_deleted_media(self, tmp_path: Path) -> None:
+        album_dir = _setup_ios_album(tmp_path / "trip")
+        target = tmp_path / "share" / "trip"
+        export_album(album_dir, target, album_layout=AlbumShareLayout.ALL)
+        (album_dir / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0002.HEIC").unlink()
+        (album_dir / MAIN_MEDIA_SOURCE.img_dir / "IMG_0002.HEIC").unlink()
+        (album_dir / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_0002.JPEG").unlink()
+
+        result = export_album(album_dir, target, album_layout=AlbumShareLayout.ALL)
+
+        # orig-img and main-jpg; main-img is rebuilt, not counted as removed.
+        assert result.files_removed == 2
+        assert not (target / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0002.HEIC").exists()
+        assert not (target / MAIN_MEDIA_SOURCE.img_dir / "IMG_0002.HEIC").exists()
+        assert (target / MAIN_MEDIA_SOURCE.img_dir / "IMG_E0001.HEIC").exists()
+
+    def test_dirs_the_new_layout_drops_are_removed(self, tmp_path: Path) -> None:
+        album_dir = _setup_ios_album(tmp_path / "trip")
+        target = tmp_path / "share" / "trip"
+        export_album(
+            album_dir,
+            target,
+            album_layout=AlbumShareLayout.ALL,
+            link_mode=LinkMode.SYMLINK,
+        )
+
+        export_album(album_dir, target, album_layout=AlbumShareLayout.BROWSABLE)
+
+        assert sorted(p.name for p in target.iterdir()) == [
+            MAIN_MEDIA_SOURCE.img_dir,
+            MAIN_MEDIA_SOURCE.jpg_dir,
+            MAIN_MEDIA_SOURCE.vid_dir,
+        ]
+        # The symlinks the all layout left are replaced by copies.
+        browsable = target / MAIN_MEDIA_SOURCE.img_dir / "IMG_0002.HEIC"
+        assert not browsable.is_symlink()
+        assert browsable.read_text() == "data-IMG_0002.HEIC"
+
+    def test_plain_dir_mirrors_nested_files(self, tmp_path: Path) -> None:
+        album_dir = tmp_path / "notes"
+        _setup_dir(album_dir / "sub", ["a.txt"])
+        _setup_dir(album_dir, ["b.txt"])
+        target = tmp_path / "share" / "notes"
+        export_album(album_dir, target)
+        (album_dir / "sub" / "a.txt").unlink()
+        (album_dir / "sub").rmdir()
+
+        result = export_album(album_dir, target)
+
+        assert result.files_removed == 1
+        assert sorted(p.name for p in target.iterdir()) == ["b.txt"]
