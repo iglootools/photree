@@ -911,6 +911,7 @@ $ photree collection metadata set [OPTIONS]
 * `--members <smart|manual>`: How members are determined: smart (auto by date range) or manual.
 * `--lifecycle <implicit|explicit>`: How the collection is managed: explicit (user) or implicit (from album series).
 * `--strategy <import|date-range|album-series|chapter>`: Rule for member selection: import, date-range, album-series, or chapter.
+* `--force`: Switch a collection holding images or videos to smart members, which the next &#x27;gallery refresh&#x27; drops.
 * `--help`: Show this message and exit.
 
 ## `photree collections`
