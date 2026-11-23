@@ -26,6 +26,7 @@ from photree.album.importer.selection import (
     read_selection,
     write_selection_csv,
 )
+from photree.album.importer.staging_cleanup import remove_dir_if_only_hidden_files
 from photree.album.store.file_matching import pick_media_priority
 from photree.album.store.media_source import MediaSource, ios_img_number
 from photree.common.fs import file_ext, list_files
@@ -518,13 +519,15 @@ def _consume_selection(
     keeps one entry per number, so a Live Photo exported as both
     ``IMG_0001.HEIC`` and ``IMG_0001.MOV``, or a number listed in both the dir
     and the CSV, would otherwise leave entries behind that collide with the
-    imported media on the next run. The CSV is deleted once all of its
-    numbers are processed, and otherwise rewritten with the remaining rows.
+    imported media on the next run. The directory is removed once nothing but
+    hidden files is left in it; the CSV is deleted once all of its numbers
+    are processed, and otherwise rewritten with the remaining rows.
     """
     if task.selection_dir is not None:
         for f in sources.dir_files:
             if ios_img_number(f) in processed_numbers:
                 (task.selection_dir / f).unlink(missing_ok=True)
+        remove_dir_if_only_hidden_files(task.selection_dir)
     if task.selection_csv is not None and sources.csv_files:
         remaining = [
             f for f in sources.csv_files if ios_img_number(f) not in processed_numbers

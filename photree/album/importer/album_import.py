@@ -229,17 +229,6 @@ def _notify(callback: Callable[[str], None] | None, value: str) -> None:
         callback(value)
 
 
-def _remove_empty_folders(root: Path) -> None:
-    # Bottom-up so a parent emptied by removing its children goes too.
-    for dirpath, _, _ in root.walk(top_down=False):
-        if (
-            dirpath != root
-            and not dirpath.name.startswith(".")
-            and not any(dirpath.iterdir())
-        ):
-            dirpath.rmdir()
-
-
 def _require_tasks(album_dir: Path) -> list[ImportTask]:
     match discover_import_tasks(album_dir):
         case []:
@@ -408,9 +397,6 @@ def run_import(
         exiftool=exiftool,
         analyzer_factory=analyzer_factory,
     )
-
-    if not dry_run:
-        _remove_empty_folders(album_dir)
 
     return AlbumImportResult(
         ios_results=tuple(r for r in results if isinstance(r, IosSourceImportResult)),

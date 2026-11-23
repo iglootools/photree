@@ -307,7 +307,9 @@ directory. The actual file contents are irrelevant; only the filenames matter
 When both forms exist, their entries are merged (union), deduplicated by image
 number. After a successful import, cleanup also works by image number: every
 directory entry and CSV row whose number was imported is removed — including
-the second half of a Live Photo export (`IMG_0410.HEIC` + `IMG_0410.MOV`). A CSV
+the second half of a Live Photo export (`IMG_0410.HEIC` + `IMG_0410.MOV`). The
+directory is removed once nothing but hidden files (`.DS_Store`) is left in it;
+no other directory of the album is touched. A CSV
 is deleted once all its numbers are processed, and otherwise rewritten with only
 its remaining rows. This
 decouples the selection from any specific tool: exporting from Apple Photos is
