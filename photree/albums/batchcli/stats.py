@@ -6,9 +6,9 @@ from pathlib import Path
 import typer
 from rich.console import RenderableType
 
+from photree.album.cli import stats_output
 from photree.album.naming import parse_album_name
 from photree.album.stats import models as stats_models
-from photree.album.stats import output as stats_output
 from photree.albums.batchcli.failures import exit_with_failures
 from photree.albums.batchcli.resolution import make_display_fn
 from photree.albums.cmd_handler.stats import batch_stats

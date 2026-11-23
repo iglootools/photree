@@ -5,12 +5,12 @@ from io import StringIO
 import pytest
 from rich.console import Console, RenderableType
 
-from photree.album.stats.models import SizeStats
-from photree.album.stats.output import (
+from photree.album.cli.stats_output import (
     format_album_stats,
     format_albums_stats,
     format_bytes,
 )
+from photree.album.stats.models import SizeStats
 from photree.album.stats.testkit import ALBUM_STATS, ALBUMS_STATS
 
 _KIB = 1024

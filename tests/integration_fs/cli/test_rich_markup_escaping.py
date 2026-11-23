@@ -26,8 +26,8 @@ from photree.clihelpers.progress import (
     FileProgressBar,
     StageProgressBar,
 )
+from photree.collection.cli.stats_output import format_collections_table
 from photree.collection.stats.models import CollectionStatsEntry, GalleryCollectionStats
-from photree.collection.stats.output import format_collections_table
 from photree.collection.store.protocol import (
     CollectionLifecycle,
     CollectionMembers,

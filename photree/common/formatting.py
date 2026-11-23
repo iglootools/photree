@@ -4,10 +4,9 @@ Shared UI constants and formatting helpers.
 All constants use Rich markup and must be printed via ``console.print``.
 """
 
+import re
 import textwrap
 from collections.abc import Iterable
-
-from rich.markup import escape
 
 INDENT = "  "
 CHECK = "[green]\u2713[/green]"
@@ -20,6 +19,12 @@ WARN_SIGN = "[dark_orange]\u26a0[/dark_orange]"
 # so print it through ``format_dry_run``.
 DRY_RUN_LABEL = "[dry-run]"
 
+# What Rich parses as a tag (``[bold]``, ``[/]``, ``[#fff]``, ``[@click]``) and
+# the backslashes in front of it, as in ``rich.markup.escape``. This module
+# builds markup for the domain output layers, which may not import Rich, so
+# the escaping is reproduced here; a unit test keeps it equal to Rich's.
+_MARKUP_TAG = re.compile(r"(\\*)(\[[a-z#/@][^[]*?])")
+
 
 def markup_escape(value: object) -> str:
     """
@@ -31,8 +36,20 @@ def markup_escape(value: object) -> str:
     filenames, reasons, exception messages) interpolated next to intentional
     markup such as ``CHECK``/``CROSS`` must go through this helper; text with
     no intentional markup can instead be printed with ``markup=False``.
+
+    Behaves as ``rich.markup.escape``: each backslash before a tag is doubled
+    and the tag gets one more, and a lone trailing backslash is doubled so it
+    cannot escape markup that follows.
     """
-    return escape(str(value))
+    escaped = _MARKUP_TAG.sub(
+        lambda match: f"{match[1]}{match[1]}\\{match[2]}",
+        str(value),
+    )
+    return (
+        f"{escaped}\\"
+        if escaped.endswith("\\") and not escaped.endswith("\\\\")
+        else escaped
+    )
 
 
 def indent(text: str, level: int = 1) -> str:

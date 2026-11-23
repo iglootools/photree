@@ -223,7 +223,7 @@ ignore-names = [
 # make a new edge pass.
 [tool.importlinter]
 root_package = "photree"
-# Needed so the contracts below can name typer, which is a CLI-only dependency.
+# Needed so the contracts below can name typer and rich, the CLI-only dependencies.
 include_external_packages = true
 
 # Top-level packages, highest first. A package may import only from layers below it;
@@ -305,6 +305,7 @@ forbidden_modules = [
   "photree.albums.batchcli",
   "photree.clihelpers",
   "typer",
+  "rich",
 ]
 
 # The package __init__ modules themselves, which the contract above cannot list without
@@ -326,6 +327,7 @@ forbidden_modules = [
   "photree.albums.batchcli",
   "photree.clihelpers",
   "typer",
+  "rich",
 ]
 
 # Direct-import allowlists, so a module added anywhere is covered without editing the
@@ -340,6 +342,16 @@ allowed_importers = ["photree.cli", "photree.*.cli", "photree.albums.batchcli"]
 name = "Only CLI modules import typer"
 type = "protected"
 protected_modules = ["typer"]
+allowed_importers = [
+  "photree.cli",
+  "photree.*.cli",
+  "photree.albums.batchcli",
+  "photree.clihelpers",
+]
+[[tool.importlinter.contracts]]
+name = "Only CLI modules import rich"
+type = "protected"
+protected_modules = ["rich"]
 allowed_importers = [
   "photree.cli",
   "photree.*.cli",

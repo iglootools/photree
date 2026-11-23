@@ -13,16 +13,11 @@ Keeping them on the album-level model is what made ``album`` import
 from dataclasses import dataclass
 from pathlib import Path
 
-from rich.console import Group
-from rich.text import Text
-
 from photree.album.stats.aggregate import merge_size_stats
 from photree.album.stats.models import AlbumsStats, SizeStats
-from photree.album.stats.output import LEGEND, albums_stats_renderables
 from photree.album.stats.scan import scan_directory_size
 from photree.collection.stats import compute_gallery_collection_stats
 from photree.collection.stats.models import GalleryCollectionStats
-from photree.collection.stats.output import format_collections_overview
 from photree.gallery.faces.manifest import gallery_faces_dir
 
 
@@ -54,19 +49,4 @@ def compute_gallery_stats(albums: AlbumsStats, gallery_dir: Path) -> GalleryStat
         albums=albums,
         collection_stats=compute_gallery_collection_stats(gallery_dir),
         cache_storage=cache_storage if cache_storage.file_count > 0 else None,
-    )
-
-
-def format_gallery_stats(stats: GalleryStats) -> Group:
-    """Format gallery statistics: the albums report plus the collection table."""
-    collections = stats.collection_stats
-    return Group(
-        *albums_stats_renderables(stats.albums, cache_storage=stats.cache_storage),
-        *(
-            [Text(""), format_collections_overview(collections)]
-            if collections is not None and collections.total > 0
-            else []
-        ),
-        Text(""),
-        LEGEND,
     )

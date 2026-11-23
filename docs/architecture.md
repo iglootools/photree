@@ -118,11 +118,14 @@ for how to change them.
 
 - **Domain code never depends on the CLI layer**, directly or indirectly. The
   CLI layer is `cli/`, every `*/cli/` subpackage, `albums/batchcli/`,
-  `clihelpers/` and `typer`. Domain output layers render dependency statuses
-  with `common/sysdeps_output.py` rather than through `clihelpers/`.
-- **Only CLI modules import `clihelpers` or `typer`.** `clihelpers/` sits low
-  in the stack only because `album/cli/` uses it; the contracts keep it out of
-  the domain modules of every package above it.
+  `clihelpers/`, `typer` and `rich`. Domain output layers return Rich markup
+  strings, escaped with `common.formatting.markup_escape`, and render
+  dependency statuses with `common/sysdeps_output.py` rather than through
+  `clihelpers/`; Rich renderables (tables, panels) are built in the CLI layer,
+  such as the stats tables in `*/cli/stats_output.py`.
+- **Only CLI modules import `clihelpers`, `typer` or `rich`.** `clihelpers/`
+  sits low in the stack only because `album/cli/` uses it; the contracts keep
+  it out of the domain modules of every package above it.
 - **Command groups share `albums/batchcli/`, not each other.** `gallery/cli/`
   reuses the batch layer through `albums/batchcli/` and never imports
   `albums/cli/`; `albums/batchcli/` never imports `albums/cli/` either.

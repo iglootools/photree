@@ -1,11 +1,42 @@
+import pytest
 from rich.console import Console
+from rich.markup import escape
 
 from photree.common.formatting import (
     CHECK,
     DRY_RUN_LABEL,
     format_dry_run,
     format_flags,
+    markup_escape,
 )
+
+
+class TestMarkupEscape:
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "plain",
+            "Hiking [private]",
+            "[bold]not bold[/bold]",
+            "[/]",
+            "[#ff0000]",
+            "[@click]",
+            "[Upper] and [1] are not tags",
+            r"already \[escaped]",
+            r"two \\\[slashes]",
+            "trailing \\",
+            "trailing pair \\\\",
+            "[unclosed",
+            "[a][b]",
+        ],
+    )
+    def test_matches_rich(self, text: str) -> None:
+        assert markup_escape(text) == escape(text)
+
+    def test_user_text_prints_verbatim(self) -> None:
+        console = Console(record=True, width=80)
+        console.print(f"{CHECK} {markup_escape('Hiking [private] [bold]')}")
+        assert console.export_text() == "✓ Hiking [private] [bold]\n"
 
 
 class TestFormatDryRun:
