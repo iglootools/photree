@@ -10,7 +10,7 @@ from photree.album.exporter.settings import (
     ExportSettingsErrorKind,
     ResolvedExportSettings,
 )
-from photree.common.formatting import indent
+from photree.common.formatting import format_dry_run, indent
 from photree.common.fs import display_path
 from photree.foundation.layout import SHARE_SENTINEL
 from photree.foundation.linking import LinkMode
@@ -72,21 +72,41 @@ def export_summary(
     *,
     files_copied: int,
     files_removed: int,
+    target: Path,
+    dry_run: bool = False,
 ) -> str:
     """
     Return the closing line for one album export: its name, type and file counts.
 
-    The stale files removed are mentioned only when there were some.
+    The stale files removed are mentioned only when there were some. A dry run
+    also names *target*, the directory the album would be exported to (shown
+    as given: the caller makes it relative to the cwd).
     """
-    removed = f", {files_removed} stale file(s) removed" if files_removed else ""
-    return (
-        f"Done. Exported {album_name} ({album_type}): {files_copied} file(s){removed}."
-    )
+    if dry_run:
+        removed = f", {files_removed} stale file(s) to remove" if files_removed else ""
+        return format_dry_run(
+            f"Would export {album_name} ({album_type}) to {target}:"
+            f" {files_copied} file(s){removed}.",
+            dry_run=True,
+        )
+    else:
+        removed = f", {files_removed} stale file(s) removed" if files_removed else ""
+        return (
+            f"Done. Exported {album_name} ({album_type}):"
+            f" {files_copied} file(s){removed}."
+        )
 
 
-def batch_export_summary(exported: int, failed: int) -> str:
+def batch_export_summary(exported: int, failed: int, *, dry_run: bool = False) -> str:
     """Return the closing line for a batch export, preceded by a blank line."""
-    return f"\nDone. {exported} album(s) exported, {failed} failed."
+    return (
+        format_dry_run(
+            f"\n{exported} album(s) would be exported, {failed} failed.",
+            dry_run=True,
+        )
+        if dry_run
+        else f"\nDone. {exported} album(s) exported, {failed} failed."
+    )
 
 
 def format_batch_export_failures(failed: Sequence[ExportFailure], cwd: Path) -> str:

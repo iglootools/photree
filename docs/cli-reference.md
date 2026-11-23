@@ -140,6 +140,7 @@ $ photree album export [OPTIONS]
 * `--share-layout <flat|albums|by-month>`: Share layout: flat (default), albums (by year), or by-month (by month).
 * `--album-layout <browsable-jpg|browsable|all|archive>`: Export layout: browsable-jpg (default), browsable, all, or archive (originals + edits + .photree metadata only).
 * `--link-mode <copy|hardlink|symlink>`: How to create main files in all layout: hardlink (default), symlink, or copy.
+* `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
 ### `photree album fix`
@@ -534,6 +535,7 @@ $ photree albums export [OPTIONS]
 * `--share-layout <flat|albums|by-month>`: Share layout: flat (default), albums (by year), or by-month (by month).
 * `--album-layout <browsable-jpg|browsable|all|archive>`: Export layout: browsable-jpg (default), browsable, all, or archive (originals + edits + .photree metadata only).
 * `--link-mode <copy|hardlink|symlink>`: How to create main files in all layout: hardlink (default), symlink, or copy.
+* `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
 ### `photree albums fix`
@@ -1117,6 +1119,7 @@ $ photree gallery export [OPTIONS]
 * `--share-layout <flat|albums|by-month>`: Share layout: flat (default), albums (by year), or by-month (by month).
 * `--album-layout <browsable-jpg|browsable|all|archive>`: Export layout: browsable-jpg (default), browsable, all, or archive (originals + edits + .photree metadata only).
 * `--link-mode <copy|hardlink|symlink>`: How to create main files in all layout: hardlink (default), symlink, or copy.
+* `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
 ### `photree gallery fix`

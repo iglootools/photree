@@ -345,6 +345,9 @@ photree gallery export -p mega
 
 # Export with explicit flags
 photree gallery export --share-dir ~/MEGAsync/to-share --album-layout main-jpg
+
+# Dry run: report what would be exported, without writing to the share
+photree gallery export -p mega --dry-run
 ```
 
 **Album layouts:**

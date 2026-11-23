@@ -245,6 +245,10 @@ Export albums to external volumes or cloud sync folders.
 - Re-export mirrors the album: files it no longer has are removed from the
   share
 - Batch export via `gallery export`
+- Dry-run mode (`-n`, `--dry-run`) on `album`, `albums` and `gallery export`,
+  without writing to the share: `album export` reports the target and the
+  files it would copy and remove, the batch commands the albums that would be
+  exported or fail
 
 ## Configuration
 

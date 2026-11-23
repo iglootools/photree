@@ -1,7 +1,9 @@
 """The ``album``, ``albums`` and ``gallery export`` commands, end to end."""
 
+from collections.abc import Callable
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from photree.album.id import generate_album_id
@@ -194,3 +196,60 @@ class TestGalleryExport:
         undated = gallery / ALBUMS_DIR / "Undated"
         investigate = f'photree album export --album-dir "{undated}"'
         assert investigate in result.output
+
+
+class TestDryRun:
+    def test_album_export_names_the_target_and_writes_nothing(
+        self,
+        tmp_path: Path,
+        chdir: Callable[[Path], None],
+    ) -> None:
+        album = _album(tmp_path / "2024-07-14 - Trip")
+        share = _share(tmp_path)
+        chdir(tmp_path)
+
+        result = runner.invoke(
+            app,
+            [
+                "album",
+                "export",
+                "--album-dir",
+                str(album),
+                "--share-dir",
+                str(share),
+                "--share-layout",
+                "albums",
+                "--album-layout",
+                "all",
+                "--dry-run",
+            ],
+            obj=fake_runtime(),
+        )
+
+        assert result.exit_code == 0, result.output
+        assert (
+            "[dry-run] Would export 2024-07-14 - Trip (ios) to"
+            " share/2024/2024-07-14 - Trip: "
+        ) in result.output
+        assert sorted(p.name for p in share.iterdir()) == [SHARE_SENTINEL]
+
+    @pytest.mark.parametrize("command", ["albums", "gallery"])
+    def test_batch_export_summarizes_and_writes_nothing(
+        self,
+        tmp_path: Path,
+        command: str,
+    ) -> None:
+        albums = tmp_path / "albums"
+        for name in ("2024-07-14 - Trip", "2024-08-01 - Hike"):
+            _album(albums / name)
+        share = _share(tmp_path)
+
+        result = runner.invoke(
+            app,
+            [command, "export", "--dir", str(albums), "--share-dir", str(share), "-n"],
+            obj=fake_runtime(),
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "[dry-run] 2 album(s) would be exported, 0 failed." in result.output
+        assert sorted(p.name for p in share.iterdir()) == [SHARE_SENTINEL]

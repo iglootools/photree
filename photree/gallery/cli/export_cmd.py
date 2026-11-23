@@ -20,6 +20,7 @@ from photree.clihelpers.console import err_console
 from photree.clihelpers.options import (
     ALBUM_LAYOUT_OPTION,
     CONFIG_OPTION,
+    DRY_RUN_OPTION,
     EXPORT_LINK_MODE_OPTION,
     PROFILE_OPTION,
     SHARE_DIR_OPTION,
@@ -83,6 +84,7 @@ def export_cmd(
     share_layout: SHARE_LAYOUT_OPTION = None,
     album_layout: ALBUM_LAYOUT_OPTION = None,
     link_mode: EXPORT_LINK_MODE_OPTION = None,
+    dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """
     Batch export the gallery's albums to a shared directory.
@@ -120,7 +122,7 @@ def export_cmd(
     if not albums:
         typer.echo("No albums found.")
         raise typer.Exit(code=0)
-    _export(albums, settings, cwd)
+    _export(albums, settings, cwd, dry_run=dry_run)
 
 
 def _resolve_settings_or_exit(
@@ -176,7 +178,13 @@ def _resolve_albums(
             return discover_albums(gallery / ALBUMS_DIR)
 
 
-def _export(albums: list[Path], settings: ResolvedExportSettings, cwd: Path) -> None:
+def _export(
+    albums: list[Path],
+    settings: ResolvedExportSettings,
+    cwd: Path,
+    *,
+    dry_run: bool,
+) -> None:
     with BatchProgressBar(
         total=len(albums),
         description="Exporting",
@@ -188,6 +196,7 @@ def _export(albums: list[Path], settings: ResolvedExportSettings, cwd: Path) -> 
             share_layout=settings.share_layout,
             album_layout=settings.album_layout,
             link_mode=settings.link_mode,
+            dry_run=dry_run,
             on_exporting=progress.on_start,
             on_exported=lambda name: progress.on_end(name, success=True),
             on_error=lambda name, error: progress.on_end(
@@ -197,7 +206,13 @@ def _export(albums: list[Path], settings: ResolvedExportSettings, cwd: Path) -> 
             ),
         )
 
-    typer.echo(_export_output.batch_export_summary(result.exported, len(result.failed)))
+    typer.echo(
+        _export_output.batch_export_summary(
+            result.exported,
+            len(result.failed),
+            dry_run=dry_run,
+        ),
+    )
     if result.failed:
         err_console.print(
             _export_output.format_batch_export_failures(result.failed, cwd),

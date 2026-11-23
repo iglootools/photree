@@ -192,3 +192,23 @@ class TestBatchExport:
         assert (target / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.HEIC").exists()
         assert (target / ".photree" / "album.yaml").exists()
         assert not (target / MAIN_MEDIA_SOURCE.jpg_dir).exists()
+
+
+class TestBatchExportDryRun:
+    def test_writes_nothing_and_reports_failures(self, tmp_path: Path) -> None:
+        base = tmp_path / "albums"
+        _setup_ios_album(base / "2024-07-14 - Trip")
+        _setup_ios_album(base / "Undated")
+        share_dir = tmp_path / "share"
+        share_dir.mkdir()
+
+        result = run_batch_export(
+            base_dir=base,
+            share_dir=share_dir,
+            share_layout=ShareDirectoryLayout.BY_MONTH,
+            dry_run=True,
+        )
+
+        assert result.exported == 1
+        assert [f.album_dir.name for f in result.failed] == ["Undated"]
+        assert list(share_dir.iterdir()) == []

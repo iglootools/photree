@@ -22,6 +22,7 @@ from photree.clihelpers.console import err_console
 from photree.clihelpers.options import (
     ALBUM_LAYOUT_OPTION,
     CONFIG_OPTION,
+    DRY_RUN_OPTION,
     EXPORT_LINK_MODE_OPTION,
     PROFILE_OPTION,
     SHARE_DIR_OPTION,
@@ -57,6 +58,7 @@ def export_cmd(
     share_layout: SHARE_LAYOUT_OPTION = None,
     album_layout: ALBUM_LAYOUT_OPTION = None,
     link_mode: EXPORT_LINK_MODE_OPTION = None,
+    dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """
     Batch export multiple albums to a shared directory.
@@ -92,8 +94,14 @@ def export_cmd(
         typer.echo("No albums found.")
         raise typer.Exit(code=0)
 
-    result = _export(albums, scan_dir, album_dirs, settings)
-    typer.echo(export_output.batch_export_summary(result.exported, len(result.failed)))
+    result = _export(albums, scan_dir, album_dirs, settings, dry_run=dry_run)
+    typer.echo(
+        export_output.batch_export_summary(
+            result.exported,
+            len(result.failed),
+            dry_run=dry_run,
+        ),
+    )
     if result.failed:
         err_console.print(
             export_output.format_batch_export_failures(result.failed, cwd),
@@ -142,6 +150,8 @@ def _export(
     scan_dir: Path | None,
     album_dirs: list[Path] | None,
     settings: ResolvedExportSettings,
+    *,
+    dry_run: bool,
 ) -> BatchExportResult:
     with BatchProgressBar(
         total=len(albums),
@@ -155,6 +165,7 @@ def _export(
             share_layout=settings.share_layout,
             album_layout=settings.album_layout,
             link_mode=settings.link_mode,
+            dry_run=dry_run,
             on_exporting=progress.on_start,
             on_exported=lambda name: progress.on_end(name, success=True),
             on_error=lambda name, error: progress.on_end(
