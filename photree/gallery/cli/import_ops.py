@@ -16,6 +16,7 @@ from photree.album.id import format_album_external_id
 from photree.album.refresh import RefreshFn
 from photree.album.store.album_discovery import discover_potential_albums
 from photree.album.store.metadata import load_album_metadata
+from photree.albums.index import AlbumIndex
 from photree.clihelpers.console import console, err_console
 from photree.clihelpers.progress import BatchProgressBar, StageProgressBar
 from photree.common.exif import exiftool_session
@@ -23,7 +24,6 @@ from photree.common.formatting import format_dry_run
 from photree.common.fs import display_path
 from photree.common.sysdeps import WhichFn
 from photree.foundation.linking import LinkMode
-from photree.gallery import AlbumIndex
 from photree.gallery.cmd_handler.importer import BatchImportResult
 from photree.gallery.cmd_handler.importer import run_batch_import as _run_batch_import
 from photree.gallery.cmd_handler.importer import run_single_import as _run_single_import
