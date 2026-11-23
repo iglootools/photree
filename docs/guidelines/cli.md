@@ -114,8 +114,10 @@ with BatchProgressBar(
         progress.on_end(item.name, success=True)
 ```
 
-For gallery-scoped scanning (resolving album list), use a transient Rich spinner
-via `resolve_check_batch_albums` in `albums/batchcli/resolution.py`.
+For a step with no count (resolving the album list, building an index), use
+the transient spinner of `run_with_spinner` in `clihelpers/progress.py`; album
+resolution in `albums/batchcli/resolution.py` already shows one. It draws on
+stderr, so piped output (a CSV listing) starts with the output itself.
 
 ## Icons and Result Formatting
 

@@ -103,9 +103,8 @@ class TestEmptyCsvListings:
         )
 
         assert result.exit_code == 0, result.output
-        # strip(): the album-list spinner leaves a blank line on stdout.
-        assert result.stdout.strip().startswith(header)
-        assert len(result.stdout.strip().splitlines()) == 1
+        assert result.stdout.startswith(header)
+        assert len(result.stdout.splitlines()) == 1
         assert notice in result.stderr
 
     @pytest.mark.parametrize(("command", "notice", "header"), _CSV_LISTINGS)
@@ -244,7 +243,7 @@ class TestAlbumsReports:
             "csv",
         )
 
-        rows = list(csv.reader(io.StringIO(result.stdout.strip())))
+        rows = list(csv.reader(io.StringIO(result.stdout)))
         assert rows[0] == ["album_id", "media_source", "type", "id", "key"]
         assert [row[:3] for row in rows[1:]] == [
             [format_album_external_id(gallery.album_id), "main", "image"],
