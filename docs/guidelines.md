@@ -152,4 +152,4 @@ Before calling a change done, update the documents its kind of change reaches:
 | Release or publish pipeline, trusted publisher | releasing-and-publishing.md |
 | GitHub repository setting | building-and-testing.md "GitHub Config" |
 | Major release | new scenarios in demo/demo.sh (see the Release Process) |
-| Renaming or moving a document | every reference to it: `git grep` the old name, including the CONTRIBUTING.md line and the README's absolute URLs |
+| Renaming or moving a document | every file that points at it, as [layout.md › Write the documents the project's shape calls for, one name per role](https://github.com/iglootools/common/blob/main/guidelines/documentation/layout.md#write-the-documents-the-projects-shape-calls-for-one-name-per-role) lists |
