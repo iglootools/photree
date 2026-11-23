@@ -143,17 +143,20 @@ def run_batch_list_albums(
     """
     Shared implementation for list-albums / albums list.
 
-    *output_file* applies to both formats.
+    *output_file* applies to both formats. A CSV always has its header row,
+    even with no album, so a script reading it sees the columns.
     """
-    if not albums:
-        typer.echo("No albums found.", err=output_format == OutputFormat.CSV)
-        raise typer.Exit(code=0)
-
     metas = _require_ids(albums, display_base, cwd)
     names = {album: display_name(album, display_base, cwd) for album in albums}
-    match output_format:
-        case OutputFormat.CSV:
+    match output_format, albums:
+        case OutputFormat.TEXT, []:
+            typer.echo("No albums found.")
+        case OutputFormat.TEXT, _:
+            write_text(_text_lines(metas, names, metadata=metadata), output_file)
+        case OutputFormat.CSV, []:
+            # Keep stdout pure CSV: the notice goes to stderr.
+            err_console.print("No albums found.")
+            write_csv(_CSV_HEADER, [], output_file)
+        case OutputFormat.CSV, _:
             rows = (_csv_row(a, meta, names[a]) for a, meta in metas.items())
             write_csv(_CSV_HEADER, rows, output_file)
-        case OutputFormat.TEXT:
-            write_text(_text_lines(metas, names, metadata=metadata), output_file)

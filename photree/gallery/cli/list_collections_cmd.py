@@ -78,8 +78,10 @@ def list_collections_cmd(
 
     match output_format, collections:
         case OutputFormat.CSV, []:
-            # Keep stdout pure CSV: the notice goes to stderr.
+            # Keep stdout pure CSV: the notice goes to stderr. The header is
+            # still written, so a script reading the CSV sees the columns.
             err_console.print("No collections found.")
+            _list_csv(collections, cwd, output_file)
         case OutputFormat.TEXT, []:
             typer.echo("No collections found.")
         case OutputFormat.CSV, _:

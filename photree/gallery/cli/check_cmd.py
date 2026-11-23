@@ -167,14 +167,15 @@ def _check_faces(gallery_dir: Path, cwd: Path) -> bool:
         return True
 
     console.print(f"{CROSS} face clusters ({len(result.issues)} issue(s))")
-    typer.echo("\n".join(indent(_format_face_issue(i, cwd), 2) for i in result.issues))
+    typer.echo("\n".join(indent(format_face_issue(i, cwd), 2) for i in result.issues))
     err_console.print(
         indent("Run 'photree gallery cluster-faces --redetect' to rebuild.", 2),
     )
     return False
 
 
-def _format_face_issue(issue: FaceClusterIssue, cwd: Path) -> str:
+def format_face_issue(issue: FaceClusterIssue, cwd: Path) -> str:
+    """Describe a face cluster issue in plain text, album paths relative to *cwd*."""
     match issue:
         case ClusterIndexOutOfBounds(cluster_id=cluster_id, count=count):
             return f"cluster {cluster_id}: {count} face index(es) out of bounds"
