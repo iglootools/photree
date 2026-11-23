@@ -29,8 +29,6 @@ from photree.clihelpers.progress import BatchProgressBar
 from photree.clihelpers.resolution import resolve_gallery_or_exit
 from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.usage import mutually_exclusive_error
-from photree.common.formatting import indent
-from photree.common.fs import display_path
 from photree.config import ConfigError, PhotreeConfig
 from photree.foundation.layout import ALBUMS_DIR
 from photree.foundation.linking import LinkMode
@@ -202,15 +200,7 @@ def _export(albums: list[Path], settings: ResolvedExportSettings, cwd: Path) -> 
     typer.echo(_export_output.batch_export_summary(result.exported, len(result.failed)))
     if result.failed:
         err_console.print(
-            "\n".join(
-                [
-                    "\nFailed albums:",
-                    *(
-                        indent(f"{display_path(album_dir, cwd)}: {error}")
-                        for album_dir, error in result.failed
-                    ),
-                ],
-            ),
+            _export_output.format_batch_export_failures(result.failed, cwd),
             markup=False,
         )
         raise typer.Exit(code=1)
