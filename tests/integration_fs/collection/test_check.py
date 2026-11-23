@@ -301,6 +301,43 @@ class TestCheckChapterOverlap:
         assert check_collection(montreal, build_gallery_lookup(gallery)).success
 
 
+class TestCheckPrivateSmart:
+    def test_non_private_members_reported(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        _, album_id = _setup_album(gallery, "2024-07-14 - Trip")
+        _, sub_id = _setup_collection(gallery, "2024-08 - August")
+        col_dir, _ = _setup_collection(
+            gallery,
+            "2024 - Best Of [private]",
+            members=CollectionMembers.SMART,
+            strategy=CollectionStrategy.DATE_RANGE,
+            albums=[album_id],
+            collections=[sub_id],
+        )
+
+        result = check_collection(col_dir, build_gallery_lookup(gallery))
+
+        assert [i.code for i in result.issues] == [
+            "private-smart-has-non-private-album",
+            "private-smart-has-non-private-collection",
+        ]
+
+    def test_private_members_pass(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        _, album_id = _setup_album(gallery, "2024-07-14 - Trip [private]")
+        _, sub_id = _setup_collection(gallery, "2024-08 - August [private]")
+        col_dir, _ = _setup_collection(
+            gallery,
+            "2024 - Best Of [private]",
+            members=CollectionMembers.SMART,
+            strategy=CollectionStrategy.DATE_RANGE,
+            albums=[album_id],
+            collections=[sub_id],
+        )
+
+        assert check_collection(col_dir, build_gallery_lookup(gallery)).success
+
+
 class TestCheckInvalidMetadata:
     def test_corrupt_metadata_reported_not_crashing(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
