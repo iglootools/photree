@@ -190,8 +190,8 @@ Two call styles, matching what the command does:
   staging/Image Capture problems in one pass. `import-check` is a pure
   diagnostic and depends on this.
 
-Probing PATH is the CLI layer's job, as ambient state is under
-[general.md › Testability](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#testability).
+Probing PATH is the CLI layer's job, as reading ambient state is under
+[general.md › Pass the clock, the environment and configuration in](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#pass-the-clock-the-environment-and-configuration-in).
 Library functions take the resolved statuses as a parameter; output layers
 render them with `common/sysdeps_output.py`, never by importing `clihelpers`
 (only CLI modules — `*/cli/`, `albums/batchcli/`, `clihelpers/` — may import
