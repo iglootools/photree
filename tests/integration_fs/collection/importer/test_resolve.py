@@ -394,3 +394,58 @@ class TestResolveErrors:
         assert [(e.kind, e.duplicate_of) for e in result.errors] == [
             (ResolutionErrorKind.DUPLICATE, "2024-07-14 - Trip"),
         ]
+
+    def test_same_album_by_external_id_and_uuid_is_duplicate(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = _setup_gallery(tmp_path)
+        _, album_id = _setup_album(gallery, "2024-07-14 - Trip")
+        ext_id = format_album_external_id(album_id)
+
+        result = resolve_entries((_entry(ext_id), _entry(album_id)), gallery)
+
+        assert result.members.albums == (album_id,)
+        assert [(e.entry, e.kind, e.duplicate_of) for e in result.errors] == [
+            (album_id, ResolutionErrorKind.DUPLICATE, ext_id),
+        ]
+
+    def test_same_image_key_twice_is_duplicate(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        _, _, img_id, _ = _setup_album_with_media(gallery, "2024-07-14 - Trip")
+
+        result = resolve_entries(
+            (_entry("IMG_0001.HEIC"), _entry("IMG_0001.JPG")),
+            gallery,
+        )
+
+        assert result.members.images == (img_id,)
+        assert [(e.entry, e.kind, e.duplicate_of) for e in result.errors] == [
+            ("IMG_0001.JPG", ResolutionErrorKind.DUPLICATE, "IMG_0001.HEIC"),
+        ]
+
+    def test_image_and_video_sharing_a_key_both_resolve(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        album_dir, _ = _setup_album(gallery, "2024-07-14 - Trip")
+        img_id = generate_media_id()
+        vid_id = generate_media_id()
+        save_media_metadata(
+            album_dir,
+            MediaMetadata(
+                media_sources={
+                    "main": MediaSourceMediaMetadata(
+                        images={img_id: "0003"},
+                        videos={vid_id: "0003"},
+                    ),
+                },
+            ),
+        )
+
+        result = resolve_entries(
+            (_entry("IMG_0003.HEIC"), _entry("IMG_0003.MOV")),
+            gallery,
+        )
+
+        assert result.success
+        assert result.members.images == (img_id,)
+        assert result.members.videos == (vid_id,)

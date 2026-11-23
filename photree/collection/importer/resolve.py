@@ -228,12 +228,12 @@ class _MediaRequest:
 class _PendingLookups:
     """Pre-classified selection entries for efficient matching during scan."""
 
-    # internal UUID → SelectionEntry.value that requested it
-    wanted_ids: Mapping[str, str]
+    # internal UUID → every SelectionEntry.value that requested it, in order
+    wanted_ids: Mapping[str, tuple[str, ...]]
     # SelectionEntry.value strings that are directory names
     wanted_names: frozenset[str]
-    # media key → the first media entry requesting that key
-    wanted_media_keys: Mapping[str, _MediaRequest]
+    # media key → every media entry requesting that key, in order
+    wanted_media_keys: Mapping[str, tuple[_MediaRequest, ...]]
 
 
 @dataclass(frozen=True)
@@ -282,20 +282,36 @@ def _classify(value: str) -> _Request | None:
             return _NameRequest(value)
 
 
+def _grouped[V](pairs: Iterable[tuple[str, V]]) -> dict[str, tuple[V, ...]]:
+    """Group *pairs* by key, keeping every value in its original order."""
+    # sorted() is stable, so values keep their order within a key.
+    return {
+        key: tuple(v for _, v in group)
+        for key, group in groupby(sorted(pairs, key=itemgetter(0)), key=itemgetter(0))
+    }
+
+
 def _prepare_lookups(entries: tuple[SelectionEntry, ...]) -> _PendingLookups:
-    """Classify entries into lookup structures for the scan phase."""
+    """
+    Classify entries into lookup structures for the scan phase.
+
+    Every entry requesting an ID or a media key is kept, not only one per ID
+    or key: two entries naming the same item must both match it, so the
+    second is reported as a DUPLICATE rather than as NOT_FOUND.
+    """
     requests = [r for e in entries for r in [_classify(e.value)] if r is not None]
     return _PendingLookups(
-        wanted_ids={
-            r.internal_id: r.entry_value for r in requests if isinstance(r, _IdRequest)
-        },
+        wanted_ids=_grouped(
+            (r.internal_id, r.entry_value)
+            for r in requests
+            if isinstance(r, _IdRequest)
+        ),
         wanted_names=frozenset(
             r.entry_value for r in requests if isinstance(r, _NameRequest)
         ),
-        # Reversed so that, for a key requested twice, the *first* entry wins.
-        wanted_media_keys={
-            r.key: r.request for r in reversed(requests) if isinstance(r, _KeyRequest)
-        },
+        wanted_media_keys=_grouped(
+            (r.key, r.request) for r in requests if isinstance(r, _KeyRequest)
+        ),
     )
 
 
@@ -309,13 +325,12 @@ def _media_requesters(
     lookups: _PendingLookups,
 ) -> list[str]:
     """Entry values requesting this media item, by ID and/or by filename key."""
-    by_key = lookups.wanted_media_keys.get(key)
     return [
-        *([lookups.wanted_ids[media_id]] if media_id in lookups.wanted_ids else []),
+        *lookups.wanted_ids.get(media_id, ()),
         *(
-            [by_key.entry_value]
-            if by_key is not None and by_key.media_type == media_type
-            else []
+            r.entry_value
+            for r in lookups.wanted_media_keys.get(key, ())
+            if r.media_type == media_type
         ),
     ]
 
@@ -337,11 +352,7 @@ def _album_matches(album: ScannedAlbum, lookups: _PendingLookups) -> list[_Entry
     """Check a single album against all pending entries."""
     as_album = _Match(MemberType.ALBUM, album.album_id)
     return [
-        *(
-            [(lookups.wanted_ids[album.album_id], as_album)]
-            if album.album_id in lookups.wanted_ids
-            else []
-        ),
+        *((value, as_album) for value in lookups.wanted_ids.get(album.album_id, ())),
         *(
             [(album.dir_name, as_album)]
             if album.dir_name in lookups.wanted_names
@@ -360,9 +371,8 @@ def _collection_matches(
     as_collection = _Match(MemberType.COLLECTION, col.collection_id)
     return [
         *(
-            [(lookups.wanted_ids[col.collection_id], as_collection)]
-            if col.collection_id in lookups.wanted_ids
-            else []
+            (value, as_collection)
+            for value in lookups.wanted_ids.get(col.collection_id, ())
         ),
         *(
             [(col.dir_name, as_collection)]
