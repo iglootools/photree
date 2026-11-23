@@ -13,6 +13,7 @@ from photree.gallery.faces.face_refresh import (
     STAGE_CLUSTER,
     STAGE_SAVE,
     STAGE_SCAN_FACE_DATA,
+    FaceRefreshMode,
     GalleryFaceRefreshResult,
     refresh_face_clusters,
 )
@@ -61,10 +62,8 @@ def run_face_clustering(
 
 def _face_clustering_line(result: GalleryFaceRefreshResult) -> str:
     counts = f"{result.total_faces} face(s), {result.total_clusters} cluster(s)"
-    # Compared by value so this module needs no runtime import of face_refresh,
-    # which pulls in faiss and scikit-learn.
     return (
         f"{CHECK} face clustering (no changes — {counts})"
-        if result.mode == "none"
+        if result.mode is FaceRefreshMode.NONE
         else f"{CHECK} face clustering ({counts}, {result.mode})"
     )
