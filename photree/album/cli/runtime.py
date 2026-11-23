@@ -7,10 +7,16 @@ them, real by default; a test passes one, with fakes, as ``obj``.
 """
 
 from collections.abc import Callable
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 
 import typer
 
+from photree.album.faces.detect import (
+    FaceAnalyzerFactory,
+    MakeThumbnailFn,
+    generate_thumbnail,
+    memoized_face_analyzer_factory,
+)
 from photree.album.importer import album_import
 from photree.album.importer.album_import import AlbumImportResult
 from photree.clihelpers.runtime import Runtime
@@ -24,6 +30,12 @@ class AlbumRuntime(Runtime):
 
     run_import: RunImportFn = album_import.run_import
     """Imports an album's staging entries (``album import``)."""
+    face_analyzer_factory: FaceAnalyzerFactory = field(
+        default_factory=memoized_face_analyzer_factory,
+    )
+    """Builds the face analyzer on first use, once per run (``detect-faces``)."""
+    make_face_thumbnail: MakeThumbnailFn = generate_thumbnail
+    """Writes the thumbnail face detection reads (``detect-faces``)."""
 
 
 def widen(base: Runtime) -> AlbumRuntime:

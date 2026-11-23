@@ -4,7 +4,6 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -12,6 +11,7 @@ from photree.album.faces.detect import (
     DetectedFace,
     FaceAnalyzerFactory,
     FaceDetector,
+    MakeThumbnailFn,
     ThumbnailResult,
     detect_faces,
     generate_thumbnail,
@@ -43,11 +43,6 @@ from photree.common.fs import list_files
 from photree.common.parallelism import ParallelResult, run_parallel
 from photree.common.progress import FileEnd
 from photree.foundation.metadata_io import InvalidMetadataError
-
-if TYPE_CHECKING:
-    # Annotation only: importing insightface costs ~0.3 s at CLI startup.
-    # insightface ships no type information.
-    from insightface.app import FaceAnalysis  # pyright: ignore[reportMissingTypeStubs]
 
 
 @dataclass(frozen=True)
@@ -108,6 +103,7 @@ def refresh_face_data(
     on_source_start: Callable[[str], None] | None = None,
     on_source_end: FileEnd | None = None,
     max_workers: int | None = None,
+    make_thumbnail: MakeThumbnailFn = generate_thumbnail,
 ) -> FaceRefreshResult:
     """
     Refresh the face data of each media source.
@@ -117,6 +113,9 @@ def refresh_face_data(
     the composition root (CLI) is responsible for injecting one. The factory
     is invoked lazily — only once a source actually has images to process —
     and may memoize its result to share one analyzer across albums.
+
+    *make_thumbnail* writes the JPEG detection reads; tests pass one that
+    needs no ``sips``.
     """
     sources = discover_media_sources(album_dir)
     if not sources or analyzer_factory is None:
@@ -137,6 +136,7 @@ def refresh_face_data(
                 on_source_start=on_source_start,
                 on_source_end=on_source_end,
                 max_workers=max_workers,
+                make_thumbnail=make_thumbnail,
             ),
         )
         for ms in sources
@@ -223,7 +223,7 @@ def _refresh_source(
     album_dir: Path,
     ms: MediaSource,
     *,
-    get_analyzer: Callable[[], FaceAnalysis],
+    get_analyzer: FaceAnalyzerFactory,
     model_name: str,
     model_version: str,
     redetect: bool,
@@ -232,6 +232,7 @@ def _refresh_source(
     on_source_start: Callable[[str], None] | None,
     on_source_end: FileEnd | None,
     max_workers: int | None,
+    make_thumbnail: MakeThumbnailFn,
 ) -> FaceSourceRefreshResult:
     if on_source_start:
         on_source_start(ms.name)
@@ -255,6 +256,7 @@ def _refresh_source(
             model_name=model_name,
             model_version=model_version,
             max_workers=max_workers,
+            make_thumbnail=make_thumbnail,
         )
     )
 
@@ -268,11 +270,12 @@ def _detect_and_save(
     ms: MediaSource,
     plan: _SourcePlan,
     *,
-    get_analyzer: Callable[[], FaceAnalysis],
+    get_analyzer: FaceAnalyzerFactory,
     refresh_thumbs: bool,
     model_name: str,
     model_version: str,
     max_workers: int | None,
+    make_thumbnail: MakeThumbnailFn,
 ) -> FaceSourceRefreshResult:
     """Run detection for the planned keys, then persist the merged results."""
     new_faces, new_state_keys, failures = _run_detection(
@@ -284,6 +287,7 @@ def _detect_and_save(
         refresh_thumbs=refresh_thumbs or plan.model_changed,
         get_analyzer=get_analyzer,
         max_workers=max_workers,
+        make_thumbnail=make_thumbnail,
     )
 
     _delete_stale_thumbnails(thumbs_dir(album_dir, ms.name), set(plan.stale_keys))
@@ -380,8 +384,9 @@ def _run_detection(
     *,
     existing_state: FaceProcessingState,
     refresh_thumbs: bool,
-    get_analyzer: Callable[[], FaceAnalysis],
+    get_analyzer: FaceAnalyzerFactory,
     max_workers: int | None,
+    make_thumbnail: MakeThumbnailFn,
 ) -> tuple[list[DetectedFace], dict[str, FaceProcessedKey], tuple[FaceFailure, ...]]:
     """Return ``(new_faces, new_state_keys, failures)``."""
     thumb_dir = thumbs_dir(album_dir, ms.name)
@@ -393,6 +398,7 @@ def _run_detection(
         existing_state=existing_state,
         regenerate=refresh_thumbs,
         max_workers=max_workers,
+        make_thumbnail=make_thumbnail,
     )
 
     # No thumbnails means nothing to detect (e.g. only stale keys to prune) —
@@ -482,13 +488,14 @@ def _generate_new_thumbnails(
     thumb_dir: Path,
     *,
     max_workers: int | None,
+    make_thumbnail: MakeThumbnailFn,
 ) -> list[ParallelResult[ThumbnailResult]]:
     """Generate thumbnails for *keys* in parallel (sips is CPU-bound)."""
     tasks: list[tuple[str, Callable[[], ThumbnailResult]]] = [
         (
             key,
             partial(
-                generate_thumbnail,
+                make_thumbnail,
                 key,
                 current_files[key],
                 orig_dir / current_files[key],
@@ -513,6 +520,7 @@ def _generate_thumbnails(
     existing_state: FaceProcessingState,
     regenerate: bool,
     max_workers: int | None,
+    make_thumbnail: MakeThumbnailFn,
 ) -> tuple[list[ThumbnailResult], tuple[FaceFailure, ...]]:
     """
     Generate (or reuse) thumbnails for *keys*.
@@ -537,6 +545,7 @@ def _generate_thumbnails(
         orig_dir,
         thumb_dir,
         max_workers=max_workers,
+        make_thumbnail=make_thumbnail,
     )
     reused = [
         reuse_thumbnail(

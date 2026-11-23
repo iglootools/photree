@@ -7,7 +7,8 @@ from pathlib import Path
 
 from photree.album.faces.detect import (
     FaceAnalyzerFactory,
-    memoized_face_analyzer_factory,
+    MakeThumbnailFn,
+    generate_thumbnail,
 )
 from photree.album.faces.refresh import refresh_face_data
 from photree.albums.cmd_handler import (
@@ -36,6 +37,7 @@ def _detect_one(
     refresh_thumbs: bool,
     dry_run: bool,
     max_workers: int | None,
+    make_thumbnail: MakeThumbnailFn,
 ) -> None:
     result = refresh_face_data(
         album_dir,
@@ -44,6 +46,7 @@ def _detect_one(
         refresh_thumbs=refresh_thumbs,
         dry_run=dry_run,
         max_workers=max_workers,
+        make_thumbnail=make_thumbnail,
     )
     # Per-image failures leave the album's face data incomplete: a failure.
     if result.failures:
@@ -56,6 +59,8 @@ def _detect_one(
 def batch_detect_faces(
     albums: list[Path],
     *,
+    analyzer_factory: FaceAnalyzerFactory,
+    make_thumbnail: MakeThumbnailFn = generate_thumbnail,
     redetect: bool = False,
     refresh_thumbs: bool = False,
     dry_run: bool = False,
@@ -67,16 +72,19 @@ def batch_detect_faces(
     """
     Run face detection on multiple albums with one shared (lazy) model.
 
+    *analyzer_factory* is called only once an album has images to analyse,
+    and should memoize the model so every album shares it.
     Calls ``on_start(name)`` before and
     ``on_end(name, success, error_labels)`` after each album.
     """
     detect = partial(
         _detect_one,
-        analyzer_factory=memoized_face_analyzer_factory(),
+        analyzer_factory=analyzer_factory,
         redetect=redetect,
         refresh_thumbs=refresh_thumbs,
         dry_run=dry_run,
         max_workers=max_workers,
+        make_thumbnail=make_thumbnail,
     )
     outcomes = [
         run_album_step(
