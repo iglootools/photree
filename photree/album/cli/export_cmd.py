@@ -21,6 +21,7 @@ from photree.clihelpers.console import err_console
 from photree.clihelpers.options import (
     ALBUM_LAYOUT_OPTION,
     CONFIG_OPTION,
+    DRY_RUN_OPTION,
     EXPORT_LINK_MODE_OPTION,
     PROFILE_OPTION,
     SHARE_DIR_OPTION,
@@ -54,6 +55,7 @@ def export_cmd(
     share_layout: SHARE_LAYOUT_OPTION = None,
     album_layout: ALBUM_LAYOUT_OPTION = None,
     link_mode: EXPORT_LINK_MODE_OPTION = None,
+    dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """
     Export a single album to a shared directory.
@@ -130,6 +132,7 @@ def export_cmd(
             target_dir,
             album_layout=settings.album_layout,
             link_mode=settings.link_mode,
+            dry_run=dry_run,
         )
     except OSError as exc:
         # A full or read-only share, or one that refuses links (exFAT, SMB).
@@ -145,5 +148,7 @@ def export_cmd(
             result.album_type,
             files_copied=result.files_copied,
             files_removed=result.files_removed,
+            target=display_path(target_dir, cwd),
+            dry_run=dry_run,
         ),
     )

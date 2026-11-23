@@ -54,6 +54,7 @@ class _ExportOptions:
     share_layout: ShareDirectoryLayout
     album_layout: AlbumShareLayout
     link_mode: LinkMode
+    dry_run: bool
 
 
 def _resolve_albums(
@@ -91,6 +92,7 @@ def _export_one(
             target_dir,
             album_layout=options.album_layout,
             link_mode=options.link_mode,
+            dry_run=options.dry_run,
         )
     # A per-album filesystem failure, or a name the share layout cannot place
     # (ValueError from the date parsing), is reported and the batch carries
@@ -113,6 +115,7 @@ def run_batch_export(
     share_layout: ShareDirectoryLayout = ShareDirectoryLayout.FLAT,
     album_layout: AlbumShareLayout = AlbumShareLayout.BROWSABLE_JPG,
     link_mode: LinkMode = LinkMode.HARDLINK,
+    dry_run: bool = False,
     on_exporting: Callable[[str], None] | None = None,
     on_exported: Callable[[str], None] | None = None,
     on_error: Callable[[str, str], None] | None = None,
@@ -121,7 +124,8 @@ def run_batch_export(
     Export each album, isolating per-album failures.
 
     Provide exactly one of *base_dir* (discover albums) or *album_dirs*
-    (explicit list).
+    (explicit list). A dry run writes nothing; it still reports the albums
+    that would fail, such as a name the share layout cannot place.
 
     Callbacks are optional hooks for the CLI layer:
 
@@ -130,7 +134,13 @@ def run_batch_export(
     - ``on_error(album_name, message)`` — called on failure
     """
     albums = _resolve_albums(base_dir, album_dirs)
-    options = _ExportOptions(share_dir, share_layout, album_layout, link_mode)
+    options = _ExportOptions(
+        share_dir,
+        share_layout,
+        album_layout,
+        link_mode,
+        dry_run,
+    )
     outcomes = [
         _export_one(
             album_dir,

@@ -475,3 +475,36 @@ class TestReexportMirrorsTheAlbum:
 
         assert result.files_removed == 1
         assert sorted(p.name for p in target.iterdir()) == ["b.txt"]
+
+
+class TestDryRun:
+    @pytest.mark.parametrize("album_layout", list(AlbumShareLayout))
+    def test_counts_what_the_export_does_without_writing(
+        self,
+        tmp_path: Path,
+        album_layout: AlbumShareLayout,
+    ) -> None:
+        album_dir = _setup_ios_album(tmp_path / "trip")
+        _setup_photree_metadata(album_dir)
+        target = tmp_path / "share" / "trip"
+
+        preview = export_album(
+            album_dir,
+            target,
+            album_layout=album_layout,
+            dry_run=True,
+        )
+
+        assert not target.exists()
+        assert preview == export_album(album_dir, target, album_layout=album_layout)
+
+    def test_counts_stale_files_without_removing_them(self, tmp_path: Path) -> None:
+        album_dir = _setup_ios_album(tmp_path / "trip")
+        target = tmp_path / "share" / "trip"
+        export_album(album_dir, target)
+        (album_dir / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_0002.JPEG").unlink()
+
+        preview = export_album(album_dir, target, dry_run=True)
+
+        assert preview.files_removed == 1
+        assert (target / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_0002.JPEG").exists()

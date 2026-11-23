@@ -283,23 +283,37 @@ def _copy_file(src: Path, dst: Path) -> None:
     shutil.copy2(src, dst)
 
 
-def _rebuild_browsable(target_dir: Path, ms: MediaSource, link_mode: LinkMode) -> int:
-    """Recreate ``{name}-img/`` and ``{name}-vid/`` from the exported archive."""
+def _rebuild_browsable(
+    archive_dir: Path,
+    target_dir: Path,
+    ms: MediaSource,
+    link_mode: LinkMode,
+    *,
+    dry_run: bool,
+) -> int:
+    """
+    Recreate ``{name}-img/`` and ``{name}-vid/`` in *target_dir*.
+
+    From the archive under *archive_dir*: the exported one, or the album's own
+    for a dry run, which has not exported it and only counts the files.
+    """
     img = refresh_browsable_dir(
-        target_dir / ms.orig_img_dir,
-        target_dir / ms.edit_img_dir,
+        archive_dir / ms.orig_img_dir,
+        archive_dir / ms.edit_img_dir,
         target_dir / ms.img_dir,
         media_extensions=IMG_EXTENSIONS,
         key_fn=ms.key_fn,
         link_mode=link_mode,
+        dry_run=dry_run,
     )
     vid = refresh_browsable_dir(
-        target_dir / ms.orig_vid_dir,
-        target_dir / ms.edit_vid_dir,
+        archive_dir / ms.orig_vid_dir,
+        archive_dir / ms.edit_vid_dir,
         target_dir / ms.vid_dir,
         media_extensions=VID_EXTENSIONS,
         key_fn=ms.key_fn,
         link_mode=link_mode,
+        dry_run=dry_run,
     )
     return img.copied + vid.copied
 
@@ -320,6 +334,7 @@ def export_album(
     *,
     album_layout: AlbumShareLayout = AlbumShareLayout.BROWSABLE_JPG,
     link_mode: LinkMode = LinkMode.HARDLINK,
+    dry_run: bool = False,
 ) -> ExportResult:
     """
     Export one album into *target_dir*, mirroring it.
@@ -329,22 +344,27 @@ def export_album(
     Albums with archives (iOS or std) are exported according to *album_layout*.
     Files an earlier export left in *target_dir* that this one does not write
     are removed, so media deleted from the album since does not survive in
-    the share.
+    the share. A dry run writes nothing and returns the same counts.
     """
     media_sources = discover_media_sources(album_dir)
     copies = _planned_copies(album_dir, target_dir, media_sources, album_layout)
     rebuilt_dirs = _rebuilt_dirs(target_dir, media_sources, album_layout)
     stale = _stale_files(target_dir, copies, rebuilt_dirs)
-    # Stale files go first: the ``all`` layout rebuilds its browsable dirs from
-    # the exported archive, which must no longer hold deleted media by then.
-    for path in stale:
-        path.unlink()
-    if stale:
-        _remove_empty_dirs(target_dir)
-    for src, dst in copies:
-        _copy_file(src, dst)
+    if not dry_run:
+        # Stale files go first: the ``all`` layout rebuilds its browsable dirs
+        # from the exported archive, which must no longer hold deleted media.
+        for path in stale:
+            path.unlink()
+        if stale:
+            _remove_empty_dirs(target_dir)
+        for src, dst in copies:
+            _copy_file(src, dst)
+    archive_dir = album_dir if dry_run else target_dir
     rebuilt = (
-        sum(_rebuild_browsable(target_dir, ms, link_mode) for ms in media_sources)
+        sum(
+            _rebuild_browsable(archive_dir, target_dir, ms, link_mode, dry_run=dry_run)
+            for ms in media_sources
+        )
         if rebuilt_dirs
         else 0
     )

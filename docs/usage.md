@@ -344,7 +344,10 @@ volumes). The gallery is resolved like every other `gallery` command
 photree gallery export -p mega
 
 # Export with explicit flags
-photree gallery export --share-dir ~/MEGAsync/to-share --album-layout main-jpg
+photree gallery export --share-dir ~/MEGAsync/to-share --album-layout browsable-jpg
+
+# Dry run: report what would be exported, without writing to the share
+photree gallery export -p mega --dry-run
 ```
 
 **Album layouts:**
