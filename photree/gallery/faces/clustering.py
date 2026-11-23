@@ -330,6 +330,8 @@ def _match_new_to_old(
 
     Greedy: each old UUID is used at most once (first match wins).
     """
+    # Documented exception (docs/guidelines.md): loop-carried state — the old
+    # UUIDs the earlier matches already used.
     matched: dict[int, str] = {}
     used_old_uuids: set[str] = set()
 

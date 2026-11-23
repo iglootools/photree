@@ -125,12 +125,13 @@ def match_groups(targets: list[SeriesTarget], index: ImplicitIndex) -> list[Grou
     """
     Match every target, each existing collection at most once.
 
-    A documented accumulator exception (loop-carried state): which IDs and
-    names are already claimed depends on every earlier match, so the loop
-    threads them through. Without it, two same-date runs of one series
-    (A, B, A) build the same name and the second silently overwrites the
-    first's collection.
+    Which IDs and names are already claimed depends on every earlier match,
+    so the loop threads them through. Without it, two same-date runs of one
+    series (A, B, A) build the same name and the second silently overwrites
+    the first's collection.
     """
+    # Documented exception (docs/guidelines.md): loop-carried state — the IDs
+    # and names claimed by the earlier matches.
     matches: list[GroupMatch] = []
     claimed_ids: frozenset[str] = frozenset()
     claimed_names: frozenset[str] = frozenset()
