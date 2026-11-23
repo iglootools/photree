@@ -43,7 +43,7 @@ from photree.common.formatting import CHECK, CROSS, indent, markup_escape
 from photree.common.fs import display_path
 from photree.common.sysdeps_output import format_missing_troubleshoot, format_statuses
 
-_MAX_COLLISIONS_SHOWN = 10
+_MAX_SHOWN = 10
 
 
 def _shown(path: Path, cwd: Path) -> str:
@@ -340,6 +340,12 @@ def _ios_warning_message(warning: ValidationWarning) -> str:
             )
 
 
+def _first_shown(items: Sequence[str]) -> str:
+    """Return the first items, comma-separated, then how many more there are."""
+    more = f" and {len(items) - _MAX_SHOWN} more" if len(items) > _MAX_SHOWN else ""
+    return ", ".join(items[:_MAX_SHOWN]) + more
+
+
 def format_archive_collision(collision: ArchiveCollision) -> str:
     """
     One-line description of an archive collision, with the way out.
@@ -349,17 +355,11 @@ def format_archive_collision(collision: ArchiveCollision) -> str:
     """
     ms = collision.media_source
     keys = collision.keys
-    shown = ", ".join(keys[:_MAX_COLLISIONS_SHOWN])
-    more = (
-        f" and {len(keys) - _MAX_COLLISIONS_SHOWN} more"
-        if len(keys) > _MAX_COLLISIONS_SHOWN
-        else ""
-    )
     staging = f"to-import-{ms.media_source_type}-{ms.name}"
     return (
         f"import would conflict with {len(keys)} existing key(s) in media source "
-        f"'{ms.name}': {shown}{more}. Rename {staging} to import into a different "
-        "media source."
+        f"'{ms.name}': {_first_shown(keys)}. Rename {staging} to import into a "
+        "different media source."
     )
 
 
