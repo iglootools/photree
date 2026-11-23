@@ -77,19 +77,13 @@ Most entity types support the same set of operations:
   [python.md](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md#start-a-functions-name-with-the-verb-that-says-what-the-caller-gets)
   asks for live in `clihelpers/options.py` (e.g., `DRY_RUN_OPTION`,
   `CHECKSUM_OPTION`, `LINK_MODE_OPTION`)
-- **Dry run**: every command that changes data or runs long takes
-  `--dry-run -n` (`DRY_RUN_OPTION`), and skips every filesystem mutation. Its
-  output carries the label `[dry-run]`, spelled exactly so, from
-  `common.formatting.format_dry_run`:
-  - a line describing one action starts with it, and keeps its "Would …"
-    phrasing: `[dry-run] Would generate album ID.`
-  - a block (a section header, a batch tally, a result summary) carries it
-    once, at the start of its header or summary line, never on every row:
-    `[dry-run] 3 album(s) would be refreshed, 0 failed.`
-  - a labelled line says what would happen, never what was done ("Done.",
-    "Removed"): the formatter takes `dry_run` and words it as hypothetical
-  - the label is a Rich tag: pass `markup=True` when the line is printed
-    with `console.print`, so Rich does not drop it
+- **Dry run**: `--dry-run -n`, as
+  [general.md › Offer `--dry-run` on every command that changes data or runs long](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#offer---dry-run-on-every-command-that-changes-data-or-runs-long)
+  asks, declared with `DRY_RUN_OPTION`; a dry run skips every filesystem
+  mutation. Label output with `common.formatting.format_dry_run`, which takes
+  `dry_run` so a formatter words its line as hypothetical. The label is a Rich
+  tag: pass `markup=True` when the line is printed with `console.print`, so
+  Rich does not drop it.
 
 ## Progress Indicators
 
