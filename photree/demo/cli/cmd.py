@@ -11,8 +11,10 @@ from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.text import Text
 
-from photree.album.check.output import album as album_output
-from photree.album.check.output import troubleshoot as troubleshoot_output
+from photree.album.check.output import (
+    album as album_output,
+    troubleshoot as troubleshoot_output,
+)
 from photree.album.check.output.album import format_integrity_checks
 from photree.album.check.testkit import (
     INTEGRITY_FAILURES,
@@ -25,11 +27,12 @@ from photree.album.cli.stats_output import format_album_stats, format_albums_sta
 from photree.album.fix.output import rm_upstream_summary
 from photree.album.importer import output as importer_output
 from photree.album.importer.testkit import SeedResult, seed_demo
-from photree.album.importer.testkit.preflight import IC_CHECK_OK, IC_CHECK_WARNINGS
 from photree.album.importer.testkit.preflight import (
+    IC_CHECK_OK,
+    IC_CHECK_WARNINGS,
     PREFLIGHT_FAILURES as IMPORT_PREFLIGHT_FAILURES,
+    PREFLIGHT_OK as IMPORT_PREFLIGHT_OK,
 )
-from photree.album.importer.testkit.preflight import PREFLIGHT_OK as IMPORT_PREFLIGHT_OK
 from photree.album.importer.testkit.validation import VALIDATION_ERRORS
 from photree.album.stats.testkit import ALBUM_STATS, ALBUMS_STATS
 from photree.clihelpers.console import console

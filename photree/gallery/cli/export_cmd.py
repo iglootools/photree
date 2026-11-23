@@ -6,8 +6,7 @@ from typing import Annotated
 
 import typer
 
-from photree.album.exporter import batch as _batch
-from photree.album.exporter import output as _export_output
+from photree.album.exporter import batch as _batch, output as _export_output
 from photree.album.exporter.settings import (
     ExportSettingsError,
     ResolvedExportSettings,

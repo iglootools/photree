@@ -17,8 +17,10 @@ from photree.albums.cmd_handler.refresh import batch_refresh
 from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 from photree.foundation.linking import LinkMode
 from photree.gallery.cmd_handler.importer import import_failure_of
-from photree.gallery.importer import AlbumImportResult as GalleryImportResult
-from photree.gallery.importer import import_album
+from photree.gallery.importer import (
+    AlbumImportResult as GalleryImportResult,
+    import_album,
+)
 from photree.gallery.output import format_import_failure_labels
 from tests.testkit import write_file
 

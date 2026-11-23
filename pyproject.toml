@@ -155,6 +155,10 @@ ban-relative-imports = "all"
 [tool.ruff.lint.pylint]
 max-statements = 30
 
+[tool.ruff.lint.isort]
+# Part of common's shared ruff block (python-tooling.md, "Lint and format with ruff").
+combine-as-imports = true
+
 # TID251: tests inject fakes through parameters instead of patching (docs/guidelines.md,
 # Tests). unittest.mock is banned, and so is pytest.MonkeyPatch: tests/conftest.py
 # replaces the monkeypatch fixture with one that fails, so the class is the only way

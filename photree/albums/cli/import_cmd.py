@@ -7,8 +7,7 @@ import typer
 
 from photree.album.cli.import_preflight import run_import_preflight
 from photree.album.faces.detect import memoized_face_analyzer_factory
-from photree.album.importer import batch
-from photree.album.importer import output as importer_output
+from photree.album.importer import batch, output as importer_output
 from photree.album.importer.album_import import TaskIssue
 from photree.album.importer.batch import ImportFailureStage
 from photree.album.jpeg import convert_single_file, noop_convert_single
