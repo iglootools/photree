@@ -58,9 +58,22 @@ def format_export_settings_error(
             )
 
 
-def export_summary(album_name: str, files_copied: int, album_type: str) -> str:
-    """Return the closing line for one album export: its name, type and file count."""
-    return f"Done. Exported {album_name} ({album_type}): {files_copied} file(s)."
+def export_summary(
+    album_name: str,
+    album_type: str,
+    *,
+    files_copied: int,
+    files_removed: int,
+) -> str:
+    """
+    Return the closing line for one album export: its name, type and file counts.
+
+    The stale files removed are mentioned only when there were some.
+    """
+    removed = f", {files_removed} stale file(s) removed" if files_removed else ""
+    return (
+        f"Done. Exported {album_name} ({album_type}): {files_copied} file(s){removed}."
+    )
 
 
 def batch_export_summary(exported: int, failed: int) -> str:

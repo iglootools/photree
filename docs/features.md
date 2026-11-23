@@ -242,6 +242,8 @@ Export albums to external volumes or cloud sync folders.
 - Sentinel file (`.photree-share`) required to prevent accidental exports to
   wrong directories
 - Validation: `albums` share layout requires `album-layout=all`
+- Re-export mirrors the album: files it no longer has are removed from the
+  share
 - Batch export via `gallery export`
 
 ## Configuration

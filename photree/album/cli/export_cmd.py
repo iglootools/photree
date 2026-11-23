@@ -59,6 +59,8 @@ def export_cmd(
     Export a single album to a shared directory.
 
     Creates a subdirectory named after the album inside --share-dir.
+    Re-exporting mirrors the album: files an earlier export left there that the
+    album no longer has are removed.
 
     Directories without a recognizable media source are copied in full
     regardless of --album-layout.
@@ -132,7 +134,8 @@ def export_cmd(
     typer.echo(
         export_output.export_summary(
             result.album_name,
-            result.files_copied,
             result.album_type,
+            files_copied=result.files_copied,
+            files_removed=result.files_removed,
         ),
     )

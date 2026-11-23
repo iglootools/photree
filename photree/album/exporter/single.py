@@ -75,11 +75,16 @@ class ExportedAlbumType(StrEnum):
 
 @dataclass(frozen=True)
 class ExportResult:
-    """The outcome of one album's export: its name, type and number of files copied."""
+    """
+    The outcome of one album's export: its name, type and file counts.
+
+    *files_removed* counts the stale files an earlier export left behind.
+    """
 
     album_name: str
     album_type: ExportedAlbumType
     files_copied: int
+    files_removed: int = 0
 
 
 def compute_target_dir(
@@ -106,20 +111,27 @@ def compute_target_dir(
             return share_dir / month / album_name
 
 
-def _copy_dir(src: Path, dst: Path) -> int:
-    """Copy a directory, returning the number of files copied."""
+type _Copy = tuple[Path, Path]
+"""A file to copy: its source in the album and its destination in the share."""
+
+
+def _dir_copies(src: Path, dst: Path) -> list[_Copy]:
+    """Return the copies of the files directly under *src* (not its subdirs)."""
     if not src.is_dir():
-        return 0
+        return []
     else:
-        dst.mkdir(parents=True, exist_ok=True)
-        files = sorted(e.name for e in src.iterdir() if e.is_file())
-        for entry in files:
-            shutil.copy2(src / entry, dst / entry)
-        return len(files)
+        return [
+            (src / name, dst / name)
+            for name in sorted(e.name for e in src.iterdir() if e.is_file())
+        ]
 
 
-def _copy_dirs(album_dir: Path, target_dir: Path, subdirs: Sequence[str]) -> int:
-    return sum(_copy_dir(album_dir / d, target_dir / d) for d in subdirs)
+def _dirs_copies(
+    album_dir: Path,
+    target_dir: Path,
+    subdirs: Sequence[str],
+) -> list[_Copy]:
+    return [c for d in subdirs for c in _dir_copies(album_dir / d, target_dir / d)]
 
 
 def _is_dotfile(name: str) -> bool:
@@ -131,7 +143,7 @@ def _ignore_dotfiles(_directory: str, contents: list[str]) -> set[str]:
 
 
 def _files_to_copy(src: Path, ignore: _IgnoreFn) -> Iterator[Path]:
-    """Yield the files ``shutil.copytree(src, ..., ignore=ignore)`` copies."""
+    """Yield the files under *src*, recursively, minus what *ignore* drops."""
     names = [p.name for p in src.iterdir()]
     ignored = ignore(str(src), names)
     for name in sorted(set(names) - ignored):
@@ -142,33 +154,133 @@ def _files_to_copy(src: Path, ignore: _IgnoreFn) -> Iterator[Path]:
             yield path
 
 
-def _copytree(src: Path, dst: Path, *, ignore: _IgnoreFn = _ignore_dotfiles) -> int:
-    """
-    Copy a tree, returning the number of files copied from *src*.
-
-    Not the number of files in *dst*, which also counts what a previous export
-    left there.
-    """
+def _tree_copies(
+    src: Path,
+    dst: Path,
+    *,
+    ignore: _IgnoreFn = _ignore_dotfiles,
+) -> list[_Copy]:
+    """Return the copies of every file under *src*, recursively."""
     if not src.is_dir():
-        return 0
+        return []
     else:
-        copied = sum(1 for _ in _files_to_copy(src, ignore))
-        shutil.copytree(src, dst, dirs_exist_ok=True, ignore=ignore)
-        return copied
+        return [(f, dst / f.relative_to(src)) for f in _files_to_copy(src, ignore)]
 
 
-def _export_plain(album_dir: Path, target_dir: Path) -> int:
-    return _copytree(album_dir, target_dir)
+def _metadata_copies(album_dir: Path, target_dir: Path) -> list[_Copy]:
+    """
+    Return the copies of ``.photree/`` metadata, minus the derived ``cache/``.
+
+    ``album.yaml`` (stable album ID) and ``media-ids/`` (stable image/video
+    UUIDs) are preserved; ``cache/`` (EXIF + face data) is omitted because it
+    is regenerable via ``albums refresh``.
+    """
+    return _tree_copies(
+        album_dir / PHOTREE_DIR,
+        target_dir / PHOTREE_DIR,
+        ignore=lambda _directory, _contents: {CACHE_DIR},
+    )
 
 
-def _export_dirs(
+def _planned_copies(
     album_dir: Path,
     target_dir: Path,
     media_sources: Sequence[MediaSource],
-    dirs_of: Callable[[MediaSource], tuple[str, ...]],
-) -> int:
-    target_dir.mkdir(parents=True, exist_ok=True)
-    return sum(_copy_dirs(album_dir, target_dir, dirs_of(ms)) for ms in media_sources)
+    album_layout: AlbumShareLayout,
+) -> list[_Copy]:
+    """Return every file the export copies from *album_dir* into *target_dir*."""
+    if not media_sources:
+        # No recognizable media-source structure: copy everything, whatever
+        # the layout, since we cannot tell source-of-truth from derived data.
+        return _tree_copies(album_dir, target_dir)
+    else:
+
+        def dirs_copies(
+            dirs_of: Callable[[MediaSource], tuple[str, ...]],
+        ) -> list[_Copy]:
+            return [
+                c
+                for ms in media_sources
+                for c in _dirs_copies(album_dir, target_dir, dirs_of(ms))
+            ]
+
+        match album_layout:
+            case AlbumShareLayout.ARCHIVE:
+                return [
+                    *dirs_copies(_archive_dirs),
+                    *_metadata_copies(album_dir, target_dir),
+                ]
+            case AlbumShareLayout.BROWSABLE_JPG:
+                return dirs_copies(_browsable_jpg_dirs)
+            case AlbumShareLayout.BROWSABLE:
+                return dirs_copies(_browsable_dirs)
+            case AlbumShareLayout.ALL:
+                # The metadata (album ID, media IDs) is what lets the export
+                # be refreshed or re-imported as the same album.
+                return [
+                    *dirs_copies(_full_copy_dirs),
+                    *_metadata_copies(album_dir, target_dir),
+                ]
+
+
+def _rebuilt_dirs(
+    target_dir: Path,
+    media_sources: Sequence[MediaSource],
+    album_layout: AlbumShareLayout,
+) -> frozenset[Path]:
+    """Return the browsable dirs the ``all`` layout recreates from the archive."""
+    match album_layout:
+        case AlbumShareLayout.ALL:
+            return frozenset(
+                target_dir / d for ms in media_sources for d in (ms.img_dir, ms.vid_dir)
+            )
+        case _:
+            return frozenset()
+
+
+def _files_under(directory: Path, skip: frozenset[Path]) -> Iterator[Path]:
+    """Yield every file (or link) under *directory*, not descending into *skip*."""
+    for entry in sorted(e for e in directory.iterdir() if e not in skip):
+        if entry.is_dir() and not entry.is_symlink():
+            yield from _files_under(entry, skip)
+        else:
+            yield entry
+
+
+def _stale_files(
+    target_dir: Path,
+    copies: Sequence[_Copy],
+    rebuilt_dirs: frozenset[Path],
+) -> list[Path]:
+    """
+    Return the files in *target_dir* this export would not write.
+
+    What an earlier export left there and the album no longer has: media
+    removed since, a media source or a directory the layout no longer exports.
+    The rebuilt browsable dirs are left out: their rebuild clears them.
+    """
+    if not target_dir.is_dir():
+        return []
+    else:
+        written = {dst for _, dst in copies}
+        return [f for f in _files_under(target_dir, rebuilt_dirs) if f not in written]
+
+
+def _remove_empty_dirs(directory: Path) -> None:
+    """Remove the empty directories under *directory*, deepest first."""
+    for entry in directory.iterdir():
+        if entry.is_dir() and not entry.is_symlink():
+            _remove_empty_dirs(entry)
+            if not any(entry.iterdir()):
+                entry.rmdir()
+
+
+def _copy_file(src: Path, dst: Path) -> None:
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    # A link an earlier export left (the ``all`` layout's browsable dirs) is
+    # replaced, never written through to the file it points to.
+    dst.unlink(missing_ok=True)
+    shutil.copy2(src, dst)
 
 
 def _rebuild_browsable(target_dir: Path, ms: MediaSource, link_mode: LinkMode) -> int:
@@ -192,62 +304,6 @@ def _rebuild_browsable(target_dir: Path, ms: MediaSource, link_mode: LinkMode) -
     return img.copied + vid.copied
 
 
-def _copy_photree_metadata(album_dir: Path, target_dir: Path) -> int:
-    """
-    Copy ``.photree/`` metadata, excluding the derived ``cache/`` subdir.
-
-    ``album.yaml`` (stable album ID) and ``media-ids/`` (stable image/video
-    UUIDs) are preserved; ``cache/`` (EXIF + face data) is omitted because it
-    is regenerable via ``albums refresh``. Returns the number of files copied.
-    """
-    return _copytree(
-        album_dir / PHOTREE_DIR,
-        target_dir / PHOTREE_DIR,
-        ignore=lambda _directory, _contents: {CACHE_DIR},
-    )
-
-
-def _export_all(
-    album_dir: Path,
-    target_dir: Path,
-    media_sources: Sequence[MediaSource],
-    *,
-    link_mode: LinkMode,
-) -> int:
-    """
-    Export archive + JPEG dirs and metadata, then rebuild browsable dirs.
-
-    The metadata (album ID, media IDs) is what lets the export be refreshed
-    or re-imported as the same album rather than a new one.
-    """
-    copied = _export_dirs(album_dir, target_dir, media_sources, _full_copy_dirs)
-    return (
-        copied
-        + _copy_photree_metadata(album_dir, target_dir)
-        + sum(_rebuild_browsable(target_dir, ms, link_mode) for ms in media_sources)
-    )
-
-
-def _export_archive(
-    album_dir: Path,
-    target_dir: Path,
-    media_sources: Sequence[MediaSource],
-) -> int:
-    """
-    Export only the archive (originals + edits) plus ``.photree/`` metadata.
-
-    Copies each media source's ``orig-*``/``edit-*`` directories. All derived
-    dirs (``{name}-jpg/``, ``{name}-img/``, ``{name}-vid/``) are dropped — they
-    are regenerable via ``albums refresh``.
-    """
-    return _export_dirs(
-        album_dir,
-        target_dir,
-        media_sources,
-        _archive_dirs,
-    ) + _copy_photree_metadata(album_dir, target_dir)
-
-
 def _album_type(media_sources: Sequence[MediaSource]) -> ExportedAlbumType:
     match media_sources:
         case []:
@@ -258,45 +314,6 @@ def _album_type(media_sources: Sequence[MediaSource]) -> ExportedAlbumType:
             return ExportedAlbumType.STD
 
 
-def _export_files(
-    album_dir: Path,
-    target_dir: Path,
-    media_sources: Sequence[MediaSource],
-    *,
-    album_layout: AlbumShareLayout,
-    link_mode: LinkMode,
-) -> int:
-    if not media_sources:
-        # No recognizable media-source structure: copy everything, whatever
-        # the layout, since we cannot tell source-of-truth from derived data.
-        return _export_plain(album_dir, target_dir)
-    else:
-        match album_layout:
-            case AlbumShareLayout.ARCHIVE:
-                return _export_archive(album_dir, target_dir, media_sources)
-            case AlbumShareLayout.BROWSABLE_JPG:
-                return _export_dirs(
-                    album_dir,
-                    target_dir,
-                    media_sources,
-                    _browsable_jpg_dirs,
-                )
-            case AlbumShareLayout.BROWSABLE:
-                return _export_dirs(
-                    album_dir,
-                    target_dir,
-                    media_sources,
-                    _browsable_dirs,
-                )
-            case AlbumShareLayout.ALL:
-                return _export_all(
-                    album_dir,
-                    target_dir,
-                    media_sources,
-                    link_mode=link_mode,
-                )
-
-
 def export_album(
     album_dir: Path,
     target_dir: Path,
@@ -305,21 +322,35 @@ def export_album(
     link_mode: LinkMode = LinkMode.HARDLINK,
 ) -> ExportResult:
     """
-    Export one album into *target_dir*.
+    Export one album into *target_dir*, mirroring it.
 
     The caller is responsible for computing *target_dir* (e.g. via
     :func:`compute_target_dir`).
     Albums with archives (iOS or std) are exported according to *album_layout*.
+    Files an earlier export left in *target_dir* that this one does not write
+    are removed, so media deleted from the album since does not survive in
+    the share.
     """
     media_sources = discover_media_sources(album_dir)
+    copies = _planned_copies(album_dir, target_dir, media_sources, album_layout)
+    rebuilt_dirs = _rebuilt_dirs(target_dir, media_sources, album_layout)
+    stale = _stale_files(target_dir, copies, rebuilt_dirs)
+    # Stale files go first: the ``all`` layout rebuilds its browsable dirs from
+    # the exported archive, which must no longer hold deleted media by then.
+    for path in stale:
+        path.unlink()
+    if stale:
+        _remove_empty_dirs(target_dir)
+    for src, dst in copies:
+        _copy_file(src, dst)
+    rebuilt = (
+        sum(_rebuild_browsable(target_dir, ms, link_mode) for ms in media_sources)
+        if rebuilt_dirs
+        else 0
+    )
     return ExportResult(
         album_name=album_dir.name,
         album_type=_album_type(media_sources),
-        files_copied=_export_files(
-            album_dir,
-            target_dir,
-            media_sources,
-            album_layout=album_layout,
-            link_mode=link_mode,
-        ),
+        files_copied=len(copies) + rebuilt,
+        files_removed=len(stale),
     )
