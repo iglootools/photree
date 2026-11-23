@@ -266,8 +266,8 @@ def match_clusters_by_medoid(
     Match new cluster labels to old cluster UUIDs via medoid similarity.
 
     For each old cluster, computes its medoid embedding. For each new cluster,
-    finds the old cluster whose medoid is most similar. If similarity exceeds
-    the threshold, the new cluster inherits the old UUID.
+    finds the most similar old medoid whose UUID no earlier new cluster took. If
+    it is within the threshold, the new cluster inherits that old UUID.
 
     Returns ``{new_label: uuid_string}``.
     """
@@ -351,18 +351,32 @@ def _find_best_match(
     threshold: float,
     exclude: set[str],
 ) -> str | None:
-    """Find the best matching old cluster UUID for a query embedding."""
+    """
+    Find the nearest old cluster UUID for a query embedding, skipping *exclude*.
+
+    When the nearest old medoid's UUID is taken or missing, the next nearest
+    within *threshold* is used, so a new cluster keeps an old UUID whenever one
+    is close enough.
+    """
+    # The best usable medoid comes at most after every unusable one.
+    unusable = len(exclude) + sum(
+        1 for label in old_medoid_labels if label not in old_cluster_ids
+    )
+    k = min(old_index.ntotal, unusable + 1)
     query = query_embedding.reshape(1, -1).astype(np.float32)
-    similarities, indices = _search_index(old_index, query, 1)
-
-    if indices[0][0] < 0:
-        return None
-
-    cosine_dist = 1.0 - float(similarities[0][0])
-    old_label = old_medoid_labels[int(indices[0][0])]
-    old_uuid = old_cluster_ids.get(old_label)
-
-    if old_uuid is not None and cosine_dist <= threshold and old_uuid not in exclude:
-        return old_uuid
-    else:
-        return None
+    similarities, indices = _search_index(old_index, query, k)
+    candidates = (
+        (1.0 - float(similarity), old_cluster_ids.get(old_medoid_labels[int(idx)]))
+        for similarity, idx in zip(similarities[0], indices[0], strict=True)
+        if idx >= 0
+    )
+    return next(
+        (
+            old_uuid
+            for cosine_dist, old_uuid in candidates
+            if old_uuid is not None
+            and cosine_dist <= threshold
+            and old_uuid not in exclude
+        ),
+        None,
+    )

@@ -1056,7 +1056,9 @@ library scale (<50k faces), exact search is instant (~1ms).
 Each cluster receives a UUID v7 at creation. On full re-cluster,
 medoid matching preserves UUIDs: for each old/new cluster, the medoid
 (face nearest to centroid) is compared. If the old and new medoids are
-similar, the UUID is preserved.
+similar, the UUID is preserved. Each old UUID goes to one new cluster at
+most; a new cluster whose nearest old cluster is already taken inherits the
+next nearest one still within the threshold.
 
 ### CLI Commands
 
