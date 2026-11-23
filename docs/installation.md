@@ -84,6 +84,18 @@ To upgrade to the latest version:
 uv tool upgrade photree
 ```
 
+Upgrading from 0.12.0 or earlier, reinstall instead:
+
+```bash
+uv tool install --reinstall photree
+```
+
+Those versions installed OpenCV's headless build alongside the full one that
+insightface requires. Both write the same `cv2` package, so the upgrade's
+removal of the headless build deletes files the full build still needs, and
+face commands then fail with `No module named 'cv2'`. `pipx upgrade` keeps
+the old build installed and is not affected.
+
 ## Install with pipx
 
 [pipx](https://pipx.pypa.io/) does the same thing, and is a fine alternative if
