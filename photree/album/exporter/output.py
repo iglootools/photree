@@ -1,8 +1,10 @@
 """Text the CLI prints for album exports: settings errors and summaries."""
 
 import shlex
+from collections.abc import Sequence
 from pathlib import Path
 
+from photree.album.exporter.batch import ExportFailure
 from photree.album.exporter.settings import ExportSettingsError, ExportSettingsErrorKind
 from photree.common.formatting import indent
 from photree.common.fs import display_path
@@ -79,3 +81,28 @@ def export_summary(
 def batch_export_summary(exported: int, failed: int) -> str:
     """Return the closing line for a batch export, preceded by a blank line."""
     return f"\nDone. {exported} album(s) exported, {failed} failed."
+
+
+def format_batch_export_failures(failed: Sequence[ExportFailure], cwd: Path) -> str:
+    """
+    Plain text (print with ``markup=False``) listing each failed album and why.
+
+    Followed by the ``album export`` command that reruns each one alone.
+    """
+    return "\n".join(
+        [
+            "\nFailed albums:",
+            *(
+                indent(f"{display_path(album_dir, cwd)}\n{indent(error)}")
+                for album_dir, error in failed
+            ),
+            "\nTo investigate failures:",
+            *(
+                indent(
+                    "photree album export --album-dir "
+                    f'"{display_path(album_dir, cwd)}"',
+                )
+                for album_dir, _ in failed
+            ),
+        ],
+    )
