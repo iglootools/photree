@@ -31,7 +31,7 @@ from photree.album.live_photo import (
     detect_live_photo_keys,
     filter_live_photo_extras,
 )
-from photree.album.store.file_matching import dedup_media_dict
+from photree.album.store.file_matching import scan_media_keys
 from photree.album.store.media_metadata import (
     MediaMetadata,
     MediaSourceMediaMetadata,
@@ -140,17 +140,6 @@ def _reconcile(
     )
 
 
-def _scan_keys(
-    album_dir: Path,
-    directory: str,
-    extensions: frozenset[str],
-    key_fn: KeyFn,
-) -> set[str]:
-    return set(
-        dedup_media_dict(list_files(album_dir / directory), extensions, key_fn).keys(),
-    )
-
-
 def _media_extensions(ms: MediaSource) -> tuple[frozenset[str], frozenset[str]]:
     """Return ``(image_extensions, video_extensions)`` for a media source."""
     return (
@@ -171,12 +160,12 @@ def _refresh_media_source(
 
     img = _reconcile(
         existing_ms.images,
-        _scan_keys(album_dir, ms.orig_img_dir, img_ext, ms.key_fn),
+        scan_media_keys(album_dir / ms.orig_img_dir, img_ext, ms.key_fn),
         new_id=new_id,
     )
     vid = _reconcile(
         existing_ms.videos,
-        _scan_keys(album_dir, ms.orig_vid_dir, vid_ext, ms.key_fn),
+        scan_media_keys(album_dir / ms.orig_vid_dir, vid_ext, ms.key_fn),
         new_id=new_id,
     )
 
