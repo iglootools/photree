@@ -42,7 +42,6 @@ from photree.album.store.media_sources_discovery import discover_media_sources
 from photree.common.fs import list_files
 from photree.common.parallelism import ParallelResult, run_parallel
 from photree.common.progress import FileEnd
-from photree.common.sips import get_dimensions
 from photree.foundation.metadata_io import InvalidMetadataError
 
 if TYPE_CHECKING:
@@ -442,11 +441,11 @@ def detect_single(
         state_key = FaceProcessedKey(
             mtime=(orig_dir / tr.file_name).stat().st_mtime,
             file_name=tr.file_name,
-            face_count=len(detected),
+            face_count=len(detected.faces),
             orig_width=tr.orig_width,
             orig_height=tr.orig_height,
-            thumb_width=tr.thumb_width,
-            thumb_height=tr.thumb_height,
+            thumb_width=detected.thumb_width,
+            thumb_height=detected.thumb_height,
         )
     except Exception as exc:
         return (
@@ -455,7 +454,7 @@ def detect_single(
             FaceFailure(key=tr.key, stage=FaceFailureStage.DETECTION, reason=str(exc)),
         )
     else:
-        return (detected, state_key, None)
+        return (detected.faces, state_key, None)
 
 
 def _keys_needing_thumbnail(
@@ -590,23 +589,19 @@ def reuse_thumbnail(
     Original dimensions come from the previous processing state: a thumbnail is
     only reused for a key that was already processed at the same mtime, so the
     original has not changed. Writing 0x0 instead (as before) corrupted the
-    bounding-box scaling for every re-detected image.
+    bounding-box scaling for every re-detected image. The thumbnail is not
+    read here: detection decodes it, and records an unreadable one as failed.
     """
     if previous is None:
         return _thumbnail_failure(key, "no previous state to reuse thumbnail from")
-    try:
-        thumb_w, thumb_h = get_dimensions(thumb_path)
-    except OSError as exc:
-        return _thumbnail_failure(key, str(exc))
-    return ThumbnailResult(
-        key=key,
-        file_name=file_name,
-        thumb_path=thumb_path,
-        orig_width=previous.orig_width,
-        orig_height=previous.orig_height,
-        thumb_width=thumb_w,
-        thumb_height=thumb_h,
-    )
+    else:
+        return ThumbnailResult(
+            key=key,
+            file_name=file_name,
+            thumb_path=thumb_path,
+            orig_width=previous.orig_width,
+            orig_height=previous.orig_height,
+        )
 
 
 def _delete_stale_thumbnails(thumb_dir: Path, stale_keys: set[str]) -> None:

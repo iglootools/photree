@@ -1,4 +1,3 @@
-import shutil
 from pathlib import Path
 from typing import Any, NoReturn
 
@@ -206,8 +205,6 @@ class TestFailureReporting:
             thumb_path=Path("/nonexistent/0410.jpg"),
             orig_width=4032,
             orig_height=3024,
-            thumb_width=640,
-            thumb_height=480,
         )
 
         faces, state_key, failure = detect_single(tr, Path("/nonexistent"), _Boom())
@@ -261,8 +258,6 @@ class TestFailureAccounting:
             thumb_path=thumb,
             orig_width=4032,
             orig_height=3024,
-            thumb_width=640,
-            thumb_height=480,
         )
 
         class _NeverCalled:
@@ -300,28 +295,43 @@ class TestReuseThumbnail:
         assert isinstance(result, FaceFailure)
         assert result.stage == FaceFailureStage.THUMBNAIL
 
-    def test_unreadable_thumbnail_is_a_failure_not_a_crash(
-        self,
-        tmp_path: Path,
-    ) -> None:
-        thumb = tmp_path / "0410.jpg"
-        thumb.write_text("not a jpeg", encoding="utf-8")
-
-        result = reuse_thumbnail("0410", "IMG_0410.HEIC", thumb, _processed(4032, 3024))
-
-        assert isinstance(result, FaceFailure)
-
-    @pytest.mark.skipif(shutil.which("sips") is None, reason="needs macOS sips")
     def test_keeps_original_dimensions_from_state(self, tmp_path: Path) -> None:
         """Reused thumbnails used to record a 0x0 original."""
-        thumb = tmp_path / "0410.jpg"
-        cv2.imwrite(str(thumb), np.zeros((48, 64, 3), dtype=np.uint8))
-
-        result = reuse_thumbnail("0410", "IMG_0410.HEIC", thumb, _processed(4032, 3024))
+        result = reuse_thumbnail(
+            "0410",
+            "IMG_0410.HEIC",
+            tmp_path / "0410.jpg",
+            _processed(4032, 3024),
+        )
 
         assert isinstance(result, ThumbnailResult)
         assert (result.orig_width, result.orig_height) == (4032, 3024)
-        assert (result.thumb_width, result.thumb_height) == (64, 48)
+
+
+class TestDetectSingle:
+    def test_records_thumbnail_size_from_decoded_image(self, tmp_path: Path) -> None:
+        thumb = tmp_path / "0410.jpg"
+        cv2.imwrite(str(thumb), np.zeros((48, 64, 3), dtype=np.uint8))
+        orig_dir = tmp_path / "orig"
+        _make_file(orig_dir / "IMG_0410.HEIC")
+        tr = ThumbnailResult(
+            key="0410",
+            file_name="IMG_0410.HEIC",
+            thumb_path=thumb,
+            orig_width=4032,
+            orig_height=3024,
+        )
+
+        class _NoFaces:
+            def get(self, img: np.ndarray) -> list[Any]:  # noqa: ARG002 - FaceDetector's signature
+                return []
+
+        faces, state_key, failure = detect_single(tr, orig_dir, _NoFaces())
+
+        assert (faces, failure) == ([], None)
+        assert state_key is not None
+        assert (state_key.thumb_width, state_key.thumb_height) == (64, 48)
+        assert (state_key.orig_width, state_key.orig_height) == (4032, 3024)
 
 
 def _processed(width: int, height: int, *, mtime: float = 1.0) -> FaceProcessedKey:
