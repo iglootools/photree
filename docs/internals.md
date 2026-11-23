@@ -53,6 +53,7 @@ collections, naming conventions, identifiers — see [domain.md](./domain.md).
   - [Change Detection](#change-detection)
 - [Face Detection and Clustering Pipeline](#face-detection-and-clustering-pipeline)
   - [Overview](#overview)
+  - [Model Download](#model-download)
   - [InsightFace Pipeline (per image)](#insightface-pipeline-per-image)
   - [Album-Level Storage](#album-level-storage)
   - [Gallery-Level Storage](#gallery-level-storage)
@@ -949,6 +950,19 @@ The pipeline has two levels:
 2. **Gallery-level**: Face clustering runs during `gallery refresh`,
    collecting all album embeddings and grouping faces by identity using
    agglomerative clustering.
+
+### Model Download
+
+insightface fetches its models from a movable GitHub release tag and checks no
+hash, so photree downloads the model archive itself the first time a face is
+to be detected. `photree/album/faces/model.py` pins its URL and sha256: the
+archive is checked before it is extracted into `~/.insightface/models/<name>/`
+and handed to insightface, and a mismatch stops the run with both hashes and
+installs nothing. A `.photree-sha256` file in the extracted directory records
+the hash it was verified as, so later runs skip the check; an archive
+insightface left in `~/.insightface/models/` is reused when its hash matches.
+Moving to a new archive means downloading it, reviewing it and pinning its
+`shasum -a 256`.
 
 ### InsightFace Pipeline (per image)
 
