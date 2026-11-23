@@ -43,23 +43,43 @@ def investigate_commands(
     extra_flags: str = "",
 ) -> str:
     """
-    Copy-pasteable single-album commands for reproducing each failure.
+    Copy-pasteable commands for reproducing the failures.
 
-    *command* is the single-album verb (``check``, ``fix``, ``refresh``, …).
+    One single-album command per failure, to investigate it alone, and, when
+    more than one album failed, one ``photree albums`` command that retries
+    them all, so a large batch can be re-run on its failures only.
+
+    *command* is the verb the ``album`` and ``albums`` groups share
+    (``check``, ``fix``, ``refresh``, …), with the same options in both.
     Paths are relative to *base* so the suggestion runs as printed.
     """
+    shown = [f'"{display_path(album_dir, base)}"' for album_dir in albums]
+    retry_all = (
+        [
+            "\nTo retry them all:",
+            indent(
+                markup_escape(
+                    f"photree albums {command} "
+                    + " ".join(f"-a {path}" for path in shown)
+                    + extra_flags,
+                ),
+            ),
+        ]
+        if len(shown) > 1
+        else []
+    )
     return "\n".join(
         [
             "\nTo investigate failures:",
             *(
                 indent(
                     markup_escape(
-                        f"photree album {command} --album-dir "
-                        f'"{display_path(album_dir, base)}"{extra_flags}',
+                        f"photree album {command} --album-dir {path}{extra_flags}",
                     ),
                 )
-                for album_dir in albums
+                for path in shown
             ),
+            *retry_all,
         ],
     )
 
