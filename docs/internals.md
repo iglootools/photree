@@ -594,7 +594,7 @@ face-cluster-threshold: 0.45
 |--------------------------|----------------|------------|-------------|
 | `link-mode`              | string         | `hardlink` | Default link mode for refresh and other link-mode operations. Values: `hardlink`, `symlink`, `copy`. |
 | `faces-enabled`          | bool           | `true`     | Enable face detection and clustering during gallery refresh. |
-| `face-cluster-threshold` | float or null  | `null`     | Cosine distance threshold for face clustering (0.0–1.0, validated; 0.0 is valid). When null, defaults to 0.45 at runtime. Lower = stricter (fewer merges). |
+| `face-cluster-threshold` | float or null  | `null`     | Cosine distance threshold for face clustering, from 0.0 to 1.0 (0.0 is valid); a value outside that range makes the file invalid. When null, defaults to 0.45 at runtime. Lower = stricter (fewer merges). |
 
 The `--link-mode` CLI argument overrides the gallery-level setting.
 If no gallery.yaml is found and no CLI argument is given, the default
@@ -622,12 +622,17 @@ Every `.photree/*.yaml` reader (`foundation.metadata_io.load_yaml_mapping` /
 
 - **Absent** — the file does not exist. Commands that create metadata
   (`album init`, `fix --id`, refresh of media IDs) may write it.
-- **Present but unusable** — empty, truncated, not a YAML mapping, or failing
-  validation. This raises `InvalidMetadataError` and the command stops,
-  printing the file and the reason. photree never regenerates such a file:
-  a fresh `album.yaml`, `media-ids/*.yaml`, `collection.yaml` or
-  `clusters.yaml` would carry fresh IDs and silently orphan every reference to
-  the old ones.
+- **Present but unusable** — empty, truncated, not UTF-8, not a YAML mapping, or
+  failing validation. This raises `InvalidMetadataError` and the command stops,
+  printing the file and the reason. photree never regenerates such a file: a
+  fresh `album.yaml`, `media-ids/*.yaml`, `collection.yaml` or `clusters.yaml`
+  would carry fresh IDs and silently orphan every reference to the old ones.
+
+Every writer (`foundation.metadata_io.write_yaml`) writes the new content to a
+temporary `.<name>.tmp` beside the file, flushes it to disk and renames it over
+the file, so a command killed mid-write leaves the old file whole rather than a
+truncated one. A `.<name>.tmp` left behind by a crash is overwritten by the next
+write.
 
 ## EXIF Metadata
 

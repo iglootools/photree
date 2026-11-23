@@ -8,6 +8,7 @@ mint a fresh ID and silently orphan every collection reference to the old
 one.
 """
 
+import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import cast
@@ -36,13 +37,15 @@ def load_yaml_mapping(path: Path) -> dict[str, object] | None:
     Read a YAML mapping, or ``None`` if *path* does not exist.
 
     Raises :class:`InvalidMetadataError` when the file exists but is not
-    parseable YAML or does not hold a mapping (empty and truncated files
-    included).
+    UTF-8, is not parseable YAML or does not hold a mapping (empty and
+    truncated files included).
     """
     if not path.is_file():
         return None
     try:
         raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except UnicodeDecodeError as exc:
+        raise InvalidMetadataError(path, f"not valid UTF-8 ({exc})") from exc
     except yaml.YAMLError as exc:
         raise InvalidMetadataError(path, f"not valid YAML ({exc})") from exc
     if not isinstance(raw, dict):
@@ -64,11 +67,27 @@ def validate_metadata[M: BaseModel](path: Path, model_cls: type[M], raw: object)
 
 
 def write_yaml(path: Path, data: object) -> None:
-    """Write *data* as block-style YAML in UTF-8, preserving key order."""
-    path.write_text(
-        yaml.safe_dump(data, default_flow_style=False, sort_keys=False),
-        encoding="utf-8",
-    )
+    """
+    Write *data* as block-style YAML in UTF-8, preserving key order.
+
+    The content goes to a temporary file beside *path*, is flushed to disk,
+    then renamed over *path*, so a reader sees either the old file or the new
+    one whole. Writing in place truncates first: a kill, crash or full disk
+    mid-write left an empty or partial ``album.yaml``, and with it the album's
+    only copy of its ID. A temporary file a crash leaves behind is overwritten
+    by the next write.
+    """
+    text = yaml.safe_dump(data, default_flow_style=False, sort_keys=False)
+    tmp_path = path.with_name(f".{path.name}.tmp")
+    try:
+        with tmp_path.open("w", encoding="utf-8") as f:
+            f.write(text)
+            f.flush()
+            os.fsync(f.fileno())
+        tmp_path.replace(path)
+    except BaseException:
+        tmp_path.unlink(missing_ok=True)
+        raise
 
 
 def read_or_none[T](load: Callable[[Path], T | None], directory: Path) -> T | None:
