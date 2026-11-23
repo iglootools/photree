@@ -74,13 +74,17 @@ class AlbumFailure(NamedTuple):
     """
     An album whose import was attempted and failed, with the reason.
 
-    *stages* says which parts failed, so the CLI can suggest the command
+    *error* is what stopped the import itself, left for the CLI to word
+    (:func:`photree.album.importer.output.failure_reason`); *reason* is empty
+    then. Otherwise the import completed and *reason* says what failed after
+    it. *stages* says which parts failed, so the CLI can suggest the command
     that actually retries each one.
     """
 
     album_dir: Path
     reason: str
     stages: frozenset[ImportFailureStage] = frozenset({ImportFailureStage.IMPORT})
+    error: OSError | ValueError | None = None
 
 
 @dataclass(frozen=True)
@@ -208,7 +212,7 @@ class _ImportOptions:
 class _Callbacks:
     on_importing: Callable[[str], None] | None
     on_imported: Callable[[str], None] | None
-    on_error: Callable[[str, str], None] | None
+    on_error: Callable[[str, AlbumFailure], None] | None
 
 
 def _scan(albums_dir: Path | None, album_dirs: Sequence[Path] | None) -> AlbumScan:
@@ -303,15 +307,15 @@ def _import_one(
     # batch importer. A missing system dependency is deliberately not
     # caught here — it is machine-wide, so it aborts the whole run.
     except (OSError, ValueError) as exc:
-        failure = AlbumFailure(album_dir, str(exc))
+        failure = AlbumFailure(album_dir, reason="", error=exc)
 
     match failure:
         case None:
             if callbacks.on_imported:
                 callbacks.on_imported(album_dir.name)
-        case AlbumFailure(reason=reason):
+        case AlbumFailure():
             if callbacks.on_error:
-                callbacks.on_error(album_dir.name, reason)
+                callbacks.on_error(album_dir.name, failure)
     return failure
 
 
@@ -325,7 +329,7 @@ def run_batch_import(
     on_importing: Callable[[str], None] | None = None,
     on_imported: Callable[[str], None] | None = None,
     on_skipped: OnSkipped | None = None,
-    on_error: Callable[[str, str], None] | None = None,
+    on_error: Callable[[str, AlbumFailure], None] | None = None,
     on_validation_error: Callable[[str, list[TaskIssue]], None] | None = None,
     convert_file: ConvertFile = convert_single_file,
     max_workers: int | None = None,
@@ -349,7 +353,7 @@ def run_batch_import(
     - ``on_importing(album_name)`` — called before importing an album
     - ``on_imported(album_name)`` — called after a successful album import
     - ``on_skipped(album_name, reason, warn=...)`` — called for each skipped album
-    - ``on_error(album_name, error)`` — called when an album import fails
+    - ``on_error(album_name, failure)`` — called when an album import fails
     - ``on_validation_error(album_name, errors)`` — called when validation fails
 
     *exiftool* is shared across the albums; ``None`` lets each album's EXIF

@@ -50,6 +50,7 @@ def _run_import(
     skip_heic_to_jpeg: bool,
     which: WhichFn,
     max_workers: int | None,
+    cwd: Path,
 ) -> batch.BatchResult:
     """
     Run the batch import behind a progress bar.
@@ -81,10 +82,10 @@ def _run_import(
             on_importing=progress.on_start,
             on_imported=lambda name: progress.on_end(name, success=True),
             on_skipped=progress.on_skipped,
-            on_error=lambda name, error: progress.on_end(
+            on_error=lambda name, failure: progress.on_end(
                 name,
                 success=False,
-                error_labels=(error,),
+                error_labels=(importer_output.failure_reason(failure, cwd),),
             ),
             on_validation_error=on_validation_error,
             convert_file=noop_convert_single
@@ -238,6 +239,7 @@ def import_cmd(
         dry_run=dry_run,
         skip_heic_to_jpeg=skip_heic_to_jpeg,
         which=which,
+        cwd=cwd,
         max_workers=runtime.cpu_count(),
     )
     if not result.naming_check.success:

@@ -178,25 +178,31 @@ def validate_album_import(
 
 
 class NoImportTasksError(FileNotFoundError):
-    """Raised when an album has no ``to-import-{ios,std}-<name>`` entry."""
+    """
+    Raised when an album has no ``to-import-{ios,std}-<name>`` entry.
+
+    Carries the album only: :func:`photree.album.importer.output.import_refusal`
+    words it.
+    """
 
     def __init__(self, album_dir: Path) -> None:
         """Build the error from the album that has no import task."""
         self.album_dir = album_dir
-        super().__init__(
-            f"No to-import-{{ios,std}}-<media-source> directories found in {album_dir}",
-        )
+        super().__init__(album_dir)
 
 
 class EmptyImageCaptureDirError(FileNotFoundError):
-    """Raised when an iOS task needs Image Capture files but there are none."""
+    """
+    Raised when an iOS task needs Image Capture files but there are none.
+
+    Carries the directory only: :func:`photree.album.importer.output.import_refusal`
+    words it.
+    """
 
     def __init__(self, image_capture_dir: Path) -> None:
         """Build the error from the empty Image Capture directory."""
         self.image_capture_dir = image_capture_dir
-        super().__init__(
-            f"Could not find any image capture files in {image_capture_dir}",
-        )
+        super().__init__(image_capture_dir)
 
 
 @dataclass(frozen=True)
