@@ -10,6 +10,7 @@ from photree.album.refresh import refresh_media_metadata
 from photree.album.store.media_metadata import (
     MediaMetadata,
     MediaSourceMediaMetadata,
+    load_media_metadata,
     save_media_metadata,
 )
 from photree.album.store.media_sources_discovery import discover_media_sources
@@ -177,3 +178,55 @@ class TestMediaMetadataCheckStaleMediaSource:
         assert not result.in_sync
         stale_sources = {k.media_source for k in result.stale_keys}
         assert "deleted" in stale_sources
+
+    def test_refresh_gives_the_later_duplicate_a_new_id(self, tmp_path: Path) -> None:
+        album = tmp_path / "album"
+        _setup_ios_album(album)
+        save_media_metadata(
+            album,
+            MediaMetadata(
+                media_sources={
+                    "main": MediaSourceMediaMetadata(
+                        images={"dup": "0410", "own": "0411"},
+                        videos={"dup": "0115"},
+                    ),
+                },
+            ),
+        )
+
+        result = refresh_media_metadata(album, new_id=lambda: "fresh")
+
+        meta = load_media_metadata(album)
+        assert meta is not None
+        assert meta.media_sources["main"].images == {"dup": "0410", "own": "0411"}
+        assert meta.media_sources["main"].videos == {"fresh": "0115"}
+        assert dict(result.by_media_source)["main"].reassigned == 1
+        assert check_media_metadata(album, discover_media_sources(album)).in_sync
+
+    def test_refresh_reassigns_an_id_shared_across_media_sources(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        album = tmp_path / "album"
+        _setup_ios_album(album)
+        _write(album / "std-nelu" / "orig-img" / "sunset.jpg")
+        save_media_metadata(
+            album,
+            MediaMetadata(
+                media_sources={
+                    "main": MediaSourceMediaMetadata(
+                        images={"dup": "0410", "own": "0411"},
+                        videos={"vid": "0115"},
+                    ),
+                    "nelu": MediaSourceMediaMetadata(images={"dup": "sunset"}),
+                },
+            ),
+        )
+
+        refresh_media_metadata(album, new_id=lambda: "fresh")
+
+        meta = load_media_metadata(album)
+        assert meta is not None
+        assert meta.media_sources["main"].images["dup"] == "0410"
+        assert meta.media_sources["nelu"].images == {"fresh": "sunset"}
+        assert check_media_metadata(album, discover_media_sources(album)).in_sync

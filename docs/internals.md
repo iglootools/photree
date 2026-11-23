@@ -574,7 +574,10 @@ videos:
 Media metadata is stored separately from `album.yaml` to keep album loading
 fast. Use `photree album refresh` (or `photree albums refresh` /
 `photree gallery refresh`) to generate and update media IDs. The `check`
-commands verify that `media-ids` is in sync with the directory structure.
+commands verify that `media-ids` is in sync with the directory structure, and
+that no two items of the album share an ID. Refresh gives a new ID to every
+item whose ID an earlier one holds, in media source order, images before
+videos, so the first keeps it.
 
 Media IDs are derived from archive directories (`orig-img/`, `orig-vid/`).
 

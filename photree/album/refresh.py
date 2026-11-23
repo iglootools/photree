@@ -1,7 +1,7 @@
 """Refresh of an album's derived data: media IDs, browsable dirs, JPEGs, caches."""
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from photree.album.browsable import refresh_browsable_dir
@@ -89,15 +89,18 @@ class MediaSourceRefreshResult:
     new_videos: int
     removed_images: int
     removed_videos: int
+    reassigned: int = 0
+    """Items given a new ID because an earlier item of the album held theirs."""
 
     @property
     def changed(self) -> bool:
-        """Return whether any media ID was added or removed."""
+        """Return whether any media ID was added, removed or reassigned."""
         return (
             self.new_images > 0
             or self.new_videos > 0
             or self.removed_images > 0
             or self.removed_videos > 0
+            or self.reassigned > 0
         )
 
 
@@ -180,6 +183,53 @@ def _refresh_media_source(
     )
 
 
+def _reassign_duplicate_ids(
+    metadata: MediaMetadata,
+    *,
+    new_id: Callable[[], str],
+) -> tuple[MediaMetadata, dict[str, int]]:
+    """
+    Give a new ID to every item whose ID an earlier item of the album holds.
+
+    Order is media source, then images before videos, then file order. Returns
+    the metadata and the number of IDs reassigned per media source.
+    """
+    slots = [
+        (name, is_video, uuid)
+        for name, ms_meta in metadata.media_sources.items()
+        for is_video, ids in ((False, ms_meta.images), (True, ms_meta.videos))
+        for uuid in ids
+    ]
+    first_slot = {uuid: i for i, (_, _, uuid) in reversed(list(enumerate(slots)))}
+    duplicates = {
+        (name, is_video, uuid)
+        for i, (name, is_video, uuid) in enumerate(slots)
+        if first_slot[uuid] != i
+    }
+
+    def remint(name: str, ids: dict[str, str], *, is_video: bool) -> dict[str, str]:
+        return {
+            (new_id() if (name, is_video, uuid) in duplicates else uuid): key
+            for uuid, key in ids.items()
+        }
+
+    return (
+        MediaMetadata(
+            media_sources={
+                name: MediaSourceMediaMetadata(
+                    images=remint(name, ms_meta.images, is_video=False),
+                    videos=remint(name, ms_meta.videos, is_video=True),
+                )
+                for name, ms_meta in metadata.media_sources.items()
+            },
+        ),
+        {
+            name: sum(1 for owner, _, _ in duplicates if owner == name)
+            for name in metadata.media_sources
+        },
+    )
+
+
 def refresh_media_metadata(
     album_dir: Path,
     *,
@@ -190,7 +240,9 @@ def refresh_media_metadata(
     Bring the media IDs in sync with the files on disk.
 
     Assigns new UUIDs (from *new_id*) to media files not yet tracked, removes
-    stale entries for files no longer on disk.
+    stale entries for files no longer on disk, and gives a new UUID to each
+    item whose UUID another item of the album already holds, which ``album
+    check`` reports as a duplicate ID.
     """
     existing = load_media_metadata(album_dir) or MediaMetadata()
     sources = discover_media_sources(album_dir)
@@ -208,14 +260,18 @@ def refresh_media_metadata(
         for ms in sources
     ]
 
-    updated = MediaMetadata(
-        media_sources={name: meta for name, meta, _ in refreshed},
+    updated, reassigned = _reassign_duplicate_ids(
+        MediaMetadata(media_sources={name: meta for name, meta, _ in refreshed}),
+        new_id=new_id,
     )
     if not dry_run:
         save_media_metadata(album_dir, updated)
 
     return RefreshResult(
-        by_media_source=tuple((name, result) for name, _, result in refreshed),
+        by_media_source=tuple(
+            (name, replace(result, reassigned=reassigned[name]))
+            for name, _, result in refreshed
+        ),
     )
 
 
