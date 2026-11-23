@@ -16,7 +16,14 @@ from photree.clihelpers.options import (
     RM_UPSTREAM_OPTION,
 )
 from photree.clihelpers.runtime import runtime_of
-from photree.clihelpers.usage import invalid_fix_error
+from photree.clihelpers.usage import invalid_fix_error, usage_error
+
+_NEW_ID_NEEDS_ALBUM_DIRS = (
+    "--new-id needs the albums named with --album-dir: a new ID orphans every "
+    "collection and face reference to the album, so it never runs on a scan.\n"
+    "Run 'photree albums fix --new-id --album-dir <album>' for each album that "
+    "needs a new ID."
+)
 
 
 @app.command("fix")
@@ -31,14 +38,26 @@ def fix_cmd(
     ] = False,
     new_id: Annotated[
         bool,
-        typer.Option("--new-id", help="Regenerate album IDs (replaces existing IDs)."),
+        typer.Option(
+            "--new-id",
+            help=(
+                "Regenerate the IDs of the albums named with --album-dir "
+                "(replaces existing IDs). Refused on a --dir scan."
+            ),
+        ),
     ] = False,
     rm_upstream: RM_UPSTREAM_OPTION = False,
     rm_orphan: RM_ORPHAN_OPTION = False,
     force: FORCE_OPTION = False,
     dry_run: DRY_RUN_OPTION = False,
 ) -> None:
-    """Fix all albums under a directory or from an explicit list."""
+    """
+    Fix all albums under a directory or from an explicit list.
+
+    --new-id runs only on albums named with --album-dir: a new ID orphans every
+    collection and face reference to the album, so it never applies to every
+    album a scan finds.
+    """
     runtime = runtime_of(ctx)
     cwd = runtime.cwd()
     try:
@@ -50,6 +69,8 @@ def fix_cmd(
         )
     except FixValidationError as exc:
         raise invalid_fix_error(exc, command="albums fix") from exc
+    if new_id and not album_dirs:
+        raise usage_error(_NEW_ID_NEEDS_ALBUM_DIRS, markup=False)
 
     albums, display_base = resolve_check_batch_albums(base_dir, album_dirs, cwd=cwd)
 

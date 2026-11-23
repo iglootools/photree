@@ -638,7 +638,12 @@ should not be edited directly. Use the provided CLI commands instead:
   `--faces-enabled`, `--face-cluster-threshold`
 - **Album ID**: Generated automatically at import time; use
   `photree album fix --id` or `photree gallery fix --id` to generate
-  missing IDs.
+  missing IDs. To split albums that share an ID (a copied album directory),
+  give the copies new IDs with `photree album fix --new-id` or
+  `photree albums fix --new-id --album-dir <album>`. A new ID orphans every
+  collection and face reference to the album, so `--new-id` only runs on the
+  albums named: `albums fix` refuses it on a `--dir` scan, and `gallery fix`
+  does not offer it.
 - **Media IDs**: Use `photree album refresh` (or `photree albums refresh` /
   `photree gallery refresh`) to generate and update media IDs.
 

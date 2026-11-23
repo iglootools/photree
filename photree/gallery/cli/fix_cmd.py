@@ -42,22 +42,23 @@ def fix_cmd(
         bool,
         typer.Option("--id", help="Generate missing album IDs (.photree/album.yaml)."),
     ] = False,
-    new_id: Annotated[
-        bool,
-        typer.Option("--new-id", help="Regenerate album IDs (replaces existing IDs)."),
-    ] = False,
     rm_upstream: RM_UPSTREAM_OPTION = False,
     rm_orphan: RM_ORPHAN_OPTION = False,
     force: FORCE_OPTION = False,
     dry_run: DRY_RUN_OPTION = False,
 ) -> None:
-    """Fix all albums in the gallery."""
+    """
+    Fix all albums in the gallery.
+
+    To give albums new IDs, name them: 'photree albums fix --new-id --album-dir
+    <album>'. A gallery-wide --new-id would orphan every collection and face
+    reference.
+    """
     runtime = runtime_of(ctx)
     cwd = runtime.cwd()
     try:
         validate_fix_flags(
             fix_id=fix_id,
-            new_id=new_id,
             rm_upstream=rm_upstream,
             rm_orphan=rm_orphan,
         )
@@ -71,7 +72,6 @@ def fix_cmd(
         albums,
         display_base,
         fix_id=fix_id,
-        new_id=new_id,
         rm_upstream=rm_upstream,
         rm_orphan=rm_orphan,
         dry_run=dry_run,
