@@ -7,12 +7,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from photree.album.exporter.single import compute_target_dir, export_album
-from photree.album.store.album_discovery import (
-    AlbumSelectionError,
-)
-from photree.album.store.album_discovery import (
-    discover_albums as discover_photree_albums,
-)
+from photree.album.store.album_discovery import AlbumSelectionError, discover_albums
 from photree.foundation.linking import LinkMode
 from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 
@@ -32,15 +27,15 @@ class BatchExportResult:
     failed: tuple[ExportFailure, ...] = ()
 
 
-def discover_albums(base_dir: Path) -> list[Path]:
+def find_export_dirs(base_dir: Path) -> list[Path]:
     """
     Return the directories to export under *base_dir*.
 
-    Photree albums (recursively, via ``fs.discover_albums``) plus
+    Photree albums (recursively, via ``discover_albums``) plus
     immediate subdirectories that are not already covered — i.e. plain
     directories without ``.photree/album.yaml`` that can be exported as-is.
     """
-    photree_albums = set(discover_photree_albums(base_dir))
+    photree_albums = set(discover_albums(base_dir))
     # Parents of photree albums should not be treated as plain directories
     photree_parents = {a.parent for a in photree_albums}
 
@@ -67,7 +62,7 @@ def _resolve_albums(
 ) -> list[Path]:
     match (base_dir, album_dirs):
         case (Path() as base, None):
-            return discover_albums(base)
+            return find_export_dirs(base)
         case (None, [*dirs]):
             return dirs
         case _:

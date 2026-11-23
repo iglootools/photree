@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from photree.album.exporter.batch import (
-    discover_albums,
+    find_export_dirs,
     run_batch_export,
 )
 from photree.album.store.media_source import MAIN_MEDIA_SOURCE
@@ -25,14 +25,14 @@ def _setup_ios_album(album_dir: Path) -> Path:
     return album_dir
 
 
-class TestDiscoverAlbums:
+class TestFindExportDirs:
     def test_discovers_ios_and_other_albums(self, tmp_path: Path) -> None:
         base = tmp_path / "albums"
         base.mkdir()
         _setup_ios_album(base / "ios-trip")
         _setup_dir(base / "other-trip", ["photo.jpg"])
 
-        albums = discover_albums(base)
+        albums = find_export_dirs(base)
 
         names = [a.name for a in albums]
         assert "ios-trip" in names
@@ -42,7 +42,7 @@ class TestDiscoverAlbums:
         base = tmp_path / "albums"
         base.mkdir()
 
-        assert discover_albums(base) == []
+        assert find_export_dirs(base) == []
 
 
 class TestBatchExport:
