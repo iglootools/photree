@@ -9,7 +9,7 @@ from uuid import uuid7
 
 import numpy as np
 
-from photree.album.faces.protocol import FACES_DIR
+from photree.album.faces.protocol import EMBEDDING_DIM, FACES_DIR
 from photree.album.faces.store import load_face_data
 from photree.album.store.album_discovery import discover_albums
 from photree.album.store.metadata import load_album_metadata
@@ -236,11 +236,14 @@ def _needs_full_recluster(
     force_full: bool,
     threshold: float,
 ) -> bool:
+    # With no clustered face yet, there is nothing to extend: assigning new faces
+    # to an empty index would give each its own cluster instead of grouping them.
     return (
         force_full
         or bool(changes.modified_sources or changes.removed_album_sources)
-        or _is_stale_empty(changes, existing)
-        or (existing is not None and existing.threshold != threshold)
+        or existing is None
+        or existing.face_count == 0
+        or existing.threshold != threshold
     )
 
 
@@ -465,7 +468,14 @@ def _recover_old_uuid_map(
         return {}
     old_manifest = load_manifest(run.gallery_dir)
     old_index = load_faiss_index(faiss_index_path(run.gallery_dir))
-    if not old_manifest or not old_index or old_index.ntotal == 0:
+    # An index whose rows no longer line up with the manifest (left by an older
+    # photree, or by an interrupted save) cannot say which face each row is.
+    if (
+        not old_manifest
+        or not old_index
+        or old_index.ntotal == 0
+        or old_index.ntotal != len(old_manifest.faces)
+    ):
         return {}
 
     old_embeddings = np.zeros((old_index.ntotal, old_index.d), dtype=np.float32)
@@ -591,6 +601,8 @@ def _save_checksums_stage(run: _Run, sources: tuple[_AlbumFaceSource, ...]) -> N
 
 
 def _save_empty(run: _Run, sources: tuple[_AlbumFaceSource, ...]) -> None:
+    empty_index = build_faiss_index(np.empty((0, EMBEDDING_DIM), dtype=np.float32))
+    save_faiss_index(empty_index, faiss_index_path(run.gallery_dir))
     save_manifest(run.gallery_dir, FaceManifest())
     save_clusters(run.gallery_dir, FaceClusteringResult(threshold=run.threshold))
     save_checksums(run.gallery_dir, _build_checksums(sources))

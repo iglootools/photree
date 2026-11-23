@@ -1,3 +1,4 @@
+import shutil
 from collections.abc import Callable
 from pathlib import Path
 
@@ -10,7 +11,16 @@ from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 from photree.foundation.metadata_io import InvalidMetadataError
-from photree.gallery.faces.check import AlbumFaceDataNotIndexed, check_face_clusters
+from photree.gallery.faces.check import (
+    AlbumFaceDataNotIndexed,
+    FaceIndexSizeMismatch,
+    check_face_clusters,
+)
+from photree.gallery.faces.clustering import (
+    build_faiss_index,
+    load_faiss_index,
+    save_faiss_index,
+)
 from photree.gallery.faces.face_refresh import (
     FACE_REFRESH_STAGES,
     FaceRefreshMode,
@@ -147,6 +157,70 @@ class TestCheckFaceClusters:
 
     def test_no_clustering_data_is_not_checked(self, tmp_path: Path) -> None:
         assert check_face_clusters(_setup_gallery(tmp_path)) is None
+
+    def test_reports_index_rows_not_matching_manifest(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        _setup_album_with_faces(gallery, "2024-07-14 - Trip", [0])
+        refresh_face_clusters(gallery)
+        _write_index(gallery, [0, 1, 2])
+
+        result = check_face_clusters(gallery)
+
+        assert result is not None
+        assert result.issues == (FaceIndexSizeMismatch(index_rows=3, manifest_size=1),)
+
+
+def _write_index(gallery: Path, axes: list[int]) -> None:
+    embeddings = np.stack([_embedding(a) for a in axes])
+    save_faiss_index(build_faiss_index(embeddings), faiss_index_path(gallery))
+
+
+class TestEmptiedFaceData:
+    def test_removing_every_face_empties_the_index(self, tmp_path: Path) -> None:
+        """Regression: the index kept the removed faces' rows."""
+        gallery = _setup_gallery(tmp_path)
+        album = _setup_album_with_faces(gallery, "2024-07-14 - Trip", [0, 1])
+        refresh_face_clusters(gallery)
+        shutil.rmtree(album)
+
+        refresh_face_clusters(gallery)
+
+        index = load_faiss_index(faiss_index_path(gallery))
+        assert index is not None
+        assert index.ntotal == 0
+        _assert_check_passes(gallery)
+
+    def test_faces_added_after_emptying_are_clustered_together(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = _setup_gallery(tmp_path)
+        album = _setup_album_with_faces(gallery, "2024-07-14 - Trip", [0])
+        refresh_face_clusters(gallery)
+        shutil.rmtree(album)
+        refresh_face_clusters(gallery)
+        _setup_album_with_faces(gallery, "2024-07-15 - Beach", [1, 1])
+
+        result = refresh_face_clusters(gallery)
+
+        assert result.mode is FaceRefreshMode.FULL
+        assert list(_faces_by_cluster_id(gallery).values()) == [[0, 1]]
+        _assert_check_passes(gallery)
+
+    def test_full_recluster_ignores_index_misaligned_with_manifest(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Regression: recovering cluster IDs from such an index raised IndexError."""
+        gallery = _setup_gallery(tmp_path)
+        _setup_album_with_faces(gallery, "2024-07-14 - Trip", [0])
+        refresh_face_clusters(gallery)
+        _write_index(gallery, [0, 1, 2])
+
+        result = refresh_face_clusters(gallery, force_full=True)
+
+        assert (result.mode, result.total_faces) == (FaceRefreshMode.FULL, 1)
+        _assert_check_passes(gallery)
 
 
 def _faces_by_cluster_id(gallery: Path) -> dict[str, list[int]]:
