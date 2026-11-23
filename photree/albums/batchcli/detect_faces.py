@@ -9,7 +9,7 @@ from photree.albums.batchcli.failures import exit_if_no_albums, exit_with_failur
 from photree.albums.batchcli.resolution import make_display_fn
 from photree.albums.cmd_handler.detect_faces import batch_detect_faces
 from photree.clihelpers.progress import BatchProgressBar
-from photree.common.formatting import format_dry_run
+from photree.common.formatting import format_dry_run, format_flags
 
 
 def run_batch_detect_faces(
@@ -53,4 +53,15 @@ def run_batch_detect_faces(
     typer.echo(
         format_dry_run(f"\n{tally}, {len(result.failures)} failed.", dry_run=dry_run),
     )
-    exit_with_failures(result.failures, "detect-faces", cwd)
+    exit_with_failures(
+        result.failures,
+        "detect-faces",
+        cwd,
+        extra_flags=format_flags(
+            [
+                ("--redetect", redetect),
+                ("--refresh-thumbs", refresh_thumbs),
+                ("--dry-run", dry_run),
+            ],
+        ),
+    )

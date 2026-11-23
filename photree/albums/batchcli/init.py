@@ -8,7 +8,7 @@ from photree.albums.batchcli.failures import exit_if_no_albums, exit_with_failur
 from photree.albums.batchcli.resolution import make_display_fn
 from photree.albums.cmd_handler.init import batch_init
 from photree.clihelpers.progress import BatchProgressBar
-from photree.common.formatting import format_dry_run
+from photree.common.formatting import format_dry_run, format_flags
 
 
 def run_batch_init(
@@ -45,4 +45,9 @@ def run_batch_init(
             dry_run=dry_run,
         ),
     )
-    exit_with_failures(result.failures, "init", cwd)
+    exit_with_failures(
+        result.failures,
+        "init",
+        cwd,
+        extra_flags=format_flags([("--dry-run", dry_run)]),
+    )

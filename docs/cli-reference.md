@@ -320,6 +320,7 @@ $ photree album init [OPTIONS]
 **Options**:
 
 * `-a, --album-dir <directory>`: Album directory.  [default: .]
+* `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
 ### `photree album list-media`

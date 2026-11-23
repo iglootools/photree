@@ -74,12 +74,15 @@ def exit_with_failures(
     command: str,
     base: Path,
     *,
-    extra_flags: str = "",
+    extra_flags: str,
 ) -> None:
     """
     Print each failure with its reason and a retry command, then exit 1.
 
-    Does nothing when there are no failures.
+    *extra_flags* repeats the run's own options on the retry command
+    (:func:`~photree.common.formatting.format_flags`), so a retry copied
+    from a ``--dry-run`` stays a dry run; it is required so that no caller
+    forgets them. Does nothing when there are no failures.
     """
     if failures:
         err_console.print(batch_failures_report(failures, base))

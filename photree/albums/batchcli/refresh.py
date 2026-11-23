@@ -9,7 +9,7 @@ from photree.albums.batchcli.resolution import make_display_fn
 from photree.albums.cmd_handler.refresh import batch_refresh
 from photree.clihelpers.progress import BatchProgressBar
 from photree.clihelpers.runtime import Runtime
-from photree.common.formatting import format_dry_run
+from photree.common.formatting import format_dry_run, format_flags
 from photree.foundation.gallery_metadata import resolve_link_mode
 
 
@@ -68,4 +68,18 @@ def run_batch_refresh(
             dry_run=dry_run,
         ),
     )
-    exit_with_failures(result.failures, "refresh", cwd)
+    exit_with_failures(
+        result.failures,
+        "refresh",
+        cwd,
+        extra_flags=format_flags(
+            [
+                ("--refresh-browsable", force_browsable),
+                ("--refresh-jpeg", force_jpeg),
+                ("--refresh-exif-cache", force_exif_cache),
+                ("--redetect-faces", redetect_faces),
+                ("--refresh-face-thumbs", refresh_face_thumbs),
+                ("--dry-run", dry_run),
+            ],
+        ),
+    )

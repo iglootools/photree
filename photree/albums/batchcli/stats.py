@@ -86,4 +86,4 @@ def run_batch_stats(
         if render is not None
         else stats_output.format_albums_stats(result.stats),
     )
-    exit_with_failures(result.failures, "stats", cwd)
+    exit_with_failures(result.failures, "stats", cwd, extra_flags="")

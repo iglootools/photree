@@ -441,3 +441,25 @@ def test_export_settings_error_is_structured(tmp_path: Path) -> None:
 
     assert exc_info.value.kind == ExportSettingsErrorKind.MISSING_SENTINEL
     assert exc_info.value.share_dir == tmp_path
+
+
+def test_album_fix_rm_upstream_refusal_suggestion_keeps_the_run_flags(
+    tmp_path: Path,
+) -> None:
+    album = _emptied_std_album(tmp_path)
+
+    refused = runner.invoke(
+        app,
+        [
+            "album",
+            "fix",
+            "--rm-upstream",
+            "--rm-orphan",
+            "--dry-run",
+            "--album-dir",
+            str(album),
+        ],
+    )
+
+    assert refused.exit_code == 1
+    assert "--rm-upstream --force --rm-orphan --dry-run --album-dir" in (refused.output)
