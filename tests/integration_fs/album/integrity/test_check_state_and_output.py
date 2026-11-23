@@ -1,29 +1,46 @@
 """Regression tests for check state detection and integrity output."""
 
 from dataclasses import replace
+from io import StringIO
 from pathlib import Path
 
 import numpy as np
+from rich.console import Console
 
 from photree.album.check import AlbumIntegrityResult
-from photree.album.check.exif_cache_state import check_exif_cache_state
+from photree.album.check.exif_cache_state import (
+    ExifCacheStateCheck,
+    check_exif_cache_state,
+)
 from photree.album.check.face_state import (
+    FaceStateCheck,
     FaceSyncIssue,
     FaceSyncIssueKind,
     check_face_state,
 )
+from photree.album.check.ios import (
+    DuplicateNumber,
+    IosMediaSourceIntegrityResult,
+    MiscategorizedFile,
+    MiscategorizedKind,
+)
 from photree.album.check.output.album import (
     format_exif_cache_check,
+    format_face_state_check,
     format_integrity_checks,
 )
+from photree.album.check.output.batch import duplicate_ids_report
+from photree.album.check.output.derived import derived_failures_report
 from photree.album.check.output.troubleshoot import (
     format_album_preflight_troubleshoot,
 )
 from photree.album.check.testkit import (
+    INTEGRITY_FAILURES,
     IOS_INTEGRITY_OK,
     PREFLIGHT_OK,
     STD_INTEGRITY_FAILURES,
 )
+from photree.album.faces.failures import FaceFailure, FaceFailureStage
 from photree.album.faces.protocol import (
     DEFAULT_MODEL_NAME,
     DEFAULT_MODEL_VERSION,
@@ -32,6 +49,7 @@ from photree.album.faces.protocol import (
 )
 from photree.album.faces.store import FaceData, save_face_data, save_face_state
 from photree.album.faces.testkit import write_legacy_face_data
+from photree.album.jpeg import JpegConversionFailure
 from photree.album.store.media_source import ios_media_source, std_media_source
 from photree.foundation.layout import PHOTREE_DIR
 
@@ -172,3 +190,149 @@ class TestStdDuplicateStems:
         assert troubleshoot is not None
         assert "--refresh-browsable" in troubleshoot
         assert "sharing a stem" in troubleshoot
+
+
+def _render(markup: str) -> str:
+    """Print *markup* as the CLI does, and return what the user sees."""
+    out = StringIO()
+    Console(file=out, width=500, highlight=False, color_system=None).print(markup)
+    return out.getvalue()
+
+
+def _ios_integrity(result: IosMediaSourceIntegrityResult) -> AlbumIntegrityResult:
+    return AlbumIntegrityResult(by_media_source=((MAIN, result),))
+
+
+class TestIosIntegrityFailureOutput:
+    def test_duplicate_numbers_name_every_file(self) -> None:
+        result = _ios_integrity(
+            replace(
+                IOS_INTEGRITY_OK,
+                duplicate_numbers=(
+                    DuplicateNumber(
+                        "edit-img",
+                        "7658",
+                        ("IMG_E7658 [1].HEIC", "IMG_E7658.JPG"),
+                    ),
+                ),
+            ),
+        )
+
+        output = _render(format_integrity_checks(result))
+
+        assert "✗ duplicate numbers: 1 issue(s)" in output
+        assert (
+            "edit-img/: number 7658 has multiple media files with same prefix:"
+            " IMG_E7658 [1].HEIC, IMG_E7658.JPG"
+        ) in output
+
+    def test_miscategorized_files_say_what_they_look_like(self) -> None:
+        output = _render(format_integrity_checks(INTEGRITY_FAILURES))
+
+        assert "✗ file categorization: 2 issue(s)" in output
+        assert (
+            "IMG_E0410.HEIC in orig-img/ looks like an edited file (IMG_E prefix)"
+        ) in output
+        assert (
+            "IMG_0100.HEIC in edit-img/ looks like an original file (no E/O prefix)"
+        ) in output
+
+    def test_miscategorized_file_names_are_escaped(self) -> None:
+        result = _ios_integrity(
+            replace(
+                IOS_INTEGRITY_OK,
+                miscategorized=(
+                    MiscategorizedFile(
+                        "IMG_O0001 [copy].AAE",
+                        "orig-img",
+                        MiscategorizedKind.EDITED_SIDECAR_IN_ORIG,
+                    ),
+                ),
+            ),
+        )
+
+        output = _render(format_integrity_checks(result))
+
+        assert (
+            "IMG_O0001 [copy].AAE in orig-img/ looks like an edited sidecar" in output
+        )
+
+
+class TestCacheCheckOutput:
+    def test_face_sync_issues_are_listed_with_their_fix(self) -> None:
+        check = FaceStateCheck(
+            model_mismatch=True,
+            npz_yaml_sync_errors=(
+                FaceSyncIssue("main [old]", FaceSyncIssueKind.MISSING_NPZ),
+                FaceSyncIssue("nelu", FaceSyncIssueKind.ARRAY_LENGTHS),
+            ),
+        )
+
+        output = _render(format_face_state_check(check))
+
+        assert "✗ face state (3 issue(s))" in output
+        assert "model version mismatch" in output
+        assert "main [old]: .yaml records faces but the .npz is missing" in output
+        assert "nelu: .npz array lengths inconsistent" in output
+        assert "photree album detect-faces --redetect" in output
+
+    def test_exif_cache_lists_at_most_five_sources(self) -> None:
+        sources = tuple(f"ms{i} [x]" for i in range(7))
+
+        output = _render(format_exif_cache_check(ExifCacheStateCheck(sources)))
+
+        assert "✗ exif cache (7 issue(s))" in output
+        assert "missing cache: ms0 [x], ms1 [x], ms2 [x], ms3 [x], ms4 [x]" in output
+        assert "ms5 [x]" not in output
+        assert "... and 2 more" in output
+
+
+class TestMediaSourceConflictTroubleshoot:
+    def test_conflicting_names_are_listed_and_escaped(self) -> None:
+        preflight = replace(PREFLIGHT_OK, media_source_conflicts=("main", "trip [1]"))
+
+        troubleshoot = format_album_preflight_troubleshoot(preflight, "album")
+
+        assert troubleshoot is not None
+        assert (
+            "Media source name(s) used by both an iOS and a std archive:"
+            " main, trip [1]."
+        ) in _render(troubleshoot)
+
+
+class TestDerivedFailuresReport:
+    def test_each_failure_is_listed_with_a_retry_command(self) -> None:
+        report = derived_failures_report(
+            (("main", JpegConversionFailure("IMG_0001 [a].HEIC", "sips failed")),),
+            (("main", FaceFailure("0002", FaceFailureStage.DETECTION, "bad image")),),
+            "2024 [trip]",
+        )
+
+        output = _render(report)
+
+        assert "✗ jpeg: 1 file(s) could not be converted" in output
+        assert "main/IMG_0001 [a].HEIC: sips failed" in output
+        assert (
+            "Run 'photree album refresh --refresh-jpeg --album-dir \"2024 [trip]\"'"
+        ) in output
+        assert "✗ face detection failed for 1 image(s)" in output
+        assert "main/0002 (detection): bad image" in output
+        assert "Run 'photree album detect-faces --album-dir \"2024 [trip]\"'" in output
+
+
+class TestDuplicateIdsReport:
+    def test_each_duplicated_id_lists_its_albums(self, tmp_path: Path) -> None:
+        paths = [tmp_path / "2024 [a]", tmp_path / "2024 [b]"]
+
+        report = duplicate_ids_report(
+            "album",
+            {"0123": paths},
+            tmp_path,
+            lambda album_id: f"album_{album_id}",
+        )
+
+        assert _render(report).splitlines() == [
+            "✗ duplicate album id: album_0123",
+            "    2024 [a]",
+            "    2024 [b]",
+        ]
