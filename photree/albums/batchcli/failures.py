@@ -94,6 +94,25 @@ def exit_with_failures(
         raise typer.Exit(code=1)
 
 
+def announce_albums(
+    albums: Sequence[Path],
+    display_base: Path | None,
+    *,
+    noun: str = "album",
+) -> bool:
+    """
+    Say how many albums the batch holds, or that it holds none.
+
+    Returns whether there is anything to do. The count is printed only for a
+    scanned batch (*display_base* set), where it is not already obvious.
+    """
+    if not albums:
+        typer.echo(f"\nNo {noun}s found.")
+    elif display_base is not None:
+        typer.echo(f"\nFound {len(albums)} {noun}(s).\n")
+    return bool(albums)
+
+
 def exit_if_no_albums(
     albums: Sequence[Path],
     display_base: Path | None,
@@ -101,8 +120,5 @@ def exit_if_no_albums(
     noun: str = "album",
 ) -> None:
     """Exit 0 ("nothing to do") on an empty batch, else announce its size."""
-    if not albums:
-        typer.echo(f"\nNo {noun}s found.")
+    if not announce_albums(albums, display_base, noun=noun):
         raise typer.Exit(code=0)
-    if display_base is not None:
-        typer.echo(f"\nFound {len(albums)} {noun}(s).\n")
