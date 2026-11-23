@@ -172,7 +172,7 @@ def _resolve_albums(
         case _, list() as explicit:
             return explicit
         case Path() as scan_dir, None:
-            return _batch.discover_albums(scan_dir)
+            return _batch.find_export_dirs(scan_dir)
         case _:
             gallery = resolve_gallery_or_exit(gallery_dir, cwd=cwd)
             return discover_albums(gallery / ALBUMS_DIR)

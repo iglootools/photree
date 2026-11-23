@@ -88,7 +88,7 @@ def export_cmd(
     albums = (
         list(album_dirs)
         if album_dirs is not None
-        else batch.discover_albums(scan_dir or cwd)
+        else batch.find_export_dirs(scan_dir or cwd)
     )
     if not albums:
         typer.echo("No albums found.")
