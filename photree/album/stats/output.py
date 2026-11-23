@@ -35,7 +35,7 @@ _SIZE_STYLE = "cyan"
 _TABLE_BOX = rich.box.SIMPLE
 
 
-def _format_bytes(n: int) -> str:
+def format_bytes(n: int) -> str:
     """Format *n* bytes as a human-readable string using binary (1024) units."""
     if n < _UNIT_STEP:
         return f"{n} B"
@@ -90,12 +90,12 @@ def _size_cells(
 ) -> tuple[str, str, str, str, str, str]:
     browsable = total - archive - derived - cache
     return (
-        _format_bytes(on_disk),
-        _format_bytes(total),
-        _format_bytes(archive),
-        _format_bytes(browsable),
-        _format_bytes(derived),
-        _format_bytes(cache),
+        format_bytes(on_disk),
+        format_bytes(total),
+        format_bytes(archive),
+        format_bytes(browsable),
+        format_bytes(derived),
+        format_bytes(cache),
     )
 
 
@@ -229,15 +229,15 @@ def _overview_sizes(
         (
             "On-disk size",
             sized(
-                _format_bytes(agg.total.on_disk_bytes + _cache_on_disk(cache_storage)),
+                format_bytes(agg.total.on_disk_bytes + _cache_on_disk(cache_storage)),
             ),
         ),
-        ("Apparent size", sized(_format_bytes(agg.total.apparent_bytes + cb))),
-        ("Space saved", sized(f"{_format_bytes(saved)} ({pct:.1f}%)")),
-        ("Archive size", sized(_format_bytes(agg.archive.apparent_bytes))),
-        ("Browsable size", sized(_format_bytes(browsable))),
-        ("Derived size", sized(_format_bytes(agg.derived.apparent_bytes))),
-        ("Cache size", sized(_format_bytes(cb))),
+        ("Apparent size", sized(format_bytes(agg.total.apparent_bytes + cb))),
+        ("Space saved", sized(f"{format_bytes(saved)} ({pct:.1f}%)")),
+        ("Archive size", sized(format_bytes(agg.archive.apparent_bytes))),
+        ("Browsable size", sized(format_bytes(browsable))),
+        ("Derived size", sized(format_bytes(agg.derived.apparent_bytes))),
+        ("Cache size", sized(format_bytes(cb))),
     ]
 
 
