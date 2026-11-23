@@ -10,7 +10,6 @@ holding anything else, since nothing else would be imported; on success the
 copied files are removed from the staging dir, and with them the dir itself.
 """
 
-import shutil
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,6 +17,7 @@ from typing import TYPE_CHECKING
 
 from photree.album.check.std import DuplicateStem, check_duplicate_stems
 from photree.album.formats import IMG_EXTENSIONS, VID_EXTENSIONS
+from photree.album.importer.archive_copy import copy_into_archive
 from photree.album.importer.collision import ArchiveCollision
 from photree.album.importer.staging_cleanup import remove_dir_if_only_hidden_files
 from photree.album.store.media_source import MediaSource
@@ -254,8 +254,10 @@ def import_std_source(
     Import one std media source from its staging directory.
 
     Splits each staging subfolder by extension into the archive's image/video
-    directories, then (on a non-dry run) removes the copied files from the
-    staging directory, and the directory once nothing else is left in it.
+    directories, all or nothing
+    (:func:`~photree.album.importer.archive_copy.copy_into_archive`), then (on
+    a non-dry run) removes the copied files from the staging directory, and
+    the directory once nothing else is left in it.
 
     The archive collision check (:func:`find_std_collision`) is the caller's
     job, before any mutation: :func:`photree.album.importer.album_import.run_import`
@@ -265,9 +267,7 @@ def import_std_source(
     copies = _plan_copies(album_dir, staging, task.media_source)
 
     if not dry_run:
-        for src, dst in copies:
-            dst.mkdir(parents=True, exist_ok=True)
-            shutil.copy(src, dst / src.name)
+        copy_into_archive(album_dir, copies)
         _consume_staging(staging, [src for src, _ in copies])
 
     return StdImportResult(

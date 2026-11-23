@@ -283,7 +283,12 @@ discover every staging entry in the album, validate them all, import each into
 its target media source, then refresh derived data once. Validation includes
 the archive collision checks (an incoming iOS image number or std stem that
 already exists in the target archive), so a collision in any entry refuses the
-whole import before anything is copied. A single album can
+whole import before anything is copied. Each entry's files are copied into
+`.photree/import-in-progress/` first, then renamed into the archive, and
+removed from it again if a rename fails: an import interrupted part-way (a full
+disk, Ctrl-C) leaves that entry's archive and staging as they were, so
+re-running it imports the entry instead of reporting a collision. A single
+album can
 carry several (e.g. `to-import-ios-main/` plus `to-import-std-nelu/`).
 
 ### iOS staging (`to-import-ios-<name>/`, `to-import-ios-<name>.csv`)
