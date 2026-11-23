@@ -130,6 +130,53 @@ def _locate(
     )
 
 
+@dataclass(frozen=True)
+class _MediaGroup:
+    """The requested media of one media source and kind, with their variant files."""
+
+    ms: MediaSource
+    is_video: bool
+    variants: tuple[tuple[str, tuple[str, ...]], ...]
+
+
+def _resolve_groups(album_dir: Path, relative_paths: list[str]) -> list[_MediaGroup]:
+    media_sources = discover_media_sources(album_dir)
+    if not media_sources:
+        raise MediaOpError(MediaOpErrorKind.NO_MEDIA_SOURCES, album_dir=album_dir)
+
+    dir_to_ms = _build_dir_to_media_source(media_sources)
+    targets = [_locate(album_dir, rel_path, dir_to_ms) for rel_path in relative_paths]
+    # Group keys by (media source, image-or-video); dict.fromkeys keeps the
+    # first-seen order of the groups.
+    groups = dict.fromkeys((t.ms, t.is_video) for t in targets)
+
+    return [
+        _MediaGroup(
+            ms=ms,
+            is_video=video,
+            variants=tuple(
+                (subdir, tuple(files))
+                for subdir in (
+                    ms.video_variant_dirs if video else ms.image_variant_dirs
+                )
+                if (
+                    files := _find_matching_files(
+                        album_dir,
+                        subdir,
+                        {t.key for t in targets if t.ms == ms and t.is_video == video},
+                        ms,
+                    )
+                )
+            ),
+        )
+        for ms, video in groups
+    ]
+
+
+def _variants_of(groups: list[_MediaGroup]) -> list[tuple[str, list[str]]]:
+    return [(subdir, list(files)) for g in groups for subdir, files in g.variants]
+
+
 def resolve_variants(
     album_dir: Path,
     relative_paths: list[str],
@@ -142,29 +189,7 @@ def resolve_variants(
     Raises :class:`MediaOpError` when a path cannot be mapped to a media
     source.
     """
-    media_sources = discover_media_sources(album_dir)
-    if not media_sources:
-        raise MediaOpError(MediaOpErrorKind.NO_MEDIA_SOURCES, album_dir=album_dir)
-
-    dir_to_ms = _build_dir_to_media_source(media_sources)
-    targets = [_locate(album_dir, rel_path, dir_to_ms) for rel_path in relative_paths]
-    # Group keys by (media source, image-or-video); dict.fromkeys keeps the
-    # first-seen order of the groups.
-    groups = dict.fromkeys((t.ms, t.is_video) for t in targets)
-
-    return [
-        (subdir, files)
-        for ms, video in groups
-        for subdir in (ms.video_variant_dirs if video else ms.image_variant_dirs)
-        if (
-            files := _find_matching_files(
-                album_dir,
-                subdir,
-                {t.key for t in targets if t.ms == ms and t.is_video == video},
-                ms,
-            )
-        )
-    ]
+    return _variants_of(_resolve_groups(album_dir, relative_paths))
 
 
 def _remove_empty_dirs(
@@ -218,7 +243,8 @@ def move_media(
     paths) before moving anything if the destination already holds files
     with the same key.
     """
-    variants = resolve_variants(source_album, relative_paths)
+    groups = _resolve_groups(source_album, relative_paths)
+    variants = _variants_of(groups)
 
     dest_dir_to_ms = _build_dir_to_media_source(discover_media_sources(dest_album))
     conflicts = _check_move_conflicts(variants, dest_album, dest_dir_to_ms)
