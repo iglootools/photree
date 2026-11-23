@@ -1,4 +1,5 @@
 import shutil
+from datetime import datetime
 from pathlib import Path
 
 import cv2
@@ -6,7 +7,9 @@ import numpy as np
 import pytest
 from typer.testing import CliRunner
 
+from photree.album.exif import TIMESTAMP_TAGS
 from photree.cli import app
+from photree.common.exif import read_exif_timestamps, set_exif_date_time
 
 runner = CliRunner()
 
@@ -68,3 +71,82 @@ class TestExecution:
         assert "✓ fix-exif" not in result.output
         assert "fix-exif failed" in result.output
         assert "notes.txt" in result.output
+
+
+def _dated_jpeg(path: Path, timestamp: str = "2024-07-20T13:55:20") -> Path:
+    img = _jpeg(path)
+    set_exif_date_time([img], timestamp)
+    return img
+
+
+def _date_of(path: Path) -> datetime | None:
+    [ts] = read_exif_timestamps([path], TIMESTAMP_TAGS) or [None]
+    return ts
+
+
+@requires_exiftool
+class TestDryRun:
+    @pytest.mark.parametrize(
+        ("option", "value", "new_value"),
+        [
+            ("--set-date", "2023-01-02", "2023:01:02 13:55:20"),
+            ("--set-date-time", "2023-01-02T03:04:05", "2023:01:02 03:04:05"),
+            ("--shift-date", "-1", "2024:07:19 13:55:20"),
+            ("--shift-time", "-6", "2024:07:20 07:55:20"),
+        ],
+    )
+    def test_dry_run_lists_changes_without_writing(
+        self,
+        tmp_path: Path,
+        option: str,
+        value: str,
+        new_value: str,
+    ) -> None:
+        img = _dated_jpeg(tmp_path / "a.jpg")
+
+        result = runner.invoke(
+            app,
+            ["album", "fix-exif", "--dry-run", option, value, str(img)],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert (
+            f"[dry-run] Would fix-exif {img}: 2024:07:20 13:55:20 -> {new_value}"
+            in (result.output)
+        )
+        assert "[dry-run] 1 file(s) would be updated." in result.output
+        assert _date_of(img) == datetime(2024, 7, 20, 13, 55, 20)
+
+    def test_dry_run_shows_a_file_without_a_date(self, tmp_path: Path) -> None:
+        img = _jpeg(tmp_path / "a.jpg")
+
+        result = runner.invoke(
+            app,
+            [
+                "album",
+                "fix-exif",
+                "-n",
+                "--set-date-time",
+                "2023-01-02T03:04:05",
+                str(img),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "(no date) -> 2023:01:02 03:04:05" in result.output
+        assert _date_of(img) is None
+
+
+@requires_exiftool
+class TestReport:
+    def test_shift_reports_old_and_new_dates(self, tmp_path: Path) -> None:
+        img = _dated_jpeg(tmp_path / "a.jpg")
+
+        result = runner.invoke(
+            app,
+            ["album", "fix-exif", "--shift-time", "3", str(img)],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "2024:07:20 13:55:20 -> 2024:07:20 16:55:20" in result.output
+        assert _date_of(img) == datetime(2024, 7, 20, 16, 55, 20)

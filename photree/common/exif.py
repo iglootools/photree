@@ -12,7 +12,7 @@ import subprocess
 from collections.abc import Generator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Protocol
 
@@ -194,10 +194,14 @@ class ExifToolError(OSError):
 
 @dataclass(frozen=True)
 class ExifDateChange:
-    """One file's EXIF timestamp before and after a date change."""
+    """
+    One file's EXIF timestamp before and after a date change.
+
+    *original* is ``None`` for a file with no timestamp yet.
+    """
 
     path: Path
-    original: str
+    original: str | None
     new_value: str
 
 
@@ -262,7 +266,7 @@ def _argfile_path(path: Path) -> str:
     return f"#[CSTR]{escaped}"
 
 
-def _write_dates_per_file(changes: Sequence[ExifDateChange]) -> None:
+def write_exif_date_changes(changes: Sequence[ExifDateChange]) -> None:
     """
     Write each change's own new value, all in one exiftool run.
 
@@ -340,22 +344,90 @@ def _first_timestamp(entry: dict[str, object], tags: Sequence[str]) -> str | Non
     )
 
 
-def _date_change(
-    entry: dict[str, object],
+def read_first_timestamps(
+    files: list[Path],
     tags: Sequence[str],
-    exif_date: str,
-) -> ExifDateChange | None:
-    """Plan the date replacement for one exiftool JSON *entry* (keeps the time)."""
-    original = _first_timestamp(entry, tags)
-    if original is None:
-        return None
-    else:
-        _, sep, time = original.partition(" ")
-        return ExifDateChange(
-            path=Path(str(entry.get("SourceFile", ""))),
+) -> tuple[tuple[Path, str | None], ...]:
+    """
+    Return each file with its first timestamp among *tags*, as exiftool prints it.
+
+    ``None`` for a file with none of *tags*. Raises :class:`ExifToolError`
+    when exiftool fails to read a file.
+    """
+    entries = json.loads(_run_exiftool(["-json", *[f"-{t}" for t in tags]], files))
+    return tuple(
+        (Path(str(entry.get("SourceFile", ""))), _first_timestamp(entry, tags))
+        for entry in entries
+    )
+
+
+def _with_date(original: str, exif_date: str) -> str:
+    """Return *original* with its date replaced by *exif_date*, keeping the time."""
+    _, sep, time = original.partition(" ")
+    return f"{exif_date} {time if sep else '00:00:00'}"
+
+
+def plan_exif_date(
+    files: list[Path],
+    date: str,
+    tags: Sequence[str],
+) -> tuple[ExifDateChange, ...]:
+    """
+    Plan setting the date portion of each file's timestamp, keeping its time.
+
+    *date* is ``YYYY-MM-DD``. Reads the files and writes nothing; files with
+    none of *tags* are left out, since there is no time to keep.
+    """
+    exif_date = date.replace("-", ":")  # "2024:07:20"
+    return tuple(
+        ExifDateChange(
+            path=path,
             original=original,
-            new_value=f"{exif_date} {time if sep else '00:00:00'}",
+            new_value=_with_date(original, exif_date),
         )
+        for path, original in read_first_timestamps(files, tags)
+        if original is not None
+    )
+
+
+def _exif_timestamp(timestamp: str) -> str:
+    """Return an ISO *timestamp* in exiftool's form: ``2024:07:20 13:55:20``."""
+    return timestamp.replace("T", " ").replace("-", ":", 2)
+
+
+def plan_exif_date_time(
+    files: list[Path],
+    timestamp: str,
+    tags: Sequence[str],
+) -> tuple[ExifDateChange, ...]:
+    """Plan :func:`set_exif_date_time` on every file: reads them, writes nothing."""
+    new_value = _exif_timestamp(timestamp)
+    return tuple(
+        ExifDateChange(path=path, original=original, new_value=new_value)
+        for path, original in read_first_timestamps(files, tags)
+    )
+
+
+def plan_exif_shift(
+    files: list[Path],
+    delta: timedelta,
+    tags: Sequence[str],
+) -> tuple[ExifDateChange, ...]:
+    """
+    Plan shifting each file's timestamp by *delta*: reads them, writes nothing.
+
+    Files with no readable timestamp are left out: a shift has nothing to
+    move there. The new value shows the first of *tags*, as wall-clock time.
+    """
+    return tuple(
+        ExifDateChange(
+            path=path,
+            original=original,
+            new_value=(parsed + delta).strftime(_EXIF_DATE_FORMAT),
+        )
+        for path, original in read_first_timestamps(files, tags)
+        if original is not None and (parsed := parse_timestamp(original)) is not None
+    )
 
 
 def write_exif_date(
@@ -366,21 +438,11 @@ def write_exif_date(
     """
     Set the date portion of EXIF timestamps, preserving the original time.
 
-    *date* must be ``YYYY-MM-DD`` format.  Reads each file's existing
-    timestamp, replaces the date part, and writes it back. Files without any
-    of *tags* are left untouched and absent from the result.
-
-    Raises :class:`ExifToolError` if reading fails, or naming the files
-    whose write failed; every other file is written and keeps its new value.
+    Plans with :func:`plan_exif_date`, then writes with
+    :func:`write_exif_date_changes`, whose errors it raises.
     """
-    exif_date = date.replace("-", ":")  # "2024:07:20"
-    entries = json.loads(_run_exiftool(["-json", *[f"-{t}" for t in tags]], files))
-    changes = tuple(
-        change
-        for entry in entries
-        if (change := _date_change(entry, tags, exif_date)) is not None
-    )
-    _write_dates_per_file(changes)
+    changes = plan_exif_date(files, date, tags)
+    write_exif_date_changes(changes)
     return changes
 
 
@@ -392,9 +454,7 @@ def set_exif_date_time(files: list[Path], timestamp: str) -> None:
     or ``2024-07-20T13:55:20-06:00``). Raises :class:`ExifToolError` on
     failure.
     """
-    # ISO separators to exiftool format: "2024-07-20T13:55:20" -> "2024:07:20 13:55:20"
-    exif_ts = timestamp.replace("T", " ").replace("-", ":", 2)
-    _write_all_dates(files, f"={exif_ts}")
+    _write_all_dates(files, f"={_exif_timestamp(timestamp)}")
 
 
 def _shift(files: list[Path], spec: str, amount: int) -> None:

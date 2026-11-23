@@ -2,6 +2,7 @@
 
 import shlex
 from dataclasses import dataclass
+from datetime import timedelta
 from pathlib import Path
 from typing import Annotated
 
@@ -10,6 +11,7 @@ import typer
 from photree.album import exif as album_exif
 from photree.album.cli.app import app
 from photree.clihelpers.console import console, err_console
+from photree.clihelpers.options import DRY_RUN_OPTION
 from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.sysdeps import EXIF_DEPS, require_system_deps
 from photree.clihelpers.usage import (
@@ -19,7 +21,8 @@ from photree.clihelpers.usage import (
     no_files_error,
 )
 from photree.common import exif as common_exif
-from photree.common.formatting import CHECK, indent, markup_escape
+from photree.common.exif import ExifDateChange
+from photree.common.formatting import CHECK, format_dry_run, indent, markup_escape
 from photree.common.fs import display_path
 
 
@@ -86,35 +89,56 @@ def _validate_operation(operation: _Operation) -> None:
             pass
 
 
-def _apply(operation: _Operation, files: list[Path], cwd: Path) -> tuple[str, ...]:
-    """
-    Run *operation* on *files*; return one result line per changed file.
-
-    Lines are built only after exiftool succeeded, so nothing is reported as
-    fixed before it actually is.
-    """
+def _plan(operation: _Operation, files: list[Path]) -> tuple[ExifDateChange, ...]:
+    """Read *files* and return what *operation* would change, writing nothing."""
     match operation:
         case _SetDate(date):
-            changes = album_exif.set_exif_date(files, date)
-            return tuple(
-                f"fix-exif {display_path(c.path, cwd)}: {c.original} -> {c.new_value}"
-                for c in changes
-            )
+            return album_exif.plan_exif_date(files, date)
+        case _SetDateTime(timestamp):
+            return album_exif.plan_exif_date_time(files, timestamp)
+        case _ShiftDate(days):
+            return album_exif.plan_exif_shift(files, timedelta(days=days))
+        case _ShiftTime(hours):
+            return album_exif.plan_exif_shift(files, timedelta(hours=hours))
+
+
+def _write(
+    operation: _Operation,
+    files: list[Path],
+    changes: tuple[ExifDateChange, ...],
+) -> None:
+    """Run *operation*: per-file values for --set-date, one exiftool call otherwise."""
+    match operation:
+        case _SetDate():
+            common_exif.write_exif_date_changes(changes)
         case _SetDateTime(timestamp):
             common_exif.set_exif_date_time(files, timestamp)
-            return tuple(
-                f"fix-exif {display_path(f, cwd)}: -> {timestamp}" for f in files
-            )
         case _ShiftDate(days):
             common_exif.shift_exif_date(files, days)
-            return tuple(
-                f"fix-exif shift {days:+d}d {display_path(f, cwd)}" for f in files
-            )
         case _ShiftTime(hours):
             common_exif.shift_exif_time(files, hours)
-            return tuple(
-                f"fix-exif shift {hours:+d}h {display_path(f, cwd)}" for f in files
-            )
+
+
+def _format_change(change: ExifDateChange, cwd: Path, *, dry_run: bool) -> str:
+    """Return the Rich markup line reporting one file's date change."""
+    original = change.original if change.original is not None else "(no date)"
+    text = markup_escape(
+        f"fix-exif {display_path(change.path, cwd)}: {original} -> {change.new_value}",
+    )
+    return (
+        format_dry_run(f"Would {text}", dry_run=True, markup=True)
+        if dry_run
+        else f"{CHECK} {text}"
+    )
+
+
+def _format_summary(count: int, *, dry_run: bool) -> str:
+    """Return the closing line: how many files were, or would be, updated."""
+    return (
+        format_dry_run(f"{count} file(s) would be updated.", dry_run=True)
+        if dry_run
+        else f"Done. {count} file(s) updated."
+    )
 
 
 def _report_exiftool_error(exc: common_exif.ExifToolError, cwd: Path) -> None:
@@ -163,6 +187,7 @@ def fix_exif_cmd(
             help="Shift EXIF time by N hours (e.g. -6, +3).",
         ),
     ] = None,
+    dry_run: DRY_RUN_OPTION = False,
     files: Annotated[
         list[str],
         typer.Argument(
@@ -184,6 +209,9 @@ def fix_exif_cmd(
     --shift-date shifts all date tags by N days.
 
     --shift-time shifts all date tags by N hours.
+
+    Each changed file is listed with its date before and after;
+    --dry-run lists them without writing.
     """
     runtime = runtime_of(ctx)
     cwd = runtime.cwd()
@@ -193,12 +221,17 @@ def fix_exif_cmd(
     _validate_operation(operation)
     require_system_deps(EXIF_DEPS, which=runtime.which)
 
+    paths = [Path(f) for f in files]
     try:
-        lines = _apply(operation, [Path(f) for f in files], cwd)
+        # Lines are printed only after exiftool succeeded, so nothing is
+        # reported as fixed before it actually is.
+        changes = _plan(operation, paths)
+        if not dry_run:
+            _write(operation, paths, changes)
     except common_exif.ExifToolError as exc:
         _report_exiftool_error(exc, cwd)
         raise typer.Exit(code=1) from exc
 
-    for line in lines:
-        console.print(f"{CHECK} {markup_escape(line)}")
-    typer.echo(f"Done. {len(lines)} file(s) updated.")
+    for change in changes:
+        console.print(_format_change(change, cwd, dry_run=dry_run))
+    console.print(_format_summary(len(changes), dry_run=dry_run), markup=False)

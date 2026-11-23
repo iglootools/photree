@@ -1,9 +1,10 @@
 """Read and write the EXIF capture dates of an album's media files."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
-from photree.common.exif import ExifDateChange, ExifTagReader, write_exif_date
+from photree.common import exif as common_exif
+from photree.common.exif import ExifDateChange, ExifTagReader
 from photree.common.exif import read_exif_timestamps_by_file as _generic_read_by_file
 
 # Tag priority for timestamp extraction (first match wins):
@@ -38,13 +39,19 @@ def read_exif_timestamps_by_file(
     return _generic_read_by_file(files, TIMESTAMP_TAGS, exiftool=exiftool)
 
 
-def set_exif_date(
-    files: list[Path],
-    date: str,
-) -> tuple[ExifDateChange, ...]:
-    """
-    Set the EXIF date of an album's files, returning one change per file rewritten.
+def plan_exif_date(files: list[Path], date: str) -> tuple[ExifDateChange, ...]:
+    """Plan setting the date of an album's files, read in tag priority."""
+    return common_exif.plan_exif_date(files, date, TIMESTAMP_TAGS)
 
-    See :func:`common.exif.write_exif_date`.
-    """
-    return write_exif_date(files, date, TIMESTAMP_TAGS)
+
+def plan_exif_date_time(
+    files: list[Path],
+    timestamp: str,
+) -> tuple[ExifDateChange, ...]:
+    """Plan setting the full timestamp of an album's files, read in tag priority."""
+    return common_exif.plan_exif_date_time(files, timestamp, TIMESTAMP_TAGS)
+
+
+def plan_exif_shift(files: list[Path], delta: timedelta) -> tuple[ExifDateChange, ...]:
+    """Plan shifting the timestamps of an album's files, read in tag priority."""
+    return common_exif.plan_exif_shift(files, delta, TIMESTAMP_TAGS)
