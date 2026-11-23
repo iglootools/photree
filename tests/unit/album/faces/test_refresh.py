@@ -23,10 +23,13 @@ from photree.album.faces.refresh import (
 )
 from photree.album.faces.store import (
     data_path,
+    has_legacy_face_data,
     load_face_data,
     load_face_state,
+    save_face_state,
     state_path,
 )
+from photree.album.faces.testkit import write_legacy_face_data
 from photree.foundation.metadata_io import InvalidMetadataError
 
 
@@ -321,9 +324,9 @@ class TestReuseThumbnail:
         assert (result.thumb_width, result.thumb_height) == (64, 48)
 
 
-def _processed(width: int, height: int) -> FaceProcessedKey:
+def _processed(width: int, height: int, *, mtime: float = 1.0) -> FaceProcessedKey:
     return FaceProcessedKey(
-        mtime=1.0,
+        mtime=mtime,
         file_name="IMG_0410.HEIC",
         face_count=0,
         orig_width=width,
@@ -338,7 +341,19 @@ def _never_invoked_factory() -> NoReturn:
     raise AssertionError(message)
 
 
-class TestCorruptCache:
+def _save_processed_state(album_dir: Path) -> None:
+    """Record ``IMG_0410.HEIC`` as processed at its current mtime."""
+    src = album_dir / "ios-main" / "orig-img" / "IMG_0410.HEIC"
+    save_face_state(
+        album_dir,
+        "main",
+        FaceProcessingState(
+            processed_keys={"0410": _processed(4032, 3024, mtime=src.stat().st_mtime)},
+        ),
+    )
+
+
+class TestCorruptOrLegacyCache:
     def test_redetect_replaces_corrupt_state(self, tmp_path: Path) -> None:
         _make_ios_source(tmp_path)
         _make_file(state_path(tmp_path, "main"))
@@ -374,3 +389,26 @@ class TestCorruptCache:
             refresh_face_data(tmp_path, analyzer_factory=_never_invoked_factory)
 
         assert exc_info.value.derived
+
+    def test_legacy_data_makes_every_image_due(self, tmp_path: Path) -> None:
+        _make_ios_source(tmp_path)
+        _save_processed_state(tmp_path)
+        write_legacy_face_data(tmp_path, "main", np.array(["0410"]))
+
+        result = refresh_face_data(
+            tmp_path,
+            analyzer_factory=_never_invoked_factory,
+            dry_run=True,
+        )
+
+        ((_, source),) = result.by_media_source
+        assert (source.processed, source.skipped) == (1, 0)
+
+    def test_legacy_data_is_replaced(self, tmp_path: Path) -> None:
+        _make_ios_source(tmp_path)
+        _save_processed_state(tmp_path)
+        write_legacy_face_data(tmp_path, "main", np.array(["0410"]))
+
+        refresh_face_data(tmp_path, analyzer_factory=_never_invoked_factory)
+
+        assert not has_legacy_face_data(tmp_path, "main")

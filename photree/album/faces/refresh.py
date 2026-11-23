@@ -27,6 +27,7 @@ from photree.album.faces.protocol import (
 from photree.album.faces.store import (
     FaceData,
     filter_face_data,
+    has_legacy_face_data,
     load_face_data,
     load_face_state,
     merge_face_data,
@@ -154,8 +155,8 @@ class _SourcePlan:
     keys_to_process: tuple[str, ...]
     stale_keys: frozenset[str]
     model_changed: bool
-    # --redetect-faces: every image is detected again, so the old face data
-    # is neither read nor kept.
+    # Every image is detected again, so the old face data is neither read
+    # nor kept: --redetect-faces, or a file in the legacy format.
     rebuild: bool
 
     @property
@@ -176,6 +177,7 @@ def _plan_source(
     redetect: bool,
 ) -> _SourcePlan:
     existing_state = _load_existing_state(album_dir, ms, redetect=redetect)
+    rebuild = redetect or has_legacy_face_data(album_dir, ms.name)
     current_files = _scan_current_images(album_dir, ms)
     model_changed = _model_version_changed(existing_state, model_name, model_version)
     return _SourcePlan(
@@ -187,12 +189,12 @@ def _plan_source(
                 album_dir / ms.orig_img_dir,
                 existing_state,
                 model_changed=model_changed,
-                redetect=redetect,
+                redetect=rebuild,
             ),
         ),
         stale_keys=frozenset(existing_state.processed_keys) - frozenset(current_files),
         model_changed=model_changed,
-        rebuild=redetect,
+        rebuild=rebuild,
     )
 
 
@@ -658,7 +660,7 @@ def _no_change_result(plan: _SourcePlan) -> FaceSourceRefreshResult:
 
 def _faces_to_face_data(faces: list[DetectedFace]) -> FaceData:
     return FaceData(
-        keys=np.array([f.key for f in faces], dtype=object),
+        keys=np.array([f.key for f in faces], dtype=np.str_),
         face_indices=np.array([f.face_index for f in faces], dtype=np.int32),
         det_scores=np.array([f.det_score for f in faces], dtype=np.float32),
         bboxes=np.stack([f.bbox for f in faces]).astype(np.float32),

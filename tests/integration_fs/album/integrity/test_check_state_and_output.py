@@ -29,6 +29,7 @@ from photree.album.faces.protocol import (
     FaceProcessingState,
 )
 from photree.album.faces.store import FaceData, save_face_data, save_face_state
+from photree.album.faces.testkit import write_legacy_face_data
 from photree.album.store.media_source import ios_media_source, std_media_source
 from photree.foundation.layout import PHOTREE_DIR
 
@@ -56,7 +57,7 @@ def _state(face_count: int) -> FaceProcessingState:
 def _face_data(keys: list[str]) -> FaceData:
     n = len(keys)
     return FaceData(
-        keys=np.array(keys, dtype=object),
+        keys=np.array(keys, dtype=np.str_),
         face_indices=np.zeros(n, dtype=np.int32),
         det_scores=np.full(n, 0.9, dtype=np.float32),
         bboxes=np.zeros((n, 4), dtype=np.float32),
@@ -101,6 +102,17 @@ class TestFaceStateDesync:
         assert check is not None
         assert check.npz_yaml_sync_errors == (
             FaceSyncIssue("main", FaceSyncIssueKind.MISSING_YAML),
+        )
+
+    def test_legacy_npz_is_reported_not_read(self, tmp_path: Path) -> None:
+        save_face_state(tmp_path, "main", _state(face_count=1))
+        write_legacy_face_data(tmp_path, "main", np.array(["0410"]))
+
+        check = check_face_state(tmp_path, media_sources=[MAIN])
+
+        assert check is not None
+        assert check.npz_yaml_sync_errors == (
+            FaceSyncIssue("main", FaceSyncIssueKind.LEGACY_NPZ),
         )
 
 

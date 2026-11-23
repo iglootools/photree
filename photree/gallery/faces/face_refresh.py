@@ -12,7 +12,7 @@ from uuid import uuid7
 import numpy as np
 
 from photree.album.faces.protocol import EMBEDDING_DIM, FACES_DIR
-from photree.album.faces.store import load_face_data
+from photree.album.faces.store import load_face_data, read_face_count
 from photree.album.store.album_discovery import discover_albums
 from photree.album.store.metadata import load_album_metadata
 from photree.foundation.layout import ALBUMS_DIR, PHOTREE_DIR
@@ -187,7 +187,7 @@ def refresh_face_clusters(
     if dry_run:
         run.skip(*_POST_SCAN_STAGES)
         return GalleryFaceRefreshResult(
-            new_faces=sum(_count_faces(s.npz_path) for s in changes.new_sources),
+            new_faces=sum(read_face_count(s.npz_path) for s in changes.new_sources),
             mode=FaceRefreshMode.FULL if saved is None else FaceRefreshMode.INCREMENTAL,
         )
     match saved:
@@ -321,7 +321,7 @@ def _run_full_cluster(
     return GalleryFaceRefreshResult(
         total_faces=len(embeddings),
         total_clusters=len(clusters),
-        new_faces=sum(_count_faces(s.npz_path) for s in changes.new_sources),
+        new_faces=sum(read_face_count(s.npz_path) for s in changes.new_sources),
         mode=FaceRefreshMode.FULL,
     )
 
@@ -657,10 +657,3 @@ def _build_checksums(sources: tuple[_AlbumFaceSource, ...]) -> AlbumFaceChecksum
             )
         },
     )
-
-
-def _count_faces(npz_path: Path) -> int:
-    # ``keys`` is saved as an object array (see album/faces/store.py), which
-    # numpy only reads back with pickling enabled; the file is our own cache.
-    with np.load(npz_path, allow_pickle=True) as data:
-        return len(data["keys"]) if "keys" in data else 0

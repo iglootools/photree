@@ -595,6 +595,8 @@ def format_face_sync_issue(issue: FaceSyncIssue) -> str:
             detail = ".npz keys don't match .yaml processed-keys"
         case FaceSyncIssueKind.ARRAY_LENGTHS:
             detail = ".npz array lengths inconsistent"
+        case FaceSyncIssueKind.LEGACY_NPZ:
+            detail = ".npz is in a format this photree no longer reads"
     return f"{issue.media_source}: {detail}"
 
 
