@@ -1,6 +1,7 @@
 # Building and Testing
 
-Run automated tests and checks:
+Run automated tests and checks with the mise tasks below; `mise tasks` lists
+every task with its description.
 
 Tasks come in families, as
 [mise.md › Name tasks by family](https://github.com/iglootools/common/blob/main/guidelines/project-setup/mise.md#name-tasks-by-family)
@@ -27,31 +28,50 @@ mise run lint-boundaries    # import-linter (module boundary contracts in pyproj
 mise run lint-dead-code     # deadcode (unused functions, classes, constants; config in pyproject.toml)
 mise run lint-renovate      # validate renovate.json with Renovate's validator, strictly
 mise run lint-common-pins   # check that every pin on iglootools/common agrees
+mise run lint-lock-uv       # check that uv.lock is consistent with pyproject.toml
+mise run lint-lock-mise     # check that mise.lock is up to date with mise.toml
 mise run renovate-dry-run   # list the updates Renovate would propose, writing nothing (needs gh auth)
 
-mise run clidocs            # Regenerate CLI reference in docs/cli-reference.md
-mise run lint-clidocs       # Check that CLI reference is up to date
-mise run depgraph           # Regenerate Module Overview in docs/architecture.md
-mise run lint-depgraph      # Check that Module Overview is up to date
+mise run reference-doc      # regenerate every generated reference (clidocs + depgraph)
+mise run clidocs            # regenerate the CLI reference in docs/cli-reference.md
+mise run lint-clidocs       # check that the CLI reference is up to date
+mise run depgraph           # regenerate the Module Overview in docs/architecture.md
+mise run lint-depgraph      # check that the Module Overview is up to date
+mise run depgraph-ascii     # print the module dependency graph as ASCII art
+mise run depgraph-mermaid   # print the module dependency graph as mermaid
+mise run toc                # regenerate the tables of contents in the Markdown docs
+mise run lint-toc           # check that the tables of contents are up to date
 
-mise run install            # Sync .venv with uv.lock (rarely needed by hand — see below)
-mise run reinstall          # Delete .venv and sync from scratch
-mise run lint-lock-uv       # Check uv.lock is consistent with pyproject.toml
+mise run build              # build the sdist and wheel into an emptied dist/
+mise run build-verify       # fail if the built wheel carries the 0.0.0 fallback version
+mise run clean              # delete build artifacts and bytecode outside .venv
+
+mise run install            # sync .venv with uv.lock (rarely needed by hand — see below)
+mise run reinstall          # delete .venv and sync from scratch
+
+mise run demo-record        # record the demo to demo/demo.cast
+mise run demo-upload        # upload demo/demo.cast to asciinema.org
+mise run demo               # demo-record, then demo-upload
+mise run demo-upload-latest # upload the demo CI recorded (see Release Process)
+
+# ci-preflight, ci-build and ci-demo-record are what the workflows run.
 
 # Running tools directly
-uv run pytest tests/ -v                         # All tests
-uv run ruff format .                            # formatting
-uv run ruff check photree/ tests/                   # linting
-uv run pyright                                  # type-checking, strict, tests included
-uv run lint-imports                             # module boundaries
-uv run pytest tests/integration_fs/cli/test_cli.py::TestVersionCommand::test_version_flag -v   # run a single test
+uv run --no-sync pytest tests/ -v                         # all tests
+uv run --no-sync ruff format .                            # formatting
+uv run --no-sync ruff check photree/ tests/               # linting
+uv run --no-sync pyright                                  # type-checking, strict, tests included
+uv run --no-sync lint-imports                             # module boundaries
+uv run --no-sync pytest tests/integration_fs/cli/test_cli.py::TestVersionCommand::test_version_flag -v   # run a single test
 ```
 
-`uv run` is the prefix to use rather than a bare `pytest`/`ruff`. It resolves
-the environment from the project root, so it is correct regardless of what is on
-`PATH` — a bare command in a shell that has *another* project's `.venv` active
-silently runs that project's copy of the tool. The mise tasks above use
-`uv run --no-sync` for the same reason.
+`uv run --no-sync` is the prefix to use rather than a bare `pytest`/`ruff`, as
+the mise tasks do. `uv run` resolves the environment from the project root, so
+it is correct regardless of what is on `PATH` — a bare command in a shell that
+has *another* project's `.venv` active silently runs that project's copy of the
+tool. `--no-sync` leaves installing to the `[deps.uv]` provider below, so
+running a tool never changes `.venv`; any `mise run` creates `.venv` first if it
+is missing.
 
 Dependencies install themselves: `[deps.uv]` in `mise.toml` runs `uv sync`
 before any `mise run` whenever `uv.lock` or `pyproject.toml` has changed, or

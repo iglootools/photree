@@ -26,7 +26,7 @@
    `pyproject.toml` and `uv.lock` together. (`mise deps add` does not support
    uv.)
 
-   Run tools with `uv run <tool>` rather than bare — see
+   Run tools with `uv run --no-sync <tool>` rather than bare — see
    [Building and Testing](building-and-testing.md) for why that matters when
    more than one project's virtualenv is in play.
 
