@@ -9,14 +9,10 @@ from photree.album.importer.batch import (
 from photree.album.staging import ios_import_csv, ios_import_dir, std_import_dir
 from photree.foundation.linking import LinkMode
 from photree.foundation.metadata_io import InvalidMetadataError
+from tests.fakes import noop_convert
 
 SEL_DIR = ios_import_dir("main")
 SEL_CSV = ios_import_csv("main")
-
-
-def _noop_convert(_src: Path, _dst_dir: Path, *, dry_run: bool) -> Path | None:  # noqa: ARG001 - ConvertFile's signature
-    """No-op converter for tests (avoids calling sips on fake HEIC files)."""
-    return None
 
 
 def _setup_image_capture_dir(tmp_path: Path, filenames: list[str]) -> Path:
@@ -106,7 +102,7 @@ class TestBatchImport:
         result = run_batch_import(
             albums_dir=albums_dir,
             image_capture_dir=ic_dir,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         assert result.imported == 2
@@ -137,7 +133,7 @@ class TestBatchImport:
             album_dirs=[hardlinked, copied],
             image_capture_dir=ic_dir,
             link_mode_for=link_modes.__getitem__,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         assert result.imported == 2
@@ -162,7 +158,7 @@ class TestBatchImport:
             album_dirs=[broken, healthy],
             image_capture_dir=ic_dir,
             link_mode_for=link_mode_for,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         assert result.imported == 1
@@ -178,7 +174,7 @@ class TestBatchImport:
             albums_dir=albums_dir,
             image_capture_dir=ic_dir,
             dry_run=True,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         assert result.imported == 1
@@ -193,7 +189,7 @@ class TestBatchImport:
         result = run_batch_import(
             albums_dir=albums_dir,
             image_capture_dir=ic_dir,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         assert result.imported == 0
@@ -210,7 +206,7 @@ class TestBatchImport:
         result = run_batch_import(
             album_dirs=[album_a, album_b],
             image_capture_dir=ic_dir,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         assert result.imported == 2
@@ -234,7 +230,7 @@ class TestBatchImport:
             albums_dir=albums_dir,
             image_capture_dir=ic_dir,
             on_validation_error=lambda name, _errs: validation_errors.append(name),
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         assert result.imported == 0
@@ -262,7 +258,7 @@ class TestBatchImport:
         result = run_batch_import(
             albums_dir=albums_dir,
             image_capture_dir=ic_dir,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         assert result.refused
@@ -295,7 +291,7 @@ class TestBatchImport:
             albums_dir=albums_dir,
             image_capture_dir=ic_dir,
             on_skipped=on_skipped,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         assert result.imported == 0
@@ -340,7 +336,7 @@ class TestBatchImportCsv:
         result = run_batch_import(
             albums_dir=albums_dir,
             image_capture_dir=ic_dir,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         assert result.imported == 1

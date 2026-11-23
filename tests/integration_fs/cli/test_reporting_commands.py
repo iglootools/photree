@@ -17,29 +17,17 @@ from photree.collection.store.protocol import (
     CollectionMembers,
     CollectionMetadata,
 )
-from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 from photree.foundation.linking import LinkMode
 from tests.fakes import invoke_cli
-
-
-def _write(path: Path, content: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-
-
-def _setup_gallery(tmp_path: Path) -> Path:
-    gallery = tmp_path / "gallery"
-    gallery.mkdir()
-    save_gallery_metadata(gallery, GalleryMetadata(faces_enabled=False))
-    return gallery
+from tests.testkit import make_gallery, write_file
 
 
 def _setup_album(base_dir: Path, name: str) -> Path:
     """Create an album with one iOS picture and its browsable copy and JPEG."""
     album_dir = base_dir / name
-    _write(album_dir / "ios-main" / "orig-img" / "IMG_0001.HEIC", "x" * 2048)
-    _write(album_dir / "main-img" / "IMG_0001.HEIC", "x" * 2048)
-    _write(album_dir / "main-jpg" / "IMG_0001.jpg", "y" * 512)
+    write_file(album_dir / "ios-main" / "orig-img" / "IMG_0001.HEIC", "x" * 2048)
+    write_file(album_dir / "main-img" / "IMG_0001.HEIC", "x" * 2048)
+    write_file(album_dir / "main-jpg" / "IMG_0001.jpg", "y" * 512)
     save_album_metadata(album_dir, AlbumMetadata(id=generate_album_id()))
     return album_dir
 
@@ -83,7 +71,7 @@ class TestEmptyCsvListings:
         notice: str,
         header: str,
     ) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path, faces_enabled=False)
 
         result = invoke_cli(
             ["gallery", command, "--format", "csv", "--gallery-dir", str(gallery)],
@@ -102,7 +90,7 @@ class TestEmptyCsvListings:
         notice: str,
         header: str,
     ) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path, faces_enabled=False)
         out = tmp_path / "out.csv"
 
         result = invoke_cli(
@@ -134,9 +122,9 @@ class _Gallery:
 @pytest.fixture
 def gallery(tmp_path: Path) -> _Gallery:
     """Build a gallery holding one refreshed std album and a collection of it."""
-    root = _setup_gallery(tmp_path)
+    root = make_gallery(tmp_path, faces_enabled=False)
     album = root / "albums" / "2024" / "2024-06-15 - Hiking"
-    _write(album / "std-main" / "orig-img" / "DSC_0001.jpg", "x" * 3000)
+    write_file(album / "std-main" / "orig-img" / "DSC_0001.jpg", "x" * 3000)
     album_id = generate_album_id()
     save_album_metadata(album, AlbumMetadata(id=album_id))
     refresh_album_derived_data(album, link_mode=LinkMode.HARDLINK)

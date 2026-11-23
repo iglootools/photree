@@ -1,8 +1,9 @@
 # Testing
 
 How photree's tests get what they need without patching: its deciders, the CLI
-runtime and the shared fakes. Read it before writing a test, or adding a
-parameter a test needs to control. The patching exceptions are listed in
+runtime, the shared fakes and factories. Read it before writing a test, or
+adding a parameter a test needs to control. The patching exceptions are listed
+in
 [guidelines.md › Tests](../guidelines.md#tests).
 
 - **Deciders**, such as `import_problems` (album import), `import_failure_of`
@@ -30,3 +31,8 @@ parameter a test needs to control. The patching exceptions are listed in
   binaries installed, a home that does not exist, an empty environment, no
   config file), `ALL_DEPS_RUNTIME`, `invoke_cli`, `fake_which`, and
   `fake_album_runtime(*present, run_import=..., refresh=...)`.
+- **Factories**, in `tests/testkit.py`: the files, albums and galleries a
+  test sets up (`write_file`, `write_files`, `make_album`, `make_gallery`,
+  `make_gallery_album`, …). Add a parameter to one rather than copying it
+  into a test module; a module keeps its own helper only for a setup no other
+  test shares.

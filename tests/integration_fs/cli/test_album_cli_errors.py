@@ -32,6 +32,7 @@ from photree.foundation.linking import LinkMode
 from photree.foundation.metadata_io import InvalidMetadataError
 from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 from tests.fakes import fake_album_runtime, invoke_cli
+from tests.testkit import write_file
 
 _TRUNCATED_YAML = "id: [0192d4e1"
 
@@ -43,15 +44,10 @@ def _empty_config(tmp_path: Path) -> Path:
     return config
 
 
-def _write(path: Path, content: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-
-
 def _corrupt_album(tmp_path: Path) -> Path:
     album = tmp_path / "2024-07-14 - Trip"
-    _write(album / "ios-main/orig-img/IMG_0001.HEIC")
-    _write(album / ".photree/album.yaml", _TRUNCATED_YAML)
+    write_file(album / "ios-main/orig-img/IMG_0001.HEIC")
+    write_file(album / ".photree/album.yaml", _TRUNCATED_YAML)
     return album
 
 
@@ -112,7 +108,7 @@ def test_rm_media_without_files_exits_2(tmp_path: Path) -> None:
 
 
 def test_rm_upstream_refusal_suggests_force(tmp_path: Path) -> None:
-    _write(tmp_path / "std-nelu/orig-vid/clip.mov")
+    write_file(tmp_path / "std-nelu/orig-vid/clip.mov")
     (tmp_path / "nelu-vid").mkdir()
 
     result = invoke_cli(["album", "fix", "--rm-upstream", "--album-dir", str(tmp_path)])
@@ -127,7 +123,7 @@ def test_rm_media_error_uses_relative_path(
     chdir: Callable[[Path], None],
 ) -> None:
     album = tmp_path / "album"
-    _write(album / "ios-main/orig-img/IMG_0001.HEIC")
+    write_file(album / "ios-main/orig-img/IMG_0001.HEIC")
     chdir(tmp_path)
 
     result = invoke_cli(
@@ -143,8 +139,8 @@ def test_rm_media_error_uses_relative_path(
 
 def test_media_source_conflict_is_reported_by_check(tmp_path: Path) -> None:
     album = tmp_path / "2024-07-14 - Trip"
-    _write(album / "ios-main/orig-img/IMG_0001.HEIC")
-    _write(album / "std-main/orig-img/DSC_0001.JPG")
+    write_file(album / "ios-main/orig-img/IMG_0001.HEIC")
+    write_file(album / "std-main/orig-img/DSC_0001.JPG")
 
     result = invoke_cli(["album", "check", "--album-dir", str(album)])
 
@@ -174,7 +170,7 @@ def test_list_media_rejects_unknown_format(tmp_path: Path) -> None:
 
 def test_show_uses_indented_details(tmp_path: Path) -> None:
     album = tmp_path / "2024-07-14 - 01 - Trip @ Banff"
-    _write(album / "ios-main/orig-img/IMG_0001.HEIC")
+    write_file(album / "ios-main/orig-img/IMG_0001.HEIC")
 
     result = invoke_cli(["album", "show", "--album-dir", str(album)])
 
@@ -187,9 +183,9 @@ def test_show_uses_indented_details(tmp_path: Path) -> None:
 def test_export_unplaceable_name_is_reported(tmp_path: Path) -> None:
     """A name the share layout cannot place is an error, not a traceback."""
     album = tmp_path / "2024 - Family"
-    _write(album / "main-jpg/IMG_0001.jpg")
+    write_file(album / "main-jpg/IMG_0001.jpg")
     share = tmp_path / "share"
-    _write(share / SHARE_SENTINEL, "")
+    write_file(share / SHARE_SENTINEL, "")
 
     result = invoke_cli(
         [
@@ -214,7 +210,7 @@ def test_export_unplaceable_name_is_reported(tmp_path: Path) -> None:
 
 def _std_staged_album(tmp_path: Path) -> Path:
     album = tmp_path / "2024-07-14 - Trip"
-    _write(album / "to-import-std-nelu/orig/DSC_0001.JPG")
+    write_file(album / "to-import-std-nelu/orig/DSC_0001.JPG")
     return album
 
 
@@ -263,8 +259,8 @@ def test_import_refuses_date_collision_with_sibling(tmp_path: Path) -> None:
     """Album import runs the same light check as gallery import."""
     album = _std_staged_album(tmp_path)
     sibling = tmp_path / "2024-07-14 - Dinner"
-    _write(sibling / "std-main/orig-img/DSC_0002.JPG")
-    _write(
+    write_file(sibling / "std-main/orig-img/DSC_0002.JPG")
+    write_file(
         sibling / ".photree/album.yaml",
         "id: 0192d4e1-7c3f-7b4a-8c5e-f6a7b8c9d0e1\n",
     )
@@ -306,7 +302,7 @@ def test_entry_point_reports_media_source_conflict(
 
 def _emptied_std_album(tmp_path: Path) -> Path:
     album = tmp_path / "2024-07-14 - Trip"
-    _write(album / "std-nelu/orig-vid/clip.mov")
+    write_file(album / "std-nelu/orig-vid/clip.mov")
     (album / "nelu-vid").mkdir()
     return album
 
@@ -331,7 +327,7 @@ def test_albums_fix_rm_upstream_refusal_then_force(tmp_path: Path) -> None:
 
 def _album_with_id(parent: Path, name: str) -> tuple[Path, str]:
     album = parent / name
-    _write(album / "ios-main/orig-img/IMG_0001.HEIC")
+    write_file(album / "ios-main/orig-img/IMG_0001.HEIC")
     album_id = generate_album_id()
     save_album_metadata(album, AlbumMetadata(id=album_id))
     return album, album_id
@@ -384,7 +380,7 @@ def test_export_missing_sentinel_suggests_quoted_relative_touch(
     chdir: Callable[[Path], None],
 ) -> None:
     album = tmp_path / "2024-07-14 - Trip"
-    _write(album / "main-jpg/IMG_0001.jpg")
+    write_file(album / "main-jpg/IMG_0001.jpg")
     (tmp_path / "my share").mkdir()
     chdir(tmp_path)
 

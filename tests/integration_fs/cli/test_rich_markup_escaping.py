@@ -35,18 +35,14 @@ from photree.common.formatting import CHECK, markup_escape
 from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 from photree.foundation.linking import LinkMode
 from tests.fakes import invoke_cli
+from tests.testkit import write_file
 
 PRIVATE_ALBUM = "2024-07-14 - Hiking [private]"
 
 
-def _write(path: Path, content: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-
-
 def _album(base: Path, name: str, *, with_id: bool = True) -> Path:
     album = base / name
-    _write(album / "ios-main" / "orig-img" / "IMG_0001.HEIC")
+    write_file(album / "ios-main" / "orig-img" / "IMG_0001.HEIC")
     if with_id:
         save_album_metadata(album, AlbumMetadata(id=generate_album_id()))
     return album
@@ -149,7 +145,7 @@ class TestAlbumCheck:
     ) -> None:
         album = _album(tmp_path, PRIVATE_ALBUM)
         # A second media source makes every media line carry a "[name] " prefix.
-        _write(album / "std-nelu" / "orig-img" / "DSC_0001.JPG")
+        write_file(album / "std-nelu" / "orig-img" / "DSC_0001.JPG")
         chdir(tmp_path)
 
         result = invoke_cli(
@@ -186,10 +182,10 @@ class TestGalleryImport:
         gallery = _gallery(tmp_path)
         album_id = generate_album_id()
         target = gallery / "albums" / "2024" / PRIVATE_ALBUM
-        _write(target / "ios-main" / "orig-img" / "IMG_0001.HEIC")
+        write_file(target / "ios-main" / "orig-img" / "IMG_0001.HEIC")
         save_album_metadata(target, AlbumMetadata(id=album_id))
         source = tmp_path / "src" / PRIVATE_ALBUM
-        _write(source / "ios-main" / "orig-img" / "IMG_0001.HEIC")
+        write_file(source / "ios-main" / "orig-img" / "IMG_0001.HEIC")
         save_album_metadata(source, AlbumMetadata(id=album_id))
 
         result = invoke_cli(

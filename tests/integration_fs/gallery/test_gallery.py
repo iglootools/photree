@@ -12,8 +12,6 @@ from photree.album.id import (
 )
 from photree.album.naming import parse_album_name
 from photree.album.stats.testkit import ALBUMS_STATS
-from photree.album.store.metadata import save_album_metadata
-from photree.album.store.protocol import AlbumMetadata
 from photree.albums.index import (
     AlbumIdNotFoundError,
     build_album_index,
@@ -23,37 +21,7 @@ from photree.albums.renamer import RenamePlanErrorKind, plan_renames_from_csv
 from photree.foundation.metadata_io import InvalidMetadataError
 from photree.gallery.index import build_album_id_to_path_index
 from photree.gallery.stats import compute_gallery_stats
-
-
-def _write(path: Path, content: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-
-
-def _mark_album(album_dir: Path, album_id: str | None = None) -> str:
-    """Create .photree/album.yaml with a generated (or given) ID. Returns the ID."""
-    aid = album_id if album_id is not None else generate_album_id()
-    save_album_metadata(album_dir, AlbumMetadata(id=aid))
-    return aid
-
-
-def _setup_media_source(album_dir: Path) -> None:
-    """Create a minimal iOS media source so the album is detected."""
-    _write(album_dir / "ios-main" / "orig-img" / "IMG_0001.HEIC")
-    (album_dir / "main-img").mkdir(parents=True, exist_ok=True)
-    (album_dir / "main-jpg").mkdir(parents=True, exist_ok=True)
-
-
-def _setup_album(
-    base_dir: Path,
-    name: str,
-    album_id: str | None = None,
-) -> tuple[Path, str]:
-    """Create a complete album directory. Returns (path, album_id)."""
-    album_dir = base_dir / name
-    _setup_media_source(album_dir)
-    aid = _mark_album(album_dir, album_id)
-    return (album_dir, aid)
+from tests.testkit import add_ios_media_source, make_album
 
 
 def _albums_dir(gallery: Path) -> Path:
@@ -70,15 +38,15 @@ class TestBuildAlbumIdToPathIndex:
         assert index.duplicates == {}
 
     def test_single_album(self, tmp_path: Path) -> None:
-        album_dir, aid = _setup_album(_albums_dir(tmp_path), "2024-06-15 - Trip")
+        album_dir, aid = make_album(_albums_dir(tmp_path), "2024-06-15 - Trip")
         index = build_album_id_to_path_index(tmp_path)
         assert index.id_to_path == {aid: album_dir}
         assert index.duplicates == {}
 
     def test_multiple_albums(self, tmp_path: Path) -> None:
         albums = _albums_dir(tmp_path)
-        _, aid1 = _setup_album(albums, "2024-06-15 - Trip")
-        _, aid2 = _setup_album(albums, "2024-07-20 - Vacation")
+        _, aid1 = make_album(albums, "2024-06-15 - Trip")
+        _, aid2 = make_album(albums, "2024-07-20 - Vacation")
         index = build_album_id_to_path_index(tmp_path)
         assert len(index.id_to_path) == 2
         assert aid1 in index.id_to_path
@@ -87,12 +55,12 @@ class TestBuildAlbumIdToPathIndex:
 
     def test_album_without_metadata_raises(self, tmp_path: Path) -> None:
         albums = _albums_dir(tmp_path)
-        _setup_album(albums, "2024-06-15 - Good Album")
+        make_album(albums, "2024-06-15 - Good Album")
 
         # An empty album.yaml is corrupt, not absent: it must raise rather
         # than be reported (and later "fixed") as a missing ID.
         broken = albums / "2024-07-01 - Broken"
-        _setup_media_source(broken)
+        add_ios_media_source(broken)
         photree_dir = broken / ".photree"
         photree_dir.mkdir(parents=True, exist_ok=True)
         (photree_dir / "album.yaml").write_text("")
@@ -104,8 +72,8 @@ class TestBuildAlbumIdToPathIndex:
     def test_duplicate_ids_detected(self, tmp_path: Path) -> None:
         albums = _albums_dir(tmp_path)
         shared_id = generate_album_id()
-        dir1, _ = _setup_album(albums, "2024-06-15 - A", album_id=shared_id)
-        dir2, _ = _setup_album(albums, "2024-06-16 - B", album_id=shared_id)
+        dir1, _ = make_album(albums, "2024-06-15 - A", album_id=shared_id)
+        dir2, _ = make_album(albums, "2024-06-16 - B", album_id=shared_id)
         index = build_album_id_to_path_index(tmp_path)
         assert shared_id in index.duplicates
         assert set(index.duplicates[shared_id]) == {dir1, dir2}
@@ -115,7 +83,7 @@ class TestBuildAlbumIdToPathIndex:
     def test_nested_album_directories(self, tmp_path: Path) -> None:
         year_dir = tmp_path / "albums" / "2024"
         year_dir.mkdir(parents=True)
-        _, aid = _setup_album(year_dir, "2024-06-15 - Nested")
+        _, aid = make_album(year_dir, "2024-06-15 - Nested")
         index = build_album_id_to_path_index(tmp_path)
         assert aid in index.id_to_path
 
@@ -127,16 +95,16 @@ class TestBuildAlbumIndex:
         assert index.duplicates == {}
 
     def test_builds_index_from_list(self, tmp_path: Path) -> None:
-        dir1, aid1 = _setup_album(tmp_path, "2024-06-15 - Trip")
-        dir2, aid2 = _setup_album(tmp_path, "2024-07-20 - Vacation")
+        dir1, aid1 = make_album(tmp_path, "2024-06-15 - Trip")
+        dir2, aid2 = make_album(tmp_path, "2024-07-20 - Vacation")
         index = build_album_index([dir1, dir2])
         assert index.id_to_path == {aid1: dir1, aid2: dir2}
         assert index.duplicates == {}
 
     def test_missing_metadata_raises(self, tmp_path: Path) -> None:
-        good_dir, _ = _setup_album(tmp_path, "2024-06-15 - Good")
+        good_dir, _ = make_album(tmp_path, "2024-06-15 - Good")
         broken = tmp_path / "2024-07-01 - Broken"
-        _setup_media_source(broken)
+        add_ios_media_source(broken)
         photree_dir = broken / ".photree"
         photree_dir.mkdir(parents=True, exist_ok=True)
         (photree_dir / "album.yaml").write_text("")
@@ -149,19 +117,19 @@ class TestBuildAlbumIndex:
 class TestResolveAlbumPathById:
     def test_resolves_by_internal_id_from_external(self, tmp_path: Path) -> None:
         """External ID → parse to internal → resolve."""
-        dir1, aid1 = _setup_album(tmp_path, "2024-06-15 - Trip")
+        dir1, aid1 = make_album(tmp_path, "2024-06-15 - Trip")
         index = build_album_index([dir1])
         external_id = format_album_external_id(aid1)
         internal_id = parse_external_id(external_id, ALBUM_ID_PREFIX)
         assert resolve_album_path_by_id(index.id_to_path, internal_id) == dir1
 
     def test_resolves_by_internal_id(self, tmp_path: Path) -> None:
-        dir1, aid1 = _setup_album(tmp_path, "2024-06-15 - Trip")
+        dir1, aid1 = make_album(tmp_path, "2024-06-15 - Trip")
         index = build_album_index([dir1])
         assert resolve_album_path_by_id(index.id_to_path, aid1) == dir1
 
     def test_raises_for_unknown_id(self, tmp_path: Path) -> None:
-        dir1, _ = _setup_album(tmp_path, "2024-06-15 - Trip")
+        dir1, _ = make_album(tmp_path, "2024-06-15 - Trip")
         index = build_album_index([dir1])
         unknown = format_album_external_id(generate_album_id())
         with pytest.raises(AlbumIdNotFoundError) as info:
@@ -171,8 +139,8 @@ class TestResolveAlbumPathById:
 
 class TestPlanRenamesFromCsv:
     def _make_index(self, tmp_path: Path) -> dict[str, Path]:
-        dir1, aid1 = _setup_album(tmp_path, "2024-06-15 - Trip to Paris")
-        dir2, aid2 = _setup_album(tmp_path, "2024-07-20 - Beach Vacation")
+        dir1, aid1 = make_album(tmp_path, "2024-06-15 - Trip to Paris")
+        dir2, aid2 = make_album(tmp_path, "2024-07-20 - Beach Vacation")
         return {aid1: dir1, aid2: dir2}
 
     def test_plans_rename_when_title_changes(self, tmp_path: Path) -> None:

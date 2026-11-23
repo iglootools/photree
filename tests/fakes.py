@@ -187,6 +187,11 @@ class FakeExifTool:
         ]
 
 
+def noop_convert(_src: Path, _dst_dir: Path, *, dry_run: bool) -> Path | None:  # noqa: ARG001 - ConvertFile's signature
+    """Convert nothing: a ``ConvertFile`` that keeps ``sips`` off fake HEIC files."""
+    return None
+
+
 def copy_convert_single(src: Path, dst_dir: Path, *, dry_run: bool) -> Path | None:
     """
     Copy each file as-is under its JPEG name, as a ``ConvertFile`` without ``sips``.

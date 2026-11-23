@@ -6,11 +6,6 @@ from photree.album.jpeg import noop_convert_single
 from photree.album.refresh import AlbumRefreshResult
 from photree.album.store.media_metadata import load_media_metadata
 from photree.album.store.metadata import load_album_metadata
-from photree.foundation.gallery_metadata import (
-    GalleryMetadata,
-    save_gallery_metadata,
-)
-from photree.foundation.linking import LinkMode
 from photree.gallery.importer import (
     TargetExistsError,
     compute_target_dir,
@@ -18,6 +13,7 @@ from photree.gallery.importer import (
     reimport_album,
     swap_into_place,
 )
+from tests.testkit import make_gallery, write_file
 
 
 def _album_id(album_dir: Path) -> str:
@@ -26,22 +22,10 @@ def _album_id(album_dir: Path) -> str:
     return metadata.id
 
 
-def _write(path: Path, content: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-
-
-def _setup_gallery(tmp_path: Path) -> Path:
-    gallery = tmp_path / "gallery"
-    gallery.mkdir()
-    save_gallery_metadata(gallery, GalleryMetadata(link_mode=LinkMode.HARDLINK))
-    return gallery
-
-
 def _setup_ios_album(album: Path) -> None:
-    _write(album / "ios-main/orig-img/IMG_0001.HEIC", "heic-data")
-    _write(album / "main-img/IMG_0001.HEIC", "heic-data")
-    _write(album / "main-jpg/IMG_0001.jpg", "jpg-data")
+    write_file(album / "ios-main/orig-img/IMG_0001.HEIC", "heic-data")
+    write_file(album / "main-img/IMG_0001.HEIC", "heic-data")
+    write_file(album / "main-jpg/IMG_0001.jpg", "jpg-data")
     (album / "ios-main/orig-vid").mkdir(parents=True, exist_ok=True)
     (album / "main-vid").mkdir(parents=True, exist_ok=True)
 
@@ -55,7 +39,7 @@ def _uuid_for_key(target: Path, key: str) -> str | None:
 
 def _first_import(tmp_path: Path) -> tuple[Path, Path, Path]:
     """Import a minimal album. Returns (gallery, source, target)."""
-    gallery = _setup_gallery(tmp_path)
+    gallery = make_gallery(tmp_path)
     source = tmp_path / "2024-07-14 - Hiking"
     _setup_ios_album(source)
     result = import_album(
@@ -80,8 +64,8 @@ class TestReimportAlbum:
         original_id = _album_id(target)
         uuid_0001 = _uuid_for_key(target, "0001")
 
-        _write(source / "ios-main/orig-img/IMG_0002.HEIC", "heic2")
-        _write(source / "main-img/IMG_0002.HEIC", "heic2")
+        write_file(source / "ios-main/orig-img/IMG_0002.HEIC", "heic2")
+        write_file(source / "main-img/IMG_0002.HEIC", "heic2")
 
         reimport_album(
             source_dir=source,
@@ -100,8 +84,8 @@ class TestReimportAlbum:
 
     def test_prunes_removed_files(self, tmp_path: Path) -> None:
         gallery, source, target = _first_import(tmp_path)
-        _write(source / "ios-main/orig-img/IMG_0002.HEIC", "heic2")
-        _write(source / "main-img/IMG_0002.HEIC", "heic2")
+        write_file(source / "ios-main/orig-img/IMG_0002.HEIC", "heic2")
+        write_file(source / "main-img/IMG_0002.HEIC", "heic2")
         reimport_album(
             source_dir=source,
             gallery_dir=gallery,
@@ -126,8 +110,8 @@ class TestReimportAlbum:
     def test_drops_stale_browsable_files(self, tmp_path: Path) -> None:
         gallery, source, target = _first_import(tmp_path)
         # Add a file directly to the gallery copy that is absent from source.
-        _write(target / "ios-main/orig-img/IMG_0099.HEIC", "stale")
-        _write(target / "main-img/IMG_0099.HEIC", "stale")
+        write_file(target / "ios-main/orig-img/IMG_0099.HEIC", "stale")
+        write_file(target / "main-img/IMG_0099.HEIC", "stale")
 
         reimport_album(
             source_dir=source,
@@ -143,7 +127,7 @@ class TestReimportAlbum:
     def test_atomic_on_refresh_failure(self, tmp_path: Path) -> None:
         gallery, source, target = _first_import(tmp_path)
         original_id = _album_id(target)
-        _write(source / "ios-main/orig-img/IMG_0002.HEIC", "heic2")
+        write_file(source / "ios-main/orig-img/IMG_0002.HEIC", "heic2")
 
         with pytest.raises(_RefreshFailedError):
             reimport_album(
@@ -163,7 +147,7 @@ class TestReimportAlbum:
 
     def test_dry_run_mutates_nothing(self, tmp_path: Path) -> None:
         gallery, source, target = _first_import(tmp_path)
-        _write(source / "ios-main/orig-img/IMG_0002.HEIC", "heic2")
+        write_file(source / "ios-main/orig-img/IMG_0002.HEIC", "heic2")
 
         reimport_album(
             source_dir=source,
@@ -201,7 +185,7 @@ class TestReimportAlbum:
         """Regression: the live album was moved aside, then the swap failed."""
         gallery, source, target = _first_import(tmp_path)
         occupied = compute_target_dir(gallery, "2024-07-14 - Hiking the Rockies")
-        _write(occupied / "ios-main/orig-img/IMG_0009.HEIC", "other album")
+        write_file(occupied / "ios-main/orig-img/IMG_0009.HEIC", "other album")
         renamed = source.parent / occupied.name
         source.rename(renamed)
 
@@ -221,12 +205,12 @@ class TestReimportAlbum:
 class TestSwapIntoPlace:
     def test_restores_live_album_when_final_rename_fails(self, tmp_path: Path) -> None:
         existing = tmp_path / "albums" / "2024" / "2024-07-14 - Hiking"
-        _write(existing / "live.txt", "live")
+        write_file(existing / "live.txt", "live")
         staging = tmp_path / "albums" / "2024" / ".2024-07-14 - Hiking.reimport"
-        _write(staging / "new.txt", "new")
+        write_file(staging / "new.txt", "new")
         # A non-empty directory at the target makes the final rename fail.
         target = tmp_path / "albums" / "2024" / "2024-07-14 - Renamed"
-        _write(target / "occupant.txt", "occupant")
+        write_file(target / "occupant.txt", "occupant")
 
         with pytest.raises(OSError):  # noqa: PT011 - rename's own error; errno and text vary by OS
             swap_into_place(existing, staging, target)

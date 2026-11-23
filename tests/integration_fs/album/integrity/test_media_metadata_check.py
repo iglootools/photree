@@ -16,19 +16,15 @@ from photree.album.store.media_metadata import (
 from photree.album.store.media_sources_discovery import discover_media_sources
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
-
-
-def _write(path: Path, content: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
+from tests.testkit import write_file
 
 
 def _setup_ios_album(album_dir: Path) -> None:
     album_dir.mkdir(parents=True, exist_ok=True)
     save_album_metadata(album_dir, AlbumMetadata(id=generate_album_id()))
-    _write(album_dir / "ios-main" / "orig-img" / "IMG_0410.HEIC")
-    _write(album_dir / "ios-main" / "orig-img" / "IMG_0411.HEIC")
-    _write(album_dir / "ios-main" / "orig-vid" / "IMG_0115.MOV")
+    write_file(album_dir / "ios-main" / "orig-img" / "IMG_0410.HEIC")
+    write_file(album_dir / "ios-main" / "orig-img" / "IMG_0411.HEIC")
+    write_file(album_dir / "ios-main" / "orig-vid" / "IMG_0115.MOV")
     (album_dir / "main-img").mkdir(parents=True, exist_ok=True)
     (album_dir / "main-jpg").mkdir(parents=True, exist_ok=True)
 
@@ -73,7 +69,7 @@ class TestMediaMetadataCheckNewFiles:
         _setup_ios_album(album)
         refresh_media_metadata(album)
 
-        _write(album / "ios-main" / "orig-img" / "IMG_0412.HEIC")
+        write_file(album / "ios-main" / "orig-img" / "IMG_0412.HEIC")
 
         result = check_media_metadata(
             album,
@@ -89,7 +85,7 @@ class TestMediaMetadataCheckNewFiles:
         _setup_ios_album(album)
         refresh_media_metadata(album)
 
-        _write(album / "ios-main" / "orig-vid" / "IMG_0200.MOV")
+        write_file(album / "ios-main" / "orig-vid" / "IMG_0200.MOV")
 
         result = check_media_metadata(
             album,
@@ -209,7 +205,7 @@ class TestMediaMetadataCheckStaleMediaSource:
     ) -> None:
         album = tmp_path / "album"
         _setup_ios_album(album)
-        _write(album / "std-nelu" / "orig-img" / "sunset.jpg")
+        write_file(album / "std-nelu" / "orig-img" / "sunset.jpg")
         save_media_metadata(
             album,
             MediaMetadata(

@@ -12,17 +12,13 @@ from photree.album.store.media_metadata import (
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.albums.media_index import find_duplicate_media_ids
-
-
-def _write(path: Path, content: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
+from tests.testkit import write_file
 
 
 def _setup_ios_album(album_dir: Path) -> None:
     album_dir.mkdir(parents=True, exist_ok=True)
     save_album_metadata(album_dir, AlbumMetadata(id=generate_album_id()))
-    _write(album_dir / "ios-main" / "orig-img" / "IMG_0410.HEIC")
+    write_file(album_dir / "ios-main" / "orig-img" / "IMG_0410.HEIC")
     (album_dir / "main-img").mkdir(parents=True, exist_ok=True)
     (album_dir / "main-jpg").mkdir(parents=True, exist_ok=True)
 

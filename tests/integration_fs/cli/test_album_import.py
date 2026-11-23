@@ -6,17 +6,13 @@ from photree.album.importer.album_import import AlbumImportResult
 from photree.album.importer.image_capture import ImportPlan, IosSourceImportResult
 from photree.common.sysdeps import SystemDependency
 from tests.fakes import fake_album_runtime, invoke_cli
-
-
-def _write(path: Path, content: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
+from tests.testkit import write_file
 
 
 def _std_staged_album(tmp_path: Path, *files: str) -> Path:
     album = tmp_path / "2024-07-14 - Trip"
     for f in files:
-        _write(album / "to-import-std-nelu/orig" / f)
+        write_file(album / "to-import-std-nelu/orig" / f)
     return album
 
 
@@ -86,8 +82,8 @@ class TestAlbumImport:
 
     def test_failed_image_capture_check_points_to_force(self, tmp_path: Path) -> None:
         album = tmp_path / "2024-07-14 - Trip"
-        _write(album / "to-import-ios-main/IMG_0001.HEIC")
-        _write(tmp_path / "ic/notes.txt")
+        write_file(album / "to-import-ios-main/IMG_0001.HEIC")
+        write_file(tmp_path / "ic/notes.txt")
         (tmp_path / "ic/backup").mkdir()
 
         invoked = invoke_cli(

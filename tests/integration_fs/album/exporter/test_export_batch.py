@@ -7,21 +7,15 @@ from photree.album.exporter.batch import (
 from photree.album.store.media_source import MAIN_MEDIA_SOURCE
 from photree.foundation.linking import LinkMode
 from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
-
-
-def _setup_dir(path: Path, filenames: list[str]) -> Path:
-    path.mkdir(parents=True, exist_ok=True)
-    for name in filenames:
-        (path / name).write_text(f"data-{name}")
-    return path
+from tests.testkit import write_files
 
 
 def _setup_ios_album(album_dir: Path) -> Path:
-    _setup_dir(album_dir / MAIN_MEDIA_SOURCE.orig_img_dir, ["IMG_0001.HEIC"])
-    _setup_dir(album_dir / MAIN_MEDIA_SOURCE.img_dir, ["IMG_0001.HEIC"])
-    _setup_dir(album_dir / MAIN_MEDIA_SOURCE.jpg_dir, ["IMG_0001.JPEG"])
-    _setup_dir(album_dir / MAIN_MEDIA_SOURCE.orig_vid_dir, ["IMG_0010.MOV"])
-    _setup_dir(album_dir / MAIN_MEDIA_SOURCE.vid_dir, ["IMG_0010.MOV"])
+    write_files(album_dir / MAIN_MEDIA_SOURCE.orig_img_dir, ["IMG_0001.HEIC"])
+    write_files(album_dir / MAIN_MEDIA_SOURCE.img_dir, ["IMG_0001.HEIC"])
+    write_files(album_dir / MAIN_MEDIA_SOURCE.jpg_dir, ["IMG_0001.JPEG"])
+    write_files(album_dir / MAIN_MEDIA_SOURCE.orig_vid_dir, ["IMG_0010.MOV"])
+    write_files(album_dir / MAIN_MEDIA_SOURCE.vid_dir, ["IMG_0010.MOV"])
     return album_dir
 
 
@@ -30,7 +24,7 @@ class TestFindExportDirs:
         base = tmp_path / "albums"
         base.mkdir()
         _setup_ios_album(base / "ios-trip")
-        _setup_dir(base / "other-trip", ["photo.jpg"])
+        write_files(base / "other-trip", ["photo.jpg"])
 
         albums = find_export_dirs(base)
 
@@ -115,7 +109,7 @@ class TestBatchExport:
         base = tmp_path / "albums"
         base.mkdir()
         _setup_ios_album(base / "ios-album")
-        _setup_dir(base / "plain-album", ["photo.jpg"])
+        write_files(base / "plain-album", ["photo.jpg"])
         share_dir = tmp_path / "share"
         share_dir.mkdir()
 

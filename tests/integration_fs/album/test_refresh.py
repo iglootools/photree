@@ -7,27 +7,23 @@ from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.foundation.linking import LinkMode
 from tests.fakes import FakeExifTool
-
-
-def _write(path: Path, content: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
+from tests.testkit import write_file
 
 
 def _setup_ios_album(album_dir: Path) -> None:
     album_dir.mkdir(parents=True, exist_ok=True)
     save_album_metadata(album_dir, AlbumMetadata(id=generate_album_id()))
-    _write(album_dir / "ios-main" / "orig-img" / "IMG_0410.HEIC")
-    _write(album_dir / "ios-main" / "orig-img" / "IMG_0411.HEIC")
-    _write(album_dir / "ios-main" / "orig-vid" / "IMG_0115.MOV")
+    write_file(album_dir / "ios-main" / "orig-img" / "IMG_0410.HEIC")
+    write_file(album_dir / "ios-main" / "orig-img" / "IMG_0411.HEIC")
+    write_file(album_dir / "ios-main" / "orig-vid" / "IMG_0115.MOV")
     (album_dir / "main-img").mkdir(parents=True, exist_ok=True)
     (album_dir / "main-jpg").mkdir(parents=True, exist_ok=True)
 
 
 def _setup_std_album(album_dir: Path, name: str = "nelu") -> None:
-    _write(album_dir / f"std-{name}" / "orig-img" / "DSC_1234.JPG")
-    _write(album_dir / f"std-{name}" / "orig-img" / "DSC_5678.JPG")
-    _write(album_dir / f"std-{name}" / "orig-vid" / "VID_001.MOV")
+    write_file(album_dir / f"std-{name}" / "orig-img" / "DSC_1234.JPG")
+    write_file(album_dir / f"std-{name}" / "orig-img" / "DSC_5678.JPG")
+    write_file(album_dir / f"std-{name}" / "orig-vid" / "VID_001.MOV")
     (album_dir / f"{name}-img").mkdir(parents=True, exist_ok=True)
     (album_dir / f"{name}-jpg").mkdir(parents=True, exist_ok=True)
 
@@ -127,7 +123,7 @@ class TestRefreshNewFiles:
         assert meta_before is not None
         uuids_before = set(meta_before.media_sources["main"].images.keys())
 
-        _write(album / "ios-main" / "orig-img" / "IMG_0412.HEIC")
+        write_file(album / "ios-main" / "orig-img" / "IMG_0412.HEIC")
 
         result = refresh_media_metadata(album)
         _, ms_result = result.by_media_source[0]
@@ -170,7 +166,7 @@ class TestRefreshMixed:
         refresh_media_metadata(album)
 
         (album / "ios-main" / "orig-img" / "IMG_0410.HEIC").unlink()
-        _write(album / "ios-main" / "orig-img" / "IMG_0999.HEIC")
+        write_file(album / "ios-main" / "orig-img" / "IMG_0999.HEIC")
 
         result = refresh_media_metadata(album)
         _, ms_result = result.by_media_source[0]
@@ -221,13 +217,13 @@ class TestRefreshDerivedDataJpeg:
         # changed under the same name (an EXIF fix on the archive) must be
         # regenerated because its browsable img dir was rebuilt.
         album = tmp_path / "album"
-        _write(album / "std-main" / "orig-img" / "DSC_0001.JPG", "before")
+        write_file(album / "std-main" / "orig-img" / "DSC_0001.JPG", "before")
         refresh_album_derived_data(
             album,
             link_mode=LinkMode.COPY,
             exiftool=FakeExifTool({}),
         )
-        _write(album / "std-main" / "orig-img" / "DSC_0001.JPG", "after")
+        write_file(album / "std-main" / "orig-img" / "DSC_0001.JPG", "after")
 
         refresh_album_derived_data(
             album,

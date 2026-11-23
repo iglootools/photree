@@ -13,18 +13,14 @@ from tests.fakes import (
     fake_make_thumbnail,
     invoke_cli,
 )
-
-
-def _write(path: Path, content: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
+from tests.testkit import write_file
 
 
 def _album(base: Path, name: str, *images: str) -> Path:
     album = base / name
     (album / ".photree").mkdir(parents=True)
     for image in images:
-        _write(album / "ios-main" / "orig-img" / image)
+        write_file(album / "ios-main" / "orig-img" / image)
     save_album_metadata(album, AlbumMetadata(id=generate_album_id()))
     return album
 

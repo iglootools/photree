@@ -13,15 +13,9 @@ from photree.album.fix.ios import (
 from photree.album.fix.ios.miscategorized import fix_miscategorized
 from photree.album.fix.ios.output import format_fix_ios_result
 from photree.album.store.media_source import MAIN_MEDIA_SOURCE
+from tests.testkit import write_files
 
 MC = MAIN_MEDIA_SOURCE
-
-
-def _setup_dir(path: Path, filenames: list[str]) -> Path:
-    path.mkdir(parents=True, exist_ok=True)
-    for name in filenames:
-        (path / name).write_text(f"data-{name}")
-    return path
 
 
 def _files(directory: Path) -> set[Path]:
@@ -36,11 +30,11 @@ def _names(directory: Path) -> set[str]:
 
 class TestRmUpstreamHeic:
     def test_removes_upstream_when_jpeg_deleted(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0410.HEIC", "IMG_0410.AAE"])
-        _setup_dir(tmp_path / "ios-main/edit-img", ["IMG_E0410.HEIC", "IMG_O0410.AAE"])
-        _setup_dir(tmp_path / "main-img", ["IMG_E0410.HEIC"])
+        write_files(tmp_path / "ios-main/orig-img", ["IMG_0410.HEIC", "IMG_0410.AAE"])
+        write_files(tmp_path / "ios-main/edit-img", ["IMG_E0410.HEIC", "IMG_O0410.AAE"])
+        write_files(tmp_path / "main-img", ["IMG_E0410.HEIC"])
         # main-jpg is empty — the jpeg was "deleted" by the user
-        _setup_dir(tmp_path / "main-jpg", [])
+        write_files(tmp_path / "main-jpg", [])
 
         # The only image deleted everywhere: needs --force (would empty the archive)
         result = rm_upstream(tmp_path, MC, force=True)
@@ -53,13 +47,13 @@ class TestRmUpstreamHeic:
         assert _names(tmp_path / "ios-main/orig-img") == set()
 
     def test_keeps_files_with_jpeg_present(self, tmp_path: Path) -> None:
-        _setup_dir(
+        write_files(
             tmp_path / "ios-main/orig-img",
             ["IMG_0001.HEIC", "IMG_0001.AAE", "IMG_0002.HEIC"],
         )
-        _setup_dir(tmp_path / "main-img", ["IMG_0001.HEIC", "IMG_0002.HEIC"])
+        write_files(tmp_path / "main-img", ["IMG_0001.HEIC", "IMG_0002.HEIC"])
         # Only IMG_0001.jpg present — IMG_0002 was deleted
-        _setup_dir(tmp_path / "main-jpg", ["IMG_0001.jpg"])
+        write_files(tmp_path / "main-jpg", ["IMG_0001.jpg"])
 
         result = rm_upstream(tmp_path, MC)
 
@@ -70,9 +64,9 @@ class TestRmUpstreamHeic:
 
     def test_nothing_to_remove(self, tmp_path: Path) -> None:
         """No deletions when all jpegs are present."""
-        _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC"])
-        _setup_dir(tmp_path / "main-img", ["IMG_0001.HEIC"])
-        _setup_dir(tmp_path / "main-jpg", ["IMG_0001.jpg"])
+        write_files(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC"])
+        write_files(tmp_path / "main-img", ["IMG_0001.HEIC"])
+        write_files(tmp_path / "main-jpg", ["IMG_0001.jpg"])
 
         result = rm_upstream(tmp_path, MC)
 
@@ -82,24 +76,24 @@ class TestRmUpstreamHeic:
 
     def test_handles_jpg_copy_as_is(self, tmp_path: Path) -> None:
         """JPG files in main-img are copied as-is to main-jpg."""
-        _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.JPG"])
-        _setup_dir(tmp_path / "main-img", ["IMG_0001.JPG"])
+        write_files(tmp_path / "ios-main/orig-img", ["IMG_0001.JPG"])
+        write_files(tmp_path / "main-img", ["IMG_0001.JPG"])
         # JPG was deleted from main-jpg
-        _setup_dir(tmp_path / "main-jpg", [])
+        write_files(tmp_path / "main-jpg", [])
 
         result = rm_upstream(tmp_path, MC, force=True)
 
         assert result.heic.removed_browsable == ("IMG_0001.JPG",)
 
     def test_removes_upstream_when_browsable_img_deleted(self, tmp_path: Path) -> None:
-        _setup_dir(
+        write_files(
             tmp_path / "ios-main/orig-img",
             ["IMG_0001.HEIC", "IMG_0001.AAE", "IMG_0002.HEIC", "IMG_0002.AAE"],
         )
-        _setup_dir(tmp_path / "ios-main/edit-img", ["IMG_E0001.HEIC", "IMG_O0001.AAE"])
+        write_files(tmp_path / "ios-main/edit-img", ["IMG_E0001.HEIC", "IMG_O0001.AAE"])
         # User deleted IMG_E0001.HEIC from main-img
-        _setup_dir(tmp_path / "main-img", ["IMG_0002.HEIC"])
-        _setup_dir(tmp_path / "main-jpg", ["IMG_E0001.jpg", "IMG_0002.jpg"])
+        write_files(tmp_path / "main-img", ["IMG_0002.HEIC"])
+        write_files(tmp_path / "main-jpg", ["IMG_E0001.jpg", "IMG_0002.jpg"])
 
         result = rm_upstream(tmp_path, MC)
 
@@ -113,13 +107,13 @@ class TestRmUpstreamHeic:
         assert "IMG_0002.jpg" in _names(tmp_path / "main-jpg")
 
     def test_both_jpeg_and_heic_deletions_merged(self, tmp_path: Path) -> None:
-        _setup_dir(
+        write_files(
             tmp_path / "ios-main/orig-img",
             ["IMG_0001.HEIC", "IMG_0002.HEIC", "IMG_0003.HEIC"],
         )
         # IMG_0002 deleted from main-img, IMG_0003 jpeg deleted from main-jpg
-        _setup_dir(tmp_path / "main-img", ["IMG_0001.HEIC", "IMG_0003.HEIC"])
-        _setup_dir(tmp_path / "main-jpg", ["IMG_0001.jpg"])
+        write_files(tmp_path / "main-img", ["IMG_0001.HEIC", "IMG_0003.HEIC"])
+        write_files(tmp_path / "main-jpg", ["IMG_0001.jpg"])
 
         result = rm_upstream(tmp_path, MC)
 
@@ -131,9 +125,9 @@ class TestRmUpstreamHeic:
         assert "0001" not in removed_numbers
 
     def test_dry_run_does_not_modify(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC"])
-        _setup_dir(tmp_path / "main-img", ["IMG_0001.HEIC"])
-        _setup_dir(tmp_path / "main-jpg", [])
+        write_files(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC"])
+        write_files(tmp_path / "main-img", ["IMG_0001.HEIC"])
+        write_files(tmp_path / "main-jpg", [])
 
         result = rm_upstream(tmp_path, MC, dry_run=True, force=True)
 
@@ -151,9 +145,9 @@ class TestRmUpstreamHeic:
 
 class TestRmUpstreamMov:
     def test_removes_upstream_when_browsable_vid_deleted(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "ios-main/orig-vid", ["IMG_0115.MOV"])
-        _setup_dir(tmp_path / "ios-main/edit-vid", ["IMG_E0115.MOV"])
-        _setup_dir(tmp_path / "main-vid", [])
+        write_files(tmp_path / "ios-main/orig-vid", ["IMG_0115.MOV"])
+        write_files(tmp_path / "ios-main/edit-vid", ["IMG_E0115.MOV"])
+        write_files(tmp_path / "main-vid", [])
 
         result = rm_upstream(tmp_path, MC, force=True)
 
@@ -163,9 +157,9 @@ class TestRmUpstreamMov:
         assert _names(tmp_path / "ios-main/orig-vid") == set()
 
     def test_keeps_files_with_browsable_vid_present(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "ios-main/orig-vid", ["IMG_0001.MOV", "IMG_0002.MOV"])
-        _setup_dir(tmp_path / "ios-main/edit-vid", ["IMG_E0001.MOV"])
-        _setup_dir(tmp_path / "main-vid", ["IMG_E0001.MOV"])
+        write_files(tmp_path / "ios-main/orig-vid", ["IMG_0001.MOV", "IMG_0002.MOV"])
+        write_files(tmp_path / "ios-main/edit-vid", ["IMG_E0001.MOV"])
+        write_files(tmp_path / "main-vid", ["IMG_E0001.MOV"])
 
         result = rm_upstream(tmp_path, MC)
 
@@ -175,8 +169,8 @@ class TestRmUpstreamMov:
         assert "IMG_E0001.MOV" in _names(tmp_path / "ios-main/edit-vid")
 
     def test_nothing_to_remove(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "ios-main/orig-vid", ["IMG_0001.MOV"])
-        _setup_dir(tmp_path / "main-vid", ["IMG_0001.MOV"])
+        write_files(tmp_path / "ios-main/orig-vid", ["IMG_0001.MOV"])
+        write_files(tmp_path / "main-vid", ["IMG_0001.MOV"])
 
         result = rm_upstream(tmp_path, MC)
 
@@ -186,13 +180,13 @@ class TestRmUpstreamMov:
 
 class TestRmOrphanHeic:
     def test_removes_orphan_rendered_and_browsable(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_0001.AAE"])
-        _setup_dir(
+        write_files(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_0001.AAE"])
+        write_files(
             tmp_path / "ios-main/edit-img",
             ["IMG_E0001.HEIC", "IMG_O0001.AAE", "IMG_E9999.HEIC"],
         )
-        _setup_dir(tmp_path / "main-img", ["IMG_E0001.HEIC", "IMG_E9999.HEIC"])
-        _setup_dir(tmp_path / "main-jpg", ["IMG_E0001.jpg", "IMG_E9999.jpg"])
+        write_files(tmp_path / "main-img", ["IMG_E0001.HEIC", "IMG_E9999.HEIC"])
+        write_files(tmp_path / "main-jpg", ["IMG_E0001.jpg", "IMG_E9999.jpg"])
 
         result = rm_orphan(tmp_path, MC)
 
@@ -207,17 +201,17 @@ class TestRmOrphanHeic:
         assert "IMG_E0001.jpg" in _names(tmp_path / "main-jpg")
 
     def test_nothing_to_remove(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC"])
-        _setup_dir(tmp_path / "ios-main/edit-img", ["IMG_E0001.HEIC"])
-        _setup_dir(tmp_path / "main-img", ["IMG_E0001.HEIC"])
+        write_files(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC"])
+        write_files(tmp_path / "ios-main/edit-img", ["IMG_E0001.HEIC"])
+        write_files(tmp_path / "main-img", ["IMG_E0001.HEIC"])
 
         result = rm_orphan(tmp_path, MC)
 
         assert result.heic.total == 0
 
     def test_dry_run_does_not_modify(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "ios-main/orig-img", [])
-        _setup_dir(tmp_path / "ios-main/edit-img", ["IMG_E9999.HEIC"])
+        write_files(tmp_path / "ios-main/orig-img", [])
+        write_files(tmp_path / "ios-main/edit-img", ["IMG_E9999.HEIC"])
 
         result = rm_orphan(tmp_path, MC, dry_run=True)
 
@@ -233,9 +227,9 @@ class TestRmOrphanHeic:
 
 class TestRmOrphanMov:
     def test_removes_orphan_rendered_and_browsable_vid(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "ios-main/orig-vid", ["IMG_0001.MOV"])
-        _setup_dir(tmp_path / "ios-main/edit-vid", ["IMG_E0001.MOV", "IMG_E9999.MOV"])
-        _setup_dir(tmp_path / "main-vid", ["IMG_E0001.MOV", "IMG_E9999.MOV"])
+        write_files(tmp_path / "ios-main/orig-vid", ["IMG_0001.MOV"])
+        write_files(tmp_path / "ios-main/edit-vid", ["IMG_E0001.MOV", "IMG_E9999.MOV"])
+        write_files(tmp_path / "main-vid", ["IMG_E0001.MOV", "IMG_E9999.MOV"])
 
         rm_orphan(tmp_path, MC)
 
@@ -247,11 +241,11 @@ class TestRmOrphanMov:
 
 class TestRmOrphanSidecar:
     def test_removes_orphan_aae_in_orig(self, tmp_path: Path) -> None:
-        _setup_dir(
+        write_files(
             tmp_path / "ios-main/orig-img",
             ["IMG_0001.HEIC", "IMG_0001.AAE", "IMG_9999.AAE"],
         )
-        _setup_dir(tmp_path / "ios-main/edit-img", [])
+        write_files(tmp_path / "ios-main/edit-img", [])
 
         result = rm_orphan_sidecar(tmp_path, MC)
         assert result.total == 1
@@ -259,8 +253,8 @@ class TestRmOrphanSidecar:
         assert (tmp_path / "ios-main/orig-img" / "IMG_0001.AAE").exists()
 
     def test_removes_orphan_o_aae_in_rendered(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_0001.AAE"])
-        _setup_dir(
+        write_files(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_0001.AAE"])
+        write_files(
             tmp_path / "ios-main/edit-img",
             ["IMG_E0001.HEIC", "IMG_O0001.AAE", "IMG_O9999.AAE"],
         )
@@ -271,15 +265,15 @@ class TestRmOrphanSidecar:
         assert (tmp_path / "ios-main/edit-img" / "IMG_O0001.AAE").exists()
 
     def test_nothing_to_remove(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_0001.AAE"])
-        _setup_dir(tmp_path / "ios-main/edit-img", ["IMG_E0001.HEIC", "IMG_O0001.AAE"])
+        write_files(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_0001.AAE"])
+        write_files(tmp_path / "ios-main/edit-img", ["IMG_E0001.HEIC", "IMG_O0001.AAE"])
 
         result = rm_orphan_sidecar(tmp_path, MC)
         assert result.total == 0
 
     def test_dry_run_does_not_modify(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_9999.AAE"])
-        _setup_dir(tmp_path / "ios-main/edit-img", [])
+        write_files(tmp_path / "ios-main/orig-img", ["IMG_9999.AAE"])
+        write_files(tmp_path / "ios-main/edit-img", [])
 
         result = rm_orphan_sidecar(tmp_path, MC, dry_run=True)
         assert result.total == 1
@@ -292,7 +286,7 @@ class TestRmOrphanSidecar:
 
 class TestPreferHigherQualityWhenDups:
     def test_removes_jpg_when_heic_exists(self, tmp_path: Path) -> None:
-        _setup_dir(
+        write_files(
             tmp_path / "ios-main/orig-img",
             ["IMG_0001.HEIC", "IMG_0001.JPG", "IMG_0001.AAE"],
         )
@@ -305,8 +299,8 @@ class TestPreferHigherQualityWhenDups:
         assert "IMG_0001.AAE" in _names(tmp_path / "ios-main/orig-img")
 
     def test_removes_across_all_image_dirs(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_0001.JPG"])
-        _setup_dir(tmp_path / "main-img", ["IMG_0001.HEIC", "IMG_0001.JPG"])
+        write_files(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_0001.JPG"])
+        write_files(tmp_path / "main-img", ["IMG_0001.HEIC", "IMG_0001.JPG"])
 
         result = prefer_higher_quality_when_dups(tmp_path, MC)
 
@@ -315,7 +309,7 @@ class TestPreferHigherQualityWhenDups:
         assert "IMG_0001.JPG" not in _names(tmp_path / "main-img")
 
     def test_keeps_jpg_without_heic_dup(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_0002.JPG"])
+        write_files(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_0002.JPG"])
 
         result = prefer_higher_quality_when_dups(tmp_path, MC)
 
@@ -323,7 +317,7 @@ class TestPreferHigherQualityWhenDups:
         assert "IMG_0002.JPG" in _names(tmp_path / "ios-main/orig-img")
 
     def test_removes_png_when_heic_exists(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_0001.PNG"])
+        write_files(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_0001.PNG"])
 
         result = prefer_higher_quality_when_dups(tmp_path, MC)
 
@@ -331,14 +325,14 @@ class TestPreferHigherQualityWhenDups:
         assert "IMG_0001.PNG" not in _names(tmp_path / "ios-main/orig-img")
 
     def test_nothing_to_remove(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_0002.HEIC"])
+        write_files(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_0002.HEIC"])
 
         result = prefer_higher_quality_when_dups(tmp_path, MC)
 
         assert result.total == 0
 
     def test_dry_run_does_not_modify(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_0001.JPG"])
+        write_files(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_0001.JPG"])
 
         result = prefer_higher_quality_when_dups(tmp_path, MC, dry_run=True)
 
@@ -353,11 +347,11 @@ class TestPreferHigherQualityWhenDups:
 
 class TestRmMiscategorized:
     def test_removes_rendered_from_orig(self, tmp_path: Path) -> None:
-        _setup_dir(
+        write_files(
             tmp_path / "ios-main/orig-img",
             ["IMG_0001.HEIC", "IMG_0001.AAE", "IMG_E0001.HEIC", "IMG_O0001.AAE"],
         )
-        _setup_dir(tmp_path / "ios-main/edit-img", [])
+        write_files(tmp_path / "ios-main/edit-img", [])
 
         result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.RM)
 
@@ -368,8 +362,8 @@ class TestRmMiscategorized:
         assert "IMG_0001.AAE" in _names(tmp_path / "ios-main/orig-img")
 
     def test_removes_original_from_rendered(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "ios-main/orig-img", [])
-        _setup_dir(tmp_path / "ios-main/edit-img", ["IMG_0001.HEIC", "IMG_E0001.HEIC"])
+        write_files(tmp_path / "ios-main/orig-img", [])
+        write_files(tmp_path / "ios-main/edit-img", ["IMG_0001.HEIC", "IMG_E0001.HEIC"])
 
         result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.RM)
 
@@ -378,24 +372,24 @@ class TestRmMiscategorized:
         assert "IMG_E0001.HEIC" in _names(tmp_path / "ios-main/edit-img")
 
     def test_nothing_to_remove(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC"])
-        _setup_dir(tmp_path / "ios-main/edit-img", ["IMG_E0001.HEIC"])
+        write_files(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC"])
+        write_files(tmp_path / "ios-main/edit-img", ["IMG_E0001.HEIC"])
 
         result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.RM)
 
         assert result.total == 0
 
     def test_mov_dirs(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "ios-main/orig-vid", ["IMG_E0001.MOV"])
-        _setup_dir(tmp_path / "ios-main/edit-vid", [])
+        write_files(tmp_path / "ios-main/orig-vid", ["IMG_E0001.MOV"])
+        write_files(tmp_path / "ios-main/edit-vid", [])
 
         result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.RM)
 
         assert result.mov.fixed_from_orig == ("IMG_E0001.MOV",)
 
     def test_dry_run_does_not_modify(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_E0001.HEIC"])
-        _setup_dir(tmp_path / "ios-main/edit-img", [])
+        write_files(tmp_path / "ios-main/orig-img", ["IMG_E0001.HEIC"])
+        write_files(tmp_path / "ios-main/edit-img", [])
 
         result = fix_miscategorized(
             tmp_path,
@@ -415,8 +409,8 @@ class TestRmMiscategorized:
 
 class TestRmMiscategorizedSafe:
     def test_removes_when_present_in_correct_dir(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_E0001.HEIC"])
-        _setup_dir(tmp_path / "ios-main/edit-img", ["IMG_E0001.HEIC"])
+        write_files(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_E0001.HEIC"])
+        write_files(tmp_path / "ios-main/edit-img", ["IMG_E0001.HEIC"])
 
         result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.RM_SAFE)
 
@@ -425,8 +419,8 @@ class TestRmMiscategorizedSafe:
         assert "IMG_E0001.HEIC" in _names(tmp_path / "ios-main/edit-img")
 
     def test_keeps_when_not_present_in_correct_dir(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_E0001.HEIC"])
-        _setup_dir(tmp_path / "ios-main/edit-img", [])
+        write_files(tmp_path / "ios-main/orig-img", ["IMG_E0001.HEIC"])
+        write_files(tmp_path / "ios-main/edit-img", [])
 
         result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.RM_SAFE)
 
@@ -434,12 +428,12 @@ class TestRmMiscategorizedSafe:
         assert "IMG_E0001.HEIC" in _names(tmp_path / "ios-main/orig-img")
 
     def test_both_directions(self, tmp_path: Path) -> None:
-        _setup_dir(
+        write_files(
             tmp_path / "ios-main/orig-img",
             ["IMG_0001.HEIC", "IMG_E0001.HEIC", "IMG_E0002.HEIC"],
         )
-        _setup_dir(tmp_path / "ios-main/edit-img", ["IMG_E0001.HEIC", "IMG_0099.HEIC"])
-        _setup_dir(
+        write_files(tmp_path / "ios-main/edit-img", ["IMG_E0001.HEIC", "IMG_0099.HEIC"])
+        write_files(
             tmp_path / "ios-main/orig-img",
             ["IMG_0099.HEIC"],
         )  # 0099 exists in orig too
@@ -461,11 +455,11 @@ class TestRmMiscategorizedSafe:
 
 class TestMvMiscategorized:
     def test_moves_rendered_from_orig_to_rendered(self, tmp_path: Path) -> None:
-        _setup_dir(
+        write_files(
             tmp_path / "ios-main/orig-img",
             ["IMG_0001.HEIC", "IMG_E0001.HEIC", "IMG_O0001.AAE"],
         )
-        _setup_dir(tmp_path / "ios-main/edit-img", [])
+        write_files(tmp_path / "ios-main/edit-img", [])
 
         result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.MV)
 
@@ -477,8 +471,8 @@ class TestMvMiscategorized:
         assert "IMG_0001.HEIC" in _names(tmp_path / "ios-main/orig-img")
 
     def test_moves_original_from_rendered_to_orig(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "ios-main/orig-img", [])
-        _setup_dir(tmp_path / "ios-main/edit-img", ["IMG_0001.HEIC"])
+        write_files(tmp_path / "ios-main/orig-img", [])
+        write_files(tmp_path / "ios-main/edit-img", ["IMG_0001.HEIC"])
 
         result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.MV)
 
@@ -487,7 +481,7 @@ class TestMvMiscategorized:
         assert "IMG_0001.HEIC" not in _names(tmp_path / "ios-main/edit-img")
 
     def test_creates_target_dir_if_missing(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_E0001.HEIC"])
+        write_files(tmp_path / "ios-main/orig-img", ["IMG_E0001.HEIC"])
         # ios/edit-img doesn't exist
 
         result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.MV)
@@ -496,8 +490,8 @@ class TestMvMiscategorized:
         assert "IMG_E0001.HEIC" in _names(tmp_path / "ios-main/edit-img")
 
     def test_dry_run_does_not_modify(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_E0001.HEIC"])
-        _setup_dir(tmp_path / "ios-main/edit-img", [])
+        write_files(tmp_path / "ios-main/orig-img", ["IMG_E0001.HEIC"])
+        write_files(tmp_path / "ios-main/edit-img", [])
 
         result = fix_miscategorized(
             tmp_path,
@@ -518,11 +512,11 @@ class TestMvMiscategorized:
 
 def _two_sources_with_miscategorized_files(album: Path) -> None:
     """Edits in orig-img on main, an original in edit-img and a video on nelu."""
-    _setup_dir(album / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_E0001.HEIC"])
-    _setup_dir(album / "ios-main/edit-img", ["IMG_E0002.HEIC", "IMG_0003.HEIC"])
-    _setup_dir(album / "ios-nelu/orig-img", ["IMG_0004.HEIC", "IMG_E0004.HEIC"])
-    _setup_dir(album / "ios-nelu/orig-vid", ["IMG_0005.MOV", "IMG_E0005.MOV"])
-    _setup_dir(album / "ios-nelu/edit-vid", ["IMG_0006.MOV"])
+    write_files(album / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_E0001.HEIC"])
+    write_files(album / "ios-main/edit-img", ["IMG_E0002.HEIC", "IMG_0003.HEIC"])
+    write_files(album / "ios-nelu/orig-img", ["IMG_0004.HEIC", "IMG_E0004.HEIC"])
+    write_files(album / "ios-nelu/orig-vid", ["IMG_0005.MOV", "IMG_E0005.MOV"])
+    write_files(album / "ios-nelu/edit-vid", ["IMG_0006.MOV"])
 
 
 class TestRunFixIosMiscategorized:
@@ -569,7 +563,7 @@ class TestRunFixIosMiscategorized:
 
     def test_rm_safe_counts_only_files_already_in_place(self, tmp_path: Path) -> None:
         _two_sources_with_miscategorized_files(tmp_path)
-        _setup_dir(tmp_path / "ios-nelu/edit-img", ["IMG_E0004.HEIC"])
+        write_files(tmp_path / "ios-nelu/edit-img", ["IMG_E0004.HEIC"])
 
         result = run_fix_ios(tmp_path, dry_run=False, rm_miscategorized_safe=True)
 

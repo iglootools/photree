@@ -16,7 +16,6 @@ from photree.collection.store.protocol import (
     CollectionMetadata,
     CollectionStrategy,
 )
-from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 from photree.foundation.layout import BROWSABLE_DIR
 from photree.gallery.browsable_refresh import (
     BrowsableRefreshError,
@@ -25,18 +24,7 @@ from photree.gallery.browsable_refresh import (
     DanglingMemberKind,
     refresh_browsable,
 )
-
-
-def _write(path: Path, content: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-
-
-def _setup_gallery(tmp_path: Path) -> Path:
-    gallery = tmp_path / "gallery"
-    gallery.mkdir()
-    save_gallery_metadata(gallery, GalleryMetadata())
-    return gallery
+from tests.testkit import make_gallery, write_file
 
 
 def _setup_album(
@@ -48,10 +36,10 @@ def _setup_album(
     tag = " [private]" if private else ""
     full_name = f"{name}{tag}"
     album_dir = gallery / "albums" / "2024" / full_name
-    _write(album_dir / "ios-main" / "orig-img" / "IMG_0001.HEIC")
+    write_file(album_dir / "ios-main" / "orig-img" / "IMG_0001.HEIC")
     (album_dir / "main-img").mkdir(parents=True, exist_ok=True)
     (album_dir / "main-jpg").mkdir(parents=True, exist_ok=True)
-    _write(album_dir / "main-jpg" / "IMG_0001.jpg")
+    write_file(album_dir / "main-jpg" / "IMG_0001.jpg")
     (album_dir / "main-vid").mkdir(parents=True, exist_ok=True)
     aid = generate_album_id()
     save_album_metadata(album_dir, AlbumMetadata(id=aid))
@@ -60,7 +48,7 @@ def _setup_album(
 
 class TestBrowsableRefreshAlbums:
     def test_renders_public_album(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         _setup_album(gallery, "2024-07-14 - Trip")
 
         result = refresh_browsable(gallery)
@@ -82,7 +70,7 @@ class TestBrowsableRefreshAlbums:
         assert not (album_browsable / "main-img").exists()
 
     def test_renders_private_album_under_private(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         _setup_album(gallery, "2024-07-14 - Secret", private=True)
 
         result = refresh_browsable(gallery)
@@ -103,7 +91,7 @@ class TestBrowsableRefreshAlbums:
         assert not public_path.exists()
 
     def test_symlinks_are_relative(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         _setup_album(gallery, "2024-07-14 - Trip")
 
         refresh_browsable(gallery)
@@ -125,7 +113,7 @@ class TestBrowsableRefreshAlbums:
 
 class TestBrowsableRefreshCollections:
     def test_renders_collection_with_album_members(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         _, aid = _setup_album(gallery, "2024-07-14 - Trip")
 
         col_dir = gallery / "collections" / "2024" / "2024-07 - Summer"
@@ -158,7 +146,7 @@ class TestBrowsableRefreshCollections:
         ).is_symlink()
 
     def test_renders_dateless_collection_under_all_time(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         _, aid = _setup_album(gallery, "2024-07-14 - Trip")
 
         col_dir = gallery / "collections" / "Best of All Time"
@@ -189,7 +177,7 @@ class TestBrowsableRefreshCollections:
         ).is_symlink()
 
     def test_renders_chapter_under_by_chapter(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         _, aid = _setup_album(gallery, "2024-07-14 - Trip")
 
         col_dir = gallery / "collections" / "2024" / "2024 - Student Years"
@@ -221,7 +209,7 @@ class TestBrowsableRefreshCollections:
 
 class TestBrowsableRefreshCycleDetection:
     def test_detects_cycle(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
 
         cid_a = generate_collection_id()
         cid_b = generate_collection_id()
@@ -260,7 +248,7 @@ class TestBrowsableRefreshCycleDetection:
 
 class TestBrowsableRefreshSafetyCheck:
     def test_rejects_dir_with_regular_files(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         browsable = gallery / BROWSABLE_DIR
         browsable.mkdir()
         (browsable / "regular_file.txt").write_text("danger")
@@ -275,7 +263,7 @@ class TestBrowsableRefreshSafetyCheck:
         )
 
     def test_allows_empty_dir(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         (gallery / BROWSABLE_DIR).mkdir()
 
         result = refresh_browsable(gallery)
@@ -284,7 +272,7 @@ class TestBrowsableRefreshSafetyCheck:
 
 class TestBrowsableRefreshDryRun:
     def test_dry_run_does_not_create_browsable(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         _setup_album(gallery, "2024-07-14 - Trip")
 
         result = refresh_browsable(gallery, dry_run=True)
@@ -322,12 +310,12 @@ class TestBrowsableRefreshMediaMembers:
         tmp_path: Path,
     ) -> None:
         """Regression: std media named IMG_* was matched by the iOS digit rule."""
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         album_dir = gallery / "albums" / "2024" / "2024-07-14 - Camera"
-        _write(album_dir / "std-cam" / "orig-img" / "IMG_1234.JPG")
-        _write(album_dir / "cam-jpg" / "IMG_1234.jpg")
+        write_file(album_dir / "std-cam" / "orig-img" / "IMG_1234.JPG")
+        write_file(album_dir / "cam-jpg" / "IMG_1234.jpg")
         # Same digits, different stem: must not be linked for key IMG_1234.
-        _write(album_dir / "cam-jpg" / "IMG_1234-copy.jpg")
+        write_file(album_dir / "cam-jpg" / "IMG_1234-copy.jpg")
         save_album_metadata(album_dir, AlbumMetadata(id=generate_album_id()))
         image_id = generate_media_id()
         save_media_metadata(
@@ -360,7 +348,7 @@ class TestBrowsableRefreshMediaMembers:
 
 class TestBrowsableRefreshDanglingMembers:
     def test_reports_unknown_member_ids(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         _, aid = _setup_album(gallery, "2024-07-14 - Trip")
         missing_album = generate_album_id()
         missing_image = generate_media_id()
@@ -382,20 +370,20 @@ class TestBrowsableRefreshDanglingMembers:
 
 class TestBrowsableRefreshScanErrors:
     def test_unreadable_collection_metadata_aborts(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         _setup_album(gallery, "2024-07-14 - Trip")
         assert refresh_browsable(gallery).success
         col_dir = gallery / "collections" / "Broken"
-        _write(col_dir / ".photree" / "collection.yaml", "")
+        write_file(col_dir / ".photree" / "collection.yaml", "")
 
         assert not refresh_browsable(gallery).success
         # The previous render survives: nothing is removed before the scan passes.
         assert (gallery / BROWSABLE_DIR / "public" / "albums").is_dir()
 
     def test_unreadable_collection_reports_its_path(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         col_dir = gallery / "collections" / "Broken"
-        _write(col_dir / ".photree" / "collection.yaml", "")
+        write_file(col_dir / ".photree" / "collection.yaml", "")
 
         result = refresh_browsable(gallery)
 
@@ -412,7 +400,7 @@ class TestBrowsableRefreshLinkCollisions:
         self,
         tmp_path: Path,
     ) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         _, aid = _setup_album(gallery, "2024-07-14 - Trip")
         _save_collection(gallery, "2024-07 - Summer", albums=[aid, aid])
 
@@ -439,11 +427,11 @@ class TestBrowsableRefreshLinkCollisions:
         self,
         tmp_path: Path,
     ) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         _setup_album(gallery, "2024-07-14 - Trip")
         assert refresh_browsable(gallery).success
         twin = gallery / "albums" / "elsewhere" / "2024-07-14 - Trip"
-        _write(twin / "ios-main" / "orig-img" / "IMG_0002.HEIC")
+        write_file(twin / "ios-main" / "orig-img" / "IMG_0002.HEIC")
         (twin / "main-jpg").mkdir(parents=True)
         save_album_metadata(twin, AlbumMetadata(id=generate_album_id()))
 

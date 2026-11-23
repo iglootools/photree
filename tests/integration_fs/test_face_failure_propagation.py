@@ -20,21 +20,17 @@ from photree.gallery.cmd_handler.importer import import_failure_of
 from photree.gallery.importer import AlbumImportResult as GalleryImportResult
 from photree.gallery.importer import import_album
 from photree.gallery.output import format_import_failure_labels
+from tests.testkit import write_file
 
 _FACE_FAILURES = (
     ("main", FaceFailure("0001", FaceFailureStage.DETECTION, "model exploded")),
 )
 
 
-def _write(path: Path, content: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-
-
 def _ios_album(album: Path) -> Path:
-    _write(album / "ios-main/orig-img/IMG_0001.HEIC")
-    _write(album / "main-img/IMG_0001.HEIC")
-    _write(album / "main-jpg/IMG_0001.jpg")
+    write_file(album / "ios-main/orig-img/IMG_0001.HEIC")
+    write_file(album / "main-img/IMG_0001.HEIC")
+    write_file(album / "main-jpg/IMG_0001.jpg")
     return album
 
 

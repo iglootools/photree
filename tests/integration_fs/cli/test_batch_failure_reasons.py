@@ -16,16 +16,12 @@ from photree.albums.cmd_handler.fix import batch_fix
 from photree.albums.cmd_handler.init import batch_init
 from photree.foundation.layout import PHOTREE_DIR
 from tests.fakes import invoke_cli
-
-
-def _write(path: Path, content: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
+from tests.testkit import write_file
 
 
 def _album(base: Path, name: str) -> Path:
     album = base / name
-    _write(album / "ios-main" / "orig-img" / "IMG_0001.HEIC")
+    write_file(album / "ios-main" / "orig-img" / "IMG_0001.HEIC")
     save_album_metadata(album, AlbumMetadata(id=generate_album_id()))
     return album
 
@@ -59,7 +55,7 @@ class TestBatchRefresh:
         # A .HEIC whose bytes are not HEIC: sips rejects it on macOS, and the
         # is missing (FileNotFoundError) everywhere else.
         album = tmp_path / "2024-07-14 - Hiking"
-        _write(album / "ios-main" / "orig-img" / "IMG_0001.HEIC", "not heic")
+        write_file(album / "ios-main" / "orig-img" / "IMG_0001.HEIC", "not heic")
         save_album_metadata(album, AlbumMetadata(id=generate_album_id()))
 
         result = invoke_cli(["albums", "refresh", "-d", str(tmp_path)])
@@ -71,7 +67,7 @@ class TestBatchRefresh:
 
     def test_retry_command_repeats_the_run_flags(self, tmp_path: Path) -> None:
         album = tmp_path / "2024-07-14 - Hiking"
-        _write(album / "ios-main" / "orig-img" / "IMG_0001.HEIC", "not heic")
+        write_file(album / "ios-main" / "orig-img" / "IMG_0001.HEIC", "not heic")
         save_album_metadata(album, AlbumMetadata(id=generate_album_id()))
 
         result = invoke_cli(
@@ -116,7 +112,7 @@ class TestHandlerFailureReasons:
         tmp_path: Path,
     ) -> None:
         album = tmp_path / "2024-07-14 - Hiking"
-        _write(album / PHOTREE_DIR / ALBUM_YAML, "id: [not, an, id")
+        write_file(album / PHOTREE_DIR / ALBUM_YAML, "id: [not, an, id")
 
         result = batch_fix([album], fix_id=True)
 

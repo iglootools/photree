@@ -8,40 +8,27 @@ from photree.album.refresh import AlbumRefreshResult
 from photree.album.store.metadata import load_album_metadata, save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.dates import DatePrefixError
-from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
-from photree.foundation.linking import LinkMode
 from photree.gallery.importer import (
     TargetExistsError,
     compute_target_dir,
     import_album,
 )
 from tests.fakes import copy_convert_single
-
-
-def _write(path: Path, content: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-
-
-def _setup_gallery(tmp_path: Path) -> Path:
-    gallery = tmp_path / "gallery"
-    gallery.mkdir()
-    save_gallery_metadata(gallery, GalleryMetadata(link_mode=LinkMode.HARDLINK))
-    return gallery
+from tests.testkit import make_gallery, write_file
 
 
 def _setup_ios_album(album: Path) -> None:
-    _write(album / "ios-main/orig-img/IMG_0001.HEIC", "heic-data")
-    _write(album / "ios-main/orig-img/IMG_0001.AAE", "aae-data")
-    _write(album / "main-img/IMG_0001.HEIC", "heic-data")
-    _write(album / "main-jpg/IMG_0001.jpg", "jpg-data")
+    write_file(album / "ios-main/orig-img/IMG_0001.HEIC", "heic-data")
+    write_file(album / "ios-main/orig-img/IMG_0001.AAE", "aae-data")
+    write_file(album / "main-img/IMG_0001.HEIC", "heic-data")
+    write_file(album / "main-jpg/IMG_0001.jpg", "jpg-data")
     (album / "ios-main/orig-vid").mkdir(parents=True, exist_ok=True)
     (album / "main-vid").mkdir(parents=True, exist_ok=True)
 
 
 def _setup_std_album(album: Path) -> None:
-    _write(album / "nelu-img/sunset.heic", "heic-data")
-    _write(album / "nelu-jpg/sunset.jpg", "jpg-data")
+    write_file(album / "nelu-img/sunset.heic", "heic-data")
+    write_file(album / "nelu-jpg/sunset.jpg", "jpg-data")
 
 
 class TestComputeTargetDir:
@@ -70,7 +57,7 @@ class TestComputeTargetDir:
 
 class TestImportAlbum:
     def test_copies_album_to_gallery(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         album = tmp_path / "2024-07-14 - Hiking"
         _setup_ios_album(album)
 
@@ -87,7 +74,7 @@ class TestImportAlbum:
         assert (target / "ios-main/orig-img/IMG_0001.HEIC").is_file()
 
     def test_generates_missing_id(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         album = tmp_path / "2024-07-14 - Hiking"
         _setup_ios_album(album)
         # No .photree/album.yaml
@@ -104,7 +91,7 @@ class TestImportAlbum:
         assert meta.id
 
     def test_preserves_existing_id(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         album = tmp_path / "2024-07-14 - Hiking"
         _setup_ios_album(album)
         original_id = generate_album_id()
@@ -122,7 +109,7 @@ class TestImportAlbum:
         assert meta.id == original_id
 
     def test_refuses_existing_target(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         album = tmp_path / "2024-07-14 - Hiking"
         _setup_ios_album(album)
 
@@ -139,7 +126,7 @@ class TestImportAlbum:
         assert exc_info.value.target == target
 
     def test_dry_run_does_not_copy(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         album = tmp_path / "2024-07-14 - Hiking"
         _setup_ios_album(album)
 
@@ -153,7 +140,7 @@ class TestImportAlbum:
         assert not result.target_dir.exists()
 
     def test_std_album_import(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         album = tmp_path / "2024-07-14 - Hiking"
         _setup_std_album(album)
 
@@ -167,12 +154,12 @@ class TestImportAlbum:
         assert (target / "nelu-img/sunset.heic").is_file()
 
     def test_refreshes_stale_jpegs(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         album = tmp_path / "2024-07-14 - Hiking"
         _setup_ios_album(album)
         # Add an image to both archive and browsable without a JPEG
-        _write(album / "ios-main/orig-img/IMG_0002.HEIC", "heic2")
-        _write(album / "main-img/IMG_0002.HEIC", "heic2")
+        write_file(album / "ios-main/orig-img/IMG_0002.HEIC", "heic2")
+        write_file(album / "main-img/IMG_0002.HEIC", "heic2")
 
         result = import_album(
             source_dir=album,
@@ -184,7 +171,7 @@ class TestImportAlbum:
         assert (result.target_dir / "main-jpg/IMG_0002.jpg").is_file()
 
     def test_stage_callbacks_invoked(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         album = tmp_path / "2024-07-14 - Hiking"
         _setup_ios_album(album)
 
@@ -204,7 +191,7 @@ class TestImportAlbum:
 
     def test_failed_refresh_leaves_no_partial_album(self, tmp_path: Path) -> None:
         """Regression: a half-built target was later skipped as "imported"."""
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         album = tmp_path / "2024-07-14 - Hiking"
         _setup_ios_album(album)
 
@@ -226,7 +213,7 @@ class TestImportAlbum:
         assert list(year_dir.iterdir()) == []
 
     def test_uses_injected_id(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         album = tmp_path / "2024-07-14 - Hiking"
         _setup_ios_album(album)
         fixed_id = generate_album_id()

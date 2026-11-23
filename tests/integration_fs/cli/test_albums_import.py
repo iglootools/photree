@@ -12,13 +12,9 @@ from typer.testing import Result
 
 from photree.album.staging import ios_import_dir
 from tests.fakes import invoke_cli
+from tests.testkit import write_file
 
 SEL_DIR = ios_import_dir("main")
-
-
-def _write(path: Path, content: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
 
 
 def _image_capture_dir(
@@ -27,13 +23,13 @@ def _image_capture_dir(
 ) -> Path:
     ic_dir = tmp_path / "image_capture"
     for name in names:
-        _write(ic_dir / name)
+        write_file(ic_dir / name)
     return ic_dir
 
 
 def _staged_album(parent: Path, name: str, selected: str = "IMG_0001.HEIC") -> Path:
     album = parent / name
-    _write(album / SEL_DIR / selected)
+    write_file(album / SEL_DIR / selected)
     return album
 
 
@@ -61,7 +57,7 @@ class TestFailureReporting:
         album = _staged_album(albums_dir, "2024-07-14 - Hiking")
         # A regular file where the archive directory must be created makes the
         # import of this one album fail without aborting the batch.
-        _write(album / "ios-main")
+        write_file(album / "ios-main")
 
         result = _invoke(albums_dir, ic_dir)
 
@@ -75,7 +71,7 @@ class TestFailureReporting:
     def test_failures_are_not_counted_as_skips(self, tmp_path: Path) -> None:
         ic_dir = _image_capture_dir(tmp_path)
         albums_dir = tmp_path / "albums"
-        _write(_staged_album(albums_dir, "2024-07-14 - Hiking") / "ios-main")
+        write_file(_staged_album(albums_dir, "2024-07-14 - Hiking") / "ios-main")
         # An album with no staging entry at all: that one is a genuine skip.
         (albums_dir / "2024-07-15 - Rest").mkdir()
 

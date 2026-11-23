@@ -9,13 +9,7 @@ from photree.album.store.media_sources_discovery import (
     discover_media_sources,
     is_std_source_dir,
 )
-
-
-def _setup_dir(path: Path, filenames: list[str]) -> Path:
-    path.mkdir(parents=True, exist_ok=True)
-    for name in filenames:
-        (path / name).write_text(f"data-{name}")
-    return path
+from tests.testkit import write_files
 
 
 def _ms_names_and_types(
@@ -28,12 +22,12 @@ def _ms_names_and_types(
 class TestIsStdSourceDir:
     def test_std_with_orig_img(self, tmp_path: Path) -> None:
         d = tmp_path / "std-nelu"
-        _setup_dir(d / "orig-img", ["sunset.heic"])
+        write_files(d / "orig-img", ["sunset.heic"])
         assert is_std_source_dir(d) is True
 
     def test_std_with_orig_vid(self, tmp_path: Path) -> None:
         d = tmp_path / "std-nelu"
-        _setup_dir(d / "orig-vid", ["clip.mov"])
+        write_files(d / "orig-vid", ["clip.mov"])
         assert is_std_source_dir(d) is True
 
     def test_std_without_orig_dirs(self, tmp_path: Path) -> None:
@@ -43,7 +37,7 @@ class TestIsStdSourceDir:
 
     def test_not_std_prefix(self, tmp_path: Path) -> None:
         d = tmp_path / "nelu-img"
-        _setup_dir(d / "orig-img", ["sunset.heic"])
+        write_files(d / "orig-img", ["sunset.heic"])
         assert is_std_source_dir(d) is False
 
     def test_file_not_dir(self, tmp_path: Path) -> None:
@@ -54,8 +48,8 @@ class TestIsStdSourceDir:
 
 class TestDiscoverMediaSourcesStd:
     def test_detects_std_with_orig_img(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "std-nelu/orig-img", ["sunset.heic"])
-        _setup_dir(tmp_path / "nelu-img", ["sunset.heic"])
+        write_files(tmp_path / "std-nelu/orig-img", ["sunset.heic"])
+        write_files(tmp_path / "nelu-img", ["sunset.heic"])
 
         sources = discover_media_sources(tmp_path)
 
@@ -66,8 +60,8 @@ class TestDiscoverMediaSourcesStd:
         assert ms.archive_dir == "std-nelu"
 
     def test_detects_std_with_orig_vid(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "std-nelu/orig-vid", ["clip.mov"])
-        _setup_dir(tmp_path / "nelu-vid", ["clip.mov"])
+        write_files(tmp_path / "std-nelu/orig-vid", ["clip.mov"])
+        write_files(tmp_path / "nelu-vid", ["clip.mov"])
 
         sources = discover_media_sources(tmp_path)
 
@@ -76,19 +70,19 @@ class TestDiscoverMediaSourcesStd:
 
     def test_browsable_only_dir_is_not_a_media_source(self, tmp_path: Path) -> None:
         """Browsable dirs without a backing archive are not media sources."""
-        _setup_dir(tmp_path / "nelu-img", ["sunset.heic"])
+        write_files(tmp_path / "nelu-img", ["sunset.heic"])
 
         assert discover_media_sources(tmp_path) == []
 
     def test_browsable_only_vid_dir_is_not_a_media_source(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path / "nelu-vid", ["clip.mov"])
+        write_files(tmp_path / "nelu-vid", ["clip.mov"])
 
         assert discover_media_sources(tmp_path) == []
 
     def test_browsable_dirs_alongside_ios_archive(self, tmp_path: Path) -> None:
         """An ios-{name}/ archive plus its browsable dirs is one iOS source."""
-        _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC"])
-        _setup_dir(tmp_path / "main-img", ["IMG_0001.HEIC"])
+        write_files(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC"])
+        write_files(tmp_path / "main-img", ["IMG_0001.HEIC"])
 
         sources = discover_media_sources(tmp_path)
 
@@ -97,8 +91,8 @@ class TestDiscoverMediaSourcesStd:
 
     def test_browsable_dirs_alongside_std_archive(self, tmp_path: Path) -> None:
         """A std-{name}/ archive plus its browsable dirs is one std source."""
-        _setup_dir(tmp_path / "std-nelu/orig-img", ["sunset.heic"])
-        _setup_dir(tmp_path / "nelu-img", ["sunset.heic"])
+        write_files(tmp_path / "std-nelu/orig-img", ["sunset.heic"])
+        write_files(tmp_path / "nelu-img", ["sunset.heic"])
 
         sources = discover_media_sources(tmp_path)
 
@@ -109,14 +103,14 @@ class TestDiscoverMediaSourcesStd:
 class TestDiscoverMediaSourcesMixed:
     def test_ios_plus_std_sources(self, tmp_path: Path) -> None:
         """Album with iOS main + std (bruno); browsable-only dirs are ignored."""
-        _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC"])
-        _setup_dir(tmp_path / "main-img", ["IMG_0001.HEIC"])
+        write_files(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC"])
+        write_files(tmp_path / "main-img", ["IMG_0001.HEIC"])
 
-        _setup_dir(tmp_path / "std-bruno/orig-img", ["sunset.heic"])
-        _setup_dir(tmp_path / "bruno-img", ["sunset.heic"])
+        write_files(tmp_path / "std-bruno/orig-img", ["sunset.heic"])
+        write_files(tmp_path / "bruno-img", ["sunset.heic"])
 
         # Browsable-only dirs without an archive: not a media source
-        _setup_dir(tmp_path / "nelu-img", ["beach.png"])
+        write_files(tmp_path / "nelu-img", ["beach.png"])
 
         sources = discover_media_sources(tmp_path)
 
@@ -128,10 +122,10 @@ class TestDiscoverMediaSourcesMixed:
 
     def test_main_sorted_first(self, tmp_path: Path) -> None:
         """The 'main' media source always sorts first regardless of type."""
-        _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC"])
-        _setup_dir(tmp_path / "main-img", ["IMG_0001.HEIC"])
-        _setup_dir(tmp_path / "std-alice/orig-img", ["photo.heic"])
-        _setup_dir(tmp_path / "alice-img", ["photo.heic"])
+        write_files(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC"])
+        write_files(tmp_path / "main-img", ["IMG_0001.HEIC"])
+        write_files(tmp_path / "std-alice/orig-img", ["photo.heic"])
+        write_files(tmp_path / "alice-img", ["photo.heic"])
 
         sources = discover_media_sources(tmp_path)
 

@@ -23,15 +23,11 @@ from photree.album.staging import ios_import_csv, ios_import_dir, std_import_dir
 from photree.album.store.media_source import std_media_source
 from photree.common.fs import list_files
 from photree.foundation.linking import LinkMode
+from tests.fakes import noop_convert
 
 SEL_DIR = ios_import_dir("main")
 SEL_CSV = ios_import_csv("main")
 STAGE_IMPORT_IOS_MAIN = "import-ios-main"
-
-
-def _noop_convert(_src: Path, _dst_dir: Path, *, dry_run: bool) -> Path | None:  # noqa: ARG001 - ConvertFile's signature
-    """No-op converter for tests (avoids calling sips on fake HEIC files)."""
-    return None
 
 
 def _setup_image_capture_dir(tmp_path: Path, filenames: list[str]) -> Path:
@@ -286,7 +282,7 @@ class TestRunImport:
         result = run_import(
             album_dir=album,
             image_capture_dir=ic_dir,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         assert isinstance(result, AlbumImportResult)
@@ -312,7 +308,7 @@ class TestRunImport:
         result = run_import(
             album_dir=album,
             image_capture_dir=ic_dir,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
         assert result.unprocessed == ()
         assert (album / "main-img" / "IMG_0100.HEIC").exists()
@@ -327,7 +323,7 @@ class TestRunImport:
         result = run_import(
             album_dir=album,
             image_capture_dir=ic_dir,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
         assert result.unprocessed == ()
         assert (album / "ios-main/orig-vid" / "IMG_0115.MOV").exists()
@@ -341,7 +337,7 @@ class TestRunImport:
         run_import(
             album_dir=album,
             image_capture_dir=ic_dir,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         assert not (album / SEL_DIR).exists()
@@ -357,7 +353,7 @@ class TestRunImport:
         run_import(
             album_dir=album,
             image_capture_dir=ic_dir,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         assert not (album / SEL_DIR).exists()
@@ -375,7 +371,7 @@ class TestRunImport:
         run_import(
             album_dir=album,
             image_capture_dir=ic_dir,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         assert all(directory.is_dir() for directory in kept)
@@ -388,7 +384,7 @@ class TestRunImport:
             album_dir=album,
             image_capture_dir=ic_dir,
             dry_run=True,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         assert (album / SEL_DIR).exists()
@@ -403,7 +399,7 @@ class TestRunImport:
             run_import(
                 album_dir=album,
                 image_capture_dir=ic_dir,
-                convert_file=_noop_convert,
+                convert_file=noop_convert,
             )
         assert exc_info.value.album_dir == album
 
@@ -416,7 +412,7 @@ class TestRunImport:
             run_import(
                 album_dir=album,
                 image_capture_dir=ic_dir,
-                convert_file=_noop_convert,
+                convert_file=noop_convert,
             )
         assert exc_info.value.image_capture_dir == ic_dir
 
@@ -430,7 +426,7 @@ class TestRunImport:
         run_import(
             album_dir=album,
             image_capture_dir=ic_dir,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         assert (album / "ios-main/orig-img" / "IMG_0001.HEIC").exists()
@@ -447,7 +443,7 @@ class TestRunImport:
         result = run_import(
             album_dir=album,
             image_capture_dir=ic_dir,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         assert "IMG_0001.HEIC" in result.processed
@@ -462,7 +458,7 @@ class TestRunImport:
         run_import(
             album_dir=album,
             image_capture_dir=ic_dir,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
             on_stage_start=lambda s: stages.append(("start", s)),
             on_stage_end=lambda s: stages.append(("end", s)),
         )
@@ -481,7 +477,7 @@ class TestRunImport:
         run_import(
             album_dir=album,
             image_capture_dir=ic_dir,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         # Re-create selection and IC files for a second import attempt
@@ -495,7 +491,7 @@ class TestRunImport:
             run_import(
                 album_dir=album,
                 image_capture_dir=ic_dir2,
-                convert_file=_noop_convert,
+                convert_file=noop_convert,
             )
         assert exc_info.value.media_source.name == "main"
         assert exc_info.value.keys == ("0410",)
@@ -512,7 +508,7 @@ class TestRunImportLinkMode:
         run_import(
             album_dir=album,
             image_capture_dir=ic_dir,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         browsable = album / "main-img" / "IMG_E0410.HEIC"
@@ -531,7 +527,7 @@ class TestRunImportLinkMode:
             album_dir=album,
             image_capture_dir=ic_dir,
             link_mode=LinkMode.SYMLINK,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         browsable = album / "main-img" / "IMG_0100.HEIC"
@@ -550,7 +546,7 @@ class TestRunImportLinkMode:
             album_dir=album,
             image_capture_dir=ic_dir,
             link_mode=LinkMode.COPY,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         browsable = album / "main-img" / "IMG_0100.HEIC"
@@ -567,7 +563,7 @@ class TestRunImportCsv:
         result = run_import(
             album_dir=album,
             image_capture_dir=ic_dir,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         assert result.unprocessed == ()
@@ -589,7 +585,7 @@ class TestRunImportCsv:
         result = run_import(
             album_dir=album,
             image_capture_dir=ic_dir,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         assert result.unprocessed == ()
@@ -608,7 +604,7 @@ class TestRunImportCsv:
         run_import(
             album_dir=album,
             image_capture_dir=ic_dir,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         assert (album / "ios-main/orig-img" / "IMG_0410.HEIC").exists()
@@ -629,7 +625,7 @@ class TestRunImportCsv:
         result = run_import(
             album_dir=album,
             image_capture_dir=ic_dir,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         assert result.unprocessed == ()
@@ -662,7 +658,7 @@ class TestSelectionCleanupByNumber:
         result = run_import(
             album_dir=album,
             image_capture_dir=ic_dir,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         assert result.unprocessed == ()
@@ -674,7 +670,7 @@ class TestSelectionCleanupByNumber:
         second = run_import(
             album_dir=album,
             image_capture_dir=ic_dir,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         assert second.unprocessed == ()
@@ -688,7 +684,7 @@ class TestSelectionCleanupByNumber:
         result = run_import(
             album_dir=album,
             image_capture_dir=ic_dir,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         assert result.unprocessed == ()
@@ -724,7 +720,7 @@ class TestCollisionBeforeMutation:
             run_import(
                 album_dir=album,
                 image_capture_dir=ic_dir,
-                convert_file=_noop_convert,
+                convert_file=noop_convert,
             )
 
         assert exc_info.value.keys == ("a",)

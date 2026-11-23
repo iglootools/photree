@@ -5,22 +5,7 @@ from photree.album.store.metadata import load_album_metadata, save_album_metadat
 from photree.album.store.protocol import ALBUM_YAML, AlbumMetadata
 from photree.foundation.layout import PHOTREE_DIR
 from tests.fakes import invoke_cli
-
-
-def _write(path: Path, content: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-
-
-def _setup_media_source(album_dir: Path) -> None:
-    """Create a minimal iOS media source so the album is detected."""
-    _write(album_dir / "ios-main" / "orig-img" / "IMG_0001.HEIC")
-    (album_dir / "main-img").mkdir(parents=True, exist_ok=True)
-    (album_dir / "main-jpg").mkdir(parents=True, exist_ok=True)
-
-
-def _mark_album(album_dir: Path) -> None:
-    save_album_metadata(album_dir, AlbumMetadata(id=generate_album_id()))
+from tests.testkit import add_ios_media_source, mark_album
 
 
 class TestAlbumInit:
@@ -44,7 +29,7 @@ class TestAlbumInit:
     def test_fails_if_already_initialized(self, tmp_path: Path) -> None:
         album = tmp_path / "2024-07-14 - Hiking"
         album.mkdir()
-        _mark_album(album)
+        mark_album(album)
         result = invoke_cli(["album", "init", "-a", str(album)])
         assert result.exit_code == 1
         assert "already initialized" in result.output
@@ -80,8 +65,8 @@ class TestAlbumsInit:
     def test_initializes_multiple_albums(self, tmp_path: Path) -> None:
         a1 = tmp_path / "2024-07-14 - Trip A"
         a2 = tmp_path / "2024-07-15 - Trip B"
-        _setup_media_source(a1)
-        _setup_media_source(a2)
+        add_ios_media_source(a1)
+        add_ios_media_source(a2)
 
         result = invoke_cli(["albums", "init", "-d", str(tmp_path)])
         assert result.exit_code == 0
@@ -91,9 +76,9 @@ class TestAlbumsInit:
     def test_fails_if_any_already_initialized(self, tmp_path: Path) -> None:
         a1 = tmp_path / "2024-07-14 - Trip A"
         a2 = tmp_path / "2024-07-15 - Trip B"
-        _setup_media_source(a1)
-        _setup_media_source(a2)
-        _mark_album(a1)
+        add_ios_media_source(a1)
+        add_ios_media_source(a2)
+        mark_album(a1)
 
         result = invoke_cli(["albums", "init", "-d", str(tmp_path)])
         assert result.exit_code == 1
@@ -101,7 +86,7 @@ class TestAlbumsInit:
 
     def test_does_not_overwrite_existing_ids(self, tmp_path: Path) -> None:
         a1 = tmp_path / "2024-07-14 - Trip A"
-        _setup_media_source(a1)
+        add_ios_media_source(a1)
         original_id = generate_album_id()
         save_album_metadata(a1, AlbumMetadata(id=original_id))
 
@@ -112,14 +97,14 @@ class TestAlbumsInit:
 
     def test_dry_run_does_not_create_files(self, tmp_path: Path) -> None:
         a1 = tmp_path / "2024-07-14 - Trip A"
-        _setup_media_source(a1)
+        add_ios_media_source(a1)
 
         result = invoke_cli(["albums", "init", "-d", str(tmp_path), "--dry-run"])
         assert result.exit_code == 0
         assert load_album_metadata(a1) is None
 
     def test_dry_run_labels_batch_summary(self, tmp_path: Path) -> None:
-        _setup_media_source(tmp_path / "2024-07-14 - Trip A")
+        add_ios_media_source(tmp_path / "2024-07-14 - Trip A")
 
         result = invoke_cli(["albums", "init", "-d", str(tmp_path), "--dry-run"])
 
@@ -140,7 +125,7 @@ class TestAlbumsInit:
     def test_discovers_albums_without_album_yaml(self, tmp_path: Path) -> None:
         """--dir finds directories with media sources even without album.yaml."""
         a1 = tmp_path / "2024-07-14 - Trip A"
-        _setup_media_source(a1)
+        add_ios_media_source(a1)
         # No _mark_album — album.yaml does not exist yet
 
         result = invoke_cli(["albums", "init", "-d", str(tmp_path)])
@@ -163,7 +148,7 @@ class TestAlbumsInit:
 class TestAlbumFixId:
     def test_dry_run_labels_the_action_line(self, tmp_path: Path) -> None:
         album = tmp_path / "2024-07-14 - Trip A"
-        _setup_media_source(album)
+        add_ios_media_source(album)
 
         result = invoke_cli(
             ["album", "fix", "--id", "--dry-run", "--album-dir", str(album)],

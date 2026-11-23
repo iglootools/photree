@@ -10,16 +10,9 @@ from photree.collection.store.protocol import (
     CollectionMembers,
     CollectionMetadata,
 )
-from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 from photree.foundation.layout import BROWSABLE_DIR, PHOTREE_DIR
 from tests.fakes import invoke_cli
-
-
-def _setup_gallery(tmp_path: Path) -> Path:
-    gallery = tmp_path / "gallery"
-    gallery.mkdir()
-    save_gallery_metadata(gallery, GalleryMetadata(faces_enabled=False))
-    return gallery
+from tests.testkit import make_gallery
 
 
 def _setup_collection(gallery: Path, name: str = "2024-07 - Summer") -> Path:
@@ -53,7 +46,7 @@ def _refresh(gallery: Path, *args: str) -> tuple[int, str]:
 class TestGalleryRefreshWithoutAlbums:
     def test_collections_and_browsable_are_refreshed(self, tmp_path: Path) -> None:
         """Regression: "no albums" exited 0 before the gallery-level stages ran."""
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path, faces_enabled=False)
         _setup_collection(gallery)
 
         exit_code, output = _refresh(gallery)
@@ -66,7 +59,7 @@ class TestGalleryRefreshWithoutAlbums:
 
 class TestGalleryRefreshStages:
     def test_clean_gallery_renders_browsable(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path, faces_enabled=False)
         _setup_album(gallery)
 
         exit_code, output = _refresh(gallery)
@@ -86,7 +79,7 @@ class TestGalleryRefreshStages:
         ).is_symlink()
 
     def test_dry_run_renders_nothing(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path, faces_enabled=False)
         _setup_album(gallery)
 
         exit_code, output = _refresh(gallery, "--dry-run")
@@ -96,7 +89,7 @@ class TestGalleryRefreshStages:
         assert not (gallery / BROWSABLE_DIR).exists()
 
     def test_collection_error_fails_before_browsable(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path, faces_enabled=False)
         _setup_album(gallery)
         broken = gallery / "collections" / "Broken"
         (broken / PHOTREE_DIR).mkdir(parents=True)
@@ -110,7 +103,7 @@ class TestGalleryRefreshStages:
         assert not (gallery / BROWSABLE_DIR).exists()
 
     def test_browsable_error_fails_the_refresh(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path, faces_enabled=False)
         _setup_album(gallery)
         stray = gallery / BROWSABLE_DIR / "notes.txt"
         stray.parent.mkdir()

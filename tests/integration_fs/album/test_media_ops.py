@@ -6,7 +6,6 @@ from photree.album.cli.media_op_output import (
     format_media_op_error,
     format_media_op_summary,
 )
-from photree.album.id import generate_album_id
 from photree.album.media import (
     MediaOpError,
     MediaOpErrorKind,
@@ -21,24 +20,10 @@ from photree.album.store.media_metadata import (
     load_media_metadata,
     save_media_metadata,
 )
-from photree.album.store.metadata import save_album_metadata
-from photree.album.store.protocol import AlbumMetadata
 from photree.foundation.metadata_io import InvalidMetadataError
+from tests.testkit import file_names, mark_album, write_files
 
 PHOTREE_DIR = ".photree"
-
-
-def _setup_dir(path: Path, filenames: list[str]) -> Path:
-    path.mkdir(parents=True, exist_ok=True)
-    for name in filenames:
-        (path / name).write_text(f"data-{name}")
-    return path
-
-
-def _names(directory: Path) -> set[str]:
-    if not directory.is_dir():
-        return set()
-    return {f.name for f in directory.iterdir() if f.is_file()}
 
 
 def _image_ids(album: Path) -> dict[str, str]:
@@ -47,55 +32,51 @@ def _image_ids(album: Path) -> dict[str, str]:
     return dict(metadata.media_sources["main"].images)
 
 
-def _mark_album(album: Path) -> None:
-    save_album_metadata(album, AlbumMetadata(id=generate_album_id()))
-
-
 def _setup_ios_album(album: Path) -> None:
     """Create an iOS album with one image (0410) in orig, edit, main and jpg."""
-    _setup_dir(album / PHOTREE_DIR, [])
-    _mark_album(album)
-    _setup_dir(
+    write_files(album / PHOTREE_DIR, [])
+    mark_album(album)
+    write_files(
         album / "ios-main/orig-img",
         ["IMG_0410.HEIC", "IMG_0410.AAE"],
     )
-    _setup_dir(
+    write_files(
         album / "ios-main/edit-img",
         ["IMG_E0410.HEIC", "IMG_O0410.AAE"],
     )
-    _setup_dir(album / "main-img", ["IMG_E0410.HEIC"])
-    _setup_dir(album / "main-jpg", ["IMG_E0410.jpg"])
+    write_files(album / "main-img", ["IMG_E0410.HEIC"])
+    write_files(album / "main-jpg", ["IMG_E0410.jpg"])
 
 
 def _setup_ios_album_with_video(album: Path) -> None:
     """Create a minimal iOS album with one video (0115)."""
-    _setup_dir(album / PHOTREE_DIR, [])
-    _mark_album(album)
-    _setup_dir(album / "ios-main/orig-img", [])
-    _setup_dir(album / "ios-main/orig-vid", ["IMG_0115.MOV"])
-    _setup_dir(album / "ios-main/edit-vid", ["IMG_E0115.MOV"])
-    _setup_dir(album / "main-vid", ["IMG_E0115.MOV"])
+    write_files(album / PHOTREE_DIR, [])
+    mark_album(album)
+    write_files(album / "ios-main/orig-img", [])
+    write_files(album / "ios-main/orig-vid", ["IMG_0115.MOV"])
+    write_files(album / "ios-main/edit-vid", ["IMG_E0115.MOV"])
+    write_files(album / "main-vid", ["IMG_E0115.MOV"])
 
 
 def _setup_ios_album_with_live_photo(album: Path) -> None:
     """Create an iOS album with one Live Photo (0001): a still and its MOV."""
-    _setup_dir(album / PHOTREE_DIR, [])
-    _mark_album(album)
-    _setup_dir(album / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_0001.MOV"])
-    _setup_dir(album / "main-img", ["IMG_0001.HEIC", "IMG_0001.MOV"])
-    _setup_dir(album / "main-jpg", ["IMG_0001.jpg"])
+    write_files(album / PHOTREE_DIR, [])
+    mark_album(album)
+    write_files(album / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_0001.MOV"])
+    write_files(album / "main-img", ["IMG_0001.HEIC", "IMG_0001.MOV"])
+    write_files(album / "main-jpg", ["IMG_0001.jpg"])
 
 
 def _setup_std_album(album: Path, media_source_name: str = "nelu") -> None:
     """Create a minimal std contributor album (archive + browsable dirs)."""
-    _setup_dir(album / PHOTREE_DIR, [])
-    _mark_album(album)
-    _setup_dir(
+    write_files(album / PHOTREE_DIR, [])
+    mark_album(album)
+    write_files(
         album / f"std-{media_source_name}/orig-img",
         ["sunset.heic", "beach.png"],
     )
-    _setup_dir(album / f"{media_source_name}-img", ["sunset.heic", "beach.png"])
-    _setup_dir(album / f"{media_source_name}-jpg", ["sunset.jpg", "beach.png"])
+    write_files(album / f"{media_source_name}-img", ["sunset.heic", "beach.png"])
+    write_files(album / f"{media_source_name}-jpg", ["sunset.jpg", "beach.png"])
 
 
 class TestResolveVariants:
@@ -176,11 +157,11 @@ class TestResolveVariants:
     def test_missing_dir_skipped(self, tmp_path: Path) -> None:
         """Directories that don't exist on disk are silently skipped."""
         album = tmp_path / "album"
-        _setup_dir(album / PHOTREE_DIR, [])
-        _mark_album(album)
-        _setup_dir(album / "ios-main/orig-img", ["IMG_0410.HEIC"])
-        _setup_dir(album / "main-img", ["IMG_0410.HEIC"])
-        _setup_dir(album / "main-jpg", ["IMG_0410.jpg"])
+        write_files(album / PHOTREE_DIR, [])
+        mark_album(album)
+        write_files(album / "ios-main/orig-img", ["IMG_0410.HEIC"])
+        write_files(album / "main-img", ["IMG_0410.HEIC"])
+        write_files(album / "main-jpg", ["IMG_0410.jpg"])
         # No edit-img dir
 
         result = resolve_variants(album, ["main-jpg/IMG_0410.jpg"])
@@ -226,14 +207,14 @@ class TestResolveVariants:
 
     def test_multiple_numbers(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
-        _setup_dir(album / PHOTREE_DIR, [])
-        _mark_album(album)
-        _setup_dir(
+        write_files(album / PHOTREE_DIR, [])
+        mark_album(album)
+        write_files(
             album / "ios-main/orig-img",
             ["IMG_0410.HEIC", "IMG_0411.HEIC"],
         )
-        _setup_dir(album / "main-img", ["IMG_0410.HEIC", "IMG_0411.HEIC"])
-        _setup_dir(album / "main-jpg", ["IMG_0410.jpg", "IMG_0411.jpg"])
+        write_files(album / "main-img", ["IMG_0410.HEIC", "IMG_0411.HEIC"])
+        write_files(album / "main-jpg", ["IMG_0410.jpg", "IMG_0411.jpg"])
 
         result = resolve_variants(
             album,
@@ -252,8 +233,8 @@ class TestMoveMedia:
         src = tmp_path / "src-album"
         dst = tmp_path / "dst-album"
         _setup_ios_album(src)
-        _setup_dir(dst / PHOTREE_DIR, [])
-        _mark_album(dst)
+        write_files(dst / PHOTREE_DIR, [])
+        mark_album(dst)
 
         result = move_media(src, dst, ["main-jpg/IMG_E0410.jpg"])
 
@@ -264,52 +245,52 @@ class TestMoveMedia:
         assert not (src / "ios-main").exists()
         assert not (src / "main-img").exists()
         assert not (src / "main-jpg").exists()
-        assert "IMG_0410.HEIC" in _names(dst / "ios-main/orig-img")
-        assert "IMG_E0410.HEIC" in _names(dst / "ios-main/edit-img")
-        assert "IMG_E0410.HEIC" in _names(dst / "main-img")
-        assert "IMG_E0410.jpg" in _names(dst / "main-jpg")
+        assert "IMG_0410.HEIC" in file_names(dst / "ios-main/orig-img")
+        assert "IMG_E0410.HEIC" in file_names(dst / "ios-main/edit-img")
+        assert "IMG_E0410.HEIC" in file_names(dst / "main-img")
+        assert "IMG_E0410.jpg" in file_names(dst / "main-jpg")
 
     def test_ios_video_moves_all_variants(self, tmp_path: Path) -> None:
         src = tmp_path / "src-album"
         dst = tmp_path / "dst-album"
         _setup_ios_album_with_video(src)
-        _setup_dir(dst / PHOTREE_DIR, [])
-        _mark_album(dst)
+        write_files(dst / PHOTREE_DIR, [])
+        mark_album(dst)
 
         result = move_media(src, dst, ["main-vid/IMG_E0115.MOV"])
 
         assert result.total > 0
-        assert _names(src / "main-vid") == set()
-        assert "IMG_E0115.MOV" in _names(dst / "main-vid")
-        assert "IMG_0115.MOV" in _names(dst / "ios-main/orig-vid")
+        assert file_names(src / "main-vid") == set()
+        assert "IMG_E0115.MOV" in file_names(dst / "main-vid")
+        assert "IMG_0115.MOV" in file_names(dst / "ios-main/orig-vid")
 
     def test_plain_moves_by_stem(self, tmp_path: Path) -> None:
         src = tmp_path / "src-album"
         dst = tmp_path / "dst-album"
         _setup_std_album(src)
-        _setup_dir(dst / PHOTREE_DIR, [])
-        _mark_album(dst)
+        write_files(dst / PHOTREE_DIR, [])
+        mark_album(dst)
 
         result = move_media(src, dst, ["nelu-img/sunset.heic"])
 
         assert result.total > 0
-        assert "sunset.heic" not in _names(src / "nelu-img")
-        assert "sunset.heic" in _names(dst / "nelu-img")
-        assert "sunset.jpg" in _names(dst / "nelu-jpg")
-        assert "beach.png" in _names(src / "nelu-img")
+        assert "sunset.heic" not in file_names(src / "nelu-img")
+        assert "sunset.heic" in file_names(dst / "nelu-img")
+        assert "sunset.jpg" in file_names(dst / "nelu-jpg")
+        assert "beach.png" in file_names(src / "nelu-img")
 
     def test_dry_run_does_not_modify(self, tmp_path: Path) -> None:
         src = tmp_path / "src-album"
         dst = tmp_path / "dst-album"
         _setup_ios_album(src)
-        _setup_dir(dst / PHOTREE_DIR, [])
-        _mark_album(dst)
+        write_files(dst / PHOTREE_DIR, [])
+        mark_album(dst)
 
         result = move_media(src, dst, ["main-jpg/IMG_E0410.jpg"], dry_run=True)
 
         assert result.total > 0
-        assert "IMG_0410.HEIC" in _names(src / "ios-main/orig-img")
-        assert "IMG_E0410.jpg" in _names(src / "main-jpg")
+        assert "IMG_0410.HEIC" in file_names(src / "ios-main/orig-img")
+        assert "IMG_E0410.jpg" in file_names(src / "main-jpg")
         assert not (dst / "main-jpg").is_dir()
 
     def test_creates_dest_directories(self, tmp_path: Path) -> None:
@@ -326,16 +307,16 @@ class TestMoveMedia:
     def test_keeps_dirs_with_remaining_files(self, tmp_path: Path) -> None:
         src = tmp_path / "src-album"
         dst = tmp_path / "dst-album"
-        _setup_dir(src / PHOTREE_DIR, [])
-        _mark_album(src)
-        _setup_dir(
+        write_files(src / PHOTREE_DIR, [])
+        mark_album(src)
+        write_files(
             src / "ios-main/orig-img",
             ["IMG_0410.HEIC", "IMG_0411.HEIC"],
         )
-        _setup_dir(src / "main-img", ["IMG_0410.HEIC", "IMG_0411.HEIC"])
-        _setup_dir(src / "main-jpg", ["IMG_0410.jpg", "IMG_0411.jpg"])
-        _setup_dir(dst / PHOTREE_DIR, [])
-        _mark_album(dst)
+        write_files(src / "main-img", ["IMG_0410.HEIC", "IMG_0411.HEIC"])
+        write_files(src / "main-jpg", ["IMG_0410.jpg", "IMG_0411.jpg"])
+        write_files(dst / PHOTREE_DIR, [])
+        mark_album(dst)
 
         move_media(src, dst, ["main-jpg/IMG_0410.jpg"])
 
@@ -343,7 +324,7 @@ class TestMoveMedia:
         assert (src / "ios-main/orig-img").is_dir()
         assert (src / "main-img").is_dir()
         assert (src / "main-jpg").is_dir()
-        assert "IMG_0411.HEIC" in _names(src / "ios-main/orig-img")
+        assert "IMG_0411.HEIC" in file_names(src / "ios-main/orig-img")
 
     def test_refuses_to_overwrite_existing_files(self, tmp_path: Path) -> None:
         src = tmp_path / "src-album"
@@ -356,23 +337,23 @@ class TestMoveMedia:
         assert exc_info.value.kind == MediaOpErrorKind.MOVE_CONFLICT
         assert "main-jpg/IMG_E0410.jpg" in exc_info.value.conflicts
 
-        assert "IMG_0410.HEIC" in _names(src / "ios-main/orig-img")
+        assert "IMG_0410.HEIC" in file_names(src / "ios-main/orig-img")
 
     def test_refuses_on_same_number_different_extension(self, tmp_path: Path) -> None:
         """Detects collision even when the exact filename doesn't match."""
         src = tmp_path / "src-album"
         dst = tmp_path / "dst-album"
-        _setup_dir(src / PHOTREE_DIR, [])
-        _mark_album(src)
-        _setup_dir(src / "ios-main/orig-img", ["IMG_0410.HEIC"])
-        _setup_dir(src / "main-img", ["IMG_0410.HEIC"])
-        _setup_dir(src / "main-jpg", ["IMG_0410.jpg"])
+        write_files(src / PHOTREE_DIR, [])
+        mark_album(src)
+        write_files(src / "ios-main/orig-img", ["IMG_0410.HEIC"])
+        write_files(src / "main-img", ["IMG_0410.HEIC"])
+        write_files(src / "main-jpg", ["IMG_0410.jpg"])
 
-        _setup_dir(dst / PHOTREE_DIR, [])
-        _mark_album(dst)
+        write_files(dst / PHOTREE_DIR, [])
+        mark_album(dst)
         # Different extension, same number
-        _setup_dir(dst / "ios-main/orig-img", ["IMG_0410.JPG"])
-        _setup_dir(dst / "main-img", ["IMG_0410.JPG"])
+        write_files(dst / "ios-main/orig-img", ["IMG_0410.JPG"])
+        write_files(dst / "main-img", ["IMG_0410.JPG"])
 
         with pytest.raises(MediaOpError) as exc_info:
             move_media(src, dst, ["main-jpg/IMG_0410.jpg"])
@@ -393,7 +374,7 @@ class TestMoveMedia:
         assert exc_info.value.kind == MediaOpErrorKind.MEDIA_SOURCE_TYPE_MISMATCH
         assert exc_info.value.media_sources == ("main",)
 
-        assert "IMG_0410.HEIC" in _names(src / "ios-main/orig-img")
+        assert "IMG_0410.HEIC" in file_names(src / "ios-main/orig-img")
         assert not (dst / "ios-main").exists()
 
     def test_moves_into_dest_whose_other_sources_differ_in_type(
@@ -407,13 +388,13 @@ class TestMoveMedia:
 
         move_media(src, dst, ["main-jpg/IMG_E0410.jpg"])
 
-        assert "IMG_0410.HEIC" in _names(dst / "ios-main/orig-img")
+        assert "IMG_0410.HEIC" in file_names(dst / "ios-main/orig-img")
 
     def test_carries_media_ids_to_dest(self, tmp_path: Path) -> None:
         src = tmp_path / "src-album"
         dst = tmp_path / "dst-album"
         _setup_ios_album(src)
-        _setup_dir(src / "ios-main/orig-img", ["IMG_0411.HEIC"])
+        write_files(src / "ios-main/orig-img", ["IMG_0411.HEIC"])
         save_media_metadata(
             src,
             MediaMetadata(
@@ -424,8 +405,8 @@ class TestMoveMedia:
                 },
             ),
         )
-        _setup_dir(dst / PHOTREE_DIR, [])
-        _mark_album(dst)
+        write_files(dst / PHOTREE_DIR, [])
+        mark_album(dst)
 
         move_media(src, dst, ["main-jpg/IMG_E0410.jpg"])
 
@@ -438,8 +419,8 @@ class TestMoveMedia:
         _setup_ios_album(src)
         refresh_media_metadata(src)
         [media_id] = _image_ids(src)
-        _setup_dir(dst / PHOTREE_DIR, [])
-        _mark_album(dst)
+        write_files(dst / PHOTREE_DIR, [])
+        mark_album(dst)
 
         move_media(src, dst, ["main-jpg/IMG_E0410.jpg"])
         refresh_media_metadata(dst)
@@ -452,8 +433,8 @@ class TestMoveMedia:
         _setup_ios_album(src)
         refresh_media_metadata(src)
         ids_before = _image_ids(src)
-        _setup_dir(dst / PHOTREE_DIR, [])
-        _mark_album(dst)
+        write_files(dst / PHOTREE_DIR, [])
+        mark_album(dst)
 
         move_media(src, dst, ["main-jpg/IMG_E0410.jpg"], dry_run=True)
 
@@ -467,17 +448,17 @@ class TestMoveMedia:
         src = tmp_path / "src-album"
         dst = tmp_path / "dst-album"
         _setup_ios_album(src)
-        _setup_dir(src / PHOTREE_DIR / "media-ids", [])
+        write_files(src / PHOTREE_DIR / "media-ids", [])
         (src / PHOTREE_DIR / "media-ids/main.yaml").write_text(
             "images: [",
             encoding="utf-8",
         )
-        _setup_dir(dst / PHOTREE_DIR, [])
-        _mark_album(dst)
+        write_files(dst / PHOTREE_DIR, [])
+        mark_album(dst)
 
         with pytest.raises(InvalidMetadataError):
             move_media(src, dst, ["main-jpg/IMG_E0410.jpg"])
-        assert "IMG_0410.HEIC" in _names(src / "ios-main/orig-img")
+        assert "IMG_0410.HEIC" in file_names(src / "ios-main/orig-img")
 
 
 class TestRmMedia:
@@ -501,9 +482,9 @@ class TestRmMedia:
         result = rm_media(album, ["nelu-img/sunset.heic"])
 
         assert result.total > 0
-        assert "sunset.heic" not in _names(album / "nelu-img")
-        assert "sunset.jpg" not in _names(album / "nelu-jpg")
-        assert "beach.png" in _names(album / "nelu-img")
+        assert "sunset.heic" not in file_names(album / "nelu-img")
+        assert "sunset.jpg" not in file_names(album / "nelu-jpg")
+        assert "beach.png" in file_names(album / "nelu-img")
 
     def test_dry_run_does_not_modify(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
@@ -512,8 +493,8 @@ class TestRmMedia:
         result = rm_media(album, ["main-jpg/IMG_E0410.jpg"], dry_run=True)
 
         assert result.total > 0
-        assert "IMG_0410.HEIC" in _names(album / "ios-main/orig-img")
-        assert "IMG_E0410.jpg" in _names(album / "main-jpg")
+        assert "IMG_0410.HEIC" in file_names(album / "ios-main/orig-img")
+        assert "IMG_E0410.jpg" in file_names(album / "main-jpg")
 
     def test_live_photo_mov_removes_the_whole_live_photo(
         self,
@@ -536,9 +517,9 @@ class TestRmMedia:
         result = rm_media(album, ["main-vid/IMG_E0115.MOV"])
 
         assert result.total > 0
-        assert _names(album / "ios-main/orig-vid") == set()
-        assert _names(album / "ios-main/edit-vid") == set()
-        assert _names(album / "main-vid") == set()
+        assert file_names(album / "ios-main/orig-vid") == set()
+        assert file_names(album / "ios-main/edit-vid") == set()
+        assert file_names(album / "main-vid") == set()
 
 
 class TestMediaOpSummary:

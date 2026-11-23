@@ -8,13 +8,7 @@ from photree.album.store.file_matching import (
     pick_media_priority,
 )
 from photree.album.store.media_source import ios_img_number, stem_key
-
-
-def _setup_dir(path: Path, filenames: list[str]) -> Path:
-    path.mkdir(parents=True, exist_ok=True)
-    for name in filenames:
-        (path / name).write_text(f"data-{name}")
-    return path
+from tests.testkit import write_files
 
 
 class TestGroupByKey:
@@ -83,7 +77,7 @@ class TestDedupMediaDict:
 
 class TestFindFilesByKey:
     def test_finds_by_img_number(self, tmp_path: Path) -> None:
-        _setup_dir(
+        write_files(
             tmp_path,
             ["IMG_0001.HEIC", "IMG_0001.AAE", "IMG_0002.HEIC"],
         )
@@ -91,7 +85,7 @@ class TestFindFilesByKey:
         assert result == ["IMG_0001.AAE", "IMG_0001.HEIC"]
 
     def test_finds_by_stem(self, tmp_path: Path) -> None:
-        _setup_dir(
+        write_files(
             tmp_path,
             ["sunset.heic", "sunset.jpg", "beach.png"],
         )
@@ -99,7 +93,7 @@ class TestFindFilesByKey:
         assert result == ["sunset.heic", "sunset.jpg"]
 
     def test_multiple_keys(self, tmp_path: Path) -> None:
-        _setup_dir(
+        write_files(
             tmp_path,
             ["sunset.heic", "beach.png", "mountains.jpg"],
         )
@@ -107,7 +101,7 @@ class TestFindFilesByKey:
         assert result == ["beach.png", "sunset.heic"]
 
     def test_no_matches(self, tmp_path: Path) -> None:
-        _setup_dir(tmp_path, ["sunset.heic"])
+        write_files(tmp_path, ["sunset.heic"])
         result = find_files_by_key({"unknown"}, tmp_path, stem_key)
         assert result == []
 
