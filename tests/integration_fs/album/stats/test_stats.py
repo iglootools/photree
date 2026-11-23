@@ -5,6 +5,7 @@ import pytest
 
 from photree.album.id import generate_album_id
 from photree.album.stats import (
+    UnparseableAlbumNameError,
     albums_stats_from_album_stats,
     compute_album_stats,
     compute_media_source_stats,
@@ -356,8 +357,10 @@ class TestComputeAlbumStats:
         (album / ms.vid_dir).mkdir(parents=True, exist_ok=True)
         (album / ms.jpg_dir).mkdir(parents=True, exist_ok=True)
 
-        with pytest.raises(ValueError, match="cannot be parsed"):
+        with pytest.raises(UnparseableAlbumNameError) as excinfo:
             compute_album_stats(album)
+
+        assert excinfo.value.album_dir == album
 
     def test_on_disk_less_than_apparent_for_hardlinks(self, tmp_path: Path) -> None:
         album = tmp_path / "2024-07-14 - Optimized"
