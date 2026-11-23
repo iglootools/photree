@@ -250,19 +250,52 @@ def image_capture_dir_troubleshoot(check: ImageCaptureDirCheck) -> str:
     )
 
 
-def import_error(exc: NoImportTasksError | EmptyImageCaptureDirError, cwd: Path) -> str:
-    """Format a :func:`~photree.album.importer.album_import.run_import` refusal."""
+def import_refusal(
+    exc: NoImportTasksError | EmptyImageCaptureDirError,
+    cwd: Path,
+) -> str:
+    """
+    Word a :func:`~photree.album.importer.album_import.run_import` refusal.
+
+    Plain text, unlike this module's other formatters: progress-bar labels
+    escape what they are given.
+    """
     match exc:
         case NoImportTasksError(album_dir=album_dir):
             return (
                 "No to-import-{ios,std}-<media-source> directories found in "
-                f"{markup_escape(display_path(album_dir, cwd))}"
+                f"{display_path(album_dir, cwd)}"
             )
         case EmptyImageCaptureDirError(image_capture_dir=ic_dir):
             return (
-                "Could not find any image capture files in "
-                f"{markup_escape(display_path(ic_dir, cwd))}"
+                f"Could not find any image capture files in {display_path(ic_dir, cwd)}"
             )
+
+
+def import_error(exc: NoImportTasksError | EmptyImageCaptureDirError, cwd: Path) -> str:
+    """Format a :func:`~photree.album.importer.album_import.run_import` refusal."""
+    return markup_escape(import_refusal(exc, cwd))
+
+
+def failure_reason(failure: AlbumFailure, cwd: Path) -> str:
+    """
+    Word why an album of a batch failed to import (plain text).
+
+    A refusal or a filesystem error that stopped the import is worded here;
+    a failure after the import already carries its reason.
+    """
+    match failure.error:
+        case None:
+            return failure.reason
+        case NoImportTasksError() | EmptyImageCaptureDirError() as refusal:
+            return import_refusal(refusal, cwd)
+        case OSError(filename=str() | Path() as filename) as error:
+            return (
+                f"{error.strerror or type(error).__name__}: "
+                f"{display_path(Path(filename), cwd)}"
+            )
+        case error:
+            return str(error)
 
 
 def batch_summary(
@@ -295,7 +328,7 @@ def batch_failures(failures: Sequence[AlbumFailure], base: Path) -> str:
             *(
                 indent(
                     f"{markup_escape(display_path(failure.album_dir, base))}\n"
-                    f"{indent(markup_escape(failure.reason))}",
+                    f"{indent(markup_escape(failure_reason(failure, base)))}",
                 )
                 for failure in failures
             ),
