@@ -24,7 +24,7 @@ through the `iglootools` plugin. Other agents: read `coding/general.md`,
 whose trigger matches the files you are changing, using
 [iglootools/common's index](https://github.com/iglootools/common/blob/main/guidelines/README.md).
 Read [docs/guidelines.md](docs/guidelines.md) before any change too: it holds
-this project's deviations and its own rules, and links to the project's other
+this project's exceptions and its own rules, and links to the project's other
 guidelines files.
 
 ## Where things are

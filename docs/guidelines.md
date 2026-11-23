@@ -3,14 +3,14 @@
 Where photree departs from the shared
 [iglootools guidelines](https://github.com/iglootools/common/blob/main/guidelines/README.md),
 and the rules it adds. Read it before any change; the
-[area conventions](#area-conventions) and the
-[task checklists](#adding-a-concept) it links are read when a change reaches
+[area conventions](#area-conventions) it links are read when a change reaches
 them.
 
 <!-- toc -->
 **On this page**
 
-- [Deviations](#deviations)
+- [Area conventions](#area-conventions)
+- [Exceptions](#exceptions)
   - [Defer an import inside the function that needs it, not with `lazy import`](#defer-an-import-inside-the-function-that-needs-it-not-with-lazy-import)
   - [Keep an accumulator for loop-carried state and per-item `try`/`except`](#keep-an-accumulator-for-loop-carried-state-and-per-item-tryexcept)
 - [Rules](#rules)
@@ -19,40 +19,49 @@ them.
   - [Render errors and output with photree's helpers](#render-errors-and-output-with-photrees-helpers)
   - [Cover all new functionality with tests](#cover-all-new-functionality-with-tests)
 - [Tests](#tests)
-- [Area conventions](#area-conventions)
-- [Adding a concept](#adding-a-concept)
 - [Documentation](#documentation)
 <!-- tocstop -->
 
-## Deviations
+## Area conventions
+
+Read the linked document in full before changing files under these paths.
+
+| Paths | Conventions |
+|-------|-------------|
+| `photree/cli/`, `photree/clihelpers/`, `photree/*/cli/`, `photree/albums/batchcli/` — and adding a command anywhere | [cli.md](./guidelines/cli.md) — command hierarchy, options, progress, exit codes, system dependencies, CSV, batch architecture, validation levels |
+| `tests/` — and adding a parameter a test needs to control | [testing.md](./guidelines/testing.md) — deciders, the CLI runtime, fakes |
+| Introducing a new concept photree manages, such as collections or a future entity type | [adding-a-concept.md](./guidelines/adding-a-concept.md) — the checklist to run first |
+
+## Exceptions
 
 ### Defer an import inside the function that needs it, not with `lazy import`
 
-Documented exception to
-[python.md › Import at module level, and defer with `lazy import`](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md#import-at-module-level-and-defer-with-lazy-import).
-Defer an import only to break an import cycle or to keep the face ML stack
-(`insightface`, `onnxruntime`, `cv2`, `faiss`, `sklearn`, `scipy`, and the
-`numpy` beneath them) out of CLI startup: import it inside the function that
-uses it, or under `TYPE_CHECKING` for an annotation, with a comment saying
-which case it is. An in-function import carries `# noqa: PLC0415` with that
-reason on its line.
+Overrides
+[python.md › Import at module level, and defer with `lazy import`](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md#import-at-module-level-and-defer-with-lazy-import):
+photree defers an import only to break an import cycle or to keep the face ML
+stack (`insightface`, `onnxruntime`, `cv2`, `faiss`, `sklearn`, `scipy`, and
+the `numpy` beneath them) out of CLI startup, by importing it inside the
+function that uses it, or under `TYPE_CHECKING` for an annotation, with a
+comment saying which case it is. An in-function import carries
+`# noqa: PLC0415` with that reason on its line, and
+`tests/unit/test_cli_startup_imports.py` fails if `import photree.cli` loads
+any of the ML stack.
 
 **Why:** `lazy import` needs Python 3.15, and photree is held on 3.14 because
 onnxruntime publishes no cp315 wheels (the comment at `requires-python` in
 `pyproject.toml`). Loading the ML stack at module level adds most of a second
 to every CLI invocation.
 
-- `tests/unit/test_cli_startup_imports.py` fails if `import photree.cli`
-  loads any of the ML stack.
-- **Retires when** photree moves to Python 3.15, once onnxruntime publishes
-  cp315 wheels: these imports then become `lazy import`s.
+**Retires when:** photree moves to Python 3.15, once onnxruntime publishes
+cp315 wheels: these imports then become `lazy import`s.
 
 ### Keep an accumulator for loop-carried state and per-item `try`/`except`
 
-Documented exception to
+Overrides
 [python.md › Build a collection in one expression, not by appending](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md#build-a-collection-in-one-expression-not-by-appending),
-and to its filtering instead of `continue`, in two shapes only, each marked
-with a `# Documented exception (docs/guidelines.md)` comment:
+and its filtering instead of `continue`: photree keeps an accumulator in two
+shapes only, each marked with a `# Documented exception (docs/guidelines.md)`
+comment:
 
 - **Loop-carried state.** Deduplicating files by inode while stat'ing them
   (`album/stats/scan.py::_stat_files`) needs every inode seen before to decide
@@ -60,14 +69,14 @@ with a `# Documented exception (docs/guidelines.md)` comment:
 - **Per-item `try`/`except` in a batch.** A loop that records a failure and
   carries on cannot be a comprehension, which has nowhere to put the `except`.
 
+Everywhere else the single-expression form applies.
+
 **Why:** in these shapes the comprehension is harder to read, not easier: the
 first has to thread the growing state through every element, and the second
 holds the loops that must not swallow errors, where clarity matters most.
-Everywhere else the single-expression form applies.
 
-This is structural rather than temporary: no condition retires it while a
-comprehension can neither carry state between elements nor catch an exception
-per item.
+**Never retires:** a comprehension can neither carry state between elements
+nor catch an exception per item.
 
 ## Rules
 
@@ -128,21 +137,6 @@ sets up:
 | File | What is replaced | Category | Why, and when to retire it |
 |---|---|---|---|
 | `tests/integration_fs/album/importer/test_preflight.py` | `PATH`, emptied | (c) | The test asserts that `run_preflight` does not read `PATH`, since its caller owns the probing. Changing the process's `PATH` is the only way to show that. |
-
-## Area conventions
-
-Read the linked document in full before changing files under these paths.
-
-| Paths | Conventions |
-|-------|-------------|
-| `photree/cli/`, `photree/clihelpers/`, `photree/*/cli/`, `photree/albums/batchcli/` — and adding a command anywhere | [cli.md](./guidelines/cli.md) — command hierarchy, options, progress, exit codes, system dependencies, CSV, batch architecture, validation levels |
-| `tests/` — and adding a parameter a test needs to control | [testing.md](./guidelines/testing.md) — deciders, the CLI runtime, fakes |
-
-## Adding a concept
-
-Run the checklist in [adding-a-concept.md](./guidelines/adding-a-concept.md)
-before introducing a new concept that photree manages, such as collections or a
-future entity type.
 
 ## Documentation
 
