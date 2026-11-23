@@ -243,10 +243,12 @@ Browsable and derived directories can always be rebuilt from the archive
 backup.
 
 Deleting a file from a browsable directory is how you curate; `album fix
---rm-upstream` propagates that deletion back to the archive. A browsable
-directory that is missing (or a JPEG directory holding none of its expected
-files) is not read as a deletion signal, and a run that would remove every item
-of an archive is refused unless `--force` is given.
+--rm-upstream` propagates that deletion back to the archive. It compares each
+directory with its source by item key, not filename, so a browsable directory
+older than the archive (an edit added since the last refresh) reads as no
+deletion. A browsable directory that is missing (or a JPEG directory holding
+none of its expected files) is not read as a deletion signal, and a run that
+would remove every item of an archive is refused unless `--force` is given.
 
 ## Media Item
 

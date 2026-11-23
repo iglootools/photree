@@ -97,6 +97,36 @@ class TestRmUpstreamSignals:
             (s.directory, s.reason) for s in result.skipped
         ]
 
+    def test_img_dir_older_than_the_archive_deletes_nothing(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """main-img was built before the edit reached edit-img: nothing was deleted."""
+        _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_0002.HEIC"])
+        _setup_dir(tmp_path / "ios-main/edit-img", ["IMG_E0001.HEIC"])
+        _setup_dir(tmp_path / "main-img", ["IMG_0001.HEIC", "IMG_0002.HEIC"])
+        _setup_dir(tmp_path / "main-jpg", ["IMG_0001.jpg", "IMG_0002.jpg"])
+
+        result = rm_upstream(tmp_path, MC)
+
+        assert result.heic.removed_orig == ()
+        assert result.heic.removed_rendered == ()
+        assert _names(tmp_path / "ios-main/edit-img") == {"IMG_E0001.HEIC"}
+
+    def test_jpg_dir_older_than_the_img_dir_deletes_nothing(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_0002.HEIC"])
+        _setup_dir(tmp_path / "ios-main/edit-img", ["IMG_E0001.HEIC"])
+        _setup_dir(tmp_path / "main-img", ["IMG_E0001.HEIC", "IMG_0002.HEIC"])
+        _setup_dir(tmp_path / "main-jpg", ["IMG_0001.jpg", "IMG_0002.jpg"])
+
+        result = rm_upstream(tmp_path, MC)
+
+        assert result.heic.removed_orig == ()
+        assert result.heic.removed_rendered == ()
+
     def test_skip_is_reported_in_fix_output(self, tmp_path: Path) -> None:
         _ios_album_without_jpg(tmp_path)
 

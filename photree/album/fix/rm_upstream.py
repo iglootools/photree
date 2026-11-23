@@ -17,6 +17,11 @@ to wipe the whole archive. So:
 - a plan that would delete every item of an archive — e.g. after emptying
   ``{name}-img/`` or ``{name}-vid/`` — is refused unless ``force`` is set.
 
+Directories are compared with their source by item key, never by filename: a
+browsable directory older than the archive (an edit added or moved since the
+last refresh renames the item's browsable file) still holds every item the
+user kept, and must not read as deletions.
+
 Every source is planned before anything is deleted, so a refusal leaves the
 album untouched.
 """
@@ -167,32 +172,26 @@ def _deleted_keys(
     directory: Path,
     subdir: str,
     *,
-    expected: dict[str, str],
+    expected: frozenset[str],
     present: frozenset[str],
     force: bool,
     require_expected: bool = False,
 ) -> _Signal:
-    """
-    Keys of *expected* (``{name: key}``) whose name is absent from *present*.
-
-    *present* is in the same unit as *expected*'s names (filenames or keys).
-    """
+    """Return the *expected* keys missing from *present*, or why the dir is skipped."""
     skip = _signal_skip(
         ms,
         directory,
         subdir,
-        expected=frozenset(expected),
+        expected=expected,
         present=present,
         require_expected=require_expected,
         force=force,
     )
-    return (
-        _Signal(skip=skip)
-        if skip is not None
-        else _Signal(
-            keys=frozenset(k for name, k in expected.items() if name not in present),
-        )
-    )
+    return _Signal(skip=skip) if skip is not None else _Signal(keys=expected - present)
+
+
+def _keys_in(directory: Path, ms: MediaSource) -> frozenset[str]:
+    return frozenset(ms.key_fn(f) for f in list_files(directory))
 
 
 def _plan_images(
@@ -203,34 +202,32 @@ def _plan_images(
 ) -> tuple[_Signal, _Signal]:
     """Signals from ``{name}-img/`` (vs. the archive) and ``{name}-jpg/`` (vs. img)."""
     key_fn = ms.key_fn
-    img_files = frozenset(list_files(album_dir / ms.img_dir))
-    expected_browsable = {
-        filename: key_fn(filename)
+    img_files = list_files(album_dir / ms.img_dir)
+    archive_keys = frozenset(
+        key_fn(filename)
         for filename, _ in browsable_module.compute_browsable_files(
             album_dir / ms.orig_img_dir,
             album_dir / ms.edit_img_dir,
             IMG_EXTENSIONS,
             key_fn,
         )
-    }
-    expected_jpegs = {
-        name: key_fn(f) for f in img_files if (name := jpeg_name(f)) is not None
-    }
+    )
+    keys_with_jpeg = frozenset(key_fn(f) for f in img_files if jpeg_name(f) is not None)
     return (
         _deleted_keys(
             ms,
             album_dir / ms.img_dir,
             ms.img_dir,
-            expected=expected_browsable,
-            present=img_files,
+            expected=archive_keys,
+            present=frozenset(key_fn(f) for f in img_files),
             force=force,
         ),
         _deleted_keys(
             ms,
             album_dir / ms.jpg_dir,
             ms.jpg_dir,
-            expected=expected_jpegs,
-            present=frozenset(list_files(album_dir / ms.jpg_dir)),
+            expected=keys_with_jpeg,
+            present=_keys_in(album_dir / ms.jpg_dir, ms),
             force=force,
             require_expected=True,
         ),
@@ -241,17 +238,15 @@ def _plan_videos(album_dir: Path, ms: MediaSource, *, force: bool) -> _Signal:
     """
     Signal from ``{name}-vid/``, compared by key with ``orig-vid/``.
 
-    Key-based (not by exact filename) so that edited videos (e.g.
-    ``IMG_E0001.MOV``) are matched to their originals (``IMG_0001.MOV``).
+    By key, so that edited videos (e.g. ``IMG_E0001.MOV``) are matched to
+    their originals (``IMG_0001.MOV``).
     """
-    key_fn = ms.key_fn
-    orig_keys = {key_fn(f): key_fn(f) for f in list_files(album_dir / ms.orig_vid_dir)}
     return _deleted_keys(
         ms,
         album_dir / ms.vid_dir,
         ms.vid_dir,
-        expected=orig_keys,
-        present=frozenset(key_fn(f) for f in list_files(album_dir / ms.vid_dir)),
+        expected=_keys_in(album_dir / ms.orig_vid_dir, ms),
+        present=_keys_in(album_dir / ms.vid_dir, ms),
         force=force,
     )
 
@@ -278,12 +273,8 @@ def plan_rm_upstream(
         ms=ms,
         image_keys=from_img.keys | from_jpg.keys,
         video_keys=from_vid.keys,
-        archive_image_keys=frozenset(
-            ms.key_fn(f) for f in list_files(album_dir / ms.orig_img_dir)
-        ),
-        archive_video_keys=frozenset(
-            ms.key_fn(f) for f in list_files(album_dir / ms.orig_vid_dir)
-        ),
+        archive_image_keys=_keys_in(album_dir / ms.orig_img_dir, ms),
+        archive_video_keys=_keys_in(album_dir / ms.orig_vid_dir, ms),
         skipped=tuple(sig.skip for sig in signals if sig.skip is not None),
     )
 
