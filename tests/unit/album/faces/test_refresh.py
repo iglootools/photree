@@ -21,6 +21,13 @@ from photree.album.faces.refresh import (
     refresh_face_data,
     reuse_thumbnail,
 )
+from photree.album.faces.store import (
+    data_path,
+    load_face_data,
+    load_face_state,
+    state_path,
+)
+from photree.foundation.metadata_io import InvalidMetadataError
 
 
 def _make_file(path: Path) -> None:
@@ -324,3 +331,46 @@ def _processed(width: int, height: int) -> FaceProcessedKey:
         thumb_width=640,
         thumb_height=480,
     )
+
+
+def _never_invoked_factory() -> NoReturn:
+    message = "analyzer factory should not be invoked"
+    raise AssertionError(message)
+
+
+class TestCorruptCache:
+    def test_redetect_replaces_corrupt_state(self, tmp_path: Path) -> None:
+        _make_ios_source(tmp_path)
+        _make_file(state_path(tmp_path, "main"))
+
+        refresh_face_data(
+            tmp_path,
+            analyzer_factory=_never_invoked_factory,
+            redetect=True,
+        )
+
+        assert load_face_state(tmp_path, "main") is not None
+
+    def test_redetect_replaces_truncated_data(self, tmp_path: Path) -> None:
+        _make_ios_source(tmp_path)
+        _make_file(data_path(tmp_path, "main"))
+
+        refresh_face_data(
+            tmp_path,
+            analyzer_factory=_never_invoked_factory,
+            redetect=True,
+        )
+
+        assert load_face_data(tmp_path, "main") is not None
+
+    def test_truncated_data_raises_as_derived_without_redetect(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        _make_ios_source(tmp_path)
+        _make_file(data_path(tmp_path, "main"))
+
+        with pytest.raises(InvalidMetadataError) as exc_info:
+            refresh_face_data(tmp_path, analyzer_factory=_never_invoked_factory)
+
+        assert exc_info.value.derived

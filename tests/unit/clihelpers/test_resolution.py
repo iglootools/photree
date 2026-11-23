@@ -16,6 +16,7 @@ class TestFormatInvalidMetadata:
 
         assert "album/.photree/cache/exif/main.yaml" in message
         assert "--refresh-exif-cache" in message
+        assert "--redetect-faces" in message
         assert "does not regenerate" not in message
 
     def test_source_file_says_to_restore_it(self) -> None:

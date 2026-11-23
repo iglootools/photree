@@ -992,6 +992,9 @@ one `-thumbs/` directory (resized JPEGs).
 | `landmarks`  | `(N, 5, 2)` | float32  | 5-point landmarks |
 | `embeddings` | `(N, 512)`  | float32  | ArcFace embeddings |
 
+A face data or state file that exists but cannot be read is an error, never
+read as absent; `album refresh --redetect-faces` replaces it without reading it.
+
 #### Processing State (.yaml)
 
 ```yaml

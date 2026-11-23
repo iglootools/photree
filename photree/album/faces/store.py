@@ -1,5 +1,7 @@
 """Reading and writing an album's face cache under ``.photree/cache/faces/``."""
 
+import pickle
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -15,6 +17,7 @@ from photree.album.faces.protocol import (
 )
 from photree.foundation.layout import PHOTREE_DIR
 from photree.foundation.metadata_io import (
+    InvalidMetadataError,
     load_yaml_mapping,
     validate_metadata,
     write_yaml,
@@ -70,20 +73,40 @@ class FaceData:
         )
 
 
+def _face_data_error(path: Path, reason: str) -> InvalidMetadataError:
+    return InvalidMetadataError(path, reason, derived=True)
+
+
 def load_face_data(album_dir: Path, media_source_name: str) -> FaceData | None:
-    """Load ``.photree/cache/faces/{name}.npz``, or return ``None`` if missing."""
+    """
+    Load ``.photree/cache/faces/{name}.npz``, or return ``None`` if missing.
+
+    Raises :class:`~photree.foundation.metadata_io.InvalidMetadataError`,
+    marked ``derived``, when the file cannot be read (``--redetect-faces`` or
+    deleting the file rebuilds it).
+    """
     path = data_path(album_dir, media_source_name)
     if not path.is_file():
         return None
-    with np.load(path, allow_pickle=True) as npz:
-        return FaceData(
-            keys=npz["keys"],
-            face_indices=npz["face_indices"],
-            det_scores=npz["det_scores"],
-            bboxes=npz["bboxes"],
-            landmarks=npz["landmarks"],
-            embeddings=npz["embeddings"],
-        )
+    try:
+        with np.load(path, allow_pickle=True) as npz:
+            return FaceData(
+                keys=npz["keys"],
+                face_indices=npz["face_indices"],
+                det_scores=npz["det_scores"],
+                bboxes=npz["bboxes"],
+                landmarks=npz["landmarks"],
+                embeddings=npz["embeddings"],
+            )
+    except (
+        zipfile.BadZipFile,
+        pickle.UnpicklingError,
+        KeyError,
+        ValueError,
+        OSError,
+        EOFError,
+    ) as exc:
+        raise _face_data_error(path, f"not a readable face data file ({exc})") from exc
 
 
 def save_face_data(album_dir: Path, media_source_name: str, data: FaceData) -> None:
@@ -112,14 +135,20 @@ def load_face_state(
     """
     Load the face state, or return ``None`` when it is absent.
 
-    Raises :class:`~photree.foundation.metadata_io.InvalidMetadataError` when
-    present but corrupt (``--redetect-faces`` or deleting the file rebuilds it).
+    Raises :class:`~photree.foundation.metadata_io.InvalidMetadataError`,
+    marked ``derived``, when present but corrupt (``--redetect-faces`` or
+    deleting the file rebuilds it).
     """
     path = state_path(album_dir, media_source_name)
-    raw = load_yaml_mapping(path)
-    return (
-        validate_metadata(path, FaceProcessingState, raw) if raw is not None else None
-    )
+    try:
+        raw = load_yaml_mapping(path)
+        return (
+            validate_metadata(path, FaceProcessingState, raw)
+            if raw is not None
+            else None
+        )
+    except InvalidMetadataError as exc:
+        raise InvalidMetadataError(exc.path, exc.reason, derived=True) from exc
 
 
 def save_face_state(

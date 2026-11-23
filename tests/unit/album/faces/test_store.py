@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from photree.album.faces.protocol import (
     DEFAULT_MODEL_NAME,
@@ -10,13 +11,16 @@ from photree.album.faces.protocol import (
 )
 from photree.album.faces.store import (
     FaceData,
+    data_path,
     filter_face_data,
     load_face_data,
     load_face_state,
     merge_face_data,
     save_face_data,
     save_face_state,
+    state_path,
 )
+from photree.foundation.metadata_io import InvalidMetadataError
 
 
 def _sample_face_data(keys: list[str], face_indices: list[int]) -> FaceData:
@@ -127,3 +131,38 @@ class TestMergeFaceData:
         data = _sample_face_data(["0410"], [0])
         assert merge_face_data(FaceData.empty(), data).count == 1
         assert merge_face_data(data, FaceData.empty()).count == 1
+
+
+class TestUnreadableFaceData:
+    def test_truncated_file_raises_as_derived(self, tmp_path: Path) -> None:
+        save_face_data(tmp_path, "main", _sample_face_data(["0410"], [0]))
+        path = data_path(tmp_path, "main")
+        path.write_bytes(path.read_bytes()[:100])
+
+        with pytest.raises(InvalidMetadataError) as exc_info:
+            load_face_data(tmp_path, "main")
+
+        assert exc_info.value.derived
+        assert exc_info.value.path == path
+
+    def test_file_without_keys_raises_as_derived(self, tmp_path: Path) -> None:
+        path = data_path(tmp_path, "main")
+        path.parent.mkdir(parents=True)
+        np.savez_compressed(path, other=np.zeros(1))
+
+        with pytest.raises(InvalidMetadataError) as exc_info:
+            load_face_data(tmp_path, "main")
+
+        assert exc_info.value.derived
+
+
+class TestCorruptFaceState:
+    def test_corrupt_state_raises_as_derived(self, tmp_path: Path) -> None:
+        path = state_path(tmp_path, "main")
+        path.parent.mkdir(parents=True)
+        path.write_text("- not a mapping\n", encoding="utf-8")
+
+        with pytest.raises(InvalidMetadataError) as exc_info:
+            load_face_state(tmp_path, "main")
+
+        assert exc_info.value.derived

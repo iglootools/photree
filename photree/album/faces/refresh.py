@@ -42,6 +42,7 @@ from photree.common.fs import list_files
 from photree.common.parallelism import ParallelResult, run_parallel
 from photree.common.progress import FileEnd
 from photree.common.sips import get_dimensions
+from photree.foundation.metadata_io import InvalidMetadataError
 
 if TYPE_CHECKING:
     # Annotation only: importing insightface costs ~0.3 s at CLI startup.
@@ -153,6 +154,9 @@ class _SourcePlan:
     keys_to_process: tuple[str, ...]
     stale_keys: frozenset[str]
     model_changed: bool
+    # --redetect-faces: every image is detected again, so the old face data
+    # is neither read nor kept.
+    rebuild: bool
 
     @property
     def current_keys(self) -> frozenset[str]:
@@ -160,7 +164,7 @@ class _SourcePlan:
 
     @property
     def is_noop(self) -> bool:
-        return not self.keys_to_process and not self.stale_keys
+        return not self.keys_to_process and not self.stale_keys and not self.rebuild
 
 
 def _plan_source(
@@ -171,7 +175,7 @@ def _plan_source(
     model_version: str,
     redetect: bool,
 ) -> _SourcePlan:
-    existing_state = load_face_state(album_dir, ms.name) or FaceProcessingState()
+    existing_state = _load_existing_state(album_dir, ms, redetect=redetect)
     current_files = _scan_current_images(album_dir, ms)
     model_changed = _model_version_changed(existing_state, model_name, model_version)
     return _SourcePlan(
@@ -188,7 +192,30 @@ def _plan_source(
         ),
         stale_keys=frozenset(existing_state.processed_keys) - frozenset(current_files),
         model_changed=model_changed,
+        rebuild=redetect,
     )
+
+
+def _load_existing_state(
+    album_dir: Path,
+    ms: MediaSource,
+    *,
+    redetect: bool,
+) -> FaceProcessingState:
+    """
+    Load the source's face state, empty when absent.
+
+    A corrupt state raises, unless *redetect*: re-detection rebuilds the
+    state, so it starts from an empty one instead. A readable state is still
+    used then, for the thumbnails it lets the refresh reuse.
+    """
+    try:
+        return load_face_state(album_dir, ms.name) or FaceProcessingState()
+    except InvalidMetadataError:
+        if redetect:
+            return FaceProcessingState()
+        else:
+            raise
 
 
 def _refresh_source(
@@ -262,7 +289,11 @@ def _detect_and_save(
     _save_updated_state(
         album_dir,
         ms,
-        load_face_data(album_dir, ms.name) or FaceData.empty(),
+        (
+            FaceData.empty()
+            if plan.rebuild
+            else load_face_data(album_dir, ms.name) or FaceData.empty()
+        ),
         plan.existing_state,
         current_keys=set(plan.current_keys),
         keys_to_process=list(plan.keys_to_process),

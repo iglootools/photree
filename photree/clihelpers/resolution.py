@@ -45,8 +45,8 @@ def format_invalid_metadata(exc: InvalidMetadataError, cwd: Path) -> str:
     """Render an :class:`InvalidMetadataError` with a relative path and a fix."""
     fix = (
         "This cache is derived from the album's files: delete it, or force its "
-        "refresh (e.g. 'photree album refresh --refresh-exif-cache'), and "
-        "photree rebuilds it."
+        "refresh ('photree album refresh --refresh-exif-cache' for the EXIF "
+        "cache, '--redetect-faces' for the face cache), and photree rebuilds it."
         if exc.derived
         else "Restore the file from a backup or fix its content; photree does not "
         "regenerate it, because a fresh file would carry fresh IDs."
