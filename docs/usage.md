@@ -317,10 +317,13 @@ photree collection metadata set -d my-collection/ --lifecycle explicit
 When you convert an implicit collection to explicit (or vice versa),
 `gallery refresh` syncs album titles on the next run:
 
-- **Implicit → explicit**: strips the series from album names (the
-  collection now owns the grouping)
+- **Implicit → explicit**: strips the series from the names of the
+  collection's member albums (the collection now owns the grouping)
 - **Explicit → implicit**: adds the collection title as series to the
   contained albums' names
+
+Afterwards, removing the series from an album's name takes the album out of
+its implicit collection on the next refresh.
 
 See [domain.md — Lifecycle](./domain.md#lifecycle)
 for details.

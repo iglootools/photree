@@ -345,11 +345,16 @@ Syncs album directory names with collection lifecycle state. This runs
 before implicit collection detection so that phase 3 sees the updated
 album names.
 
-- **Album has series + explicit collection with that title exists** →
-  strip the series from the album name. The explicit collection owns
-  the grouping, so the series is redundant.
-- **Album has no series + implicit collection contains it** → add the
-  collection title as series to the album name.
+- **Album has series + an explicit collection with that title lists the
+  album as a member** → strip the series from the album name. The explicit
+  collection owns the grouping, so the series is redundant. An explicit
+  collection never touches the names of albums it does not contain.
+- **Album has no series + a just-converted implicit collection contains
+  it** → add the collection title as series to the album name. An implicit
+  collection counts as just converted (from explicit) when none of its
+  members carries its title as series. Otherwise the series-less member was
+  taken out of the series by the user: its name is left alone and phase 3
+  drops it from the collection.
 
 See [domain.md — Lifecycle](./domain.md#lifecycle) for examples.
 
