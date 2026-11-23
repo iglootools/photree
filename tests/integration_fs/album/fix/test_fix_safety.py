@@ -319,8 +319,35 @@ class TestMvMiscategorizedOverwrite:
         with pytest.raises(MiscategorizedMoveConflictError) as exc_info:
             mv_miscategorized(tmp_path, MC)
 
-        assert exc_info.value.target_dir == "edit-img"
+        assert exc_info.value.target_dir == "ios-main/edit-img"
         assert exc_info.value.conflicts == ("IMG_E0001.HEIC",)
         content = (tmp_path / "ios-main/edit-img/IMG_E0001.HEIC").read_text()
         assert content == "keep-me"
         assert "IMG_E0001.HEIC" in _names(tmp_path / "ios-main/orig-img")
+
+    def test_video_conflict_leaves_images_unmoved(self, tmp_path: Path) -> None:
+        _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_E0001.HEIC"])
+        _setup_dir(tmp_path / "ios-main/orig-vid", ["IMG_0002.MOV", "IMG_E0002.MOV"])
+        _setup_dir(tmp_path / "ios-main/edit-vid", ["IMG_E0002.MOV"])
+
+        with pytest.raises(MiscategorizedMoveConflictError) as exc_info:
+            mv_miscategorized(tmp_path, MC)
+
+        assert exc_info.value.target_dir == "ios-main/edit-vid"
+        assert "IMG_E0001.HEIC" in _names(tmp_path / "ios-main/orig-img")
+        assert _names(tmp_path / "ios-main/edit-img") == set()
+
+    def test_conflict_in_one_source_leaves_every_source_unmoved(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_E0001.HEIC"])
+        _setup_dir(tmp_path / "ios-nelu/orig-img", ["IMG_0002.HEIC", "IMG_E0002.HEIC"])
+        _setup_dir(tmp_path / "ios-nelu/edit-img", ["IMG_E0002.HEIC"])
+
+        with pytest.raises(MiscategorizedMoveConflictError) as exc_info:
+            run_fix_ios(tmp_path, dry_run=False, mv_miscategorized=True)
+
+        assert exc_info.value.target_dir == "ios-nelu/edit-img"
+        assert "IMG_E0001.HEIC" in _names(tmp_path / "ios-main/orig-img")
+        assert _names(tmp_path / "ios-main/edit-img") == set()
