@@ -13,6 +13,8 @@ import shutil
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
+from itertools import groupby
+from operator import attrgetter
 from pathlib import Path
 
 from photree.album.naming import parse_album_name
@@ -47,6 +49,9 @@ class BrowsableRefreshErrorKind(StrEnum):
     CYCLE = "cycle"
     """``path``: collection reached again through its own members."""
 
+    LINK_COLLISION = "link-collision"
+    """``path``: link that two different ``targets`` would both claim."""
+
 
 @dataclass(frozen=True)
 class BrowsableRefreshError:
@@ -55,6 +60,7 @@ class BrowsableRefreshError:
     kind: BrowsableRefreshErrorKind
     path: Path
     collection_id: str | None = None
+    targets: tuple[Path, ...] = ()
 
 
 class DanglingMemberKind(StrEnum):
@@ -468,6 +474,42 @@ def _collection_target_dir(browsable_dir: Path, col: _CollectionEntry) -> Path:
     return browsable_dir / Path(*parts)
 
 
+def _dedupe_links(
+    links: list[_Link],
+) -> tuple[tuple[_Link, ...], tuple[BrowsableRefreshError, ...]]:
+    """
+    Drop repeated links, and report a link two different targets claim.
+
+    A repeat is expected (an album or collection listed twice among a
+    collection's members) and is created once. A collision, such as two
+    albums or two collections with the same name in the same place, cannot be
+    rendered: creating the second link would fail half-way through the tree.
+    """
+    targets_by_link = {
+        link: tuple(dict.fromkeys(p.target for p in group))
+        for link, group in groupby(
+            sorted(links, key=attrgetter("link")),
+            key=attrgetter("link"),
+        )
+    }
+    return (
+        tuple(
+            _Link(targets[0], link)
+            for link, targets in targets_by_link.items()
+            if len(targets) == 1
+        ),
+        tuple(
+            BrowsableRefreshError(
+                BrowsableRefreshErrorKind.LINK_COLLISION,
+                link,
+                targets=targets,
+            )
+            for link, targets in targets_by_link.items()
+            if len(targets) > 1
+        ),
+    )
+
+
 def _plan_all(
     gallery: _Gallery,
     browsable_dir: Path,
@@ -501,8 +543,9 @@ def refresh_browsable(
     3. Remove the existing browsable/ directory
     4. Create the planned links
 
-    Unreadable albums or collections abort before anything is removed;
-    dangling collection members are reported and skipped.
+    Unreadable albums or collections, and links two targets would claim,
+    abort before anything is removed; dangling collection members are
+    reported and skipped, and a member listed twice is rendered once.
     """
     browsable_dir = gallery_dir / BROWSABLE_DIR
     safety_error = _validate_browsable_dir(browsable_dir)
@@ -516,6 +559,10 @@ def refresh_browsable(
 
     gallery = _Gallery(albums, collections, media_locations)
     dangling = _dangling_members(collections, albums, media_locations)
+    planned, render_errors = _plan_all(gallery, browsable_dir)
+    links, collisions = _dedupe_links(planned)
+    if collisions:
+        return BrowsableRefreshResult(errors=collisions, dangling_members=dangling)
     if dry_run:
         return BrowsableRefreshResult(
             albums_rendered=len(albums),
@@ -523,11 +570,10 @@ def refresh_browsable(
             dangling_members=dangling,
         )
 
-    links, render_errors = _plan_all(gallery, browsable_dir)
     if browsable_dir.exists():
         shutil.rmtree(browsable_dir)
-    for planned in links:
-        _make_relative_symlink(planned.target, planned.link)
+    for planned_link in links:
+        _make_relative_symlink(planned_link.target, planned_link.link)
     return BrowsableRefreshResult(
         albums_rendered=len(albums),
         collections_rendered=len(collections),

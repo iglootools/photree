@@ -151,6 +151,20 @@ def format_browsable_error(err: BrowsableRefreshError, cwd: Path) -> str:
                 f"({collection_id}) contains itself through its members\n"
                 f"Run {_collection_check(err.path, cwd)} to investigate."
             )
+        case BrowsableRefreshErrorKind.LINK_COLLISION:
+            return "\n".join(
+                [
+                    (
+                        f"browsable link {_path(err.path, cwd)} would point to "
+                        "more than one target:"
+                    ),
+                    *(indent(_path(target, cwd)) for target in err.targets),
+                    (
+                        "Two albums or collections share a name there: rename "
+                        "one of them, then run 'photree gallery refresh'."
+                    ),
+                ],
+            )
 
 
 def _member_external_id(member: DanglingMember) -> str:

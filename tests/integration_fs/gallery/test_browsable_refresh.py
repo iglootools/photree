@@ -405,3 +405,69 @@ class TestBrowsableRefreshScanErrors:
                 col_dir,
             ),
         )
+
+
+class TestBrowsableRefreshLinkCollisions:
+    def test_album_listed_twice_in_a_collection_renders_once(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = _setup_gallery(tmp_path)
+        _, aid = _setup_album(gallery, "2024-07-14 - Trip")
+        _save_collection(gallery, "2024-07 - Summer", albums=[aid, aid])
+
+        result = refresh_browsable(gallery)
+
+        assert result.success
+        album_links = (
+            gallery
+            / BROWSABLE_DIR
+            / "public"
+            / "collections"
+            / "by-year"
+            / "2024"
+            / "2024-07 - Summer"
+            / "albums"
+            / "2024-07-14 - Trip"
+        )
+        assert sorted(p.name for p in album_links.iterdir()) == [
+            "main-jpg",
+            "main-vid",
+        ]
+
+    def test_two_targets_for_one_link_abort_before_removing_anything(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = _setup_gallery(tmp_path)
+        _setup_album(gallery, "2024-07-14 - Trip")
+        assert refresh_browsable(gallery).success
+        twin = gallery / "albums" / "elsewhere" / "2024-07-14 - Trip"
+        _write(twin / "ios-main" / "orig-img" / "IMG_0002.HEIC")
+        (twin / "main-jpg").mkdir(parents=True)
+        save_album_metadata(twin, AlbumMetadata(id=generate_album_id()))
+
+        result = refresh_browsable(gallery)
+
+        link = (
+            gallery
+            / BROWSABLE_DIR
+            / "public"
+            / "albums"
+            / "by-year"
+            / "2024"
+            / "2024-07-14 - Trip"
+            / "main-jpg"
+        )
+        assert result.errors == (
+            BrowsableRefreshError(
+                BrowsableRefreshErrorKind.LINK_COLLISION,
+                link,
+                targets=(
+                    gallery / "albums" / "2024" / "2024-07-14 - Trip" / "main-jpg",
+                    twin / "main-jpg",
+                ),
+            ),
+        )
+        # The previous render survives.
+        assert (link.parent / "main-vid").is_symlink()
