@@ -55,8 +55,6 @@ def init_cmd(
 
     save_gallery_metadata(gallery_dir, GalleryMetadata(link_mode=link_mode))
     is_cwd = gallery_dir.resolve() == cwd.resolve()
-    # The short gallery flag differs between commands (``-g`` for import and
-    # export, ``-d`` for check and stats); the long form works for all.
     gallery_flag = (
         "" if is_cwd else f' --gallery-dir "{display_path(gallery_dir, cwd)}"'
     )
