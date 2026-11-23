@@ -365,6 +365,36 @@ class TestMoveMedia:
         assert exc_info.value.kind == MediaOpErrorKind.MOVE_CONFLICT
         assert "ios-main/orig-img/IMG_0410.JPG" in exc_info.value.conflicts
 
+    def test_refuses_when_dest_has_same_named_source_of_other_type(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        src = tmp_path / "src-album"
+        dst = tmp_path / "dst-album"
+        _setup_ios_album(src)
+        _setup_std_album(dst, media_source_name="main")
+
+        with pytest.raises(MediaOpError) as exc_info:
+            move_media(src, dst, ["main-jpg/IMG_E0410.jpg"])
+        assert exc_info.value.kind == MediaOpErrorKind.MEDIA_SOURCE_TYPE_MISMATCH
+        assert exc_info.value.media_sources == ("main",)
+
+        assert "IMG_0410.HEIC" in _names(src / "ios-main/orig-img")
+        assert not (dst / "ios-main").exists()
+
+    def test_moves_into_dest_whose_other_sources_differ_in_type(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        src = tmp_path / "src-album"
+        dst = tmp_path / "dst-album"
+        _setup_ios_album(src)
+        _setup_std_album(dst, media_source_name="nelu")
+
+        move_media(src, dst, ["main-jpg/IMG_E0410.jpg"])
+
+        assert "IMG_0410.HEIC" in _names(dst / "ios-main/orig-img")
+
 
 class TestRmMedia:
     def test_ios_removes_all_variants(self, tmp_path: Path) -> None:

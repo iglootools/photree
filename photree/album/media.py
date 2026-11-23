@@ -38,6 +38,7 @@ class MediaOpErrorKind(StrEnum):
     PATH_WITHOUT_DIRECTORY = "path-without-directory"
     UNKNOWN_DIRECTORY = "unknown-directory"
     MOVE_CONFLICT = "move-conflict"
+    MEDIA_SOURCE_TYPE_MISMATCH = "media-source-type-mismatch"
 
 
 class MediaOpError(ValueError):
@@ -56,6 +57,7 @@ class MediaOpError(ValueError):
         rel_path: str | None = None,
         subdir: str | None = None,
         conflicts: tuple[str, ...] = (),
+        media_sources: tuple[str, ...] = (),
     ) -> None:
         """Build the error from its *kind*, the album and the fields it reports."""
         self.kind = kind
@@ -63,6 +65,7 @@ class MediaOpError(ValueError):
         self.rel_path = rel_path
         self.subdir = subdir
         self.conflicts = conflicts
+        self.media_sources = media_sources
         super().__init__(f"{kind}: {album_dir.name}")
 
 
@@ -229,6 +232,47 @@ def _check_move_conflicts(
     )
 
 
+def _find_media_source_type_mismatches(
+    groups: list[_MediaGroup],
+    dest_media_sources: list[MediaSource],
+) -> tuple[str, ...]:
+    """Return the moved media sources' names the destination has with the other type."""
+    dest_types = {ms.name: ms.media_source_type for ms in dest_media_sources}
+    return tuple(
+        sorted(
+            {
+                g.ms.name
+                for g in groups
+                if dest_types.get(g.ms.name, g.ms.media_source_type)
+                != g.ms.media_source_type
+            },
+        ),
+    )
+
+
+def _validate_move(groups: list[_MediaGroup], dest_album: Path) -> None:
+    dest_media_sources = discover_media_sources(dest_album)
+    mismatches = _find_media_source_type_mismatches(groups, dest_media_sources)
+    if mismatches:
+        raise MediaOpError(
+            MediaOpErrorKind.MEDIA_SOURCE_TYPE_MISMATCH,
+            album_dir=dest_album,
+            media_sources=mismatches,
+        )
+
+    conflicts = _check_move_conflicts(
+        _variants_of(groups),
+        dest_album,
+        _build_dir_to_media_source(dest_media_sources),
+    )
+    if conflicts:
+        raise MediaOpError(
+            MediaOpErrorKind.MOVE_CONFLICT,
+            album_dir=dest_album,
+            conflicts=tuple(conflicts),
+        )
+
+
 def move_media(
     source_album: Path,
     dest_album: Path,
@@ -239,21 +283,19 @@ def move_media(
     """
     Move media files and all their variants to another media source.
 
-    Raises :class:`MediaOpError` (``MOVE_CONFLICT``, with the conflicting
-    paths) before moving anything if the destination already holds files
-    with the same key.
+    Raises :class:`MediaOpError` before moving anything:
+
+    - ``MEDIA_SOURCE_TYPE_MISMATCH``, with the media source names, when the
+      destination has a media source of the same name but the other type
+      (iOS or std): moving would put an ``ios-<name>/`` and a
+      ``std-<name>/`` archive side by side, which every derived-data command
+      then refuses.
+    - ``MOVE_CONFLICT``, with the conflicting paths, when the destination
+      already holds files with the same key.
     """
     groups = _resolve_groups(source_album, relative_paths)
     variants = _variants_of(groups)
-
-    dest_dir_to_ms = _build_dir_to_media_source(discover_media_sources(dest_album))
-    conflicts = _check_move_conflicts(variants, dest_album, dest_dir_to_ms)
-    if conflicts:
-        raise MediaOpError(
-            MediaOpErrorKind.MOVE_CONFLICT,
-            album_dir=dest_album,
-            conflicts=tuple(conflicts),
-        )
+    _validate_move(groups, dest_album)
 
     for subdir, files in variants:
         move_files(source_album / subdir, dest_album / subdir, files, dry_run=dry_run)

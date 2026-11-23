@@ -32,6 +32,14 @@ def format_media_op_error(exc: MediaOpError, cwd: Path) -> str:
             )
         case MediaOpErrorKind.MOVE_CONFLICT:
             return _format_move_conflicts(exc.conflicts, album)
+        case MediaOpErrorKind.MEDIA_SOURCE_TYPE_MISMATCH:
+            return (
+                f"{album} has media source(s) {', '.join(exc.media_sources)}"
+                " of the other type (ios vs std) than in the source album."
+                " Moving would put ios-<name>/ and std-<name>/ archives side"
+                " by side. Rename the media source in one of the two albums"
+                " first."
+            )
 
 
 def _format_move_conflicts(conflicts: tuple[str, ...], album: Path) -> str:
