@@ -12,10 +12,12 @@ from photree.album.check.face_state import (
     FaceSyncIssueKind,
     check_face_state,
 )
-from photree.album.check.output import (
-    format_album_preflight_troubleshoot,
+from photree.album.check.output.album import (
     format_exif_cache_check,
     format_integrity_checks,
+)
+from photree.album.check.output.troubleshoot import (
+    format_album_preflight_troubleshoot,
 )
 from photree.album.check.testkit import (
     IOS_INTEGRITY_OK,

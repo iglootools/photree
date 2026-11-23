@@ -8,8 +8,9 @@ from pathlib import Path
 import typer
 
 from photree.album import naming as album_naming
-from photree.album.check import output as preflight_output
-from photree.album.check.output import batch_check_summary
+from photree.album.check.output import album as album_output
+from photree.album.check.output import batch as batch_output
+from photree.album.check.output.batch import batch_check_summary
 from photree.album.exif_cache.refresh import refresh_exif_cache as _refresh_exif
 from photree.album.id import format_album_external_id, format_image_external_id
 from photree.album.naming import BatchNamingResult
@@ -45,7 +46,7 @@ class _CheckFlags:
         return self.fatal_warnings or self.fatal_exif_date_match
 
     def retry_flags(self) -> str:
-        return preflight_output.batch_check_retry_flags(
+        return batch_output.batch_check_retry_flags(
             fatal_warnings=self.fatal_warnings,
             fatal_sidecar=self.fatal_sidecar_arg,
             fatal_exif_date_match=self.fatal_exif_date_match,
@@ -150,7 +151,7 @@ def _run_per_album_checks(
         which=which,
     ) as et:
         if not refresh_exif_cache:
-            console.print(preflight_output.exiftool_check(available=et is not None))
+            console.print(album_output.exiftool_check(available=et is not None))
         if not albums:
             return None
         refresh_failures = (
@@ -212,7 +213,7 @@ def _print_cross_album(cross_album: _CrossAlbumResult, cwd: Path) -> None:
     typer.echo("\nCross-album checks:")
     if cross_album.naming_result is not None:
         console.print(
-            preflight_output.format_batch_naming_issues(cross_album.naming_result),
+            batch_output.format_batch_naming_issues(cross_album.naming_result),
         )
     for kind, duplicates, format_id in (
         ("album", cross_album.duplicate_ids, format_album_external_id),
@@ -220,7 +221,7 @@ def _print_cross_album(cross_album: _CrossAlbumResult, cwd: Path) -> None:
     ):
         if duplicates:
             err_console.print(
-                preflight_output.duplicate_ids_report(
+                batch_output.duplicate_ids_report(
                     kind,
                     {k: list(v) for k, v in duplicates.items()},
                     cwd,
@@ -228,7 +229,7 @@ def _print_cross_album(cross_album: _CrossAlbumResult, cwd: Path) -> None:
                 ),
             )
         else:
-            console.print(preflight_output.no_duplicate_ids_line(kind))
+            console.print(batch_output.no_duplicate_ids_line(kind))
 
 
 def _report(

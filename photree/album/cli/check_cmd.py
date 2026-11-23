@@ -8,7 +8,9 @@ import typer
 
 from photree.album import check as album_check
 from photree.album import naming as album_naming
-from photree.album.check import output as preflight_output
+from photree.album.check.output import album as album_output
+from photree.album.check.output import batch as batch_output
+from photree.album.check.output import troubleshoot as troubleshoot_output
 from photree.album.cli.app import app
 from photree.album.cli.media_source_conflict import format_media_source_conflict
 from photree.album.exif_cache.refresh import (
@@ -90,7 +92,7 @@ def check_cmd(
     album_dir_display = str(display_path(album_dir, cwd))
 
     console.print(
-        preflight_output.format_album_preflight_checks(
+        album_output.format_album_preflight_checks(
             result,
             fatal_sidecar=fatal_sidecar,
             fatal_exif=fatal_exif,
@@ -176,7 +178,7 @@ def _check_sibling_date_collisions(album_dir: Path) -> bool:
         if (parsed := album_naming.parse_album_name(a.name)) is not None
     ]
     batch_naming = album_naming.check_batch_date_collisions(parsed_siblings)
-    console.print(preflight_output.format_batch_naming_issues(batch_naming))
+    console.print(batch_output.format_batch_naming_issues(batch_naming))
     return batch_naming.success
 
 
@@ -187,7 +189,7 @@ def _print_troubleshooting(
     fatal_sidecar: bool,
     fatal_exif: bool,
 ) -> None:
-    troubleshoot = preflight_output.format_album_preflight_troubleshoot(
+    troubleshoot = troubleshoot_output.format_album_preflight_troubleshoot(
         result,
         album_dir=album_dir_display,
     )
@@ -200,7 +202,7 @@ def _print_troubleshooting(
     ):
         typer.echo("")
         err_console.print(
-            preflight_output.format_fatal_warnings(
+            album_output.format_fatal_warnings(
                 result,
                 fatal_sidecar=fatal_sidecar,
                 fatal_exif=fatal_exif,

@@ -5,7 +5,7 @@ from typing import Annotated
 
 import typer
 
-from photree.album.check.output import derived_failures_report
+from photree.album.check.output.derived import derived_failures_report
 from photree.album.cli.app import app
 from photree.album.cli.media_source_conflict import exit_on_media_source_conflict
 from photree.album.faces.detect import memoized_face_analyzer_factory

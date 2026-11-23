@@ -12,7 +12,8 @@ import typer
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from photree.album import check as album_check
-from photree.album.check import output as preflight_output
+from photree.album.check.output import album as album_output
+from photree.album.check.output import derived as derived_output
 from photree.album.id import format_album_external_id
 from photree.album.store.album_discovery import discover_potential_albums
 from photree.album.store.metadata import load_album_metadata
@@ -167,7 +168,7 @@ def print_single_import_result(
     if not result.complete:
         err_console.print(
             "The album imported, but its derived data is incomplete:\n"
-            + preflight_output.derived_failures_report(
+            + derived_output.derived_failures_report(
                 result.jpeg_failures,
                 result.face_failures,
                 str(display_path(result.target_dir, cwd)),
@@ -190,7 +191,7 @@ def _post_import_check(target_dir: Path, cwd: Path, *, which: WhichFn) -> None:
             exiftool=exiftool,
             link_mode=resolve_link_mode(None, target_dir),
         )
-    console.print(preflight_output.format_album_preflight_checks(check_result))
+    console.print(album_output.format_album_preflight_checks(check_result))
     if not check_result.success:
         err_console.print(
             "\nTo investigate, run 'photree album check --album-dir "
