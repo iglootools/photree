@@ -131,9 +131,9 @@ allows, enforced as
 [python-tooling.md › Enforce the patching rule](https://github.com/iglootools/common/blob/main/guidelines/project-setup/python-tooling.md#enforce-the-patching-rule)
 sets up:
 
-| File | What is replaced | Category | Why, and when to retire it |
-|---|---|---|---|
-| `tests/integration_fs/album/importer/test_preflight.py` | `PATH`, emptied | (c) | The test asserts that `run_preflight` does not read `PATH`, since its caller owns the probing. Changing the process's `PATH` is the only way to show that. |
+| File | What it replaces | Category | Why | Retires when |
+|---|---|---|---|---|
+| `tests/integration_fs/album/importer/test_preflight.py` | `PATH`, emptied | (c) | The test asserts that `run_preflight` does not read `PATH`, since its caller owns the probing: it takes process-global state away from the developer's machine to show the outcome does not depend on it. | Never, while the test exists: changing the process's `PATH` is the only way to show that a function ignores it. |
 
 ## Documentation
 
