@@ -593,6 +593,8 @@ Check system prerequisites and import tasks for batch import.
 
 Runs shared preflight checks (sips, Image Capture directory) once, then
 checks each album for non-empty to-import-{ios,std}-&lt;name&gt; staging entries.
+With --dir, a subdirectory without any staging entry is skipped, as
+albums import skips it.
 
 **Usage**:
 
