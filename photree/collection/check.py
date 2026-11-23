@@ -11,7 +11,7 @@ Validates:
   members, and private smart collections only private ones
 """
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
@@ -21,6 +21,7 @@ from photree.album.naming import ParsedAlbumName, parse_album_name
 from photree.album.store.album_discovery import discover_albums
 from photree.album.store.media_metadata import MediaMetadata, load_media_metadata
 from photree.album.store.metadata import load_album_metadata
+from photree.album.store.protocol import AlbumMetadata
 from photree.collection.naming import ParsedCollectionName, parse_collection_name
 from photree.collection.store.collection_discovery import discover_collections
 from photree.collection.store.metadata import load_collection_metadata
@@ -132,6 +133,9 @@ class _GalleryLookup:
     # gallery-wide (not per year directory) so chapters filed under different
     # ``collections/YYYY/`` directories are still compared with each other.
     chapters: Mapping[str, _ChapterRange]
+    # Albums whose album or media metadata cannot be read: what they hold is
+    # missing from the lookup, so a member they hold may read as missing.
+    unreadable_albums: tuple[Path, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -148,17 +152,57 @@ class _CollectionEntry:
     parsed: ParsedCollectionName
 
 
-def _scan_albums(gallery_dir: Path) -> list[_AlbumEntry]:
-    return [
-        _AlbumEntry(
-            meta.id,
-            parse_album_name(album_dir.name),
-            load_media_metadata(album_dir),
-        )
+def _try_load[T](load: Callable[[Path], T | None], album_dir: Path) -> T | bool | None:
+    """Return what *load* reads, ``None`` when absent, ``False`` when unreadable."""
+    try:
+        return load(album_dir)
+    except InvalidMetadataError:
+        return False
+
+
+@dataclass(frozen=True)
+class _ScannedAlbum:
+    entry: _AlbumEntry | None  # None when the album has no readable album.yaml
+    readable: bool
+
+
+def _scan_album(album_dir: Path) -> _ScannedAlbum:
+    meta = _try_load(load_album_metadata, album_dir)
+    media = (
+        _try_load(load_media_metadata, album_dir)
+        if isinstance(meta, AlbumMetadata)
+        else None
+    )
+    return _ScannedAlbum(
+        entry=(
+            _AlbumEntry(
+                meta.id,
+                parse_album_name(album_dir.name),
+                media if isinstance(media, MediaMetadata) else None,
+            )
+            if isinstance(meta, AlbumMetadata)
+            else None
+        ),
+        readable=meta is not False and media is not False,
+    )
+
+
+def _scan_albums(gallery_dir: Path) -> tuple[list[_AlbumEntry], tuple[Path, ...]]:
+    """
+    Return the albums that were read, and the directories of those that were not.
+
+    An album whose metadata is corrupt is kept out of the lookup rather than
+    aborting every collection check: the album's own check reports why, and
+    the collection commands point the user to it.
+    """
+    scanned = [
+        (album_dir, _scan_album(album_dir))
         for album_dir in discover_albums(gallery_dir / ALBUMS_DIR)
-        for meta in [load_album_metadata(album_dir)]
-        if meta is not None
     ]
+    return (
+        [s.entry for _, s in scanned if s.entry is not None],
+        tuple(album_dir for album_dir, s in scanned if not s.readable),
+    )
 
 
 def _load_collection_or_none(collection_dir: Path) -> CollectionMetadata | None:
@@ -207,9 +251,11 @@ def build_gallery_lookup(gallery_dir: Path) -> _GalleryLookup:
     Scan *gallery_dir* once and index what every collection check looks up.
 
     Reads the metadata of every album, its media and every collection, so one
-    lookup can be shared by all the collections checked in the gallery.
+    lookup can be shared by all the collections checked in the gallery. An
+    album or collection whose metadata cannot be read is left out; the
+    albums are listed in ``unreadable_albums``.
     """
-    albums = _scan_albums(gallery_dir)
+    albums, unreadable_albums = _scan_albums(gallery_dir)
     collections = _scan_collections(gallery_dir)
     image_owners = _media_owners(albums, videos=False)
     video_owners = _media_owners(albums, videos=True)
@@ -230,6 +276,7 @@ def build_gallery_lookup(gallery_dir: Path) -> _GalleryLookup:
             for rng in [_chapter_range(c.name)]
             if rng is not None
         },
+        unreadable_albums=unreadable_albums,
     )
 
 
@@ -549,9 +596,14 @@ def check_collection(
 
 def check_all_collections(
     gallery_dir: Path,
+    lookup: _GalleryLookup,
 ) -> list[CollectionCheckResult]:
-    """Check every collection in *gallery_dir*, one result per collection directory."""
-    lookup = build_gallery_lookup(gallery_dir)
+    """
+    Check every collection in *gallery_dir*, one result per collection directory.
+
+    *lookup* is :func:`build_gallery_lookup` of the same gallery; the caller
+    builds it so it can also report the albums the lookup could not read.
+    """
     return [
         check_collection(col_dir, lookup)
         for col_dir in discover_collections(gallery_dir / COLLECTIONS_DIR)

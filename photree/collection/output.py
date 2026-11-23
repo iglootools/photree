@@ -6,6 +6,7 @@ Formatters return unindented lines, the caller indents.
 """
 
 from collections.abc import Callable
+from pathlib import Path
 
 from photree.album.id import (
     format_album_external_id,
@@ -21,7 +22,22 @@ from photree.collection.store.protocol import (
     CollectionStrategy,
     MemberType,
 )
+from photree.common.fs import display_path
 from photree.foundation.layout import PHOTREE_DIR
+
+
+def format_unreadable_album(album_dir: Path, cwd: Path) -> str:
+    """
+    Return the warning for an album a collection check could not read.
+
+    Two lines: the problem, and the command that shows why.
+    """
+    path = display_path(album_dir, cwd)
+    return (
+        f"warning: cannot read the metadata of album {path}; members it holds "
+        "may be reported as not found.\n"
+        f"Run 'photree album check --album-dir \"{path}\"' to see why."
+    )
 
 
 def format_invalid_collection_config(
