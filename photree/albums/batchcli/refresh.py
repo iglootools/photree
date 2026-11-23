@@ -4,7 +4,7 @@ from pathlib import Path
 
 import typer
 
-from photree.albums.batchcli.failures import exit_if_no_albums, exit_with_failures
+from photree.albums.batchcli.failures import announce_albums, exit_with_failures
 from photree.albums.batchcli.resolution import make_display_fn
 from photree.albums.cmd_handler.refresh import batch_refresh
 from photree.clihelpers.progress import BatchProgressBar
@@ -25,9 +25,16 @@ def run_batch_refresh(
     refresh_face_thumbs: bool = False,
     runtime: Runtime,
 ) -> None:
-    """Shared implementation for albums refresh / gallery refresh."""
+    """
+    Shared implementation for albums refresh / gallery refresh.
+
+    Returns when there are no albums, rather than exiting, so that gallery
+    refresh still refreshes the collections and ``browsable/``. Exits 1 when
+    any album failed.
+    """
     cwd = runtime.cwd()
-    exit_if_no_albums(albums, display_base)
+    if not announce_albums(albums, display_base):
+        return
 
     with BatchProgressBar(
         total=len(albums),
