@@ -16,6 +16,7 @@ All progress bars support context manager usage::
     # .stop() called automatically
 """
 
+import threading
 from collections.abc import Callable
 from types import TracebackType
 from typing import Self
@@ -67,18 +68,22 @@ class _LazyProgress:
     def __init__(self, total: int) -> None:
         self._total = total
         self._started: tuple[Progress, TaskID] | None = None
+        self._start_lock = threading.Lock()
 
     def _ensure_started(self, description: str) -> tuple[Progress, TaskID]:
-        match self._started:
-            case None:
-                progress = _new_progress()
-                progress.start()
-                task_id = progress.add_task(description, total=self._total)
-                self._started = (progress, task_id)
-                return self._started
-            case (progress, task_id):
-                progress.update(task_id, description=description)
-                return self._started
+        # A bar's callbacks may run on run_parallel's worker threads: without
+        # the lock, two first calls could each start a Rich live display.
+        with self._start_lock:
+            match self._started:
+                case None:
+                    progress = _new_progress()
+                    progress.start()
+                    task_id = progress.add_task(description, total=self._total)
+                    self._started = (progress, task_id)
+                    return self._started
+                case (progress, task_id):
+                    progress.update(task_id, description=description)
+                    return self._started
 
     def _print_result(self, description: str, line: str) -> None:
         """Print *line* above the bar and advance it (starting it if needed)."""

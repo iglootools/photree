@@ -648,7 +648,7 @@ The `.photree/` directory and its YAML files are managed by photree and
 should not be edited directly. Use the provided CLI commands instead:
 
 - **Gallery settings**: `photree gallery metadata set --link-mode <value>`,
-  `--faces-enabled`, `--face-cluster-threshold`
+  `--faces-enabled`/`--no-faces-enabled`, `--face-cluster-threshold`
 - **Album ID**: Generated automatically at import time; use
   `photree album fix --id` or `photree gallery fix --id` to generate
   missing IDs. To split albums that share an ID (a copied album directory),

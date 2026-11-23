@@ -323,17 +323,22 @@ class TestBatchStats:
         assert result.stats is not None
 
 
+def _image_capture_dir(tmp_path: Path) -> Path:
+    source = tmp_path / "ic"
+    source.mkdir()
+    (source / "IMG_0001.HEIC").write_text("x", encoding="utf-8")
+    return source
+
+
 class TestImportCheck:
     def test_reports_reason_per_album(self, tmp_path: Path) -> None:
-        albums_dir = tmp_path / "albums"
-        (albums_dir / "2024-07-14 - Hiking").mkdir(parents=True)
-        source = tmp_path / "ic"
-        source.mkdir()
-        (source / "IMG_0001.HEIC").write_text("x", encoding="utf-8")
+        album = tmp_path / "albums" / "2024-07-14 - Hiking"
+        album.mkdir(parents=True)
+        source = _image_capture_dir(tmp_path)
 
         result = runner.invoke(
             app,
-            ["albums", "import-check", "-d", str(albums_dir), "-s", str(source)],
+            ["albums", "import-check", "-a", str(album), "-s", str(source)],
             obj=ALL_DEPS_RUNTIME,
         )
 
@@ -341,6 +346,29 @@ class TestImportCheck:
         assert "0 album(s) ready to import, 1 not ready." in result.output
         assert "no to-import-* staging entries" in result.output
         assert "photree album import-check --album-dir" in result.output
+
+    def test_scan_skips_directories_the_import_would_skip(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Regression: hidden and unstaged directories failed the check."""
+        albums_dir = tmp_path / "albums"
+        (albums_dir / ".hidden").mkdir(parents=True)
+        (albums_dir / "notes").mkdir()
+        for name in ("2024-07-14 - Hiking", "2024-07-15 - Biking"):
+            (albums_dir / name / "to-import-ios-main").mkdir(parents=True)
+        source = _image_capture_dir(tmp_path)
+
+        result = runner.invoke(
+            app,
+            ["albums", "import-check", "-d", str(albums_dir), "-s", str(source)],
+            obj=ALL_DEPS_RUNTIME,
+        )
+
+        assert "Skipped 2 directory(ies) without a to-import-* staging" in (
+            result.output
+        )
+        assert "Import Tasks (2 album(s)):" in result.output
 
 
 class TestBatchImportRetryCommands:

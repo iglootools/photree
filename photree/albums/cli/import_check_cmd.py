@@ -8,6 +8,7 @@ import typer
 
 from photree.album.cli.import_preflight import run_import_preflight
 from photree.album.importer.album_import import task_has_content
+from photree.album.importer.batch import scan_albums
 from photree.album.importer.tasks import discover_import_tasks
 from photree.albums.cli.app import app
 from photree.clihelpers.console import err_console
@@ -88,6 +89,30 @@ def _report_not_ready(not_ready: list[tuple[Path, NotReadyReason]], cwd: Path) -
     )
 
 
+def _resolve_candidates(
+    scan_dir: Path,
+    album_dirs: list[Path] | None,
+) -> tuple[list[Path], int]:
+    """
+    Return the albums to check, and how many scanned directories were skipped.
+
+    Named albums are all checked. A scan keeps what ``albums import --dir``
+    would consider: the import skips a subdirectory without any
+    ``to-import-*`` entry (a hidden directory, a non-album, an album with
+    nothing staged), so the check leaves it out rather than failing on it.
+    One whose entries are empty stays in, as the import warns about it.
+    """
+    match album_dirs:
+        case list():
+            return album_dirs, 0
+        case None:
+            scan = scan_albums(scan_dir)
+            return (
+                sorted([*scan.empty_selection, *scan.to_import]),
+                len(scan.no_selection),
+            )
+
+
 @app.command("import-check")
 def import_check_cmd(
     ctx: typer.Context,
@@ -137,6 +162,8 @@ def import_check_cmd(
 
     Runs shared preflight checks (sips, Image Capture directory) once, then
     checks each album for non-empty to-import-{ios,std}-<name> staging entries.
+    With --dir, a subdirectory without any staging entry is skipped, as
+    albums import skips it.
     """
     runtime = runtime_of(ctx)
     cwd = runtime.cwd()
@@ -149,14 +176,16 @@ def import_check_cmd(
     # Shared preflight (sips + IC directory, no per-album selection check)
     run_import_preflight(source, config, runtime=runtime)
 
-    scan_dir = albums_dir if albums_dir is not None else cwd
-    albums = (
-        album_dirs
-        if album_dirs is not None
-        else sorted(p for p in scan_dir.iterdir() if p.is_dir())
+    albums, skipped = _resolve_candidates(
+        albums_dir if albums_dir is not None else cwd,
+        album_dirs,
     )
+    if skipped:
+        typer.echo(
+            f"\nSkipped {skipped} directory(ies) without a to-import-* staging entry.",
+        )
     if not albums:
-        typer.echo("\nNo album directories found.")
+        typer.echo("\nNo album directories with a to-import-* staging entry found.")
         raise typer.Exit(code=0)
 
     typer.echo(f"\nImport Tasks ({len(albums)} album(s)):")

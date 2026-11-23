@@ -593,6 +593,8 @@ Check system prerequisites and import tasks for batch import.
 
 Runs shared preflight checks (sips, Image Capture directory) once, then
 checks each album for non-empty to-import-{ios,std}-&lt;name&gt; staging entries.
+With --dir, a subdirectory without any staging entry is skipped, as
+albums import skips it.
 
 **Usage**:
 
@@ -1395,6 +1397,6 @@ $ photree gallery metadata set [OPTIONS]
 
 * `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--link-mode <copy|hardlink|symlink>`: Default link mode for refresh and other link-mode operations.
-* `--faces-enabled`: Enable face detection and clustering during gallery refresh.
+* `--faces-enabled / --no-faces-enabled`: Enable or disable face detection and clustering during gallery refresh.
 * `--face-cluster-threshold <float>`: Cosine distance threshold for face clustering (0.0-1.0).
 * `--help`: Show this message and exit.
