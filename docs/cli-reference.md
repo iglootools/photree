@@ -1395,6 +1395,6 @@ $ photree gallery metadata set [OPTIONS]
 
 * `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--link-mode <copy|hardlink|symlink>`: Default link mode for refresh and other link-mode operations.
-* `--faces-enabled`: Enable face detection and clustering during gallery refresh.
+* `--faces-enabled / --no-faces-enabled`: Enable or disable face detection and clustering during gallery refresh.
 * `--face-cluster-threshold <float>`: Cosine distance threshold for face clustering (0.0-1.0).
 * `--help`: Show this message and exit.

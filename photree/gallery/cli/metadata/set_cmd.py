@@ -50,8 +50,11 @@ def set_cmd(
     faces_enabled: Annotated[
         bool | None,
         typer.Option(
-            "--faces-enabled",
-            help="Enable face detection and clustering during gallery refresh.",
+            "--faces-enabled/--no-faces-enabled",
+            help=(
+                "Enable or disable face detection and clustering during "
+                "gallery refresh."
+            ),
         ),
     ] = None,
     face_cluster_threshold: Annotated[

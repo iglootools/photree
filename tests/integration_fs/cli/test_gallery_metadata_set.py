@@ -40,6 +40,19 @@ class TestGalleryMetadataSet:
         loaded = load_gallery_metadata(tmp_path / PHOTREE_DIR / GALLERY_YAML)
         assert loaded.link_mode == LinkMode.SYMLINK
 
+    def test_no_faces_enabled_turns_face_detection_off(self, tmp_path: Path) -> None:
+        """Regression: only --faces-enabled existed, so it could not be unset."""
+        _init_gallery(tmp_path)
+
+        result = runner.invoke(
+            app,
+            ["gallery", "metadata", "set", "-g", str(tmp_path), "--no-faces-enabled"],
+        )
+
+        assert result.exit_code == 0, result.output
+        loaded = load_gallery_metadata(tmp_path / PHOTREE_DIR / GALLERY_YAML)
+        assert loaded.faces_enabled is False
+
     def test_no_change_when_same_value(self, tmp_path: Path) -> None:
         _init_gallery(tmp_path, LinkMode.HARDLINK)
         result = runner.invoke(
