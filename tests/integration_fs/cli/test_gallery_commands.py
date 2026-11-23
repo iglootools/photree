@@ -2,12 +2,10 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
-from typer.testing import CliRunner
 
 from photree.album.id import generate_album_id
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
-from photree.cli import app
 from photree.collection.id import generate_collection_id
 from photree.collection.store.metadata import save_collection_metadata
 from photree.collection.store.protocol import (
@@ -27,9 +25,7 @@ from photree.gallery.cmd_handler.importer import (
     BatchImportResult,
 )
 from photree.gallery.output import format_import_all_summary, import_all_failed
-from tests.fakes import ALL_DEPS_RUNTIME
-
-runner = CliRunner()
+from tests.fakes import invoke_cli
 
 
 def _write(path: Path, content: str = "data") -> None:
@@ -76,11 +72,7 @@ class TestGalleryCheckPhases:
         gallery = _setup_gallery(tmp_path)
         _dangling_collection(gallery)
 
-        result = runner.invoke(
-            app,
-            ["gallery", "check", "-g", str(gallery)],
-            obj=ALL_DEPS_RUNTIME,
-        )
+        result = invoke_cli(["gallery", "check", "-g", str(gallery)])
 
         assert result.exit_code == 1
         assert "Collections:" in result.output
@@ -97,8 +89,7 @@ class TestFaceClusterThreshold:
     ) -> None:
         gallery = _setup_gallery(tmp_path)
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "gallery",
                 "metadata",
@@ -117,8 +108,7 @@ class TestFaceClusterThreshold:
     def test_metadata_set_accepts_zero(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "gallery",
                 "metadata",
@@ -137,10 +127,8 @@ class TestFaceClusterThreshold:
     def test_cluster_faces_rejects_out_of_range(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["gallery", "cluster-faces", "-g", str(gallery), "--threshold", "2"],
-            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 2
@@ -197,8 +185,7 @@ class TestExport:
         elsewhere.mkdir()
         chdir(elsewhere)
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "gallery",
                 "export",
@@ -215,8 +202,7 @@ class TestExport:
     def test_gallery_dir_and_dir_are_exclusive(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["gallery", "export", "-g", str(gallery), "--dir", str(tmp_path)],
         )
 
@@ -233,8 +219,7 @@ class TestListCollections:
         col_dir = _dangling_collection(gallery)
         chdir(tmp_path)
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["gallery", "list-collections", "-g", str(gallery), "--format", "csv"],
         )
 
@@ -244,8 +229,7 @@ class TestListCollections:
     def test_rejects_unknown_format(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["gallery", "list-collections", "-g", str(gallery), "--format", "json"],
         )
 
@@ -261,10 +245,8 @@ class TestGalleryAlbumDiscovery:
         _write(stray / "ios-main" / "orig-img" / "IMG_0001.HEIC")
         save_album_metadata(stray, AlbumMetadata(id=generate_album_id()))
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["gallery", "list-albums", "-g", str(gallery), "--format", "csv"],
-            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 0

@@ -2,17 +2,17 @@
 
 from pathlib import Path
 
-from typer.testing import CliRunner
-
 from photree.album.faces.store import load_face_data
 from photree.album.id import generate_album_id
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.albums.cmd_handler.detect_faces import batch_detect_faces
-from photree.cli import app
-from tests.fakes import FakeFaceDetector, fake_face_runtime, fake_make_thumbnail
-
-runner = CliRunner()
+from tests.fakes import (
+    FakeFaceDetector,
+    fake_face_runtime,
+    fake_make_thumbnail,
+    invoke_cli,
+)
 
 
 def _write(path: Path, content: str = "data") -> None:
@@ -33,10 +33,9 @@ class TestAlbumDetectFaces:
     def test_detects_and_saves_faces(self, tmp_path: Path) -> None:
         album = _album(tmp_path, "2024-07-14 - Hiking", "IMG_0001.HEIC")
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["album", "detect-faces", "-a", str(album)],
-            obj=fake_face_runtime(),
+            runtime=fake_face_runtime(),
         )
 
         assert result.exit_code == 0, result.output
@@ -48,10 +47,9 @@ class TestAlbumDetectFaces:
     def test_dry_run_saves_nothing(self, tmp_path: Path) -> None:
         album = _album(tmp_path, "2024-07-14 - Hiking", "IMG_0001.HEIC")
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["album", "detect-faces", "-a", str(album), "--dry-run"],
-            obj=fake_face_runtime(),
+            runtime=fake_face_runtime(),
         )
 
         assert result.exit_code == 0, result.output
@@ -66,10 +64,9 @@ class TestAlbumDetectFaces:
             "IMG_0002.HEIC",
         )
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["album", "detect-faces", "-a", str(album)],
-            obj=fake_face_runtime(broken=frozenset({"0002"})),
+            runtime=fake_face_runtime(broken=frozenset({"0002"})),
         )
 
         assert result.exit_code == 1
@@ -82,10 +79,9 @@ class TestAlbumsDetectFaces:
         _album(tmp_path, "2024-07-14 - Hiking", "IMG_0001.HEIC")
         _album(tmp_path, "2024-08-01 - Beach", "IMG_0002.HEIC")
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["albums", "detect-faces", "-d", str(tmp_path)],
-            obj=fake_face_runtime(broken=frozenset({"0002"})),
+            runtime=fake_face_runtime(broken=frozenset({"0002"})),
         )
 
         assert result.exit_code == 1

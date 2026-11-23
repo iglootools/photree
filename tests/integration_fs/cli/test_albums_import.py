@@ -8,13 +8,10 @@ so a run where every album failed printed a success-shaped summary and exited
 
 from pathlib import Path
 
-from typer.testing import CliRunner, Result
+from typer.testing import Result
 
 from photree.album.staging import ios_import_dir
-from photree.cli import app
-from tests.fakes import ALL_DEPS_RUNTIME
-
-runner = CliRunner()
+from tests.fakes import invoke_cli
 
 SEL_DIR = ios_import_dir("main")
 
@@ -41,8 +38,7 @@ def _staged_album(parent: Path, name: str, selected: str = "IMG_0001.HEIC") -> P
 
 
 def _invoke(albums_dir: Path, ic_dir: Path) -> Result:
-    return runner.invoke(
-        app,
+    return invoke_cli(
         [
             "albums",
             "import",
@@ -52,7 +48,6 @@ def _invoke(albums_dir: Path, ic_dir: Path) -> Result:
             str(ic_dir),
             "--skip-heic-to-jpeg",
         ],
-        obj=ALL_DEPS_RUNTIME,
     )
 
 

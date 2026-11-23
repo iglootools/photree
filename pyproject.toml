@@ -181,6 +181,10 @@ max-statements = 30
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "unittest.mock".msg = "Inject a fake through a parameter instead of patching (docs/guidelines.md, Tests)."
 "pytest.MonkeyPatch".msg = "Inject a fake through a parameter instead of patching (docs/guidelines.md, Tests)."
+# A CLI test runs on a fake runtime: invoked without one, a command reads the developer's
+# PATH, home directory and config file. tests.fakes.invoke_cli always passes one.
+"typer.testing.CliRunner".msg = "Run the CLI with tests.fakes.invoke_cli, which passes a fake runtime (docs/guidelines/testing.md)."
+"click.testing.CliRunner".msg = "Run the CLI with tests.fakes.invoke_cli, which passes a fake runtime (docs/guidelines/testing.md)."
 
 [tool.pytest.ini_options]
 filterwarnings = [

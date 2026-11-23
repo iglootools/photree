@@ -8,7 +8,6 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
-from typer.testing import CliRunner
 
 from photree.album.exporter.settings import (
     ExportSettingsError,
@@ -26,15 +25,13 @@ from photree.album.store.media_source import std_media_source
 from photree.album.store.media_sources_discovery import MediaSourceConflictError
 from photree.album.store.metadata import load_album_metadata, save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
-from photree.cli import app, main
+from photree.cli import main
 from photree.common.sysdeps import SystemDependency
 from photree.foundation.layout import SHARE_SENTINEL
 from photree.foundation.linking import LinkMode
 from photree.foundation.metadata_io import InvalidMetadataError
 from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
-from tests.fakes import ALL_DEPS_RUNTIME, fake_album_runtime
-
-runner = CliRunner()
+from tests.fakes import fake_album_runtime, invoke_cli
 
 _TRUNCATED_YAML = "id: [0192d4e1"
 
@@ -73,7 +70,7 @@ def test_corrupt_album_yaml_is_never_overwritten(
     """A truncated album.yaml must stop the command, not get a fresh ID."""
     album = _corrupt_album(tmp_path)
 
-    result = runner.invoke(app, [*args, "--album-dir", str(album)])
+    result = invoke_cli([*args, "--album-dir", str(album)])
 
     assert result.exit_code != 0
     assert isinstance(result.exception, InvalidMetadataError)
@@ -83,7 +80,7 @@ def test_corrupt_album_yaml_is_never_overwritten(
 
 
 def test_fix_without_flag_suggests_help(tmp_path: Path) -> None:
-    result = runner.invoke(app, ["album", "fix", "--album-dir", str(tmp_path)])
+    result = invoke_cli(["album", "fix", "--album-dir", str(tmp_path)])
 
     assert result.exit_code == 2
     assert "No fix specified." in result.output
@@ -91,8 +88,7 @@ def test_fix_without_flag_suggests_help(tmp_path: Path) -> None:
 
 
 def test_fix_ios_mutually_exclusive_flags_exit_2(tmp_path: Path) -> None:
-    result = runner.invoke(
-        app,
+    result = invoke_cli(
         [
             "album",
             "fix-ios",
@@ -109,7 +105,7 @@ def test_fix_ios_mutually_exclusive_flags_exit_2(tmp_path: Path) -> None:
 
 
 def test_rm_media_without_files_exits_2(tmp_path: Path) -> None:
-    result = runner.invoke(app, ["album", "rm-media", "--album-dir", str(tmp_path)])
+    result = invoke_cli(["album", "rm-media", "--album-dir", str(tmp_path)])
 
     assert result.exit_code == 2
     assert "No files specified." in result.output
@@ -119,10 +115,7 @@ def test_rm_upstream_refusal_suggests_force(tmp_path: Path) -> None:
     _write(tmp_path / "std-nelu/orig-vid/clip.mov")
     (tmp_path / "nelu-vid").mkdir()
 
-    result = runner.invoke(
-        app,
-        ["album", "fix", "--rm-upstream", "--album-dir", str(tmp_path)],
-    )
+    result = invoke_cli(["album", "fix", "--rm-upstream", "--album-dir", str(tmp_path)])
 
     assert result.exit_code == 1
     assert "--force" in result.output
@@ -137,8 +130,7 @@ def test_rm_media_error_uses_relative_path(
     _write(album / "ios-main/orig-img/IMG_0001.HEIC")
     chdir(tmp_path)
 
-    result = runner.invoke(
-        app,
+    result = invoke_cli(
         ["album", "rm-media", "--album-dir", str(album), "unknown/IMG_0001.jpg"],
     )
 
@@ -154,7 +146,7 @@ def test_media_source_conflict_is_reported_by_check(tmp_path: Path) -> None:
     _write(album / "ios-main/orig-img/IMG_0001.HEIC")
     _write(album / "std-main/orig-img/DSC_0001.JPG")
 
-    result = runner.invoke(app, ["album", "check", "--album-dir", str(album)])
+    result = invoke_cli(["album", "check", "--album-dir", str(album)])
 
     assert result.exit_code == 1
     assert "ios-<name>/ and std-<name>/" in result.output
@@ -162,8 +154,7 @@ def test_media_source_conflict_is_reported_by_check(tmp_path: Path) -> None:
 
 
 def test_list_media_csv_keeps_stdout_clean(tmp_path: Path) -> None:
-    result = runner.invoke(
-        app,
+    result = invoke_cli(
         ["album", "list-media", "--album-dir", str(tmp_path), "--format", "csv"],
     )
 
@@ -174,8 +165,7 @@ def test_list_media_csv_keeps_stdout_clean(tmp_path: Path) -> None:
 
 
 def test_list_media_rejects_unknown_format(tmp_path: Path) -> None:
-    result = runner.invoke(
-        app,
+    result = invoke_cli(
         ["album", "list-media", "--album-dir", str(tmp_path), "--format", "json"],
     )
 
@@ -186,7 +176,7 @@ def test_show_uses_indented_details(tmp_path: Path) -> None:
     album = tmp_path / "2024-07-14 - 01 - Trip @ Banff"
     _write(album / "ios-main/orig-img/IMG_0001.HEIC")
 
-    result = runner.invoke(app, ["album", "show", "--album-dir", str(album)])
+    result = invoke_cli(["album", "show", "--album-dir", str(album)])
 
     assert result.exit_code == 0
     assert "  part: 01\n" in result.output
@@ -201,8 +191,7 @@ def test_export_unplaceable_name_is_reported(tmp_path: Path) -> None:
     share = tmp_path / "share"
     _write(share / SHARE_SENTINEL, "")
 
-    result = runner.invoke(
-        app,
+    result = invoke_cli(
         [
             "album",
             "export",
@@ -260,10 +249,9 @@ def test_import_refusal_is_reported_not_raised(
     def _refuse(**_: object) -> AlbumImportResult:
         raise error(album)
 
-    result = runner.invoke(
-        app,
+    result = invoke_cli(
         ["album", "import", "-a", str(album), "-s", str(tmp_path / "ic"), "--force"],
-        obj=fake_album_runtime(*SystemDependency, run_import=_refuse),
+        runtime=fake_album_runtime(*SystemDependency, run_import=_refuse),
     )
 
     assert result.exit_code == 1
@@ -282,10 +270,8 @@ def test_import_refuses_date_collision_with_sibling(tmp_path: Path) -> None:
     )
     (tmp_path / "ic").mkdir()
 
-    result = runner.invoke(
-        app,
+    result = invoke_cli(
         ["album", "import", "-a", str(album), "-s", str(tmp_path / "ic"), "--force"],
-        obj=ALL_DEPS_RUNTIME,
     )
 
     assert result.exit_code == 1
@@ -330,14 +316,14 @@ def test_albums_fix_rm_upstream_refusal_then_force(tmp_path: Path) -> None:
     album = _emptied_std_album(tmp_path)
     args = ["albums", "fix", "--rm-upstream", "--album-dir", str(album)]
 
-    refused = runner.invoke(app, args)
+    refused = invoke_cli(args)
 
     assert refused.exit_code == 1
     assert (album / "std-nelu/orig-vid/clip.mov").exists()
     assert "--rm-upstream --force" not in refused.output
     assert "--rm-upstream" in refused.output  # retry command keeps the fix flag
 
-    forced = runner.invoke(app, [*args, "--force"])
+    forced = invoke_cli([*args, "--force"])
 
     assert forced.exit_code == 0, forced.output
     assert not (album / "std-nelu/orig-vid/clip.mov").exists()
@@ -361,7 +347,7 @@ def test_albums_fix_new_id_on_a_scan_exits_2(tmp_path: Path) -> None:
     # collection and face reference to them.
     album, album_id = _album_with_id(tmp_path, "2024-07-14 - Trip")
 
-    result = runner.invoke(app, ["albums", "fix", "--new-id", "--dir", str(tmp_path)])
+    result = invoke_cli(["albums", "fix", "--new-id", "--dir", str(tmp_path)])
 
     assert result.exit_code == 2
     assert "'photree albums fix --new-id --album-dir <album>'" in result.output
@@ -372,10 +358,7 @@ def test_albums_fix_new_id_changes_only_the_named_albums(tmp_path: Path) -> None
     named, named_id = _album_with_id(tmp_path, "2024-07-14 - Trip copy")
     other, other_id = _album_with_id(tmp_path, "2024-07-14 - Trip")
 
-    result = runner.invoke(
-        app,
-        ["albums", "fix", "--new-id", "--album-dir", str(named)],
-    )
+    result = invoke_cli(["albums", "fix", "--new-id", "--album-dir", str(named)])
 
     assert result.exit_code == 0, result.output
     assert _album_id(named) not in (None, named_id)
@@ -383,17 +366,14 @@ def test_albums_fix_new_id_changes_only_the_named_albums(tmp_path: Path) -> None
 
 
 def test_gallery_fix_has_no_new_id(tmp_path: Path) -> None:
-    result = runner.invoke(
-        app,
-        ["gallery", "fix", "--new-id", "--gallery-dir", str(tmp_path)],
-    )
+    result = invoke_cli(["gallery", "fix", "--new-id", "--gallery-dir", str(tmp_path)])
 
     assert result.exit_code == 2
     assert "No such option" in result.output
 
 
 def test_gallery_fix_invalid_flags_suggest_help(tmp_path: Path) -> None:
-    result = runner.invoke(app, ["gallery", "fix", "--gallery-dir", str(tmp_path)])
+    result = invoke_cli(["gallery", "fix", "--gallery-dir", str(tmp_path)])
 
     assert result.exit_code == 2
     assert "'photree gallery fix --help'" in result.output
@@ -408,8 +388,7 @@ def test_export_missing_sentinel_suggests_quoted_relative_touch(
     (tmp_path / "my share").mkdir()
     chdir(tmp_path)
 
-    result = runner.invoke(
-        app,
+    result = invoke_cli(
         [
             "album",
             "export",
@@ -448,8 +427,7 @@ def test_album_fix_rm_upstream_refusal_suggestion_keeps_the_run_flags(
 ) -> None:
     album = _emptied_std_album(tmp_path)
 
-    refused = runner.invoke(
-        app,
+    refused = invoke_cli(
         [
             "album",
             "fix",

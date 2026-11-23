@@ -1,13 +1,14 @@
 """Fakes injected in place of real dependencies (docs/guidelines.md, Tests)."""
 
 import shutil
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
 import cv2
 import numpy as np
+from typer.testing import CliRunner, Result  # noqa: TID251 - wrapped by invoke_cli
 
 from photree.album.cli.runtime import AlbumRuntime, RunImportFn, widen
 from photree.album.faces.detect import MakeThumbnailFn, ThumbnailResult
@@ -15,6 +16,7 @@ from photree.album.faces.protocol import EMBEDDING_DIM
 from photree.album.importer import album_import
 from photree.album.jpeg import jpeg_name
 from photree.album.refresh import RefreshFn, refresh_album_derived_data
+from photree.cli import app
 from photree.clihelpers.runtime import Runtime
 from photree.common.sysdeps import SystemDependency, WhichFn
 
@@ -37,10 +39,10 @@ def fake_runtime(*present: SystemDependency, cpu_count: int = 2) -> Runtime:
     hold nothing, so only a ``--config`` the test passes is read. The working
     directory stays the process's (see :attr:`Runtime.cwd`).
 
-    Pass it as ``CliRunner().invoke(app, args, obj=fake_runtime(...))``. A
-    command that gets past the gate and then shells out still runs the real
-    binary, or fails with ``FileNotFoundError`` where it is missing; either
-    way, the fake media files of a test fail to convert.
+    Pass it as ``invoke_cli(args, runtime=fake_runtime(...))``. A command
+    that gets past the gate and then shells out still runs the real binary,
+    or fails with ``FileNotFoundError`` where it is missing; either way, the
+    fake media files of a test fail to convert.
     """
     return Runtime(
         which=fake_which(*present),
@@ -143,6 +145,18 @@ ALL_DEPS_RUNTIME = fake_runtime(*SystemDependency)
 
 ALL_DEPS_WHICH = fake_which(*SystemDependency)
 """A ``which`` that finds every system dependency."""
+
+
+def invoke_cli(args: Sequence[str], *, runtime: Runtime = ALL_DEPS_RUNTIME) -> Result:
+    """
+    Run ``photree`` with *args* on *runtime*, every dependency installed by default.
+
+    The only way tests run the CLI: invoked without a runtime, a command falls
+    back to the real one and reads the developer's ``PATH``, home directory
+    and config file. ``typer.testing.CliRunner`` is banned elsewhere (ruff
+    TID251) so that no test can skip it.
+    """
+    return CliRunner().invoke(app, args, obj=runtime)
 
 
 class FakeExifTool:

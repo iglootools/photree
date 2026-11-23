@@ -4,18 +4,14 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
-from typer.testing import CliRunner
 
 from photree.album.id import generate_album_id
 from photree.album.store.media_source import MAIN_MEDIA_SOURCE
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
-from photree.cli import app
 from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 from photree.foundation.layout import ALBUMS_DIR, SHARE_SENTINEL
-from tests.fakes import fake_runtime
-
-runner = CliRunner()
+from tests.fakes import fake_runtime, invoke_cli
 
 
 def _write(path: Path, content: str = "data") -> None:
@@ -43,10 +39,9 @@ class TestAlbumExport:
         album = _album(tmp_path / "2024-07-14 - Trip")
         share = _share(tmp_path)
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["album", "export", "--album-dir", str(album), "--share-dir", str(share)],
-            obj=fake_runtime(),
+            runtime=fake_runtime(),
         )
 
         assert result.exit_code == 0, result.output
@@ -66,8 +61,7 @@ class TestAlbumExport:
         target.mkdir()
         target.chmod(0o500)
         try:
-            result = runner.invoke(
-                app,
+            result = invoke_cli(
                 [
                     "album",
                     "export",
@@ -76,7 +70,7 @@ class TestAlbumExport:
                     "--share-dir",
                     str(share),
                 ],
-                obj=fake_runtime(),
+                runtime=fake_runtime(),
             )
         finally:
             target.chmod(0o700)
@@ -95,10 +89,9 @@ class TestAlbumsExport:
         _album(albums / "2024-08-01 - Hike")
         share = _share(tmp_path)
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["albums", "export", "--dir", str(albums), "--share-dir", str(share)],
-            obj=fake_runtime(),
+            runtime=fake_runtime(),
         )
 
         assert result.exit_code == 0, result.output
@@ -112,8 +105,7 @@ class TestAlbumsExport:
         config = tmp_path / "config.toml"
         _write(config, "[exporter\n")
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "albums",
                 "export",
@@ -124,7 +116,7 @@ class TestAlbumsExport:
                 "--config",
                 str(config),
             ],
-            obj=fake_runtime(),
+            runtime=fake_runtime(),
         )
 
         assert result.exit_code == 2, result.output
@@ -139,8 +131,7 @@ class TestAlbumsExport:
         _album(albums / "Undated")
         share = _share(tmp_path)
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "albums",
                 "export",
@@ -151,7 +142,7 @@ class TestAlbumsExport:
                 "--share-layout",
                 "by-month",
             ],
-            obj=fake_runtime(),
+            runtime=fake_runtime(),
         )
 
         assert result.exit_code == 1, result.output
@@ -175,8 +166,7 @@ class TestGalleryExport:
             save_album_metadata(album, AlbumMetadata(id=generate_album_id()))
         share = _share(tmp_path)
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "gallery",
                 "export",
@@ -187,7 +177,7 @@ class TestGalleryExport:
                 "--share-layout",
                 "by-month",
             ],
-            obj=fake_runtime(),
+            runtime=fake_runtime(),
         )
 
         assert result.exit_code == 1, result.output
@@ -208,8 +198,7 @@ class TestDryRun:
         share = _share(tmp_path)
         chdir(tmp_path)
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "album",
                 "export",
@@ -223,7 +212,7 @@ class TestDryRun:
                 "all",
                 "--dry-run",
             ],
-            obj=fake_runtime(),
+            runtime=fake_runtime(),
         )
 
         assert result.exit_code == 0, result.output
@@ -244,10 +233,9 @@ class TestDryRun:
             _album(albums / name)
         share = _share(tmp_path)
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [command, "export", "--dir", str(albums), "--share-dir", str(share), "-n"],
-            obj=fake_runtime(),
+            runtime=fake_runtime(),
         )
 
         assert result.exit_code == 0, result.output

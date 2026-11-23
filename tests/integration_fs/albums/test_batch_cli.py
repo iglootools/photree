@@ -2,7 +2,6 @@ from pathlib import Path
 
 import pytest
 import typer
-from typer.testing import CliRunner
 
 from photree.album.id import format_album_external_id, generate_album_id
 from photree.album.importer.batch import AlbumFailure, ImportFailureStage
@@ -13,13 +12,10 @@ from photree.albums.batchcli.check import run_batch_check
 from photree.albums.cli.import_cmd import retry_commands
 from photree.albums.cmd_handler import AlbumStepError, run_album_step
 from photree.albums.cmd_handler.stats import batch_stats
-from photree.cli import app
 from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 from photree.foundation.layout import PHOTREE_DIR
 from photree.foundation.linking import LinkMode
-from tests.fakes import ALL_DEPS_RUNTIME, ALL_DEPS_WHICH, copy_convert_single
-
-runner = CliRunner()
+from tests.fakes import ALL_DEPS_WHICH, copy_convert_single, invoke_cli
 
 
 def _album(base: Path, name: str) -> tuple[Path, str]:
@@ -50,10 +46,7 @@ class TestList:
         # Regression: an unknown --format silently produced text.
         _album(tmp_path, "2024-07-14 - Hiking")
 
-        result = runner.invoke(
-            app,
-            ["albums", "list", "-d", str(tmp_path), "--format", "json"],
-        )
+        result = invoke_cli(["albums", "list", "-d", str(tmp_path), "--format", "json"])
 
         assert result.exit_code == 2
 
@@ -63,10 +56,7 @@ class TestList:
         _, album_id = _album(albums_dir, "2024-07-14 - Hiking")
         out = tmp_path / "out.txt"
 
-        result = runner.invoke(
-            app,
-            ["albums", "list", "-d", str(albums_dir), "-o", str(out)],
-        )
+        result = invoke_cli(["albums", "list", "-d", str(albums_dir), "-o", str(out)])
 
         assert result.exit_code == 0, result.output
         text = out.read_text(encoding="utf-8")
@@ -79,8 +69,7 @@ class TestList:
         _album(albums_dir, "2024-07-14 - Hiking")
         out = tmp_path / "out.csv"
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "albums",
                 "list",
@@ -102,7 +91,7 @@ class TestList:
         album = tmp_path / "2024-07-14 - Hiking"
         (album / "ios-main" / "orig-img").mkdir(parents=True)
 
-        result = runner.invoke(app, ["albums", "list", "-a", str(album)])
+        result = invoke_cli(["albums", "list", "-a", str(album)])
 
         assert result.exit_code == 1
         assert "Albums with missing IDs found" in result.output
@@ -111,8 +100,7 @@ class TestList:
     def test_list_media_invalid_format_is_rejected(self, tmp_path: Path) -> None:
         _album(tmp_path, "2024-07-14 - Hiking")
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["albums", "list-media", "-d", str(tmp_path), "--format", "xml"],
         )
 
@@ -190,11 +178,7 @@ class TestRunBatchCheck:
         )
         healthy = _gallery_album(tmp_path / "b", "2024-07-15 - Beach", LinkMode.COPY)
 
-        result = runner.invoke(
-            app,
-            ["albums", "check", "-a", str(broken), "-a", str(healthy)],
-            obj=ALL_DEPS_RUNTIME,
-        )
+        result = invoke_cli(["albums", "check", "-a", str(broken), "-a", str(healthy)])
 
         assert result.exit_code == 1
         assert "1 album(s) passed, 1 with warnings, 1 failed." in result.output
@@ -208,11 +192,7 @@ class TestRunBatchCheck:
         (corrupt / ".photree" / "album.yaml").write_text("id: [", encoding="utf-8")
         _album(tmp_path, "2024-07-15 - Beach")
 
-        result = runner.invoke(
-            app,
-            ["albums", "check", "-d", str(tmp_path), "--no-checksum"],
-            obj=ALL_DEPS_RUNTIME,
-        )
+        result = invoke_cli(["albums", "check", "-d", str(tmp_path), "--no-checksum"])
 
         assert result.exit_code == 1
         assert "Cross-album checks:" in result.output
@@ -237,8 +217,7 @@ class TestRunBatchCheck:
         _album(tmp_path, "2024-07-14 - Hiking")
         _album(tmp_path, "2024-07-14 - Dinner")
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "albums",
                 "check",
@@ -247,7 +226,6 @@ class TestRunBatchCheck:
                 "--no-checksum",
                 "--no-check-exif-date-match",
             ],
-            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 1
@@ -335,10 +313,8 @@ class TestImportCheck:
         album.mkdir(parents=True)
         source = _image_capture_dir(tmp_path)
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["albums", "import-check", "-a", str(album), "-s", str(source)],
-            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 1
@@ -358,10 +334,8 @@ class TestImportCheck:
             (albums_dir / name / "to-import-ios-main").mkdir(parents=True)
         source = _image_capture_dir(tmp_path)
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["albums", "import-check", "-d", str(albums_dir), "-s", str(source)],
-            obj=ALL_DEPS_RUNTIME,
         )
 
         assert "Skipped 2 directory(ies) without a to-import-* staging" in (

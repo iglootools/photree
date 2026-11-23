@@ -1,8 +1,7 @@
 from pathlib import Path
 
-from typer.testing import CliRunner, Result
+from typer.testing import Result
 
-from photree.cli import app
 from photree.collection.id import generate_collection_id
 from photree.collection.store.metadata import (
     load_collection_metadata,
@@ -14,8 +13,7 @@ from photree.collection.store.protocol import (
     CollectionMetadata,
     CollectionStrategy,
 )
-
-runner = CliRunner()
+from tests.fakes import invoke_cli
 
 
 def _init_collection(
@@ -38,8 +36,7 @@ def _init_collection(
 class TestCollectionMetadataSet:
     def test_updates_members(self, tmp_path: Path) -> None:
         _init_collection(tmp_path, members=CollectionMembers.MANUAL)
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "collection",
                 "metadata",
@@ -61,8 +58,7 @@ class TestCollectionMetadataSet:
     def test_updates_lifecycle_to_implicit_requires_smart(self, tmp_path: Path) -> None:
         """Setting lifecycle=implicit on a manual collection is rejected."""
         _init_collection(tmp_path, lifecycle=CollectionLifecycle.EXPLICIT)
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "collection",
                 "metadata",
@@ -83,8 +79,7 @@ class TestCollectionMetadataSet:
             lifecycle=CollectionLifecycle.EXPLICIT,
             strategy=CollectionStrategy.DATE_RANGE,
         )
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "collection",
                 "metadata",
@@ -104,8 +99,7 @@ class TestCollectionMetadataSet:
 
     def test_updates_all(self, tmp_path: Path) -> None:
         _init_collection(tmp_path)
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "collection",
                 "metadata",
@@ -129,8 +123,7 @@ class TestCollectionMetadataSet:
 
     def test_no_change_when_same_values(self, tmp_path: Path) -> None:
         _init_collection(tmp_path)
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "collection",
                 "metadata",
@@ -145,8 +138,7 @@ class TestCollectionMetadataSet:
         assert "already up to date" in result.output
 
     def test_fails_without_init(self, tmp_path: Path) -> None:
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "collection",
                 "metadata",
@@ -161,10 +153,7 @@ class TestCollectionMetadataSet:
 
     def test_fails_when_no_fields_specified(self, tmp_path: Path) -> None:
         _init_collection(tmp_path)
-        result = runner.invoke(
-            app,
-            ["collection", "metadata", "set", "-d", str(tmp_path)],
-        )
+        result = invoke_cli(["collection", "metadata", "set", "-d", str(tmp_path)])
         assert result.exit_code == 2
         assert "No fields specified" in result.output
 
@@ -180,8 +169,7 @@ class TestCollectionMetadataSet:
                 albums=[album_id],
             ),
         )
-        runner.invoke(
-            app,
+        invoke_cli(
             [
                 "collection",
                 "metadata",
@@ -213,8 +201,7 @@ class TestSwitchToSmartWithMedia:
         )
 
     def _switch(self, collection_dir: Path, *extra: str) -> Result:
-        return runner.invoke(
-            app,
+        return invoke_cli(
             [
                 *("collection", "metadata", "set", "-d", str(collection_dir)),
                 *("--members", "smart", "--strategy", "date-range", *extra),

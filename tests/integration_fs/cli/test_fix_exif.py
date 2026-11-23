@@ -5,13 +5,10 @@ from pathlib import Path
 import cv2
 import numpy as np
 import pytest
-from typer.testing import CliRunner
 
 from photree.album.exif import TIMESTAMP_TAGS
-from photree.cli import app
 from photree.common.exif import read_exif_timestamps, set_exif_date_time
-
-runner = CliRunner()
+from tests.fakes import invoke_cli
 
 requires_exiftool = pytest.mark.skipif(
     not shutil.which("exiftool"),
@@ -26,23 +23,19 @@ def _jpeg(path: Path) -> Path:
 
 class TestFlagSelection:
     def test_no_flag(self, tmp_path: Path) -> None:
-        result = runner.invoke(app, ["album", "fix-exif", str(tmp_path / "a.jpg")])
+        result = invoke_cli(["album", "fix-exif", str(tmp_path / "a.jpg")])
         assert result.exit_code == 2
         assert "Specify exactly one" in result.output
 
     def test_two_flags(self) -> None:
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["album", "fix-exif", "--shift-date", "1", "--shift-time", "2", "x.jpg"],
         )
         assert result.exit_code == 2
         assert "mutually exclusive" in result.output
 
     def test_invalid_date(self) -> None:
-        result = runner.invoke(
-            app,
-            ["album", "fix-exif", "--set-date", "2024-07", "x.jpg"],
-        )
+        result = invoke_cli(["album", "fix-exif", "--set-date", "2024-07", "x.jpg"])
         assert result.exit_code == 2
         assert "expected YYYY-MM-DD" in result.output
 
@@ -51,8 +44,7 @@ class TestFlagSelection:
 class TestExecution:
     def test_success_prints_check_after_work(self, tmp_path: Path) -> None:
         img = _jpeg(tmp_path / "a.jpg")
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["album", "fix-exif", "--set-date-time", "2024-07-20T13:55:20", str(img)],
         )
         assert result.exit_code == 0, result.output
@@ -63,10 +55,7 @@ class TestExecution:
         """Regression: ✓ was printed before the work and exit code was 0."""
         not_media = tmp_path / "notes.txt"
         not_media.write_text("hello", encoding="utf-8")
-        result = runner.invoke(
-            app,
-            ["album", "fix-exif", "--shift-time", "-2", str(not_media)],
-        )
+        result = invoke_cli(["album", "fix-exif", "--shift-time", "-2", str(not_media)])
         assert result.exit_code == 1
         assert "✓ fix-exif" not in result.output
         assert "fix-exif failed" in result.output
@@ -104,10 +93,7 @@ class TestDryRun:
     ) -> None:
         img = _dated_jpeg(tmp_path / "a.jpg")
 
-        result = runner.invoke(
-            app,
-            ["album", "fix-exif", "--dry-run", option, value, str(img)],
-        )
+        result = invoke_cli(["album", "fix-exif", "--dry-run", option, value, str(img)])
 
         assert result.exit_code == 0, result.output
         assert (
@@ -120,8 +106,7 @@ class TestDryRun:
     def test_dry_run_shows_a_file_without_a_date(self, tmp_path: Path) -> None:
         img = _jpeg(tmp_path / "a.jpg")
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "album",
                 "fix-exif",
@@ -142,10 +127,7 @@ class TestReport:
     def test_shift_reports_old_and_new_dates(self, tmp_path: Path) -> None:
         img = _dated_jpeg(tmp_path / "a.jpg")
 
-        result = runner.invoke(
-            app,
-            ["album", "fix-exif", "--shift-time", "3", str(img)],
-        )
+        result = invoke_cli(["album", "fix-exif", "--shift-time", "3", str(img)])
 
         assert result.exit_code == 0, result.output
         assert "2024:07:20 13:55:20 -> 2024:07:20 16:55:20" in result.output

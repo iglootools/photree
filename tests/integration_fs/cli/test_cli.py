@@ -2,15 +2,11 @@ import csv
 import io
 from pathlib import Path
 
-from typer.testing import CliRunner
-
 from photree.album.id import format_album_external_id, generate_album_id
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
-from photree.cli import app
 from photree.foundation.metadata_io import InvalidMetadataError
-
-runner = CliRunner()
+from tests.fakes import invoke_cli
 
 
 def _write(path: Path, content: str = "data") -> None:
@@ -48,16 +44,16 @@ def _write_csv(path: Path, rows: list[dict[str, str]]) -> None:
 
 class TestVersionCommand:
     def test_version_flag(self) -> None:
-        result = runner.invoke(app, ["--version"])
+        result = invoke_cli(["--version"])
         assert result.exit_code == 0
         assert result.output.strip()
 
     def test_short_version_flag(self) -> None:
-        result = runner.invoke(app, ["-V"])
+        result = invoke_cli(["-V"])
         assert result.exit_code == 0
 
     def test_no_args_shows_help(self) -> None:
-        result = runner.invoke(app, [])
+        result = invoke_cli([])
         assert "photree" in result.output.lower()
 
 
@@ -76,8 +72,7 @@ class TestAlbumsRenameFromCsv:
                 },
             ],
         )
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["albums", "rename-from-csv", str(csv_file), "-d", str(tmp_path)],
         )
         assert result.exit_code == 0
@@ -99,8 +94,7 @@ class TestAlbumsRenameFromCsv:
                 },
             ],
         )
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "albums",
                 "rename-from-csv",
@@ -128,8 +122,7 @@ class TestAlbumsRenameFromCsv:
                 },
             ],
         )
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["albums", "rename-from-csv", str(csv_file), "-d", str(tmp_path)],
         )
         assert result.exit_code == 0
@@ -138,8 +131,7 @@ class TestAlbumsRenameFromCsv:
     def test_empty_csv(self, tmp_path: Path) -> None:
         csv_file = tmp_path / "empty.csv"
         csv_file.write_text("id,series,title,location\n")
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["albums", "rename-from-csv", str(csv_file), "-d", str(tmp_path)],
         )
         assert result.exit_code == 0
@@ -159,8 +151,7 @@ class TestAlbumsRenameFromCsv:
                 },
             ],
         )
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "albums",
                 "rename-from-csv",
@@ -181,8 +172,7 @@ class TestAlbumsRenameFromCsv:
             f"id,series,title,location\n{format_album_external_id(aid)},,New,\n",
             encoding="utf-8-sig",
         )
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["albums", "rename-from-csv", str(csv_file), "-d", str(tmp_path)],
         )
         assert result.exit_code == 0, result.output
@@ -197,8 +187,7 @@ class TestAlbumsRenameFromCsv:
             csv_file,
             [{"id": format_album_external_id(aid), "series": "", "title": "Trip"}],
         )
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["albums", "rename-from-csv", str(csv_file), "-d", str(tmp_path)],
         )
         assert result.exit_code == 1
@@ -213,8 +202,7 @@ class TestAlbumsRenameFromCsv:
         _setup_album(tmp_path, "2024-06-15 - Trip copy", album_id=aid)
         csv_file = tmp_path / "rename.csv"
         csv_file.write_text("id,series,title,location\n")
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["albums", "rename-from-csv", str(csv_file), "-d", str(tmp_path)],
         )
         assert result.exit_code == 1
@@ -235,8 +223,7 @@ class TestAlbumsRenameFromCsv:
 
         csv_file = tmp_path / "rename.csv"
         csv_file.write_text("id,series,title,location\nalbum_x,,,New\n")
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["albums", "rename-from-csv", str(csv_file), "-a", str(album_dir)],
         )
         assert result.exit_code == 1
