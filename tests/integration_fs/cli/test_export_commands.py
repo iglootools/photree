@@ -54,6 +54,37 @@ class TestAlbumExport:
         assert (target / MAIN_MEDIA_SOURCE.vid_dir / "IMG_0002.MOV").is_file()
         assert not (target / MAIN_MEDIA_SOURCE.orig_img_dir).exists()
 
+    def test_filesystem_error_is_reported_without_a_traceback(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        album = _album(tmp_path / "2024-07-14 - Trip")
+        share = _share(tmp_path)
+        target = share / "2024-07-14 - Trip"
+        target.mkdir()
+        target.chmod(0o500)
+        try:
+            result = runner.invoke(
+                app,
+                [
+                    "album",
+                    "export",
+                    "--album-dir",
+                    str(album),
+                    "--share-dir",
+                    str(share),
+                ],
+                obj=fake_runtime(),
+            )
+        finally:
+            target.chmod(0o700)
+
+        assert result.exit_code == 1, result.output
+        assert isinstance(result.exception, SystemExit)
+        assert 'Could not export "' in result.output
+        assert "Permission denied" in result.output
+        assert "Check that the share is mounted, writable" in result.output
+
 
 class TestAlbumsExport:
     def test_exports_every_album_under_dir(self, tmp_path: Path) -> None:

@@ -1,14 +1,20 @@
-"""Text the CLI prints for album exports: settings errors and summaries."""
+"""Text the CLI prints for album exports: errors and summaries."""
 
 import shlex
 from collections.abc import Sequence
 from pathlib import Path
 
 from photree.album.exporter.batch import ExportFailure
-from photree.album.exporter.settings import ExportSettingsError, ExportSettingsErrorKind
+from photree.album.exporter.settings import (
+    ExportSettingsError,
+    ExportSettingsErrorKind,
+    ResolvedExportSettings,
+)
 from photree.common.formatting import indent
 from photree.common.fs import display_path
 from photree.foundation.layout import SHARE_SENTINEL
+from photree.foundation.linking import LinkMode
+from photree.foundation.share_layout import AlbumShareLayout
 
 
 def format_export_settings_error(
@@ -106,3 +112,63 @@ def format_batch_export_failures(failed: Sequence[ExportFailure], cwd: Path) -> 
             ),
         ],
     )
+
+
+def _os_error_reason(exc: OSError, cwd: Path) -> str:
+    """Return *exc*'s reason, naming the file it concerns relative to *cwd*."""
+    match exc.strerror, exc.filename:
+        case str() as reason, str() | Path() as filename:
+            return f"{reason}: {display_path(Path(filename), cwd)}"
+        case str() as reason, _:
+            return reason
+        case _:
+            return str(exc)
+
+
+def format_export_failure(
+    album_dir: Path,
+    exc: OSError,
+    cwd: Path,
+    settings: ResolvedExportSettings,
+) -> str:
+    """
+    Plain text (print with ``markup=False``) for an export the filesystem refused.
+
+    When the export links files (the ``all`` layout), the fix suggested is
+    the same export with copies, since a share on exFAT, SMB or a cloud
+    folder may refuse links; otherwise it is to check the share itself.
+    """
+    album = display_path(album_dir, cwd)
+    problem = f'Could not export "{album}": {_os_error_reason(exc, cwd)}.'
+    links = {LinkMode.HARDLINK: "hard links", LinkMode.SYMLINK: "symbolic links"}
+    match settings.album_layout, links.get(settings.link_mode):
+        case AlbumShareLayout.ALL, str() as kind:
+            command = shlex.join(
+                [
+                    "photree",
+                    "album",
+                    "export",
+                    "--album-dir",
+                    str(album),
+                    "--share-dir",
+                    str(display_path(settings.share_dir, cwd)),
+                    "--share-layout",
+                    settings.share_layout.value,
+                    "--album-layout",
+                    settings.album_layout.value,
+                    "--link-mode",
+                    LinkMode.COPY.value,
+                ],
+            )
+            return "\n".join(
+                [
+                    problem,
+                    f"If the share does not support {kind}, export with copies:",
+                    indent(command),
+                ],
+            )
+        case _:
+            return (
+                f"{problem}\nCheck that the share is mounted, writable and has"
+                " free space, then run the export again."
+            )
