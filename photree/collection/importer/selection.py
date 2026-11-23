@@ -43,22 +43,28 @@ class SelectionErrorKind(StrEnum):
     """Why a selection row could not be used."""
 
     INVALID_DATE = "invalid-date"
+    MISSING_ENTRY_COLUMN = "missing-entry-column"
+    NOT_UTF8 = "not-utf8"
+    MALFORMED_CSV = "malformed-csv"
 
 
 @dataclass(frozen=True)
 class SelectionError:
     """
-    A selection row that cannot be used as written.
+    A selection CSV, or one of its rows, that cannot be used as written.
 
     ``line`` is the 1-based line number in the CSV (the header is line 1),
-    so the user can jump straight to it.
+    so the user can jump straight to it; ``None`` when the problem is not
+    tied to a line (a file that is not UTF-8). ``entry`` and ``value`` are
+    the row's entry and offending value (the date for INVALID_DATE, the
+    header for MISSING_ENTRY_COLUMN, the parser's reason for MALFORMED_CSV).
     """
 
     kind: SelectionErrorKind
     csv_path: Path
-    line: int
-    entry: str
-    value: str
+    line: int | None
+    entry: str = ""
+    value: str = ""
 
 
 @dataclass(frozen=True)
@@ -98,21 +104,66 @@ class _CsvRow:
     date: str  # "" when absent
 
 
-def _read_csv_rows(csv_path: Path) -> list[_CsvRow]:
-    """Rows with a non-empty entry; empty when the file does not exist."""
+_ENTRY_COLUMN = "entry"
+
+
+def _read_csv_rows(csv_path: Path) -> tuple[list[_CsvRow], list[SelectionError]]:
+    """
+    Return the rows with a non-empty entry, or why the file cannot be read.
+
+    Both are empty when the file does not exist or is empty. A file that
+    exists but is unusable (not UTF-8, malformed, or without an ``entry``
+    column, as a headerless file has) is an error rather than an empty
+    selection: the import would otherwise succeed on ``to-import/`` alone
+    and then delete the CSV, losing every row it holds. A UTF-8 byte order
+    mark, which Excel writes on "CSV UTF-8" files, is accepted.
+    """
     if not csv_path.is_file():
-        return []
-    with Path(csv_path).open(encoding="utf-8", newline="") as f:
-        reader = csv.DictReader(f)
-        return [
-            _CsvRow(
-                line=reader.line_num,
-                entry=(row.get("entry") or "").strip(),
-                date=(row.get("date") or "").strip(),
-            )
-            for row in reader
-            if (row.get("entry") or "").strip()
-        ]
+        return [], []
+    try:
+        with csv_path.open(encoding="utf-8-sig", newline="") as f:
+            reader = csv.DictReader(f)
+            try:
+                return _rows_of(reader, csv_path)
+            except csv.Error as exc:
+                return [], [
+                    SelectionError(
+                        SelectionErrorKind.MALFORMED_CSV,
+                        csv_path,
+                        reader.line_num,
+                        value=str(exc),
+                    ),
+                ]
+    except UnicodeDecodeError:
+        return [], [SelectionError(SelectionErrorKind.NOT_UTF8, csv_path, None)]
+
+
+def _rows_of(
+    reader: csv.DictReader[str],
+    csv_path: Path,
+) -> tuple[list[_CsvRow], list[SelectionError]]:
+    match reader.fieldnames:
+        case None:
+            return [], []
+        case fieldnames if _ENTRY_COLUMN not in fieldnames:
+            return [], [
+                SelectionError(
+                    SelectionErrorKind.MISSING_ENTRY_COLUMN,
+                    csv_path,
+                    1,
+                    value=",".join(fieldnames),
+                ),
+            ]
+        case _:
+            rows = [
+                _CsvRow(
+                    line=reader.line_num,
+                    entry=(row.get(_ENTRY_COLUMN) or "").strip(),
+                    date=(row.get("date") or "").strip(),
+                )
+                for row in reader
+            ]
+            return [r for r in rows if r.entry], []
 
 
 def _read_csv(
@@ -125,20 +176,23 @@ def _read_csv(
     :class:`SelectionError` rather than dropped: it was written to
     disambiguate, so ignoring it could silently pick the wrong item.
     """
+    csv_rows, read_errors = _read_csv_rows(csv_path)
     rows = [
-        (row, _parse_iso_timestamp(row.date) if row.date else None)
-        for row in _read_csv_rows(csv_path)
+        (row, _parse_iso_timestamp(row.date) if row.date else None) for row in csv_rows
     ]
     errors = [
-        SelectionError(
-            SelectionErrorKind.INVALID_DATE,
-            csv_path,
-            row.line,
-            row.entry,
-            row.date,
-        )
-        for row, parsed in rows
-        if row.date and parsed is None
+        *read_errors,
+        *(
+            SelectionError(
+                SelectionErrorKind.INVALID_DATE,
+                csv_path,
+                row.line,
+                row.entry,
+                row.date,
+            )
+            for row, parsed in rows
+            if row.date and parsed is None
+        ),
     ]
     entries = [
         SelectionEntry(value=row.entry, date_hint=parsed) for row, parsed in rows
@@ -219,10 +273,9 @@ def has_selection(
     """
     Check whether *collection_dir* has anything to import.
 
-    True when ``to-import/`` holds a file or ``to-import.csv`` has a row; reads no
-    EXIF.
+    True when ``to-import/`` holds a file or ``to-import.csv`` has a row, or
+    cannot be read: the import then reports why instead of the collection
+    being skipped as having nothing to import. Reads no EXIF.
     """
-    # Quick check without EXIF reading
-    return bool(list_files(collection_dir / SELECTION_DIR)) or bool(
-        _read_csv_rows(collection_dir / SELECTION_CSV),
-    )
+    rows, errors = _read_csv_rows(collection_dir / SELECTION_CSV)
+    return bool(list_files(collection_dir / SELECTION_DIR) or rows or errors)

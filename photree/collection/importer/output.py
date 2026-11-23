@@ -90,8 +90,14 @@ def format_resolution_warning(warning: ResolutionWarning) -> str:
 
 
 def format_selection_error(error: SelectionError, cwd: Path) -> str:
-    """Return the one-line message for an unusable row, located as ``csv_path:line``."""
-    location = f"{display_path(error.csv_path, cwd)}:{error.line}"
+    """
+    Return the one-line message for an unusable CSV or row.
+
+    Located as ``csv_path:line``, or ``csv_path`` alone when the problem
+    concerns the whole file.
+    """
+    path = display_path(error.csv_path, cwd)
+    location = f"{path}:{error.line}" if error.line is not None else str(path)
     match error.kind:
         case SelectionErrorKind.INVALID_DATE:
             return (
@@ -99,6 +105,15 @@ def format_selection_error(error: SelectionError, cwd: Path) -> str:
                 "(expected YYYY-MM-DD, YYYY-MM-DDTHH:MM:SS, "
                 "or YYYY-MM-DDTHH:MM:SS±HHMM)"
             )
+        case SelectionErrorKind.MISSING_ENTRY_COLUMN:
+            return (
+                f"{location}: no 'entry' column in header '{error.value}' "
+                "(expected a header row: entry,date)"
+            )
+        case SelectionErrorKind.NOT_UTF8:
+            return f"{location}: not UTF-8 text (save it as CSV UTF-8)"
+        case SelectionErrorKind.MALFORMED_CSV:
+            return f"{location}: malformed CSV ({error.value})"
 
 
 def format_result_errors(result: CollectionImportResult, cwd: Path) -> list[str]:
