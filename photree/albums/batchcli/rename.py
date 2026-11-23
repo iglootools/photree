@@ -7,7 +7,9 @@ import typer
 
 from photree.albums.cmd_handler.rename import BatchRenameResult, batch_rename_from_csv
 from photree.albums.renamer import (
+    RENAME_CSV_COLUMNS,
     RenameCollisionError,
+    RenameCsvColumnsError,
     RenameFailure,
     RenamePhase,
     RenamePlanError,
@@ -31,6 +33,8 @@ def format_rename_plan_error(error: RenamePlanError) -> str:
             reason = f"cannot parse current album name: {error.album_name}"
         case RenamePlanErrorKind.EMPTY_TITLE:
             reason = f"{error.external_id}: title is required but empty"
+        case RenamePlanErrorKind.DUPLICATE_ID:
+            reason = f"album ID appears on more than one row: {error.external_id}"
     return f"row {error.row}: {reason}"
 
 
@@ -57,6 +61,21 @@ def format_rename_failure(failure: RenameFailure, cwd: Path) -> str:
     return "\n".join([header, *stranded])
 
 
+def format_rename_csv_columns_error(
+    error: RenameCsvColumnsError,
+    csv_file: Path,
+    cwd: Path,
+) -> str:
+    """Describe a rename CSV whose header lacks required columns, and the fix."""
+    missing = ", ".join(error.missing)
+    return "\n".join(
+        [
+            f"{display_path(csv_file, cwd)} has no {missing} column(s).",
+            f"Add them (the CSV needs {', '.join(RENAME_CSV_COLUMNS)}) and re-run.",
+        ],
+    )
+
+
 def _print_plan(result: BatchRenameResult, cwd: Path) -> None:
     typer.echo(f"{result.row_count} row(s) in CSV, {len(result.actions)} change(s).\n")
     for action in result.actions:
@@ -76,6 +95,12 @@ def run_batch_rename_from_csv(
     """Shared implementation for gallery rename-from-csv / albums rename-from-csv."""
     try:
         result = batch_rename_from_csv(index, csv_file, dry_run=dry_run)
+    except RenameCsvColumnsError as exc:
+        err_console.print(
+            format_rename_csv_columns_error(exc, csv_file, cwd),
+            markup=False,
+        )
+        raise typer.Exit(code=1) from exc
     except RenameCollisionError as exc:
         err_console.print(str(exc), markup=False)
         raise typer.Exit(code=1) from exc

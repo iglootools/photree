@@ -708,6 +708,10 @@ current series, title, and location against the CSV values. Only albums
 where a mutable field changed are renamed. Immutable fields (date, part,
 tags) are preserved from the current on-disk album name.
 
+The CSV needs the id, series, title and location columns; other columns
+are ignored. A missing column, or an album ID on more than one row, stops
+the run before anything is renamed.
+
 **Usage**:
 
 ```console
@@ -1290,6 +1294,10 @@ Uses the album ID to look up each album in the gallery, then compares the
 current series, title, and location against the CSV values. Only albums
 where a mutable field changed are renamed. Immutable fields (date, part,
 tags) are preserved from the current on-disk album name.
+
+The CSV needs the id, series, title and location columns; other columns
+are ignored. A missing column, or an album ID on more than one row, stops
+the run before anything is renamed.
 
 **Usage**:
 

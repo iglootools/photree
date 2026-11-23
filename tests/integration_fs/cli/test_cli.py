@@ -172,6 +172,39 @@ class TestAlbumsRenameFromCsv:
         assert result.exit_code == 0
         assert "Renamed 1 album(s)" in result.output
 
+    def test_csv_with_byte_order_mark_is_read(self, tmp_path: Path) -> None:
+        # Regression: the BOM a spreadsheet writes turned the id column into
+        # "\ufeffid", so every row failed with "empty album ID".
+        _, aid = _setup_album(tmp_path, "2024-06-15 - Old")
+        csv_file = tmp_path / "rename.csv"
+        csv_file.write_text(
+            f"id,series,title,location\n{format_album_external_id(aid)},,New,\n",
+            encoding="utf-8-sig",
+        )
+        result = runner.invoke(
+            app,
+            ["albums", "rename-from-csv", str(csv_file), "-d", str(tmp_path)],
+        )
+        assert result.exit_code == 0, result.output
+        assert (tmp_path / "2024-06-15 - New").is_dir()
+
+    def test_missing_column_renames_nothing(self, tmp_path: Path) -> None:
+        # Regression: a CSV without its location column stripped the location
+        # from every album.
+        _, aid = _setup_album(tmp_path, "2024-06-15 - Trip @ Paris")
+        csv_file = tmp_path / "rename.csv"
+        _write_csv(
+            csv_file,
+            [{"id": format_album_external_id(aid), "series": "", "title": "Trip"}],
+        )
+        result = runner.invoke(
+            app,
+            ["albums", "rename-from-csv", str(csv_file), "-d", str(tmp_path)],
+        )
+        assert result.exit_code == 1
+        assert "has no location column(s)" in result.output
+        assert (tmp_path / "2024-06-15 - Trip @ Paris").is_dir()
+
     def test_corrupt_album_yaml_exits(self, tmp_path: Path) -> None:
         # An empty album.yaml is corrupt metadata, not a missing ID: it must
         # stop the run rather than be treated as absent.

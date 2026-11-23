@@ -19,7 +19,7 @@ from photree.albums.index import (
     build_album_index,
     resolve_album_path_by_id,
 )
-from photree.albums.renamer import plan_renames_from_csv
+from photree.albums.renamer import RenamePlanErrorKind, plan_renames_from_csv
 from photree.foundation.metadata_io import InvalidMetadataError
 from photree.gallery.index import build_album_id_to_path_index
 from photree.gallery.stats import compute_gallery_stats
@@ -277,6 +277,22 @@ class TestPlanRenamesFromCsv:
         actions, errors = plan_renames_from_csv(rows, index)
         assert len(actions) == 1  # only first row changed
         assert len(errors) == 1  # bad_id error
+
+    def test_every_row_of_a_repeated_id_is_an_error(self, tmp_path: Path) -> None:
+        # Regression: two rows for one album planned two renames of it, and
+        # the second failed mid-run with "No such file".
+        index = self._make_index(tmp_path)
+        ext_id = format_album_external_id(next(iter(index)))
+        rows = [
+            {"id": ext_id, "series": "", "title": "First", "location": ""},
+            {"id": ext_id, "series": "", "title": "Second", "location": ""},
+        ]
+        actions, errors = plan_renames_from_csv(rows, index)
+        assert actions == ()
+        assert [(e.kind, e.row) for e in errors] == [
+            (RenamePlanErrorKind.DUPLICATE_ID, 1),
+            (RenamePlanErrorKind.DUPLICATE_ID, 2),
+        ]
 
 
 class TestGalleryStatsWithoutCache:

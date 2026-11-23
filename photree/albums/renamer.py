@@ -2,7 +2,7 @@
 
 import unicodedata
 from collections import Counter
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -33,6 +33,7 @@ class RenamePlanErrorKind(StrEnum):
     ID_NOT_FOUND = "id-not-found"
     UNPARSEABLE_NAME = "unparseable-name"
     EMPTY_TITLE = "empty-title"
+    DUPLICATE_ID = "duplicate-id"
 
 
 @dataclass(frozen=True)
@@ -48,6 +49,37 @@ class RenamePlanError:
     row: int
     external_id: str
     album_name: str | None = None
+
+
+RENAME_CSV_COLUMNS = ("id", "series", "title", "location")
+"""The columns a rename CSV must have; the others are ignored."""
+
+
+class RenameCsvColumnsError(ValueError):
+    """
+    A rename CSV lacks some of :data:`RENAME_CSV_COLUMNS`.
+
+    Refused rather than read as empty values, which would strip that field
+    from every album's name.
+    """
+
+    def __init__(self, missing: tuple[str, ...]) -> None:
+        """Build the error from the required columns the header lacks."""
+        self.missing = missing
+        super().__init__(f"Missing CSV column(s): {', '.join(missing)}")
+
+
+def validate_rename_csv_columns(fieldnames: Sequence[str] | None) -> None:
+    """
+    Check that a CSV header has every column a rename needs.
+
+    *fieldnames* is ``None`` for a file without a header line. Raises
+    :class:`RenameCsvColumnsError` naming the missing columns.
+    """
+    present = set(fieldnames or ())
+    missing = tuple(c for c in RENAME_CSV_COLUMNS if c not in present)
+    if missing:
+        raise RenameCsvColumnsError(missing)
 
 
 def _nfc(s: str) -> str:
@@ -93,6 +125,10 @@ def _locate(
     )
 
 
+def _row_id(row: Mapping[str, str]) -> str:
+    return (row.get("id") or "").strip()
+
+
 def _plan_row(
     row_number: int,
     row: Mapping[str, str],
@@ -105,7 +141,7 @@ def _plan_row(
     :class:`RenamePlanError` when the row is invalid, or ``None`` when no
     change is needed.
     """
-    external_id = (row.get("id") or "").strip()
+    external_id = _row_id(row)
     located = _locate(row_number, external_id, index)
     if isinstance(located, RenamePlanError):
         return located
@@ -144,13 +180,21 @@ def plan_renames_from_csv(
     """
     Plan album renames from CSV rows against the album index.
 
-    Each row must contain ``id``, ``series``, ``title``, ``location`` columns.
-    Other columns are ignored.  Immutable fields (``date``, ``part``,
-    ``private``) come from the current on-disk album name.
+    Each row must contain ``id``, ``series``, ``title``, ``location`` columns
+    (see :func:`validate_rename_csv_columns`). Other columns are ignored.
+    Immutable fields (``date``, ``part``, ``private``) come from the current
+    on-disk album name. Every row of an ID that appears more than once is an
+    error: the rows would plan two renames of the same album.
 
     Returns ``(actions, errors)``.
     """
-    results = [_plan_row(n, row, index) for n, row in enumerate(rows, start=1)]
+    id_counts = Counter(_row_id(row) for row in rows)
+    results = [
+        RenamePlanError(RenamePlanErrorKind.DUPLICATE_ID, n, _row_id(row))
+        if _row_id(row) and id_counts[_row_id(row)] > 1
+        else _plan_row(n, row, index)
+        for n, row in enumerate(rows, start=1)
+    ]
     actions = tuple(r for r in results if isinstance(r, RenameAction))
     errors = tuple(r for r in results if isinstance(r, RenamePlanError))
     return actions, errors
@@ -175,7 +219,9 @@ def check_rename_collisions(actions: tuple[RenameAction, ...]) -> None:
     Raises :class:`RenameCollisionError` if any target conflicts with an
     existing directory that is not itself being renamed, or if two renames
     share a target. Swaps (A↔B) and chains (A→B→C) are fine:
-    :func:`execute_renames` moves everything aside before placing it.
+    :func:`execute_renames` moves everything aside before placing it. So is a
+    change of case alone on a case-insensitive filesystem, where the target
+    already exists as the album itself.
     """
     renamed_resolved = {a.album_path.resolve() for a in actions}
     target_counts = Counter(a.target.resolve() for a in actions)
@@ -186,7 +232,10 @@ def check_rename_collisions(actions: tuple[RenameAction, ...]) -> None:
             if target_counts[action.target.resolve()] > 1
             or (
                 action.target.exists()
-                and action.target.resolve() != action.album_path.resolve()
+                # Not a resolve() comparison: it keeps the spelling it is
+                # given, so on a case-insensitive filesystem "2024 - Trip"
+                # and "2024 - trip" differ though they are one directory.
+                and not action.target.samefile(action.album_path)
                 and action.target.resolve() not in renamed_resolved
             )
         ),

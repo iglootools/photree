@@ -61,6 +61,10 @@ def rename_from_csv_cmd(
     current series, title, and location against the CSV values. Only albums
     where a mutable field changed are renamed. Immutable fields (date, part,
     tags) are preserved from the current on-disk album name.
+
+    The CSV needs the id, series, title and location columns; other columns
+    are ignored. A missing column, or an album ID on more than one row, stops
+    the run before anything is renamed.
     """
     runtime = runtime_of(ctx)
     cwd = runtime.cwd()
