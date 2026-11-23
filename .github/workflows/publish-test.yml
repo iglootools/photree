@@ -59,19 +59,25 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
+      # Only what the iglootools command needs, as in publish.yml; the rest of the tools are
+      # installed after the version is resolved.
       - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # v5
         with:
           # renovate: datasource=github-releases depName=jdx/mise
           version: 2026.11.12
+          install_args: python uv
       # A throwaway version, <last release>.dev<UTC time>, since Test PyPI refuses one it has
       # seen; why it starts from the base release is in the command's module,
       # iglootools.python.devversion. UV_DYNAMIC_VERSIONING_BYPASS is consulted before any VCS
       # lookup, so it wins unconditionally. Assigned first: a failure inside `echo "$(…)"`
-      # would not fail the step.
+      # would not fail the step. `uv run` rather than `--no-sync`: nothing synced the
+      # environment before this step.
       - name: Resolve PyPI-compatible version
         run: |
           version=$(uv run iglootools python dev-version)
           echo "UV_DYNAMIC_VERSIONING_BYPASS=$version" >> "$GITHUB_ENV"
+      - name: Install the project's tools
+        run: mise install --locked
       - run: mise run ci-build
       - name: Publish package distributions to Test PyPI
         uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # release/v1
