@@ -182,39 +182,77 @@ def refresh_face_clusters(
             mode=FaceRefreshMode.NONE,
         )
 
-    index = _extendable_index(run, changes, existing, force_full=force_full)
+    saved = _extendable_faces(run, changes, existing, force_full=force_full)
     if dry_run:
         run.skip(*_POST_SCAN_STAGES)
         return GalleryFaceRefreshResult(
             new_faces=sum(_count_faces(s.npz_path) for s in changes.new_sources),
-            mode=FaceRefreshMode.FULL if index is None else FaceRefreshMode.INCREMENTAL,
+            mode=FaceRefreshMode.FULL if saved is None else FaceRefreshMode.INCREMENTAL,
         )
-    match index:
+    match saved:
         case None:
             return _run_full_cluster(run, changes, existing)
         case _:
-            return _run_incremental(run, changes, existing, index)
+            return _run_incremental(run, changes, saved)
 
 
-def _extendable_index(
+@dataclass(frozen=True)
+class _SavedFaces:
+    """The clustered faces a previous refresh saved, which new faces extend."""
+
+    index: faiss.IndexFlatIP
+    manifest: FaceManifest
+    clusters: FaceClusteringResult
+
+
+def _extendable_faces(
     run: _Run,
     changes: _ChangeSet,
     existing: FaceClusteringResult | None,
     *,
     force_full: bool,
-) -> faiss.IndexFlatIP | None:
+) -> _SavedFaces | None:
     """
-    Return the saved index when new faces can be added to it, else ``None`` (full).
+    Return the saved faces when new faces can be added to them, else ``None`` (full).
 
-    A missing index cannot be extended, so it forces a full re-cluster too.
+    Missing clusters, index or manifest cannot be extended, so they force a
+    full re-cluster too.
     """
-    needs_full = _needs_full_recluster(
+    if existing is None or _needs_full_recluster(
         changes,
         existing,
         force_full=force_full,
         threshold=run.threshold,
+    ):
+        return None
+    index = load_faiss_index(faiss_index_path(run.gallery_dir))
+    manifest = load_manifest(run.gallery_dir)
+    return (
+        _SavedFaces(index, manifest, existing)
+        if index is not None
+        and manifest is not None
+        and _is_extendable(index, manifest, existing, changes.new_sources)
+        else None
     )
-    return None if needs_full else load_faiss_index(faiss_index_path(run.gallery_dir))
+
+
+def _is_extendable(
+    index: faiss.IndexFlatIP,
+    manifest: FaceManifest,
+    clusters: FaceClusteringResult,
+    new_sources: tuple[_AlbumFaceSource, ...],
+) -> bool:
+    """
+    Whether the saved files describe the same faces, none from *new_sources*.
+
+    A save interrupted part-way leaves them disagreeing on the face count, or
+    leaves faces in the manifest whose source the checksums do not record yet:
+    extending that state would add those faces a second time.
+    """
+    ingested = {(face.album_id, face.media_source) for face in manifest.faces}
+    return index.ntotal == len(manifest.faces) == clusters.face_count and not any(
+        (src.album_id, src.media_source) in ingested for src in new_sources
+    )
 
 
 def _is_stale_empty(changes: _ChangeSet, existing: FaceClusteringResult | None) -> bool:
@@ -231,7 +269,7 @@ def _is_stale_empty(changes: _ChangeSet, existing: FaceClusteringResult | None) 
 
 def _needs_full_recluster(
     changes: _ChangeSet,
-    existing: FaceClusteringResult | None,
+    existing: FaceClusteringResult,
     *,
     force_full: bool,
     threshold: float,
@@ -241,7 +279,6 @@ def _needs_full_recluster(
     return (
         force_full
         or bool(changes.modified_sources or changes.removed_album_sources)
-        or existing is None
         or existing.face_count == 0
         or existing.threshold != threshold
     )
@@ -291,12 +328,10 @@ def _run_full_cluster(
 def _run_incremental(
     run: _Run,
     changes: _ChangeSet,
-    existing: FaceClusteringResult | None,
-    index: faiss.IndexFlatIP,
+    saved: _SavedFaces,
 ) -> GalleryFaceRefreshResult:
     """Add new faces to the existing index and assign to nearest cluster."""
     run.start(STAGE_BUILD_INDEX)
-    manifest = load_manifest(run.gallery_dir) or FaceManifest()
     new_refs, new_embeddings_list = _collect_all_faces(changes.new_sources)
     ingested_sources = (*changes.new_sources, *changes.unchanged_sources)
     if not new_embeddings_list:
@@ -304,21 +339,17 @@ def _run_incremental(
         run.skip(STAGE_CLUSTER)
         _save_checksums_stage(run, ingested_sources)
         return GalleryFaceRefreshResult(
-            total_faces=index.ntotal,
-            total_clusters=existing.cluster_count if existing else 0,
+            total_faces=saved.index.ntotal,
+            total_clusters=saved.clusters.cluster_count,
             mode=FaceRefreshMode.INCREMENTAL,
         )
     new_embeddings = np.concatenate(new_embeddings_list, axis=0).astype(np.float32)
-    existing_labels = (
-        _labels_from_clusters(existing, manifest)
-        if existing
-        else np.array([], dtype=np.int32)
-    )
+    existing_labels = _labels_from_clusters(saved.clusters, saved.manifest)
     run.end(STAGE_BUILD_INDEX)
 
     run.start(STAGE_CLUSTER)
-    all_labels = _assign_new_faces(run, index, existing_labels, new_embeddings)
-    old_uuids = _extract_existing_label_uuids(existing, all_labels)
+    all_labels = _assign_new_faces(run, saved.index, existing_labels, new_embeddings)
+    old_uuids = _extract_existing_label_uuids(saved.clusters, all_labels)
     clusters = _build_cluster_list(
         all_labels,
         _assign_cluster_uuids(all_labels, old_uuids, run.new_id),
@@ -327,8 +358,8 @@ def _run_incremental(
 
     _save_stage(
         run,
-        index,
-        FaceManifest(faces=[*manifest.faces, *new_refs]),
+        saved.index,
+        FaceManifest(faces=[*saved.manifest.faces, *new_refs]),
         clusters,
         ingested_sources,
     )
@@ -500,12 +531,10 @@ def _recover_old_uuid_map(
 
 
 def _extract_existing_label_uuids(
-    clusters_result: FaceClusteringResult | None,
+    clusters_result: FaceClusteringResult,
     all_labels: np.ndarray,
 ) -> dict[int, str]:
     """Build a label→UUID map from existing cluster assignments."""
-    if clusters_result is None:
-        return {}
     return {
         int(all_labels[cluster.face_indices[0]]): cluster.id
         for cluster in clusters_result.clusters
