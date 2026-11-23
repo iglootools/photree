@@ -52,7 +52,6 @@ __all__ = [
     "YearStats",
     "albums_stats_from_album_stats",
     "compute_album_stats",
-    "compute_albums_stats",
     "compute_media_source_stats",
 ]
 
@@ -251,25 +250,3 @@ def _merged_cache(albums: list[AlbumStats]) -> SizeStats | None:
     """Sum the albums' cache storage; ``None`` when none of them has a cache."""
     caches = [a.cache_storage for a in albums if a.cache_storage]
     return merge_size_stats(caches) if caches else None
-
-
-def compute_albums_stats(
-    albums: list[Path],
-    *,
-    on_album_done: Callable[[str], None] | None = None,
-) -> AlbumsStats:
-    """Raise :class:`ValueError` when any album name cannot be parsed."""
-    album_stats_list = [
-        _compute_and_notify(album_dir, on_album_done) for album_dir in albums
-    ]
-    return albums_stats_from_album_stats(album_stats_list)
-
-
-def _compute_and_notify(
-    album_dir: Path,
-    on_album_done: Callable[[str], None] | None,
-) -> AlbumStats:
-    stats = compute_album_stats(album_dir)
-    if on_album_done is not None:
-        on_album_done(album_dir.name)
-    return stats
