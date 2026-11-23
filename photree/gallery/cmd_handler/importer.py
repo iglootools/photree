@@ -128,11 +128,6 @@ class BatchImportResult:
     imported: tuple[Path, ...] = ()
     failures: tuple[AlbumImportFailure, ...] = ()
 
-    @property
-    def failed_albums(self) -> tuple[Path, ...]:
-        """Return the source directory of every album that did not import cleanly."""
-        return tuple(f.source for f in self.failures)
-
 
 def _import_one(
     plan: AlbumPlan,

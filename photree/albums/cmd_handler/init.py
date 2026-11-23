@@ -25,11 +25,6 @@ class BatchInitResult:
     initialized: int
     failures: tuple[BatchFailure, ...] = ()
 
-    @property
-    def failed_albums(self) -> tuple[Path, ...]:
-        """Return the directories of the albums that failed."""
-        return tuple(f.album_dir for f in self.failures)
-
 
 class AlreadyInitializedError(AlbumStepError):
     """The album already has an ID, so init leaves it alone."""

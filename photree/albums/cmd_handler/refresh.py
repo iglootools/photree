@@ -36,11 +36,6 @@ class BatchRefreshResult:
     refreshed: int
     failures: tuple[BatchFailure, ...] = ()
 
-    @property
-    def failed_albums(self) -> tuple[Path, ...]:
-        """Return the directories of the albums that failed."""
-        return tuple(f.album_dir for f in self.failures)
-
 
 @dataclass(frozen=True)
 class _RefreshOptions:

@@ -27,11 +27,6 @@ class BatchDetectFacesResult:
     succeeded: int
     failures: tuple[BatchFailure, ...] = ()
 
-    @property
-    def failed_albums(self) -> tuple[Path, ...]:
-        """Return the directories of the albums that failed."""
-        return tuple(f.album_dir for f in self.failures)
-
 
 def _detect_one(
     album_dir: Path,
