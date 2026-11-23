@@ -358,10 +358,29 @@ allowed_importers = [
   "photree.clihelpers",
 ]
 
-# The shared batch layer is albums/batchcli; the gallery command group must not reach into
-# the albums command group, and the shared layer must not depend on its own consumer.
+# Command groups do not import each other, directly or indirectly: they share the batch
+# layer, albums/batchcli, and the few album-level CLI pieces listed below. A new shared
+# piece is an architecture change: list it here and in architecture.md together.
 [[tool.importlinter.contracts]]
-name = "Command groups share batchcli, not each other"
+name = "Command groups do not import each other"
+type = "independence"
+modules = ["photree.*.cli"]
+ignore_imports = [
+  # The CLI runtime (the ports tests replace) that album-level work reads, whichever
+  # group runs it.
+  "photree.*.cli.* -> photree.album.cli.runtime",
+  # The import preflight that albums import and import-check run on each album.
+  "photree.albums.cli.* -> photree.album.cli.import_preflight",
+  # The stats tables, which the albums and gallery reports build on and demo shows.
+  "photree.albums.batchcli.stats -> photree.album.cli.stats_output",
+  "photree.gallery.cli.stats_output -> photree.album.cli.stats_output",
+  "photree.gallery.cli.stats_output -> photree.collection.cli.stats_output",
+  "photree.demo.cli.cmd -> photree.album.cli.stats_output",
+]
+
+# The shared batch layer must not depend on the albums command group, its own consumer.
+[[tool.importlinter.contracts]]
+name = "The batch layer does not import the albums command group"
 type = "forbidden"
-source_modules = ["photree.gallery.cli", "photree.albums.batchcli"]
+source_modules = ["photree.albums.batchcli"]
 forbidden_modules = ["photree.albums.cli"]

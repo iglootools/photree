@@ -126,12 +126,16 @@ for how to change them.
 - **Only CLI modules import `clihelpers`, `typer` or `rich`.** `clihelpers/`
   sits low in the stack only because `album/cli/` uses it; the contracts keep
   it out of the domain modules of every package above it.
-- **Command groups share `albums/batchcli/`, not each other.** `gallery/cli/`
-  reuses the batch layer through `albums/batchcli/` and never imports
-  `albums/cli/`; `albums/batchcli/` never imports `albums/cli/` either.
-  Likewise, the `albums` CLI and the entry point reach album-level CLI pieces
-  only through `album/cli/import_preflight.py` and
-  `album/cli/media_source_conflict.py`.
+- **Command groups share `albums/batchcli/`, not each other.** No `*/cli/`
+  package imports another, directly or indirectly: `gallery/cli/` reuses the
+  batch layer through `albums/batchcli/`, which never imports `albums/cli/`.
+  The exceptions are the album-level CLI pieces other groups build on, each
+  listed in the contract: `album/cli/runtime.py` (the CLI runtime),
+  `album/cli/import_preflight.py` (for `albums import` and `import-check`),
+  and the stats tables in `album/cli/stats_output.py` and
+  `collection/cli/stats_output.py` (for `albums stats`, `gallery stats` and
+  `demo`). The entry point, `cli/`, sits above every group and may import
+  any of them.
 - **No heavy imports at startup.** The face ML stack is imported only inside
   the functions that use it. import-linter still sees function-level imports,
   so this is not a contract: `tests/unit/test_cli_startup_imports.py` checks
