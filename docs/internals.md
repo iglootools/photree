@@ -409,7 +409,20 @@ collections:
    nothing is written.
 
 4. **Delete orphaned** — implicit collections whose series no longer
-   appears in any album are removed.
+   appears in any album are removed: `gallery refresh` deletes their
+   `.photree/collection.yaml` (and `.photree/` once empty), then the
+   directory if nothing else is left in it (Finder's `.DS_Store` aside).
+   A directory that still holds other files, such as notes or a cover image,
+   is kept as a plain directory and reported as such.
+
+The whole stage is planned before anything is written. Every rename and
+creation target is checked first: a directory that already exists is
+reported as an error and nothing is changed, unless the plan itself moves
+that directory away or removes it. The check compares directories rather than
+names, so a case-only series rename (`Trip` to `trip`) on a case-insensitive
+filesystem does not find the collection in its own way. Renames go through a
+temporary name, which makes both that case-only rename and one collection
+taking another's vacated name work.
 
 **Limitation**: changing the series title and adding/removing albums at the
 same time (before a refresh) causes the old collection to be deleted and a
@@ -434,6 +447,10 @@ date range containment:
   album and collection member lists.
 - Smart collections do not support image or video members — these fields
   are cleared on each refresh.
+
+Phase 4 works on the collections as phase 3 left them in memory rather than
+re-reading the disk, so a dry run sees the implicit collections phase 3 would
+create or rename, as the real run does.
 
 ### Collection Directory Layout
 

@@ -1,7 +1,6 @@
 """Create, update, rename and delete implicit collections (refresh phase 3)."""
 
-import shutil
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -17,14 +16,20 @@ from photree.collection.refresh.result import (
 )
 from photree.collection.refresh.scan import AlbumInfo, ExistingCollection
 from photree.collection.refresh.series import SeriesTarget, series_targets
-from photree.collection.store.metadata import save_collection_metadata
+from photree.collection.store.metadata import (
+    remove_collection_metadata,
+    save_collection_metadata,
+)
 from photree.collection.store.protocol import (
+    COLLECTION_YAML,
     CollectionLifecycle,
     CollectionMembers,
     CollectionMetadata,
     CollectionStrategy,
 )
-from photree.foundation.layout import COLLECTIONS_DIR
+from photree.foundation.layout import COLLECTIONS_DIR, PHOTREE_DIR
+
+_FINDER_METADATA = ".DS_Store"
 
 
 def _collection_target_dir(gallery_dir: Path, name: str) -> Path:
@@ -43,19 +48,11 @@ class ImplicitChanges:
     updated: tuple[str, ...] = ()
     renamed: tuple[tuple[str, str], ...] = ()
     deleted: tuple[str, ...] = ()
+    kept_directories: tuple[str, ...] = ()
+    """Deleted collections whose directory was kept: it holds other files."""
     errors: tuple[CollectionRefreshError, ...] = ()
-
-    @staticmethod
-    def merge(changes: Iterable[ImplicitChanges]) -> ImplicitChanges:
-        """Combine *changes* into one, concatenating each field in order."""
-        all_changes = list(changes)
-        return ImplicitChanges(
-            created=tuple(n for c in all_changes for n in c.created),
-            updated=tuple(n for c in all_changes for n in c.updated),
-            renamed=tuple(r for c in all_changes for r in c.renamed),
-            deleted=tuple(n for c in all_changes for n in c.deleted),
-            errors=tuple(e for c in all_changes for e in c.errors),
-        )
+    collections: tuple[ExistingCollection, ...] = ()
+    """Every collection in the gallery as the stage leaves it, even on dry run."""
 
 
 def _implicit_metadata(
@@ -74,110 +71,230 @@ def _implicit_metadata(
     )
 
 
-def _update_existing(
-    gallery_dir: Path,
-    col: ExistingCollection,
-    target: SeriesTarget,
-    *,
-    dry_run: bool,
-) -> ImplicitChanges:
-    """Rename (date range or title changed) and/or update members, keeping the ID."""
-    new_path = _collection_target_dir(gallery_dir, target.collection_name)
-    if new_path != col.path and new_path.exists():
-        return ImplicitChanges(
-            errors=(
-                CollectionRefreshError(
-                    CollectionRefreshErrorKind.COLLECTION_TARGET_EXISTS,
-                    path=col.path,
-                    target=new_path,
-                ),
-            ),
-        )
-    new_meta = _implicit_metadata(col.metadata, target.album_ids)
-    if not dry_run and new_path != col.path:
-        new_path.parent.mkdir(parents=True, exist_ok=True)
-        col.path.rename(new_path)
-    if not dry_run and new_meta != col.metadata:
-        save_collection_metadata(new_path, new_meta)
-    return ImplicitChanges(
-        renamed=(
-            ((col.name, target.collection_name),)
-            if col.name != target.collection_name
-            else ()
-        ),
-        updated=(target.collection_name,) if new_meta != col.metadata else (),
+@dataclass(frozen=True)
+class _Update:
+    """An existing implicit collection, renamed (date range or title) and/or updated."""
+
+    col: ExistingCollection
+    name: str
+    path: Path
+    metadata: CollectionMetadata
+
+    @property
+    def moves(self) -> bool:
+        """Whether the collection directory changes."""
+        return self.path != self.col.path
+
+
+@dataclass(frozen=True)
+class _Create:
+    """A new implicit collection for a series run no existing one matches."""
+
+    name: str
+    path: Path
+    metadata: CollectionMetadata
+
+
+@dataclass(frozen=True)
+class _Orphan:
+    """An implicit collection no album series backs any more."""
+
+    col: ExistingCollection
+    empties: bool
+    """Removing its metadata leaves the directory empty, so it is removed too."""
+
+
+def _names(directory: Path) -> set[str]:
+    return {child.name for child in directory.iterdir()}
+
+
+def _plan_orphan(col: ExistingCollection) -> _Orphan:
+    """
+    Plan the removal of *col*'s metadata, and of its directory if nothing else is in it.
+
+    Finder's ``.DS_Store`` does not count: browsing the directory creates it.
+    """
+    return _Orphan(
+        col=col,
+        empties=_names(col.path) <= {PHOTREE_DIR, _FINDER_METADATA}
+        and _names(col.path / PHOTREE_DIR) == {COLLECTION_YAML},
     )
 
 
-def _create_implicit(
+@dataclass(frozen=True)
+class _ImplicitPlan:
+    """Every change the implicit stage makes, computed before any is applied."""
+
+    updates: tuple[_Update, ...]
+    creates: tuple[_Create, ...]
+    orphans: tuple[_Orphan, ...]
+
+
+def _plan_update(
+    gallery_dir: Path,
+    col: ExistingCollection,
+    target: SeriesTarget,
+) -> _Update:
+    return _Update(
+        col=col,
+        name=target.collection_name,
+        path=_collection_target_dir(gallery_dir, target.collection_name),
+        metadata=_implicit_metadata(col.metadata, target.album_ids),
+    )
+
+
+def _plan_create(
     gallery_dir: Path,
     target: SeriesTarget,
-    *,
-    dry_run: bool,
     new_id: Callable[[], str],
-) -> ImplicitChanges:
-    target_dir = _collection_target_dir(gallery_dir, target.collection_name)
-    if target_dir.exists():
-        return ImplicitChanges(
-            errors=(
-                CollectionRefreshError(
-                    CollectionRefreshErrorKind.COLLECTION_TARGET_EXISTS,
-                    target=target_dir,
-                ),
-            ),
-        )
-    if not dry_run:
-        target_dir.mkdir(parents=True, exist_ok=True)
-        save_collection_metadata(
-            target_dir,
-            CollectionMetadata(
-                id=new_id(),
-                members=CollectionMembers.SMART,
-                lifecycle=CollectionLifecycle.IMPLICIT,
-                strategy=CollectionStrategy.ALBUM_SERIES,
-                albums=list(target.album_ids),
-            ),
-        )
-    return ImplicitChanges(created=(target.collection_name,))
+) -> _Create:
+    return _Create(
+        name=target.collection_name,
+        path=_collection_target_dir(gallery_dir, target.collection_name),
+        metadata=CollectionMetadata(
+            id=new_id(),
+            members=CollectionMembers.SMART,
+            lifecycle=CollectionLifecycle.IMPLICIT,
+            strategy=CollectionStrategy.ALBUM_SERIES,
+            albums=list(target.album_ids),
+        ),
+    )
 
 
-def _apply_match(
+def _plan(
     gallery_dir: Path,
-    group_match: GroupMatch,
-    *,
-    dry_run: bool,
-    new_id: Callable[[], str],
-) -> ImplicitChanges:
-    match group_match.existing:
-        case ExistingCollection() as col:
-            return _update_existing(
-                gallery_dir,
-                col,
-                group_match.target,
-                dry_run=dry_run,
-            )
-        case None:
-            return _create_implicit(
-                gallery_dir,
-                group_match.target,
-                dry_run=dry_run,
-                new_id=new_id,
-            )
-
-
-def _delete_orphaned_implicit(
     index: ImplicitIndex,
     matches: list[GroupMatch],
-    *,
-    dry_run: bool,
-) -> ImplicitChanges:
-    """Delete implicit collections no longer backed by any album series."""
+    new_id: Callable[[], str],
+) -> _ImplicitPlan:
     kept = {m.existing.metadata.id for m in matches if m.existing is not None}
-    orphans = [col for col in index.implicit if col.metadata.id not in kept]
-    if not dry_run:
-        for col in orphans:
-            shutil.rmtree(col.path)
-    return ImplicitChanges(deleted=tuple(col.name for col in orphans))
+    return _ImplicitPlan(
+        updates=tuple(
+            _plan_update(gallery_dir, m.existing, m.target)
+            for m in matches
+            if m.existing is not None
+        ),
+        creates=tuple(
+            _plan_create(gallery_dir, m.target, new_id)
+            for m in matches
+            if m.existing is None
+        ),
+        orphans=tuple(
+            _plan_orphan(col) for col in index.implicit if col.metadata.id not in kept
+        ),
+    )
+
+
+def _vacated(plan: _ImplicitPlan) -> tuple[Path, ...]:
+    """Return the collection directories the plan moves away or removes."""
+    return (
+        *(u.col.path for u in plan.updates if u.moves),
+        *(o.col.path for o in plan.orphans if o.empties),
+    )
+
+
+def _is_taken(target: Path, vacated: tuple[Path, ...]) -> bool:
+    """
+    Whether *target* is occupied by something the plan does not vacate.
+
+    Compared with ``samefile`` so that, on a case-insensitive filesystem, a
+    case-only rename does not find the collection itself in its way.
+    """
+    return target.exists() and not any(
+        v.exists() and target.samefile(v) for v in vacated
+    )
+
+
+def _target_errors(plan: _ImplicitPlan) -> tuple[CollectionRefreshError, ...]:
+    vacated = _vacated(plan)
+    return (
+        *(
+            CollectionRefreshError(
+                CollectionRefreshErrorKind.COLLECTION_TARGET_EXISTS,
+                path=u.col.path,
+                target=u.path,
+            )
+            for u in plan.updates
+            if u.moves and _is_taken(u.path, vacated)
+        ),
+        *(
+            CollectionRefreshError(
+                CollectionRefreshErrorKind.COLLECTION_TARGET_EXISTS,
+                target=c.path,
+            )
+            for c in plan.creates
+            if _is_taken(c.path, vacated)
+        ),
+    )
+
+
+def _apply(plan: _ImplicitPlan) -> None:
+    """
+    Write *plan* to disk: removals, then moves, then metadata and creations.
+
+    An orphan loses only its metadata; its directory goes too only when that
+    leaves it empty, so files the user keeps there survive.
+
+    Moves go through a temporary name first, so a case-only rename and one
+    collection taking another's vacated name both work.
+    """
+    for orphan in plan.orphans:
+        remove_collection_metadata(orphan.col.path)
+        if orphan.empties:
+            (orphan.col.path / _FINDER_METADATA).unlink(missing_ok=True)
+            orphan.col.path.rmdir()
+    staged = [
+        (u, u.col.path.with_name(f".photree-moving-{u.metadata.id}"))
+        for u in plan.updates
+        if u.moves
+    ]
+    for u, temporary in staged:
+        u.col.path.rename(temporary)
+    for u, temporary in staged:
+        u.path.parent.mkdir(parents=True, exist_ok=True)
+        temporary.rename(u.path)
+    for u in plan.updates:
+        if u.metadata != u.col.metadata:
+            save_collection_metadata(u.path, u.metadata)
+    for c in plan.creates:
+        c.path.mkdir(parents=True)
+        save_collection_metadata(c.path, c.metadata)
+
+
+def _planned_collections(
+    existing: tuple[ExistingCollection, ...],
+    plan: _ImplicitPlan,
+) -> tuple[ExistingCollection, ...]:
+    """Return *existing* with the plan's renames, updates, creations and removals."""
+    updated = {
+        u.col.metadata.id: ExistingCollection(u.path, u.metadata, u.name)
+        for u in plan.updates
+    }
+    removed = {o.col.metadata.id for o in plan.orphans}
+    return (
+        *(
+            updated.get(col.metadata.id, col)
+            for col in existing
+            if col.metadata.id not in removed
+        ),
+        *(ExistingCollection(c.path, c.metadata, c.name) for c in plan.creates),
+    )
+
+
+def _changes(
+    existing: tuple[ExistingCollection, ...],
+    plan: _ImplicitPlan,
+) -> ImplicitChanges:
+    return ImplicitChanges(
+        created=tuple(c.name for c in plan.creates),
+        updated=tuple(u.name for u in plan.updates if u.metadata != u.col.metadata),
+        renamed=tuple(
+            (u.col.name, u.name) for u in plan.updates if u.col.name != u.name
+        ),
+        deleted=tuple(o.col.name for o in plan.orphans),
+        kept_directories=tuple(o.col.name for o in plan.orphans if not o.empties),
+        collections=_planned_collections(existing, plan),
+    )
 
 
 def refresh_implicit_collections(
@@ -191,8 +308,9 @@ def refresh_implicit_collections(
     """
     Create, update, rename, and delete implicit collections from album series.
 
-    Nothing is written when any group fails to match: name conflicts are
-    detected on the whole plan first.
+    Nothing is written when the plan has an error: series name conflicts and
+    occupied target directories are detected on the whole plan first, taking
+    into account the directories the plan itself moves away or removes.
     """
     index = ImplicitIndex.build(existing)
     matches = match_groups(series_targets(albums), index)
@@ -206,12 +324,10 @@ def refresh_implicit_collections(
     )
     if conflicts:
         return ImplicitChanges(errors=conflicts)
-    return ImplicitChanges.merge(
-        [
-            *(
-                _apply_match(gallery_dir, m, dry_run=dry_run, new_id=new_id)
-                for m in matches
-            ),
-            _delete_orphaned_implicit(index, matches, dry_run=dry_run),
-        ],
-    )
+    plan = _plan(gallery_dir, index, matches, new_id)
+    target_errors = _target_errors(plan)
+    if target_errors:
+        return ImplicitChanges(errors=target_errors)
+    if not dry_run:
+        _apply(plan)
+    return _changes(existing, plan)
