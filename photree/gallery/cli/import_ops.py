@@ -13,6 +13,7 @@ from photree.album import check as album_check
 from photree.album.check.output import album as album_output
 from photree.album.check.output import derived as derived_output
 from photree.album.id import format_album_external_id
+from photree.album.refresh import RefreshFn
 from photree.album.store.album_discovery import discover_potential_albums
 from photree.album.store.metadata import load_album_metadata
 from photree.clihelpers.console import console, err_console
@@ -21,7 +22,6 @@ from photree.common.exif import exiftool_session
 from photree.common.formatting import format_dry_run
 from photree.common.fs import display_path
 from photree.common.sysdeps import WhichFn
-from photree.foundation.gallery_metadata import resolve_link_mode
 from photree.foundation.linking import LinkMode
 from photree.gallery import AlbumIndex
 from photree.gallery.cmd_handler.importer import BatchImportResult
@@ -88,6 +88,7 @@ def run_single_import(
     dry_run: bool,
     max_workers: int | None = None,
     which: WhichFn,
+    refresh: RefreshFn,
     cwd: Path,
 ) -> AlbumImportResult:
     """Execute a single album import/reimport with stage progress bar."""
@@ -108,6 +109,7 @@ def run_single_import(
                 on_stage_end=progress.on_end,
                 max_workers=max_workers,
                 which=which,
+                refresh=refresh,
             )
         except (ValueError, OSError) as exc:
             # Same failure set as the batch import: the importer removes its
@@ -122,9 +124,8 @@ def print_single_import_result(
     cwd: Path,
     *,
     dry_run: bool,
-    which: WhichFn,
 ) -> None:
-    """Display import result and run post-import preflight check."""
+    """Display the import result, and what derived data it lacks, if any."""
     if not dry_run:
         meta = load_album_metadata(result.target_dir)
         if meta is not None:
@@ -140,14 +141,21 @@ def print_single_import_result(
                 str(display_path(result.target_dir, cwd)),
             ),
         )
-        raise typer.Exit(code=1)
-
-    if not dry_run:
-        _post_import_check(result.target_dir, cwd, which=which)
 
 
-def _post_import_check(target_dir: Path, cwd: Path, *, which: WhichFn) -> None:
-    """Run the preflight check on a freshly imported album; exit 1 on failure."""
+def post_import_check(
+    target_dir: Path,
+    cwd: Path,
+    *,
+    link_mode: LinkMode,
+    which: WhichFn,
+) -> bool:
+    """
+    Run the preflight check on a freshly imported album; return whether it passed.
+
+    *link_mode* is the one the import ran with, so a ``--link-mode`` override
+    is checked as such rather than against the gallery's default.
+    """
     typer.echo("\nPost-Import Check:")
     with exiftool_session(which=which) as exiftool:
         check_result = album_check.run_album_check(
@@ -155,7 +163,7 @@ def _post_import_check(target_dir: Path, cwd: Path, *, which: WhichFn) -> None:
             # The import gate (import_deps) already required sips.
             sips_available=True,
             exiftool=exiftool,
-            link_mode=resolve_link_mode(None, target_dir),
+            link_mode=link_mode,
         )
     console.print(album_output.format_album_preflight_checks(check_result))
     if not check_result.success:
@@ -164,7 +172,7 @@ def _post_import_check(target_dir: Path, cwd: Path, *, which: WhichFn) -> None:
             f'"{display_path(target_dir, cwd)}"\'.',
             markup=False,
         )
-        raise typer.Exit(code=1)
+    return check_result.success
 
 
 def resolve_import_all_albums(
@@ -197,6 +205,7 @@ def run_batch_import(
     dry_run: bool,
     max_workers: int | None = None,
     which: WhichFn,
+    refresh: RefreshFn,
     cwd: Path,
 ) -> BatchImportResult:
     """Execute batch import/reimport with progress bar."""
@@ -212,6 +221,7 @@ def run_batch_import(
             dry_run=dry_run,
             max_workers=max_workers,
             which=which,
+            refresh=refresh,
             on_start=progress.on_start,
             on_end=lambda name, failure: progress.on_end(
                 name,
@@ -225,17 +235,17 @@ def run_batch_import(
 
 def run_batch_post_import_check(
     imported_targets: list[Path],
-    gallery_dir: Path,
     cwd: Path,
     *,
+    link_mode: LinkMode,
     which: WhichFn,
 ) -> list[Path]:
     """
     Run post-import checks on all imported albums.
 
-    The albums are checked against the gallery's configured link mode (not a
-    ``--link-mode`` override given to the import). Returns the list of albums
-    that failed checking.
+    The albums are checked against *link_mode*, the one the import ran with
+    (a ``--link-mode`` override, else the gallery's). Returns the list of
+    albums that failed checking.
     """
     with BatchProgressBar(
         total=len(imported_targets),
@@ -244,7 +254,7 @@ def run_batch_post_import_check(
     ) as check_progress:
         return _run_batch_post_import_check(
             imported_targets,
-            link_mode=resolve_link_mode(None, gallery_dir),
+            link_mode=link_mode,
             # The import gate (import_deps) already required sips.
             sips_available=True,
             which=which,

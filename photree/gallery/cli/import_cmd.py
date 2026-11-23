@@ -5,9 +5,9 @@ from typing import Annotated
 
 import typer
 
+from photree.album.cli.runtime import album_runtime_of
 from photree.clihelpers.options import REIMPORT_OPTION
 from photree.clihelpers.resolution import resolve_gallery_or_exit
-from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.sysdeps import import_deps, require_system_deps
 from photree.foundation.gallery_metadata import resolve_link_mode
 from photree.foundation.linking import LinkMode
@@ -15,6 +15,7 @@ from photree.gallery.cli.app import app
 from photree.gallery.cli.face_ops import cluster_faces_if_enabled
 from photree.gallery.cli.import_ops import (
     plan_imports_or_exit,
+    post_import_check,
     print_single_import_result,
     render_skipped,
     run_single_import,
@@ -70,7 +71,7 @@ def import_cmd(
     reimport: REIMPORT_OPTION = False,
 ) -> None:
     """Import an existing album directory into the gallery."""
-    runtime = runtime_of(ctx)
+    runtime = album_runtime_of(ctx)
     cwd = runtime.cwd()
     which = runtime.which
     require_system_deps(import_deps(), which=which)
@@ -98,9 +99,22 @@ def import_cmd(
         dry_run=dry_run,
         max_workers=runtime.cpu_count(),
         which=which,
+        refresh=runtime.refresh,
         cwd=cwd,
     )
-    print_single_import_result(result, cwd, dry_run=dry_run, which=which)
-
+    print_single_import_result(result, cwd, dry_run=dry_run)
+    passed = result.complete and (
+        dry_run
+        or post_import_check(
+            result.target_dir,
+            cwd,
+            link_mode=resolved_lm,
+            which=which,
+        )
+    )
+    # The album is in the gallery even when it failed, so cluster its faces
+    # before exiting.
     if not dry_run:
         cluster_faces_if_enabled(resolved_gallery)
+    if not passed:
+        raise typer.Exit(code=1)

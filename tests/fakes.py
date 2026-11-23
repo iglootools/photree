@@ -11,6 +11,8 @@ import numpy as np
 from photree.album.cli.runtime import AlbumRuntime, RunImportFn, widen
 from photree.album.faces.detect import MakeThumbnailFn, ThumbnailResult
 from photree.album.faces.protocol import EMBEDDING_DIM
+from photree.album.importer import album_import
+from photree.album.refresh import RefreshFn, refresh_album_derived_data
 from photree.clihelpers.runtime import Runtime
 from photree.common.sysdeps import SystemDependency, WhichFn
 
@@ -50,10 +52,15 @@ def fake_runtime(*present: SystemDependency, cpu_count: int = 2) -> Runtime:
 
 def fake_album_runtime(
     *present: SystemDependency,
-    run_import: RunImportFn,
+    run_import: RunImportFn = album_import.run_import,
+    refresh: RefreshFn = refresh_album_derived_data,
 ) -> AlbumRuntime:
-    """:func:`fake_runtime` with a fake album import in place of the real one."""
-    return replace(widen(fake_runtime(*present)), run_import=run_import)
+    """:func:`fake_runtime` with fakes in place of the album operations given."""
+    return replace(
+        widen(fake_runtime(*present)),
+        run_import=run_import,
+        refresh=refresh,
+    )
 
 
 @dataclass(frozen=True)

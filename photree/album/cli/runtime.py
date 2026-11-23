@@ -19,6 +19,7 @@ from photree.album.faces.detect import (
 )
 from photree.album.importer import album_import
 from photree.album.importer.album_import import AlbumImportResult
+from photree.album.refresh import RefreshFn, refresh_album_derived_data
 from photree.clihelpers.runtime import Runtime
 
 type RunImportFn = Callable[..., AlbumImportResult]
@@ -36,6 +37,9 @@ class AlbumRuntime(Runtime):
     """Builds the face analyzer on first use, once per run (``detect-faces``)."""
     make_face_thumbnail: MakeThumbnailFn = generate_thumbnail
     """Writes the thumbnail face detection reads (``detect-faces``)."""
+
+    refresh: RefreshFn = refresh_album_derived_data
+    """Refreshes an album's derived data (the last stage of ``gallery import``)."""
 
 
 def widen(base: Runtime) -> AlbumRuntime:

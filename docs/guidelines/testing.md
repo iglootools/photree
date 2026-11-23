@@ -26,4 +26,4 @@ parameter a test needs to control. The patching exceptions are listed in
 - **Fakes**, in `tests/fakes.py`: `fake_runtime(*present)` (only *present*
   binaries installed, a home that does not exist, an empty environment, no
   config file), `ALL_DEPS_RUNTIME`, `fake_which`, and
-  `fake_album_runtime(*present, run_import=...)`.
+  `fake_album_runtime(*present, run_import=..., refresh=...)`.
