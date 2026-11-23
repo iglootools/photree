@@ -234,3 +234,16 @@ class TestRefreshDerivedDataJpeg:
 
         jpeg = album / "main-jpg" / "DSC_0001.JPG"
         assert jpeg.read_text(encoding="utf-8") == "after"
+
+
+def test_media_ids_use_injected_generator(tmp_path: Path) -> None:
+    write_file(tmp_path / "ios-main/orig-img/IMG_0001.HEIC")
+    write_file(tmp_path / "ios-main/orig-vid/IMG_0002.MOV")
+    ids = iter(["id-image", "id-video"])
+
+    refresh_media_metadata(tmp_path, new_id=lambda: next(ids))
+
+    meta = load_media_metadata(tmp_path)
+    assert meta is not None
+    assert meta.media_sources["main"].images == {"id-image": "0001"}
+    assert meta.media_sources["main"].videos == {"id-video": "0002"}
