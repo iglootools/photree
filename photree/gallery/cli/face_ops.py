@@ -1,6 +1,7 @@
 """Gallery-wide face clustering for gallery commands, and its option check."""
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
 
@@ -10,15 +11,9 @@ from photree.clihelpers.usage import invalid_value_error
 from photree.common.formatting import CHECK, format_dry_run
 from photree.foundation.gallery_metadata import GALLERY_YAML, load_gallery_metadata
 from photree.foundation.layout import PHOTREE_DIR
-from photree.gallery.faces.face_refresh import (
-    STAGE_BUILD_INDEX,
-    STAGE_CLUSTER,
-    STAGE_SAVE,
-    STAGE_SCAN_FACE_DATA,
-    FaceRefreshMode,
-    GalleryFaceRefreshResult,
-    refresh_face_clusters,
-)
+
+if TYPE_CHECKING:
+    from photree.gallery.faces.face_refresh import GalleryFaceRefreshResult
 
 
 def require_valid_threshold(threshold: float | None, option: str) -> None:
@@ -40,6 +35,14 @@ def run_face_clustering(
     force_full: bool = False,
 ) -> None:
     """Run gallery-wide face clustering with progress bar and output."""
+    from photree.gallery.faces.face_refresh import (  # noqa: PLC0415 - numpy, kept out of CLI startup
+        STAGE_BUILD_INDEX,
+        STAGE_CLUSTER,
+        STAGE_SAVE,
+        STAGE_SCAN_FACE_DATA,
+        refresh_face_clusters,
+    )
+
     typer.echo(format_dry_run("\nFace clustering:", dry_run=dry_run))
     with StageProgressBar(
         total=4,
@@ -80,6 +83,8 @@ def cluster_faces_if_enabled(
 
 
 def _face_clustering_line(result: GalleryFaceRefreshResult) -> str:
+    from photree.gallery.faces.face_refresh import FaceRefreshMode  # noqa: PLC0415 - numpy, kept out of CLI startup
+
     counts = f"{result.total_faces} face(s), {result.total_clusters} cluster(s)"
     return (
         f"{CHECK} face clustering (no changes — {counts})"

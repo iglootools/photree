@@ -13,7 +13,6 @@ from photree.album.faces.protocol import FACES_DIR
 from photree.album.store.album_discovery import discover_albums
 from photree.album.store.metadata import load_album_metadata
 from photree.foundation.layout import ALBUMS_DIR, PHOTREE_DIR
-from photree.gallery.faces.clustering import load_faiss_index
 from photree.gallery.faces.manifest import (
     compute_npz_checksum,
     faiss_index_path,
@@ -138,6 +137,8 @@ def _index_size_issues(gallery_dir: Path, manifest_size: int) -> list[FaceCluste
     Row *i* of the index is face *i* of the manifest, so any difference
     misplaces every face a later refresh assigns.
     """
+    from photree.gallery.faces.clustering import load_faiss_index  # noqa: PLC0415 - numpy, kept out of CLI startup
+
     index = load_faiss_index(faiss_index_path(gallery_dir))
     index_rows = index.ntotal if index is not None else 0
     return (

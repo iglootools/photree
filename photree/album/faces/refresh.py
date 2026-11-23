@@ -5,8 +5,6 @@ from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
 
-import numpy as np
-
 from photree.album.faces.detect import (
     DetectedFace,
     FaceAnalyzerFactory,
@@ -663,6 +661,8 @@ def _no_change_result(plan: _SourcePlan) -> FaceSourceRefreshResult:
 
 
 def _faces_to_face_data(faces: list[DetectedFace]) -> FaceData:
+    import numpy as np  # noqa: PLC0415 - numpy, kept out of CLI startup
+
     return FaceData(
         keys=np.array([f.key for f in faces], dtype=np.str_),
         face_indices=np.array([f.face_index for f in faces], dtype=np.int32),
