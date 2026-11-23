@@ -207,3 +207,27 @@ class TestMatchClustersByMedoid:
 
         # Should not match since embeddings are very different
         assert 0 not in matched or matched[0] != "uuid-old"
+
+    def test_falls_back_to_next_nearest_old_cluster_when_nearest_is_taken(
+        self,
+    ) -> None:
+        """Regression: only the nearest old medoid was tried, then a new UUID."""
+        old_emb = np.eye(2, 512, dtype=np.float32)
+        old_labels = np.array([0, 1], dtype=np.int32)
+        # Both new clusters are nearest to old cluster A; the second one is still
+        # within the threshold of old cluster B (cosine distance 0.4).
+        new_emb = np.zeros((2, 512), dtype=np.float32)
+        new_emb[0, 0] = 1.0
+        new_emb[1, :2] = [0.8, 0.6]
+        new_labels = np.array([0, 1], dtype=np.int32)
+
+        matched = match_clusters_by_medoid(
+            old_emb,
+            old_labels,
+            {0: "uuid-a", 1: "uuid-b"},
+            new_emb,
+            new_labels,
+            threshold=0.45,
+        )
+
+        assert matched == {0: "uuid-a", 1: "uuid-b"}
