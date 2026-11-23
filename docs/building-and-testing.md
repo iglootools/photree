@@ -41,8 +41,8 @@ mise run depgraph           # regenerate the Module Overview in docs/architectur
 mise run lint-depgraph      # check that the Module Overview is up to date
 mise run depgraph-ascii     # print the module dependency graph as ASCII art
 mise run depgraph-mermaid   # print the module dependency graph as mermaid
-mise run toc                # regenerate the tables of contents in the Markdown docs
-mise run lint-toc           # check that the tables of contents are up to date
+mise run toc                # add and regenerate the tables of contents in the Markdown files
+mise run lint-toc           # check that every Markdown document has an up-to-date table of contents
 
 mise run build              # build the sdist and wheel into an emptied dist/
 mise run build-verify       # fail if the built wheel carries the 0.0.0 fallback version

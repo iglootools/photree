@@ -249,11 +249,11 @@ run = [
 ]
 
 [tasks.toc]
-description = "Regenerate the tables of contents in the Markdown docs (add one with --add <file>)"
+description = "Add and regenerate the tables of contents in the Markdown files"
 run = "uv run --no-sync iglootools docs toc"
 
 [tasks.lint-toc]
-description = "Check that the Markdown tables of contents are up to date (fix with `mise run toc`)"
+description = "Check that every Markdown document has an up-to-date table of contents (fix with `mise run toc`)"
 run = "uv run --no-sync iglootools docs toc --check"
 
 [tasks.clidocs]
