@@ -30,6 +30,12 @@ from photree.album.faces.store import (
 )
 from photree.album.faces.testkit import write_legacy_face_data
 from photree.foundation.metadata_io import InvalidMetadataError
+from tests.fakes import (
+    FAKE_ORIGINAL_SIZE,
+    FAKE_THUMBNAIL_SIZE,
+    FakeFaceDetector,
+    fake_make_thumbnail,
+)
 
 
 def _make_file(path: Path) -> None:
@@ -68,6 +74,110 @@ class TestAnalyzerInjection:
             raise AssertionError(message)
 
         refresh_face_data(tmp_path, analyzer_factory=_factory)
+
+
+def _refuse_thumbnail(key: str, file_name: str, src: Path, dst: Path) -> NoReturn:  # noqa: ARG001 - MakeThumbnailFn's signature
+    message = "the cached thumbnail should be reused"
+    raise AssertionError(message)
+
+
+class TestDetection:
+    def test_detected_faces_are_saved(self, tmp_path: Path) -> None:
+        _make_ios_source(tmp_path)
+
+        result = refresh_face_data(
+            tmp_path,
+            analyzer_factory=FakeFaceDetector,
+            make_thumbnail=fake_make_thumbnail(),
+        )
+
+        ((_, source),) = result.by_media_source
+        assert (source.processed, source.skipped, source.faces_detected) == (1, 0, 1)
+        assert source.failures == ()
+        data = load_face_data(tmp_path, "main")
+        assert data is not None
+        assert list(data.keys) == ["0410"]
+        assert data.embeddings.shape == (1, 512)
+        state = load_face_state(tmp_path, "main")
+        assert state is not None
+        entry = state.processed_keys["0410"]
+        assert entry.face_count == 1
+        assert (entry.orig_width, entry.orig_height) == FAKE_ORIGINAL_SIZE
+        assert (entry.thumb_width, entry.thumb_height) == FAKE_THUMBNAIL_SIZE
+
+    def test_unchanged_image_is_skipped_next_time(self, tmp_path: Path) -> None:
+        _make_ios_source(tmp_path)
+        refresh_face_data(
+            tmp_path,
+            analyzer_factory=FakeFaceDetector,
+            make_thumbnail=fake_make_thumbnail(),
+        )
+
+        result = refresh_face_data(
+            tmp_path,
+            analyzer_factory=_never_invoked_factory,
+            make_thumbnail=_refuse_thumbnail,
+        )
+
+        ((_, source),) = result.by_media_source
+        assert (source.processed, source.skipped) == (0, 1)
+
+    def test_redetect_reuses_the_thumbnail(self, tmp_path: Path) -> None:
+        _make_ios_source(tmp_path)
+        refresh_face_data(
+            tmp_path,
+            analyzer_factory=FakeFaceDetector,
+            make_thumbnail=fake_make_thumbnail(),
+        )
+
+        result = refresh_face_data(
+            tmp_path,
+            analyzer_factory=FakeFaceDetector,
+            make_thumbnail=_refuse_thumbnail,
+            redetect=True,
+        )
+
+        ((_, source),) = result.by_media_source
+        assert (source.processed, source.faces_detected) == (1, 1)
+        data = load_face_data(tmp_path, "main")
+        assert data is not None
+        assert data.count == 1, "re-detection replaces the faces, not adds to them"
+
+    def test_removed_image_is_pruned(self, tmp_path: Path) -> None:
+        _make_ios_source(tmp_path)
+        refresh_face_data(
+            tmp_path,
+            analyzer_factory=FakeFaceDetector,
+            make_thumbnail=fake_make_thumbnail(),
+        )
+        (tmp_path / "ios-main" / "orig-img" / "IMG_0410.HEIC").unlink()
+        _make_file(tmp_path / "ios-main" / "orig-img" / "IMG_0411.HEIC")
+
+        refresh_face_data(
+            tmp_path,
+            analyzer_factory=FakeFaceDetector,
+            make_thumbnail=fake_make_thumbnail(),
+        )
+
+        data = load_face_data(tmp_path, "main")
+        assert data is not None
+        assert list(data.keys) == ["0411"]
+        assert not (tmp_path / ".photree/cache/faces/main-thumbs/0410.jpg").exists()
+
+    def test_unreadable_thumbnail_is_a_detection_failure(self, tmp_path: Path) -> None:
+        _make_ios_source(tmp_path)
+
+        result = refresh_face_data(
+            tmp_path,
+            analyzer_factory=FakeFaceDetector,
+            make_thumbnail=fake_make_thumbnail(broken=frozenset({"0410"})),
+        )
+
+        ((_, source),) = result.by_media_source
+        assert source.processed == 0
+        assert [(f.key, f.stage) for f in source.failures] == [
+            ("0410", FaceFailureStage.DETECTION),
+        ]
 
 
 class TestNeedsProcessing:
