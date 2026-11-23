@@ -30,6 +30,7 @@ from rich.progress import (
     TextColumn,
 )
 
+from photree.clihelpers.console import err_console
 from photree.common.formatting import (
     CHECK,
     CROSS,
@@ -267,10 +268,17 @@ class BatchProgressBar(_LazyProgress):
 
 
 def run_with_spinner[T](description: str, fn: Callable[[], T]) -> T:
-    """Run *fn* with a transient spinner showing plain-text *description*."""
+    """
+    Run *fn* with a transient spinner showing plain-text *description*.
+
+    The spinner is drawn on stderr: it is status, not output, and Rich ends a
+    live display on a console that is not a terminal with a newline, which on
+    stdout would start a piped CSV listing with a blank line.
+    """
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
+        console=err_console,
         transient=True,
     ) as progress:
         progress.add_task(markup_escape(description), total=None)

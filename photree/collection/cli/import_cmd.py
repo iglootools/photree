@@ -4,10 +4,10 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from photree.clihelpers.console import console, err_console
 from photree.clihelpers.options import DRY_RUN_OPTION, GALLERY_DIR_OPTION
+from photree.clihelpers.progress import run_with_spinner
 from photree.clihelpers.resolution import resolve_gallery_or_exit
 from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.sysdeps import EXIF_DEPS, require_system_deps
@@ -41,18 +41,15 @@ def _run_import(
 ) -> CollectionImportResult:
     """Run the import behind a spinner, exiting on a collection-level error."""
     try:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            transient=True,
-        ) as progress:
-            progress.add_task("Resolving members...", total=None)
-            return import_collection_members(
+        return run_with_spinner(
+            "Resolving members...",
+            lambda: import_collection_members(
                 collection_dir,
                 lambda: scan_gallery(gallery_dir),
                 dry_run=dry_run,
                 exiftool=exiftool,
-            )
+            ),
+        )
     except CollectionImportError as exc:
         err_console.print(format_import_error(exc, cwd), markup=False)
         raise typer.Exit(code=1) from exc
