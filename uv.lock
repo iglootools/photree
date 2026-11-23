@@ -517,6 +517,7 @@ dependencies = [
     { name = "pyexiftool" },
     { name = "pyyaml" },
     { name = "scikit-learn" },
+    { name = "scipy" },
     { name = "typer" },
 ]
 
@@ -545,6 +546,7 @@ requires-dist = [
     { name = "pyexiftool", specifier = ">=0.5.0,<1.0.0" },
     { name = "pyyaml", specifier = ">=6.0,<7.0" },
     { name = "scikit-learn", specifier = ">=1.9.0,<2.0" },
+    { name = "scipy", specifier = ">=1.18.0,<2.0" },
     { name = "typer", specifier = ">=0.27.1,<1.0.0" },
 ]
 
