@@ -5,7 +5,7 @@ from typing import Annotated
 
 import typer
 
-from photree.albums.batchcli.resolution import resolve_check_batch_albums
+from photree.albums.batchcli.resolution import resolve_gallery_albums
 from photree.albums.batchcli.stats import run_batch_stats
 from photree.clihelpers.resolution import resolve_gallery_or_exit
 from photree.clihelpers.runtime import runtime_of
@@ -32,7 +32,7 @@ def stats_cmd(
     runtime = runtime_of(ctx)
     cwd = runtime.cwd()
     resolved = resolve_gallery_or_exit(gallery_dir, cwd=cwd)
-    albums, display_base = resolve_check_batch_albums(resolved, None, cwd=cwd)
+    albums, display_base = resolve_gallery_albums(resolved)
     run_batch_stats(
         albums,
         display_base,

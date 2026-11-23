@@ -6,7 +6,7 @@ from typing import Annotated
 import typer
 
 from photree.albums.batchcli.listmedia import run_batch_list_media
-from photree.albums.batchcli.resolution import resolve_check_batch_albums
+from photree.albums.batchcli.resolution import resolve_gallery_albums
 from photree.clihelpers.options import (
     OUTPUT_FILE_OPTION,
     OUTPUT_FORMAT_OPTION,
@@ -41,7 +41,7 @@ def list_media_cmd(
     runtime = runtime_of(ctx)
     cwd = runtime.cwd()
     resolved = resolve_gallery_or_exit(gallery_dir, cwd=cwd)
-    albums, display_base = resolve_check_batch_albums(resolved, None, cwd=cwd)
+    albums, display_base = resolve_gallery_albums(resolved)
     run_batch_list_media(
         albums,
         display_base,

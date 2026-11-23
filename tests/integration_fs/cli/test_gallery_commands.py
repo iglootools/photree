@@ -250,3 +250,23 @@ class TestListCollections:
         )
 
         assert result.exit_code == 2
+
+
+class TestGalleryAlbumDiscovery:
+    def test_album_outside_the_albums_dir_is_not_listed(self, tmp_path: Path) -> None:
+        """Regression: some gallery commands scanned the whole gallery root."""
+        gallery = _setup_gallery(tmp_path)
+        _setup_album(gallery, "2024-07-14 - Trip")
+        stray = gallery / "inbox" / "2024-08-01 - Stray"
+        _write(stray / "ios-main" / "orig-img" / "IMG_0001.HEIC")
+        save_album_metadata(stray, AlbumMetadata(id=generate_album_id()))
+
+        result = runner.invoke(
+            app,
+            ["gallery", "list-albums", "-g", str(gallery), "--format", "csv"],
+            obj=ALL_DEPS_RUNTIME,
+        )
+
+        assert result.exit_code == 0
+        assert "2024-07-14 - Trip" in result.output
+        assert "Stray" not in result.output
