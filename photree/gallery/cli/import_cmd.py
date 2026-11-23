@@ -6,11 +6,15 @@ from typing import Annotated
 import typer
 
 from photree.album.cli.runtime import album_runtime_of
-from photree.clihelpers.options import REIMPORT_OPTION
+from photree.clihelpers.options import (
+    DRY_RUN_OPTION,
+    GALLERY_DIR_OPTION,
+    LINK_MODE_OPTION,
+    REIMPORT_OPTION,
+)
 from photree.clihelpers.resolution import resolve_gallery_or_exit
 from photree.clihelpers.sysdeps import import_deps, require_system_deps
 from photree.foundation.gallery_metadata import resolve_link_mode
-from photree.foundation.linking import LinkMode
 from photree.gallery.cli.app import app
 from photree.gallery.cli.face_ops import cluster_faces_if_enabled
 from photree.gallery.cli.import_ops import (
@@ -38,36 +42,10 @@ def import_cmd(
             resolve_path=True,
         ),
     ],
-    gallery_dir: Annotated[
-        Path | None,
-        typer.Option(
-            "--gallery-dir",
-            "-g",
-            help=(
-                "Gallery root directory (or resolved from cwd "
-                "via .photree/gallery.yaml)."
-            ),
-            exists=True,
-            file_okay=False,
-            resolve_path=True,
-        ),
-    ] = None,
-    link_mode: Annotated[
-        LinkMode | None,
-        typer.Option(
-            "--link-mode",
-            help="How to create main files: hardlink (default), symlink, or copy.",
-        ),
-    ] = None,
+    gallery_dir: GALLERY_DIR_OPTION = None,
+    link_mode: LINK_MODE_OPTION = None,
     *,
-    dry_run: Annotated[
-        bool,
-        typer.Option(
-            "--dry-run",
-            "-n",
-            help="Print what would happen without modifying files.",
-        ),
-    ] = False,
+    dry_run: DRY_RUN_OPTION = False,
     reimport: REIMPORT_OPTION = False,
 ) -> None:
     """Import an existing album directory into the gallery."""

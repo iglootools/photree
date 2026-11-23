@@ -14,7 +14,7 @@ from photree.album.importer.batch import ImportFailureStage
 from photree.album.jpeg import convert_single_file, noop_convert_single
 from photree.albums.cli.app import app
 from photree.clihelpers.console import err_console
-from photree.clihelpers.options import LINK_MODE_OPTION
+from photree.clihelpers.options import DRY_RUN_OPTION, LINK_MODE_OPTION
 from photree.clihelpers.progress import BatchProgressBar
 from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.usage import mutually_exclusive_error
@@ -185,14 +185,7 @@ def import_cmd(
         ),
     ] = None,
     link_mode: LINK_MODE_OPTION = None,
-    dry_run: Annotated[
-        bool,
-        typer.Option(
-            "--dry-run",
-            "-n",
-            help="Print what would happen without modifying files.",
-        ),
-    ] = False,
+    dry_run: DRY_RUN_OPTION = False,
     force: Annotated[
         bool,
         typer.Option(

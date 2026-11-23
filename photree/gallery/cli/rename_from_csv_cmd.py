@@ -8,6 +8,7 @@ import typer
 from photree.albums.batchcli.rename import run_batch_rename_from_csv
 from photree.albums.output import format_duplicate_ids_report
 from photree.clihelpers.console import err_console
+from photree.clihelpers.options import DRY_RUN_OPTION, GALLERY_DIR_OPTION
 from photree.clihelpers.resolution import resolve_gallery_or_exit
 from photree.clihelpers.runtime import runtime_of
 from photree.gallery.cli.app import app
@@ -28,29 +29,9 @@ def rename_from_csv_cmd(
             resolve_path=True,
         ),
     ],
-    gallery_dir: Annotated[
-        Path | None,
-        typer.Option(
-            "--gallery-dir",
-            "-g",
-            help=(
-                "Gallery root directory (or resolved from cwd "
-                "via .photree/gallery.yaml)."
-            ),
-            exists=True,
-            file_okay=False,
-            resolve_path=True,
-        ),
-    ] = None,
+    gallery_dir: GALLERY_DIR_OPTION = None,
     *,
-    dry_run: Annotated[
-        bool,
-        typer.Option(
-            "--dry-run",
-            "-n",
-            help="Show what would be renamed without making changes.",
-        ),
-    ] = False,
+    dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """
     Rename albums from a CSV file (from list-albums --format csv, edited).

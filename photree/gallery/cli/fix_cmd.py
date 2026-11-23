@@ -1,6 +1,5 @@
 """The ``photree gallery fix`` command."""
 
-from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -11,6 +10,7 @@ from photree.albums.batchcli.resolution import resolve_gallery_albums
 from photree.clihelpers.options import (
     DRY_RUN_OPTION,
     FORCE_OPTION,
+    GALLERY_DIR_OPTION,
     RM_ORPHAN_OPTION,
     RM_UPSTREAM_OPTION,
 )
@@ -23,20 +23,7 @@ from photree.gallery.cli.app import app
 @app.command("fix")
 def fix_cmd(
     ctx: typer.Context,
-    gallery_dir: Annotated[
-        Path | None,
-        typer.Option(
-            "--gallery-dir",
-            "-g",
-            help=(
-                "Gallery root directory (or resolved from cwd "
-                "via .photree/gallery.yaml)."
-            ),
-            exists=True,
-            file_okay=False,
-            resolve_path=True,
-        ),
-    ] = None,
+    gallery_dir: GALLERY_DIR_OPTION = None,
     *,
     fix_id: Annotated[
         bool,

@@ -26,7 +26,7 @@ from photree.album.importer.tasks import discover_import_tasks
 from photree.album.jpeg import convert_single_file, noop_convert_single
 from photree.album.naming import parse_album_name
 from photree.clihelpers.console import console, err_console
-from photree.clihelpers.options import CONFIG_OPTION, LINK_MODE_OPTION
+from photree.clihelpers.options import CONFIG_OPTION, DRY_RUN_OPTION, LINK_MODE_OPTION
 from photree.clihelpers.progress import StageProgressBar
 from photree.common.exif import ExifTagReader, exiftool_session
 from photree.common.formatting import format_dry_run
@@ -66,14 +66,7 @@ def import_cmd(
     config: CONFIG_OPTION = None,
     link_mode: LINK_MODE_OPTION = None,
     *,
-    dry_run: Annotated[
-        bool,
-        typer.Option(
-            "--dry-run",
-            "-n",
-            help="Print what would happen without modifying files.",
-        ),
-    ] = False,
+    dry_run: DRY_RUN_OPTION = False,
     force: Annotated[
         bool,
         typer.Option(

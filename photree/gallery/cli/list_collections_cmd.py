@@ -9,6 +9,7 @@ import typer
 from photree.clihelpers.console import err_console
 from photree.clihelpers.csvout import csv_output
 from photree.clihelpers.options import (
+    GALLERY_DIR_OPTION,
     OUTPUT_FILE_OPTION,
     OUTPUT_FORMAT_OPTION,
     OutputFormat,
@@ -45,20 +46,7 @@ _CSV_HEADER = [
 @app.command("list-collections")
 def list_collections_cmd(
     ctx: typer.Context,
-    gallery_dir: Annotated[
-        Path | None,
-        typer.Option(
-            "--gallery-dir",
-            "-g",
-            help=(
-                "Gallery root directory (or resolved from cwd "
-                "via .photree/gallery.yaml)."
-            ),
-            exists=True,
-            file_okay=False,
-            resolve_path=True,
-        ),
-    ] = None,
+    gallery_dir: GALLERY_DIR_OPTION = None,
     *,
     metadata: Annotated[
         bool,

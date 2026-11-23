@@ -22,6 +22,7 @@ from photree.clihelpers.options import (
     CONFIG_OPTION,
     DRY_RUN_OPTION,
     EXPORT_LINK_MODE_OPTION,
+    GALLERY_DIR_OPTION,
     PROFILE_OPTION,
     SHARE_DIR_OPTION,
     SHARE_LAYOUT_OPTION,
@@ -62,21 +63,7 @@ def export_cmd(
             resolve_path=True,
         ),
     ] = None,
-    gallery_dir: Annotated[
-        Path | None,
-        typer.Option(
-            "--gallery-dir",
-            "-g",
-            help=(
-                "Gallery root directory (or resolved from cwd via "
-                ".photree/gallery.yaml). Used when neither --dir nor "
-                "--album-dir is given."
-            ),
-            exists=True,
-            file_okay=False,
-            resolve_path=True,
-        ),
-    ] = None,
+    gallery_dir: GALLERY_DIR_OPTION = None,
     share_dir: SHARE_DIR_OPTION = None,
     profile: PROFILE_OPTION = None,
     config: CONFIG_OPTION = None,
