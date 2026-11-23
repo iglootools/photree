@@ -10,6 +10,7 @@ import pytest
 from photree.album.exif import TIMESTAMP_TAGS
 from photree.common.exif import (
     ExifToolError,
+    classify_failed_writes,
     exiftool_session,
     extract_timestamp,
     parse_timestamp,
@@ -275,3 +276,23 @@ class TestExifWriting:
         with pytest.raises(ExifToolError) as exc_info:
             write_exif_date([missing], "2023-01-02", TIMESTAMP_TAGS)
         assert exc_info.value.paths == (missing,)
+
+
+_PATHS = (Path("a.jpg"), Path("b.jpg"), Path("c.jpg"))
+
+
+class TestClassifyFailedWrites:
+    def test_names_the_files_whose_status_is_not_zero(self) -> None:
+        assert classify_failed_writes(_PATHS, ["0", "1", "0"], 1) == (Path("b.jpg"),)
+
+    def test_no_failure_when_every_status_is_zero(self) -> None:
+        assert classify_failed_writes(_PATHS, ["0", "0", "0"], 0) == ()
+
+    def test_blames_every_file_when_statuses_are_missing(self) -> None:
+        assert classify_failed_writes(_PATHS, ["0"], 1) == _PATHS
+
+    def test_blames_every_file_when_status_is_not_expanded(self) -> None:
+        assert classify_failed_writes(_PATHS, ["${status}"] * 3, 1) == _PATHS
+
+    def test_no_failure_when_unattributable_but_exit_is_zero(self) -> None:
+        assert classify_failed_writes(_PATHS, ["${status}"] * 3, 0) == ()
