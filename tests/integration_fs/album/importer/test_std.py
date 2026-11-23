@@ -9,6 +9,7 @@ from photree.album.importer.album_import import run_import, validate_album_impor
 from photree.album.importer.collision import ArchiveCollision, ImportCollisionError
 from photree.album.importer.std import (
     StdNoMediaError,
+    StdUnsupportedEntries,
     find_std_collision,
     import_std_source,
     validate_std_task,
@@ -70,6 +71,27 @@ class TestValidateStdTask:
         _setup_std_staging(album, "nelu", orig=["a.jpg"], edit=["b.jpg"])
         assert validate_std_task(_std_task(album, "nelu")) == ()
 
+    def test_unsupported_entries_rejected(self, tmp_path: Path) -> None:
+        album = tmp_path / "album"
+        staging = _setup_std_staging(album, "nelu", orig=["x.jpg", "x.CR2", "x.xmp"])
+        (staging / "orig" / "sub").mkdir()
+        (staging / "orig" / "sub" / "y.jpg").write_text("data")
+        (staging / "notes.txt").write_text("data")
+        (staging / "extra").mkdir()
+        errors = validate_std_task(_std_task(album, "nelu"))
+        assert errors == (
+            StdUnsupportedEntries(
+                ("extra/", "notes.txt", "orig/sub/", "orig/x.CR2", "orig/x.xmp"),
+            ),
+        )
+
+    def test_hidden_entries_allowed(self, tmp_path: Path) -> None:
+        album = tmp_path / "album"
+        staging = _setup_std_staging(album, "nelu", orig=["a.jpg"])
+        (staging / ".DS_Store").write_text("data")
+        (staging / "orig" / ".DS_Store").write_text("data")
+        assert validate_std_task(_std_task(album, "nelu")) == ()
+
 
 class TestImportStdSource:
     def test_splits_by_extension(self, tmp_path: Path) -> None:
@@ -105,13 +127,27 @@ class TestImportStdSource:
         assert staging.exists()
         assert not (album / ms.orig_img_dir).exists()
 
-    def test_skips_non_media(self, tmp_path: Path) -> None:
+    def test_consumes_staging_dir_holding_hidden_files(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         album.mkdir()
-        _setup_std_staging(album, "nelu", orig=["a.jpg", "notes.txt"])
+        staging = _setup_std_staging(album, "nelu", orig=["a.jpg"])
+        (staging / ".DS_Store").write_text("data")
+        (staging / "orig" / ".DS_Store").write_text("data")
+        import_std_source(album, _std_task(album, "nelu"))
+        assert not staging.exists()
+
+    def test_leaves_files_it_does_not_import(self, tmp_path: Path) -> None:
+        # Validation refuses these first; the import must not lose them anyway.
+        album = tmp_path / "album"
+        album.mkdir()
+        staging = _setup_std_staging(album, "nelu", orig=["a.jpg", "a.CR2"])
+        (staging / "orig" / "sub").mkdir()
+        (staging / "orig" / "sub" / "b.jpg").write_text("data")
         result = import_std_source(album, _std_task(album, "nelu"))
         assert result.imported == 1
-        assert any("notes.txt" in s for s in result.skipped_non_media)
+        assert not (staging / "orig" / "a.jpg").exists()
+        assert (staging / "orig" / "a.CR2").is_file()
+        assert (staging / "orig" / "sub" / "b.jpg").is_file()
 
     def test_collision_guard(self, tmp_path: Path) -> None:
         album = tmp_path / "album"

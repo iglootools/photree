@@ -346,6 +346,40 @@ class TestRunImport:
 
         assert not (album / SEL_DIR).exists()
 
+    def test_removes_selection_dir_holding_only_hidden_files(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        album = _setup_album(tmp_path, ["IMG_0001.HEIC"])
+        (album / SEL_DIR / ".DS_Store").write_text("data")
+        ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0001.HEIC"])
+
+        run_import(
+            album_dir=album,
+            image_capture_dir=ic_dir,
+            convert_file=_noop_convert,
+        )
+
+        assert not (album / SEL_DIR).exists()
+
+    def test_keeps_empty_dirs_outside_its_staging_entries(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        album = _setup_album(tmp_path, ["IMG_0001.HEIC"])
+        kept = [album / "ios-main/edit-img", album / "notes", album / ".photree/x"]
+        for directory in kept:
+            directory.mkdir(parents=True)
+        ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0001.HEIC"])
+
+        run_import(
+            album_dir=album,
+            image_capture_dir=ic_dir,
+            convert_file=_noop_convert,
+        )
+
+        assert all(directory.is_dir() for directory in kept)
+
     def test_dry_run_does_not_modify(self, tmp_path: Path) -> None:
         album = _setup_album(tmp_path, ["IMG_0001.HEIC"])
         ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0001.HEIC"])

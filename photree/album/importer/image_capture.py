@@ -7,7 +7,6 @@ See docs/domain.md for the Image Capture file structure and docs/internals.md
 for the album layout.
 """
 
-import shutil
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from enum import StrEnum
@@ -20,12 +19,14 @@ from photree.album.formats import (
     IOS_SIDECAR_EXTENSIONS,
     IOS_VID_EXTENSIONS,
 )
+from photree.album.importer.archive_copy import copy_into_archive
 from photree.album.importer.collision import ArchiveCollision
 from photree.album.importer.selection import (
     SelectionSources,
     read_selection,
     write_selection_csv,
 )
+from photree.album.importer.staging_cleanup import remove_dir_if_only_hidden_files
 from photree.album.store.file_matching import pick_media_priority
 from photree.album.store.media_source import MediaSource, ios_img_number
 from photree.common.fs import file_ext, list_files
@@ -482,40 +483,28 @@ def plan_ios_task(task: ImportTask, image_capture_files: list[str]) -> ImportPla
     return plan_import(list(sources.merged), image_capture_files)
 
 
-def _copy_files(src_dir: Path, dst_dir: Path, files: tuple[str, ...]) -> None:
-    """
-    Copy files, creating each destination directory on demand.
-
-    Creating directories on demand avoids empty leftovers (e.g. ``orig-img/``
-    in a video-only album).
-    """
-    if files:
-        dst_dir.mkdir(parents=True, exist_ok=True)
-    for f in files:
-        shutil.copy(src_dir / f, dst_dir)
-
-
-def _copy_match(
+def _match_copies(
     album_dir: Path,
     ms: MediaSource,
     image_capture_dir: Path,
     match: SelectionMatch,
-) -> None:
+) -> list[tuple[Path, Path]]:
+    """``(Image Capture file, archive dir)`` for every file of *match*."""
     orig_dir, rendered_dir = (
         (ms.orig_img_dir, ms.edit_img_dir)
         if match.routes_to_images
         else (ms.orig_vid_dir, ms.edit_vid_dir)
     )
-    _copy_files(
-        image_capture_dir,
-        album_dir / orig_dir,
-        (*match.orig_files, *match.companion_orig_files),
-    )
-    _copy_files(
-        image_capture_dir,
-        album_dir / rendered_dir,
-        (*match.rendered_files, *match.companion_rendered_files),
-    )
+    return [
+        *(
+            (image_capture_dir / f, album_dir / orig_dir)
+            for f in (*match.orig_files, *match.companion_orig_files)
+        ),
+        *(
+            (image_capture_dir / f, album_dir / rendered_dir)
+            for f in (*match.rendered_files, *match.companion_rendered_files)
+        ),
+    ]
 
 
 def _consume_selection(
@@ -530,13 +519,15 @@ def _consume_selection(
     keeps one entry per number, so a Live Photo exported as both
     ``IMG_0001.HEIC`` and ``IMG_0001.MOV``, or a number listed in both the dir
     and the CSV, would otherwise leave entries behind that collide with the
-    imported media on the next run. The CSV is deleted once all of its
-    numbers are processed, and otherwise rewritten with the remaining rows.
+    imported media on the next run. The directory is removed once nothing but
+    hidden files is left in it; the CSV is deleted once all of its numbers
+    are processed, and otherwise rewritten with the remaining rows.
     """
     if task.selection_dir is not None:
         for f in sources.dir_files:
             if ios_img_number(f) in processed_numbers:
                 (task.selection_dir / f).unlink(missing_ok=True)
+        remove_dir_if_only_hidden_files(task.selection_dir)
     if task.selection_csv is not None and sources.csv_files:
         remaining = [
             f for f in sources.csv_files if ios_img_number(f) not in processed_numbers
@@ -575,8 +566,9 @@ def import_ios_source(
     """
     Import one iOS media source from Image Capture.
 
-    Copies matched originals and edits into the ``ios-<name>/`` archive, then
-    removes processed selection entries from the staging dir and CSV.
+    Copies matched originals and edits into the ``ios-<name>/`` archive, all
+    or nothing (:func:`~photree.album.importer.archive_copy.copy_into_archive`),
+    then removes processed selection entries from the staging dir and CSV.
 
     The archive collision check (:func:`find_ios_collision`) is the caller's
     job, before any mutation: :func:`photree.album.importer.album_import.run_import`
@@ -589,8 +581,14 @@ def import_ios_source(
     processed_numbers = frozenset(m.img_number for m in plan.matches)
 
     if not dry_run:
-        for match in plan.matches:
-            _copy_match(album_dir, ms, image_capture_dir, match)
+        copy_into_archive(
+            album_dir,
+            [
+                c
+                for match in plan.matches
+                for c in _match_copies(album_dir, ms, image_capture_dir, match)
+            ],
+        )
         _consume_selection(task, sources, processed_numbers)
 
     return IosSourceImportResult(

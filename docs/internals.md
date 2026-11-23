@@ -283,7 +283,12 @@ discover every staging entry in the album, validate them all, import each into
 its target media source, then refresh derived data once. Validation includes
 the archive collision checks (an incoming iOS image number or std stem that
 already exists in the target archive), so a collision in any entry refuses the
-whole import before anything is copied. A single album can
+whole import before anything is copied. Each entry's files are copied into
+`.photree/import-in-progress/` first, then renamed into the archive, and
+removed from it again if a rename fails: an import interrupted part-way (a full
+disk, Ctrl-C) leaves that entry's archive and staging as they were, so
+re-running it imports the entry instead of reporting a collision. A single
+album can
 carry several (e.g. `to-import-ios-main/` plus `to-import-std-nelu/`).
 
 ### iOS staging (`to-import-ios-<name>/`, `to-import-ios-<name>.csv`)
@@ -302,7 +307,9 @@ directory. The actual file contents are irrelevant; only the filenames matter
 When both forms exist, their entries are merged (union), deduplicated by image
 number. After a successful import, cleanup also works by image number: every
 directory entry and CSV row whose number was imported is removed — including
-the second half of a Live Photo export (`IMG_0410.HEIC` + `IMG_0410.MOV`). A CSV
+the second half of a Live Photo export (`IMG_0410.HEIC` + `IMG_0410.MOV`). The
+directory is removed once nothing but hidden files (`.DS_Store`) is left in it;
+no other directory of the album is touched. A CSV
 is deleted once all its numbers are processed, and otherwise rewritten with only
 its remaining rows. This
 decouples the selection from any specific tool: exporting from Apple Photos is
@@ -316,10 +323,15 @@ source — the files themselves are imported. The staging directory contains
 `orig/` and (optionally) `edit/` subfolders; their files are copied into the
 std archive (`std-<name>/orig-{img,vid}` and `edit-{img,vid}`), split by
 extension. Files are matched across `orig`/`edit` by filename stem. On a
-successful import the whole `to-import-std-<name>/` directory is consumed
-(removed). Duplicate stems within a folder are rejected; an `edit/` file with
-no matching `orig/` stem is allowed (it is imported but, as with existing std
-sources, omitted from the browsable directory).
+successful import the copied files are removed from the staging directory,
+then `orig/`, `edit/` and `to-import-std-<name>/` themselves once they hold
+nothing else; hidden files such as `.DS_Store` are ignored and removed with
+them. Validation rejects anything the import would not copy (a file that is
+not an image or a video, a subdirectory, or an entry beside `orig/` and
+`edit/`), so the user moves it out rather than losing it. Duplicate stems
+within a folder are rejected; an `edit/` file with no matching `orig/` stem is
+allowed (it is imported but, as with existing std sources, omitted from the
+browsable directory).
 
 ## Collections
 
