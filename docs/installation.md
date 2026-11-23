@@ -106,14 +106,8 @@ Install completion for your current shell:
 photree --install-completion
 ```
 
-Or target a specific shell:
-
-```bash
-photree --install-completion bash
-photree --install-completion zsh
-photree --install-completion fish
-photree --install-completion powershell
-```
+The option takes no argument: it detects the shell it runs in, so to set up
+completion for another shell, run it from that shell.
 
 To preview the completion script without installing it:
 
