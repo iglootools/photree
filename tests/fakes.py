@@ -1,5 +1,6 @@
 """Fakes injected in place of real dependencies (docs/guidelines.md, Tests)."""
 
+from collections.abc import Mapping
 from dataclasses import replace
 from pathlib import Path
 
@@ -54,3 +55,31 @@ ALL_DEPS_RUNTIME = fake_runtime(*SystemDependency)
 
 ALL_DEPS_WHICH = fake_which(*SystemDependency)
 """A ``which`` that finds every system dependency."""
+
+
+class FakeExifTool:
+    """
+    Stands in for a running ``ExifToolHelper``: a fixed timestamp per file name.
+
+    *timestamps* maps a file's name (not its path) to an exiftool-formatted
+    ``DateTimeOriginal`` (``2024:07:14 10:00:00``); files it does not name
+    have no date tag.
+    """
+
+    def __init__(self, timestamps: Mapping[str, str]) -> None:
+        """Build the fake from the timestamp of each file name."""
+        self.timestamps = dict(timestamps)
+
+    def get_tags(self, files: list[str], tags: list[str]) -> list[dict[str, object]]:  # noqa: ARG002 - ExifTagReader's signature
+        """Return each file's ``EXIF:DateTimeOriginal``, or no tag at all."""
+        return [
+            {
+                "SourceFile": f,
+                **(
+                    {"EXIF:DateTimeOriginal": self.timestamps[Path(f).name]}
+                    if Path(f).name in self.timestamps
+                    else {}
+                ),
+            }
+            for f in files
+        ]
