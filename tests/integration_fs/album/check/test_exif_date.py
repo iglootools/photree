@@ -250,3 +250,8 @@ class TestTimestampSource:
             check_exif_date_match(tmp_path, "2024-07-14", exiftool=FakeExifTool({}))
             is None
         )
+
+
+class TestInvalidAlbumDate:
+    def test_exif_check_skipped_for_invalid_date(self, tmp_path: Path) -> None:
+        assert check_exif_date_match(tmp_path, "2024-02-30") is None

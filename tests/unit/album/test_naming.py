@@ -1,4 +1,7 @@
+import pytest
+
 from photree.album.naming import (
+    NamingIssueCode,
     ParsedAlbumName,
     check_album_naming,
     check_batch_date_collisions,
@@ -678,3 +681,22 @@ class TestCheckBatchDateCollisions:
             "2024-06-15 - 01 - Walk",
             "2024-06-15 - 02 - Dinner",
         }
+
+
+class TestInvalidDates:
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "2024-13-45 - Title",
+            "2024-02-30 - Title",
+            "2024-13 - Title",
+            "2024-08--2024-07 - Backwards",
+        ],
+    )
+    def test_invalid_date_is_a_naming_issue(self, name: str) -> None:
+        codes = [i.code for i in check_album_naming(name)]
+        assert NamingIssueCode.INVALID_DATE in codes
+
+    def test_valid_dates_have_no_date_issue(self) -> None:
+        for name in ("2024-02-29 - Leap", "2024-07--2024-08-03 - Mixed", "2024 - Y"):
+            assert check_album_naming(name) == ()

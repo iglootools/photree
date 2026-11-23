@@ -2,9 +2,9 @@ from pathlib import Path
 
 from photree.album.browsable import RefreshBrowsableDirResult, refresh_browsable_dir
 from photree.album.formats import IMG_EXTENSIONS, VID_EXTENSIONS
-from photree.album.store.media_source import ios_img_number, stem_key
+from photree.album.store.media_source import MAIN_MEDIA_SOURCE, ios_img_number, stem_key
 from photree.foundation.linking import LinkMode
-from tests.testkit import write_files
+from tests.testkit import file_names, write_file, write_files
 
 
 class TestRefreshBrowsableDir:
@@ -481,3 +481,21 @@ class TestRefreshBrowsableDirStd:
         assert result.copied == 1
         assert (browsable / "photo.dng").exists()
         assert not (browsable / "photo.heic").exists()
+
+
+class TestBrowsableRefresh:
+    def test_stale_files_cleared_when_archive_empty(self, tmp_path: Path) -> None:
+        orig, edit, browsable = tmp_path / "orig", tmp_path / "edit", tmp_path / "img"
+        orig.mkdir()
+        write_file(browsable / "IMG_0001.HEIC")
+
+        result = refresh_browsable_dir(
+            orig,
+            edit,
+            browsable,
+            media_extensions=IMG_EXTENSIONS,
+            key_fn=MAIN_MEDIA_SOURCE.key_fn,
+        )
+
+        assert result.copied == 0
+        assert file_names(browsable) == set()

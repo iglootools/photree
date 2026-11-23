@@ -1,15 +1,24 @@
 from pathlib import Path
 
+import pytest
+
+from photree.album.check import run_album_check
+from photree.album.check.output.album import format_album_preflight_checks
+from photree.album.store.album_discovery import has_media_sources
 from photree.album.store.media_source import (
     MediaSource,
     MediaSourceType,
     std_media_source,
 )
 from photree.album.store.media_sources_discovery import (
+    MediaSourceConflictError,
     discover_media_sources,
+    find_media_source_conflicts,
     is_std_source_dir,
 )
-from tests.testkit import write_files
+from photree.albums.cmd_handler.check import batch_check
+from photree.foundation.linking import LinkMode
+from tests.testkit import write_file, write_files
 
 
 def _ms_names_and_types(
@@ -162,3 +171,81 @@ class TestStdMediaSource:
         ms = std_media_source("nelu")
         assert ms.key_fn("sunset.heic") == "sunset"
         assert ms.key_fn("beach.png") == "beach"
+
+
+class TestMediaSourceConflicts:
+    def test_ios_and_std_with_same_name_conflict(self, tmp_path: Path) -> None:
+        write_file(tmp_path / "ios-main/orig-img/IMG_0001.HEIC")
+        write_file(tmp_path / "std-main/orig-img/DSC_0001.JPG")
+        write_file(tmp_path / "std-nelu/orig-img/DSC_0002.JPG")
+
+        assert find_media_source_conflicts(tmp_path) == ("main",)
+        with pytest.raises(MediaSourceConflictError) as exc_info:
+            discover_media_sources(tmp_path)
+        assert exc_info.value.names == ("main",)
+        assert exc_info.value.album_dir == tmp_path
+
+    def test_discovery_still_finds_conflicted_album(self, tmp_path: Path) -> None:
+        """Album discovery must not crash a whole batch on one bad album."""
+        write_file(tmp_path / "ios-main/orig-img/IMG_0001.HEIC")
+        write_file(tmp_path / "std-main/orig-img/DSC_0001.JPG")
+
+        assert has_media_sources(tmp_path)
+
+    def test_check_reports_conflict_instead_of_raising(self, tmp_path: Path) -> None:
+        """A batch check must keep going: the clash is a failed check."""
+        album = tmp_path / "2024-07-14 - Trip"
+        write_file(album / "ios-main/orig-img/IMG_0001.HEIC")
+        write_file(album / "std-main/orig-img/DSC_0001.JPG")
+
+        result = run_album_check(
+            album,
+            sips_available=True,
+            exiftool=None,
+            link_mode=LinkMode.HARDLINK,
+        )
+
+        assert result.media_source_conflicts == ("main",)
+        assert not result.success
+        assert "media source conflict" in result.error_labels
+        assert result.naming is not None
+        assert result.naming.success
+        assert "ios-<name>/ and std-<name>/ both present for: main" in (
+            format_album_preflight_checks(result)
+        )
+
+    def test_batch_check_continues_past_conflict(self, tmp_path: Path) -> None:
+        conflicted = tmp_path / "2024-07-14 - Trip"
+        write_file(conflicted / "ios-main/orig-img/IMG_0001.HEIC")
+        write_file(conflicted / "std-main/orig-img/DSC_0001.JPG")
+        healthy = tmp_path / "2024-07-15 - Next"
+        write_file(healthy / "ios-main/orig-img/IMG_0002.HEIC")
+        ends: list[tuple[str, bool, tuple[str, ...], tuple[str, ...]]] = []
+
+        def record_end(
+            name: str,
+            *,
+            success: bool,
+            error_labels: tuple[str, ...],
+            warning_labels: tuple[str, ...],
+        ) -> None:
+            ends.append((name, success, error_labels, warning_labels))
+
+        batch_check(
+            [conflicted, healthy],
+            sips_available=True,
+            link_mode_for=lambda _: LinkMode.HARDLINK,
+            check_naming=False,
+            on_end=record_end,
+        )
+
+        assert len(ends) == 2
+        assert ends[0][:2] == (conflicted.name, False)
+        assert "media source conflict" in ends[0][2]
+
+    def test_distinct_names_do_not_conflict(self, tmp_path: Path) -> None:
+        write_file(tmp_path / "ios-main/orig-img/IMG_0001.HEIC")
+        write_file(tmp_path / "std-nelu/orig-img/DSC_0001.JPG")
+
+        assert find_media_source_conflicts(tmp_path) == ()
+        assert [ms.name for ms in discover_media_sources(tmp_path)] == ["main", "nelu"]

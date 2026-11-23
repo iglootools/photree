@@ -1,8 +1,10 @@
 from pathlib import Path
 
+import pytest
 import yaml
 
 from photree.album.id import generate_media_id
+from photree.album.refresh import refresh_media_metadata
 from photree.album.store.media_metadata import (
     MediaMetadata,
     MediaSourceMediaMetadata,
@@ -11,6 +13,8 @@ from photree.album.store.media_metadata import (
 )
 from photree.album.store.protocol import MEDIA_IDS_DIR
 from photree.foundation.layout import PHOTREE_DIR
+from photree.foundation.metadata_io import InvalidMetadataError
+from tests.testkit import write_file
 
 
 class TestMediaMetadata:
@@ -149,3 +153,19 @@ class TestMediaMetadata:
         ids_dir = album / PHOTREE_DIR / MEDIA_IDS_DIR
         assert (ids_dir / "main.yaml").is_file()
         assert not (ids_dir / "bruno.yaml").exists()
+
+
+class TestCorruptMediaMetadata:
+    def test_corrupt_media_ids_raises(self, tmp_path: Path) -> None:
+        write_file(tmp_path / "ios-main/orig-img/IMG_0001.HEIC")
+        refresh_media_metadata(tmp_path)
+        ids_file = tmp_path / ".photree/media-ids/main.yaml"
+        ids_file.write_text("images: [unterminated", encoding="utf-8")
+
+        with pytest.raises(InvalidMetadataError) as exc_info:
+            load_media_metadata(tmp_path)
+        assert exc_info.value.path == ids_file
+
+        # ...and a refresh must not silently mint fresh UUIDs over it.
+        with pytest.raises(InvalidMetadataError):
+            refresh_media_metadata(tmp_path)

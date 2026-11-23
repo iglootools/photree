@@ -6,6 +6,14 @@ adding a parameter a test needs to control. The patching exceptions are listed
 in
 [guidelines.md › Tests](../guidelines.md#tests).
 
+- **Layout**: a test file mirrors the module it tests, `test_<module>.py` at the
+  module's path. Tests that need nothing but memory or a temporary directory go
+  under `tests/unit/`; tests that build albums and galleries on disk, or run the
+  CLI, go under `tests/integration_fs/` (the `test-integration-fs` task;
+  `test-unit` runs the rest). A slice's CLI tests sit in its `cli/`
+  (`tests/integration_fs/album/cli/test_import_cmd.py`);
+  `tests/integration_fs/cli/` keeps only the tests that span slices through the
+  app.
 - **Deciders**, such as `import_problems` (album import), `import_failure_of`
   and `import_all_failed` (gallery import), tested with real result objects.
 - **The CLI runtime** (`photree/clihelpers/runtime.py`): everything a command
