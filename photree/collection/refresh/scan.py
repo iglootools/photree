@@ -15,7 +15,7 @@ from photree.album.naming import (
     check_batch_date_collisions,
     parse_album_name,
 )
-from photree.album.store.album_discovery import discover_albums
+from photree.album.store.album_discovery import discover_gallery_albums
 from photree.album.store.metadata import load_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.collection.refresh.result import (
@@ -25,7 +25,7 @@ from photree.collection.refresh.result import (
 from photree.collection.store.collection_discovery import discover_collections
 from photree.collection.store.metadata import load_collection_metadata
 from photree.collection.store.protocol import CollectionMetadata
-from photree.foundation.layout import ALBUMS_DIR, COLLECTIONS_DIR
+from photree.foundation.layout import COLLECTIONS_DIR
 from photree.foundation.metadata_io import read_or_none
 
 
@@ -129,9 +129,7 @@ def scan_gallery(gallery_dir: Path) -> GalleryScan:
     Collisions are only checked once every name parses, since an
     unparseable name has no date to collide on.
     """
-    album_results = [
-        _try_scan_album(d) for d in discover_albums(gallery_dir / ALBUMS_DIR)
-    ]
+    album_results = [_try_scan_album(d) for d in discover_gallery_albums(gallery_dir)]
     albums = tuple(r for r in album_results if isinstance(r, AlbumInfo))
     album_errors = tuple(
         r for r in album_results if isinstance(r, CollectionRefreshError)

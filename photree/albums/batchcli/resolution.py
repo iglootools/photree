@@ -11,7 +11,10 @@ from pathlib import Path
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from photree.album import check as album_check
-from photree.album.store.album_discovery import discover_potential_albums
+from photree.album.store.album_discovery import (
+    discover_gallery_albums,
+    discover_potential_albums,
+)
 from photree.clihelpers.usage import mutually_exclusive_error
 from photree.common.fs import display_path
 
@@ -91,6 +94,17 @@ def resolve_init_batch_albums(
     )
 
 
+def resolve_gallery_albums(gallery_dir: Path) -> tuple[list[Path], Path]:
+    """
+    Resolve the album list for a gallery-wide command.
+
+    Only ``<gallery>/albums`` is scanned (:func:`discover_gallery_albums`),
+    as every other gallery operation does. Returns ``(albums, gallery_dir)``,
+    the gallery root being the display base.
+    """
+    return (_discover_with_spinner(discover_gallery_albums, gallery_dir), gallery_dir)
+
+
 def _resolve_batch_albums_with(
     base_dir: Path | None,
     album_dirs: list[Path] | None,
@@ -118,11 +132,18 @@ def _resolve_batch_albums_with(
         return (album_dirs, None)
 
     resolved_base = base_dir if base_dir is not None else cwd
+    return (_discover_with_spinner(discover_fn, resolved_base), resolved_base)
+
+
+def _discover_with_spinner(
+    discover_fn: Callable[[Path], list[Path]],
+    base_dir: Path,
+) -> list[Path]:
+    """Run *discover_fn* on *base_dir* behind a transient spinner."""
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         transient=True,
     ) as progress:
         progress.add_task("Resolving album list...", total=None)
-        albums = discover_fn(resolved_base)
-    return (albums, resolved_base)
+        return discover_fn(base_dir)

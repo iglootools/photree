@@ -6,7 +6,7 @@ from typing import Annotated
 import typer
 
 from photree.albums.batchcli.check import run_batch_check
-from photree.albums.batchcli.resolution import resolve_check_batch_albums
+from photree.albums.batchcli.resolution import resolve_gallery_albums
 from photree.clihelpers.console import console, err_console
 from photree.clihelpers.options import (
     CHECK_DATE_PART_COLLISION_OPTION,
@@ -79,7 +79,7 @@ def check_cmd(
     runtime = runtime_of(ctx)
     cwd = runtime.cwd()
     resolved = resolve_gallery_or_exit(gallery_dir, cwd=cwd)
-    albums, display_base = resolve_check_batch_albums(resolved, None, cwd=cwd)
+    albums, display_base = resolve_gallery_albums(resolved)
     albums_ok = run_batch_check(
         albums,
         display_base,

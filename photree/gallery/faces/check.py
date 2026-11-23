@@ -10,9 +10,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from photree.album.faces.protocol import FACES_DIR
-from photree.album.store.album_discovery import discover_albums
+from photree.album.store.album_discovery import discover_gallery_albums
 from photree.album.store.metadata import load_album_metadata
-from photree.foundation.layout import ALBUMS_DIR, PHOTREE_DIR
+from photree.foundation.layout import PHOTREE_DIR
 from photree.gallery.faces.manifest import (
     compute_npz_checksum,
     faiss_index_path,
@@ -155,7 +155,7 @@ def _album_checksum_issues(gallery_dir: Path) -> list[FaceClusterIssue]:
         return []
     return [
         issue
-        for album_dir in discover_albums(gallery_dir / ALBUMS_DIR)
+        for album_dir in discover_gallery_albums(gallery_dir)
         for issue in _single_album_issues(album_dir, stored.albums)
     ]
 

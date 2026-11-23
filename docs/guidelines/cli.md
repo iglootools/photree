@@ -257,6 +257,9 @@ Album resolution helpers live in `albums/batchcli/resolution.py`:
 - `resolve_check_batch_albums` — for check/list/refresh commands
 - `resolve_batch_albums` — for archive-based commands (fix-ios)
 - `resolve_init_batch_albums` — for init commands
+- `resolve_gallery_albums` — for every `gallery` command that processes the
+  gallery's albums: it scans `<gallery>/albums` only, through
+  `discover_gallery_albums`, which the domain code also uses
 
 ## Validation Levels
 

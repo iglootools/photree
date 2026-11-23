@@ -6,7 +6,7 @@ from typing import Annotated
 import typer
 
 from photree.albums.batchcli.refresh import run_batch_refresh
-from photree.albums.batchcli.resolution import resolve_check_batch_albums
+from photree.albums.batchcli.resolution import resolve_gallery_albums
 from photree.clihelpers.options import DRY_RUN_OPTION
 from photree.clihelpers.resolution import resolve_gallery_or_exit
 from photree.clihelpers.runtime import runtime_of
@@ -80,7 +80,7 @@ def cluster_faces_cmd(
     resolved = resolve_gallery_or_exit(gallery_dir, cwd=cwd)
 
     if redetect or refresh_thumbs:
-        albums, display_base = resolve_check_batch_albums(resolved, None, cwd=cwd)
+        albums, display_base = resolve_gallery_albums(resolved)
         run_batch_refresh(
             albums,
             display_base,

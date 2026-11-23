@@ -7,7 +7,7 @@ import typer
 
 from photree.album.fix.ios import FixIosValidationError, validate_fix_flags
 from photree.albums.batchcli.fix import run_batch_fix_ios
-from photree.albums.batchcli.resolution import resolve_batch_albums
+from photree.albums.batchcli.resolution import resolve_gallery_albums
 from photree.clihelpers.options import (
     DRY_RUN_OPTION,
     MV_MISCATEGORIZED_OPTION,
@@ -58,7 +58,7 @@ def fix_ios_cmd(
     except FixIosValidationError as exc:
         raise invalid_fix_error(exc, command="gallery fix-ios") from exc
     resolved = resolve_gallery_or_exit(gallery_dir, cwd=cwd)
-    albums, display_base = resolve_batch_albums(resolved, None, cwd=cwd)
+    albums, display_base = resolve_gallery_albums(resolved)
     run_batch_fix_ios(
         albums,
         display_base,

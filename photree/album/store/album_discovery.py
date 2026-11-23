@@ -5,7 +5,7 @@ from pathlib import Path
 from photree.album.store.media_sources_discovery import has_any_media_source
 from photree.album.store.protocol import ALBUM_YAML
 from photree.common.fs import matching_subdirectories, partition_subdirectories
-from photree.foundation.layout import PHOTREE_DIR
+from photree.foundation.layout import ALBUMS_DIR, PHOTREE_DIR
 
 
 class AlbumSelectionError(ValueError):
@@ -48,6 +48,17 @@ def discover_albums(base_dir: Path) -> list[Path]:
     The *base_dir* itself is never returned as an album.
     """
     return matching_subdirectories(base_dir, is_album)
+
+
+def discover_gallery_albums(gallery_dir: Path) -> list[Path]:
+    """
+    Find the albums of the gallery rooted at *gallery_dir*.
+
+    A gallery's albums live under ``<gallery>/albums``; an album-like
+    directory anywhere else in the gallery is not one of them. Every
+    gallery-wide operation goes through here so that they all agree.
+    """
+    return discover_albums(gallery_dir / ALBUMS_DIR)
 
 
 def discover_potential_albums(base_dir: Path) -> tuple[list[Path], list[Path]]:

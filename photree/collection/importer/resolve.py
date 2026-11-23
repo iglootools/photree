@@ -29,7 +29,7 @@ from photree.album.id import (
     parse_external_id,
 )
 from photree.album.naming import parse_album_name
-from photree.album.store.album_discovery import discover_albums
+from photree.album.store.album_discovery import discover_gallery_albums
 from photree.album.store.media_metadata import load_media_metadata
 from photree.album.store.media_source import (
     IOS_DIR_PREFIX,
@@ -47,7 +47,7 @@ from photree.collection.store.metadata import load_collection_metadata
 from photree.collection.store.protocol import CollectionMetadata, MemberType
 from photree.common.fs import file_ext
 from photree.dates import is_valid_date, timestamp_in_range
-from photree.foundation.layout import ALBUMS_DIR, COLLECTIONS_DIR
+from photree.foundation.layout import COLLECTIONS_DIR
 from photree.foundation.metadata_io import InvalidMetadataError
 
 
@@ -283,7 +283,7 @@ def scan_gallery(gallery_dir: Path) -> GalleryIndex:
     """
     albums = [
         (album_dir, _scan_album(album_dir))
-        for album_dir in discover_albums(gallery_dir / ALBUMS_DIR)
+        for album_dir in discover_gallery_albums(gallery_dir)
     ]
     collections = [
         (col_dir, _load_collection(col_dir))

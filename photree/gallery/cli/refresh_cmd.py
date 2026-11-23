@@ -6,7 +6,7 @@ from typing import Annotated
 import typer
 
 from photree.albums.batchcli.refresh import run_batch_refresh
-from photree.albums.batchcli.resolution import resolve_check_batch_albums
+from photree.albums.batchcli.resolution import resolve_gallery_albums
 from photree.clihelpers.console import console, err_console
 from photree.clihelpers.options import DRY_RUN_OPTION
 from photree.clihelpers.progress import StageProgressBar, run_with_spinner
@@ -96,7 +96,7 @@ def refresh_cmd(
     require_system_deps(refresh_deps(), which=which)
 
     resolved = resolve_gallery_or_exit(gallery_dir, cwd=cwd)
-    albums, display_base = resolve_check_batch_albums(resolved, None, cwd=cwd)
+    albums, display_base = resolve_gallery_albums(resolved)
     run_batch_refresh(
         albums,
         display_base,
