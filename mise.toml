@@ -154,14 +154,6 @@ run = [
   { task = "demo-record" },
 ]
 
-[tasks.ci-demo]
-description = "Record and upload the demo on CI"
-run = [
-  { task = "install" },
-  { task = "demo-record" },
-  { task = "demo-upload" },
-]
-
 [tasks.test-unit]
 description = "Run unit tests"
 # -n auto: unit tests are isolated (tmp_path, monkeypatch), so they parallelize cleanly.
