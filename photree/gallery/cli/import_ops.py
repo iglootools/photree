@@ -1,15 +1,13 @@
 """
-Shared helpers for gallery CLI commands.
+The import stage of ``gallery import`` and ``gallery import-all``.
 
-Gallery-specific resolution, index building, and import stage helpers
-used by gallery command modules. Extracted to keep command modules focused on
-argument parsing and orchestration.
+Planning, progress, result rendering and the post-import check, kept out of the
+command modules so they hold only argument parsing and orchestration.
 """
 
 from pathlib import Path
 
 import typer
-from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from photree.album import check as album_check
 from photree.album.check.output import album as album_output
@@ -17,34 +15,20 @@ from photree.album.check.output import derived as derived_output
 from photree.album.id import format_album_external_id
 from photree.album.store.album_discovery import discover_potential_albums
 from photree.album.store.metadata import load_album_metadata
-from photree.albums.output import format_missing_ids_report
 from photree.clihelpers.console import console, err_console
 from photree.clihelpers.progress import BatchProgressBar, StageProgressBar
-from photree.clihelpers.usage import invalid_value_error
 from photree.common.exif import exiftool_session
-from photree.common.formatting import CHECK, format_dry_run
+from photree.common.formatting import format_dry_run
 from photree.common.fs import display_path
 from photree.common.sysdeps import WhichFn
 from photree.foundation.gallery_metadata import resolve_link_mode
 from photree.foundation.linking import LinkMode
-from photree.gallery import (
-    AlbumIndex,
-    MissingAlbumIdError,
-    build_album_id_to_path_index,
-)
+from photree.gallery import AlbumIndex
 from photree.gallery.cmd_handler.importer import BatchImportResult
 from photree.gallery.cmd_handler.importer import run_batch_import as _run_batch_import
 from photree.gallery.cmd_handler.importer import run_single_import as _run_single_import
 from photree.gallery.cmd_handler.post_import_check import (
     run_batch_post_import_check as _run_batch_post_import_check,
-)
-from photree.gallery.faces.face_refresh import (
-    STAGE_BUILD_INDEX,
-    STAGE_CLUSTER,
-    STAGE_SAVE,
-    STAGE_SCAN_FACE_DATA,
-    GalleryFaceRefreshResult,
-    refresh_face_clusters,
 )
 from photree.gallery.import_plan import (
     AlbumPlan,
@@ -59,24 +43,6 @@ from photree.gallery.output import (
     format_import_failure_labels,
     format_skipped,
 )
-
-
-def build_index_or_exit(gallery_dir: Path, cwd: Path) -> AlbumIndex:
-    """Build the gallery album index, or exit on missing IDs."""
-    try:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            transient=True,
-        ) as progress:
-            progress.add_task("Building album index...", total=None)
-            return build_album_id_to_path_index(gallery_dir)
-    except MissingAlbumIdError as exc:
-        err_console.print(
-            format_missing_ids_report(exc.albums, "photree gallery fix --id", cwd),
-            markup=False,
-        )
-        raise typer.Exit(code=1) from exc
 
 
 def plan_imports_or_exit(
@@ -286,55 +252,3 @@ def run_batch_post_import_check(
             on_start=check_progress.on_start,
             on_end=check_progress.on_end,
         )
-
-
-def require_valid_threshold(threshold: float | None, option: str) -> None:
-    """Usage error unless *threshold* is unset or a cosine distance in [0.0, 1.0]."""
-    if threshold is not None and not 0.0 <= threshold <= 1.0:
-        raise invalid_value_error(
-            name=option,
-            value=threshold,
-            expected="a cosine distance between 0.0 and 1.0 (lower = stricter)",
-            command="gallery metadata set",
-        )
-
-
-def run_face_clustering(
-    gallery_dir: Path,
-    *,
-    distance_threshold: float | None = None,
-    dry_run: bool = False,
-    force_full: bool = False,
-) -> None:
-    """Run gallery-wide face clustering with progress bar and output."""
-    typer.echo(format_dry_run("\nFace clustering:", dry_run=dry_run))
-    with StageProgressBar(
-        total=4,
-        labels={
-            STAGE_SCAN_FACE_DATA: "Scanning face data",
-            STAGE_BUILD_INDEX: "Building similarity index",
-            STAGE_CLUSTER: "Clustering faces",
-            STAGE_SAVE: "Saving results",
-        },
-    ) as progress:
-        result = refresh_face_clusters(
-            gallery_dir,
-            distance_threshold=distance_threshold,
-            dry_run=dry_run,
-            force_full=force_full,
-            on_stage_start=progress.on_start,
-            on_stage_end=progress.on_end,
-        )
-
-    console.print(_face_clustering_line(result))
-
-
-def _face_clustering_line(result: GalleryFaceRefreshResult) -> str:
-    counts = f"{result.total_faces} face(s), {result.total_clusters} cluster(s)"
-    # Compared by value so this module needs no runtime import of face_refresh,
-    # which pulls in faiss and scikit-learn.
-    return (
-        f"{CHECK} face clustering (no changes — {counts})"
-        if result.mode == "none"
-        else f"{CHECK} face clustering ({counts}, {result.mode})"
-    )

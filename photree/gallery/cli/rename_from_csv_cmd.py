@@ -11,7 +11,7 @@ from photree.clihelpers.console import err_console
 from photree.clihelpers.resolution import resolve_gallery_or_exit
 from photree.clihelpers.runtime import runtime_of
 from photree.gallery.cli.app import app
-from photree.gallery.cli.ops import build_index_or_exit
+from photree.gallery.cli.index_ops import build_index_or_exit
 
 
 @app.command("rename-from-csv")

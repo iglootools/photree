@@ -21,13 +21,11 @@ from photree.collection.refresh import (
     refresh_collections,
 )
 from photree.common.formatting import CHECK, format_dry_run, indent
-from photree.foundation.gallery_metadata import GALLERY_YAML, load_gallery_metadata
-from photree.foundation.layout import PHOTREE_DIR
 from photree.gallery.browsable_refresh import (
     refresh_browsable as refresh_gallery_browsable,
 )
 from photree.gallery.cli.app import app
-from photree.gallery.cli.ops import run_face_clustering
+from photree.gallery.cli.face_ops import cluster_faces_if_enabled
 from photree.gallery.cli.refresh_output import (
     format_browsable_error,
     format_collection_changes,
@@ -112,25 +110,9 @@ def refresh_cmd(
     )
     # Face clustering runs before the collection refresh so cluster data is
     # available to it.
-    _refresh_face_clusters(resolved, dry_run=dry_run, force_full=redetect_faces)
+    cluster_faces_if_enabled(resolved, dry_run=dry_run, force_full=redetect_faces)
     _refresh_collections(resolved, cwd, dry_run=dry_run)
     _refresh_browsable(resolved, cwd, dry_run=dry_run)
-
-
-def _refresh_face_clusters(
-    gallery_dir: Path,
-    *,
-    dry_run: bool,
-    force_full: bool,
-) -> None:
-    gallery_meta = load_gallery_metadata(gallery_dir / PHOTREE_DIR / GALLERY_YAML)
-    if gallery_meta.faces_enabled:
-        run_face_clustering(
-            gallery_dir,
-            distance_threshold=gallery_meta.face_cluster_threshold,
-            dry_run=dry_run,
-            force_full=force_full,
-        )
 
 
 def _refresh_collections(gallery_dir: Path, cwd: Path, *, dry_run: bool) -> None:
