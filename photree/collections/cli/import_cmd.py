@@ -37,10 +37,11 @@ from photree.foundation.metadata_io import InvalidMetadataError
 
 @dataclass(frozen=True)
 class _ImportOutcome:
-    """One collection's import: failure reasons (empty on success)."""
+    """One collection's import: failure reasons (empty on success) and warnings."""
 
     collection_dir: Path
     errors: tuple[str, ...]
+    warnings: tuple[str, ...] = ()
 
     @property
     def success(self) -> bool:
@@ -83,9 +84,37 @@ def _import_one(
         return _ImportOutcome(col_dir, (format_invalid_metadata(exc, cwd),))
     except OSError as exc:
         return _ImportOutcome(col_dir, (_format_os_error(exc, cwd),))
-    for warning in result.warnings:
-        console.print(indent(format_resolution_warning(warning), 3), markup=False)
-    return _ImportOutcome(col_dir, tuple(format_result_errors(result, cwd)))
+    return _ImportOutcome(
+        col_dir,
+        tuple(format_result_errors(result, cwd)),
+        tuple(format_resolution_warning(w) for w in result.warnings),
+    )
+
+
+def _print_warnings(outcomes: list[_ImportOutcome], cwd: Path) -> None:
+    """
+    Print each collection's warnings under its path.
+
+    Printed once the progress bar has closed: a line printed while it is
+    live lands in the middle of its display.
+    """
+    warned = [o for o in outcomes if o.warnings]
+    if warned:
+        console.print(
+            "\n".join(
+                [
+                    "\nWarnings:",
+                    *(
+                        indent(
+                            f"{display_path(o.collection_dir, cwd)}\n{indent(lines)}",
+                        )
+                        for o in warned
+                        for lines in ["\n".join(o.warnings)]
+                    ),
+                ],
+            ),
+            markup=False,
+        )
 
 
 def _format_os_error(exc: OSError, cwd: Path) -> str:
@@ -213,6 +242,7 @@ def import_cmd(
         cwd=cwd,
         which=which,
     )
+    _print_warnings(outcomes, cwd)
     _print_summary(outcomes, skipped, dry_run=dry_run, cwd=cwd)
 
 
