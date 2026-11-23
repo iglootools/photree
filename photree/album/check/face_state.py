@@ -17,6 +17,7 @@ from photree.album.faces.protocol import (
 )
 from photree.album.faces.store import (
     FaceData,
+    LegacyFaceDataError,
     data_path,
     load_face_data,
     load_face_state,
@@ -34,6 +35,9 @@ class FaceSyncIssueKind(StrEnum):
     MISSING_YAML = "missing-yaml"  # .npz present, .yaml is absent
     KEYS_MISMATCH = "keys-mismatch"  # .npz keys != .yaml keys with faces
     ARRAY_LENGTHS = "array-lengths"  # .npz arrays of different lengths
+    # Written by an older photree; never read, since it needs unpickling.
+    # The next refresh detects the faces again.
+    LEGACY_NPZ = "legacy-npz"
 
 
 @dataclass(frozen=True)
@@ -114,7 +118,15 @@ def _check_source(
     model_version: str,
 ) -> _SourceCheck:
     state = load_face_state(album_dir, ms.name)
-    face_data = load_face_data(album_dir, ms.name)
+    try:
+        face_data = load_face_data(album_dir, ms.name)
+    except LegacyFaceDataError:
+        return _SourceCheck(
+            model_mismatch=False,
+            npz_yaml_sync_errors=(
+                FaceSyncIssue(ms.name, FaceSyncIssueKind.LEGACY_NPZ),
+            ),
+        )
     match (state, face_data):
         case (None, None):
             return _SourceCheck(model_mismatch=False, npz_yaml_sync_errors=())

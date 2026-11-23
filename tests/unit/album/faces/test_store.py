@@ -1,6 +1,8 @@
+import os
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from photree.album.faces.protocol import (
     DEFAULT_MODEL_NAME,
@@ -10,20 +12,27 @@ from photree.album.faces.protocol import (
 )
 from photree.album.faces.store import (
     FaceData,
+    LegacyFaceDataError,
+    data_path,
     filter_face_data,
+    has_legacy_face_data,
     load_face_data,
     load_face_state,
     merge_face_data,
+    read_face_count,
     save_face_data,
     save_face_state,
+    state_path,
 )
+from photree.album.faces.testkit import write_legacy_face_data
+from photree.foundation.metadata_io import InvalidMetadataError
 
 
 def _sample_face_data(keys: list[str], face_indices: list[int]) -> FaceData:
     """Build a small FaceData with deterministic embeddings for testing."""
     n = len(keys)
     return FaceData(
-        keys=np.array(keys, dtype=object),
+        keys=np.array(keys, dtype=np.str_),
         face_indices=np.array(face_indices, dtype=np.int32),
         det_scores=np.full(n, 0.95, dtype=np.float32),
         bboxes=np.zeros((n, 4), dtype=np.float32),
@@ -127,3 +136,116 @@ class TestMergeFaceData:
         data = _sample_face_data(["0410"], [0])
         assert merge_face_data(FaceData.empty(), data).count == 1
         assert merge_face_data(data, FaceData.empty()).count == 1
+
+
+class _RunsCodeWhenUnpickled:
+    """Unpickles by creating *marker*: proof that a reader unpickled it."""
+
+    def __init__(self, marker: Path) -> None:
+        self.marker = marker
+
+    def __reduce__(self) -> tuple[object, tuple[str]]:
+        return (os.mkdir, (str(self.marker),))
+
+
+def _write_booby_trapped_legacy_file(album: Path) -> Path:
+    """Write a legacy file whose ``keys`` creates a marker when unpickled."""
+    return write_legacy_face_data(
+        album,
+        "main",
+        np.array([_RunsCodeWhenUnpickled(album / "unpickled")], dtype=object),
+    )
+
+
+class TestFaceDataFormat:
+    def test_booby_trapped_file_runs_code_when_unpickled(self, tmp_path: Path) -> None:
+        """Guard for the tests below: the trap does go off when unpickled."""
+        path = _write_booby_trapped_legacy_file(tmp_path)
+
+        with np.load(path, allow_pickle=True) as npz:
+            npz["keys"]
+
+        assert (tmp_path / "unpickled").exists()
+
+    def test_keys_are_saved_as_unicode_not_objects(self, tmp_path: Path) -> None:
+        save_face_data(tmp_path, "main", _sample_face_data(["0410"], [0]))
+
+        with np.load(data_path(tmp_path, "main"), allow_pickle=False) as npz:
+            assert npz["keys"].dtype.kind == "U"
+
+    def test_object_keys_from_caller_are_saved_as_unicode(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        data = _sample_face_data(["0410"], [0])
+
+        save_face_data(
+            tmp_path,
+            "main",
+            FaceData(**{**vars(data), "keys": data.keys.astype(object)}),
+        )
+
+        assert not has_legacy_face_data(tmp_path, "main")
+
+    def test_legacy_file_is_rejected_without_unpickling(self, tmp_path: Path) -> None:
+        _write_booby_trapped_legacy_file(tmp_path)
+
+        with pytest.raises(LegacyFaceDataError) as exc_info:
+            load_face_data(tmp_path, "main")
+
+        assert exc_info.value.derived
+        assert not (tmp_path / "unpickled").exists()
+
+    def test_legacy_file_is_detected(self, tmp_path: Path) -> None:
+        write_legacy_face_data(tmp_path, "main", np.array(["0410"]))
+
+        assert has_legacy_face_data(tmp_path, "main")
+
+    def test_missing_file_is_not_legacy(self, tmp_path: Path) -> None:
+        assert not has_legacy_face_data(tmp_path, "main")
+
+    def test_truncated_file_raises_as_derived(self, tmp_path: Path) -> None:
+        save_face_data(tmp_path, "main", _sample_face_data(["0410"], [0]))
+        path = data_path(tmp_path, "main")
+        path.write_bytes(path.read_bytes()[:100])
+
+        with pytest.raises(InvalidMetadataError) as exc_info:
+            load_face_data(tmp_path, "main")
+
+        assert exc_info.value.derived
+        assert exc_info.value.path == path
+
+    def test_file_without_keys_raises_as_derived(self, tmp_path: Path) -> None:
+        path = data_path(tmp_path, "main")
+        path.parent.mkdir(parents=True)
+        np.savez_compressed(path, other=np.zeros(1))
+
+        with pytest.raises(InvalidMetadataError) as exc_info:
+            load_face_data(tmp_path, "main")
+
+        assert exc_info.value.derived
+
+
+class TestReadFaceCount:
+    def test_counts_faces(self, tmp_path: Path) -> None:
+        save_face_data(tmp_path, "main", _sample_face_data(["0410", "0410"], [0, 1]))
+
+        assert read_face_count(data_path(tmp_path, "main")) == 2
+
+    def test_counts_legacy_file_without_unpickling(self, tmp_path: Path) -> None:
+        path = _write_booby_trapped_legacy_file(tmp_path)
+
+        assert read_face_count(path) == 1
+        assert not (tmp_path / "unpickled").exists()
+
+
+class TestCorruptFaceState:
+    def test_corrupt_state_raises_as_derived(self, tmp_path: Path) -> None:
+        path = state_path(tmp_path, "main")
+        path.parent.mkdir(parents=True)
+        path.write_text("- not a mapping\n", encoding="utf-8")
+
+        with pytest.raises(InvalidMetadataError) as exc_info:
+            load_face_state(tmp_path, "main")
+
+        assert exc_info.value.derived

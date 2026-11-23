@@ -985,12 +985,21 @@ one `-thumbs/` directory (resized JPEGs).
 
 | Array         | Shape        | Dtype    | Description |
 |--------------|-------------|----------|-------------|
-| `keys`       | `(N,)`      | str      | Media key per face |
+| `keys`       | `(N,)`      | unicode (`<U…`) | Media key per face |
 | `face_indices`| `(N,)`     | int32    | 0-based face index within image |
 | `det_scores` | `(N,)`      | float32  | Detection confidence |
 | `bboxes`     | `(N, 4)`    | float32  | Bounding boxes [x1, y1, x2, y2] |
 | `landmarks`  | `(N, 5, 2)` | float32  | 5-point landmarks |
 | `embeddings` | `(N, 512)`  | float32  | ArcFace embeddings |
+
+A face data or state file that exists but cannot be read is an error, never
+read as absent; `album refresh --redetect-faces` replaces it without reading it.
+
+photree reads the `.npz` with pickling disabled, since unpickling a crafted
+file runs its code, and an album can arrive from anywhere. Older photree saved
+`keys` as an object array, which only unpickling reads: such a file is never
+loaded. `album check` reports it, and the next refresh detects every image of
+the source again and rewrites it.
 
 #### Processing State (.yaml)
 
