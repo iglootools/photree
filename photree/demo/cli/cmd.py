@@ -75,47 +75,6 @@ _SAMPLES: tuple[tuple[str, Callable[[], str]], ...] = (
         preflight_output.sips_troubleshoot,
     ),
     (
-        "album_output.album_dir_check — album (all present)",
-        lambda: preflight_output.album_dir_check(
-            present=(
-                "orig-img",
-                "orig-vid",
-                "edit-img",
-                "edit-vid",
-                "main-img",
-                "main-vid",
-                "main-jpg",
-            ),
-            missing=(),
-        ),
-    ),
-    (
-        "album_output.album_dir_check — album (some missing)",
-        lambda: preflight_output.album_dir_check(
-            present=("orig-img", "orig-vid", "main-img"),
-            missing=(
-                "edit-img",
-                "edit-vid",
-                "main-vid",
-                "main-jpg",
-            ),
-        ),
-    ),
-    (
-        "album_output.album_dir_check — import (to-import-ios-main present)",
-        lambda: preflight_output.album_dir_check(
-            present=("to-import-ios-main",),
-            missing=(),
-        ),
-    ),
-    (
-        "album_output.album_dir_check — import (to-import-ios-main missing)",
-        lambda: preflight_output.album_dir_check(
-            present=(),
-            missing=("to-import-ios-main",),
-        ),
-    ),
-    (
         "album_output.rm_upstream_summary()",
         lambda: rm_upstream_summary(
             heic_jpeg=2,
@@ -269,17 +228,6 @@ _SAMPLES: tuple[tuple[str, Callable[[], str]], ...] = (
                 cwd=_SAMPLE_CWD,
             )
             or "(none)"
-        ),
-    ),
-    (
-        "importer_output.batch_album_importing()",
-        lambda: importer_output.batch_album_importing("trip-paris"),
-    ),
-    (
-        "importer_output.batch_album_skipped()",
-        lambda: importer_output.batch_album_skipped(
-            "empty-album",
-            "no to-import-{ios,std}-<name> directory",
         ),
     ),
     (

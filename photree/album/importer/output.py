@@ -219,8 +219,20 @@ def format_preflight_troubleshoot(
             and result.selection_path is not None
             else []
         ),
+        *_image_capture_dir_troubleshoot_lines(result),
     ]
     return "\n".join(lines) if lines else None
+
+
+def _image_capture_dir_troubleshoot_lines(result: ImportPreflightResult) -> list[str]:
+    """Return how to get past a failed Image Capture directory check, if it counts."""
+    match result.image_capture_dir_check:
+        case ImageCaptureDirCheck() as check if (
+            result.ios_import_required and not check.success
+        ):
+            return [image_capture_dir_troubleshoot(check)]
+        case _:
+            return []
 
 
 def image_capture_dir_troubleshoot(check: ImageCaptureDirCheck) -> str:
@@ -231,7 +243,8 @@ def image_capture_dir_troubleshoot(check: ImageCaptureDirCheck) -> str:
             "",
             _bullets(_format_ic_dir_warnings(check)),
             "",
-            "Use --force to skip this check and proceed anyway.",
+            "Point --source at the directory Image Capture exports to, or add",
+            "--force to the import command to skip this check and proceed anyway.",
         ],
     )
 
@@ -249,16 +262,6 @@ def import_error(exc: NoImportTasksError | EmptyImageCaptureDirError, cwd: Path)
                 "Could not find any image capture files in "
                 f"{markup_escape(display_path(ic_dir, cwd))}"
             )
-
-
-def batch_album_importing(album_name: str) -> str:
-    """Return the batch line announcing that *album_name* is being imported."""
-    return f"Importing: {markup_escape(album_name)}"
-
-
-def batch_album_skipped(album_name: str, reason: str) -> str:
-    """Return the batch line saying *album_name* is skipped, and why."""
-    return f"Skipping:  {markup_escape(album_name)} ({markup_escape(reason)})"
 
 
 def batch_summary(
