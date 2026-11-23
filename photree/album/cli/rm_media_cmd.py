@@ -14,6 +14,7 @@ from photree.album.cli.media_op_output import (
 )
 from photree.album.cli.media_source_conflict import exit_on_media_source_conflict
 from photree.clihelpers.console import err_console
+from photree.clihelpers.options import DRY_RUN_OPTION
 from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.usage import no_files_error
 from photree.common.formatting import format_dry_run
@@ -41,14 +42,7 @@ def rm_media_cmd(
         ),
     ] = [],  # noqa: B006
     *,
-    dry_run: Annotated[
-        bool,
-        typer.Option(
-            "--dry-run",
-            "-n",
-            help="Print what would happen without modifying files.",
-        ),
-    ] = False,
+    dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """
     Remove media files and all their variants from an album.

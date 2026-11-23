@@ -16,6 +16,7 @@ from photree.clihelpers.options import (
     FATAL_EXIF_DATE_MATCH_OPTION,
     FATAL_SIDECAR_OPTION,
     FATAL_WARNINGS_OPTION,
+    GALLERY_DIR_OPTION,
 )
 from photree.clihelpers.progress import run_with_spinner
 from photree.clihelpers.resolution import resolve_gallery_or_exit
@@ -39,20 +40,7 @@ from photree.gallery.faces.check import (
 @app.command("check")
 def check_cmd(
     ctx: typer.Context,
-    gallery_dir: Annotated[
-        Path | None,
-        typer.Option(
-            "--gallery-dir",
-            "-g",
-            help=(
-                "Gallery root directory (or resolved from cwd "
-                "via .photree/gallery.yaml)."
-            ),
-            exists=True,
-            file_okay=False,
-            resolve_path=True,
-        ),
-    ] = None,
+    gallery_dir: GALLERY_DIR_OPTION = None,
     *,
     checksum: CHECKSUM_OPTION = True,
     fatal_warnings: FATAL_WARNINGS_OPTION = False,

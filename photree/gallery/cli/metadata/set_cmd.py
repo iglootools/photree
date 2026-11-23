@@ -1,11 +1,11 @@
 """The ``photree gallery metadata set`` command."""
 
 from collections.abc import Callable
-from pathlib import Path
 from typing import Annotated
 
 import typer
 
+from photree.clihelpers.options import GALLERY_DIR_OPTION, GALLERY_LINK_MODE_OPTION
 from photree.clihelpers.resolution import resolve_gallery_or_exit
 from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.usage import no_fields_error
@@ -18,7 +18,6 @@ from photree.foundation.gallery_metadata import (
     save_gallery_metadata,
 )
 from photree.foundation.layout import PHOTREE_DIR
-from photree.foundation.linking import LinkMode
 from photree.gallery.cli.face_ops import require_valid_threshold
 from photree.gallery.cli.metadata.app import app
 
@@ -26,27 +25,8 @@ from photree.gallery.cli.metadata.app import app
 @app.command("set")
 def set_cmd(
     ctx: typer.Context,
-    gallery_dir: Annotated[
-        Path | None,
-        typer.Option(
-            "--gallery-dir",
-            "-g",
-            help=(
-                "Gallery root directory (or resolved from cwd "
-                "via .photree/gallery.yaml)."
-            ),
-            exists=True,
-            file_okay=False,
-            resolve_path=True,
-        ),
-    ] = None,
-    link_mode: Annotated[
-        LinkMode | None,
-        typer.Option(
-            "--link-mode",
-            help="Default link mode for refresh and other link-mode operations.",
-        ),
-    ] = None,
+    gallery_dir: GALLERY_DIR_OPTION = None,
+    link_mode: GALLERY_LINK_MODE_OPTION = None,
     faces_enabled: Annotated[
         bool | None,
         typer.Option(

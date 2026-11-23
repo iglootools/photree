@@ -6,6 +6,7 @@ from typing import Annotated
 import typer
 
 from photree.clihelpers.console import console, err_console
+from photree.clihelpers.options import DRY_RUN_OPTION, GALLERY_DIR_OPTION
 from photree.clihelpers.progress import BatchProgressBar
 from photree.clihelpers.resolution import (
     format_invalid_metadata,
@@ -180,29 +181,9 @@ def import_cmd(
             resolve_path=True,
         ),
     ] = None,
-    gallery_dir: Annotated[
-        Path | None,
-        typer.Option(
-            "--gallery-dir",
-            "-g",
-            help=(
-                "Gallery root directory (or resolved from cwd "
-                "via .photree/gallery.yaml)."
-            ),
-            exists=True,
-            file_okay=False,
-            resolve_path=True,
-        ),
-    ] = None,
+    gallery_dir: GALLERY_DIR_OPTION = None,
     *,
-    dry_run: Annotated[
-        bool,
-        typer.Option(
-            "--dry-run",
-            "-n",
-            help="Show what would be imported without modifying files.",
-        ),
-    ] = False,
+    dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """Batch import members for multiple collections."""
     runtime = runtime_of(ctx)

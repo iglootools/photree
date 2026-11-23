@@ -1,8 +1,5 @@
 """The ``photree gallery fix-ios`` command."""
 
-from pathlib import Path
-from typing import Annotated
-
 import typer
 
 from photree.album.fix.ios import FixIosValidationError, validate_fix_flags
@@ -10,6 +7,7 @@ from photree.albums.batchcli.fix import run_batch_fix_ios
 from photree.albums.batchcli.resolution import resolve_gallery_albums
 from photree.clihelpers.options import (
     DRY_RUN_OPTION,
+    GALLERY_DIR_OPTION,
     MV_MISCATEGORIZED_OPTION,
     PREFER_HIGHER_QUALITY_OPTION,
     RM_MISCATEGORIZED_OPTION,
@@ -25,17 +23,7 @@ from photree.gallery.cli.app import app
 @app.command("fix-ios")
 def fix_ios_cmd(
     ctx: typer.Context,
-    gallery_dir: Annotated[
-        Path | None,
-        typer.Option(
-            "--gallery-dir",
-            "-g",
-            help="Gallery root directory.",
-            exists=True,
-            file_okay=False,
-            resolve_path=True,
-        ),
-    ] = None,
+    gallery_dir: GALLERY_DIR_OPTION = None,
     *,
     prefer_higher_quality_when_dups: PREFER_HIGHER_QUALITY_OPTION = False,
     rm_orphan_sidecar: RM_ORPHAN_SIDECAR_OPTION = False,

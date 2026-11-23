@@ -1,11 +1,9 @@
 """The ``photree gallery show`` command."""
 
-from pathlib import Path
-from typing import Annotated
-
 import typer
 
 from photree.album.store.album_discovery import discover_gallery_albums
+from photree.clihelpers.options import GALLERY_DIR_OPTION
 from photree.clihelpers.resolution import resolve_gallery_or_exit
 from photree.clihelpers.runtime import runtime_of
 from photree.common.formatting import indent
@@ -18,20 +16,7 @@ from photree.gallery.cli.app import app
 @app.command("show")
 def show_cmd(
     ctx: typer.Context,
-    gallery_dir: Annotated[
-        Path | None,
-        typer.Option(
-            "--gallery-dir",
-            "-g",
-            help=(
-                "Gallery root directory (or resolved from cwd "
-                "via .photree/gallery.yaml)."
-            ),
-            exists=True,
-            file_okay=False,
-            resolve_path=True,
-        ),
-    ] = None,
+    gallery_dir: GALLERY_DIR_OPTION = None,
 ) -> None:
     """Display gallery metadata."""
     runtime = runtime_of(ctx)

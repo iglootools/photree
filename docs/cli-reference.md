@@ -844,7 +844,7 @@ $ photree collection import [OPTIONS]
 
 * `-c, --collection-dir <directory>`: Collection directory (must be initialized).  [default: .]
 * `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
-* `-n, --dry-run`: Show what would be imported without modifying files.
+* `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
 ### `photree collection init`
@@ -966,7 +966,7 @@ $ photree collections import [OPTIONS]
 * `-d, --dir <directory>`: Parent directory to scan for collections with selections.
 * `-c, --collection-dir <directory>`: Collection directory to import (repeatable).
 * `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
-* `-n, --dry-run`: Show what would be imported without modifying files.
+* `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
 ## `photree demo`
@@ -1116,7 +1116,7 @@ $ photree gallery export [OPTIONS]
 
 * `-d, --dir <directory>`: Base directory to scan for albums.
 * `-a, --album-dir <directory>`: Album directory to export (repeatable).
-* `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml). Used when neither --dir nor --album-dir is given.
+* `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `-s, --share-dir <directory>`: Base directory to export into (subdirectories with album names are created).
 * `-p, --profile <str>`: Exporter profile name from config.
 * `-c, --config <str>`: Path to config file.
@@ -1162,7 +1162,7 @@ $ photree gallery fix-ios [OPTIONS]
 
 **Options**:
 
-* `-g, --gallery-dir <directory>`: Gallery root directory.
+* `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--prefer-higher-quality-when-dups`: Delete lower-quality duplicates.
 * `--rm-orphan-sidecar`: Delete AAE sidecar files that have no matching media file.
 * `--rm-miscategorized`: Delete files in the wrong directory.
@@ -1332,7 +1332,7 @@ $ photree gallery rename-from-csv [OPTIONS] {csv_file}
 **Options**:
 
 * `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
-* `-n, --dry-run`: Show what would be renamed without making changes.
+* `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
 ### `photree gallery show`
@@ -1362,7 +1362,7 @@ $ photree gallery stats [OPTIONS]
 
 **Options**:
 
-* `-g, --gallery-dir <directory>`: Gallery root directory.
+* `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--help`: Show this message and exit.
 
 ### `photree gallery metadata`

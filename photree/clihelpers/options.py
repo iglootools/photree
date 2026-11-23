@@ -97,6 +97,28 @@ CHECK_EXIF_DATE_MATCH_OPTION = Annotated[
     ),
 ]
 
+GALLERY_DIR_OPTION = Annotated[
+    Path | None,
+    typer.Option(
+        "--gallery-dir",
+        "-g",
+        help=(
+            "Gallery root directory (or resolved from cwd via .photree/gallery.yaml)."
+        ),
+        exists=True,
+        file_okay=False,
+        resolve_path=True,
+    ),
+]
+
+GALLERY_LINK_MODE_OPTION = Annotated[
+    LinkMode | None,
+    typer.Option(
+        "--link-mode",
+        help="Default link mode for refresh and other link-mode operations.",
+    ),
+]
+
 LINK_MODE_OPTION = Annotated[
     LinkMode | None,
     typer.Option(
