@@ -11,13 +11,12 @@ from photree.album.formats import (
     IOS_VID_EXTENSIONS,
     VID_EXTENSIONS,
 )
-from photree.album.store.file_matching import dedup_media_dict
+from photree.album.store.file_matching import scan_media_keys
 from photree.album.store.media_metadata import (
     MediaSourceMediaMetadata,
     load_media_metadata,
 )
-from photree.album.store.media_source import KeyFn, MediaSource
-from photree.common.fs import list_files
+from photree.album.store.media_source import MediaSource
 
 
 class MediaType(StrEnum):
@@ -69,17 +68,6 @@ class MediaMetadataCheck:
         )
 
 
-def _scan_keys(
-    album_dir: Path,
-    directory: str,
-    extensions: frozenset[str],
-    key_fn: KeyFn,
-) -> set[str]:
-    return set(
-        dedup_media_dict(list_files(album_dir / directory), extensions, key_fn).keys(),
-    )
-
-
 def _diff_keys(
     existing_keys: set[str],
     disk_keys: set[str],
@@ -115,13 +103,13 @@ def _check_media_source(
 
     img_new, img_stale = _diff_keys(
         set(existing_ms.images.values()),
-        _scan_keys(album_dir, ms.orig_img_dir, img_ext, ms.key_fn),
+        scan_media_keys(album_dir / ms.orig_img_dir, img_ext, ms.key_fn),
         ms.name,
         MediaType.IMAGE,
     )
     vid_new, vid_stale = _diff_keys(
         set(existing_ms.videos.values()),
-        _scan_keys(album_dir, ms.orig_vid_dir, vid_ext, ms.key_fn),
+        scan_media_keys(album_dir / ms.orig_vid_dir, vid_ext, ms.key_fn),
         ms.name,
         MediaType.VIDEO,
     )

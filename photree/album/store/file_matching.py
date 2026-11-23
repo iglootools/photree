@@ -64,6 +64,15 @@ def dedup_media_dict(
     }
 
 
+def scan_media_keys(
+    directory: Path,
+    media_extensions: frozenset[str],
+    key_fn: Callable[[str], str],
+) -> set[str]:
+    """Return the keys of the media files in *directory* (none if it is missing)."""
+    return set(dedup_media_dict(list_files(directory), media_extensions, key_fn))
+
+
 def find_files_by_key(
     keys: set[str],
     directory: Path,
