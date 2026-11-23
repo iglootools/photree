@@ -2,18 +2,28 @@ from pathlib import Path
 
 import pytest
 
+from photree.album.cli.media_op_output import (
+    format_media_op_error,
+    format_media_op_summary,
+)
 from photree.album.id import generate_album_id
 from photree.album.media import (
     MediaOpError,
     MediaOpErrorKind,
-    format_media_op_error,
-    media_op_summary,
     move_media,
     resolve_variants,
     rm_media,
 )
+from photree.album.refresh import refresh_media_metadata
+from photree.album.store.media_metadata import (
+    MediaMetadata,
+    MediaSourceMediaMetadata,
+    load_media_metadata,
+    save_media_metadata,
+)
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
+from photree.foundation.metadata_io import InvalidMetadataError
 
 PHOTREE_DIR = ".photree"
 
@@ -29,6 +39,12 @@ def _names(directory: Path) -> set[str]:
     if not directory.is_dir():
         return set()
     return {f.name for f in directory.iterdir() if f.is_file()}
+
+
+def _image_ids(album: Path) -> dict[str, str]:
+    metadata = load_media_metadata(album)
+    assert metadata is not None
+    return dict(metadata.media_sources["main"].images)
 
 
 def _mark_album(album: Path) -> None:
@@ -59,6 +75,15 @@ def _setup_ios_album_with_video(album: Path) -> None:
     _setup_dir(album / "ios-main/orig-vid", ["IMG_0115.MOV"])
     _setup_dir(album / "ios-main/edit-vid", ["IMG_E0115.MOV"])
     _setup_dir(album / "main-vid", ["IMG_E0115.MOV"])
+
+
+def _setup_ios_album_with_live_photo(album: Path) -> None:
+    """Create an iOS album with one Live Photo (0001): a still and its MOV."""
+    _setup_dir(album / PHOTREE_DIR, [])
+    _mark_album(album)
+    _setup_dir(album / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_0001.MOV"])
+    _setup_dir(album / "main-img", ["IMG_0001.HEIC", "IMG_0001.MOV"])
+    _setup_dir(album / "main-jpg", ["IMG_0001.jpg"])
 
 
 def _setup_std_album(album: Path, media_source_name: str = "nelu") -> None:
@@ -122,6 +147,18 @@ class TestResolveVariants:
         assert "ios-main/orig-vid" in dirs_found
         assert "ios-main/edit-vid" in dirs_found
         assert "main-vid" in dirs_found
+
+    def test_live_photo_mov_resolves_its_image(self, tmp_path: Path) -> None:
+        album = tmp_path / "album"
+        _setup_ios_album_with_live_photo(album)
+
+        result = resolve_variants(album, ["main-img/IMG_0001.MOV"])
+
+        assert dict(result) == {
+            "ios-main/orig-img": ["IMG_0001.HEIC", "IMG_0001.MOV"],
+            "main-img": ["IMG_0001.HEIC", "IMG_0001.MOV"],
+            "main-jpg": ["IMG_0001.jpg"],
+        }
 
     def test_plain_image_resolves_by_stem(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
@@ -342,6 +379,106 @@ class TestMoveMedia:
         assert exc_info.value.kind == MediaOpErrorKind.MOVE_CONFLICT
         assert "ios-main/orig-img/IMG_0410.JPG" in exc_info.value.conflicts
 
+    def test_refuses_when_dest_has_same_named_source_of_other_type(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        src = tmp_path / "src-album"
+        dst = tmp_path / "dst-album"
+        _setup_ios_album(src)
+        _setup_std_album(dst, media_source_name="main")
+
+        with pytest.raises(MediaOpError) as exc_info:
+            move_media(src, dst, ["main-jpg/IMG_E0410.jpg"])
+        assert exc_info.value.kind == MediaOpErrorKind.MEDIA_SOURCE_TYPE_MISMATCH
+        assert exc_info.value.media_sources == ("main",)
+
+        assert "IMG_0410.HEIC" in _names(src / "ios-main/orig-img")
+        assert not (dst / "ios-main").exists()
+
+    def test_moves_into_dest_whose_other_sources_differ_in_type(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        src = tmp_path / "src-album"
+        dst = tmp_path / "dst-album"
+        _setup_ios_album(src)
+        _setup_std_album(dst, media_source_name="nelu")
+
+        move_media(src, dst, ["main-jpg/IMG_E0410.jpg"])
+
+        assert "IMG_0410.HEIC" in _names(dst / "ios-main/orig-img")
+
+    def test_carries_media_ids_to_dest(self, tmp_path: Path) -> None:
+        src = tmp_path / "src-album"
+        dst = tmp_path / "dst-album"
+        _setup_ios_album(src)
+        _setup_dir(src / "ios-main/orig-img", ["IMG_0411.HEIC"])
+        save_media_metadata(
+            src,
+            MediaMetadata(
+                media_sources={
+                    "main": MediaSourceMediaMetadata(
+                        images={"id-0410": "0410", "id-0411": "0411"},
+                    ),
+                },
+            ),
+        )
+        _setup_dir(dst / PHOTREE_DIR, [])
+        _mark_album(dst)
+
+        move_media(src, dst, ["main-jpg/IMG_E0410.jpg"])
+
+        assert _image_ids(src) == {"id-0411": "0411"}
+        assert _image_ids(dst) == {"id-0410": "0410"}
+
+    def test_moved_media_keeps_its_id_through_refresh(self, tmp_path: Path) -> None:
+        src = tmp_path / "src-album"
+        dst = tmp_path / "dst-album"
+        _setup_ios_album(src)
+        refresh_media_metadata(src)
+        [media_id] = _image_ids(src)
+        _setup_dir(dst / PHOTREE_DIR, [])
+        _mark_album(dst)
+
+        move_media(src, dst, ["main-jpg/IMG_E0410.jpg"])
+        refresh_media_metadata(dst)
+
+        assert _image_ids(dst) == {media_id: "0410"}
+
+    def test_dry_run_leaves_media_ids(self, tmp_path: Path) -> None:
+        src = tmp_path / "src-album"
+        dst = tmp_path / "dst-album"
+        _setup_ios_album(src)
+        refresh_media_metadata(src)
+        ids_before = _image_ids(src)
+        _setup_dir(dst / PHOTREE_DIR, [])
+        _mark_album(dst)
+
+        move_media(src, dst, ["main-jpg/IMG_E0410.jpg"], dry_run=True)
+
+        assert _image_ids(src) == ids_before
+        assert load_media_metadata(dst) is None
+
+    def test_refuses_before_moving_when_media_ids_are_unreadable(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        src = tmp_path / "src-album"
+        dst = tmp_path / "dst-album"
+        _setup_ios_album(src)
+        _setup_dir(src / PHOTREE_DIR / "media-ids", [])
+        (src / PHOTREE_DIR / "media-ids/main.yaml").write_text(
+            "images: [",
+            encoding="utf-8",
+        )
+        _setup_dir(dst / PHOTREE_DIR, [])
+        _mark_album(dst)
+
+        with pytest.raises(InvalidMetadataError):
+            move_media(src, dst, ["main-jpg/IMG_E0410.jpg"])
+        assert "IMG_0410.HEIC" in _names(src / "ios-main/orig-img")
+
 
 class TestRmMedia:
     def test_ios_removes_all_variants(self, tmp_path: Path) -> None:
@@ -378,6 +515,20 @@ class TestRmMedia:
         assert "IMG_0410.HEIC" in _names(album / "ios-main/orig-img")
         assert "IMG_E0410.jpg" in _names(album / "main-jpg")
 
+    def test_live_photo_mov_removes_the_whole_live_photo(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        album = tmp_path / "album"
+        _setup_ios_album_with_live_photo(album)
+
+        result = rm_media(album, ["ios-main/orig-img/IMG_0001.MOV"])
+
+        assert result.total == 5
+        assert not (album / "ios-main").exists()
+        assert not (album / "main-img").exists()
+        assert not (album / "main-jpg").exists()
+
     def test_ios_video_removes_all_variants(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_ios_album_with_video(album)
@@ -392,16 +543,16 @@ class TestRmMedia:
 
 class TestMediaOpSummary:
     def test_summary_counts_files_by_directory(self) -> None:
-        assert media_op_summary("move", (("orig-img", ("a", "b")),)) == (
+        assert format_media_op_summary("move", (("orig-img", ("a", "b")),)) == (
             "Done. Moved 2 file(s): 2 from orig-img."
         )
 
     def test_dry_run_summary_says_what_would_happen(self) -> None:
-        assert media_op_summary(
+        assert format_media_op_summary(
             "remove",
             (("orig-img", ("a", "b")),),
             dry_run=True,
         ) == ("Would remove 2 file(s): 2 from orig-img.")
 
     def test_summary_names_the_verb_when_nothing_matched(self) -> None:
-        assert media_op_summary("remove", ()) == "Done. No files to remove."
+        assert format_media_op_summary("remove", ()) == "Done. No files to remove."
