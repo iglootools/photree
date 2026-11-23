@@ -578,6 +578,12 @@ commands verify that `media-ids` is in sync with the directory structure.
 
 Media IDs are derived from archive directories (`orig-img/`, `orig-vid/`).
 
+`photree album mv-media` moves the IDs of the media it moves into the
+destination album's file for the same media source, so collections that
+reference them still resolve after the next refresh. It reads both albums'
+`media-ids` before moving any file and refuses the move when either cannot be
+read.
+
 ### Collection Metadata (`.photree/collection.yaml`)
 
 Each collection has a `.photree/collection.yaml` file:

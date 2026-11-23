@@ -14,8 +14,16 @@ from photree.album.media import (
     resolve_variants,
     rm_media,
 )
+from photree.album.refresh import refresh_media_metadata
+from photree.album.store.media_metadata import (
+    MediaMetadata,
+    MediaSourceMediaMetadata,
+    load_media_metadata,
+    save_media_metadata,
+)
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
+from photree.foundation.metadata_io import InvalidMetadataError
 
 PHOTREE_DIR = ".photree"
 
@@ -31,6 +39,12 @@ def _names(directory: Path) -> set[str]:
     if not directory.is_dir():
         return set()
     return {f.name for f in directory.iterdir() if f.is_file()}
+
+
+def _image_ids(album: Path) -> dict[str, str]:
+    metadata = load_media_metadata(album)
+    assert metadata is not None
+    return dict(metadata.media_sources["main"].images)
 
 
 def _mark_album(album: Path) -> None:
@@ -394,6 +408,76 @@ class TestMoveMedia:
         move_media(src, dst, ["main-jpg/IMG_E0410.jpg"])
 
         assert "IMG_0410.HEIC" in _names(dst / "ios-main/orig-img")
+
+    def test_carries_media_ids_to_dest(self, tmp_path: Path) -> None:
+        src = tmp_path / "src-album"
+        dst = tmp_path / "dst-album"
+        _setup_ios_album(src)
+        _setup_dir(src / "ios-main/orig-img", ["IMG_0411.HEIC"])
+        save_media_metadata(
+            src,
+            MediaMetadata(
+                media_sources={
+                    "main": MediaSourceMediaMetadata(
+                        images={"id-0410": "0410", "id-0411": "0411"},
+                    ),
+                },
+            ),
+        )
+        _setup_dir(dst / PHOTREE_DIR, [])
+        _mark_album(dst)
+
+        move_media(src, dst, ["main-jpg/IMG_E0410.jpg"])
+
+        assert _image_ids(src) == {"id-0411": "0411"}
+        assert _image_ids(dst) == {"id-0410": "0410"}
+
+    def test_moved_media_keeps_its_id_through_refresh(self, tmp_path: Path) -> None:
+        src = tmp_path / "src-album"
+        dst = tmp_path / "dst-album"
+        _setup_ios_album(src)
+        refresh_media_metadata(src)
+        [media_id] = _image_ids(src)
+        _setup_dir(dst / PHOTREE_DIR, [])
+        _mark_album(dst)
+
+        move_media(src, dst, ["main-jpg/IMG_E0410.jpg"])
+        refresh_media_metadata(dst)
+
+        assert _image_ids(dst) == {media_id: "0410"}
+
+    def test_dry_run_leaves_media_ids(self, tmp_path: Path) -> None:
+        src = tmp_path / "src-album"
+        dst = tmp_path / "dst-album"
+        _setup_ios_album(src)
+        refresh_media_metadata(src)
+        ids_before = _image_ids(src)
+        _setup_dir(dst / PHOTREE_DIR, [])
+        _mark_album(dst)
+
+        move_media(src, dst, ["main-jpg/IMG_E0410.jpg"], dry_run=True)
+
+        assert _image_ids(src) == ids_before
+        assert load_media_metadata(dst) is None
+
+    def test_refuses_before_moving_when_media_ids_are_unreadable(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        src = tmp_path / "src-album"
+        dst = tmp_path / "dst-album"
+        _setup_ios_album(src)
+        _setup_dir(src / PHOTREE_DIR / "media-ids", [])
+        (src / PHOTREE_DIR / "media-ids/main.yaml").write_text(
+            "images: [",
+            encoding="utf-8",
+        )
+        _setup_dir(dst / PHOTREE_DIR, [])
+        _mark_album(dst)
+
+        with pytest.raises(InvalidMetadataError):
+            move_media(src, dst, ["main-jpg/IMG_E0410.jpg"])
+        assert "IMG_0410.HEIC" in _names(src / "ios-main/orig-img")
 
 
 class TestRmMedia:

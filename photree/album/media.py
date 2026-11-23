@@ -3,7 +3,8 @@ Move and remove media files across album media source directories.
 
 Given relative file paths (as reported by ``album check``), resolves all
 associated variants by key (image number for iOS, filename stem for std)
-and moves or deletes them.
+and moves or deletes them. A move carries the media IDs of the moved keys
+along, so collections that reference them still resolve.
 """
 
 from dataclasses import dataclass
@@ -11,6 +12,12 @@ from enum import StrEnum
 from pathlib import Path
 
 from photree.album.store.file_matching import find_files_by_key
+from photree.album.store.media_metadata import (
+    MediaMetadata,
+    MediaSourceMediaMetadata,
+    load_media_metadata,
+    save_media_metadata,
+)
 from photree.album.store.media_source import MediaSource
 from photree.album.store.media_sources_discovery import discover_media_sources
 from photree.common.fs import delete_files, move_files
@@ -273,6 +280,93 @@ def _validate_move(groups: list[_MediaGroup], dest_album: Path) -> None:
         )
 
 
+def _moved_keys(groups: list[_MediaGroup]) -> dict[tuple[str, bool], frozenset[str]]:
+    return {
+        (g.ms.name, g.is_video): frozenset(
+            g.ms.key_fn(f) for _, files in g.variants for f in files
+        )
+        for g in groups
+    }
+
+
+def _without_keys(ids: dict[str, str], keys: frozenset[str]) -> dict[str, str]:
+    return {uuid: key for uuid, key in ids.items() if key not in keys}
+
+
+def _with_keys(ids: dict[str, str], keys: frozenset[str]) -> dict[str, str]:
+    return {uuid: key for uuid, key in ids.items() if key in keys}
+
+
+def _transfer_ids(
+    source_ms: MediaSourceMediaMetadata,
+    dest_ms: MediaSourceMediaMetadata,
+    image_keys: frozenset[str],
+    video_keys: frozenset[str],
+) -> tuple[MediaSourceMediaMetadata, MediaSourceMediaMetadata]:
+    return (
+        MediaSourceMediaMetadata(
+            images=_without_keys(source_ms.images, image_keys),
+            videos=_without_keys(source_ms.videos, video_keys),
+        ),
+        MediaSourceMediaMetadata(
+            images={
+                **_without_keys(dest_ms.images, image_keys),
+                **_with_keys(source_ms.images, image_keys),
+            },
+            videos={
+                **_without_keys(dest_ms.videos, video_keys),
+                **_with_keys(source_ms.videos, video_keys),
+            },
+        ),
+    )
+
+
+def compute_media_id_transfer(
+    source: MediaMetadata,
+    dest: MediaMetadata,
+    moved_keys: dict[tuple[str, bool], frozenset[str]],
+) -> tuple[MediaMetadata, MediaMetadata]:
+    """
+    Return the source's and destination's media IDs after a move.
+
+    *moved_keys* holds the keys moved, by ``(media source name, is_video)``.
+    Each moved key's UUID leaves the source and joins the same media source
+    and kind in the destination. A destination entry for a moved key is
+    dropped: no file with that key was there (the move refuses conflicts), so
+    the entry was stale, and keeping it would give the moved media two IDs.
+    """
+    empty = MediaSourceMediaMetadata()
+    transfers = {
+        name: _transfer_ids(
+            source.media_sources.get(name, empty),
+            dest.media_sources.get(name, empty),
+            moved_keys.get((name, False), frozenset()),
+            moved_keys.get((name, True), frozenset()),
+        )
+        for name in sorted({name for name, _ in moved_keys})
+    }
+    return (
+        MediaMetadata(
+            media_sources={
+                **source.media_sources,
+                **{
+                    n: s for n, (s, _) in transfers.items() if n in source.media_sources
+                },
+            },
+        ),
+        MediaMetadata(
+            media_sources={
+                **dest.media_sources,
+                **{
+                    n: d
+                    for n, (_, d) in transfers.items()
+                    if n in dest.media_sources or d.images or d.videos
+                },
+            },
+        ),
+    )
+
+
 def move_media(
     source_album: Path,
     dest_album: Path,
@@ -292,13 +386,27 @@ def move_media(
       then refuses.
     - ``MOVE_CONFLICT``, with the conflicting paths, when the destination
       already holds files with the same key.
+
+    Raises :class:`~photree.foundation.metadata_io.InvalidMetadataError`,
+    also before moving anything, when either album's media IDs cannot be
+    read: moving without them would let the next refresh mint new IDs.
     """
     groups = _resolve_groups(source_album, relative_paths)
     variants = _variants_of(groups)
     _validate_move(groups, dest_album)
+    source_ids = load_media_metadata(source_album)
+    dest_ids = load_media_metadata(dest_album)
 
     for subdir, files in variants:
         move_files(source_album / subdir, dest_album / subdir, files, dry_run=dry_run)
+    if not dry_run:
+        _save_transferred_media_ids(
+            source_album,
+            dest_album,
+            source_ids,
+            dest_ids,
+            _moved_keys(groups),
+        )
 
     _remove_empty_dirs(
         source_album,
@@ -306,6 +414,27 @@ def move_media(
         dry_run=dry_run,
     )
     return MediaOpResult(files_by_dir=_files_by_dir(variants))
+
+
+def _save_transferred_media_ids(
+    source_album: Path,
+    dest_album: Path,
+    source_ids: MediaMetadata | None,
+    dest_ids: MediaMetadata | None,
+    moved_keys: dict[tuple[str, bool], frozenset[str]],
+) -> None:
+    """Write the media IDs after the move, leaving untouched any that did not change."""
+    source_before = source_ids or MediaMetadata()
+    dest_before = dest_ids or MediaMetadata()
+    source_after, dest_after = compute_media_id_transfer(
+        source_before,
+        dest_before,
+        moved_keys,
+    )
+    if source_after != source_before:
+        save_media_metadata(source_album, source_after)
+    if dest_after != dest_before:
+        save_media_metadata(dest_album, dest_after)
 
 
 def rm_media(
