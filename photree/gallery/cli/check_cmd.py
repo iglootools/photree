@@ -21,6 +21,7 @@ from photree.clihelpers.progress import run_with_spinner
 from photree.clihelpers.resolution import resolve_gallery_or_exit
 from photree.clihelpers.runtime import runtime_of
 from photree.collection.check import check_all_collections
+from photree.collection.output import format_collection_issue
 from photree.common.formatting import CHECK, CROSS, indent, markup_escape
 from photree.common.fs import display_path
 from photree.gallery.cli.app import app
@@ -120,7 +121,10 @@ def _check_collections(gallery_dir: Path, cwd: Path) -> bool:
             for icon in [CHECK if result.success else CROSS]
             for line in [
                 f"{icon} {markup_escape(display_path(result.collection_dir, cwd))}",
-                *(indent(markup_escape(issue.message), 2) for issue in result.issues),
+                *(
+                    indent(markup_escape(format_collection_issue(issue)), 2)
+                    for issue in result.issues
+                ),
             ]
         ),
     )

@@ -317,9 +317,9 @@ class TestCheckPrivateSmart:
 
         result = check_collection(col_dir, build_gallery_lookup(gallery))
 
-        assert [i.code for i in result.issues] == [
-            "private-smart-has-non-private-album",
-            "private-smart-has-non-private-collection",
+        assert [(i.code, i.member_id) for i in result.issues] == [
+            ("private-smart-has-non-private-album", album_id),
+            ("private-smart-has-non-private-collection", sub_id),
         ]
 
     def test_private_members_pass(self, tmp_path: Path) -> None:

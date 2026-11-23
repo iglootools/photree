@@ -11,6 +11,7 @@ from photree.clihelpers.runtime import runtime_of
 from photree.collection.check import build_gallery_lookup, check_collection
 from photree.collection.cli.app import app
 from photree.collection.cli.options import COLLECTION_DIR_OPTION
+from photree.collection.output import format_collection_issue
 from photree.common.formatting import CHECK, CROSS, indent, markup_escape
 from photree.common.fs import display_path
 
@@ -41,7 +42,9 @@ def check_cmd(
     result = check_collection(collection_dir, lookup)
 
     for issue in result.issues:
-        console.print(indent(f"{CROSS} {markup_escape(issue.message)}"))
+        console.print(
+            indent(f"{CROSS} {markup_escape(format_collection_issue(issue))}"),
+        )
 
     if result.success:
         console.print(f"{CHECK} {markup_escape(display_path(collection_dir, cwd))}")

@@ -285,6 +285,7 @@ source_modules = [
   "photree.collection.importer",
   "photree.collection.init",
   "photree.collection.naming",
+  "photree.collection.output",
   "photree.collection.refresh",
   "photree.collection.stats",
   "photree.collection.store",

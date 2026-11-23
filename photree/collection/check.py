@@ -11,34 +11,29 @@ Validates:
   members, and private smart collections only private ones
 """
 
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
 from pathlib import Path
 
-from photree.album.id import (
-    format_album_external_id,
-    format_image_external_id,
-    format_video_external_id,
-)
 from photree.album.naming import ParsedAlbumName, parse_album_name
 from photree.album.store.album_discovery import discover_albums
 from photree.album.store.media_metadata import MediaMetadata, load_media_metadata
 from photree.album.store.metadata import load_album_metadata
-from photree.collection.id import format_collection_external_id
 from photree.collection.naming import ParsedCollectionName, parse_collection_name
 from photree.collection.store.collection_discovery import discover_collections
 from photree.collection.store.metadata import load_collection_metadata
 from photree.collection.store.protocol import (
-    COLLECTION_YAML,
+    CollectionLifecycle,
     CollectionMembers,
     CollectionMetadata,
     CollectionStrategy,
-    validate_collection_config,
+    MemberType,
+    is_valid_collection_config,
 )
 from photree.dates import date_range, range_contains, ranges_overlap
-from photree.foundation.layout import ALBUMS_DIR, COLLECTIONS_DIR, PHOTREE_DIR
+from photree.foundation.layout import ALBUMS_DIR, COLLECTIONS_DIR
 from photree.foundation.metadata_io import InvalidMetadataError
 
 
@@ -67,10 +62,35 @@ class CollectionIssueCode(StrEnum):
 
 @dataclass(frozen=True)
 class CollectionCheckIssue:
-    """One problem found in a collection: its kind and a human-readable message."""
+    """
+    One problem found in a collection: its kind and the fields describing it.
+
+    Fields beyond ``code`` are only set for some codes:
+
+    - ``member_type`` and ``member_id`` (internal ID) for the member a
+      MISSING_*, DATE_NOT_COVERED, PRIVATE_SMART_* or NON_PRIVATE_* issue is about
+    - ``member_date`` and ``collection_date`` for DATE_NOT_COVERED
+    - ``collection_date``, ``other_chapter`` (its directory name) and
+      ``other_date`` for CHAPTER_DATE_OVERLAP
+    - ``count`` for SMART_HAS_IMAGES and SMART_HAS_VIDEOS
+    - ``reason`` for INVALID_METADATA
+    - ``config`` (members, lifecycle, strategy) for INVALID_COLLECTION_CONFIG
+
+    The message is rendered by :mod:`photree.collection.output`.
+    """
 
     code: CollectionIssueCode
-    message: str
+    member_type: MemberType | None = None
+    member_id: str | None = None
+    member_date: str | None = None
+    collection_date: str | None = None
+    other_chapter: str | None = None
+    other_date: str | None = None
+    count: int = 0
+    reason: str | None = None
+    config: tuple[CollectionMembers, CollectionLifecycle, CollectionStrategy] | None = (
+        None
+    )
 
 
 @dataclass(frozen=True)
@@ -213,36 +233,14 @@ def build_gallery_lookup(gallery_dir: Path) -> _GalleryLookup:
     )
 
 
-def _safe_fmt(fmt: Callable[[str], str]) -> Callable[[str], str]:
-    def _inner(mid: str) -> str:
-        try:
-            return fmt(mid)
-        except ValueError:
-            return mid
-
-    return _inner
-
-
-_fmt_album = _safe_fmt(format_album_external_id)
-_fmt_collection = _safe_fmt(format_collection_external_id)
-
-_MEDIA_FORMATTERS: dict[str, Callable[[str], str]] = {
-    "album": _fmt_album,
-    "collection": _fmt_collection,
-    "image": _safe_fmt(format_image_external_id),
-    "video": _safe_fmt(format_video_external_id),
-}
-
-
 def _check_missing_ids(
     ids: list[str],
     known: frozenset[str],
     code: CollectionIssueCode,
-    label: str,
+    member_type: MemberType,
 ) -> list[CollectionCheckIssue]:
-    fmt = _MEDIA_FORMATTERS.get(label, str)
     return [
-        CollectionCheckIssue(code, f"{label} {fmt(mid)} not found in gallery")
+        CollectionCheckIssue(code, member_type=member_type, member_id=mid)
         for mid in ids
         if mid not in known
     ]
@@ -257,25 +255,25 @@ def _check_member_existence(
             metadata.albums,
             lookup.album_ids,
             CollectionIssueCode.MISSING_ALBUM,
-            "album",
+            MemberType.ALBUM,
         ),
         *_check_missing_ids(
             metadata.collections,
             lookup.collection_ids,
             CollectionIssueCode.MISSING_COLLECTION,
-            "collection",
+            MemberType.COLLECTION,
         ),
         *_check_missing_ids(
             metadata.images,
             lookup.image_ids,
             CollectionIssueCode.MISSING_IMAGE,
-            "image",
+            MemberType.IMAGE,
         ),
         *_check_missing_ids(
             metadata.videos,
             lookup.video_ids,
             CollectionIssueCode.MISSING_VIDEO,
-            "video",
+            MemberType.VIDEO,
         ),
     ]
 
@@ -297,12 +295,12 @@ def _check_date_coverage(
         return []
     member_dates = [
         *(
-            (f"album {_fmt_album(aid)}", lookup.album_dates[aid])
+            (MemberType.ALBUM, aid, lookup.album_dates[aid])
             for aid in metadata.albums
             if aid in lookup.album_dates
         ),
         *(
-            (f"collection {_fmt_collection(cid)}", sub_date)
+            (MemberType.COLLECTION, cid, sub_date)
             for cid in metadata.collections
             for sub_date in [lookup.collection_dates.get(cid)]
             if sub_date is not None
@@ -311,9 +309,12 @@ def _check_date_coverage(
     return [
         CollectionCheckIssue(
             CollectionIssueCode.DATE_NOT_COVERED,
-            f"{member} date {member_date} outside collection range {parsed_date}",
+            member_type=member_type,
+            member_id=member_id,
+            member_date=member_date,
+            collection_date=parsed_date,
         )
-        for member, member_date in member_dates
+        for member_type, member_id, member_date in member_dates
         if _date_outside_range(member_date, *col_range)
     ]
 
@@ -322,17 +323,17 @@ def _check_collection_config(
     metadata: CollectionMetadata,
 ) -> list[CollectionCheckIssue]:
     """Validate members + lifecycle + strategy combination."""
-    error = validate_collection_config(
-        metadata.members,
-        metadata.lifecycle,
-        metadata.strategy,
-    )
-    if error is not None:
-        return [
-            CollectionCheckIssue(CollectionIssueCode.INVALID_COLLECTION_CONFIG, error),
+    config = (metadata.members, metadata.lifecycle, metadata.strategy)
+    return (
+        []
+        if is_valid_collection_config(*config)
+        else [
+            CollectionCheckIssue(
+                CollectionIssueCode.INVALID_COLLECTION_CONFIG,
+                config=config,
+            ),
         ]
-    else:
-        return []
+    )
 
 
 def _check_smart_no_media(
@@ -346,8 +347,7 @@ def _check_smart_no_media(
             [
                 CollectionCheckIssue(
                     CollectionIssueCode.SMART_HAS_IMAGES,
-                    f"smart collection has {len(metadata.images)} image member(s) "
-                    f"— smart collections can only contain albums and collections",
+                    count=len(metadata.images),
                 ),
             ]
             if metadata.images
@@ -357,8 +357,7 @@ def _check_smart_no_media(
             [
                 CollectionCheckIssue(
                     CollectionIssueCode.SMART_HAS_VIDEOS,
-                    f"smart collection has {len(metadata.videos)} video member(s) "
-                    f"— smart collections can only contain albums and collections",
+                    count=len(metadata.videos),
                 ),
             ]
             if metadata.videos
@@ -387,8 +386,9 @@ def _check_chapter_no_overlap(
         [
             CollectionCheckIssue(
                 CollectionIssueCode.CHAPTER_DATE_OVERLAP,
-                f"chapter date range {mine.date} overlaps with "
-                f"chapter '{other.dir_name}' ({other.date})",
+                collection_date=mine.date,
+                other_chapter=other.dir_name,
+                other_date=other.date,
             )
             for other_id, other in sorted(
                 lookup.chapters.items(),
@@ -412,8 +412,8 @@ def _private_smart_issues(
         *[
             CollectionCheckIssue(
                 CollectionIssueCode.PRIVATE_SMART_HAS_NON_PRIVATE_ALBUM,
-                "private smart collection contains non-private album "
-                f"{_fmt_album(aid)}",
+                member_type=MemberType.ALBUM,
+                member_id=aid,
             )
             for aid in metadata.albums
             if aid in lookup.album_private and not lookup.album_private[aid]
@@ -421,8 +421,8 @@ def _private_smart_issues(
         *[
             CollectionCheckIssue(
                 CollectionIssueCode.PRIVATE_SMART_HAS_NON_PRIVATE_COLLECTION,
-                "private smart collection contains non-private collection "
-                f"{_fmt_collection(cid)}",
+                member_type=MemberType.COLLECTION,
+                member_id=cid,
             )
             for cid in metadata.collections
             if cid in lookup.collection_private and not lookup.collection_private[cid]
@@ -439,7 +439,8 @@ def _non_private_issues(
         *[
             CollectionCheckIssue(
                 CollectionIssueCode.NON_PRIVATE_HAS_PRIVATE_ALBUM,
-                f"non-private collection contains private album {_fmt_album(aid)}",
+                member_type=MemberType.ALBUM,
+                member_id=aid,
             )
             for aid in metadata.albums
             if lookup.album_private.get(aid, False)
@@ -447,8 +448,8 @@ def _non_private_issues(
         *[
             CollectionCheckIssue(
                 CollectionIssueCode.NON_PRIVATE_HAS_PRIVATE_COLLECTION,
-                "non-private collection contains private collection "
-                f"{_fmt_collection(cid)}",
+                member_type=MemberType.COLLECTION,
+                member_id=cid,
             )
             for cid in metadata.collections
             if lookup.collection_private.get(cid, False)
@@ -456,12 +457,12 @@ def _non_private_issues(
         *[
             CollectionCheckIssue(
                 CollectionIssueCode.NON_PRIVATE_HAS_PRIVATE_MEDIA,
-                f"non-private collection contains {media_type} "
-                f"{_MEDIA_FORMATTERS.get(media_type, str)(mid)} from private album",
+                member_type=media_type,
+                member_id=mid,
             )
             for media_type, media_ids in [
-                ("image", metadata.images),
-                ("video", metadata.videos),
+                (MemberType.IMAGE, metadata.images),
+                (MemberType.VIDEO, metadata.videos),
             ]
             for mid in media_ids
             if mid in lookup.media_album
@@ -505,15 +506,12 @@ def _load_for_check(
     except InvalidMetadataError as exc:
         return CollectionCheckIssue(
             CollectionIssueCode.INVALID_METADATA,
-            f"invalid {PHOTREE_DIR}/{COLLECTION_YAML}: {exc.reason}",
+            reason=exc.reason,
         )
     return (
         metadata
         if metadata is not None
-        else CollectionCheckIssue(
-            CollectionIssueCode.NO_METADATA,
-            f"missing {PHOTREE_DIR}/{COLLECTION_YAML}",
-        )
+        else CollectionCheckIssue(CollectionIssueCode.NO_METADATA)
     )
 
 

@@ -10,6 +10,7 @@ from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.usage import no_fields_error
 from photree.collection.cli.metadata.app import app
 from photree.collection.cli.options import COLLECTION_DIR_OPTION
+from photree.collection.output import format_invalid_collection_config
 from photree.collection.store.metadata import (
     load_collection_metadata,
     save_collection_metadata,
@@ -20,7 +21,7 @@ from photree.collection.store.protocol import (
     CollectionMembers,
     CollectionMetadata,
     CollectionStrategy,
-    validate_collection_config,
+    is_valid_collection_config,
 )
 from photree.common.formatting import indent
 from photree.common.fs import display_path
@@ -59,13 +60,9 @@ def _apply_settings(
             if v is not None
         },
     )
-    validation_error = validate_collection_config(
-        updated.members,
-        updated.lifecycle,
-        updated.strategy,
-    )
-    if validation_error is not None:
-        err_console.print(validation_error, markup=False)
+    config = (updated.members, updated.lifecycle, updated.strategy)
+    if not is_valid_collection_config(*config):
+        err_console.print(format_invalid_collection_config(*config), markup=False)
         raise typer.Exit(code=1)
     return updated
 

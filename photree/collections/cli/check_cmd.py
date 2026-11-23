@@ -9,6 +9,7 @@ from photree.clihelpers.console import console, err_console
 from photree.clihelpers.resolution import resolve_gallery_or_exit
 from photree.clihelpers.runtime import runtime_of
 from photree.collection.check import CollectionCheckResult, check_all_collections
+from photree.collection.output import format_collection_issue
 from photree.collections.cli.app import app
 from photree.common.formatting import CHECK, CROSS, indent, markup_escape
 from photree.common.fs import display_path
@@ -23,7 +24,10 @@ def _format_result(result: CollectionCheckResult, cwd: Path) -> str:
         else "\n".join(
             [
                 f"{CROSS} {name}",
-                *(indent(markup_escape(i.message), 2) for i in result.issues),
+                *(
+                    indent(markup_escape(format_collection_issue(i)), 2)
+                    for i in result.issues
+                ),
             ],
         )
     )
