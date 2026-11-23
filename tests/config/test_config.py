@@ -276,6 +276,56 @@ class TestLoadConfig:
         assert cfg.exporter.profiles == {}
 
 
+class TestLoadConfigUnknownKeys:
+    def test_unknown_key_in_profile(self, tmp_path: Path) -> None:
+        error = _load_error(
+            tmp_path,
+            """\
+            [exporter.profiles.mega]
+            share-dir = "/mnt/share"
+            link_mode = "copy"
+            """,
+        )
+        assert error.kind == ConfigErrorKind.UNKNOWN_KEY
+        assert error.field == "link_mode"
+        assert error.profile == "mega"
+
+    def test_unknown_key_in_importer(self, tmp_path: Path) -> None:
+        error = _load_error(tmp_path, '[importer]\nimage-capture = "/x"\n')
+        assert error.kind == ConfigErrorKind.UNKNOWN_KEY
+        assert error.field == "importer.image-capture"
+        assert error.profile is None
+
+    def test_unknown_key_in_exporter(self, tmp_path: Path) -> None:
+        error = _load_error(tmp_path, "[exporter.profile.mega]\n")
+        assert error.kind == ConfigErrorKind.UNKNOWN_KEY
+        assert error.field == "exporter.profile"
+
+    def test_unknown_top_level_table(self, tmp_path: Path) -> None:
+        error = _load_error(tmp_path, '[exporters.profiles.mega]\nshare-dir = "/x"\n')
+        assert error.kind == ConfigErrorKind.UNKNOWN_KEY
+        assert error.field == "exporters"
+
+    def test_every_documented_key_is_accepted(self, tmp_path: Path) -> None:
+        cfg = load_config(
+            _write_config(
+                tmp_path,
+                """\
+                [importer]
+                image-capture-dir = "/ic"
+
+                [exporter.profiles.mega]
+                share-dir = "/mnt/share"
+                share-layout = "albums"
+                album-layout = "all"
+                link-mode = "copy"
+                """,
+            ),
+        )
+        assert cfg.importer.image_capture_dir == Path("/ic")
+        assert cfg.exporter.profiles["mega"].link_mode == LinkMode.COPY
+
+
 class TestLoadConfigTypeErrors:
     """Regression: wrong TOML types raised raw TypeError/AttributeError."""
 

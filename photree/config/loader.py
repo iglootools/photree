@@ -33,6 +33,7 @@ from photree.config.protocol import (
     ExporterProfile,
     ImporterConfig,
     PhotreeConfig,
+    toml_keys,
 )
 from photree.foundation.linking import LinkMode
 from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
@@ -199,6 +200,32 @@ def _enum[E: StrEnum](
         ) from None
 
 
+def _reject_unknown_keys(
+    table: Mapping[str, object],
+    config_cls: type,
+    *,
+    prefix: str = "",
+    profile: str | None = None,
+) -> None:
+    """
+    Raise for the first key of *table* that *config_cls* has no field for.
+
+    A misspelt key (``link_mode``, ``album-layuot``) would otherwise be dropped
+    without a word and the command would run on the default.
+    """
+    known = toml_keys(config_cls)
+    match [key for key in table if key not in known]:
+        case [first, *_]:
+            raise ConfigError(
+                ConfigErrorKind.UNKNOWN_KEY,
+                field=f"{prefix}{first}",
+                profile=profile,
+                expected=", ".join(known),
+            )
+        case _:
+            pass
+
+
 def _expand_user(value: str, home: Path) -> Path:
     """Expand a leading ``~`` against *home* (``~user`` falls back to the OS)."""
     match value.partition("/"):
@@ -211,6 +238,7 @@ def _expand_user(value: str, home: Path) -> Path:
 def _parse_profile(name: str, section: object, home: Path) -> ExporterProfile:
     """Parse a single ``[exporter.profiles.<name>]`` table."""
     table = _as_table(section, field="exporter.profiles", profile=name)
+    _reject_unknown_keys(table, ExporterProfile, profile=name)
     return ExporterProfile(
         share_dir=_expand_user(_required_str(table, "share-dir", profile=name), home),
         share_layout=_enum(
@@ -233,6 +261,7 @@ def _parse_profile(name: str, section: object, home: Path) -> ExporterProfile:
 
 def _parse_importer(raw: Mapping[str, object], home: Path) -> ImporterConfig:
     section = _table(raw, "importer", field="importer")
+    _reject_unknown_keys(section, ImporterConfig, prefix="importer.")
     image_capture_dir = _optional_str(
         section,
         "image-capture-dir",
@@ -249,6 +278,7 @@ def _parse_importer(raw: Mapping[str, object], home: Path) -> ImporterConfig:
 
 def _parse_exporter(raw: Mapping[str, object], home: Path) -> ExporterConfig:
     section = _table(raw, "exporter", field="exporter")
+    _reject_unknown_keys(section, ExporterConfig, prefix="exporter.")
     profiles = _table(section, "profiles", field="exporter.profiles")
     return ExporterConfig(
         profiles=MappingProxyType(
@@ -297,8 +327,8 @@ def load_config(
 
     Returns a default (empty) config when no config file is found. Raises
     :class:`ConfigError` for a missing explicit file, a file that cannot be
-    read, invalid TOML (including a file that is not UTF-8), or a value of
-    the wrong type or outside its allowed set.
+    read, invalid TOML (including a file that is not UTF-8), a key photree
+    does not know, or a value of the wrong type or outside its allowed set.
     """
     path = find_config_file(
         config_path,
@@ -311,6 +341,7 @@ def load_config(
         return _EMPTY_CONFIG
     else:
         raw = _read_toml(path)
+        _reject_unknown_keys(raw, PhotreeConfig)
         resolved_home = home if home is not None else Path.home()
         return PhotreeConfig(
             importer=_parse_importer(raw, resolved_home),

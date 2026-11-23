@@ -9,7 +9,7 @@ classes).
 """
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from enum import StrEnum
 from pathlib import Path
 from types import MappingProxyType
@@ -25,6 +25,7 @@ class ConfigErrorKind(StrEnum):
     UNREADABLE_FILE = "unreadable-file"
     INVALID_TOML = "invalid-toml"
     MISSING_KEY = "missing-key"
+    UNKNOWN_KEY = "unknown-key"
     INVALID_TYPE = "invalid-type"
     INVALID_VALUE = "invalid-value"
 
@@ -72,6 +73,8 @@ class ConfigError(Exception):
                 return f"Invalid TOML in {self.path}: {self.expected}"
             case ConfigErrorKind.MISSING_KEY:
                 return f'Missing required key "{self.field}"{where}'
+            case ConfigErrorKind.UNKNOWN_KEY:
+                return f'Unknown key "{self.field}"{where}. Valid keys: {self.expected}'
             case ConfigErrorKind.INVALID_TYPE:
                 return (
                     f'Invalid type for "{self.field}"{where}: expected'
@@ -88,6 +91,11 @@ class ConfigError(Exception):
 def toml_key(field_name: str) -> str:
     """Return the TOML key a config dataclass field is written as (kebab-case)."""
     return field_name.replace("_", "-")
+
+
+def toml_keys(config_cls: type) -> tuple[str, ...]:
+    """Return the TOML keys of a config dataclass, in declaration order."""
+    return tuple(toml_key(f.name) for f in fields(config_cls))
 
 
 def _doc(description: str, *, shown_default: str | None = None) -> dict[str, str]:

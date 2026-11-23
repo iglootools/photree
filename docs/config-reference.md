@@ -48,8 +48,9 @@ always read and validated, so a path typed by hand is never silently ignored.
 
 ## Fields
 
-Path values expand a leading `~` to the home directory. Keys photree does not
-know are ignored.
+Path values expand a leading `~` to the home directory. A key or table photree
+does not know is an error, so a misspelt key cannot silently fall back to its
+default.
 
 The tables below are generated from the config models in
 `photree/config/protocol.py` by `mise run configdocs`, and `lint-configdocs`
@@ -103,5 +104,6 @@ parse):
 | unreadable file | the file exists but cannot be read, such as for lack of permission |
 | invalid TOML | the file does not parse, or is not UTF-8 |
 | missing key | a profile has no `share-dir` |
+| unknown key | a key or table is not one listed above, such as `link_mode` for `link-mode` |
 | invalid type | a section is not a table, or a value is not a string |
 | invalid value | `share-layout`, `album-layout` or `link-mode` is not one of the allowed values |
