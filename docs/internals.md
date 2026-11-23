@@ -397,7 +397,11 @@ collections:
    nothing is written.
 
 4. **Delete orphaned** — implicit collections whose series no longer
-   appears in any album are removed.
+   appears in any album are removed: `gallery refresh` deletes their
+   `.photree/collection.yaml` (and `.photree/` once empty), then the
+   directory if nothing else is left in it (Finder's `.DS_Store` aside).
+   A directory that still holds other files, such as notes or a cover image,
+   is kept as a plain directory and reported as such.
 
 The whole stage is planned before anything is written. Every rename and
 creation target is checked first: a directory that already exists is

@@ -63,6 +63,7 @@ def _partial_result(
         updated=implicit.updated,
         renamed=implicit.renamed,
         deleted=implicit.deleted,
+        kept_directories=implicit.kept_directories,
         album_renames=sync.renames,
         errors=implicit.errors,
     )

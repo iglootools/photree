@@ -35,3 +35,15 @@ def save_collection_metadata(
         photree_dir / COLLECTION_YAML,
         metadata.model_dump(by_alias=True, mode="json"),
     )
+
+
+def remove_collection_metadata(collection_dir: Path) -> None:
+    """
+    Delete ``.photree/collection.yaml``, then ``.photree/`` if it is left empty.
+
+    The directory stops being a collection; nothing else in it is touched.
+    """
+    photree_dir = collection_dir / PHOTREE_DIR
+    (photree_dir / COLLECTION_YAML).unlink()
+    if not any(photree_dir.iterdir()):
+        photree_dir.rmdir()

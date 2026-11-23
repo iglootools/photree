@@ -99,7 +99,15 @@ def format_collection_changes(result: CollectionRefreshResult) -> list[str]:
         *(f"created: {name}" for name in result.created),
         *(f"updated: {name}" for name in result.updated),
         *(f"renamed: {old} -> {new}" for old, new in result.renamed),
-        *(f"deleted: {name}" for name in result.deleted),
+        *(
+            f"deleted: {name}"
+            + (
+                " (directory kept: it holds other files)"
+                if name in result.kept_directories
+                else ""
+            )
+            for name in result.deleted
+        ),
     ]
     renames = [f"{old} -> {new}" for old, new in result.album_renames]
     return [

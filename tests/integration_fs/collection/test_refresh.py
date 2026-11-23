@@ -176,10 +176,38 @@ class TestImplicitCollectionDetection:
             ),
         )
 
+        # Finder's metadata does not keep the directory alive.
+        _write(col_dir / ".DS_Store")
+
         result = refresh_collections(gallery)
         assert result.success
         assert len(result.deleted) == 1
+        assert result.kept_directories == ()
         assert not col_dir.exists()
+
+    def test_orphaned_collection_keeps_user_files(self, tmp_path: Path) -> None:
+        """Regression: the orphan was removed with rmtree, user files and all."""
+        gallery = _setup_gallery(tmp_path)
+        col_dir = gallery / COLLECTIONS_DIR / "2024" / "2024-07-14 - Old Trip"
+        col_dir.mkdir(parents=True)
+        save_collection_metadata(
+            col_dir,
+            CollectionMetadata(
+                id=generate_collection_id(),
+                members=CollectionMembers.SMART,
+                lifecycle=CollectionLifecycle.IMPLICIT,
+                strategy=CollectionStrategy.ALBUM_SERIES,
+                albums=["nonexistent-id"],
+            ),
+        )
+        _write(col_dir / "notes.txt", "keep me")
+
+        result = refresh_collections(gallery)
+
+        assert result.deleted == ("2024-07-14 - Old Trip",)
+        assert result.kept_directories == ("2024-07-14 - Old Trip",)
+        assert [p.name for p in col_dir.iterdir()] == ["notes.txt"]
+        assert discover_collections(gallery) == []
 
     def test_adding_album_preserves_collection_id(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)

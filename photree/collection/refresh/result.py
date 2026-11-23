@@ -58,6 +58,8 @@ class CollectionRefreshResult:
     updated: tuple[str, ...] = ()
     renamed: tuple[tuple[str, str], ...] = ()  # old name, then new name
     deleted: tuple[str, ...] = ()
+    kept_directories: tuple[str, ...] = ()
+    """Deleted collections whose directory was kept: it holds other files."""
     album_renames: tuple[tuple[str, str], ...] = ()  # old name, then new name
     errors: tuple[CollectionRefreshError, ...] = ()
 
