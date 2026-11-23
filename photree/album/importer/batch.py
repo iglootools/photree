@@ -196,7 +196,7 @@ def validate_albums(
 @dataclass(frozen=True)
 class _ImportOptions:
     image_capture_dir: Path
-    link_mode: LinkMode
+    link_mode_for: Callable[[Path], LinkMode]
     dry_run: bool
     convert_file: ConvertFile
     max_workers: int | None
@@ -290,7 +290,7 @@ def _import_one(
             album_import.run_import(
                 album_dir=album_dir,
                 image_capture_dir=options.image_capture_dir,
-                link_mode=options.link_mode,
+                link_mode=options.link_mode_for(album_dir),
                 dry_run=options.dry_run,
                 convert_file=options.convert_file,
                 max_workers=options.max_workers,
@@ -320,7 +320,7 @@ def run_batch_import(
     albums_dir: Path | None = None,
     album_dirs: Sequence[Path] | None = None,
     image_capture_dir: Path,
-    link_mode: LinkMode = LinkMode.HARDLINK,
+    link_mode_for: Callable[[Path], LinkMode] = lambda _: LinkMode.HARDLINK,
     dry_run: bool = False,
     on_importing: Callable[[str], None] | None = None,
     on_imported: Callable[[str], None] | None = None,
@@ -353,7 +353,9 @@ def run_batch_import(
     - ``on_validation_error(album_name, errors)`` — called when validation fails
 
     *exiftool* is shared across the albums; ``None`` lets each album's EXIF
-    cache refresh start its own.
+    cache refresh start its own. *link_mode_for* gives each album's link mode,
+    since the albums may live in different galleries; an album whose link mode
+    cannot be resolved fails, and the batch carries on.
     """
     scan = _scan(albums_dir, album_dirs)
     _report_skips(scan, on_skipped)
@@ -374,7 +376,7 @@ def run_batch_import(
     else:
         options = _ImportOptions(
             image_capture_dir=image_capture_dir,
-            link_mode=link_mode,
+            link_mode_for=link_mode_for,
             dry_run=dry_run,
             convert_file=convert_file,
             max_workers=max_workers,

@@ -32,7 +32,7 @@ class CheckOptions:
 
     sips_available: bool
     exiftool: ExifTagReader | None
-    link_mode: LinkMode
+    link_mode_for: Callable[[Path], LinkMode]
     checksum: bool = True
     fatal_sidecar: bool = False
     fatal_exif: bool = True
@@ -66,7 +66,7 @@ def _check_one(
         album_dir,
         sips_available=opts.sips_available,
         exiftool=opts.exiftool,
-        link_mode=opts.link_mode,
+        link_mode=opts.link_mode_for(album_dir),
         checksum=opts.checksum,
         check_naming_flag=opts.check_naming,
     )
@@ -113,7 +113,7 @@ def batch_check(
     *,
     sips_available: bool,
     exiftool: ExifTagReader | None = None,
-    link_mode: LinkMode,
+    link_mode_for: Callable[[Path], LinkMode],
     checksum: bool = True,
     fatal_sidecar: bool = False,
     fatal_exif: bool = True,
@@ -128,12 +128,16 @@ def batch_check(
     Calls ``on_start(name)`` before and
     ``on_end(name, success, error_labels, warning_labels)`` after each album.
 
+    *link_mode_for* gives each album's link mode: the albums of a batch may
+    live in different galleries. An album whose link mode cannot be resolved
+    fails like one whose check crashed.
+
     The caller is responsible for managing the exiftool process lifecycle.
     """
     opts = CheckOptions(
         sips_available=sips_available,
         exiftool=exiftool,
-        link_mode=link_mode,
+        link_mode_for=link_mode_for,
         checksum=checksum,
         fatal_sidecar=fatal_sidecar,
         fatal_exif=fatal_exif,

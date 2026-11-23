@@ -6,6 +6,8 @@ from typer.testing import CliRunner
 
 from photree.album.id import format_album_external_id, generate_album_id
 from photree.album.importer.batch import AlbumFailure, ImportFailureStage
+from photree.album.jpeg import copy_convert_single
+from photree.album.refresh import refresh_album_derived_data
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.albums.batchcli.check import run_batch_check
@@ -13,6 +15,9 @@ from photree.albums.cli.import_cmd import retry_commands
 from photree.albums.cmd_handler import AlbumStepError, run_album_step
 from photree.albums.cmd_handler.stats import batch_stats
 from photree.cli import app
+from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
+from photree.foundation.layout import PHOTREE_DIR
+from photree.foundation.linking import LinkMode
 from tests.fakes import ALL_DEPS_RUNTIME, ALL_DEPS_WHICH
 
 runner = CliRunner()
@@ -26,6 +31,19 @@ def _album(base: Path, name: str) -> tuple[Path, str]:
     album_id = generate_album_id()
     save_album_metadata(album, AlbumMetadata(id=album_id))
     return album, album_id
+
+
+def _gallery_album(gallery: Path, name: str, link_mode: LinkMode) -> Path:
+    """Return an album of a *link_mode* gallery, refreshed so it passes a check."""
+    gallery.mkdir()
+    save_gallery_metadata(gallery, GalleryMetadata(link_mode=link_mode))
+    album, _ = _album(gallery / "albums" / name[:4], name)
+    refresh_album_derived_data(
+        album,
+        link_mode=link_mode,
+        convert_file=copy_convert_single,
+    )
+    return album
 
 
 class TestList:
@@ -137,6 +155,50 @@ class TestRunBatchCheck:
             )
 
         assert exc_info.value.exit_code == 1
+
+    def test_each_album_is_checked_against_its_gallery_link_mode(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Regression: every album was checked against the first one's link mode."""
+        hardlinked = _gallery_album(
+            tmp_path / "a",
+            "2024-07-14 - Hiking",
+            LinkMode.HARDLINK,
+        )
+        copied = _gallery_album(tmp_path / "b", "2024-07-15 - Beach", LinkMode.COPY)
+
+        passed = run_batch_check(
+            [hardlinked, copied],
+            tmp_path,
+            which=ALL_DEPS_WHICH,
+            cwd=tmp_path,
+            check_exif_date_match=False,
+            exit_on_failure=False,
+        )
+
+        assert passed is True
+
+    def test_unreadable_gallery_yaml_fails_only_its_album(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Regression: a corrupt gallery.yaml next to the first album aborted all."""
+        broken = _gallery_album(tmp_path / "a", "2024-07-14 - Hiking", LinkMode.COPY)
+        (tmp_path / "a" / PHOTREE_DIR / "gallery.yaml").write_text(
+            "link_mode: [",
+            encoding="utf-8",
+        )
+        healthy = _gallery_album(tmp_path / "b", "2024-07-15 - Beach", LinkMode.COPY)
+
+        result = runner.invoke(
+            app,
+            ["albums", "check", "-a", str(broken), "-a", str(healthy)],
+            obj=ALL_DEPS_RUNTIME,
+        )
+
+        assert result.exit_code == 1
+        assert "1 album(s) passed, 1 with warnings, 1 failed." in result.output
 
     def test_no_albums_returns_true_without_exit(self, tmp_path: Path) -> None:
         assert (

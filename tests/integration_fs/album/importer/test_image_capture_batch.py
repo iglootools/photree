@@ -7,6 +7,8 @@ from photree.album.importer.batch import (
     validate_albums,
 )
 from photree.album.staging import ios_import_csv, ios_import_dir, std_import_dir
+from photree.foundation.linking import LinkMode
+from photree.foundation.metadata_io import InvalidMetadataError
 
 SEL_DIR = ios_import_dir("main")
 SEL_CSV = ios_import_csv("main")
@@ -116,6 +118,55 @@ class TestBatchImport:
             albums_dir / "2024-07-03 - London" / "ios-main/orig-img" / "IMG_0002.HEIC"
         ).exists()
         assert not (albums_dir / "empty-album" / "ios-main/orig-img").exists()
+
+    def test_each_album_gets_its_own_link_mode(self, tmp_path: Path) -> None:
+        """Regression: every album was imported with the first album's link mode."""
+        ic_dir = _setup_image_capture_dir(
+            tmp_path,
+            ["IMG_0001.HEIC", "IMG_0001.AAE", "IMG_0002.HEIC", "IMG_0002.AAE"],
+        )
+        hardlinked = _setup_album(
+            tmp_path / "a",
+            "2024-07-02 - Paris",
+            ["IMG_0001.HEIC"],
+        )
+        copied = _setup_album(tmp_path / "b", "2024-07-03 - London", ["IMG_0002.HEIC"])
+        link_modes = {hardlinked: LinkMode.HARDLINK, copied: LinkMode.COPY}
+
+        result = run_batch_import(
+            album_dirs=[hardlinked, copied],
+            image_capture_dir=ic_dir,
+            link_mode_for=link_modes.__getitem__,
+            convert_file=_noop_convert,
+        )
+
+        assert result.imported == 2
+        orig, main = "ios-main/orig-img/IMG_000{}.HEIC", "main-img/IMG_000{}.HEIC"
+        assert (hardlinked / main.format(1)).samefile(hardlinked / orig.format(1))
+        assert not (copied / main.format(2)).samefile(copied / orig.format(2))
+
+    def test_unresolvable_link_mode_fails_only_its_album(self, tmp_path: Path) -> None:
+        ic_dir = _setup_image_capture_dir(
+            tmp_path,
+            ["IMG_0001.HEIC", "IMG_0001.AAE", "IMG_0002.HEIC", "IMG_0002.AAE"],
+        )
+        broken = _setup_album(tmp_path / "a", "2024-07-02 - Paris", ["IMG_0001.HEIC"])
+        healthy = _setup_album(tmp_path / "b", "2024-07-03 - London", ["IMG_0002.HEIC"])
+
+        def link_mode_for(album_dir: Path) -> LinkMode:
+            if album_dir == broken:
+                raise InvalidMetadataError(album_dir / "gallery.yaml", "not valid YAML")
+            return LinkMode.HARDLINK
+
+        result = run_batch_import(
+            album_dirs=[broken, healthy],
+            image_capture_dir=ic_dir,
+            link_mode_for=link_mode_for,
+            convert_file=_noop_convert,
+        )
+
+        assert result.imported == 1
+        assert [f.album_dir for f in result.failed] == [broken]
 
     def test_dry_run_does_not_modify(self, tmp_path: Path) -> None:
         albums_dir = tmp_path / "albums"

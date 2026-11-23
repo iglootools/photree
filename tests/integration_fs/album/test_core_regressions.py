@@ -460,7 +460,7 @@ class TestMediaSourceConflicts:
         batch_check(
             [conflicted, healthy],
             sips_available=True,
-            link_mode=LinkMode.HARDLINK,
+            link_mode_for=lambda _: LinkMode.HARDLINK,
             check_naming=False,
             on_end=record_end,
         )
