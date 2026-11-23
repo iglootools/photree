@@ -99,7 +99,7 @@ def cluster_embeddings(
     )
 
     connectivity = (
-        _build_sparse_connectivity(
+        build_knn_connectivity(
             embeddings,
             k=min(_SPARSE_CONNECTIVITY_NEIGHBOURS, n - 1),
         )
@@ -121,7 +121,7 @@ def cluster_embeddings(
     return labels.astype(np.int32)
 
 
-def _build_sparse_connectivity(embeddings: np.ndarray, *, k: int) -> object:
+def build_knn_connectivity(embeddings: np.ndarray, *, k: int) -> object:
     """
     Build a sparse k-NN connectivity matrix using FAISS.
 
