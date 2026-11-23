@@ -185,14 +185,6 @@ class AlbumPreflightResult:
         return self.naming is not None and self.naming.has_warnings
 
     @property
-    def warning_labels(self) -> tuple[str, ...]:
-        """Return a short label for each kind of warning the album has."""
-        return (
-            *(["missing sidecars"] if self.has_sidecar_warnings else []),
-            *(["exif date mismatch"] if self.has_exif_warnings else []),
-        )
-
-    @property
     def error_labels(self) -> tuple[str, ...]:
         """Return a short label for each kind of failed check."""
         return (
