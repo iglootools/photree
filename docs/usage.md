@@ -36,8 +36,9 @@ photree searches for `config.toml` in these directories, in order:
 3. Platform site config dir (macOS:
    `/Library/Application Support/photree/config.toml`)
 
-The first file found is used. You can also pass `--config <path>` to any command
-to use a specific file.
+The first file found is used. The commands that read it (`import`,
+`import-check` and `export`, under `album` and `albums`, and `gallery export`)
+also take `--config <path>` to use a specific file.
 
 ### Config file format
 
@@ -54,7 +55,7 @@ share-layout = "flat"
 album-layout = "browsable-jpg"
 link-mode = "hardlink"
 
-# Space-efficient archival backup (originals only, organized by day).
+# Space-efficient archival backup (originals only, organized by month).
 # link-mode is unused by the archive layout (no browsable dirs are rebuilt).
 [exporter.profiles.mega-backup]
 share-dir = "~/MEGAsync/backup"

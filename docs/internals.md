@@ -747,7 +747,8 @@ for it again: the gallery post-import checks take `sips` as available.
 | `album refresh`, `albums refresh`, `gallery refresh` | `sips` + `exiftool` |
 | `collection import`, `collections import` | `exiftool` |
 | `album detect-faces`, `albums detect-faces` | `sips` |
-| `album check`, `albums check`, `gallery check` | `sips` (`CHECK_DEPS`); `albums check --refresh-exif-cache` also `exiftool` |
+| `albums check`, `gallery check` | `sips` (`CHECK_DEPS`); with `--refresh-exif-cache` also `exiftool` |
+| `album check` | nothing: a missing `sips` is reported as a failed check, and `--refresh-exif-cache` is not gated on `exiftool` |
 | `gallery cluster-faces` | `sips`; also `exiftool` with `--redetect` / `--refresh-thumbs` |
 | `album fix-exif` | `exiftool` |
 | `check system` | reports both, exits 1 if any is missing |
@@ -756,8 +757,9 @@ For `album import` / `albums import` the gate is folded into the existing
 import preflight block, so all preflight failures are reported together.
 
 The `check` commands are deliberately **not** gated on `exiftool`: EXIF
-validation is optional there and degrades to a "checks skipped" line. They are
-still gated on `sips`, which the browsable/JPEG consistency checks need.
+validation is optional there and degrades to a "checks skipped" line. The batch
+ones are still gated on `sips`, which the browsable/JPEG consistency checks
+need; `album check` reports it as a check instead.
 
 ### Defense in depth
 

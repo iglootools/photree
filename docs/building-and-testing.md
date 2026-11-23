@@ -1,6 +1,7 @@
 # Building and Testing
 
-Run automated tests and checks:
+Run automated tests and checks with the mise tasks below; `mise tasks` lists
+every task with its description.
 
 Tasks come in families, as
 [mise.md › Name tasks by family](https://github.com/iglootools/common/blob/main/guidelines/project-setup/mise.md#name-tasks-by-family)
@@ -27,31 +28,50 @@ mise run lint-boundaries    # import-linter (module boundary contracts in pyproj
 mise run lint-dead-code     # deadcode (unused functions, classes, constants; config in pyproject.toml)
 mise run lint-renovate      # validate renovate.json with Renovate's validator, strictly
 mise run lint-common-pins   # check that every pin on iglootools/common agrees
+mise run lint-lock-uv       # check that uv.lock is consistent with pyproject.toml
+mise run lint-lock-mise     # check that mise.lock is up to date with mise.toml
 mise run renovate-dry-run   # list the updates Renovate would propose, writing nothing (needs gh auth)
 
-mise run clidocs            # Regenerate CLI reference in docs/cli-reference.md
-mise run lint-clidocs       # Check that CLI reference is up to date
-mise run depgraph           # Regenerate Module Overview in docs/architecture.md
-mise run lint-depgraph      # Check that Module Overview is up to date
+mise run reference-doc      # regenerate every generated reference (clidocs + depgraph)
+mise run clidocs            # regenerate the CLI reference in docs/cli-reference.md
+mise run lint-clidocs       # check that the CLI reference is up to date
+mise run depgraph           # regenerate the Module Overview in docs/architecture.md
+mise run lint-depgraph      # check that the Module Overview is up to date
+mise run depgraph-ascii     # print the module dependency graph as ASCII art
+mise run depgraph-mermaid   # print the module dependency graph as mermaid
+mise run toc                # regenerate the tables of contents in the Markdown docs
+mise run lint-toc           # check that the tables of contents are up to date
 
-mise run install            # Sync .venv with uv.lock (rarely needed by hand — see below)
-mise run reinstall          # Delete .venv and sync from scratch
-mise run lint-lock-uv       # Check uv.lock is consistent with pyproject.toml
+mise run build              # build the sdist and wheel into an emptied dist/
+mise run build-verify       # fail if the built wheel carries the 0.0.0 fallback version
+mise run clean              # delete build artifacts and bytecode outside .venv
+
+mise run install            # sync .venv with uv.lock (rarely needed by hand — see below)
+mise run reinstall          # delete .venv and sync from scratch
+
+mise run demo-record        # record the demo to demo/demo.cast
+mise run demo-upload        # upload demo/demo.cast to asciinema.org
+mise run demo               # demo-record, then demo-upload
+mise run demo-upload-latest # upload the demo CI recorded (see Release Process)
+
+# ci-preflight, ci-build and ci-demo-record are what the workflows run.
 
 # Running tools directly
-uv run pytest tests/ -v                         # All tests
-uv run ruff format .                            # formatting
-uv run ruff check photree/ tests/                   # linting
-uv run pyright                                  # type-checking, strict, tests included
-uv run lint-imports                             # module boundaries
-uv run pytest tests/integration_fs/cli/test_cli.py::TestVersionCommand::test_version_flag -v   # run a single test
+uv run --no-sync pytest tests/ -v                         # all tests
+uv run --no-sync ruff format .                            # formatting
+uv run --no-sync ruff check photree/ tests/               # linting
+uv run --no-sync pyright                                  # type-checking, strict, tests included
+uv run --no-sync lint-imports                             # module boundaries
+uv run --no-sync pytest tests/integration_fs/cli/test_cli.py::TestVersionCommand::test_version_flag -v   # run a single test
 ```
 
-`uv run` is the prefix to use rather than a bare `pytest`/`ruff`. It resolves
-the environment from the project root, so it is correct regardless of what is on
-`PATH` — a bare command in a shell that has *another* project's `.venv` active
-silently runs that project's copy of the tool. The mise tasks above use
-`uv run --no-sync` for the same reason.
+`uv run --no-sync` is the prefix to use rather than a bare `pytest`/`ruff`, as
+the mise tasks do. `uv run` resolves the environment from the project root, so
+it is correct regardless of what is on `PATH` — a bare command in a shell that
+has *another* project's `.venv` active silently runs that project's copy of the
+tool. `--no-sync` leaves installing to the `[deps.uv]` provider below, so
+running a tool never changes `.venv`; any `mise run` creates `.venv` first if it
+is missing.
 
 Dependencies install themselves: `[deps.uv]` in `mise.toml` runs `uv sync`
 before any `mise run` whenever `uv.lock` or `pyproject.toml` has changed, or
@@ -59,6 +79,10 @@ before any `mise run` whenever `uv.lock` or `pyproject.toml` has changed, or
 `mise run reinstall` is for the case that automatic check cannot see — a `.venv`
 that is *dirty* rather than *stale*, e.g. after a manual `uv pip install`. Add
 or remove dependencies with `uv add` / `uv remove`.
+
+The `check-links` workflow runs a link checker against the documentation to
+catch broken links. It is scheduled to run weekly, but can also be triggered
+manually using `gh workflow run check-links.yml`.
 
 <!-- toc -->
 **On this page**
@@ -91,10 +115,6 @@ so `uv lock` cannot resolve on 3.15. Move to 3.15 when it does — check
 `pythonVersion` in `pyproject.toml` (then `uv lock`), and the `python`
 `allowedVersions` rule in `renovate.json`, which holds Renovate back from
 proposing 3.15 until then.
-
-The `check-links` workflow runs a link checker against the documentation to
-catch broken links. It is scheduled to run weekly, but can also be triggered
-manually using `gh workflow run check-links.yml`.
 
 ## Release Process
 
@@ -173,7 +193,7 @@ manually using `gh workflow run check-links.yml`.
   # expect: ["deletion","non_fast_forward","pull_request","required_status_checks"]
   ```
 
-  `test` must keep running on every pull request (no `paths` filter on its
+  `preflight` must keep running on every pull request (no `paths` filter on its
   workflow), or a pull request it skips can never be merged.
 - **Keep the dependency graph on.** Dependabot security updates (below) read it
   to find vulnerable dependencies. GitHub enables it on every public repository
@@ -186,20 +206,6 @@ manually using `gh workflow run check-links.yml`.
     # expect: com.github.iglootools/photree   (a 404 means the graph is off)
     ```
 
-- **Set the `ASCIINEMA_INSTALL_ID` Actions secret.** The `demo` workflow's
-  upload steps use it to publish the recording under the project's asciinema.org
-  account (they are commented out for now, uploads going through
-  `mise run demo-upload-latest`; the workflow explains why, and the secret stays
-  set so they can be re-enabled). Run `asciinema auth` and open the link it
-  prints to tie the local install id to the account, then store it:
-
-    ```bash
-    gh secret set ASCIINEMA_INSTALL_ID -R iglootools/photree < ~/.local/state/asciinema/install-id
-    gh secret list -R iglootools/photree   # expect a line starting with ASCIINEMA_INSTALL_ID
-    ```
-
-  A secret's value cannot be read back, only its name and update date, so
-  `gh secret list` is as far as verification goes.
 - **The `pypi` and `testpypi` environments**, which the publish workflows run in
   and the PyPI trusted publishers name, are release configuration: they are
   recorded, with the publisher settings that must match them, in

@@ -7,7 +7,7 @@
 - [Media Sources](#media-sources)
 - [Album Naming Conventions](#album-naming-conventions)
 - [Album Integrity Checks](#album-integrity-checks)
-- [Album Optimization](#album-optimization)
+- [Linked Browsable Directories](#linked-browsable-directories)
 - [Album Fixes](#album-fixes)
 - [Gallery Commands](#gallery-commands)
 - [Collections](#collections)
@@ -33,8 +33,8 @@ organized album directory.
 - Converts images to JPEG via macOS `sips` for `main-jpg/`
   (sharing/web-compatible)
 - Deduplicates format variants with quality priority: DNG > HEIC > JPG/PNG
-- Batch import across multiple albums (`image-capture-all`)
-- Dry-run mode for all operations
+- Batch import across multiple albums (`albums import`)
+- Dry-run mode (`-n`, `--dry-run`) on every import command
 - System dependencies (`sips`, `exiftool`) are probed before a batch starts, so
   a missing binary aborts the whole run up front rather than failing album by
   album
@@ -89,15 +89,17 @@ Validate that album directories are consistent and well-formed.
 - Detects duplicate image numbers within the same prefix category
 - Troubleshooting suggestions with actionable fix commands
 
-## Album Optimization
+## Linked Browsable Directories
 
-Reduce disk usage by replacing file copies with links.
+Keep browsable directories from doubling disk usage by linking them to the
+archive.
 
-- Rebuilds `{name}-img/` and `{name}-vid/` as hardlinks (default), symlinks, or
-  copies
-- Does not touch `{name}-jpg/` (JPEG conversions cannot be linked)
-- Runs integrity checks before optimizing (unless `--no-check`)
-- Dry-run mode for all operations
+- `{name}-img/` and `{name}-vid/` are built as hardlinks (default), symlinks, or
+  copies: the gallery's `link-mode` (`gallery init`, `gallery metadata set`), or
+  `--link-mode` on the import commands
+- `album refresh --refresh-browsable` (and its `albums` and `gallery`
+  counterparts) rebuilds them, for instance after changing the link mode
+- `{name}-jpg/` is never linked (JPEG conversions are separate files)
 
 ## Album Fixes
 
@@ -115,7 +117,7 @@ Repair and maintain iOS album consistency with targeted fix commands.
   of each image (DNG > HEIC > HEIF > JPG/PNG)
 - **`--rm-miscategorized`** / **`--rm-miscategorized-safe`** /
   **`--mv-miscategorized`**: Fix files in the wrong directory
-- All fixes support dry-run mode
+- `fix` and `fix-ios` support dry-run mode (`-n`, `--dry-run`)
 
 ## Gallery Commands
 
@@ -132,7 +134,9 @@ Batch operations across multiple albums under a directory.
   files (exported from `list-albums --format csv`); only title and location may
   be changed
 - **`gallery export`**: Batch export to a shared directory
-- All gallery commands accept `--dir` (scan recursively) or `--album-dir`
+- Gallery commands find the gallery through `--gallery-dir`, or from the
+  current directory via `.photree/gallery.yaml`; `gallery import-all` and
+  `gallery export` also take `--dir` (a directory to scan) or `--album-dir`
   (explicit list)
 
 ## Collections

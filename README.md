@@ -24,6 +24,8 @@ database.
 - [Related Projects](#related-projects)
 - [Installation](#installation)
 - [Usage](#usage)
+- [Features](#features)
+- [Reference](#reference)
 - [Contribute](#contribute)
 <!-- tocstop -->
 
@@ -100,6 +102,22 @@ See
 
 See
 [docs/usage.md](https://github.com/iglootools/photree/blob/main/docs/usage.md).
+
+## Features
+
+See
+[docs/features.md](https://github.com/iglootools/photree/blob/main/docs/features.md)
+for the full feature list.
+
+## Reference
+
+- [docs/cli-reference.md](https://github.com/iglootools/photree/blob/main/docs/cli-reference.md)
+  — every command and option
+- [docs/config-reference.md](https://github.com/iglootools/photree/blob/main/docs/config-reference.md)
+  — every config field, with
+  [example configs](https://github.com/iglootools/photree/tree/main/docs/config-examples)
+- [docs/domain.md](https://github.com/iglootools/photree/blob/main/docs/domain.md)
+  — galleries, albums, media sources, collections and their naming conventions
 
 ## Contribute
 
