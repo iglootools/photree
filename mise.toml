@@ -120,13 +120,13 @@ run = "uv run --no-sync pytest tests/ --ignore=tests/integration_fs/ -n auto -v"
 
 [tasks.test-integration-fs]
 description = "Run filesystem integration tests"
-run = "uv run --no-sync pytest tests/integration_fs/ -n auto"
+run = "uv run --no-sync pytest tests/integration_fs/ -n auto -v"
 
 [tasks.test]
 description = "Run every test suite"
 # One pytest invocation rather than test-unit then test-integration-fs: each run pays
 # about 2s of xdist worker start-up before its first test.
-run = "uv run --no-sync pytest tests/ -n auto"
+run = "uv run --no-sync pytest tests/ -n auto -v"
 
 # Writers. ruff formats the Python, dprint the JSON, TOML, YAML and Dockerfiles, rumdl the
 # Markdown. See guidelines/project-setup/formatting.md in iglootools/common.
