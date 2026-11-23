@@ -204,6 +204,18 @@ class TestExifWriting:
         shift_exif_time([img], 3)
         assert _read(img) == datetime(2024, 7, 19, 16, 55, 20)
 
+    def test_write_keeps_hardlinked_copies_in_sync(self, tmp_path: Path) -> None:
+        # A browsable dir hardlinks the archive: replacing the file with a new
+        # inode would leave the browsable copy with the old date.
+        img = _jpeg(tmp_path / "a.jpg")
+        link = tmp_path / "b.jpg"
+        link.hardlink_to(img)
+
+        write_exif_date([img], "2023-01-02", TIMESTAMP_TAGS)
+
+        assert img.stat().st_ino == link.stat().st_ino
+        assert _read(link) == datetime(2023, 1, 2, 13, 55, 20)
+
     def test_failed_write_raises_structured_error(self, tmp_path: Path) -> None:
         """Regression: failed writes used to be counted as updated."""
         not_media = tmp_path / "notes.txt"
