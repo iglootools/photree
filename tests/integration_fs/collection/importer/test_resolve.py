@@ -60,6 +60,21 @@ def _setup_album(
     return album_dir, aid
 
 
+def _setup_std_album_with_image(gallery: Path, name: str, key: str) -> str:
+    """Create an album whose ``main`` media source is std. Returns the image ID."""
+    album_dir = gallery / "albums" / "2024" / name
+    _write(album_dir / "std-main" / "orig-img" / f"{key}.JPG")
+    save_album_metadata(album_dir, AlbumMetadata(id=generate_album_id()))
+    img_id = generate_media_id()
+    save_media_metadata(
+        album_dir,
+        MediaMetadata(
+            media_sources={"main": MediaSourceMediaMetadata(images={img_id: key})},
+        ),
+    )
+    return img_id
+
+
 def _setup_album_with_media(gallery: Path, name: str) -> tuple[Path, str, str, str]:
     """Create album with media metadata. Returns (dir, album_id, image_id, video_id)."""
     album_dir, album_id = _setup_album(gallery, name)
@@ -309,22 +324,29 @@ class TestResolveByMediaFilename:
         assert result.errors[0].kind == ResolutionErrorKind.NOT_FOUND
 
     def test_resolve_std_stem_based_file(self, tmp_path: Path) -> None:
-        """Non-IMG_ prefixed file uses stem for matching."""
         gallery = _setup_gallery(tmp_path)
-        album_dir, _album_id = _setup_album(gallery, "2024-07-14 - Trip")
-        img_id = generate_media_id()
-        save_media_metadata(
-            album_dir,
-            MediaMetadata(
-                media_sources={
-                    "main": MediaSourceMediaMetadata(images={img_id: "DSC_1234"}),
-                },
-            ),
-        )
+        img_id = _setup_std_album_with_image(gallery, "2024-07-14 - Trip", "DSC_1234")
 
         result = resolve_entries((_entry("DSC_1234.JPG"),), gallery)
         assert result.success
         assert result.members.images == (img_id,)
+
+    def test_resolve_img_prefixed_file_in_std_source(self, tmp_path: Path) -> None:
+        # Regression: an IMG_ filename was always keyed by its digits, the iOS
+        # way, so a Canon or Android IMG_1234.JPG in a std source never matched.
+        gallery = _setup_gallery(tmp_path)
+        img_id = _setup_std_album_with_image(gallery, "2024-07-14 - Trip", "IMG_1234")
+
+        result = resolve_entries((_entry("IMG_1234.JPG"),), gallery)
+        assert result.success
+        assert result.members.images == (img_id,)
+
+    def test_std_stem_does_not_match_ios_number(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        _setup_std_album_with_image(gallery, "2024-07-14 - Trip", "0001")
+
+        result = resolve_entries((_entry("IMG_0001.JPG"),), gallery)
+        assert [e.kind for e in result.errors] == [ResolutionErrorKind.NOT_FOUND]
 
 
 class TestResolveMixed:
@@ -394,3 +416,58 @@ class TestResolveErrors:
         assert [(e.kind, e.duplicate_of) for e in result.errors] == [
             (ResolutionErrorKind.DUPLICATE, "2024-07-14 - Trip"),
         ]
+
+    def test_same_album_by_external_id_and_uuid_is_duplicate(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = _setup_gallery(tmp_path)
+        _, album_id = _setup_album(gallery, "2024-07-14 - Trip")
+        ext_id = format_album_external_id(album_id)
+
+        result = resolve_entries((_entry(ext_id), _entry(album_id)), gallery)
+
+        assert result.members.albums == (album_id,)
+        assert [(e.entry, e.kind, e.duplicate_of) for e in result.errors] == [
+            (album_id, ResolutionErrorKind.DUPLICATE, ext_id),
+        ]
+
+    def test_same_image_key_twice_is_duplicate(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        _, _, img_id, _ = _setup_album_with_media(gallery, "2024-07-14 - Trip")
+
+        result = resolve_entries(
+            (_entry("IMG_0001.HEIC"), _entry("IMG_0001.JPG")),
+            gallery,
+        )
+
+        assert result.members.images == (img_id,)
+        assert [(e.entry, e.kind, e.duplicate_of) for e in result.errors] == [
+            ("IMG_0001.JPG", ResolutionErrorKind.DUPLICATE, "IMG_0001.HEIC"),
+        ]
+
+    def test_image_and_video_sharing_a_key_both_resolve(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        album_dir, _ = _setup_album(gallery, "2024-07-14 - Trip")
+        img_id = generate_media_id()
+        vid_id = generate_media_id()
+        save_media_metadata(
+            album_dir,
+            MediaMetadata(
+                media_sources={
+                    "main": MediaSourceMediaMetadata(
+                        images={img_id: "0003"},
+                        videos={vid_id: "0003"},
+                    ),
+                },
+            ),
+        )
+
+        result = resolve_entries(
+            (_entry("IMG_0003.HEIC"), _entry("IMG_0003.MOV")),
+            gallery,
+        )
+
+        assert result.success
+        assert result.members.images == (img_id,)
+        assert result.members.videos == (vid_id,)

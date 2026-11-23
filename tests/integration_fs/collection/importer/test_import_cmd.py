@@ -299,6 +299,50 @@ class TestSelectionDateErrors:
         assert (col_dir / SELECTION_CSV).exists()
 
 
+class TestSelectionCsvErrors:
+    def test_headerless_csv_fails_import_and_keeps_both_sources(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        # Regression: a headerless CSV read as empty, so the import succeeded
+        # on to-import/ alone and then deleted the CSV with its rows.
+        gallery = _setup_gallery(tmp_path)
+        _setup_album(gallery, "2024-07-14 - Trip")
+        col_dir = _setup_collection(tmp_path)
+        _write(col_dir / SELECTION_DIR / "2024-07-14 - Trip", "")
+        (col_dir / SELECTION_CSV).write_text(
+            "2024-07-14 - Trip,\n",
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(
+            app,
+            ["collection", "import", "-c", str(col_dir), "-g", str(gallery)],
+        )
+
+        assert result.exit_code == 1
+        assert "no 'entry' column" in result.output
+        loaded = load_collection_metadata(col_dir)
+        assert loaded is not None
+        assert loaded.albums == []
+        assert (col_dir / SELECTION_CSV).exists()
+        assert (col_dir / SELECTION_DIR / "2024-07-14 - Trip").exists()
+
+    def test_batch_import_reports_non_utf8_csv(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        col_dir = _setup_collection(tmp_path)
+        (col_dir / SELECTION_CSV).write_bytes("entry\nÉté\n".encode("latin-1"))
+
+        result = runner.invoke(
+            app,
+            ["collections", "import", "-c", str(col_dir), "-g", str(gallery)],
+        )
+
+        assert result.exit_code == 1
+        assert "0 collection(s) imported, 0 skipped, 1 failed." in result.output
+        assert "not UTF-8" in result.output
+
+
 class TestImportMembersErrors:
     def test_smart_collection_raises_structured_error(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
