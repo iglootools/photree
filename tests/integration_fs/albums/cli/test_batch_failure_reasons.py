@@ -10,7 +10,7 @@ from pathlib import Path
 from photree.album.id import generate_album_id
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import ALBUM_YAML, AlbumMetadata
-from photree.albums.batchcli.failures import batch_failures_report
+from photree.albums.batchcli.failures import batch_failures_report, investigate_commands
 from photree.albums.cmd_handler import BatchFailure
 from photree.albums.cmd_handler.fix import batch_fix
 from photree.albums.cmd_handler.init import batch_init
@@ -48,6 +48,19 @@ class TestBatchInit:
         assert result.exit_code == 1
         assert 'album init --album-dir "' in result.output
         assert '2024-07-14 - Hiking" --dry-run' in result.output
+
+    def test_one_command_retries_every_failed_album(self, tmp_path: Path) -> None:
+        _album(tmp_path, "2024-07-14 - Hiking")
+        _album(tmp_path, "2024-07-15 - Beach")
+
+        result = invoke_cli(["albums", "init", "-d", str(tmp_path), "--dry-run"])
+
+        assert result.exit_code == 1
+        retry_all = result.output.split("To retry them all:")[1].strip()
+        assert retry_all == (
+            f'photree albums init -a "{tmp_path / "2024-07-14 - Hiking"}" '
+            f'-a "{tmp_path / "2024-07-15 - Beach"}" --dry-run'
+        )
 
 
 class TestBatchRefresh:
@@ -89,6 +102,30 @@ class TestBatchFailureReport:
 
         assert "a" in report
         assert "disk on fire" in report
+
+
+class TestInvestigateCommands:
+    def test_a_single_failure_gets_no_retry_all_command(self, tmp_path: Path) -> None:
+        commands = investigate_commands("refresh", [tmp_path / "a"], tmp_path)
+
+        assert commands.splitlines() == [
+            "",
+            "To investigate failures:",
+            '  photree album refresh --album-dir "a"',
+        ]
+
+    def test_several_failures_get_one_retry_all_command(self, tmp_path: Path) -> None:
+        commands = investigate_commands(
+            "refresh",
+            [tmp_path / "a", tmp_path / "b"],
+            tmp_path,
+            extra_flags=" --refresh-jpeg",
+        )
+
+        assert commands.splitlines()[-2:] == [
+            "To retry them all:",
+            '  photree albums refresh -a "a" -a "b" --refresh-jpeg',
+        ]
 
 
 class TestHandlerFailureReasons:
