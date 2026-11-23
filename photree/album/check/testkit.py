@@ -1,5 +1,7 @@
 """Fake check results for demo and testing purposes."""
 
+from dataclasses import replace
+
 from photree.album.check import (
     AlbumDirCheck,
     AlbumIdCheck,
@@ -22,6 +24,12 @@ from photree.album.check.ios.sidecar import SidecarCheck, SidecarIssue, SidecarI
 from photree.album.check.jpeg import AlbumJpegIntegrityResult, JpegCheck
 from photree.album.check.std import DuplicateStem, StdMediaSourceIntegrityResult
 from photree.album.check.unexpected_dirs import UnexpectedDirsCheck
+from photree.album.exif_date_check import (
+    AlbumNamingResult,
+    ExifMismatch,
+    ExifTimestampCheck,
+)
+from photree.album.naming import parse_album_name
 from photree.album.store.media_source import MAIN_MEDIA_SOURCE, std_media_source
 
 _STD_MEDIA_SOURCE = std_media_source("nelu")
@@ -285,4 +293,44 @@ PREFLIGHT_STD = AlbumPreflightResult(
         by_media_source=((std_media_source("main"), STD_INTEGRITY_OK),),
     ),
     jpeg_check=JPEG_INTEGRITY_OK,
+)
+
+
+# Albums that pass every check but carry one kind of warning, which the fatal
+# flags promote to a failure.
+
+PREFLIGHT_SIDECAR_WARNING = replace(
+    PREFLIGHT_OK,
+    integrity=AlbumIntegrityResult(
+        by_media_source=(
+            (
+                MAIN_MEDIA_SOURCE,
+                replace(
+                    IOS_INTEGRITY_OK,
+                    sidecars=SidecarCheck(
+                        missing_sidecars=(
+                            SidecarIssue(
+                                "IMG_0001.HEIC",
+                                "orig-img",
+                                SidecarIssueKind.MISSING_SIDECAR,
+                            ),
+                        ),
+                        orphan_sidecars=(),
+                    ),
+                ),
+            ),
+        ),
+    ),
+)
+
+PREFLIGHT_EXIF_WARNING = replace(
+    PREFLIGHT_OK,
+    naming=AlbumNamingResult(
+        parsed=parse_album_name("2024-07-20 - Beach"),
+        issues=(),
+        exif_check=ExifTimestampCheck(
+            album_date="2024-07-20",
+            mismatches=(ExifMismatch("main-img/IMG_0001.HEIC", "2023-01-01T10:00:00"),),
+        ),
+    ),
 )
