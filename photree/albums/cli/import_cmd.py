@@ -45,7 +45,7 @@ def _run_import(
     album_dirs: list[Path] | None,
     ic_dir: Path,
     *,
-    link_mode: LinkMode,
+    link_mode: LinkMode | None,
     dry_run: bool,
     skip_heic_to_jpeg: bool,
     which: WhichFn,
@@ -53,6 +53,8 @@ def _run_import(
 ) -> batch.BatchResult:
     """
     Run the batch import behind a progress bar.
+
+    Each album gets *link_mode*, or when it is ``None``, its gallery's.
 
     ``result.refused`` is true when validation refused the batch, in which
     case nothing was imported.
@@ -74,7 +76,7 @@ def _run_import(
             albums_dir=albums_dir,
             album_dirs=album_dirs,
             image_capture_dir=ic_dir,
-            link_mode=link_mode,
+            link_mode_for=lambda album_dir: resolve_link_mode(link_mode, album_dir),
             dry_run=dry_run,
             on_importing=progress.on_start,
             on_imported=lambda name: progress.on_end(name, success=True),
@@ -239,7 +241,7 @@ def import_cmd(
         scan_dir,
         album_dirs,
         ic_dir,
-        link_mode=resolve_link_mode(link_mode, scan_dir or (album_dirs or [cwd])[0]),
+        link_mode=link_mode,
         dry_run=dry_run,
         skip_heic_to_jpeg=skip_heic_to_jpeg,
         which=which,

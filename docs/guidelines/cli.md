@@ -234,7 +234,8 @@ resolved value — e.g. `link_mode: LinkMode` on `refresh_album_derived_data`
 and `run_album_check` — and the CLI (or `albums/batchcli/`) calls
 `foundation.gallery_metadata.resolve_link_mode`. A batch handler whose albums
 may live in different galleries takes a resolver instead
-(`batch_refresh(link_mode_for=...)`), still supplied by the CLI.
+(`link_mode_for=...` on `batch_refresh`, `batch_check` and the album batch
+import), still supplied by the CLI.
 
 ## Batch Operation Architecture
 
