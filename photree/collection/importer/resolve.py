@@ -44,10 +44,11 @@ from photree.collection.id import COLLECTION_ID_PREFIX
 from photree.collection.importer.selection import SelectionEntry
 from photree.collection.store.collection_discovery import discover_collections
 from photree.collection.store.metadata import load_collection_metadata
-from photree.collection.store.protocol import MemberType
+from photree.collection.store.protocol import CollectionMetadata, MemberType
 from photree.common.fs import file_ext
 from photree.dates import is_valid_date, timestamp_in_range
 from photree.foundation.layout import ALBUMS_DIR, COLLECTIONS_DIR
+from photree.foundation.metadata_io import InvalidMetadataError
 
 
 @dataclass(frozen=True)
@@ -205,7 +206,11 @@ def _scanned_media(album_dir: Path) -> tuple[ScannedMedia, ...]:
     )
 
 
-def _scanned_album(album_dir: Path, meta: AlbumMetadata) -> ScannedAlbum:
+def _scanned_album(
+    album_dir: Path,
+    meta: AlbumMetadata,
+    media: tuple[ScannedMedia, ...],
+) -> ScannedAlbum:
     parsed = parse_album_name(album_dir.name)
     return ScannedAlbum(
         album_id=meta.id,
@@ -216,7 +221,7 @@ def _scanned_album(album_dir: Path, meta: AlbumMetadata) -> ScannedAlbum:
         album_date=(
             parsed.date if parsed is not None and is_valid_date(parsed.date) else None
         ),
-        media=_scanned_media(album_dir),
+        media=media,
     )
 
 
@@ -226,6 +231,45 @@ class GalleryIndex:
 
     albums: tuple[ScannedAlbum, ...]
     collections: tuple[ScannedCollection, ...]
+    # Directories whose metadata cannot be read: what they hold is missing
+    # from the index, so an entry naming it may resolve as not found.
+    unreadable_albums: tuple[Path, ...] = ()
+    unreadable_collections: tuple[Path, ...] = ()
+
+
+@dataclass(frozen=True)
+class _AlbumScan:
+    album: ScannedAlbum | None  # None without a readable album.yaml
+    readable: bool
+
+
+def _scan_album(album_dir: Path) -> _AlbumScan:
+    """
+    Read one album, keeping it (without media) when only its media IDs are unreadable.
+
+    A corrupt file is reported through ``readable`` instead of raised, so
+    one bad album does not stop every import.
+    """
+    try:
+        meta = load_album_metadata(album_dir)
+    except InvalidMetadataError:
+        return _AlbumScan(None, readable=False)
+    try:
+        media, readable = _scanned_media(album_dir), True
+    except InvalidMetadataError:
+        media, readable = (), False
+    return _AlbumScan(
+        _scanned_album(album_dir, meta, media) if meta is not None else None,
+        readable,
+    )
+
+
+def _load_collection(col_dir: Path) -> CollectionMetadata | bool | None:
+    """Return the metadata, ``None`` when absent, ``False`` when unreadable."""
+    try:
+        return load_collection_metadata(col_dir)
+    except InvalidMetadataError:
+        return False
 
 
 def scan_gallery(gallery_dir: Path) -> GalleryIndex:
@@ -234,20 +278,26 @@ def scan_gallery(gallery_dir: Path) -> GalleryIndex:
 
     Importing into a collection never changes what the index holds (IDs,
     names, media keys), so one index can serve every collection of a batch.
+    An album or collection whose metadata cannot be read is left out and
+    listed in ``unreadable_albums`` / ``unreadable_collections``.
     """
+    albums = [
+        (album_dir, _scan_album(album_dir))
+        for album_dir in discover_albums(gallery_dir / ALBUMS_DIR)
+    ]
+    collections = [
+        (col_dir, _load_collection(col_dir))
+        for col_dir in discover_collections(gallery_dir / COLLECTIONS_DIR)
+    ]
     return GalleryIndex(
-        albums=tuple(
-            _scanned_album(album_dir, meta)
-            for album_dir in discover_albums(gallery_dir / ALBUMS_DIR)
-            for meta in [load_album_metadata(album_dir)]
-            if meta is not None
-        ),
+        albums=tuple(s.album for _, s in albums if s.album is not None),
         collections=tuple(
             ScannedCollection(collection_id=meta.id, dir_name=col_dir.name)
-            for col_dir in discover_collections(gallery_dir / COLLECTIONS_DIR)
-            for meta in [load_collection_metadata(col_dir)]
-            if meta is not None
+            for col_dir, meta in collections
+            if isinstance(meta, CollectionMetadata)
         ),
+        unreadable_albums=tuple(d for d, s in albums if not s.readable),
+        unreadable_collections=tuple(d for d, meta in collections if meta is False),
     )
 
 

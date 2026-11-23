@@ -22,6 +22,7 @@ from photree.collection.importer.output import (
     format_import_error,
     format_resolution_warning,
     format_result_errors,
+    format_unreadable_warnings,
 )
 from photree.collection.store.collection_discovery import discover_collections
 from photree.collections.cli.app import app
@@ -74,6 +75,17 @@ def _format_errors(outcome: CollectionImportOutcome, cwd: Path) -> list[str]:
             return [_format_os_error(exc, cwd)]
         case _:
             return []
+
+
+def _print_unreadable(outcomes: tuple[CollectionImportOutcome, ...], cwd: Path) -> None:
+    """Print, once, each album or collection the shared gallery scan could not read."""
+    results = [o.result for o in outcomes if o.result is not None]
+    for warning in format_unreadable_warnings(
+        dict.fromkeys(d for r in results for d in r.unreadable_albums),
+        dict.fromkeys(d for r in results for d in r.unreadable_collections),
+        cwd,
+    ):
+        err_console.print(warning, markup=False)
 
 
 def _print_warnings(outcomes: tuple[CollectionImportOutcome, ...], cwd: Path) -> None:
@@ -218,6 +230,7 @@ def import_cmd(
         cwd=cwd,
         which=which,
     )
+    _print_unreadable(result.outcomes, cwd)
     _print_warnings(result.outcomes, cwd)
     _print_summary(result, dry_run=dry_run, cwd=cwd)
 

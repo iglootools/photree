@@ -22,6 +22,7 @@ from photree.collection.importer.output import (
     format_member_counts,
     format_resolution_warning,
     format_result_errors,
+    format_unreadable_warnings,
 )
 from photree.collection.importer.resolve import scan_gallery
 from photree.common.exif import ExifTagReader, exiftool_session
@@ -57,6 +58,12 @@ def _run_import(
 
 
 def _print_result(result: CollectionImportResult, *, dry_run: bool, cwd: Path) -> None:
+    for warning in format_unreadable_warnings(
+        result.unreadable_albums,
+        result.unreadable_collections,
+        cwd,
+    ):
+        err_console.print(warning, markup=False)
     # markup=False: entries and paths are user text and may contain [brackets]
     # (e.g. a "[private]" tag) that Rich would otherwise swallow as markup.
     if not result.success:

@@ -429,3 +429,36 @@ class TestCollectionsImportCmd:
             "Warnings:",
         )
         assert result.output.index("Warnings:") < result.output.index(warning)
+
+    def test_unreadable_album_is_warned_once(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        broken, _ = _setup_album(gallery, "2024-07-01 - Broken")
+        (broken / ".photree" / "album.yaml").write_text("- nope\n", encoding="utf-8")
+        _setup_album(gallery, "2024-07-14 - Trip")
+        first = _setup_collection(tmp_path)
+        second = tmp_path / "second"
+        second.mkdir()
+        save_collection_metadata(
+            second,
+            CollectionMetadata(
+                id=generate_collection_id(),
+                members=CollectionMembers.MANUAL,
+                lifecycle=CollectionLifecycle.EXPLICIT,
+            ),
+        )
+        for col_dir in (first, second):
+            _write_csv(col_dir / SELECTION_CSV, ["2024-07-14 - Trip"])
+
+        result = runner.invoke(
+            app,
+            [
+                "collections",
+                "import",
+                *("-c", str(first), "-c", str(second)),
+                *("-g", str(gallery)),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert result.output.count("cannot read the metadata of album") == 1
+        assert "Run 'photree album check --album-dir" in result.output

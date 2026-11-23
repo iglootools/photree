@@ -481,3 +481,41 @@ class TestResolveErrors:
         assert result.success
         assert result.members.images == (img_id,)
         assert result.members.videos == (vid_id,)
+
+
+class TestScanGalleryUnreadable:
+    def test_corrupt_album_is_listed_not_raised(self, tmp_path: Path) -> None:
+        # Regression: one corrupt album.yaml stopped every collection import.
+        gallery = _setup_gallery(tmp_path)
+        broken, _ = _setup_album(gallery, "2024-07-01 - Broken")
+        (broken / ".photree" / "album.yaml").write_text("- nope\n", encoding="utf-8")
+        _, album_id = _setup_album(gallery, "2024-07-14 - Trip")
+
+        index = scan_gallery(gallery)
+        result = resolve_entries((_entry("2024-07-14 - Trip"),), index)
+
+        assert result.members.albums == (album_id,)
+        assert index.unreadable_albums == (broken,)
+
+    def test_corrupt_media_ids_keep_the_album(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        album_dir, album_id = _setup_album(gallery, "2024-07-14 - Trip")
+        _write(album_dir / ".photree" / "media-ids" / "main.yaml", "- nope\n")
+
+        index = scan_gallery(gallery)
+
+        assert [a.album_id for a in index.albums] == [album_id]
+        assert index.unreadable_albums == (album_dir,)
+
+    def test_corrupt_collection_is_listed(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        col_dir, _ = _setup_collection(gallery, "2024 - Best Of")
+        (col_dir / ".photree" / "collection.yaml").write_text(
+            "- nope\n",
+            encoding="utf-8",
+        )
+
+        index = scan_gallery(gallery)
+
+        assert index.collections == ()
+        assert index.unreadable_collections == (col_dir,)
