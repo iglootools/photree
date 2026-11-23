@@ -14,6 +14,8 @@ from photree.album.check.output.batch import batch_check_summary
 from photree.album.exif_cache.refresh import refresh_exif_cache as _refresh_exif
 from photree.album.id import format_album_external_id, format_image_external_id
 from photree.album.naming import BatchNamingResult
+from photree.album.store.media_metadata import load_media_metadata
+from photree.album.store.metadata import load_album_metadata
 from photree.albums.batchcli.failures import batch_failures_report, investigate_commands
 from photree.albums.batchcli.resolution import make_display_fn
 from photree.albums.cmd_handler import BatchFailure, failures_of, run_album_step
@@ -282,15 +284,34 @@ def _date_collision_check(
     return naming_result, frozenset(a for a in albums if a.name in colliding)
 
 
+def _has_readable_metadata(album_dir: Path) -> bool:
+    """Tell whether the album's ID and media-ID files load (or are absent)."""
+    try:
+        load_album_metadata(album_dir)
+        load_media_metadata(album_dir)
+    except ValueError:
+        # InvalidMetadataError: the per-album check already reported why.
+        return False
+    return True
+
+
 def _compute_cross_album_checks(
     albums: list[Path],
     flags: _CheckFlags,
 ) -> _CrossAlbumResult:
-    """Run cross-album checks (date collisions, duplicate IDs)."""
+    """
+    Run cross-album checks (date collisions, duplicate IDs).
+
+    An album whose metadata cannot be read is left out of the duplicate-ID
+    scans and counted as failed, so the summary and the other albums'
+    results are still reported.
+    """
     naming_result, colliding = _date_collision_check(albums, flags)
-    duplicate_ids = {k: tuple(v) for k, v in find_duplicate_album_ids(albums).items()}
+    unreadable = frozenset(a for a in albums if not _has_readable_metadata(a))
+    readable = [a for a in albums if a not in unreadable]
+    duplicate_ids = {k: tuple(v) for k, v in find_duplicate_album_ids(readable).items()}
     duplicate_media_ids = {
-        k: tuple(v) for k, v in find_duplicate_media_ids(albums).items()
+        k: tuple(v) for k, v in find_duplicate_media_ids(readable).items()
     }
     return _CrossAlbumResult(
         naming_result=naming_result,
@@ -299,6 +320,7 @@ def _compute_cross_album_checks(
         failed_albums=frozenset(
             {
                 *colliding,
+                *unreadable,
                 *(p for paths in duplicate_ids.values() for p in paths),
                 *(p for paths in duplicate_media_ids.values() for p in paths),
             },

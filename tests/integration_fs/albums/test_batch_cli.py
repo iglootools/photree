@@ -200,6 +200,27 @@ class TestRunBatchCheck:
         assert result.exit_code == 1
         assert "1 album(s) passed, 1 with warnings, 1 failed." in result.output
 
+    def test_corrupt_album_yaml_fails_its_album_and_keeps_the_summary(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Regression: the cross-album scans raised, losing the summary."""
+        corrupt, _ = _album(tmp_path, "2024-07-14 - Hiking")
+        (corrupt / ".photree" / "album.yaml").write_text("id: [", encoding="utf-8")
+        _album(tmp_path, "2024-07-15 - Beach")
+
+        result = runner.invoke(
+            app,
+            ["albums", "check", "-d", str(tmp_path), "--no-checksum"],
+            obj=ALL_DEPS_RUNTIME,
+        )
+
+        assert result.exit_code == 1
+        assert "Cross-album checks:" in result.output
+        assert "Done." in result.output
+        investigate = result.output.split("To investigate failures:")[1]
+        assert "2024-07-14 - Hiking" in investigate
+
     def test_no_albums_returns_true_without_exit(self, tmp_path: Path) -> None:
         assert (
             run_batch_check(
