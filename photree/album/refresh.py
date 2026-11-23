@@ -5,7 +5,10 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 
 from photree.album.browsable import refresh_browsable_dir
-from photree.album.check.browsable import check_browsable_dir
+from photree.album.check.browsable import (
+    check_browsable_dir,
+    filter_live_photo_extras,
+)
 from photree.album.check.jpeg import check_jpeg_dir
 from photree.album.check.media_metadata import check_media_metadata
 from photree.album.exif_cache.refresh import refresh_exif_cache
@@ -29,7 +32,6 @@ from photree.album.live_photo import (
     augment_browsable_img_with_live_photo_videos,
     compute_live_photo_videos,
     detect_live_photo_keys,
-    filter_live_photo_extras,
 )
 from photree.album.store.file_matching import scan_media_keys
 from photree.album.store.media_metadata import (
