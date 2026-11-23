@@ -31,6 +31,13 @@ from photree.album.id import (
 from photree.album.naming import parse_album_name
 from photree.album.store.album_discovery import discover_albums
 from photree.album.store.media_metadata import load_media_metadata
+from photree.album.store.media_source import (
+    IOS_DIR_PREFIX,
+    STD_DIR_PREFIX,
+    MediaSourceType,
+    ios_img_number,
+    stem_key,
+)
 from photree.album.store.metadata import load_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.collection.id import COLLECTION_ID_PREFIX
@@ -143,28 +150,30 @@ def _parse_external_id_safe(entry: str) -> str | None:
         return None
 
 
-def _extract_media_key(filename: str) -> str:
+@dataclass(frozen=True)
+class ScannedMedia:
     """
-    Extract the matching key from a media filename.
+    A media item as seen by resolution: its ID, kind and key.
 
-    For IMG_-prefixed files (iOS convention): extract all digits.
-    For other files: use the filename stem.
+    ``source_type`` says how ``key`` was derived from the filename (the
+    image number for iOS, the stem for std); ``None`` when the media
+    source has no archive directory to tell, so the item matches by ID only.
     """
-    if filename.upper().startswith("IMG_"):
-        return "".join(c for c in filename if c.isdigit())
-    else:
-        return Path(filename).stem
+
+    media_id: str
+    media_type: MemberType  # IMAGE or VIDEO
+    source_type: MediaSourceType | None
+    key: str
 
 
 @dataclass(frozen=True)
 class ScannedAlbum:
-    """An album as seen by resolution: its ID, folder name, date and media keys."""
+    """An album as seen by resolution: its ID, folder name, date and media."""
 
     album_id: str
     dir_name: str
     album_date: str | None
-    image_keys: Mapping[str, str]  # media key → image UUID
-    video_keys: Mapping[str, str]  # media key → video UUID
+    media: tuple[ScannedMedia, ...]
 
 
 @dataclass(frozen=True)
@@ -175,10 +184,37 @@ class ScannedCollection:
     dir_name: str
 
 
+def _source_type(album_dir: Path, source_name: str) -> MediaSourceType | None:
+    """Tell a media source's type from its archive directory, if exactly one exists."""
+    match (
+        (album_dir / f"{IOS_DIR_PREFIX}{source_name}").is_dir(),
+        (album_dir / f"{STD_DIR_PREFIX}{source_name}").is_dir(),
+    ):
+        case (True, False):
+            return MediaSourceType.IOS
+        case (False, True):
+            return MediaSourceType.STD
+        case _:
+            return None
+
+
+def _scanned_media(album_dir: Path) -> tuple[ScannedMedia, ...]:
+    media_meta = load_media_metadata(album_dir)
+    sources = media_meta.media_sources if media_meta is not None else {}
+    return tuple(
+        ScannedMedia(media_id, media_type, source_type, key)
+        for name, source in sources.items()
+        for source_type in [_source_type(album_dir, name)]
+        for media_type, ids in (
+            (MemberType.IMAGE, source.images),
+            (MemberType.VIDEO, source.videos),
+        )
+        for media_id, key in ids.items()
+    )
+
+
 def _scanned_album(album_dir: Path, meta: AlbumMetadata) -> ScannedAlbum:
     parsed = parse_album_name(album_dir.name)
-    media_meta = load_media_metadata(album_dir)
-    sources = list(media_meta.media_sources.values()) if media_meta else []
     return ScannedAlbum(
         album_id=meta.id,
         dir_name=album_dir.name,
@@ -188,8 +224,7 @@ def _scanned_album(album_dir: Path, meta: AlbumMetadata) -> ScannedAlbum:
         album_date=(
             parsed.date if parsed is not None and is_valid_date(parsed.date) else None
         ),
-        image_keys={key: mid for s in sources for mid, key in s.images.items()},
-        video_keys={key: mid for s in sources for mid, key in s.videos.items()},
+        media=_scanned_media(album_dir),
     )
 
 
@@ -232,8 +267,9 @@ class _PendingLookups:
     wanted_ids: Mapping[str, tuple[str, ...]]
     # SelectionEntry.value strings that are directory names
     wanted_names: frozenset[str]
-    # media key → every media entry requesting that key, in order
-    wanted_media_keys: Mapping[str, tuple[_MediaRequest, ...]]
+    # media source type → media key in that type → every media entry
+    # requesting that key, in order
+    wanted_media_keys: Mapping[MediaSourceType, Mapping[str, tuple[_MediaRequest, ...]]]
 
 
 @dataclass(frozen=True)
@@ -249,7 +285,15 @@ class _NameRequest:
 
 @dataclass(frozen=True)
 class _KeyRequest:
-    key: str
+    """
+    A media filename, with the key it has in each media source type.
+
+    The key depends on the source the item lives in, not on how the
+    filename looks: a std source holding a Canon ``IMG_1234.JPG`` keys it
+    ``IMG_1234``, an iOS source keys the same name ``1234``.
+    """
+
+    keys: Mapping[MediaSourceType, str]
     request: _MediaRequest
 
 
@@ -275,7 +319,10 @@ def _classify(value: str) -> _Request | None:
                 else MemberType.VIDEO
             )
             return _KeyRequest(
-                _extract_media_key(value),
+                {
+                    MediaSourceType.IOS: ios_img_number(value),
+                    MediaSourceType.STD: stem_key(value),
+                },
                 _MediaRequest(media_type, value),
             )
         case _:
@@ -309,42 +356,38 @@ def _prepare_lookups(entries: tuple[SelectionEntry, ...]) -> _PendingLookups:
         wanted_names=frozenset(
             r.entry_value for r in requests if isinstance(r, _NameRequest)
         ),
-        wanted_media_keys=_grouped(
-            (r.key, r.request) for r in requests if isinstance(r, _KeyRequest)
-        ),
+        wanted_media_keys={
+            source_type: _grouped(
+                (r.keys[source_type], r.request)
+                for r in requests
+                if isinstance(r, _KeyRequest)
+            )
+            for source_type in MediaSourceType
+        },
     )
 
 
 type _EntryMatch = tuple[str, _Match]  # (entry value, match)
 
 
-def _media_requesters(
-    key: str,
-    media_id: str,
-    media_type: MemberType,
-    lookups: _PendingLookups,
-) -> list[str]:
+def _media_requesters(media: ScannedMedia, lookups: _PendingLookups) -> list[str]:
     """Entry values requesting this media item, by ID and/or by filename key."""
+    by_key = (
+        lookups.wanted_media_keys[media.source_type].get(media.key, ())
+        if media.source_type is not None
+        else ()
+    )
     return [
-        *lookups.wanted_ids.get(media_id, ()),
-        *(
-            r.entry_value
-            for r in lookups.wanted_media_keys.get(key, ())
-            if r.media_type == media_type
-        ),
+        *lookups.wanted_ids.get(media.media_id, ()),
+        *(r.entry_value for r in by_key if r.media_type == media.media_type),
     ]
 
 
-def _media_matches(
-    album: ScannedAlbum,
-    keys: Mapping[str, str],
-    media_type: MemberType,
-    lookups: _PendingLookups,
-) -> list[_EntryMatch]:
+def _media_matches(album: ScannedAlbum, lookups: _PendingLookups) -> list[_EntryMatch]:
     return [
-        (value, _Match(media_type, media_id, album_date=album.album_date))
-        for key, media_id in keys.items()
-        for value in _media_requesters(key, media_id, media_type, lookups)
+        (value, _Match(media.media_type, media.media_id, album_date=album.album_date))
+        for media in album.media
+        for value in _media_requesters(media, lookups)
     ]
 
 
@@ -358,8 +401,7 @@ def _album_matches(album: ScannedAlbum, lookups: _PendingLookups) -> list[_Entry
             if album.dir_name in lookups.wanted_names
             else []
         ),
-        *_media_matches(album, album.image_keys, MemberType.IMAGE, lookups),
-        *_media_matches(album, album.video_keys, MemberType.VIDEO, lookups),
+        *_media_matches(album, lookups),
     ]
 
 
