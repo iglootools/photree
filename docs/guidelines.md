@@ -84,9 +84,11 @@ reference to the old one.
 
 ### Add each new non-CLI domain subpackage to the CLI-layer contract
 
-A new subpackage of `album/`, `albums/`, `collection/` or `gallery/` that
-is not CLI code goes on the source list of the "Domain code does not depend on
-the CLI layer" contract in `pyproject.toml`.
+A new subpackage of `album/`, `albums/`, `collection/`, `collections/`,
+`gallery/`, `check/` or `demo/` that is not CLI code goes on the source list
+of the "Domain code does not depend on the CLI layer" contract in
+`pyproject.toml`. A new top-level package with a `cli/` subpackage goes on the
+"Domain package roots" contract too.
 
 **Why:** the contract enumerates its sources, so a subpackage left off it is
 unchecked and the run still passes
