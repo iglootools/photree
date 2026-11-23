@@ -39,11 +39,11 @@ def is_ort_device_discovery_noise(line: str) -> bool:
 if TYPE_CHECKING:
     from insightface.app import FaceAnalysis  # pyright: ignore[reportMissingTypeStubs]
 
-# A zero-argument factory that produces a prepared :class:`FaceAnalysis`. Face
-# detection is injected as a *factory* (not an instance) so the ~300 MB model
-# loads lazily — only once a refresh actually has images to process — and so a
-# single instance can be shared across albums in a batch.
-type FaceAnalyzerFactory = Callable[[], FaceAnalysis]
+# A zero-argument factory that produces a prepared :class:`FaceAnalysis`, or a
+# test fake. Face detection is injected as a *factory* (not an instance) so the
+# ~300 MB model loads lazily — only once a refresh actually has images to
+# process — and so a single instance can be shared across albums in a batch.
+type FaceAnalyzerFactory = Callable[[], FaceDetector]
 
 
 class InsightFace(Protocol):
@@ -150,6 +150,10 @@ class ThumbnailResult:
     thumb_path: Path
     orig_width: int
     orig_height: int
+
+
+type MakeThumbnailFn = Callable[[str, str, Path, Path], ThumbnailResult]
+"""Writes the thumbnail of ``(key, file_name, src, dst)``, as generate_thumbnail."""
 
 
 def generate_thumbnail(

@@ -7,12 +7,11 @@ import typer
 
 from photree.album.cli.app import app
 from photree.album.cli.media_source_conflict import exit_on_media_source_conflict
-from photree.album.faces.detect import memoized_face_analyzer_factory
+from photree.album.cli.runtime import album_runtime_of
 from photree.album.faces.failures import format_face_failures
 from photree.album.faces.refresh import FaceSourceRefreshResult, refresh_face_data
 from photree.clihelpers.console import err_console
 from photree.clihelpers.options import DRY_RUN_OPTION
-from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.sysdeps import FACE_DETECTION_DEPS, require_system_deps
 from photree.common.formatting import format_dry_run, indent
 
@@ -49,17 +48,18 @@ def detect_faces_cmd(
     ] = False,
 ) -> None:
     """Run face detection on album images."""
-    runtime = runtime_of(ctx)
+    runtime = album_runtime_of(ctx)
     require_system_deps(FACE_DETECTION_DEPS, which=runtime.which)
 
     with exit_on_media_source_conflict(runtime.cwd()):
         result = refresh_face_data(
             album_dir,
-            analyzer_factory=memoized_face_analyzer_factory(),
+            analyzer_factory=runtime.face_analyzer_factory,
             redetect=redetect,
             refresh_thumbs=refresh_thumbs,
             dry_run=dry_run,
             max_workers=runtime.cpu_count(),
+            make_thumbnail=runtime.make_face_thumbnail,
         )
 
     if not result.by_media_source:

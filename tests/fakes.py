@@ -1,10 +1,16 @@
 """Fakes injected in place of real dependencies (docs/guidelines.md, Tests)."""
 
 from collections.abc import Mapping
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import Any
+
+import cv2
+import numpy as np
 
 from photree.album.cli.runtime import AlbumRuntime, RunImportFn, widen
+from photree.album.faces.detect import MakeThumbnailFn, ThumbnailResult
+from photree.album.faces.protocol import EMBEDDING_DIM
 from photree.clihelpers.runtime import Runtime
 from photree.common.sysdeps import SystemDependency, WhichFn
 
@@ -48,6 +54,79 @@ def fake_album_runtime(
 ) -> AlbumRuntime:
     """:func:`fake_runtime` with a fake album import in place of the real one."""
     return replace(widen(fake_runtime(*present)), run_import=run_import)
+
+
+@dataclass(frozen=True)
+class FakeFace:
+    """An insightface ``Face`` with what photree reads, and no optional models."""
+
+    det_score: float
+    bbox: np.ndarray
+    kps: np.ndarray
+    embedding: np.ndarray
+
+
+class FakeFaceDetector:
+    """Stands in for a prepared ``FaceAnalysis``: one face in every image."""
+
+    def get(self, img: np.ndarray) -> list[Any]:  # noqa: ARG002 - FaceDetector's signature
+        """Return one face, whatever the image."""
+        return [
+            FakeFace(
+                det_score=0.9,
+                bbox=np.array([1, 2, 30, 40], dtype=np.float32),
+                kps=np.zeros((5, 2), dtype=np.float32),
+                embedding=np.ones(EMBEDDING_DIM, dtype=np.float32),
+            ),
+        ]
+
+
+FAKE_THUMBNAIL_SIZE = (64, 48)
+"""The ``(width, height)`` of a thumbnail :func:`fake_make_thumbnail` writes."""
+
+FAKE_ORIGINAL_SIZE = (4032, 3024)
+"""The ``(width, height)`` :func:`fake_make_thumbnail` reports for an original."""
+
+
+def fake_make_thumbnail(*, broken: frozenset[str] = frozenset()) -> MakeThumbnailFn:
+    """
+    Return a thumbnailer that needs no ``sips``: a black JPEG for every key.
+
+    Keys in *broken* get a file that is not an image, which detection then
+    reports as failed.
+    """
+
+    def make(key: str, file_name: str, src: Path, dst: Path) -> ThumbnailResult:  # noqa: ARG001 - MakeThumbnailFn's signature
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        width, height = FAKE_THUMBNAIL_SIZE
+        if key in broken:
+            dst.write_bytes(b"not a jpeg")
+        else:
+            cv2.imwrite(str(dst), np.zeros((height, width, 3), dtype=np.uint8))
+        orig_width, orig_height = FAKE_ORIGINAL_SIZE
+        return ThumbnailResult(
+            key=key,
+            file_name=file_name,
+            thumb_path=dst,
+            orig_width=orig_width,
+            orig_height=orig_height,
+        )
+
+    return make
+
+
+def fake_face_runtime(*, broken: frozenset[str] = frozenset()) -> AlbumRuntime:
+    """
+    Return an album runtime with every dependency and fake face detection.
+
+    Detection finds one face per image, on thumbnails written without ``sips``
+    (:func:`fake_make_thumbnail`, *broken* passed on).
+    """
+    return replace(
+        widen(fake_runtime(*SystemDependency)),
+        face_analyzer_factory=FakeFaceDetector,
+        make_face_thumbnail=fake_make_thumbnail(broken=broken),
+    )
 
 
 ALL_DEPS_RUNTIME = fake_runtime(*SystemDependency)
