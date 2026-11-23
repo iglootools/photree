@@ -40,9 +40,6 @@ dev = [
   "pyright>=1.1,<2.0",
   "pytest>=9.1.1,<10.0",
   "pytest-xdist>=3.8,<4.0",
-  # The `python = ">=3.12,<4.0"` marker this carried under poetry is subsumed by
-  # [project] requires-python, so it is dropped rather than translated.
-  "pydeps>=3.0.7",
   "import-linter>=2.15,<3.0",
   "deadcode>=2.7.0,<3.0",
   # The shared build, docs and check commands (guidelines/project-setup/iglootools-cli.md in
