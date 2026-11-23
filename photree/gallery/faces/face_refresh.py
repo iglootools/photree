@@ -21,17 +21,16 @@ from photree.gallery.faces.clustering import (
     cluster_embeddings,
     load_faiss_index,
     match_clusters_by_medoid,
-    save_faiss_index,
 )
 from photree.gallery.faces.manifest import (
+    GalleryFaceState,
     compute_npz_checksum,
     faiss_index_path,
     load_checksums,
     load_clusters,
     load_manifest,
     save_checksums,
-    save_clusters,
-    save_manifest,
+    save_face_state,
 )
 from photree.gallery.faces.protocol import (
     DEFAULT_CLUSTER_THRESHOLD,
@@ -604,16 +603,20 @@ def _save_stage(
 ) -> None:
     """Stage 4: save FAISS index, manifest, clusters, and checksums."""
     run.start(STAGE_SAVE)
-    result = FaceClusteringResult(
-        threshold=run.threshold,
-        face_count=len(manifest.faces),
-        cluster_count=len(clusters),
-        clusters=clusters,
+    save_face_state(
+        run.gallery_dir,
+        GalleryFaceState(
+            index=index,
+            manifest=manifest,
+            clusters=FaceClusteringResult(
+                threshold=run.threshold,
+                face_count=len(manifest.faces),
+                cluster_count=len(clusters),
+                clusters=clusters,
+            ),
+            checksums=_build_checksums(sources),
+        ),
     )
-    save_faiss_index(index, faiss_index_path(run.gallery_dir))
-    save_manifest(run.gallery_dir, manifest)
-    save_clusters(run.gallery_dir, result)
-    save_checksums(run.gallery_dir, _build_checksums(sources))
     run.end(STAGE_SAVE)
 
 
@@ -630,11 +633,15 @@ def _save_checksums_stage(run: _Run, sources: tuple[_AlbumFaceSource, ...]) -> N
 
 
 def _save_empty(run: _Run, sources: tuple[_AlbumFaceSource, ...]) -> None:
-    empty_index = build_faiss_index(np.empty((0, EMBEDDING_DIM), dtype=np.float32))
-    save_faiss_index(empty_index, faiss_index_path(run.gallery_dir))
-    save_manifest(run.gallery_dir, FaceManifest())
-    save_clusters(run.gallery_dir, FaceClusteringResult(threshold=run.threshold))
-    save_checksums(run.gallery_dir, _build_checksums(sources))
+    save_face_state(
+        run.gallery_dir,
+        GalleryFaceState(
+            index=build_faiss_index(np.empty((0, EMBEDDING_DIM), dtype=np.float32)),
+            manifest=FaceManifest(),
+            clusters=FaceClusteringResult(threshold=run.threshold),
+            checksums=_build_checksums(sources),
+        ),
+    )
 
 
 def _build_checksums(sources: tuple[_AlbumFaceSource, ...]) -> AlbumFaceChecksums:

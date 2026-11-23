@@ -992,6 +992,12 @@ An image needs re-processing when:
       album-checksums.yaml    # tracks ingested album face data
 ```
 
+A refresh writes the four files beside their targets, then renames them into
+place, checksums last, so an interrupted save keeps the previous state. If the
+files still disagree (an interruption between the renames, or a gallery saved
+by an older photree), the next refresh re-clusters everything instead of
+adding faces to them.
+
 #### Clustering Algorithm
 
 Agglomerative clustering with cosine distance and average linkage:
