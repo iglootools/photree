@@ -253,7 +253,9 @@ def refresh_album_derived_data(
     1. **Browsable dirs** (main-img, main-vid) — gated by
        ``check_browsable_dir`` (no checksum, fast file-listing check).
     2. **JPEG dirs** (main-jpg) — gated by ``check_jpeg_dir``
-       (file presence check).
+       (file presence check), and always regenerated for a media source
+       whose browsable img dir step 1 rebuilt: the presence check cannot
+       see an image whose content changed under the same name.
     3. **Media IDs** — gated by ``check_media_metadata`` (``.in_sync``).
     4. **EXIF cache** — built-in mtime gate per file (more precise than
        the album check, which trusts the cache; the refresh checks
@@ -271,7 +273,7 @@ def refresh_album_derived_data(
     """
     media_sources = discover_media_sources(album_dir)
 
-    _refresh_browsable_dirs(
+    rebuilt_img = _refresh_browsable_dirs(
         album_dir,
         media_sources,
         link_mode=link_mode,
@@ -284,6 +286,7 @@ def refresh_album_derived_data(
         max_workers=max_workers,
         convert_file=convert_file or convert_single_file,
         force=force_jpeg,
+        forced_sources=rebuilt_img,
         dry_run=dry_run,
     )
     _refresh_media_ids_if_stale(album_dir, media_sources, dry_run=dry_run)
@@ -324,20 +327,21 @@ def _refresh_browsable_dirs(
     link_mode: LinkMode,
     force: bool,
     dry_run: bool,
-) -> None:
-    """Dry runs stop at the staleness check: nothing below it is called."""
+) -> frozenset[str]:
+    """
+    Rebuild each stale browsable dir; return the sources whose img dir was rebuilt.
+
+    Dry runs return before any staleness check: nothing below it is called.
+    """
     if dry_run:
-        return
+        return frozenset()
+    rebuilt_img = frozenset(
+        ms.name
+        for ms in media_sources
+        if _refresh_browsable_img(album_dir, ms, link_mode=link_mode, force=force)
+    )
     for ms in media_sources:
-        img_ext, vid_ext = _media_extensions(ms)
-        if force or not _browsable_img_is_fresh(
-            album_dir,
-            ms,
-            img_ext=img_ext,
-            vid_ext=vid_ext,
-            link_mode=link_mode,
-        ):
-            _rebuild_browsable_img(album_dir, ms, img_ext, vid_ext, link_mode)
+        _, vid_ext = _media_extensions(ms)
         if force or not _browsable_is_fresh(
             album_dir,
             ms.orig_vid_dir,
@@ -348,6 +352,28 @@ def _refresh_browsable_dirs(
             link_mode=link_mode,
         ):
             _rebuild_browsable_vid(album_dir, ms, vid_ext, link_mode)
+    return rebuilt_img
+
+
+def _refresh_browsable_img(
+    album_dir: Path,
+    ms: MediaSource,
+    *,
+    link_mode: LinkMode,
+    force: bool,
+) -> bool:
+    """Rebuild ``{name}-img/`` when forced or stale; return whether it was rebuilt."""
+    img_ext, vid_ext = _media_extensions(ms)
+    stale = force or not _browsable_img_is_fresh(
+        album_dir,
+        ms,
+        img_ext=img_ext,
+        vid_ext=vid_ext,
+        link_mode=link_mode,
+    )
+    if stale:
+        _rebuild_browsable_img(album_dir, ms, img_ext, vid_ext, link_mode)
+    return stale
 
 
 def _rebuild_browsable_img(
@@ -485,13 +511,16 @@ def _refresh_jpeg_dirs(
     max_workers: int | None,
     convert_file: ConvertFile,
     force: bool,
+    forced_sources: frozenset[str],
     dry_run: bool,
 ) -> tuple[tuple[str, JpegConversionFailure], ...]:
     """
     Refresh each JPEG dir, returning the files that could not be converted.
 
-    Returns ``(media_source_name, failure)`` pairs, so the caller can report
-    which source they belong to.
+    A JPEG dir is refreshed when *force* is set, when its source is in
+    *forced_sources*, or when a JPEG is missing or extra. Returns
+    ``(media_source_name, failure)`` pairs, so the caller can report which
+    source they belong to.
     """
     stale = [
         ms
@@ -499,6 +528,7 @@ def _refresh_jpeg_dirs(
         if (album_dir / ms.img_dir).is_dir()
         and (
             force
+            or ms.name in forced_sources
             or not check_jpeg_dir(
                 album_dir / ms.img_dir,
                 album_dir / ms.jpg_dir,

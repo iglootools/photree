@@ -24,7 +24,7 @@ def refresh_cmd(
         bool,
         typer.Option(
             "--refresh-browsable",
-            help="Force rebuild all browsable directories (skip check gate).",
+            help="Force rebuild all browsable dirs and JPEGs (skip check gate).",
         ),
     ] = False,
     refresh_jpeg: Annotated[
