@@ -13,18 +13,15 @@ copied files are removed from the staging dir, and with them the dir itself.
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from photree.album.check.std import DuplicateStem, check_duplicate_stems
 from photree.album.formats import IMG_EXTENSIONS, VID_EXTENSIONS
 from photree.album.importer.archive_copy import copy_into_archive
 from photree.album.importer.collision import ArchiveCollision
 from photree.album.importer.staging_cleanup import remove_dir_if_only_hidden_files
+from photree.album.importer.tasks import ImportTask
 from photree.album.store.media_source import MediaSource
 from photree.common.fs import file_ext, list_files
-
-if TYPE_CHECKING:
-    from photree.album.importer.tasks import ImportTask
 
 ORIG_SUBDIR = "orig"
 EDIT_SUBDIR = "edit"
