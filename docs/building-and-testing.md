@@ -14,7 +14,7 @@ mise run preflight          # every lint and every test (what CI runs)
 mise run preflight-quick    # every lint and the unit tests
 mise run lint               # every lint below
 
-mise run test-all           # All tests (unit + integration)
+mise run test               # All tests (unit + integration)
 mise run test-unit          # Unit tests
 mise run test-integration-fs # Filesystem integration tests (full workflow)
 

@@ -81,7 +81,7 @@ run = "mise deps install uv"
 description = "Run every lint and every test (what CI runs)"
 # Lints and tests in parallel, as mise.md in iglootools/common, "Name tasks by family", asks.
 run = [
-  { tasks = ["lint", "test-all"] },
+  { tasks = ["lint", "test"] },
 ]
 
 [tasks.preflight-quick]
@@ -122,8 +122,8 @@ run = "uv run --no-sync pytest tests/ --ignore=tests/integration_fs/ -n auto -v"
 description = "Run filesystem integration tests"
 run = "uv run --no-sync pytest tests/integration_fs/ -n auto"
 
-[tasks.test-all]
-description = "Run all tests"
+[tasks.test]
+description = "Run every test suite"
 # One pytest invocation rather than test-unit then test-integration-fs: each run pays
 # about 2s of xdist worker start-up before its first test.
 run = "uv run --no-sync pytest tests/ -n auto"
