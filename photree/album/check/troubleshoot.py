@@ -1,7 +1,7 @@
 """Suggest the commands that fix failed album checks."""
 
 import shlex
-from collections import defaultdict
+from itertools import groupby
 from textwrap import dedent
 
 from photree.album.check.ios import IosMediaSourceIntegrityResult
@@ -222,6 +222,11 @@ def _commands_for_date(
     )
 
 
+def _mismatch_date(mismatch: ExifMismatch) -> str:
+    """Return the date part of *mismatch*'s timestamp, or ``unknown``."""
+    return mismatch.timestamp.split("T")[0] if "T" in mismatch.timestamp else "unknown"
+
+
 def suggest_exif_fixes(
     mismatches: tuple[ExifMismatch, ...],
     *,
@@ -234,11 +239,6 @@ def suggest_exif_fixes(
     Returns unindented lines (commands nested one level under the heading);
     the caller indents the block.
     """
-    by_date: defaultdict[str, list[ExifMismatch]] = defaultdict(list)
-    for m in mismatches:
-        date = m.timestamp.split("T")[0] if "T" in m.timestamp else "unknown"
-        by_date[date].append(m)
-
     exif_date = _expand_date(album_date)
     return "\n".join(
         [
@@ -247,12 +247,15 @@ def suggest_exif_fixes(
                 indent(
                     _commands_for_date(
                         date,
-                        items,
+                        list(items),
                         exif_date=exif_date,
                         album_dir=album_dir,
                     ),
                 )
-                for date, items in sorted(by_date.items())
+                for date, items in groupby(
+                    sorted(mismatches, key=_mismatch_date),
+                    key=_mismatch_date,
+                )
             ),
         ],
     ).splitlines()

@@ -17,9 +17,9 @@ matching lives in :mod:`.exif_date_check`.
 """
 
 import re
-from collections import defaultdict
 from dataclasses import dataclass
 from enum import StrEnum
+from itertools import groupby
 
 from photree.dates import DATE_PREFIX_RE, is_day_precision, is_valid_date
 
@@ -313,6 +313,10 @@ def check_album_naming(album_name: str) -> tuple[NamingIssue, ...]:
     )
 
 
+def _album_date(album: tuple[str, ParsedAlbumName]) -> str:
+    return album[1].date
+
+
 def check_batch_date_collisions(
     albums: list[tuple[str, ParsedAlbumName]],
 ) -> BatchNamingResult:
@@ -326,20 +330,26 @@ def check_batch_date_collisions(
     """
     # Date ranges are excluded: parts are not valid for ranges, so
     # collisions cannot be resolved by adding a part number.
-    by_date: defaultdict[str, list[ParsedAlbumName]] = defaultdict(list)
-    names_by_date: defaultdict[str, list[str]] = defaultdict(list)
-    for name, parsed in albums:
-        if not parsed.private and is_day_precision(parsed.date):
-            by_date[parsed.date].append(parsed)
-            names_by_date[parsed.date].append(name)
+    day_albums = sorted(
+        (
+            (name, parsed)
+            for name, parsed in albums
+            if not parsed.private and is_day_precision(parsed.date)
+        ),
+        key=_album_date,
+    )
+    by_date = [
+        (album_date, tuple(group))
+        for album_date, group in groupby(day_albums, key=_album_date)
+    ]
 
     collisions = tuple(
-        (album_date, tuple(names_by_date[album_date]))
-        for album_date, parsed_list in sorted(by_date.items())
-        if len(parsed_list) > 1
+        (album_date, tuple(name for name, _ in group))
+        for album_date, group in by_date
+        if len(group) > 1
         and (
-            any(p.part is None for p in parsed_list)
-            or len({p.part for p in parsed_list}) != len(parsed_list)
+            any(parsed.part is None for _, parsed in group)
+            or len({parsed.part for _, parsed in group}) != len(group)
         )
     )
 
