@@ -25,11 +25,6 @@ class BatchFixIosResult:
     # (album display name, report) for each album whose fix had something to say
     album_reports: tuple[tuple[str, str], ...] = ()
 
-    @property
-    def failed_albums(self) -> tuple[Path, ...]:
-        """Return the directories of the albums that failed."""
-        return tuple(f.album_dir for f in self.failures)
-
 
 def batch_fix_ios(
     albums: list[Path],

@@ -52,7 +52,7 @@ def test_batch_refresh_counts_face_failures_as_failed(tmp_path: Path) -> None:
     )
 
     assert result.refreshed == 0
-    assert result.failed_albums == (album,)
+    assert [f.album_dir for f in result.failures] == [album]
     assert "face detection failed" in result.failures[0].reason
     assert "main/0001 (detection): model exploded" in result.failures[0].reason
 
