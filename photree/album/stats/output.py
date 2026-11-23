@@ -105,15 +105,10 @@ def _bold_size_cells(
     archive: int,
     derived: int,
     cache: int = 0,
-) -> tuple[str, str, str, str, str, str]:
-    browsable = total - archive - derived - cache
-    return (
-        f"[bold]{_format_bytes(on_disk)}[/bold]",
-        f"[bold]{_format_bytes(total)}[/bold]",
-        f"[bold]{_format_bytes(archive)}[/bold]",
-        f"[bold]{_format_bytes(browsable)}[/bold]",
-        f"[bold]{_format_bytes(derived)}[/bold]",
-        f"[bold]{_format_bytes(cache)}[/bold]",
+) -> tuple[str, ...]:
+    return tuple(
+        f"[bold]{cell}[/bold]"
+        for cell in _size_cells(total, on_disk, archive, derived, cache)
     )
 
 
