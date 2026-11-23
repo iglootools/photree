@@ -18,6 +18,7 @@ from photree.album.store.media_metadata import (
 from photree.album.store.metadata import load_album_metadata
 from photree.albums.batchcli.resolution import display_name
 from photree.albums.batchcli.sink import write_csv, write_text
+from photree.clihelpers.console import err_console
 from photree.clihelpers.options import OutputFormat
 from photree.common.formatting import indent
 
@@ -111,15 +112,18 @@ def run_batch_list_media(
     """
     Shared implementation for albums list-media / gallery list-media.
 
-    *output_file* applies to both formats.
+    *output_file* applies to both formats. A CSV always has its header row,
+    even with no album, so a script reading it sees the columns.
     """
-    if not albums:
-        typer.echo("No albums found.", err=output_format == OutputFormat.CSV)
-        raise typer.Exit(code=0)
-
     loaded = _load(albums, display_base, cwd=cwd)
-    match output_format:
-        case OutputFormat.CSV:
+    match output_format, albums:
+        case OutputFormat.TEXT, []:
+            typer.echo("No albums found.")
+        case OutputFormat.CSV, []:
+            # Keep stdout pure CSV: the notice goes to stderr.
+            err_console.print("No albums found.")
+            write_csv(_CSV_HEADER, [], output_file)
+        case OutputFormat.CSV, _:
             write_csv(_CSV_HEADER, _csv_rows(loaded), output_file)
-        case OutputFormat.TEXT:
+        case OutputFormat.TEXT, _:
             write_text(_text_lines(loaded), output_file)
