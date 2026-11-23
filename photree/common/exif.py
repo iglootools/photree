@@ -126,10 +126,14 @@ def get_metadata(
     helper is supplied and *which* does not find the binary — ``ExifToolHelper()`` would
     otherwise surface a bare ``FileNotFoundError`` that reads like a missing
     media file rather than a missing tool.
+
+    Hands exiftool absolute paths: ``ExifToolHelper`` puts the files after the
+    options with no end-of-options marker, so a relative path starting with a
+    dash would be read as an option. An absolute path never starts with one.
     """
     if not files:
         return []
-    str_files = [str(f) for f in files]
+    str_files = [str(f.absolute()) for f in files]
     if exiftool is not None:
         return exiftool.get_tags(str_files, tags)
     else:
@@ -199,7 +203,11 @@ class ExifDateChange:
 
 def _run_exiftool(args: Sequence[str], paths: Sequence[Path]) -> str:
     """
-    Run ``exiftool *args* *paths*`` and return its stdout.
+    Run ``exiftool *args* -- *paths*`` and return its stdout.
+
+    The ``--`` ends the options: a relative path starting with a dash (as
+    ``Path("./-AllDates=x.jpg")`` prints) would otherwise be read as an
+    option or a tag assignment, and written to every other file.
 
     Raises :class:`ExifToolError` on a non-zero exit: exiftool reports
     per-file failures (unwritable file, unsupported format) through its exit
@@ -207,7 +215,7 @@ def _run_exiftool(args: Sequence[str], paths: Sequence[Path]) -> str:
     updated.
     """
     result = subprocess.run(
-        ["exiftool", *args, *[str(p) for p in paths]],
+        ["exiftool", *args, "--", *[str(p) for p in paths]],
         check=False,  # returncode is inspected below
         capture_output=True,
         encoding="utf-8",

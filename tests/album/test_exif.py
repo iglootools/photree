@@ -1,5 +1,5 @@
 import shutil
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from datetime import datetime
 from pathlib import Path
 
@@ -215,6 +215,22 @@ class TestExifWriting:
 
         assert img.stat().st_ino == link.stat().st_ino
         assert _read(link) == datetime(2023, 1, 2, 13, 55, 20)
+
+    def test_path_starting_with_a_dash_is_a_file_not_an_option(
+        self,
+        tmp_path: Path,
+        chdir: Callable[[Path], None],
+    ) -> None:
+        # Path("./-AllDates=...") stringifies without its "./": exiftool must
+        # still read it as a file, never as a tag assignment.
+        chdir(tmp_path)
+        dashed = _jpeg(Path("-AllDates=2000:01:01 00:00:00.jpg"))
+        other = _jpeg(Path("b.jpg"))
+
+        set_exif_date_time([dashed, other], "2023-01-02T03:04:05")
+
+        assert _read(dashed) == datetime(2023, 1, 2, 3, 4, 5)
+        assert _read(other) == datetime(2023, 1, 2, 3, 4, 5)
 
     def test_failed_write_raises_structured_error(self, tmp_path: Path) -> None:
         """Regression: failed writes used to be counted as updated."""
