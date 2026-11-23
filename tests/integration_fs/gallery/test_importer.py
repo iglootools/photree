@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from photree.album.id import generate_album_id
-from photree.album.jpeg import copy_convert_single, noop_convert_single
+from photree.album.jpeg import noop_convert_single
 from photree.album.refresh import AlbumRefreshResult
 from photree.album.store.metadata import load_album_metadata, save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
@@ -15,6 +15,7 @@ from photree.gallery.importer import (
     compute_target_dir,
     import_album,
 )
+from tests.fakes import copy_convert_single
 
 
 def _write(path: Path, content: str = "data") -> None:

@@ -114,16 +114,6 @@ def noop_convert_single(_src: Path, _dst_dir: Path, *, dry_run: bool) -> Path | 
     return None
 
 
-def copy_convert_single(src: Path, dst_dir: Path, *, dry_run: bool) -> Path | None:
-    """
-    Copy-only converter: copies all files as-is without sips conversion.
-
-    Use in integration tests on platforms where sips is unavailable. HEIC/DNG files are
-    copied rather than converted, so the output is not true JPEG.
-    """
-    return _produce_jpeg(src, dst_dir, dry_run=dry_run, convert=shutil.copy)
-
-
 @dataclass(frozen=True)
 class JpegConversionFailure:
     """A file whose JPEG variant could not be produced, with the reason."""
