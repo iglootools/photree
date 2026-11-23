@@ -688,13 +688,14 @@ Timestamps are **naive wall-clock** values. `DateTimeOriginal` carries no
 offset; when a tag does (`CreationDate` on videos), the offset is parsed and
 then dropped, so photos and videos compare on the same basis.
 
-`album fix-exif` writes through exiftool and stops on the first failure: the
-files and exiftool's diagnostics are printed and the command exits 1. Files
-written before the failure keep their new value.
-It writes each file in place (`-overwrite_original_in_place`), keeping its
-inode, so the browsable copies hardlinked to an archive file see the new dates
-at once. The JPEGs in `{name}-jpg/` are converted copies: `album refresh
---refresh-browsable` regenerates them.
+`album fix-exif` writes all the files in one exiftool run, which carries on past
+a file it cannot write. The command then prints exiftool's diagnostics with the
+files concerned (for `--set-date`, exactly those that failed) and exits 1; the
+other files keep their new value. It writes each file in place
+(`-overwrite_original_in_place`), keeping its inode, so the browsable copies
+hardlinked to an archive file see the new dates at once. The JPEGs in
+`{name}-jpg/` are converted copies: `album refresh --refresh-browsable`
+regenerates them.
 
 During album and gallery checks, photree reads all media files from each
 album's browsable directories (`{name}-jpg/`, `{name}-vid/`) and compares

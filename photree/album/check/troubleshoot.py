@@ -182,14 +182,17 @@ def _fix_lines(
     )
     if upstream:
         return [
-            "# fix: set EXIF date on upstream source files",
-            f"photree album fix-exif --set-date {exif_date} "
+            "# fix: set EXIF date on upstream source files (remove --dry-run to apply)",
+            f"photree album fix-exif --dry-run --set-date {exif_date} "
             + " ".join(_sh(f"{album_dir}/{f}") for f in upstream),
         ]
     else:
         return [
-            "# fix: set EXIF date (no upstream files found, fixing in place)",
-            f"photree album fix-exif --set-date {exif_date} "
+            (
+                "# fix: set EXIF date in place, no upstream file found"
+                " (remove --dry-run to apply)"
+            ),
+            f"photree album fix-exif --dry-run --set-date {exif_date} "
             + " ".join(_sh(f"{album_dir}/{m.file_name}") for m in items),
         ]
 

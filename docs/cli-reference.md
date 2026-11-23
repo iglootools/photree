@@ -190,6 +190,9 @@ timestamp, only replacing the date.
 
 --shift-time shifts all date tags by N hours.
 
+Each changed file is listed with its date before and after;
+--dry-run lists them without writing.
+
 **Usage**:
 
 ```console
@@ -206,6 +209,7 @@ $ photree album fix-exif [OPTIONS] [files]...
 * `--set-date-time <str>`: Set EXIF date+time to an ISO timestamp (e.g. 2024-07-20T13:55:20).
 * `--shift-date <int>`: Shift EXIF date by N days (e.g. -1, +2).
 * `--shift-time <int>`: Shift EXIF time by N hours (e.g. -6, +3).
+* `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
 ### `photree album fix-ios`

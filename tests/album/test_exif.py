@@ -1,5 +1,5 @@
 import shutil
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from datetime import datetime
 from pathlib import Path
 
@@ -191,6 +191,34 @@ class TestExifWriting:
         ]
         assert _read(img) == datetime(2023, 1, 2, 13, 55, 20)
 
+    def test_write_exif_date_keeps_each_files_own_time(self, tmp_path: Path) -> None:
+        # All files go through one exiftool run, but each gets its own value.
+        files = [
+            _jpeg(tmp_path / "a.jpg", "2024:07:20 08:00:00"),
+            _jpeg(tmp_path / "odd  name\\ #1.jpg", "2024:07:21 09:30:00"),
+            _jpeg(tmp_path / "c.jpg", "2024:07:22 23:59:59"),
+        ]
+
+        write_exif_date(files, "2023-01-02", TIMESTAMP_TAGS)
+
+        assert [_read(f) for f in files] == [
+            datetime(2023, 1, 2, 8, 0, 0),
+            datetime(2023, 1, 2, 9, 30, 0),
+            datetime(2023, 1, 2, 23, 59, 59),
+        ]
+
+    def test_failed_write_names_only_its_file(self, tmp_path: Path) -> None:
+        writable = _jpeg(tmp_path / "a.jpg")
+        read_only = _jpeg(tmp_path / "b.jpg")
+        read_only.chmod(0o444)
+
+        with pytest.raises(ExifToolError) as exc_info:
+            write_exif_date([read_only, writable], "2023-01-02", TIMESTAMP_TAGS)
+
+        assert [p.name for p in exc_info.value.paths] == ["b.jpg"]
+        assert _read(writable) == datetime(2023, 1, 2, 13, 55, 20)
+        assert _read(read_only) == datetime(2024, 7, 20, 13, 55, 20)
+
     def test_write_exif_date_skips_files_without_timestamp(
         self,
         tmp_path: Path,
@@ -215,6 +243,22 @@ class TestExifWriting:
 
         assert img.stat().st_ino == link.stat().st_ino
         assert _read(link) == datetime(2023, 1, 2, 13, 55, 20)
+
+    def test_path_starting_with_a_dash_is_a_file_not_an_option(
+        self,
+        tmp_path: Path,
+        chdir: Callable[[Path], None],
+    ) -> None:
+        # Path("./-AllDates=...") stringifies without its "./": exiftool must
+        # still read it as a file, never as a tag assignment.
+        chdir(tmp_path)
+        dashed = _jpeg(Path("-AllDates=2000:01:01 00:00:00.jpg"))
+        other = _jpeg(Path("b.jpg"))
+
+        set_exif_date_time([dashed, other], "2023-01-02T03:04:05")
+
+        assert _read(dashed) == datetime(2023, 1, 2, 3, 4, 5)
+        assert _read(other) == datetime(2023, 1, 2, 3, 4, 5)
 
     def test_failed_write_raises_structured_error(self, tmp_path: Path) -> None:
         """Regression: failed writes used to be counted as updated."""

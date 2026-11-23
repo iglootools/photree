@@ -51,6 +51,7 @@ class TestSuggestExifFixes:
             "photree",
             "album",
             "fix-exif",
+            "--dry-run",
             "--set-date",
             "2024-07-14",
             f"{_ALBUM}/ios-main/edit-img/IMG_E0001.HEIC",
@@ -71,7 +72,7 @@ class TestSuggestExifFixes:
             album_dir=_ALBUM,
         )
 
-        assert _fix_command(lines)[5:] == [
+        assert _fix_command(lines)[6:] == [
             f"{_ALBUM}/ios-main/orig-img/IMG_0001.HEIC",
         ]
 
@@ -82,7 +83,7 @@ class TestSuggestExifFixes:
             album_dir=_ALBUM,
         )
 
-        assert _fix_command(lines)[5:] == [f"{_ALBUM}/main-jpg/IMG_0001.jpg"]
+        assert _fix_command(lines)[6:] == [f"{_ALBUM}/main-jpg/IMG_0001.jpg"]
 
     @pytest.mark.parametrize(
         ("album_date", "exif_date"),
@@ -105,7 +106,7 @@ class TestSuggestExifFixes:
             album_dir=_ALBUM,
         )
 
-        assert _fix_command(lines)[4] == exif_date
+        assert _fix_command(lines)[5] == exif_date
 
     def test_suggestions_follow_the_fix_with_a_rebuild(self) -> None:
         lines = _rendered(

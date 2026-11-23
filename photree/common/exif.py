@@ -12,7 +12,7 @@ import subprocess
 from collections.abc import Generator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Protocol
 
@@ -126,10 +126,14 @@ def get_metadata(
     helper is supplied and *which* does not find the binary — ``ExifToolHelper()`` would
     otherwise surface a bare ``FileNotFoundError`` that reads like a missing
     media file rather than a missing tool.
+
+    Hands exiftool absolute paths: ``ExifToolHelper`` puts the files after the
+    options with no end-of-options marker, so a relative path starting with a
+    dash would be read as an option. An absolute path never starts with one.
     """
     if not files:
         return []
-    str_files = [str(f) for f in files]
+    str_files = [str(f.absolute()) for f in files]
     if exiftool is not None:
         return exiftool.get_tags(str_files, tags)
     else:
@@ -190,16 +194,24 @@ class ExifToolError(OSError):
 
 @dataclass(frozen=True)
 class ExifDateChange:
-    """One file's EXIF timestamp before and after a date change."""
+    """
+    One file's EXIF timestamp before and after a date change.
+
+    *original* is ``None`` for a file with no timestamp yet.
+    """
 
     path: Path
-    original: str
+    original: str | None
     new_value: str
 
 
 def _run_exiftool(args: Sequence[str], paths: Sequence[Path]) -> str:
     """
-    Run ``exiftool *args* *paths*`` and return its stdout.
+    Run ``exiftool *args* -- *paths*`` and return its stdout.
+
+    The ``--`` ends the options: a relative path starting with a dash (as
+    ``Path("./-AllDates=x.jpg")`` prints) would otherwise be read as an
+    option or a tag assignment, and written to every other file.
 
     Raises :class:`ExifToolError` on a non-zero exit: exiftool reports
     per-file failures (unwritable file, unsupported format) through its exit
@@ -207,7 +219,7 @@ def _run_exiftool(args: Sequence[str], paths: Sequence[Path]) -> str:
     updated.
     """
     result = subprocess.run(
-        ["exiftool", *args, *[str(p) for p in paths]],
+        ["exiftool", *args, "--", *[str(p) for p in paths]],
         check=False,  # returncode is inspected below
         capture_output=True,
         encoding="utf-8",
@@ -218,23 +230,106 @@ def _run_exiftool(args: Sequence[str], paths: Sequence[Path]) -> str:
     return result.stdout
 
 
-def _write_all_dates(paths: Sequence[Path], assignment: str) -> None:
-    """
-    Apply one tag *assignment* suffix (``=v``, ``+=v``, ``-=v``) to all dates.
+# Writes each file in place, keeping its inode: ``-overwrite_original`` renames
+# a new file over the old one, which silently detaches every hardlinked copy
+# (the browsable dirs link the archive) and leaves it with the old dates.
+_OVERWRITE_IN_PLACE = "-overwrite_original_in_place"
 
-    Writes each file in place, keeping its inode: ``-overwrite_original``
-    renames a new file over the old one, which silently detaches every
-    hardlinked copy (the browsable dirs link the archive) and leaves it with
-    the old dates.
+
+def _all_dates_args(assignment: str) -> list[str]:
+    """Return the exiftool arguments applying *assignment* to every date tag."""
+    return [f"-AllDates{assignment}", f"-CreationDate{assignment}"]
+
+
+def _write_all_dates(paths: Sequence[Path], assignment: str) -> None:
+    """Apply one tag *assignment* suffix (``=v``, ``+=v``, ``-=v``) to all dates."""
+    _run_exiftool([*_all_dates_args(assignment), _OVERWRITE_IN_PLACE], paths)
+
+
+def _argfile_path(path: Path) -> str:
     """
-    _run_exiftool(
-        [
-            f"-AllDates{assignment}",
-            f"-CreationDate{assignment}",
-            "-overwrite_original_in_place",
-        ],
-        paths,
+    Return *path* as an exiftool argfile line that reads back verbatim.
+
+    Absolute, so it never reads as an option: ``--`` cannot be used in an
+    argfile, where it would swallow the ``-execute`` separators too.
+    ``#[CSTR]`` makes exiftool unescape the line as a C string, so a newline,
+    a tab or edge whitespace in a file name survives instead of being split
+    or stripped.
+    """
+    escaped = (
+        str(path.absolute())
+        .replace("\\", "\\\\")
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+        .replace("\t", "\\t")
     )
+    return f"#[CSTR]{escaped}"
+
+
+def write_exif_date_changes(changes: Sequence[ExifDateChange]) -> None:
+    """
+    Write each change's own new value, all in one exiftool run.
+
+    Starting exiftool costs 0.1-0.3 s, too much to pay per file. The run
+    reads an argfile from stdin holding one ``-execute`` block per file;
+    each block echoes its own exit status, so a failure is pinned on its file
+    while the other files are still written.
+
+    Raises :class:`ExifToolError` naming the files that failed.
+    """
+    if not changes:
+        return
+    blocks = [
+        [
+            *_all_dates_args(f"={c.new_value}"),
+            "-echo3",
+            "${status}",
+            _argfile_path(c.path),
+        ]
+        for c in changes
+    ]
+    argfile = [
+        *blocks[0],
+        *(line for block in blocks[1:] for line in ("-execute", *block)),
+    ]
+    result = subprocess.run(
+        ["exiftool", "-@", "-", "-common_args", "-q", _OVERWRITE_IN_PLACE],
+        input="".join(f"{line}\n" for line in argfile),
+        check=False,  # the per-file statuses and returncode are inspected below
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    failed = classify_failed_writes(
+        [c.path for c in changes],
+        result.stdout.split(),
+        result.returncode,
+    )
+    if failed:
+        raise ExifToolError(failed, result.returncode, result.stderr.strip())
+
+
+def classify_failed_writes(
+    paths: Sequence[Path],
+    statuses: Sequence[str],
+    returncode: int,
+) -> tuple[Path, ...]:
+    """
+    Return the *paths* whose write failed, from the exit statuses echoed per file.
+
+    *statuses* are the words of the run's stdout, one per path in order. When
+    they cannot be matched to the paths (exiftool died mid-run, or is too old
+    to expand ``${status}``), a non-zero *returncode* blames every path:
+    which of them were written is unknown.
+    """
+    attributable = len(statuses) == len(paths) and all(s.isdigit() for s in statuses)
+    match (attributable, returncode):
+        case (True, _):
+            return tuple(p for p, s in zip(paths, statuses, strict=True) if s != "0")
+        case (False, 0):
+            return ()
+        case _:
+            return tuple(paths)
 
 
 def _first_timestamp(entry: dict[str, object], tags: Sequence[str]) -> str | None:
@@ -249,22 +344,90 @@ def _first_timestamp(entry: dict[str, object], tags: Sequence[str]) -> str | Non
     )
 
 
-def _date_change(
-    entry: dict[str, object],
+def read_first_timestamps(
+    files: list[Path],
     tags: Sequence[str],
-    exif_date: str,
-) -> ExifDateChange | None:
-    """Plan the date replacement for one exiftool JSON *entry* (keeps the time)."""
-    original = _first_timestamp(entry, tags)
-    if original is None:
-        return None
-    else:
-        _, sep, time = original.partition(" ")
-        return ExifDateChange(
-            path=Path(str(entry.get("SourceFile", ""))),
+) -> tuple[tuple[Path, str | None], ...]:
+    """
+    Return each file with its first timestamp among *tags*, as exiftool prints it.
+
+    ``None`` for a file with none of *tags*. Raises :class:`ExifToolError`
+    when exiftool fails to read a file.
+    """
+    entries = json.loads(_run_exiftool(["-json", *[f"-{t}" for t in tags]], files))
+    return tuple(
+        (Path(str(entry.get("SourceFile", ""))), _first_timestamp(entry, tags))
+        for entry in entries
+    )
+
+
+def _with_date(original: str, exif_date: str) -> str:
+    """Return *original* with its date replaced by *exif_date*, keeping the time."""
+    _, sep, time = original.partition(" ")
+    return f"{exif_date} {time if sep else '00:00:00'}"
+
+
+def plan_exif_date(
+    files: list[Path],
+    date: str,
+    tags: Sequence[str],
+) -> tuple[ExifDateChange, ...]:
+    """
+    Plan setting the date portion of each file's timestamp, keeping its time.
+
+    *date* is ``YYYY-MM-DD``. Reads the files and writes nothing; files with
+    none of *tags* are left out, since there is no time to keep.
+    """
+    exif_date = date.replace("-", ":")  # "2024:07:20"
+    return tuple(
+        ExifDateChange(
+            path=path,
             original=original,
-            new_value=f"{exif_date} {time if sep else '00:00:00'}",
+            new_value=_with_date(original, exif_date),
         )
+        for path, original in read_first_timestamps(files, tags)
+        if original is not None
+    )
+
+
+def _exif_timestamp(timestamp: str) -> str:
+    """Return an ISO *timestamp* in exiftool's form: ``2024:07:20 13:55:20``."""
+    return timestamp.replace("T", " ").replace("-", ":", 2)
+
+
+def plan_exif_date_time(
+    files: list[Path],
+    timestamp: str,
+    tags: Sequence[str],
+) -> tuple[ExifDateChange, ...]:
+    """Plan :func:`set_exif_date_time` on every file: reads them, writes nothing."""
+    new_value = _exif_timestamp(timestamp)
+    return tuple(
+        ExifDateChange(path=path, original=original, new_value=new_value)
+        for path, original in read_first_timestamps(files, tags)
+    )
+
+
+def plan_exif_shift(
+    files: list[Path],
+    delta: timedelta,
+    tags: Sequence[str],
+) -> tuple[ExifDateChange, ...]:
+    """
+    Plan shifting each file's timestamp by *delta*: reads them, writes nothing.
+
+    Files with no readable timestamp are left out: a shift has nothing to
+    move there. The new value shows the first of *tags*, as wall-clock time.
+    """
+    return tuple(
+        ExifDateChange(
+            path=path,
+            original=original,
+            new_value=(parsed + delta).strftime(_EXIF_DATE_FORMAT),
+        )
+        for path, original in read_first_timestamps(files, tags)
+        if original is not None and (parsed := parse_timestamp(original)) is not None
+    )
 
 
 def write_exif_date(
@@ -275,22 +438,11 @@ def write_exif_date(
     """
     Set the date portion of EXIF timestamps, preserving the original time.
 
-    *date* must be ``YYYY-MM-DD`` format.  Reads each file's existing
-    timestamp, replaces the date part, and writes it back. Files without any
-    of *tags* are left untouched and absent from the result.
-
-    Raises :class:`ExifToolError` if reading or any write fails; files
-    written before the failure keep their new value.
+    Plans with :func:`plan_exif_date`, then writes with
+    :func:`write_exif_date_changes`, whose errors it raises.
     """
-    exif_date = date.replace("-", ":")  # "2024:07:20"
-    entries = json.loads(_run_exiftool(["-json", *[f"-{t}" for t in tags]], files))
-    changes = tuple(
-        change
-        for entry in entries
-        if (change := _date_change(entry, tags, exif_date)) is not None
-    )
-    for change in changes:
-        _write_all_dates([change.path], f"={change.new_value}")
+    changes = plan_exif_date(files, date, tags)
+    write_exif_date_changes(changes)
     return changes
 
 
@@ -302,9 +454,7 @@ def set_exif_date_time(files: list[Path], timestamp: str) -> None:
     or ``2024-07-20T13:55:20-06:00``). Raises :class:`ExifToolError` on
     failure.
     """
-    # ISO separators to exiftool format: "2024-07-20T13:55:20" -> "2024:07:20 13:55:20"
-    exif_ts = timestamp.replace("T", " ").replace("-", ":", 2)
-    _write_all_dates(files, f"={exif_ts}")
+    _write_all_dates(files, f"={_exif_timestamp(timestamp)}")
 
 
 def _shift(files: list[Path], spec: str, amount: int) -> None:
