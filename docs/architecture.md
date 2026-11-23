@@ -179,6 +179,8 @@ by side; output helpers live next to the logic they render (`output.py`).
   `--dir` / `--album-dir` to an album list); `cli/` only the `albums` commands
   themselves. `index.py` and `media_index.py` map IDs to paths and detect
   duplicates; `renamer.py` plans batch renames from CSV.
+- **`collections/`** — `cmd_handler/` holds the pure batch logic
+  (`collections import`); `cli/` the `collections` commands, which render it.
 - **`gallery/`** — gallery-level orchestration only: `import_plan.py`,
   `importer.py` and `cmd_handler/` (`gallery import`), `browsable_refresh.py`
   (the `browsable/` tree), `faces/` (clustering), `index.py`, `stats.py`.

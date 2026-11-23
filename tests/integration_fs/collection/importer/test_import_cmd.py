@@ -3,7 +3,16 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from photree.album.id import format_album_external_id, generate_album_id
+from photree.album.id import (
+    format_album_external_id,
+    generate_album_id,
+    generate_media_id,
+)
+from photree.album.store.media_metadata import (
+    MediaMetadata,
+    MediaSourceMediaMetadata,
+    save_media_metadata,
+)
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.cli import app
@@ -13,6 +22,7 @@ from photree.collection.importer.import_members import (
     CollectionImportErrorKind,
     import_collection_members,
 )
+from photree.collection.importer.resolve import scan_gallery
 from photree.collection.importer.selection import (
     SELECTION_CSV,
     SELECTION_DIR,
@@ -359,7 +369,7 @@ class TestImportMembersErrors:
         )
 
         with pytest.raises(CollectionImportError) as exc_info:
-            import_collection_members(col_dir, gallery)
+            import_collection_members(col_dir, lambda: scan_gallery(gallery))
 
         assert exc_info.value.kind == CollectionImportErrorKind.SMART_COLLECTION
         assert exc_info.value.collection_dir == col_dir
@@ -368,7 +378,7 @@ class TestImportMembersErrors:
         gallery = _setup_gallery(tmp_path)
 
         with pytest.raises(CollectionImportError) as exc_info:
-            import_collection_members(tmp_path, gallery)
+            import_collection_members(tmp_path, lambda: scan_gallery(gallery))
 
         assert exc_info.value.kind == CollectionImportErrorKind.NO_METADATA
 
@@ -388,3 +398,67 @@ class TestCollectionsImportCmd:
         assert "0 collection(s) imported, 0 skipped, 1 failed." in result.output
         assert "[nonexistent-album] not found in gallery" in result.output
         assert "photree collection import --collection-dir" in result.output
+
+    def test_warnings_print_after_the_progress_lines(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        album_dir, _ = _setup_album(gallery, "2024-07-14 - Trip")
+        save_media_metadata(
+            album_dir,
+            MediaMetadata(
+                media_sources={
+                    "main": MediaSourceMediaMetadata(
+                        images={generate_media_id(): "0001"},
+                    ),
+                },
+            ),
+        )
+        col_dir = _setup_collection(tmp_path)
+        (col_dir / SELECTION_CSV).write_text(
+            "entry,date\nIMG_0001.HEIC,2023-01-01\n",
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(
+            app,
+            ["collections", "import", "-c", str(col_dir), "-g", str(gallery)],
+        )
+
+        assert result.exit_code == 0, result.output
+        warning = "date hint 2023-01-01T00:00:00 does not match album date"
+        assert result.output.index("✓ import") < result.output.index(
+            "Warnings:",
+        )
+        assert result.output.index("Warnings:") < result.output.index(warning)
+
+    def test_unreadable_album_is_warned_once(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        broken, _ = _setup_album(gallery, "2024-07-01 - Broken")
+        (broken / ".photree" / "album.yaml").write_text("- nope\n", encoding="utf-8")
+        _setup_album(gallery, "2024-07-14 - Trip")
+        first = _setup_collection(tmp_path)
+        second = tmp_path / "second"
+        second.mkdir()
+        save_collection_metadata(
+            second,
+            CollectionMetadata(
+                id=generate_collection_id(),
+                members=CollectionMembers.MANUAL,
+                lifecycle=CollectionLifecycle.EXPLICIT,
+            ),
+        )
+        for col_dir in (first, second):
+            _write_csv(col_dir / SELECTION_CSV, ["2024-07-14 - Trip"])
+
+        result = runner.invoke(
+            app,
+            [
+                "collections",
+                "import",
+                *("-c", str(first), "-c", str(second)),
+                *("-g", str(gallery)),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert result.output.count("cannot read the metadata of album") == 1
+        assert "Run 'photree album check --album-dir" in result.output

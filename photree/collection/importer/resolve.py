@@ -3,16 +3,16 @@ Resolve collection import entries against a gallery.
 
 Takes a list of selection entries (IDs, directory names, media filenames)
 and resolves each to a concrete member (album, collection, image, or video)
-by scanning the gallery.
+of a gallery.
 
-Uses a scan-and-match approach: selection entries are loaded into memory,
-then the gallery is scanned once. Each album/collection is checked against
-all pending entries. Matches are collected; ambiguous and unresolved
-entries are reported as errors.
+Uses a scan-and-match approach: the gallery is scanned once into a
+:class:`GalleryIndex`, which can serve several selections. Each album and
+collection of the index is checked against all pending entries. Matches are
+collected; ambiguous and unresolved entries are reported as errors.
 """
 
 import re
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
@@ -44,10 +44,11 @@ from photree.collection.id import COLLECTION_ID_PREFIX
 from photree.collection.importer.selection import SelectionEntry
 from photree.collection.store.collection_discovery import discover_collections
 from photree.collection.store.metadata import load_collection_metadata
-from photree.collection.store.protocol import MemberType
+from photree.collection.store.protocol import CollectionMetadata, MemberType
 from photree.common.fs import file_ext
 from photree.dates import is_valid_date, timestamp_in_range
 from photree.foundation.layout import ALBUMS_DIR, COLLECTIONS_DIR
+from photree.foundation.metadata_io import InvalidMetadataError
 
 
 @dataclass(frozen=True)
@@ -205,7 +206,11 @@ def _scanned_media(album_dir: Path) -> tuple[ScannedMedia, ...]:
     )
 
 
-def _scanned_album(album_dir: Path, meta: AlbumMetadata) -> ScannedAlbum:
+def _scanned_album(
+    album_dir: Path,
+    meta: AlbumMetadata,
+    media: tuple[ScannedMedia, ...],
+) -> ScannedAlbum:
     parsed = parse_album_name(album_dir.name)
     return ScannedAlbum(
         album_id=meta.id,
@@ -216,25 +221,83 @@ def _scanned_album(album_dir: Path, meta: AlbumMetadata) -> ScannedAlbum:
         album_date=(
             parsed.date if parsed is not None and is_valid_date(parsed.date) else None
         ),
-        media=_scanned_media(album_dir),
+        media=media,
     )
 
 
-def _scan_albums(gallery_dir: Path) -> Iterator[ScannedAlbum]:
-    return (
-        _scanned_album(album_dir, meta)
+@dataclass(frozen=True)
+class GalleryIndex:
+    """A gallery's albums and collections, as resolution sees them."""
+
+    albums: tuple[ScannedAlbum, ...]
+    collections: tuple[ScannedCollection, ...]
+    # Directories whose metadata cannot be read: what they hold is missing
+    # from the index, so an entry naming it may resolve as not found.
+    unreadable_albums: tuple[Path, ...] = ()
+    unreadable_collections: tuple[Path, ...] = ()
+
+
+@dataclass(frozen=True)
+class _AlbumScan:
+    album: ScannedAlbum | None  # None without a readable album.yaml
+    readable: bool
+
+
+def _scan_album(album_dir: Path) -> _AlbumScan:
+    """
+    Read one album, keeping it (without media) when only its media IDs are unreadable.
+
+    A corrupt file is reported through ``readable`` instead of raised, so
+    one bad album does not stop every import.
+    """
+    try:
+        meta = load_album_metadata(album_dir)
+    except InvalidMetadataError:
+        return _AlbumScan(None, readable=False)
+    try:
+        media, readable = _scanned_media(album_dir), True
+    except InvalidMetadataError:
+        media, readable = (), False
+    return _AlbumScan(
+        _scanned_album(album_dir, meta, media) if meta is not None else None,
+        readable,
+    )
+
+
+def _load_collection(col_dir: Path) -> CollectionMetadata | bool | None:
+    """Return the metadata, ``None`` when absent, ``False`` when unreadable."""
+    try:
+        return load_collection_metadata(col_dir)
+    except InvalidMetadataError:
+        return False
+
+
+def scan_gallery(gallery_dir: Path) -> GalleryIndex:
+    """
+    Read the metadata of every album, its media and every collection of *gallery_dir*.
+
+    Importing into a collection never changes what the index holds (IDs,
+    names, media keys), so one index can serve every collection of a batch.
+    An album or collection whose metadata cannot be read is left out and
+    listed in ``unreadable_albums`` / ``unreadable_collections``.
+    """
+    albums = [
+        (album_dir, _scan_album(album_dir))
         for album_dir in discover_albums(gallery_dir / ALBUMS_DIR)
-        for meta in [load_album_metadata(album_dir)]
-        if meta is not None
-    )
-
-
-def _scan_collections(gallery_dir: Path) -> Iterator[ScannedCollection]:
-    return (
-        ScannedCollection(collection_id=meta.id, dir_name=col_dir.name)
+    ]
+    collections = [
+        (col_dir, _load_collection(col_dir))
         for col_dir in discover_collections(gallery_dir / COLLECTIONS_DIR)
-        for meta in [load_collection_metadata(col_dir)]
-        if meta is not None
+    ]
+    return GalleryIndex(
+        albums=tuple(s.album for _, s in albums if s.album is not None),
+        collections=tuple(
+            ScannedCollection(collection_id=meta.id, dir_name=col_dir.name)
+            for col_dir, meta in collections
+            if isinstance(meta, CollectionMetadata)
+        ),
+        unreadable_albums=tuple(d for d, s in albums if not s.readable),
+        unreadable_collections=tuple(d for d, meta in collections if meta is False),
     )
 
 
@@ -542,26 +605,18 @@ def _build_results(
 
 def resolve_entries(
     entries: tuple[SelectionEntry, ...],
-    gallery_dir: Path,
+    index: GalleryIndex,
 ) -> ResolutionResult:
     """
-    Resolve selection entries against the gallery.
+    Resolve selection entries against the gallery scanned into *index*.
 
     1. Classify entries into lookup structures
-    2. Scan albums and collections, matching against pending entries
+    2. Match every album and collection of the index against pending entries
     3. Build results with ambiguity and duplicate detection
     """
     lookups = _prepare_lookups(entries)
     pairs = [
-        *(
-            p
-            for album in _scan_albums(gallery_dir)
-            for p in _album_matches(album, lookups)
-        ),
-        *(
-            p
-            for col in _scan_collections(gallery_dir)
-            for p in _collection_matches(col, lookups)
-        ),
+        *(p for album in index.albums for p in _album_matches(album, lookups)),
+        *(p for col in index.collections for p in _collection_matches(col, lookups)),
     ]
     return _build_results(entries, _group_by_entry(entries, pairs))

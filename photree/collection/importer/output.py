@@ -5,6 +5,7 @@ The importer reports structured data (kinds + fields); this module turns it
 into messages. Formatters return unindented lines — the caller indents.
 """
 
+from collections.abc import Iterable
 from pathlib import Path
 
 from photree.collection.importer.import_members import (
@@ -135,4 +136,30 @@ def format_member_counts(members: ResolvedMembers) -> list[str]:
             ("videos", members.videos),
         )
         if ids
+    ]
+
+
+def format_unreadable_warnings(
+    unreadable_albums: Iterable[Path],
+    unreadable_collections: Iterable[Path],
+    cwd: Path,
+) -> list[str]:
+    """
+    Return a warning for each album and collection the gallery scan could not read.
+
+    Each is two unindented lines: the problem, and the command that shows why.
+    """
+    return [
+        *(
+            f"warning: cannot read the metadata of album {path}; entries it "
+            "holds may be reported as not found.\n"
+            f"Run 'photree album check --album-dir \"{path}\"' to see why."
+            for path in (display_path(d, cwd) for d in unreadable_albums)
+        ),
+        *(
+            f"warning: cannot read the metadata of collection {path}; an entry "
+            "naming it may be reported as not found.\n"
+            f"Run 'photree collection check --collection-dir \"{path}\"' to see why."
+            for path in (display_path(d, cwd) for d in unreadable_collections)
+        ),
     ]

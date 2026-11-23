@@ -19,7 +19,11 @@ from photree.collection.id import (
     format_collection_external_id,
     generate_collection_id,
 )
-from photree.collection.importer.resolve import ResolutionErrorKind, resolve_entries
+from photree.collection.importer.resolve import (
+    ResolutionErrorKind,
+    resolve_entries,
+    scan_gallery,
+)
 from photree.collection.importer.selection import SelectionEntry
 from photree.collection.store.metadata import save_collection_metadata
 from photree.collection.store.protocol import (
@@ -115,7 +119,7 @@ class TestResolveByExternalId:
         _, album_id = _setup_album(gallery, "2024-07-14 - Trip")
         ext_id = format_album_external_id(album_id)
 
-        result = resolve_entries((_entry(ext_id),), gallery)
+        result = resolve_entries((_entry(ext_id),), scan_gallery(gallery))
         assert result.success
         assert result.members.albums == (album_id,)
 
@@ -124,7 +128,7 @@ class TestResolveByExternalId:
         _, col_id = _setup_collection(gallery, "2024 - Best Of")
 
         ext_id = format_collection_external_id(col_id)
-        result = resolve_entries((_entry(ext_id),), gallery)
+        result = resolve_entries((_entry(ext_id),), scan_gallery(gallery))
         assert result.success
         assert result.members.collections == (col_id,)
 
@@ -133,7 +137,7 @@ class TestResolveByExternalId:
         _, _, img_id, _ = _setup_album_with_media(gallery, "2024-07-14 - Trip")
 
         ext_id = format_image_external_id(img_id)
-        result = resolve_entries((_entry(ext_id),), gallery)
+        result = resolve_entries((_entry(ext_id),), scan_gallery(gallery))
         assert result.success
         assert result.members.images == (img_id,)
 
@@ -142,7 +146,7 @@ class TestResolveByExternalId:
         _, _, _, vid_id = _setup_album_with_media(gallery, "2024-07-14 - Trip")
 
         ext_id = format_video_external_id(vid_id)
-        result = resolve_entries((_entry(ext_id),), gallery)
+        result = resolve_entries((_entry(ext_id),), scan_gallery(gallery))
         assert result.success
         assert result.members.videos == (vid_id,)
 
@@ -152,7 +156,7 @@ class TestResolveByInternalId:
         gallery = _setup_gallery(tmp_path)
         _, album_id = _setup_album(gallery, "2024-07-14 - Trip")
 
-        result = resolve_entries((_entry(album_id),), gallery)
+        result = resolve_entries((_entry(album_id),), scan_gallery(gallery))
         assert result.success
         assert result.members.albums == (album_id,)
 
@@ -160,7 +164,7 @@ class TestResolveByInternalId:
         gallery = _setup_gallery(tmp_path)
         _, _, img_id, _ = _setup_album_with_media(gallery, "2024-07-14 - Trip")
 
-        result = resolve_entries((_entry(img_id),), gallery)
+        result = resolve_entries((_entry(img_id),), scan_gallery(gallery))
         assert result.success
         assert result.members.images == (img_id,)
 
@@ -170,7 +174,7 @@ class TestResolveByName:
         gallery = _setup_gallery(tmp_path)
         _, album_id = _setup_album(gallery, "2024-07-14 - Trip")
 
-        result = resolve_entries((_entry("2024-07-14 - Trip"),), gallery)
+        result = resolve_entries((_entry("2024-07-14 - Trip"),), scan_gallery(gallery))
         assert result.success
         assert result.members.albums == (album_id,)
 
@@ -178,7 +182,7 @@ class TestResolveByName:
         gallery = _setup_gallery(tmp_path)
         _, col_id = _setup_collection(gallery, "2024 - Best Of")
 
-        result = resolve_entries((_entry("2024 - Best Of"),), gallery)
+        result = resolve_entries((_entry("2024 - Best Of"),), scan_gallery(gallery))
         assert result.success
         assert result.members.collections == (col_id,)
 
@@ -188,7 +192,7 @@ class TestResolveByMediaFilename:
         gallery = _setup_gallery(tmp_path)
         _, _, img_id, _ = _setup_album_with_media(gallery, "2024-07-14 - Trip")
 
-        result = resolve_entries((_entry("IMG_0001.HEIC"),), gallery)
+        result = resolve_entries((_entry("IMG_0001.HEIC"),), scan_gallery(gallery))
         assert result.success
         assert result.members.images == (img_id,)
 
@@ -196,7 +200,7 @@ class TestResolveByMediaFilename:
         gallery = _setup_gallery(tmp_path)
         _, _, _, vid_id = _setup_album_with_media(gallery, "2024-07-14 - Trip")
 
-        result = resolve_entries((_entry("IMG_0002.MOV"),), gallery)
+        result = resolve_entries((_entry("IMG_0002.MOV"),), scan_gallery(gallery))
         assert result.success
         assert result.members.videos == (vid_id,)
 
@@ -224,7 +228,7 @@ class TestResolveByMediaFilename:
             ),
         )
 
-        result = resolve_entries((_entry("IMG_0410.HEIC"),), gallery)
+        result = resolve_entries((_entry("IMG_0410.HEIC"),), scan_gallery(gallery))
         assert not result.success
         assert result.errors[0].kind == ResolutionErrorKind.AMBIGUOUS
 
@@ -255,7 +259,7 @@ class TestResolveByMediaFilename:
         # Date hint matches Trip A (July 14)
         result = resolve_entries(
             (_entry("IMG_0410.HEIC", date_hint=datetime(2024, 7, 14, 13, 55)),),
-            gallery,
+            scan_gallery(gallery),
         )
         assert result.success
         assert result.members.images == (img_id1,)
@@ -284,7 +288,7 @@ class TestResolveByMediaFilename:
 
         result = resolve_entries(
             (_entry("IMG_0410.HEIC", date_hint=datetime(2024, 7, 14, 13, 55)),),
-            gallery,
+            scan_gallery(gallery),
         )
 
         assert result.success
@@ -308,7 +312,7 @@ class TestResolveByMediaFilename:
 
         result = resolve_entries(
             (_entry("IMG_0410.HEIC", date_hint=datetime(2024, 7, 14, 13, 55)),),
-            gallery,
+            scan_gallery(gallery),
         )
 
         assert result.success
@@ -319,7 +323,7 @@ class TestResolveByMediaFilename:
         gallery = _setup_gallery(tmp_path)
         _setup_album(gallery, "2024-07-14 - Trip")
 
-        result = resolve_entries((_entry("IMG_9999.HEIC"),), gallery)
+        result = resolve_entries((_entry("IMG_9999.HEIC"),), scan_gallery(gallery))
         assert not result.success
         assert result.errors[0].kind == ResolutionErrorKind.NOT_FOUND
 
@@ -327,7 +331,7 @@ class TestResolveByMediaFilename:
         gallery = _setup_gallery(tmp_path)
         img_id = _setup_std_album_with_image(gallery, "2024-07-14 - Trip", "DSC_1234")
 
-        result = resolve_entries((_entry("DSC_1234.JPG"),), gallery)
+        result = resolve_entries((_entry("DSC_1234.JPG"),), scan_gallery(gallery))
         assert result.success
         assert result.members.images == (img_id,)
 
@@ -337,7 +341,7 @@ class TestResolveByMediaFilename:
         gallery = _setup_gallery(tmp_path)
         img_id = _setup_std_album_with_image(gallery, "2024-07-14 - Trip", "IMG_1234")
 
-        result = resolve_entries((_entry("IMG_1234.JPG"),), gallery)
+        result = resolve_entries((_entry("IMG_1234.JPG"),), scan_gallery(gallery))
         assert result.success
         assert result.members.images == (img_id,)
 
@@ -345,7 +349,7 @@ class TestResolveByMediaFilename:
         gallery = _setup_gallery(tmp_path)
         _setup_std_album_with_image(gallery, "2024-07-14 - Trip", "0001")
 
-        result = resolve_entries((_entry("IMG_0001.JPG"),), gallery)
+        result = resolve_entries((_entry("IMG_0001.JPG"),), scan_gallery(gallery))
         assert [e.kind for e in result.errors] == [ResolutionErrorKind.NOT_FOUND]
 
 
@@ -361,7 +365,7 @@ class TestResolveMixed:
                 _entry(format_collection_external_id(col_id)),
                 _entry(format_image_external_id(img_id)),
             ),
-            gallery,
+            scan_gallery(gallery),
         )
         assert result.success
         assert result.members.albums == (album_id,)
@@ -373,7 +377,7 @@ class TestResolveErrors:
     def test_unresolved_entry(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
 
-        result = resolve_entries((_entry("nonexistent"),), gallery)
+        result = resolve_entries((_entry("nonexistent"),), scan_gallery(gallery))
         assert not result.success
         assert len(result.errors) == 1
         assert result.errors[0].kind == ResolutionErrorKind.NOT_FOUND
@@ -382,7 +386,7 @@ class TestResolveErrors:
         gallery = _setup_gallery(tmp_path)
         fake_id = format_album_external_id(generate_album_id())
 
-        result = resolve_entries((_entry(fake_id),), gallery)
+        result = resolve_entries((_entry(fake_id),), scan_gallery(gallery))
         assert not result.success
         assert result.errors[0].kind == ResolutionErrorKind.NOT_FOUND
 
@@ -401,7 +405,7 @@ class TestResolveErrors:
         (album2 / "main-jpg").mkdir(parents=True, exist_ok=True)
         save_album_metadata(album2, AlbumMetadata(id=generate_album_id()))
 
-        result = resolve_entries((_entry(name),), gallery)
+        result = resolve_entries((_entry(name),), scan_gallery(gallery))
         assert not result.success
         assert result.errors[0].kind == ResolutionErrorKind.AMBIGUOUS
 
@@ -411,7 +415,10 @@ class TestResolveErrors:
         ext_id = format_album_external_id(album_id)
 
         # Same album referenced twice (by name and by ID)
-        result = resolve_entries((_entry("2024-07-14 - Trip"), _entry(ext_id)), gallery)
+        result = resolve_entries(
+            (_entry("2024-07-14 - Trip"), _entry(ext_id)),
+            scan_gallery(gallery),
+        )
         assert not result.success
         assert [(e.kind, e.duplicate_of) for e in result.errors] == [
             (ResolutionErrorKind.DUPLICATE, "2024-07-14 - Trip"),
@@ -425,7 +432,10 @@ class TestResolveErrors:
         _, album_id = _setup_album(gallery, "2024-07-14 - Trip")
         ext_id = format_album_external_id(album_id)
 
-        result = resolve_entries((_entry(ext_id), _entry(album_id)), gallery)
+        result = resolve_entries(
+            (_entry(ext_id), _entry(album_id)),
+            scan_gallery(gallery),
+        )
 
         assert result.members.albums == (album_id,)
         assert [(e.entry, e.kind, e.duplicate_of) for e in result.errors] == [
@@ -438,7 +448,7 @@ class TestResolveErrors:
 
         result = resolve_entries(
             (_entry("IMG_0001.HEIC"), _entry("IMG_0001.JPG")),
-            gallery,
+            scan_gallery(gallery),
         )
 
         assert result.members.images == (img_id,)
@@ -465,9 +475,47 @@ class TestResolveErrors:
 
         result = resolve_entries(
             (_entry("IMG_0003.HEIC"), _entry("IMG_0003.MOV")),
-            gallery,
+            scan_gallery(gallery),
         )
 
         assert result.success
         assert result.members.images == (img_id,)
         assert result.members.videos == (vid_id,)
+
+
+class TestScanGalleryUnreadable:
+    def test_corrupt_album_is_listed_not_raised(self, tmp_path: Path) -> None:
+        # Regression: one corrupt album.yaml stopped every collection import.
+        gallery = _setup_gallery(tmp_path)
+        broken, _ = _setup_album(gallery, "2024-07-01 - Broken")
+        (broken / ".photree" / "album.yaml").write_text("- nope\n", encoding="utf-8")
+        _, album_id = _setup_album(gallery, "2024-07-14 - Trip")
+
+        index = scan_gallery(gallery)
+        result = resolve_entries((_entry("2024-07-14 - Trip"),), index)
+
+        assert result.members.albums == (album_id,)
+        assert index.unreadable_albums == (broken,)
+
+    def test_corrupt_media_ids_keep_the_album(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        album_dir, album_id = _setup_album(gallery, "2024-07-14 - Trip")
+        _write(album_dir / ".photree" / "media-ids" / "main.yaml", "- nope\n")
+
+        index = scan_gallery(gallery)
+
+        assert [a.album_id for a in index.albums] == [album_id]
+        assert index.unreadable_albums == (album_dir,)
+
+    def test_corrupt_collection_is_listed(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        col_dir, _ = _setup_collection(gallery, "2024 - Best Of")
+        (col_dir / ".photree" / "collection.yaml").write_text(
+            "- nope\n",
+            encoding="utf-8",
+        )
+
+        index = scan_gallery(gallery)
+
+        assert index.collections == ()
+        assert index.unreadable_collections == (col_dir,)

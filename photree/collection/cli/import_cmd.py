@@ -22,7 +22,9 @@ from photree.collection.importer.output import (
     format_member_counts,
     format_resolution_warning,
     format_result_errors,
+    format_unreadable_warnings,
 )
+from photree.collection.importer.resolve import scan_gallery
 from photree.common.exif import ExifTagReader, exiftool_session
 from photree.common.formatting import format_dry_run, indent
 from photree.common.fs import display_path
@@ -46,7 +48,7 @@ def _run_import(
             progress.add_task("Resolving members...", total=None)
             return import_collection_members(
                 collection_dir,
-                gallery_dir,
+                lambda: scan_gallery(gallery_dir),
                 dry_run=dry_run,
                 exiftool=exiftool,
             )
@@ -56,6 +58,12 @@ def _run_import(
 
 
 def _print_result(result: CollectionImportResult, *, dry_run: bool, cwd: Path) -> None:
+    for warning in format_unreadable_warnings(
+        result.unreadable_albums,
+        result.unreadable_collections,
+        cwd,
+    ):
+        err_console.print(warning, markup=False)
     # markup=False: entries and paths are user text and may contain [brackets]
     # (e.g. a "[private]" tag) that Rich would otherwise swallow as markup.
     if not result.success:
