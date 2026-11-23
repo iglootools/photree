@@ -27,7 +27,16 @@ from enum import StrEnum
 from pathlib import Path
 
 from photree.album.browsable import refresh_browsable_dir
-from photree.album.formats import IMG_EXTENSIONS, VID_EXTENSIONS
+from photree.album.formats import (
+    IMG_EXTENSIONS,
+    IOS_IMG_EXTENSIONS,
+    IOS_VID_EXTENSIONS,
+    VID_EXTENSIONS,
+)
+from photree.album.live_photo import (
+    augment_browsable_img_with_live_photo_videos,
+    compute_live_photo_videos,
+)
 from photree.album.store.media_source import MediaSource
 from photree.album.store.media_sources_discovery import discover_media_sources
 from photree.album.store.protocol import CACHE_DIR
@@ -283,6 +292,38 @@ def _copy_file(src: Path, dst: Path) -> None:
     shutil.copy2(src, dst)
 
 
+def _live_photo_videos(
+    archive_dir: Path,
+    target_dir: Path,
+    ms: MediaSource,
+    vid_ext: frozenset[str],
+    link_mode: LinkMode,
+    *,
+    dry_run: bool,
+) -> int:
+    """
+    Place an iOS source's Live Photo videos in ``{name}-img/``, as refresh does.
+
+    A dry run counts them from the archive: the img dir they would go into
+    does not exist yet.
+    """
+    orig, edit = archive_dir / ms.orig_img_dir, archive_dir / ms.edit_img_dir
+    if not ms.is_ios:
+        return 0
+    elif dry_run:
+        return len(compute_live_photo_videos(orig, edit, vid_ext, ms.key_fn))
+    else:
+        return augment_browsable_img_with_live_photo_videos(
+            orig,
+            edit,
+            target_dir / ms.img_dir,
+            vid_extensions=vid_ext,
+            key_fn=ms.key_fn,
+            link_mode=link_mode,
+            dry_run=False,
+        )
+
+
 def _rebuild_browsable(
     archive_dir: Path,
     target_dir: Path,
@@ -292,30 +333,45 @@ def _rebuild_browsable(
     dry_run: bool,
 ) -> int:
     """
-    Recreate ``{name}-img/`` and ``{name}-vid/`` in *target_dir*.
+    Recreate ``{name}-img/`` and ``{name}-vid/`` in *target_dir*, as refresh does.
 
     From the archive under *archive_dir*: the exported one, or the album's own
-    for a dry run, which has not exported it and only counts the files.
+    for a dry run, which has not exported it and only counts the files. Like
+    refresh, it uses an iOS source's own extensions and places its Live Photo
+    videos in ``{name}-img/``, so ``album check`` finds the export fresh.
     """
+    img_ext, vid_ext = (
+        (IOS_IMG_EXTENSIONS, IOS_VID_EXTENSIONS)
+        if ms.is_ios
+        else (IMG_EXTENSIONS, VID_EXTENSIONS)
+    )
     img = refresh_browsable_dir(
         archive_dir / ms.orig_img_dir,
         archive_dir / ms.edit_img_dir,
         target_dir / ms.img_dir,
-        media_extensions=IMG_EXTENSIONS,
+        media_extensions=img_ext,
         key_fn=ms.key_fn,
         link_mode=link_mode,
+        dry_run=dry_run,
+    )
+    live = _live_photo_videos(
+        archive_dir,
+        target_dir,
+        ms,
+        vid_ext,
+        link_mode,
         dry_run=dry_run,
     )
     vid = refresh_browsable_dir(
         archive_dir / ms.orig_vid_dir,
         archive_dir / ms.edit_vid_dir,
         target_dir / ms.vid_dir,
-        media_extensions=VID_EXTENSIONS,
+        media_extensions=vid_ext,
         key_fn=ms.key_fn,
         link_mode=link_mode,
         dry_run=dry_run,
     )
-    return img.copied + vid.copied
+    return img.copied + live + vid.copied
 
 
 def _album_type(media_sources: Sequence[MediaSource]) -> ExportedAlbumType:

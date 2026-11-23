@@ -409,6 +409,40 @@ class TestExplicitConfigIsAlwaysLoaded:
         assert info.value.kind == ConfigErrorKind.FILE_NOT_FOUND
 
 
+class TestExportIosAllLivePhotos:
+    """The ``all`` layout rebuilds ``{name}-img/`` the way refresh does."""
+
+    def _setup_live_photo_album(self, album_dir: Path) -> Path:
+        _setup_ios_album(album_dir)
+        _setup_dir(album_dir / MAIN_MEDIA_SOURCE.orig_img_dir, ["IMG_0002.MOV"])
+        return album_dir
+
+    def test_places_live_photo_videos_in_the_img_dir(self, tmp_path: Path) -> None:
+        album_dir = self._setup_live_photo_album(tmp_path / "trip")
+        target = tmp_path / "share" / "trip"
+
+        export_album(album_dir, target, album_layout=AlbumShareLayout.ALL)
+
+        assert (target / MAIN_MEDIA_SOURCE.img_dir / "IMG_0002.MOV").is_file()
+
+    def test_dry_run_counts_live_photo_videos(self, tmp_path: Path) -> None:
+        album_dir = self._setup_live_photo_album(tmp_path / "trip")
+        target = tmp_path / "share" / "trip"
+
+        preview = export_album(
+            album_dir,
+            target,
+            album_layout=AlbumShareLayout.ALL,
+            dry_run=True,
+        )
+
+        assert preview == export_album(
+            album_dir,
+            target,
+            album_layout=AlbumShareLayout.ALL,
+        )
+
+
 class TestReexportMirrorsTheAlbum:
     """A re-export removes what the album no longer has, whatever the layout."""
 
