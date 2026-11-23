@@ -16,8 +16,10 @@ from photree.album.fix.ios.miscategorized import (
     MiscategorizedDirResult,
     MiscategorizedMoveConflictError,
     MiscategorizedResult,
-    fix_miscategorized,
+    apply_miscategorized,
+    check_miscategorized_plans,
     mv_miscategorized,
+    plan_miscategorized,
     rm_miscategorized,
     rm_miscategorized_safe,
 )
@@ -181,10 +183,10 @@ def _run_miscategorized(
     *,
     dry_run: bool,
 ) -> FixIosMiscategorizedResult:
-    results = [
-        fix_miscategorized(album_dir, ms, action=action, dry_run=dry_run)
-        for ms in media_sources
-    ]
+    """Plan every source first, so a move conflict leaves the whole album untouched."""
+    plans = [plan_miscategorized(album_dir, ms, action=action) for ms in media_sources]
+    check_miscategorized_plans(plans)
+    results = [apply_miscategorized(plan, dry_run=dry_run) for plan in plans]
     return FixIosMiscategorizedResult(
         action=action,
         heic_from_orig=sum(len(r.heic.fixed_from_orig) for r in results),
@@ -192,11 +194,6 @@ def _run_miscategorized(
         mov_from_orig=sum(len(r.mov.fixed_from_orig) for r in results),
         mov_from_rendered=sum(len(r.mov.fixed_from_rendered) for r in results),
     )
-
-
-# Aliases for use within run_fix_ios where parameter names shadow module functions
-_rm_orphan_sidecar = rm_orphan_sidecar
-_prefer_higher_quality = prefer_higher_quality_when_dups
 
 
 def _removed_by_dir(
@@ -211,6 +208,30 @@ def _removed_by_dir(
         entry
         for ms in media_sources
         for entry in fix(album_dir, ms, dry_run=dry_run).removed_by_dir
+    )
+
+
+# run_fix_ios's flags are named after these fixes and shadow them in its body.
+def _run_rm_orphan_sidecar(
+    album_dir: Path,
+    media_sources: list[MediaSource],
+    *,
+    dry_run: bool,
+) -> tuple[tuple[str, tuple[str, ...]], ...]:
+    return _removed_by_dir(rm_orphan_sidecar, album_dir, media_sources, dry_run=dry_run)
+
+
+def _run_prefer_higher_quality(
+    album_dir: Path,
+    media_sources: list[MediaSource],
+    *,
+    dry_run: bool,
+) -> tuple[tuple[str, tuple[str, ...]], ...]:
+    return _removed_by_dir(
+        prefer_higher_quality_when_dups,
+        album_dir,
+        media_sources,
+        dry_run=dry_run,
     )
 
 
@@ -241,22 +262,12 @@ def run_fix_ios(
     )
     return FixIosResult(
         rm_orphan_sidecar_removed_by_dir=(
-            _removed_by_dir(
-                _rm_orphan_sidecar,
-                album_dir,
-                media_sources,
-                dry_run=dry_run,
-            )
+            _run_rm_orphan_sidecar(album_dir, media_sources, dry_run=dry_run)
             if rm_orphan_sidecar
             else None
         ),
         prefer_higher_quality_removed_by_dir=(
-            _removed_by_dir(
-                _prefer_higher_quality,
-                album_dir,
-                media_sources,
-                dry_run=dry_run,
-            )
+            _run_prefer_higher_quality(album_dir, media_sources, dry_run=dry_run)
             if prefer_higher_quality_when_dups
             else None
         ),

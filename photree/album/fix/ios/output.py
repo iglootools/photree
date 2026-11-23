@@ -141,12 +141,3 @@ def format_fix_ios_result(result: FixIosResult, *, dry_run: bool = False) -> lis
             else []
         ),
     ]
-
-
-def batch_fix_ios_summary(fixed: int, failed: int, *, dry_run: bool = False) -> str:
-    """Return the closing line for a batch iOS fix, preceded by a blank line."""
-    return (
-        f"\n{fixed} album(s) would be fixed, {failed} failed."
-        if dry_run
-        else f"\nDone. {fixed} album(s) fixed, {failed} failed."
-    )

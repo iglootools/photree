@@ -22,12 +22,13 @@ class MiscategorizedMoveConflictError(FileExistsError):
     """
     Moving miscategorized files would overwrite files in the target dir.
 
-    Raised before anything is moved. ``conflicts`` are filenames present in
-    both directories; ``--rm-miscategorized-safe`` removes such duplicates.
+    Raised before anything is moved. ``target_dir`` is album-relative (e.g.
+    ``ios-main/edit-img``); ``conflicts`` are filenames present in both
+    directories, which ``--rm-miscategorized-safe`` removes.
     """
 
     def __init__(self, target_dir: str, conflicts: tuple[str, ...]) -> None:
-        """Build the error from the target directory's name and the clashing files."""
+        """Build the error from the album-relative target dir and the clashing files."""
         self.target_dir = target_dir
         self.conflicts = conflicts
         super().__init__(
@@ -92,43 +93,152 @@ def _filter_safe(files: list[str], target_dir: Path) -> list[str]:
     return [f for f in files if f in target_files]
 
 
-def _require_no_overwrite(files: list[str], target_dir: Path) -> None:
-    """Refuse a move that would silently replace files in *target_dir*."""
-    conflicts = tuple(_filter_safe(files, target_dir))
-    if conflicts:
-        raise MiscategorizedMoveConflictError(target_dir.name, conflicts)
+@dataclass(frozen=True)
+class _PairPlan:
+    """The files to fix in one orig/edit directory pair, computed without moving."""
+
+    orig_dir: Path
+    edit_dir: Path
+    from_orig: tuple[str, ...]
+    from_edit: tuple[str, ...]
+
+    def move_conflicts(self) -> list[tuple[Path, tuple[str, ...]]]:
+        """Return each target directory a move would overwrite files in, with them."""
+        return [
+            (target, conflicts)
+            for files, target in (
+                (self.from_orig, self.edit_dir),
+                (self.from_edit, self.orig_dir),
+            )
+            if (conflicts := tuple(_filter_safe(list(files), target)))
+        ]
+
+    def apply(self, action: MiscategorizedAction, *, dry_run: bool) -> None:
+        """Delete or move the planned files, as *action* says."""
+        match action:
+            case MiscategorizedAction.RM | MiscategorizedAction.RM_SAFE:
+                delete_files(self.orig_dir, list(self.from_orig), dry_run=dry_run)
+                delete_files(self.edit_dir, list(self.from_edit), dry_run=dry_run)
+            case MiscategorizedAction.MV:
+                move_files(
+                    self.orig_dir,
+                    self.edit_dir,
+                    list(self.from_orig),
+                    dry_run=dry_run,
+                )
+                move_files(
+                    self.edit_dir,
+                    self.orig_dir,
+                    list(self.from_edit),
+                    dry_run=dry_run,
+                )
+
+    def result(self) -> MiscategorizedDirResult:
+        """Return the files this pair's fix acts on."""
+        return MiscategorizedDirResult(
+            fixed_from_orig=self.from_orig,
+            fixed_from_rendered=self.from_edit,
+        )
 
 
-def _fix_miscategorized_pair(
+def _plan_pair(
     orig_dir: Path,
     edit_dir: Path,
+    action: MiscategorizedAction,
+) -> _PairPlan:
+    edited_in_orig, orig_in_edit = _find_miscategorized(orig_dir, edit_dir)
+    safe = action == MiscategorizedAction.RM_SAFE
+    return _PairPlan(
+        orig_dir=orig_dir,
+        edit_dir=edit_dir,
+        from_orig=tuple(
+            _filter_safe(edited_in_orig, edit_dir) if safe else edited_in_orig,
+        ),
+        from_edit=tuple(
+            _filter_safe(orig_in_edit, orig_dir) if safe else orig_in_edit,
+        ),
+    )
+
+
+@dataclass(frozen=True)
+class MiscategorizedPlan:
+    """The miscategorized files of one media source, and the action to take."""
+
+    album_dir: Path
+    action: MiscategorizedAction
+    heic: _PairPlan
+    mov: _PairPlan
+
+    def move_conflict(self) -> MiscategorizedMoveConflictError | None:
+        """Return the error a move would raise for overwriting files, if any."""
+        conflicts = (
+            [*self.heic.move_conflicts(), *self.mov.move_conflicts()]
+            if self.action == MiscategorizedAction.MV
+            else []
+        )
+        return (
+            MiscategorizedMoveConflictError(
+                conflicts[0][0].relative_to(self.album_dir).as_posix(),
+                conflicts[0][1],
+            )
+            if conflicts
+            else None
+        )
+
+
+def plan_miscategorized(
+    album_dir: Path,
+    ms: MediaSource,
     *,
     action: MiscategorizedAction,
-    dry_run: bool,
-) -> MiscategorizedDirResult:
-    edited_in_orig, orig_in_edit = _find_miscategorized(orig_dir, edit_dir)
+) -> MiscategorizedPlan:
+    """
+    Find the files of *ms* in the wrong archive directory, without touching them.
 
-    match action:
-        case MiscategorizedAction.RM:
-            delete_files(orig_dir, edited_in_orig, dry_run=dry_run)
-            delete_files(edit_dir, orig_in_edit, dry_run=dry_run)
-        case MiscategorizedAction.RM_SAFE:
-            edited_in_orig = _filter_safe(edited_in_orig, edit_dir)
-            orig_in_edit = _filter_safe(orig_in_edit, orig_dir)
-            delete_files(orig_dir, edited_in_orig, dry_run=dry_run)
-            delete_files(edit_dir, orig_in_edit, dry_run=dry_run)
-        case MiscategorizedAction.MV:
-            # Check both directions before moving either, so a refusal
-            # leaves the pair untouched.
-            _require_no_overwrite(edited_in_orig, edit_dir)
-            _require_no_overwrite(orig_in_edit, orig_dir)
-            move_files(orig_dir, edit_dir, edited_in_orig, dry_run=dry_run)
-            move_files(edit_dir, orig_dir, orig_in_edit, dry_run=dry_run)
-
-    return MiscategorizedDirResult(
-        fixed_from_orig=tuple(edited_in_orig),
-        fixed_from_rendered=tuple(orig_in_edit),
+    Raises :class:`~photree.album.fix.helpers.NotAnIosMediaSourceError` for std
+    sources.
+    """
+    require_ios(ms)
+    return MiscategorizedPlan(
+        album_dir=album_dir,
+        action=action,
+        heic=_plan_pair(
+            album_dir / ms.orig_img_dir,
+            album_dir / ms.edit_img_dir,
+            action,
+        ),
+        mov=_plan_pair(
+            album_dir / ms.orig_vid_dir,
+            album_dir / ms.edit_vid_dir,
+            action,
+        ),
     )
+
+
+def check_miscategorized_plans(plans: list[MiscategorizedPlan]) -> None:
+    """Raise the first :class:`MiscategorizedMoveConflictError` among *plans*."""
+    conflict = next(
+        (err for plan in plans if (err := plan.move_conflict()) is not None),
+        None,
+    )
+    if conflict is not None:
+        raise conflict
+
+
+def apply_miscategorized(
+    plan: MiscategorizedPlan,
+    *,
+    dry_run: bool,
+) -> MiscategorizedResult:
+    """
+    Delete or move the planned files.
+
+    Does not check for move conflicts: run :func:`check_miscategorized_plans`
+    on every plan first, so a conflict leaves all of them untouched.
+    """
+    plan.heic.apply(plan.action, dry_run=dry_run)
+    plan.mov.apply(plan.action, dry_run=dry_run)
+    return MiscategorizedResult(heic=plan.heic.result(), mov=plan.mov.result())
 
 
 def fix_miscategorized(
@@ -139,26 +249,15 @@ def fix_miscategorized(
     dry_run: bool = False,
 ) -> MiscategorizedResult:
     """
-    Move files that sit in the wrong archive directory.
+    Delete or move the files that sit in the wrong archive directory.
 
     Raises :class:`~photree.album.fix.helpers.NotAnIosMediaSourceError` for std
-    sources, and :class:`MiscategorizedMoveConflictError` when a move would overwrite.
+    sources, and :class:`MiscategorizedMoveConflictError`, before touching any
+    file, when a move would overwrite one.
     """
-    require_ios(ms)
-    return MiscategorizedResult(
-        heic=_fix_miscategorized_pair(
-            album_dir / ms.orig_img_dir,
-            album_dir / ms.edit_img_dir,
-            action=action,
-            dry_run=dry_run,
-        ),
-        mov=_fix_miscategorized_pair(
-            album_dir / ms.orig_vid_dir,
-            album_dir / ms.edit_vid_dir,
-            action=action,
-            dry_run=dry_run,
-        ),
-    )
+    plan = plan_miscategorized(album_dir, ms, action=action)
+    check_miscategorized_plans([plan])
+    return apply_miscategorized(plan, dry_run=dry_run)
 
 
 def rm_miscategorized(
