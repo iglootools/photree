@@ -12,7 +12,10 @@ parameter a test needs to control. The patching exceptions are listed in
   `home`, `environ`, the platform config directories, and `cpu_count`;
   `load_config` loads the config file from them. Commands read them with
   `runtime_of(ctx)` and pass the values on; `main()` hands the real one to the
-  app, and tests pass a fake as `CliRunner.invoke(..., obj=...)`. Below the
+  app, and tests run the CLI with `invoke_cli(args, runtime=...)`, which
+  always passes a fake (`ALL_DEPS_RUNTIME` by default); ruff bans
+  `CliRunner` everywhere else, so no test reaches the developer's `PATH`,
+  home or config file. Below the
   commands, nothing reads the environment: CLI helpers take `cwd` (or the
   runtime) as a parameter, and a domain function that would otherwise read it
   takes a keyword parameter defaulting to the real value
@@ -25,5 +28,5 @@ parameter a test needs to control. The patching exceptions are listed in
   real ones.
 - **Fakes**, in `tests/fakes.py`: `fake_runtime(*present)` (only *present*
   binaries installed, a home that does not exist, an empty environment, no
-  config file), `ALL_DEPS_RUNTIME`, `fake_which`, and
+  config file), `ALL_DEPS_RUNTIME`, `invoke_cli`, `fake_which`, and
   `fake_album_runtime(*present, run_import=..., refresh=...)`.

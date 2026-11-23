@@ -8,7 +8,7 @@ from typing import Any
 
 import cv2
 import numpy as np
-from typer.testing import CliRunner, Result
+from typer.testing import CliRunner, Result  # noqa: TID251 - wrapped by invoke_cli
 
 from photree.album.cli.runtime import AlbumRuntime, RunImportFn, widen
 from photree.album.faces.detect import MakeThumbnailFn, ThumbnailResult
@@ -153,7 +153,8 @@ def invoke_cli(args: Sequence[str], *, runtime: Runtime = ALL_DEPS_RUNTIME) -> R
 
     The only way tests run the CLI: invoked without a runtime, a command falls
     back to the real one and reads the developer's ``PATH``, home directory
-    and config file.
+    and config file. ``typer.testing.CliRunner`` is banned elsewhere (ruff
+    TID251) so that no test can skip it.
     """
     return CliRunner().invoke(app, args, obj=runtime)
 

@@ -4,8 +4,8 @@ The ports a CLI command runs with, real by default.
 A command reads the machine and the process only through its runtime: which
 binaries are installed, the working directory, the home directory, the
 environment, the config file, the CPU count. Tests pass a fake :class:`Runtime`
-as ``CliRunner.invoke(app, args, obj=...)`` instead of patching: Typer hands it
-to every command as ``ctx.obj``.
+as ``ctx.obj`` instead of patching (``tests.fakes.invoke_cli``): Typer hands it
+to every command.
 """
 
 import os
