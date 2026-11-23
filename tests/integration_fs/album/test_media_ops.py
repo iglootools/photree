@@ -2,12 +2,14 @@ from pathlib import Path
 
 import pytest
 
+from photree.album.cli.media_op_output import (
+    format_media_op_error,
+    format_media_op_summary,
+)
 from photree.album.id import generate_album_id
 from photree.album.media import (
     MediaOpError,
     MediaOpErrorKind,
-    format_media_op_error,
-    media_op_summary,
     move_media,
     resolve_variants,
     rm_media,
@@ -392,16 +394,16 @@ class TestRmMedia:
 
 class TestMediaOpSummary:
     def test_summary_counts_files_by_directory(self) -> None:
-        assert media_op_summary("move", (("orig-img", ("a", "b")),)) == (
+        assert format_media_op_summary("move", (("orig-img", ("a", "b")),)) == (
             "Done. Moved 2 file(s): 2 from orig-img."
         )
 
     def test_dry_run_summary_says_what_would_happen(self) -> None:
-        assert media_op_summary(
+        assert format_media_op_summary(
             "remove",
             (("orig-img", ("a", "b")),),
             dry_run=True,
         ) == ("Would remove 2 file(s): 2 from orig-img.")
 
     def test_summary_names_the_verb_when_nothing_matched(self) -> None:
-        assert media_op_summary("remove", ()) == "Done. No files to remove."
+        assert format_media_op_summary("remove", ()) == "Done. No files to remove."

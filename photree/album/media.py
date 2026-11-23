@@ -14,8 +14,7 @@ from photree.album.formats import VID_EXTENSIONS
 from photree.album.store.file_matching import find_files_by_key
 from photree.album.store.media_source import MediaSource
 from photree.album.store.media_sources_discovery import discover_media_sources
-from photree.common.formatting import indent
-from photree.common.fs import delete_files, display_path, file_ext, move_files
+from photree.common.fs import delete_files, file_ext, move_files
 
 # A media file sits in a directory: at least the directory and the file name.
 _MIN_PATH_PARTS = 2
@@ -46,9 +45,8 @@ class MediaOpError(ValueError):
     """
     A media operation that cannot run.
 
-    Carries structured fields; :func:`format_media_op_error` renders them for
-    the CLI with display paths. ``ValueError`` subclass for callers that
-    already catch that.
+    Carries structured fields; the CLI renders them with display paths.
+    ``ValueError`` subclass for callers that already catch that.
     """
 
     def __init__(
@@ -265,67 +263,3 @@ def _files_by_dir(
     variants: list[tuple[str, list[str]]],
 ) -> tuple[tuple[str, tuple[str, ...]], ...]:
     return tuple((subdir, tuple(files)) for subdir, files in variants)
-
-
-_MAX_LISTED_CONFLICTS = 10
-
-
-def format_media_op_error(exc: MediaOpError, cwd: Path) -> str:
-    """Render a :class:`MediaOpError` for the CLI, with display paths."""
-    album = display_path(exc.album_dir, cwd)
-    match exc.kind:
-        case MediaOpErrorKind.NO_MEDIA_SOURCES:
-            return f"No media sources found in {album}."
-        case MediaOpErrorKind.PATH_WITHOUT_DIRECTORY:
-            return (
-                f'"{exc.rel_path}" must be a relative path with a directory'
-                " (e.g. main-jpg/IMG_E3219.jpg)."
-            )
-        case MediaOpErrorKind.UNKNOWN_DIRECTORY:
-            return (
-                f'Directory "{exc.subdir}" does not match any media source in {album}.'
-            )
-        case MediaOpErrorKind.MOVE_CONFLICT:
-            return _format_move_conflicts(exc.conflicts, album)
-
-
-def _format_move_conflicts(conflicts: tuple[str, ...], album: Path) -> str:
-    shown = conflicts[:_MAX_LISTED_CONFLICTS]
-    hidden = len(conflicts) - len(shown)
-    return "\n".join(
-        [
-            f"Move would conflict with {len(conflicts)} existing file(s) in {album}:",
-            *(indent(c) for c in shown),
-            *([indent(f"... and {hidden} more")] if hidden > 0 else []),
-            "Use a different media source to avoid conflicts.",
-        ],
-    )
-
-
-def media_op_summary(
-    verb: str,
-    files_by_dir: tuple[tuple[str, tuple[str, ...]], ...],
-    *,
-    dry_run: bool = False,
-) -> str:
-    """Summarize a media operation; *verb* is its infinitive ("move", "remove")."""
-    total = sum(len(files) for _, files in files_by_dir)
-    if total == 0:
-        return f"No files to {verb}." if dry_run else f"Done. No files to {verb}."
-    parts = ", ".join(f"{len(files)} from {name}" for name, files in files_by_dir)
-    return (
-        f"Would {verb} {total} file(s): {parts}."
-        if dry_run
-        else f"Done. {verb.capitalize()}d {total} file(s): {parts}."
-    )
-
-
-def media_op_check_suggestions(album_dirs: list[str]) -> str:
-    """Return the lines suggesting an ``album check`` of each of *album_dirs*."""
-    return "\n".join(
-        [
-            "",
-            "Suggested next steps:",
-            *(indent(f'photree album check --album-dir "{d}"') for d in album_dirs),
-        ],
-    )

@@ -7,6 +7,11 @@ import typer
 
 from photree.album import media
 from photree.album.cli.app import app
+from photree.album.cli.media_op_output import (
+    format_media_op_check_suggestions,
+    format_media_op_error,
+    format_media_op_summary,
+)
 from photree.album.cli.media_source_conflict import exit_on_media_source_conflict
 from photree.clihelpers.console import err_console
 from photree.clihelpers.runtime import runtime_of
@@ -60,13 +65,13 @@ def rm_media_cmd(
         try:
             result = media.rm_media(album_dir, files, dry_run=dry_run)
         except media.MediaOpError as exc:
-            err_console.print(media.format_media_op_error(exc, cwd), markup=False)
+            err_console.print(format_media_op_error(exc, cwd), markup=False)
             raise typer.Exit(code=1) from None
 
     typer.echo(
         format_dry_run(
-            media.media_op_summary("remove", result.files_by_dir, dry_run=dry_run),
+            format_media_op_summary("remove", result.files_by_dir, dry_run=dry_run),
             dry_run=dry_run,
         ),
     )
-    typer.echo(media.media_op_check_suggestions([str(display_path(album_dir, cwd))]))
+    typer.echo(format_media_op_check_suggestions([str(display_path(album_dir, cwd))]))
