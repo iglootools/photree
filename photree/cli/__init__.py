@@ -3,7 +3,9 @@
 import sys
 from collections.abc import Callable
 
+from photree.album.cli.face_model_error import format_model_checksum_error
 from photree.album.cli.media_source_conflict import format_media_source_conflict
+from photree.album.faces.model import ModelChecksumError
 from photree.album.store.media_sources_discovery import MediaSourceConflictError
 from photree.cli.app import app
 from photree.clihelpers.config_errors import format_config_error
@@ -49,6 +51,11 @@ def main(*, run: Callable[..., object] = app, runtime: Runtime | None = None) ->
             format_media_source_conflict(exc, resolved.cwd()),
             markup=False,
         )
+        sys.exit(1)
+    except ModelChecksumError as exc:
+        # Raised where the face model first loads, deep in a refresh or an
+        # import: whichever command got there, the run cannot detect faces.
+        err_console.print(format_model_checksum_error(exc), markup=False)
         sys.exit(1)
     except ConfigError as exc:
         # Safety net for config reads not handled by the command: an invalid

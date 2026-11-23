@@ -16,6 +16,13 @@ from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import numpy as np
 
+from photree.album.faces.model import (
+    DownloadFn,
+    ModelChecksumError,
+    download_url,
+    ensure_model,
+    resolve_model_archive,
+)
 from photree.album.faces.protocol import DEFAULT_MODEL_NAME, THUMB_MAX_DIMENSION
 from photree.common.native_stderr import filter_native_stderr
 from photree.common.sips import get_dimensions, resize_to_jpeg
@@ -81,6 +88,9 @@ def select_providers(available: list[str]) -> list[str]:
 
 def create_face_analyzer(
     model_name: str = DEFAULT_MODEL_NAME,
+    *,
+    root: Path | None = None,
+    download: DownloadFn = download_url,
 ) -> FaceAnalysis:
     """
     Create and prepare an InsightFace :class:`FaceAnalysis` instance.
@@ -88,9 +98,15 @@ def create_face_analyzer(
     Prefers ``CoreMLExecutionProvider`` (M-series Neural Engine) with
     fallback to ``CPUExecutionProvider``.
 
-    Model download (~300 MB) happens on first use. Subsequent calls
-    load from ``~/.insightface/models/`` (takes a few seconds).
+    The model archive (~300 MB) is downloaded on first use into *root*
+    (``~/.insightface`` by default) and checked against its pinned sha256
+    before insightface sees it (:func:`~photree.album.faces.model.ensure_model`);
+    later calls load it from there (a few seconds). Raises
+    :class:`~photree.album.faces.model.ModelChecksumError` on a mismatch.
     """
+    model_root = root if root is not None else Path("~/.insightface").expanduser()
+    ensure_model(model_root, resolve_model_archive(model_name), download=download)
+
     # Imported here, not at module level: insightface and onnxruntime take
     # ~0.5 s to import, which every CLI invocation would otherwise pay.
     with filter_native_stderr(is_ort_device_discovery_noise):
@@ -105,7 +121,11 @@ def create_face_analyzer(
     ):
         warnings.filterwarnings("ignore", category=FutureWarning, module="insightface")
         available = cast("list[str]", onnxruntime.get_available_providers())  # pyright: ignore[reportUnknownMemberType]
-        app = FaceAnalysis(name=model_name, providers=select_providers(available))
+        app = FaceAnalysis(
+            name=model_name,
+            root=str(model_root),
+            providers=select_providers(available),
+        )
         app.prepare(ctx_id=0, det_size=(640, 640))  # pyright: ignore[reportUnknownMemberType]
     return app
 
@@ -124,13 +144,22 @@ def memoized_face_analyzer_factory(
     batch refresh shares one analyzer and a no-op refresh loads nothing.
 
     *create* builds the analyzer; tests pass a fake instead of loading the model.
+    A model archive that failed its checksum is not downloaded again for every
+    album of a batch: the factory raises the same error on each later call.
     """
     cached: FaceAnalysis | None = None
+    checksum_error: ModelChecksumError | None = None
 
     def factory() -> FaceAnalysis:
-        nonlocal cached
+        nonlocal cached, checksum_error
+        if checksum_error is not None:
+            raise checksum_error
         if cached is None:
-            cached = create(model_name)
+            try:
+                cached = create(model_name)
+            except ModelChecksumError as exc:
+                checksum_error = exc
+                raise
         return cached
 
     return factory
