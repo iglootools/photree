@@ -12,7 +12,8 @@ from collections.abc import Sequence
 from pathlib import Path
 from textwrap import dedent
 
-from photree.album.check.output import derived_failures_report, format_duplicate_stem
+from photree.album.check.output.album import format_duplicate_stem
+from photree.album.check.output.derived import derived_failures_report
 from photree.album.check.std import DuplicateStem
 from photree.album.importer.album_import import (
     AlbumImportResult,

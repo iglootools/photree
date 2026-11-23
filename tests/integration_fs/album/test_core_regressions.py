@@ -13,7 +13,7 @@ import yaml
 
 from photree.album.browsable import refresh_browsable_dir
 from photree.album.check import run_album_check
-from photree.album.check.output import format_album_preflight_checks
+from photree.album.check.output.album import format_album_preflight_checks
 from photree.album.exif_cache.protocol import (
     EXIF_CACHE_VERSION,
     ExifCache,

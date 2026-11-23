@@ -11,8 +11,9 @@ from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.text import Text
 
-from photree.album.check import output as preflight_output
-from photree.album.check.output import format_integrity_checks
+from photree.album.check.output import album as album_output
+from photree.album.check.output import troubleshoot as troubleshoot_output
+from photree.album.check.output.album import format_integrity_checks
 from photree.album.check.testkit import (
     INTEGRITY_FAILURES,
     INTEGRITY_OK,
@@ -63,19 +64,19 @@ def _panel(title: str, content: str) -> None:
 # every sample. Grouped by the module whose output functions they exercise.
 _SAMPLES: tuple[tuple[str, Callable[[], str]], ...] = (
     (
-        "preflight_output.sips_check(available=True)",
-        lambda: preflight_output.sips_check(available=True),
+        "album_output.sips_check(available=True)",
+        lambda: album_output.sips_check(available=True),
     ),
     (
-        "preflight_output.sips_check(available=False)",
-        lambda: preflight_output.sips_check(available=False),
+        "album_output.sips_check(available=False)",
+        lambda: album_output.sips_check(available=False),
     ),
     (
-        "preflight_output.sips_troubleshoot()",
-        preflight_output.sips_troubleshoot,
+        "troubleshoot_output.sips_troubleshoot()",
+        troubleshoot_output.sips_troubleshoot,
     ),
     (
-        "album_output.rm_upstream_summary()",
+        "preflight_output.rm_upstream_summary()",
         lambda: rm_upstream_summary(
             heic_jpeg=2,
             heic_browsable=3,
@@ -95,20 +96,20 @@ _SAMPLES: tuple[tuple[str, Callable[[], str]], ...] = (
     ),
     (
         "album_output.format_album_preflight_checks (ios, all ok)",
-        lambda: preflight_output.format_album_preflight_checks(PREFLIGHT_OK),
+        lambda: album_output.format_album_preflight_checks(PREFLIGHT_OK),
     ),
     (
         "album_output.format_album_preflight_checks (ios, failures)",
-        lambda: preflight_output.format_album_preflight_checks(PREFLIGHT_FAILURES),
+        lambda: album_output.format_album_preflight_checks(PREFLIGHT_FAILURES),
     ),
     (
         "album_output.format_album_preflight_checks (other)",
-        lambda: preflight_output.format_album_preflight_checks(PREFLIGHT_STD),
+        lambda: album_output.format_album_preflight_checks(PREFLIGHT_STD),
     ),
     (
-        "album_output.format_album_preflight_troubleshoot (failures)",
+        "troubleshoot_output.format_album_preflight_troubleshoot (failures)",
         lambda: (
-            preflight_output.format_album_preflight_troubleshoot(
+            troubleshoot_output.format_album_preflight_troubleshoot(
                 PREFLIGHT_FAILURES,
                 album_dir="/path/to/album",
             )
@@ -116,9 +117,12 @@ _SAMPLES: tuple[tuple[str, Callable[[], str]], ...] = (
         ),
     ),
     (
-        "album_output.format_album_preflight_troubleshoot (all ok — returns None)",
+        (
+            "troubleshoot_output.format_album_preflight_troubleshoot"
+            " (all ok — returns None)"
+        ),
         lambda: (
-            preflight_output.format_album_preflight_troubleshoot(
+            troubleshoot_output.format_album_preflight_troubleshoot(
                 PREFLIGHT_OK,
                 album_dir="/path/to/album",
             )

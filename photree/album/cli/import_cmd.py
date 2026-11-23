@@ -5,7 +5,7 @@ from typing import Annotated
 
 import typer
 
-from photree.album.check.output import format_naming_checks
+from photree.album.check.output.album import format_naming_checks
 from photree.album.cli.app import app
 from photree.album.cli.import_preflight import run_import_preflight
 from photree.album.cli.media_source_conflict import exit_on_media_source_conflict

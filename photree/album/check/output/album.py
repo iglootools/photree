@@ -1,5 +1,5 @@
 """
-Output formatting for album checks (preflight + integrity).
+Output formatting for one album's check (preflight + integrity).
 
 Formatters return unindented lines; nested detail lines are indented relative
 to their heading with :func:`~photree.common.formatting.indent`, and the call
@@ -11,9 +11,7 @@ source names, paths, filenames, issue messages) is escaped with
 result with markup enabled and must not escape it again.
 """
 
-from collections.abc import Callable, Sequence
-from pathlib import Path
-from textwrap import dedent
+from collections.abc import Sequence
 
 from photree.album.check import (
     AlbumIntegrityResult,
@@ -38,13 +36,10 @@ from photree.album.check.ios.sidecar import SidecarCheck, SidecarIssue, SidecarI
 from photree.album.check.jpeg import AlbumJpegIntegrityResult, JpegCheck
 from photree.album.check.media_metadata import MediaMetadataCheck
 from photree.album.check.std import DuplicateStem, StdMediaSourceIntegrityResult
-from photree.album.check.troubleshoot import suggest_exif_fixes, suggest_fixes
+from photree.album.check.troubleshoot import suggest_exif_fixes
 from photree.album.check.unexpected_dirs import UnexpectedDirsCheck
 from photree.album.exif_date_check import AlbumNamingResult, ExifTimestampCheck
-from photree.album.faces.failures import FaceFailure, format_face_failures
 from photree.album.id import format_album_external_id
-from photree.album.jpeg import JpegConversionFailure
-from photree.album.naming import BatchNamingResult
 from photree.album.store.media_source import MediaSource
 from photree.common.formatting import (
     CHECK,
@@ -54,86 +49,11 @@ from photree.common.formatting import (
     indent,
     markup_escape,
 )
-from photree.common.fs import display_path
-from photree.common.sysdeps import SystemDependency
-from photree.common.sysdeps_output import format_missing_troubleshoot
 
 
 def _bullets(items: Sequence[str]) -> list[str]:
     """``- item`` lines (plain text, escaped), one level deeper than their heading."""
     return [indent(f"- {markup_escape(item)}") for item in items]
-
-
-def jpeg_failures_report(
-    failures: tuple[tuple[str, JpegConversionFailure], ...],
-) -> str:
-    """Format the files that could not be converted to JPEG, as Rich markup."""
-    return "\n".join(
-        [
-            f"{CROSS} jpeg: {len(failures)} file(s) could not be converted",
-            *(
-                indent(
-                    markup_escape(f"{source}/{failure.filename}: {failure.reason}"),
-                    2,
-                )
-                for source, failure in failures
-            ),
-        ],
-    )
-
-
-def face_failures_report(failures: tuple[tuple[str, FaceFailure], ...]) -> str:
-    """Format the images face detection failed on, as Rich markup."""
-    return "\n".join(
-        [
-            f"{CROSS} face detection failed for {len(failures)} image(s)",
-            *(
-                indent(markup_escape(line), 2)
-                for line in format_face_failures(failures)
-            ),
-        ],
-    )
-
-
-def derived_failures_report(
-    jpeg_failures: tuple[tuple[str, JpegConversionFailure], ...],
-    face_failures: tuple[tuple[str, FaceFailure], ...],
-    album_dir: str,
-) -> str:
-    """
-    Report the per-file failures of a refresh of derived data.
-
-    Shared by every command that refreshes derived data (refresh, import,
-    gallery import), so a partial refresh reads — and is retried — the same
-    way everywhere. Rich markup, with user text escaped.
-    """
-    flag = markup_escape(f'--album-dir "{album_dir}"')
-    return "\n".join(
-        [
-            *(
-                [
-                    jpeg_failures_report(jpeg_failures),
-                    (
-                        f"Run 'photree album refresh --refresh-jpeg {flag}'"
-                        " to retry the conversions."
-                    ),
-                ]
-                if jpeg_failures
-                else []
-            ),
-            *(
-                [
-                    face_failures_report(face_failures),
-                    (
-                        f"Run 'photree album detect-faces {flag}'"
-                        " to retry face detection."
-                    ),
-                ]
-                if face_failures
-                else []
-            ),
-        ],
-    )
 
 
 def sips_check(*, available: bool) -> str:
@@ -142,11 +62,6 @@ def sips_check(*, available: bool) -> str:
         return f"{CHECK} sips"
     else:
         return f"{CROSS} sips (not found)"
-
-
-def sips_troubleshoot() -> str:
-    """Return the troubleshooting text for a missing sips."""
-    return format_missing_troubleshoot([SystemDependency.SIPS])
 
 
 def exiftool_check(*, available: bool) -> str:
@@ -183,16 +98,6 @@ def media_source_conflicts_check(conflicts: tuple[str, ...]) -> str:
                 " other media checks were skipped"
             ),
         ),
-    )
-
-
-def media_source_conflicts_troubleshoot(conflicts: tuple[str, ...]) -> str:
-    """Return the troubleshooting text for media source name clashes."""
-    names = markup_escape(", ".join(conflicts))
-    return (
-        f"Media source name(s) used by both an iOS and a std archive: {names}.\n"
-        "Rename one of the two archive directories (and its browsable "
-        "directories) so every media source name is unique."
     )
 
 
@@ -322,26 +227,6 @@ def _format_exif_mismatches(
         if exif_check.mismatches
         else []
     )
-
-
-def format_batch_naming_issues(result: BatchNamingResult) -> str:
-    """Format cross-album naming issues (date collisions)."""
-    if result.success:
-        return f"{CHECK} no date collisions"
-    else:
-        return "\n".join(
-            [
-                f"{CROSS} date collisions: {len(result.date_collisions)} date(s)",
-                *(
-                    line
-                    for album_date, albums in result.date_collisions
-                    for line in (
-                        indent(f"{album_date}:"),
-                        *(indent(markup_escape(album), 2) for album in albums),
-                    )
-                ),
-            ],
-        )
 
 
 def _issues_block(icon: str, label: str, issues: Sequence[str]) -> str:
@@ -871,148 +756,5 @@ def format_fatal_warnings(
                 )
                 for m in exif_mismatches
             ),
-        ],
-    )
-
-
-def _integrity_suggestions(
-    result: AlbumPreflightResult,
-    album_dir_flag: str,
-) -> list[str]:
-    """Fix suggestions for every media source's integrity failures (iOS and std)."""
-    return [
-        suggestion
-        for ms, ms_result in (
-            result.integrity.by_media_source if result.integrity is not None else ()
-        )
-        for suggestion in suggest_fixes(ms_result, album_dir_flag, ms)
-    ]
-
-
-def _missing_dirs_suggestions(
-    result: AlbumPreflightResult,
-    album_dir_flag: str,
-) -> list[str]:
-    """Missing browsable directories → suggest refresh --refresh-browsable."""
-    missing_browsable = frozenset(result.dir_check.missing) & frozenset(
-        d
-        for ms in result.media_source_summary.media_sources
-        for d in (ms.img_dir, ms.vid_dir, ms.jpg_dir)
-    )
-    return (
-        [
-            dedent(f"""\
-                photree album refresh {album_dir_flag} --refresh-browsable
-                  Rebuild browsable directories ({", ".join(sorted(missing_browsable))})
-                  from archive sources, then regenerate JPEGs."""),
-        ]
-        if missing_browsable
-        else []
-    )
-
-
-def _media_metadata_suggestions(
-    result: AlbumPreflightResult,
-    album_dir_flag: str,
-) -> list[str]:
-    return (
-        [
-            dedent(f"""\
-                photree album refresh {album_dir_flag}
-                  Generate or update media IDs in .photree/media-ids/."""),
-        ]
-        if result.media_metadata_check is not None
-        and not result.media_metadata_check.in_sync
-        else []
-    )
-
-
-def format_album_preflight_troubleshoot(
-    result: AlbumPreflightResult,
-    album_dir: str = ".",
-) -> str | None:
-    """Format troubleshooting for failed album checks, or return None if none failed."""
-    album_dir_flag = f'--album-dir "{album_dir}"'
-    all_suggestions = [
-        *_missing_dirs_suggestions(result, album_dir_flag),
-        *_integrity_suggestions(result, album_dir_flag),
-        *_media_metadata_suggestions(result, album_dir_flag),
-    ]
-    lines = [
-        *([sips_troubleshoot()] if not result.sips_available else []),
-        *(
-            [media_source_conflicts_troubleshoot(result.media_source_conflicts)]
-            if result.media_source_conflicts
-            else []
-        ),
-        *(
-            [
-                "Suggested fixes (remove --dry-run to apply):\n\n"
-                # Suggestions are plain text quoting the album dir and media
-                # source names, so they are escaped as a whole.
-                + "\n\n".join(markup_escape(s) for s in all_suggestions),
-            ]
-            if all_suggestions
-            else []
-        ),
-    ]
-    return "\n".join(lines) if lines else None
-
-
-def batch_check_summary(passed: int, failed: int, warned: int = 0) -> str:
-    """Format the closing line of a batch check with its album counts."""
-    parts = [
-        f"{passed} album(s) passed",
-        *([f"{warned} with warnings"] if warned else []),
-        f"{failed} failed",
-    ]
-    return f"\nDone. {', '.join(parts)}."
-
-
-# Rendering for a check lives here whatever its scope, next to the single-album
-# formatters above — the batch CLI wrapper composes these rather than building
-# its own strings, so there is one place to change how a check result reads.
-
-
-def duplicate_ids_report(
-    kind: str,
-    duplicates: dict[str, list[Path]],
-    base: Path,
-    format_id: Callable[[str], str],
-) -> str:
-    """Format duplicate-ID findings. *kind* is ``"album"`` or ``"media"``."""
-    return "\n".join(
-        "\n".join(
-            [
-                f"{CROSS} duplicate {kind} id: {format_id(dup_id)}",
-                *(indent(markup_escape(display_path(p, base)), 2) for p in paths),
-            ],
-        )
-        for dup_id, paths in duplicates.items()
-    )
-
-
-def no_duplicate_ids_line(kind: str) -> str:
-    """Return the success counterpart of :func:`duplicate_ids_report`."""
-    return f"{CHECK} no duplicate {kind} ids"
-
-
-def batch_check_retry_flags(
-    *,
-    fatal_warnings: bool,
-    fatal_sidecar: bool,
-    fatal_exif_date_match: bool,
-) -> str:
-    """
-    Reconstruct the flags needed to reproduce a batch check on one album.
-
-    A suggested command that silently drops the caller's flags would not
-    reproduce the failure it is suggested for.
-    """
-    return "".join(
-        [
-            " --fatal-warnings" if fatal_warnings else "",
-            " --fatal-sidecar" if fatal_sidecar else "",
-            " --no-fatal-exif-date-match" if not fatal_exif_date_match else "",
         ],
     )
