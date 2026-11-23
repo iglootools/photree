@@ -13,6 +13,8 @@ import shutil
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
+from itertools import groupby
+from operator import attrgetter
 from pathlib import Path
 
 from photree.album.naming import parse_album_name
@@ -47,6 +49,9 @@ class BrowsableRefreshErrorKind(StrEnum):
     CYCLE = "cycle"
     """``path``: collection reached again through its own members."""
 
+    LINK_COLLISION = "link-collision"
+    """``path``: link that two different ``targets`` would both claim."""
+
 
 @dataclass(frozen=True)
 class BrowsableRefreshError:
@@ -55,6 +60,7 @@ class BrowsableRefreshError:
     kind: BrowsableRefreshErrorKind
     path: Path
     collection_id: str | None = None
+    targets: tuple[Path, ...] = ()
 
 
 class DanglingMemberKind(StrEnum):
@@ -308,6 +314,14 @@ def _dangling_members(
     )
 
 
+@dataclass(frozen=True)
+class _Link:
+    """A symlink to create: *link* pointing at *target*."""
+
+    target: Path
+    link: Path
+
+
 def _make_relative_symlink(target: Path, link: Path) -> None:
     """Create a relative symlink from *link* pointing to *target*."""
     link.parent.mkdir(parents=True, exist_ok=True)
@@ -315,25 +329,17 @@ def _make_relative_symlink(target: Path, link: Path) -> None:
     Path(link).symlink_to(rel_target)
 
 
-def _symlink_dir_if_exists(src: Path, link: Path) -> int:
-    """Create a symlink to src if it exists. Returns 1 on success, 0 otherwise."""
-    if src.is_dir():
-        _make_relative_symlink(src, link)
-        return 1
-    else:
-        return 0
-
-
-def _render_album(album: _AlbumEntry, target_dir: Path) -> int:
-    """Render an album: symlinks to jpg + vid dirs. Returns symlink count."""
+def _plan_album(album: _AlbumEntry, target_dir: Path) -> list[_Link]:
+    """Plan an album's links: one per existing jpg and vid dir."""
     album_target = target_dir / album.name
-    return sum(
-        _symlink_dir_if_exists(album.path / d, album_target / d)
+    return [
+        _Link(album.path / d, album_target / d)
         for d in [
             *(ms.jpg_dir for ms in album.media_sources),
             *(ms.vid_dir for ms in album.media_sources),
         ]
-    )
+        if (album.path / d).is_dir()
+    ]
 
 
 def _matching_files(loc: _MediaLocation, pick_dir: _DirPicker) -> list[Path]:
@@ -346,22 +352,22 @@ def _matching_files(loc: _MediaLocation, pick_dir: _DirPicker) -> list[Path]:
     )
 
 
-def _render_media_files(
+def _plan_media_files(
     media_ids: tuple[str, ...],
     media_locations: Mapping[str, _MediaLocation],
     target_subdir: Path,
     pick_dir: _DirPicker,
-) -> int:
+) -> list[_Link]:
     """
-    Symlink individual media files into target_subdir. Returns count.
+    Plan links to individual media files in target_subdir.
 
-    Symlinks are prefixed with the album name and media source to
+    Links are prefixed with the album name and media source to
     prevent collisions when multiple albums or sources contain files
     with the same name (e.g. ``IMG_0001.jpg``).  The resulting name
     is ``{album_name} - {media_source} - {filename}``.
     """
-    links = [
-        (
+    return [
+        _Link(
             f,
             target_subdir
             / f"{loc.album_path.name} - {loc.media_source.name} - {f.name}",
@@ -371,9 +377,6 @@ def _render_media_files(
         if loc is not None
         for f in _matching_files(loc, pick_dir)
     ]
-    for target, link in links:
-        _make_relative_symlink(target, link)
-    return len(links)
 
 
 @dataclass(frozen=True)
@@ -385,15 +388,15 @@ class _Gallery:
     media_locations: Mapping[str, _MediaLocation]
 
 
-def _render_collection(
+def _plan_collection(
     collection: _CollectionEntry,
     target_dir: Path,
     gallery: _Gallery,
     visited: frozenset[str],
-) -> tuple[int, tuple[BrowsableRefreshError, ...]]:
-    """Render a collection recursively. Returns (symlink_count, errors)."""
+) -> tuple[list[_Link], tuple[BrowsableRefreshError, ...]]:
+    """Plan a collection's links recursively. Returns (links, errors)."""
     if collection.collection_id in visited:
-        return 0, (
+        return [], (
             BrowsableRefreshError(
                 BrowsableRefreshErrorKind.CYCLE,
                 collection.path,
@@ -401,52 +404,53 @@ def _render_collection(
             ),
         )
     col_target = target_dir / collection.name
-    album_count = sum(
-        _render_album(album, col_target / "albums")
+    album_links = [
+        link
         for album_id in collection.album_ids
         for album in [gallery.albums.get(album_id)]
         if album is not None
-    )
-    sub_count, sub_errors = _render_collections(
+        for link in _plan_album(album, col_target / "albums")
+    ]
+    sub_links, sub_errors = _plan_collections(
         [gallery.collections.get(cid) for cid in collection.collection_ids],
         lambda _: col_target / "collections",
         gallery,
         visited | {collection.collection_id},
     )
-    image_count = _render_media_files(
+    image_links = _plan_media_files(
         collection.image_ids,
         gallery.media_locations,
         col_target / "images",
         _image_dir,
     )
-    video_count = _render_media_files(
+    video_links = _plan_media_files(
         collection.video_ids,
         gallery.media_locations,
         col_target / "videos",
         _video_dir,
     )
-    return album_count + sub_count + image_count + video_count, sub_errors
+    return [*album_links, *sub_links, *image_links, *video_links], sub_errors
 
 
-def _render_collections(
+def _plan_collections(
     collections: list[_CollectionEntry | None],
     target_for: Callable[[_CollectionEntry], Path],
     gallery: _Gallery,
     visited: frozenset[str],
-) -> tuple[int, tuple[BrowsableRefreshError, ...]]:
+) -> tuple[list[_Link], tuple[BrowsableRefreshError, ...]]:
     """
-    Render several collections; sum their symlinks and gather their errors.
+    Plan several collections; concatenate their links and gather their errors.
 
     ``None`` entries (dangling member IDs, reported separately) are skipped.
     """
-    rendered = [
-        _render_collection(col, target_for(col), gallery, visited)
+    planned = [
+        _plan_collection(col, target_for(col), gallery, visited)
         for col in collections
         if col is not None
     ]
     return (
-        sum(count for count, _ in rendered),
-        tuple(e for _, errors in rendered for e in errors),
+        [link for links, _ in planned for link in links],
+        tuple(e for _, errors in planned for e in errors),
     )
 
 
@@ -470,22 +474,59 @@ def _collection_target_dir(browsable_dir: Path, col: _CollectionEntry) -> Path:
     return browsable_dir / Path(*parts)
 
 
-def _render_all(
+def _dedupe_links(
+    links: list[_Link],
+) -> tuple[tuple[_Link, ...], tuple[BrowsableRefreshError, ...]]:
+    """
+    Drop repeated links, and report a link two different targets claim.
+
+    A repeat is expected (an album or collection listed twice among a
+    collection's members) and is created once. A collision, such as two
+    albums or two collections with the same name in the same place, cannot be
+    rendered: creating the second link would fail half-way through the tree.
+    """
+    targets_by_link = {
+        link: tuple(dict.fromkeys(p.target for p in group))
+        for link, group in groupby(
+            sorted(links, key=attrgetter("link")),
+            key=attrgetter("link"),
+        )
+    }
+    return (
+        tuple(
+            _Link(targets[0], link)
+            for link, targets in targets_by_link.items()
+            if len(targets) == 1
+        ),
+        tuple(
+            BrowsableRefreshError(
+                BrowsableRefreshErrorKind.LINK_COLLISION,
+                link,
+                targets=targets,
+            )
+            for link, targets in targets_by_link.items()
+            if len(targets) > 1
+        ),
+    )
+
+
+def _plan_all(
     gallery: _Gallery,
     browsable_dir: Path,
-) -> tuple[int, tuple[BrowsableRefreshError, ...]]:
-    """Render every album and collection. Returns (symlinks, errors)."""
-    album_symlinks = sum(
-        _render_album(album, _album_target_dir(browsable_dir, album))
+) -> tuple[list[_Link], tuple[BrowsableRefreshError, ...]]:
+    """Plan the links of every album and collection. Returns (links, errors)."""
+    album_links = [
+        link
         for album in gallery.albums.values()
-    )
-    col_symlinks, errors = _render_collections(
+        for link in _plan_album(album, _album_target_dir(browsable_dir, album))
+    ]
+    col_links, errors = _plan_collections(
         list(gallery.collections.values()),
         lambda col: _collection_target_dir(browsable_dir, col),
         gallery,
         frozenset(),
     )
-    return album_symlinks + col_symlinks, errors
+    return [*album_links, *col_links], errors
 
 
 def refresh_browsable(
@@ -497,12 +538,14 @@ def refresh_browsable(
     Render the browsable directory structure.
 
     1. Validate the existing browsable/ directory and scan the gallery
-    2. Remove the existing browsable/ directory
-    3. Render albums by year under public/private
-    4. Render collections by year/chapter/all-time under public/private
+    2. Plan the links: albums by year, collections by year/chapter/all-time,
+       each under public/private
+    3. Remove the existing browsable/ directory
+    4. Create the planned links
 
-    Unreadable albums or collections abort before anything is removed;
-    dangling collection members are reported and skipped.
+    Unreadable albums or collections, and links two targets would claim,
+    abort before anything is removed; dangling collection members are
+    reported and skipped, and a member listed twice is rendered once.
     """
     browsable_dir = gallery_dir / BROWSABLE_DIR
     safety_error = _validate_browsable_dir(browsable_dir)
@@ -516,6 +559,10 @@ def refresh_browsable(
 
     gallery = _Gallery(albums, collections, media_locations)
     dangling = _dangling_members(collections, albums, media_locations)
+    planned, render_errors = _plan_all(gallery, browsable_dir)
+    links, collisions = _dedupe_links(planned)
+    if collisions:
+        return BrowsableRefreshResult(errors=collisions, dangling_members=dangling)
     if dry_run:
         return BrowsableRefreshResult(
             albums_rendered=len(albums),
@@ -525,11 +572,12 @@ def refresh_browsable(
 
     if browsable_dir.exists():
         shutil.rmtree(browsable_dir)
-    symlinks, render_errors = _render_all(gallery, browsable_dir)
+    for planned_link in links:
+        _make_relative_symlink(planned_link.target, planned_link.link)
     return BrowsableRefreshResult(
         albums_rendered=len(albums),
         collections_rendered=len(collections),
-        symlinks_created=symlinks,
+        symlinks_created=len(links),
         errors=render_errors,
         dangling_members=dangling,
     )

@@ -513,9 +513,12 @@ The browsable directory is **deleted and recreated** on each
 the directory only contains directories and symlinks (no regular files
 that could be accidentally destroyed). Albums or collections whose metadata
 cannot be read, or whose name does not parse, abort the step before anything is
-deleted. Collection members whose ID no longer resolves are rendered without
-that member and reported as warnings. All symlinks are relative for gallery
-portability.
+deleted. Every link is planned before the deletion too: a member listed twice
+is linked once, and a link two different targets would claim (two albums, or
+two collections, with the same name in the same place) aborts the step with
+both targets named. Collection members whose ID no longer resolves are rendered
+without that member and reported as warnings. All symlinks are relative for
+gallery portability.
 
 Collection `images/` and `videos/` entries are matched with the media source's
 own key rule (image number for iOS, filename stem for std), so a std source
