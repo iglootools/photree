@@ -209,20 +209,6 @@ def build_gallery_lookup(gallery_dir: Path) -> _GalleryLookup:
     )
 
 
-def _fmt_album(aid: str) -> str:
-    try:
-        return format_album_external_id(aid)
-    except ValueError:
-        return aid
-
-
-def _fmt_collection(cid: str) -> str:
-    try:
-        return format_collection_external_id(cid)
-    except ValueError:
-        return cid
-
-
 def _safe_fmt(fmt: Callable[[str], str]) -> Callable[[str], str]:
     def _inner(mid: str) -> str:
         try:
@@ -233,9 +219,12 @@ def _safe_fmt(fmt: Callable[[str], str]) -> Callable[[str], str]:
     return _inner
 
 
+_fmt_album = _safe_fmt(format_album_external_id)
+_fmt_collection = _safe_fmt(format_collection_external_id)
+
 _MEDIA_FORMATTERS: dict[str, Callable[[str], str]] = {
-    "album": _safe_fmt(format_album_external_id),
-    "collection": _safe_fmt(format_collection_external_id),
+    "album": _fmt_album,
+    "collection": _fmt_collection,
     "image": _safe_fmt(format_image_external_id),
     "video": _safe_fmt(format_video_external_id),
 }
