@@ -39,12 +39,15 @@ def _write(path: Path, content: str = "data") -> None:
     path.write_text(content, encoding="utf-8")
 
 
-def _setup_gallery(tmp_path: Path) -> Path:
+def _setup_gallery(
+    tmp_path: Path,
+    link_mode: LinkMode = LinkMode.HARDLINK,
+) -> Path:
     gallery = tmp_path / "gallery"
     gallery.mkdir()
     save_gallery_metadata(
         gallery,
-        GalleryMetadata(link_mode=LinkMode.HARDLINK, faces_enabled=False),
+        GalleryMetadata(link_mode=link_mode, faces_enabled=False),
     )
     return gallery
 
@@ -260,6 +263,34 @@ class TestImport:
         assert result.exit_code == 1
         assert "To investigate, run 'photree album check --album-dir" in result.output
 
+    def test_link_mode_override_passes_the_post_import_check(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Regression: the check expected the gallery's link mode, not the override."""
+        gallery = _setup_gallery(tmp_path, LinkMode.HARDLINK)
+        source = _make_source(tmp_path / "src", "2024-07-14 - Hiking")
+
+        result = runner.invoke(
+            app,
+            [
+                "gallery",
+                "import",
+                "-a",
+                str(source),
+                "-g",
+                str(gallery),
+                "--link-mode",
+                "copy",
+            ],
+            obj=_runtime_refreshing_with(_copy_refresh),
+        )
+
+        assert result.exit_code == 0, result.output
+        target = gallery / "albums" / "2024" / "2024-07-14 - Hiking"
+        main_img = target / "main-img" / "IMG_0001.HEIC"
+        assert not main_img.samefile(target / "ios-main" / "orig-img" / "IMG_0001.HEIC")
+
 
 class TestImportAll:
     def test_imports_and_checks_every_album(self, tmp_path: Path) -> None:
@@ -291,3 +322,30 @@ class TestImportAll:
         assert result.exit_code == 1
         assert "1 failed post-import check" in result.output
         assert "To investigate failures, run:" in result.output
+
+    def test_link_mode_override_passes_the_post_import_check(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Regression: the batch check expected the gallery's link mode too."""
+        gallery = _setup_gallery(tmp_path, LinkMode.HARDLINK)
+        base = tmp_path / "incoming"
+        _make_source(base, "2024-07-14 - Hiking")
+
+        result = runner.invoke(
+            app,
+            [
+                "gallery",
+                "import-all",
+                "-d",
+                str(base),
+                "-g",
+                str(gallery),
+                "--link-mode",
+                "copy",
+            ],
+            obj=_runtime_refreshing_with(_copy_refresh),
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "Done. 1 album(s) imported, 0 failed." in result.output

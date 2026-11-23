@@ -101,7 +101,13 @@ def import_cmd(
         refresh=runtime.refresh,
         cwd=cwd,
     )
-    print_single_import_result(result, cwd, dry_run=dry_run, which=which)
+    print_single_import_result(
+        result,
+        cwd,
+        link_mode=resolved_lm,
+        dry_run=dry_run,
+        which=which,
+    )
 
     if not dry_run:
         cluster_faces_if_enabled(resolved_gallery)

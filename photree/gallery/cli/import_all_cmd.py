@@ -138,7 +138,7 @@ def import_all_cmd(
     )
     mutated = not dry_run and bool(result.imported)
     check_failed = (
-        _post_import_check(to_import, result, resolved_gallery, cwd, which=which)
+        _post_import_check(to_import, result, cwd, link_mode=resolved_lm, which=which)
         if mutated
         else []
     )
@@ -187,9 +187,9 @@ def _resolve_albums_or_exit(
 def _post_import_check(
     to_import: list[AlbumPlan],
     result: BatchImportResult,
-    gallery_dir: Path,
     cwd: Path,
     *,
+    link_mode: LinkMode,
     which: WhichFn,
 ) -> list[Path]:
     """Check every album that imported; return those that failed."""
@@ -197,8 +197,8 @@ def _post_import_check(
     imported = set(result.imported)
     check_failed = run_batch_post_import_check(
         [plan.target for plan in to_import if plan.source in imported],
-        gallery_dir,
         cwd,
+        link_mode=link_mode,
         which=which,
     )
     if check_failed:
