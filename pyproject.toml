@@ -280,6 +280,7 @@ source_modules = [
   "photree.albums.media_index",
   "photree.albums.output",
   "photree.albums.renamer",
+  "photree.collections.cmd_handler",
   "photree.collection.check",
   "photree.collection.id",
   "photree.collection.importer",
@@ -316,6 +317,7 @@ source_modules = [
   "photree.album",
   "photree.albums",
   "photree.collection",
+  "photree.collections",
   "photree.gallery",
 ]
 forbidden_modules = [

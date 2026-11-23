@@ -1,6 +1,5 @@
 """The ``photree collections import`` command."""
 
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated
 
@@ -17,35 +16,25 @@ from photree.clihelpers.sysdeps import EXIF_DEPS, require_system_deps
 from photree.clihelpers.usage import mutually_exclusive_error
 from photree.collection.importer.import_members import (
     CollectionImportError,
-    import_collection_members,
+    CollectionImportResult,
 )
 from photree.collection.importer.output import (
     format_import_error,
     format_resolution_warning,
     format_result_errors,
 )
-from photree.collection.importer.resolve import scan_gallery
-from photree.collection.importer.selection import has_selection
 from photree.collection.store.collection_discovery import discover_collections
 from photree.collections.cli.app import app
-from photree.common.exif import ExifTagReader, exiftool_session
+from photree.collections.cmd_handler.import_members import (
+    BatchImportResult,
+    CollectionImportOutcome,
+    batch_import,
+)
+from photree.common.exif import exiftool_session
 from photree.common.formatting import format_dry_run, indent
 from photree.common.fs import display_path
 from photree.common.sysdeps import WhichFn
 from photree.foundation.metadata_io import InvalidMetadataError
-
-
-@dataclass(frozen=True)
-class _ImportOutcome:
-    """One collection's import: failure reasons (empty on success) and warnings."""
-
-    collection_dir: Path
-    errors: tuple[str, ...]
-    warnings: tuple[str, ...] = ()
-
-    @property
-    def success(self) -> bool:
-        return not self.errors
 
 
 def _resolve_candidates(
@@ -62,61 +51,6 @@ def _resolve_candidates(
             return discover_collections(gallery_dir)
 
 
-def _import_one(
-    col_dir: Path,
-    gallery_dir: Path,
-    *,
-    dry_run: bool,
-    exiftool: ExifTagReader | None,
-    cwd: Path,
-) -> _ImportOutcome:
-    """Import one collection; every failure becomes the outcome's reasons."""
-    try:
-        result = import_collection_members(
-            col_dir,
-            lambda: scan_gallery(gallery_dir),
-            dry_run=dry_run,
-            exiftool=exiftool,
-        )
-    except CollectionImportError as exc:
-        return _ImportOutcome(col_dir, (format_import_error(exc, cwd),))
-    except InvalidMetadataError as exc:
-        return _ImportOutcome(col_dir, (format_invalid_metadata(exc, cwd),))
-    except OSError as exc:
-        return _ImportOutcome(col_dir, (_format_os_error(exc, cwd),))
-    return _ImportOutcome(
-        col_dir,
-        tuple(format_result_errors(result, cwd)),
-        tuple(format_resolution_warning(w) for w in result.warnings),
-    )
-
-
-def _print_warnings(outcomes: list[_ImportOutcome], cwd: Path) -> None:
-    """
-    Print each collection's warnings under its path.
-
-    Printed once the progress bar has closed: a line printed while it is
-    live lands in the middle of its display.
-    """
-    warned = [o for o in outcomes if o.warnings]
-    if warned:
-        console.print(
-            "\n".join(
-                [
-                    "\nWarnings:",
-                    *(
-                        indent(
-                            f"{display_path(o.collection_dir, cwd)}\n{indent(lines)}",
-                        )
-                        for o in warned
-                        for lines in ["\n".join(o.warnings)]
-                    ),
-                ],
-            ),
-            markup=False,
-        )
-
-
 def _format_os_error(exc: OSError, cwd: Path) -> str:
     reason = exc.strerror or type(exc).__name__
     return (
@@ -126,19 +60,60 @@ def _format_os_error(exc: OSError, cwd: Path) -> str:
     )
 
 
-def _print_summary(
-    outcomes: list[_ImportOutcome],
-    skipped: int,
-    *,
-    dry_run: bool,
-    cwd: Path,
-) -> None:
-    failures = [o for o in outcomes if not o.success]
-    imported = len(outcomes) - len(failures)
+def _format_errors(outcome: CollectionImportOutcome, cwd: Path) -> list[str]:
+    """Every reason *outcome* failed, one unindented line each."""
+    match (outcome.result, outcome.error):
+        case (CollectionImportResult() as result, _):
+            return format_result_errors(result, cwd)
+        case (_, CollectionImportError() as exc):
+            return [format_import_error(exc, cwd)]
+        case (_, InvalidMetadataError() as exc):
+            return [format_invalid_metadata(exc, cwd)]
+        case (_, OSError() as exc):
+            return [_format_os_error(exc, cwd)]
+        case _:
+            return []
+
+
+def _print_warnings(outcomes: tuple[CollectionImportOutcome, ...], cwd: Path) -> None:
+    """
+    Print each collection's warnings under its path.
+
+    Printed once the progress bar has closed: a line printed while it is
+    live lands in the middle of its display.
+    """
+    warned = [
+        (o.collection_dir, o.result.warnings)
+        for o in outcomes
+        if o.result is not None and o.result.warnings
+    ]
+    if warned:
+        console.print(
+            "\n".join(
+                [
+                    "\nWarnings:",
+                    *(
+                        indent(
+                            f"{display_path(collection_dir, cwd)}\n{indent(lines)}",
+                        )
+                        for collection_dir, warnings in warned
+                        for lines in [
+                            "\n".join(format_resolution_warning(w) for w in warnings),
+                        ]
+                    ),
+                ],
+            ),
+            markup=False,
+        )
+
+
+def _print_summary(result: BatchImportResult, *, dry_run: bool, cwd: Path) -> None:
+    failures = result.failures
+    imported = len(result.outcomes) - len(failures)
     verb = "would be imported" if dry_run else "imported"
     typer.echo(
         format_dry_run(
-            f"\n{imported} collection(s) {verb}, {skipped} skipped, "
+            f"\n{imported} collection(s) {verb}, {len(result.skipped)} skipped, "
             f"{len(failures)} failed.",
             dry_run=dry_run,
         ),
@@ -149,7 +124,7 @@ def _print_summary(
             "\n".join(
                 indent(f"{display_path(o.collection_dir, cwd)}\n{indent(reasons)}")
                 for o in failures
-                for reasons in ["\n".join(o.errors)]
+                for reasons in ["\n".join(_format_errors(o, cwd))]
             ),
             markup=False,
         )
@@ -235,15 +210,15 @@ def import_cmd(
         typer.echo("No collections found.")
         raise typer.Exit(code=0)
 
-    outcomes, skipped = _import_all(
+    result = _import_all(
         candidates,
         resolved_gallery,
         dry_run=dry_run,
         cwd=cwd,
         which=which,
     )
-    _print_warnings(outcomes, cwd)
-    _print_summary(outcomes, skipped, dry_run=dry_run, cwd=cwd)
+    _print_warnings(result.outcomes, cwd)
+    _print_summary(result, dry_run=dry_run, cwd=cwd)
 
 
 def _import_all(
@@ -253,11 +228,8 @@ def _import_all(
     dry_run: bool,
     cwd: Path,
     which: WhichFn,
-) -> tuple[list[_ImportOutcome], int]:
-    """Import every candidate that has a selection; returns outcomes + skip count."""
-    # has_selection is evaluated once per collection: it reads the CSV.
-    selected = {d: has_selection(d) for d in candidates}
-    skipped = [d for d in candidates if not selected[d]]
+) -> BatchImportResult:
+    """Import every candidate that has a selection, behind a progress bar."""
     with (
         exiftool_session(which=which) as exiftool,
         BatchProgressBar(
@@ -266,44 +238,13 @@ def _import_all(
             done_description="import",
         ) as progress,
     ):
-        for col_dir in skipped:
-            progress.on_skipped(str(display_path(col_dir, cwd)), "no selection")
-        outcomes = [
-            _run_one(
-                col_dir,
-                gallery_dir,
-                progress,
-                dry_run=dry_run,
-                exiftool=exiftool,
-                cwd=cwd,
-            )
-            for col_dir in candidates
-            if selected[col_dir]
-        ]
-    return outcomes, len(skipped)
-
-
-def _run_one(
-    col_dir: Path,
-    gallery_dir: Path,
-    progress: BatchProgressBar,
-    *,
-    dry_run: bool,
-    exiftool: ExifTagReader | None,
-    cwd: Path,
-) -> _ImportOutcome:
-    name = str(display_path(col_dir, cwd))
-    progress.on_start(name)
-    outcome = _import_one(
-        col_dir,
-        gallery_dir,
-        dry_run=dry_run,
-        exiftool=exiftool,
-        cwd=cwd,
-    )
-    progress.on_end(
-        name,
-        success=outcome.success,
-        error_labels=(f"{len(outcome.errors)} error(s)",) if outcome.errors else (),
-    )
-    return outcome
+        return batch_import(
+            candidates,
+            gallery_dir,
+            dry_run=dry_run,
+            exiftool=exiftool,
+            display_fn=lambda p: str(display_path(p, cwd)),
+            on_skipped=lambda name: progress.on_skipped(name, "no selection"),
+            on_start=progress.on_start,
+            on_end=progress.on_end,
+        )
