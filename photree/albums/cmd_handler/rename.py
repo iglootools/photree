@@ -12,6 +12,7 @@ from photree.albums.renamer import (
     check_rename_collisions,
     execute_renames,
     plan_renames_from_csv,
+    validate_rename_csv_columns,
 )
 
 
@@ -40,10 +41,15 @@ def batch_rename_from_csv(
     """
     Plan and execute album renames from a CSV file.
 
-    Raises :class:`RenameCollisionError` when renames would collide.
+    Raises :class:`RenameCsvColumnsError` when the CSV lacks a column a
+    rename needs, and :class:`RenameCollisionError` when renames would collide.
     """
-    with Path(csv_file).open(encoding="utf-8", newline="") as f:
-        rows = list(csv_mod.DictReader(f))
+    # utf-8-sig: a spreadsheet that saves the CSV with a byte order mark would
+    # otherwise turn the first column into "\ufeffid".
+    with Path(csv_file).open(encoding="utf-8-sig", newline="") as f:
+        reader = csv_mod.DictReader(f)
+        rows = list(reader)
+    validate_rename_csv_columns(reader.fieldnames)
 
     actions, errors = plan_renames_from_csv(rows, index)
     if errors or not actions:

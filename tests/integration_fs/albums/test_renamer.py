@@ -5,9 +5,11 @@ import pytest
 from photree.albums.renamer import (
     RenameAction,
     RenameCollisionError,
+    RenameCsvColumnsError,
     RenamePhase,
     check_rename_collisions,
     execute_renames,
+    validate_rename_csv_columns,
 )
 
 
@@ -94,3 +96,18 @@ class TestCheckRenameCollisions:
             check_rename_collisions(
                 (_action(a, "2024-01-01 - C"), _action(b, "2024-01-01 - C")),
             )
+
+
+class TestValidateRenameCsvColumns:
+    def test_header_with_extra_columns_is_valid(self) -> None:
+        validate_rename_csv_columns(["id", "path", "series", "title", "location"])
+
+    def test_missing_column_is_named(self) -> None:
+        with pytest.raises(RenameCsvColumnsError) as exc_info:
+            validate_rename_csv_columns(["id", "series", "title"])
+        assert exc_info.value.missing == ("location",)
+
+    def test_file_without_header_misses_every_column(self) -> None:
+        with pytest.raises(RenameCsvColumnsError) as exc_info:
+            validate_rename_csv_columns(None)
+        assert exc_info.value.missing == ("id", "series", "title", "location")
