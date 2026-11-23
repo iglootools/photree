@@ -8,13 +8,12 @@ album list; used by both ``albums`` and ``gallery`` CLI commands.
 from collections.abc import Callable
 from pathlib import Path
 
-from rich.progress import Progress, SpinnerColumn, TextColumn
-
 from photree.album import check as album_check
 from photree.album.store.album_discovery import (
     discover_gallery_albums,
     discover_potential_albums,
 )
+from photree.clihelpers.progress import run_with_spinner
 from photree.clihelpers.usage import mutually_exclusive_error
 from photree.common.fs import display_path
 
@@ -140,10 +139,4 @@ def _discover_with_spinner(
     base_dir: Path,
 ) -> list[Path]:
     """Run *discover_fn* on *base_dir* behind a transient spinner."""
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        transient=True,
-    ) as progress:
-        progress.add_task("Resolving album list...", total=None)
-        return discover_fn(base_dir)
+    return run_with_spinner("Resolving album list...", lambda: discover_fn(base_dir))
