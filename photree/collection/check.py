@@ -2,9 +2,13 @@
 Collection validation checks.
 
 Validates:
+- The members/lifecycle/strategy combination is a valid one
 - All member IDs (album, collection, image, video) exist in the gallery
 - Date range covers the min/max dates of contained albums/collections
-- Naming convention
+- Smart collections hold no images or videos
+- Chapter collections do not overlap other chapters
+- The private tag is viral: non-private collections hold no private
+  members, and private smart collections only private ones
 """
 
 from collections.abc import Callable, Mapping
@@ -13,28 +17,24 @@ from datetime import date
 from enum import StrEnum
 from pathlib import Path
 
-from photree.album.id import (
-    format_album_external_id,
-    format_image_external_id,
-    format_video_external_id,
-)
 from photree.album.naming import ParsedAlbumName, parse_album_name
 from photree.album.store.album_discovery import discover_albums
 from photree.album.store.media_metadata import MediaMetadata, load_media_metadata
 from photree.album.store.metadata import load_album_metadata
-from photree.collection.id import format_collection_external_id
+from photree.album.store.protocol import AlbumMetadata
 from photree.collection.naming import ParsedCollectionName, parse_collection_name
 from photree.collection.store.collection_discovery import discover_collections
 from photree.collection.store.metadata import load_collection_metadata
 from photree.collection.store.protocol import (
-    COLLECTION_YAML,
+    CollectionLifecycle,
     CollectionMembers,
     CollectionMetadata,
     CollectionStrategy,
-    validate_collection_config,
+    MemberType,
+    is_valid_collection_config,
 )
 from photree.dates import date_range, range_contains, ranges_overlap
-from photree.foundation.layout import ALBUMS_DIR, COLLECTIONS_DIR, PHOTREE_DIR
+from photree.foundation.layout import ALBUMS_DIR, COLLECTIONS_DIR
 from photree.foundation.metadata_io import InvalidMetadataError
 
 
@@ -63,10 +63,35 @@ class CollectionIssueCode(StrEnum):
 
 @dataclass(frozen=True)
 class CollectionCheckIssue:
-    """One problem found in a collection: its kind and a human-readable message."""
+    """
+    One problem found in a collection: its kind and the fields describing it.
+
+    Fields beyond ``code`` are only set for some codes:
+
+    - ``member_type`` and ``member_id`` (internal ID) for the member a
+      MISSING_*, DATE_NOT_COVERED, PRIVATE_SMART_* or NON_PRIVATE_* issue is about
+    - ``member_date`` and ``collection_date`` for DATE_NOT_COVERED
+    - ``collection_date``, ``other_chapter`` (its directory name) and
+      ``other_date`` for CHAPTER_DATE_OVERLAP
+    - ``count`` for SMART_HAS_IMAGES and SMART_HAS_VIDEOS
+    - ``reason`` for INVALID_METADATA
+    - ``config`` (members, lifecycle, strategy) for INVALID_COLLECTION_CONFIG
+
+    The message is rendered by :mod:`photree.collection.output`.
+    """
 
     code: CollectionIssueCode
-    message: str
+    member_type: MemberType | None = None
+    member_id: str | None = None
+    member_date: str | None = None
+    collection_date: str | None = None
+    other_chapter: str | None = None
+    other_date: str | None = None
+    count: int = 0
+    reason: str | None = None
+    config: tuple[CollectionMembers, CollectionLifecycle, CollectionStrategy] | None = (
+        None
+    )
 
 
 @dataclass(frozen=True)
@@ -108,6 +133,9 @@ class _GalleryLookup:
     # gallery-wide (not per year directory) so chapters filed under different
     # ``collections/YYYY/`` directories are still compared with each other.
     chapters: Mapping[str, _ChapterRange]
+    # Albums whose album or media metadata cannot be read: what they hold is
+    # missing from the lookup, so a member they hold may read as missing.
+    unreadable_albums: tuple[Path, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -124,17 +152,57 @@ class _CollectionEntry:
     parsed: ParsedCollectionName
 
 
-def _scan_albums(gallery_dir: Path) -> list[_AlbumEntry]:
-    return [
-        _AlbumEntry(
-            meta.id,
-            parse_album_name(album_dir.name),
-            load_media_metadata(album_dir),
-        )
+def _try_load[T](load: Callable[[Path], T | None], album_dir: Path) -> T | bool | None:
+    """Return what *load* reads, ``None`` when absent, ``False`` when unreadable."""
+    try:
+        return load(album_dir)
+    except InvalidMetadataError:
+        return False
+
+
+@dataclass(frozen=True)
+class _ScannedAlbum:
+    entry: _AlbumEntry | None  # None when the album has no readable album.yaml
+    readable: bool
+
+
+def _scan_album(album_dir: Path) -> _ScannedAlbum:
+    meta = _try_load(load_album_metadata, album_dir)
+    media = (
+        _try_load(load_media_metadata, album_dir)
+        if isinstance(meta, AlbumMetadata)
+        else None
+    )
+    return _ScannedAlbum(
+        entry=(
+            _AlbumEntry(
+                meta.id,
+                parse_album_name(album_dir.name),
+                media if isinstance(media, MediaMetadata) else None,
+            )
+            if isinstance(meta, AlbumMetadata)
+            else None
+        ),
+        readable=meta is not False and media is not False,
+    )
+
+
+def _scan_albums(gallery_dir: Path) -> tuple[list[_AlbumEntry], tuple[Path, ...]]:
+    """
+    Return the albums that were read, and the directories of those that were not.
+
+    An album whose metadata is corrupt is kept out of the lookup rather than
+    aborting every collection check: the album's own check reports why, and
+    the collection commands point the user to it.
+    """
+    scanned = [
+        (album_dir, _scan_album(album_dir))
         for album_dir in discover_albums(gallery_dir / ALBUMS_DIR)
-        for meta in [load_album_metadata(album_dir)]
-        if meta is not None
     ]
+    return (
+        [s.entry for _, s in scanned if s.entry is not None],
+        tuple(album_dir for album_dir, s in scanned if not s.readable),
+    )
 
 
 def _load_collection_or_none(collection_dir: Path) -> CollectionMetadata | None:
@@ -183,9 +251,11 @@ def build_gallery_lookup(gallery_dir: Path) -> _GalleryLookup:
     Scan *gallery_dir* once and index what every collection check looks up.
 
     Reads the metadata of every album, its media and every collection, so one
-    lookup can be shared by all the collections checked in the gallery.
+    lookup can be shared by all the collections checked in the gallery. An
+    album or collection whose metadata cannot be read is left out; the
+    albums are listed in ``unreadable_albums``.
     """
-    albums = _scan_albums(gallery_dir)
+    albums, unreadable_albums = _scan_albums(gallery_dir)
     collections = _scan_collections(gallery_dir)
     image_owners = _media_owners(albums, videos=False)
     video_owners = _media_owners(albums, videos=True)
@@ -206,50 +276,18 @@ def build_gallery_lookup(gallery_dir: Path) -> _GalleryLookup:
             for rng in [_chapter_range(c.name)]
             if rng is not None
         },
+        unreadable_albums=unreadable_albums,
     )
-
-
-def _fmt_album(aid: str) -> str:
-    try:
-        return format_album_external_id(aid)
-    except ValueError:
-        return aid
-
-
-def _fmt_collection(cid: str) -> str:
-    try:
-        return format_collection_external_id(cid)
-    except ValueError:
-        return cid
-
-
-def _safe_fmt(fmt: Callable[[str], str]) -> Callable[[str], str]:
-    def _inner(mid: str) -> str:
-        try:
-            return fmt(mid)
-        except ValueError:
-            return mid
-
-    return _inner
-
-
-_MEDIA_FORMATTERS: dict[str, Callable[[str], str]] = {
-    "album": _safe_fmt(format_album_external_id),
-    "collection": _safe_fmt(format_collection_external_id),
-    "image": _safe_fmt(format_image_external_id),
-    "video": _safe_fmt(format_video_external_id),
-}
 
 
 def _check_missing_ids(
     ids: list[str],
     known: frozenset[str],
     code: CollectionIssueCode,
-    label: str,
+    member_type: MemberType,
 ) -> list[CollectionCheckIssue]:
-    fmt = _MEDIA_FORMATTERS.get(label, str)
     return [
-        CollectionCheckIssue(code, f"{label} {fmt(mid)} not found in gallery")
+        CollectionCheckIssue(code, member_type=member_type, member_id=mid)
         for mid in ids
         if mid not in known
     ]
@@ -264,25 +302,25 @@ def _check_member_existence(
             metadata.albums,
             lookup.album_ids,
             CollectionIssueCode.MISSING_ALBUM,
-            "album",
+            MemberType.ALBUM,
         ),
         *_check_missing_ids(
             metadata.collections,
             lookup.collection_ids,
             CollectionIssueCode.MISSING_COLLECTION,
-            "collection",
+            MemberType.COLLECTION,
         ),
         *_check_missing_ids(
             metadata.images,
             lookup.image_ids,
             CollectionIssueCode.MISSING_IMAGE,
-            "image",
+            MemberType.IMAGE,
         ),
         *_check_missing_ids(
             metadata.videos,
             lookup.video_ids,
             CollectionIssueCode.MISSING_VIDEO,
-            "video",
+            MemberType.VIDEO,
         ),
     ]
 
@@ -304,12 +342,12 @@ def _check_date_coverage(
         return []
     member_dates = [
         *(
-            (f"album {_fmt_album(aid)}", lookup.album_dates[aid])
+            (MemberType.ALBUM, aid, lookup.album_dates[aid])
             for aid in metadata.albums
             if aid in lookup.album_dates
         ),
         *(
-            (f"collection {_fmt_collection(cid)}", sub_date)
+            (MemberType.COLLECTION, cid, sub_date)
             for cid in metadata.collections
             for sub_date in [lookup.collection_dates.get(cid)]
             if sub_date is not None
@@ -318,9 +356,12 @@ def _check_date_coverage(
     return [
         CollectionCheckIssue(
             CollectionIssueCode.DATE_NOT_COVERED,
-            f"{member} date {member_date} outside collection range {parsed_date}",
+            member_type=member_type,
+            member_id=member_id,
+            member_date=member_date,
+            collection_date=parsed_date,
         )
-        for member, member_date in member_dates
+        for member_type, member_id, member_date in member_dates
         if _date_outside_range(member_date, *col_range)
     ]
 
@@ -329,17 +370,17 @@ def _check_collection_config(
     metadata: CollectionMetadata,
 ) -> list[CollectionCheckIssue]:
     """Validate members + lifecycle + strategy combination."""
-    error = validate_collection_config(
-        metadata.members,
-        metadata.lifecycle,
-        metadata.strategy,
-    )
-    if error is not None:
-        return [
-            CollectionCheckIssue(CollectionIssueCode.INVALID_COLLECTION_CONFIG, error),
+    config = (metadata.members, metadata.lifecycle, metadata.strategy)
+    return (
+        []
+        if is_valid_collection_config(*config)
+        else [
+            CollectionCheckIssue(
+                CollectionIssueCode.INVALID_COLLECTION_CONFIG,
+                config=config,
+            ),
         ]
-    else:
-        return []
+    )
 
 
 def _check_smart_no_media(
@@ -353,8 +394,7 @@ def _check_smart_no_media(
             [
                 CollectionCheckIssue(
                     CollectionIssueCode.SMART_HAS_IMAGES,
-                    f"smart collection has {len(metadata.images)} image member(s) "
-                    f"— smart collections can only contain albums and collections",
+                    count=len(metadata.images),
                 ),
             ]
             if metadata.images
@@ -364,8 +404,7 @@ def _check_smart_no_media(
             [
                 CollectionCheckIssue(
                     CollectionIssueCode.SMART_HAS_VIDEOS,
-                    f"smart collection has {len(metadata.videos)} video member(s) "
-                    f"— smart collections can only contain albums and collections",
+                    count=len(metadata.videos),
                 ),
             ]
             if metadata.videos
@@ -394,8 +433,9 @@ def _check_chapter_no_overlap(
         [
             CollectionCheckIssue(
                 CollectionIssueCode.CHAPTER_DATE_OVERLAP,
-                f"chapter date range {mine.date} overlaps with "
-                f"chapter '{other.dir_name}' ({other.date})",
+                collection_date=mine.date,
+                other_chapter=other.dir_name,
+                other_date=other.date,
             )
             for other_id, other in sorted(
                 lookup.chapters.items(),
@@ -419,8 +459,8 @@ def _private_smart_issues(
         *[
             CollectionCheckIssue(
                 CollectionIssueCode.PRIVATE_SMART_HAS_NON_PRIVATE_ALBUM,
-                "private smart collection contains non-private album "
-                f"{_fmt_album(aid)}",
+                member_type=MemberType.ALBUM,
+                member_id=aid,
             )
             for aid in metadata.albums
             if aid in lookup.album_private and not lookup.album_private[aid]
@@ -428,8 +468,8 @@ def _private_smart_issues(
         *[
             CollectionCheckIssue(
                 CollectionIssueCode.PRIVATE_SMART_HAS_NON_PRIVATE_COLLECTION,
-                "private smart collection contains non-private collection "
-                f"{_fmt_collection(cid)}",
+                member_type=MemberType.COLLECTION,
+                member_id=cid,
             )
             for cid in metadata.collections
             if cid in lookup.collection_private and not lookup.collection_private[cid]
@@ -446,7 +486,8 @@ def _non_private_issues(
         *[
             CollectionCheckIssue(
                 CollectionIssueCode.NON_PRIVATE_HAS_PRIVATE_ALBUM,
-                f"non-private collection contains private album {_fmt_album(aid)}",
+                member_type=MemberType.ALBUM,
+                member_id=aid,
             )
             for aid in metadata.albums
             if lookup.album_private.get(aid, False)
@@ -454,8 +495,8 @@ def _non_private_issues(
         *[
             CollectionCheckIssue(
                 CollectionIssueCode.NON_PRIVATE_HAS_PRIVATE_COLLECTION,
-                "non-private collection contains private collection "
-                f"{_fmt_collection(cid)}",
+                member_type=MemberType.COLLECTION,
+                member_id=cid,
             )
             for cid in metadata.collections
             if lookup.collection_private.get(cid, False)
@@ -463,12 +504,12 @@ def _non_private_issues(
         *[
             CollectionCheckIssue(
                 CollectionIssueCode.NON_PRIVATE_HAS_PRIVATE_MEDIA,
-                f"non-private collection contains {media_type} "
-                f"{_MEDIA_FORMATTERS.get(media_type, str)(mid)} from private album",
+                member_type=media_type,
+                member_id=mid,
             )
             for media_type, media_ids in [
-                ("image", metadata.images),
-                ("video", metadata.videos),
+                (MemberType.IMAGE, metadata.images),
+                (MemberType.VIDEO, metadata.videos),
             ]
             for mid in media_ids
             if mid in lookup.media_album
@@ -512,15 +553,12 @@ def _load_for_check(
     except InvalidMetadataError as exc:
         return CollectionCheckIssue(
             CollectionIssueCode.INVALID_METADATA,
-            f"invalid {PHOTREE_DIR}/{COLLECTION_YAML}: {exc.reason}",
+            reason=exc.reason,
         )
     return (
         metadata
         if metadata is not None
-        else CollectionCheckIssue(
-            CollectionIssueCode.NO_METADATA,
-            f"missing {PHOTREE_DIR}/{COLLECTION_YAML}",
-        )
+        else CollectionCheckIssue(CollectionIssueCode.NO_METADATA)
     )
 
 
@@ -558,9 +596,14 @@ def check_collection(
 
 def check_all_collections(
     gallery_dir: Path,
+    lookup: _GalleryLookup,
 ) -> list[CollectionCheckResult]:
-    """Check every collection in *gallery_dir*, one result per collection directory."""
-    lookup = build_gallery_lookup(gallery_dir)
+    """
+    Check every collection in *gallery_dir*, one result per collection directory.
+
+    *lookup* is :func:`build_gallery_lookup` of the same gallery; the caller
+    builds it so it can also report the albums the lookup could not read.
+    """
     return [
         check_collection(col_dir, lookup)
         for col_dir in discover_collections(gallery_dir / COLLECTIONS_DIR)

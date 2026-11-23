@@ -9,6 +9,15 @@ from photree.foundation.model import PhotreeModel
 COLLECTION_YAML = "collection.yaml"
 
 
+class MemberType(StrEnum):
+    """Kind of a collection member: which of the member lists holds it."""
+
+    ALBUM = "album"
+    COLLECTION = "collection"
+    IMAGE = "image"
+    VIDEO = "video"
+
+
 class CollectionMembers(StrEnum):
     """How members are selected."""
 
@@ -50,20 +59,13 @@ _VALID_COMBINATIONS: set[
 }
 
 
-def validate_collection_config(
+def is_valid_collection_config(
     members: CollectionMembers,
     lifecycle: CollectionLifecycle,
     strategy: CollectionStrategy,
-) -> str | None:
-    """Return an error message if the combination is invalid, else None."""
-    if (members, lifecycle, strategy) in _VALID_COMBINATIONS:
-        return None
-    else:
-        return (
-            f"invalid combination: members={members.value}, "
-            f"lifecycle={lifecycle.value}, strategy={strategy.value}. "
-            f"See 'photree collection init --help' for valid combinations."
-        )
+) -> bool:
+    """Tell whether the members/lifecycle/strategy combination is allowed."""
+    return (members, lifecycle, strategy) in _VALID_COMBINATIONS
 
 
 class CollectionMetadata(PhotreeModel):

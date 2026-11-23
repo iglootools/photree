@@ -44,18 +44,10 @@ from photree.collection.id import COLLECTION_ID_PREFIX
 from photree.collection.importer.selection import SelectionEntry
 from photree.collection.store.collection_discovery import discover_collections
 from photree.collection.store.metadata import load_collection_metadata
+from photree.collection.store.protocol import MemberType
 from photree.common.fs import file_ext
 from photree.dates import is_valid_date, timestamp_in_range
 from photree.foundation.layout import ALBUMS_DIR, COLLECTIONS_DIR
-
-
-class MemberType(StrEnum):
-    """Kind of collection member an entry resolved to."""
-
-    ALBUM = "album"
-    COLLECTION = "collection"
-    IMAGE = "image"
-    VIDEO = "video"
 
 
 @dataclass(frozen=True)

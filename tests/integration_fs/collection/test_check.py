@@ -1,6 +1,8 @@
 from collections.abc import Sequence
 from pathlib import Path
 
+from typer.testing import CliRunner
+
 from photree.album.id import generate_album_id, generate_media_id
 from photree.album.store.media_metadata import (
     MediaMetadata,
@@ -9,6 +11,7 @@ from photree.album.store.media_metadata import (
 )
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
+from photree.cli import app
 from photree.collection.check import build_gallery_lookup, check_collection
 from photree.collection.id import generate_collection_id
 from photree.collection.store.metadata import save_collection_metadata
@@ -301,6 +304,43 @@ class TestCheckChapterOverlap:
         assert check_collection(montreal, build_gallery_lookup(gallery)).success
 
 
+class TestCheckPrivateSmart:
+    def test_non_private_members_reported(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        _, album_id = _setup_album(gallery, "2024-07-14 - Trip")
+        _, sub_id = _setup_collection(gallery, "2024-08 - August")
+        col_dir, _ = _setup_collection(
+            gallery,
+            "2024 - Best Of [private]",
+            members=CollectionMembers.SMART,
+            strategy=CollectionStrategy.DATE_RANGE,
+            albums=[album_id],
+            collections=[sub_id],
+        )
+
+        result = check_collection(col_dir, build_gallery_lookup(gallery))
+
+        assert [(i.code, i.member_id) for i in result.issues] == [
+            ("private-smart-has-non-private-album", album_id),
+            ("private-smart-has-non-private-collection", sub_id),
+        ]
+
+    def test_private_members_pass(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        _, album_id = _setup_album(gallery, "2024-07-14 - Trip [private]")
+        _, sub_id = _setup_collection(gallery, "2024-08 - August [private]")
+        col_dir, _ = _setup_collection(
+            gallery,
+            "2024 - Best Of [private]",
+            members=CollectionMembers.SMART,
+            strategy=CollectionStrategy.DATE_RANGE,
+            albums=[album_id],
+            collections=[sub_id],
+        )
+
+        assert check_collection(col_dir, build_gallery_lookup(gallery)).success
+
+
 class TestCheckInvalidMetadata:
     def test_corrupt_metadata_reported_not_crashing(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
@@ -313,3 +353,62 @@ class TestCheckInvalidMetadata:
         result = check_collection(col_dir, build_gallery_lookup(gallery))
 
         assert [i.code for i in result.issues] == ["invalid-metadata"]
+
+
+class TestCheckUnreadableAlbum:
+    def test_corrupt_album_metadata_does_not_abort_the_check(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        # Regression: one corrupt album.yaml stopped every collection check.
+        gallery = _setup_gallery(tmp_path)
+        broken, _ = _setup_album(gallery, "2024-07-14 - Broken")
+        (broken / ".photree" / "album.yaml").write_text("- nope\n", encoding="utf-8")
+        _, album_id = _setup_album(gallery, "2024-07-20 - Fine")
+        col_dir, _ = _setup_collection(gallery, "2024-07 - July", albums=[album_id])
+
+        lookup = build_gallery_lookup(gallery)
+
+        assert check_collection(col_dir, lookup).success
+        assert lookup.unreadable_albums == (broken,)
+
+    def test_corrupt_media_metadata_keeps_the_album_known(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = _setup_gallery(tmp_path)
+        album_dir, album_id = _setup_album(gallery, "2024-07-14 - Trip")
+        _write(album_dir / ".photree" / "media-ids" / "main.yaml", "- nope\n")
+        col_dir, _ = _setup_collection(gallery, "2024-07 - July", albums=[album_id])
+
+        lookup = build_gallery_lookup(gallery)
+
+        assert check_collection(col_dir, lookup).success
+        assert lookup.unreadable_albums == (album_dir,)
+
+    def test_collections_check_points_to_album_check(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        broken, _ = _setup_album(gallery, "2024-07-14 - Broken")
+        (broken / ".photree" / "album.yaml").write_text("- nope\n", encoding="utf-8")
+        _setup_collection(gallery, "2024-07 - July")
+
+        result = CliRunner().invoke(app, ["collections", "check", "-g", str(gallery)])
+
+        assert result.exit_code == 0, result.output
+        assert "cannot read the metadata of album" in result.output
+        assert "Run 'photree album check --album-dir" in result.output
+
+
+class TestCollectionCheckCmd:
+    def test_missing_metadata_points_to_init(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        col_dir = gallery / "collections" / "2024" / "2024-07 - July"
+        col_dir.mkdir(parents=True)
+
+        result = CliRunner().invoke(
+            app,
+            ["collection", "check", "-c", str(col_dir), "-g", str(gallery)],
+        )
+
+        assert result.exit_code == 1
+        assert "Run 'photree collection init --collection-dir" in result.output

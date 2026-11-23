@@ -12,12 +12,13 @@ from photree.collection.cli.app import app
 from photree.collection.cli.options import COLLECTION_DIR_OPTION
 from photree.collection.id import format_collection_external_id
 from photree.collection.init import CollectionAlreadyInitializedError, init_collection
+from photree.collection.output import format_invalid_collection_config
 from photree.collection.store.protocol import (
     COLLECTION_YAML,
     CollectionLifecycle,
     CollectionMembers,
     CollectionStrategy,
-    validate_collection_config,
+    is_valid_collection_config,
 )
 from photree.common.formatting import indent
 from photree.common.fs import display_path
@@ -60,9 +61,11 @@ def init_cmd(
     cwd = runtime_of(ctx).cwd()
     collection_yaml = display_path(collection_dir / PHOTREE_DIR / COLLECTION_YAML, cwd)
 
-    validation_error = validate_collection_config(members, lifecycle, strategy)
-    if validation_error is not None:
-        raise usage_error(validation_error, markup=False)
+    if not is_valid_collection_config(members, lifecycle, strategy):
+        raise usage_error(
+            format_invalid_collection_config(members, lifecycle, strategy),
+            markup=False,
+        )
 
     try:
         metadata = init_collection(
