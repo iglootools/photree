@@ -81,12 +81,14 @@ not to the file on its own, and fail the export with exit code 1:
 ## Errors
 
 A configuration error stops the command with exit code 2, naming the key and
-profile at fault (or the file, when it is missing or does not parse):
+profile at fault (or the file, when it is missing, unreadable or does not
+parse):
 
 | Error | Cause |
 |---|---|
 | file not found | `--config` names a file that does not exist |
-| invalid TOML | the file does not parse |
+| unreadable file | the file exists but cannot be read, such as for lack of permission |
+| invalid TOML | the file does not parse, or is not UTF-8 |
 | missing key | a profile has no `share-dir` |
 | invalid type | a section is not a table, or a value is not a string |
 | invalid value | `share-layout`, `album-layout` or `link-mode` is not one of the allowed values |

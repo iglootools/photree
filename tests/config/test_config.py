@@ -5,6 +5,7 @@ The loader takes its environment (``environ``, ``home``, platformdirs
 lookups) as parameters, so these tests pass values instead of patching.
 """
 
+import os
 from pathlib import Path
 from textwrap import dedent
 
@@ -125,6 +126,29 @@ class TestLoadConfig:
         error = _load_error(tmp_path, "invalid = [unclosed\n")
         assert error.kind == ConfigErrorKind.INVALID_TOML
         assert error.path == tmp_path / "config.toml"
+
+    def test_file_that_is_not_utf8_is_invalid_toml(self, tmp_path: Path) -> None:
+        cfg_file = tmp_path / "config.toml"
+        cfg_file.write_bytes(b'[importer]\nimage-capture-dir = "\xff"\n')
+        with pytest.raises(ConfigError) as exc_info:
+            load_config(str(cfg_file))
+        assert exc_info.value.kind == ConfigErrorKind.INVALID_TOML
+        assert exc_info.value.path == cfg_file
+
+    @pytest.mark.skipif(
+        os.geteuid() == 0,
+        reason="root reads a file whatever its permissions",
+    )
+    def test_unreadable_file(self, tmp_path: Path) -> None:
+        cfg_file = Path(_write_config(tmp_path, "[importer]\n"))
+        cfg_file.chmod(0)
+        try:
+            with pytest.raises(ConfigError) as exc_info:
+                load_config(str(cfg_file))
+        finally:
+            cfg_file.chmod(0o600)
+        assert exc_info.value.kind == ConfigErrorKind.UNREADABLE_FILE
+        assert exc_info.value.path == cfg_file
 
     def test_parses_single_profile(self, tmp_path: Path) -> None:
         cfg_file = _write_config(

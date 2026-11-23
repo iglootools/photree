@@ -253,6 +253,18 @@ def _read_toml(path: Path) -> dict[str, object]:
     try:
         with Path(path).open("rb") as f:
             return tomllib.load(f)
+    except OSError as e:
+        raise ConfigError(
+            ConfigErrorKind.UNREADABLE_FILE,
+            path=path,
+            expected=e.strerror or str(e),
+        ) from e
+    except UnicodeDecodeError as e:
+        raise ConfigError(
+            ConfigErrorKind.INVALID_TOML,
+            path=path,
+            expected=f"not valid UTF-8 ({e})",
+        ) from e
     except tomllib.TOMLDecodeError as e:
         raise ConfigError(
             ConfigErrorKind.INVALID_TOML,
@@ -273,8 +285,9 @@ def load_config(
     Load configuration from a TOML file.
 
     Returns a default (empty) config when no config file is found. Raises
-    :class:`ConfigError` for a missing explicit file, invalid TOML, or a
-    value of the wrong type or outside its allowed set.
+    :class:`ConfigError` for a missing explicit file, a file that cannot be
+    read, invalid TOML (including a file that is not UTF-8), or a value of
+    the wrong type or outside its allowed set.
     """
     path = find_config_file(
         config_path,

@@ -14,6 +14,7 @@ class ConfigErrorKind(StrEnum):
     """What is wrong with the configuration."""
 
     FILE_NOT_FOUND = "file-not-found"
+    UNREADABLE_FILE = "unreadable-file"
     INVALID_TOML = "invalid-toml"
     MISSING_KEY = "missing-key"
     INVALID_TYPE = "invalid-type"
@@ -57,6 +58,8 @@ class ConfigError(Exception):
         match self.kind:
             case ConfigErrorKind.FILE_NOT_FOUND:
                 return f"Config file not found: {self.path}"
+            case ConfigErrorKind.UNREADABLE_FILE:
+                return f"Cannot read config file {self.path}: {self.expected}"
             case ConfigErrorKind.INVALID_TOML:
                 return f"Invalid TOML in {self.path}: {self.expected}"
             case ConfigErrorKind.MISSING_KEY:
