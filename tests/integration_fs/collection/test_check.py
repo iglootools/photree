@@ -1,8 +1,6 @@
 from collections.abc import Sequence
 from pathlib import Path
 
-from typer.testing import CliRunner
-
 from photree.album.id import generate_album_id, generate_media_id
 from photree.album.store.media_metadata import (
     MediaMetadata,
@@ -11,7 +9,6 @@ from photree.album.store.media_metadata import (
 )
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
-from photree.cli import app
 from photree.collection.check import build_gallery_lookup, check_collection
 from photree.collection.id import generate_collection_id
 from photree.collection.store.metadata import save_collection_metadata
@@ -22,6 +19,7 @@ from photree.collection.store.protocol import (
     CollectionStrategy,
 )
 from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
+from tests.fakes import invoke_cli
 
 
 def _write(path: Path, content: str = "data") -> None:
@@ -392,7 +390,7 @@ class TestCheckUnreadableAlbum:
         (broken / ".photree" / "album.yaml").write_text("- nope\n", encoding="utf-8")
         _setup_collection(gallery, "2024-07 - July")
 
-        result = CliRunner().invoke(app, ["collections", "check", "-g", str(gallery)])
+        result = invoke_cli(["collections", "check", "-g", str(gallery)])
 
         assert result.exit_code == 0, result.output
         assert "cannot read the metadata of album" in result.output
@@ -405,8 +403,7 @@ class TestCollectionCheckCmd:
         col_dir = gallery / "collections" / "2024" / "2024-07 - July"
         col_dir.mkdir(parents=True)
 
-        result = CliRunner().invoke(
-            app,
+        result = invoke_cli(
             ["collection", "check", "-c", str(col_dir), "-g", str(gallery)],
         )
 

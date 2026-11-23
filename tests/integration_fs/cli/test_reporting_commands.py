@@ -4,13 +4,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
-from typer.testing import CliRunner, Result
+from typer.testing import Result
 
 from photree.album.id import format_album_external_id, generate_album_id
 from photree.album.refresh import refresh_album_derived_data
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
-from photree.cli import app
 from photree.collection.id import generate_collection_id
 from photree.collection.store.metadata import save_collection_metadata
 from photree.collection.store.protocol import (
@@ -20,9 +19,7 @@ from photree.collection.store.protocol import (
 )
 from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 from photree.foundation.linking import LinkMode
-from tests.fakes import ALL_DEPS_RUNTIME
-
-runner = CliRunner()
+from tests.fakes import invoke_cli
 
 
 def _write(path: Path, content: str = "data") -> None:
@@ -51,11 +48,7 @@ class TestAlbumStats:
     def test_album_stats_prints_the_tables(self, tmp_path: Path) -> None:
         album_dir = _setup_album(tmp_path, "2024-06-15 - Hiking")
 
-        result = runner.invoke(
-            app,
-            ["album", "stats", "--album-dir", str(album_dir)],
-            obj=ALL_DEPS_RUNTIME,
-        )
+        result = invoke_cli(["album", "stats", "--album-dir", str(album_dir)])
 
         assert result.exit_code == 0, result.output
         assert "Overview" in result.output
@@ -68,11 +61,7 @@ class TestAlbumStats:
     ) -> None:
         album_dir = _setup_album(tmp_path, "not an album name")
 
-        result = runner.invoke(
-            app,
-            ["album", "stats", "--album-dir", str(album_dir)],
-            obj=ALL_DEPS_RUNTIME,
-        )
+        result = invoke_cli(["album", "stats", "--album-dir", str(album_dir)])
 
         assert result.exit_code == 1
         assert 'Album name "not an album name" cannot be parsed.' in result.output
@@ -96,10 +85,8 @@ class TestEmptyCsvListings:
     ) -> None:
         gallery = _setup_gallery(tmp_path)
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["gallery", command, "--format", "csv", "--gallery-dir", str(gallery)],
-            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 0, result.output
@@ -118,8 +105,7 @@ class TestEmptyCsvListings:
         gallery = _setup_gallery(tmp_path)
         out = tmp_path / "out.csv"
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "gallery",
                 command,
@@ -130,7 +116,6 @@ class TestEmptyCsvListings:
                 "--output",
                 str(out),
             ],
-            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 0, result.output
@@ -170,7 +155,7 @@ def gallery(tmp_path: Path) -> _Gallery:
 
 
 def _invoke(*args: str) -> Result:
-    result = runner.invoke(app, list(args), obj=ALL_DEPS_RUNTIME)
+    result = invoke_cli(list(args))
     assert result.exit_code == 0, result.output
     return result
 

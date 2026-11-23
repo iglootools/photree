@@ -3,15 +3,10 @@
 from collections.abc import Callable
 from pathlib import Path
 
-from typer.testing import CliRunner
-
-from photree.cli import app
 from photree.foundation.gallery_metadata import GALLERY_YAML, load_gallery_metadata
 from photree.foundation.layout import PHOTREE_DIR
 from photree.foundation.linking import LinkMode
-from tests.fakes import fake_runtime
-
-runner = CliRunner()
+from tests.fakes import fake_runtime, invoke_cli
 
 
 def _gallery_yaml(gallery: Path) -> Path:
@@ -20,10 +15,9 @@ def _gallery_yaml(gallery: Path) -> Path:
 
 class TestGalleryInit:
     def test_writes_the_link_mode(self, tmp_path: Path) -> None:
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["gallery", "init", "-g", str(tmp_path), "--link-mode", "copy"],
-            obj=fake_runtime(),
+            runtime=fake_runtime(),
         )
 
         assert result.exit_code == 0, result.output
@@ -32,10 +26,9 @@ class TestGalleryInit:
         assert metadata.link_mode is LinkMode.COPY
 
     def test_defaults_to_hardlink(self, tmp_path: Path) -> None:
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["gallery", "init", "-g", str(tmp_path)],
-            obj=fake_runtime(),
+            runtime=fake_runtime(),
         )
 
         assert result.exit_code == 0, result.output
@@ -43,17 +36,15 @@ class TestGalleryInit:
         assert metadata.link_mode is LinkMode.HARDLINK
 
     def test_refuses_to_overwrite_an_existing_gallery(self, tmp_path: Path) -> None:
-        runner.invoke(
-            app,
+        invoke_cli(
             ["gallery", "init", "-g", str(tmp_path), "--link-mode", "copy"],
-            obj=fake_runtime(),
+            runtime=fake_runtime(),
         )
         before = _gallery_yaml(tmp_path).read_bytes()
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["gallery", "init", "-g", str(tmp_path), "--link-mode", "symlink"],
-            obj=fake_runtime(),
+            runtime=fake_runtime(),
         )
 
         assert result.exit_code == 1
@@ -70,10 +61,9 @@ class TestGalleryInit:
         gallery.mkdir()
         chdir(tmp_path)
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["gallery", "init", "-g", str(gallery)],
-            obj=fake_runtime(),
+            runtime=fake_runtime(),
         )
 
         assert result.exit_code == 0, result.output
@@ -90,7 +80,7 @@ class TestGalleryInit:
     ) -> None:
         chdir(tmp_path)
 
-        result = runner.invoke(app, ["gallery", "init"], obj=fake_runtime())
+        result = invoke_cli(["gallery", "init"], runtime=fake_runtime())
 
         assert result.exit_code == 0, result.output
         assert "--gallery-dir" not in result.output

@@ -1,9 +1,6 @@
 from collections.abc import Callable
 from pathlib import Path
 
-from typer.testing import CliRunner
-
-from photree.cli import app
 from photree.foundation.gallery_metadata import (
     GALLERY_YAML,
     GalleryMetadata,
@@ -12,8 +9,7 @@ from photree.foundation.gallery_metadata import (
 )
 from photree.foundation.layout import PHOTREE_DIR
 from photree.foundation.linking import LinkMode
-
-runner = CliRunner()
+from tests.fakes import invoke_cli
 
 
 def _init_gallery(gallery_dir: Path, link_mode: LinkMode = LinkMode.HARDLINK) -> None:
@@ -23,8 +19,7 @@ def _init_gallery(gallery_dir: Path, link_mode: LinkMode = LinkMode.HARDLINK) ->
 class TestGalleryMetadataSet:
     def test_updates_link_mode(self, tmp_path: Path) -> None:
         _init_gallery(tmp_path, LinkMode.HARDLINK)
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "gallery",
                 "metadata",
@@ -44,8 +39,7 @@ class TestGalleryMetadataSet:
         """Regression: only --faces-enabled existed, so it could not be unset."""
         _init_gallery(tmp_path)
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["gallery", "metadata", "set", "-g", str(tmp_path), "--no-faces-enabled"],
         )
 
@@ -55,8 +49,7 @@ class TestGalleryMetadataSet:
 
     def test_no_change_when_same_value(self, tmp_path: Path) -> None:
         _init_gallery(tmp_path, LinkMode.HARDLINK)
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "gallery",
                 "metadata",
@@ -71,8 +64,7 @@ class TestGalleryMetadataSet:
         assert "already up to date" in result.output
 
     def test_fails_without_gallery_init(self, tmp_path: Path) -> None:
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "gallery",
                 "metadata",
@@ -87,18 +79,14 @@ class TestGalleryMetadataSet:
 
     def test_fails_when_no_fields_specified(self, tmp_path: Path) -> None:
         _init_gallery(tmp_path)
-        result = runner.invoke(
-            app,
-            ["gallery", "metadata", "set", "-g", str(tmp_path)],
-        )
+        result = invoke_cli(["gallery", "metadata", "set", "-g", str(tmp_path)])
         assert result.exit_code == 2
         assert "No fields specified" in result.output
 
     def test_all_link_modes(self, tmp_path: Path) -> None:
         for mode in LinkMode:
             _init_gallery(tmp_path, LinkMode.HARDLINK)
-            runner.invoke(
-                app,
+            invoke_cli(
                 [
                     "gallery",
                     "metadata",
@@ -121,10 +109,7 @@ class TestGalleryMetadataSet:
         child = tmp_path / "subdir"
         child.mkdir()
         chdir(child)
-        result = runner.invoke(
-            app,
-            ["gallery", "metadata", "set", "--link-mode", "copy"],
-        )
+        result = invoke_cli(["gallery", "metadata", "set", "--link-mode", "copy"])
         assert result.exit_code == 0
         loaded = load_gallery_metadata(tmp_path / PHOTREE_DIR / GALLERY_YAML)
         assert loaded.link_mode == LinkMode.COPY

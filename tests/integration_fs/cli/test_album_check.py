@@ -5,20 +5,16 @@ from pathlib import Path
 import cv2
 import numpy as np
 import pytest
-from typer.testing import CliRunner
 
 from photree.album.id import generate_album_id
 from photree.album.refresh import refresh_album_derived_data
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
-from photree.cli import app
 from photree.clihelpers.runtime import Runtime
 from photree.common.exif import exiftool_session, set_exif_date_time
 from photree.common.sysdeps import SystemDependency
 from photree.foundation.linking import LinkMode
-from tests.fakes import fake_runtime
-
-runner = CliRunner()
+from tests.fakes import fake_runtime, invoke_cli
 
 requires_exiftool = pytest.mark.skipif(
     not shutil.which("exiftool"),
@@ -60,10 +56,9 @@ class TestAlbumCheckExifDateMismatch:
         runtime = _real_exiftool_runtime()
         album = _album_with_exif_mismatch(tmp_path)
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["album", "check", "--album-dir", str(album)],
-            obj=runtime,
+            runtime=runtime,
         )
 
         assert result.exit_code == 1, result.output
@@ -77,10 +72,9 @@ class TestAlbumCheckExifDateMismatch:
         runtime = _real_exiftool_runtime()
         album = _album_with_exif_mismatch(tmp_path)
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["album", "check", "--album-dir", str(album), "--no-fatal-exif-date-match"],
-            obj=runtime,
+            runtime=runtime,
         )
 
         assert result.exit_code == 0, result.output

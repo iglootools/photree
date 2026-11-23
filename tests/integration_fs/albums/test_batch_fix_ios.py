@@ -1,16 +1,11 @@
 from pathlib import Path
 
-from typer.testing import CliRunner
-
 from photree.album.id import generate_album_id
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.albums.cmd_handler.fix_ios import batch_fix_ios
-from photree.cli import app
 from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
-from tests.fakes import ALL_DEPS_RUNTIME
-
-runner = CliRunner()
+from tests.fakes import invoke_cli
 
 
 def _files(album: Path, subdir: str, *names: str) -> None:
@@ -100,10 +95,8 @@ class TestFixIosCommands:
         fixable = _fixable_album(tmp_path)
         _conflicting_album(tmp_path)
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["albums", "fix-ios", "-d", str(tmp_path), "--mv-miscategorized"],
-            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 1
@@ -116,10 +109,8 @@ class TestFixIosCommands:
         save_gallery_metadata(gallery, GalleryMetadata(faces_enabled=False))
         fixable = _fixable_album(gallery / "albums" / "2024")
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["gallery", "fix-ios", "-g", str(gallery), "--rm-orphan-sidecar"],
-            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 0, result.output

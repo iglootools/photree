@@ -1,8 +1,5 @@
 from pathlib import Path
 
-from typer.testing import CliRunner
-
-from photree.cli import app
 from photree.collection.id import generate_collection_id
 from photree.collection.init import init_collection
 from photree.collection.store.metadata import (
@@ -16,15 +13,14 @@ from photree.collection.store.protocol import (
     CollectionStrategy,
 )
 from photree.foundation.metadata_io import InvalidMetadataError
-
-runner = CliRunner()
+from tests.fakes import invoke_cli
 
 
 class TestCollectionInit:
     def test_creates_collection_yaml(self, tmp_path: Path) -> None:
         col = tmp_path / "my-collection"
         col.mkdir()
-        result = runner.invoke(app, ["collection", "init", "-d", str(col)])
+        result = invoke_cli(["collection", "init", "-d", str(col)])
         assert result.exit_code == 0
         assert "Created" in result.output
         assert "Collection ID:" in result.output
@@ -33,7 +29,7 @@ class TestCollectionInit:
     def test_defaults_to_manual_explicit(self, tmp_path: Path) -> None:
         col = tmp_path / "my-collection"
         col.mkdir()
-        runner.invoke(app, ["collection", "init", "-d", str(col)])
+        invoke_cli(["collection", "init", "-d", str(col)])
         metadata = load_collection_metadata(col)
         assert metadata is not None
         assert metadata.members == CollectionMembers.MANUAL
@@ -42,8 +38,7 @@ class TestCollectionInit:
     def test_custom_members_and_lifecycle(self, tmp_path: Path) -> None:
         col = tmp_path / "my-collection"
         col.mkdir()
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "collection",
                 "init",
@@ -67,8 +62,7 @@ class TestCollectionInit:
     def test_rejects_implicit_manual(self, tmp_path: Path) -> None:
         col = tmp_path / "my-collection"
         col.mkdir()
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "collection",
                 "init",
@@ -94,7 +88,7 @@ class TestCollectionInit:
                 lifecycle=CollectionLifecycle.EXPLICIT,
             ),
         )
-        result = runner.invoke(app, ["collection", "init", "-d", str(col)])
+        result = invoke_cli(["collection", "init", "-d", str(col)])
         assert result.exit_code == 1
         assert "already initialized" in result.output
 
@@ -110,7 +104,7 @@ class TestCollectionInit:
                 lifecycle=CollectionLifecycle.EXPLICIT,
             ),
         )
-        runner.invoke(app, ["collection", "init", "-d", str(col)])
+        invoke_cli(["collection", "init", "-d", str(col)])
         metadata = load_collection_metadata(col)
         assert metadata is not None
         assert metadata.id == original_id
@@ -118,10 +112,7 @@ class TestCollectionInit:
     def test_accepts_collection_dir_option(self, tmp_path: Path) -> None:
         col = tmp_path / "my-collection"
         col.mkdir()
-        result = runner.invoke(
-            app,
-            ["collection", "init", "--collection-dir", str(col)],
-        )
+        result = invoke_cli(["collection", "init", "--collection-dir", str(col)])
         assert result.exit_code == 0, result.output
         assert load_collection_metadata(col) is not None
 
@@ -133,10 +124,10 @@ class TestCollectionInit:
         yaml_path.parent.mkdir(parents=True)
         yaml_path.write_text("- truncated\n", encoding="utf-8")
 
-        result = runner.invoke(app, ["collection", "init", "-c", str(col)])
+        result = invoke_cli(["collection", "init", "-c", str(col)])
 
         # The error propagates to the entry point (photree.cli.main), which
-        # renders it; CliRunner invokes the bare app, so it surfaces here.
+        # renders it; invoke_cli runs the bare app, so it surfaces here.
         assert isinstance(result.exception, InvalidMetadataError)
         assert result.exception.path == yaml_path
         assert yaml_path.read_text(encoding="utf-8") == "- truncated\n"

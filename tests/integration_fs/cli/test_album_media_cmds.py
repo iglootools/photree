@@ -5,8 +5,6 @@ import io
 from collections.abc import Callable
 from pathlib import Path
 
-from typer.testing import CliRunner
-
 from photree.album.id import (
     format_album_external_id,
     format_image_external_id,
@@ -21,9 +19,7 @@ from photree.album.store.media_metadata import (
 )
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
-from photree.cli import app
-
-runner = CliRunner()
+from tests.fakes import invoke_cli
 
 
 def _write(path: Path) -> None:
@@ -56,8 +52,7 @@ class TestRmMedia:
         album = _album(tmp_path / "trip", [*_ios_image("0001"), *_ios_image("0002")])
         chdir(tmp_path)
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["album", "rm-media", "--album-dir", "trip", "main-jpg/IMG_0001.jpg"],
         )
 
@@ -71,8 +66,7 @@ class TestRmMedia:
     def test_dry_run_reports_without_removing(self, tmp_path: Path) -> None:
         album = _album(tmp_path / "trip", _ios_image("0001"))
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "album",
                 "rm-media",
@@ -98,8 +92,7 @@ class TestMvMedia:
         dst = _album(tmp_path / "dst", [])
         chdir(tmp_path)
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "album",
                 "mv-media",
@@ -130,8 +123,7 @@ class TestMvMedia:
         _album(tmp_path / "dst", files)
         chdir(tmp_path)
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "album",
                 "mv-media",
@@ -159,8 +151,7 @@ class TestMvMedia:
         _album(tmp_path / "dst", ["std-main/orig-img/beach.jpg"])
         chdir(tmp_path)
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "album",
                 "mv-media",
@@ -207,7 +198,7 @@ class TestListMedia:
         _, album_id, image_id, video_id = _album_with_ids(tmp_path / "trip")
         chdir(tmp_path)
 
-        result = runner.invoke(app, ["album", "list-media", "--album-dir", "trip"])
+        result = invoke_cli(["album", "list-media", "--album-dir", "trip"])
 
         assert result.exit_code == 0, result.output
         assert result.output.splitlines() == [
@@ -223,8 +214,7 @@ class TestListMedia:
     def test_csv_has_the_header_scripts_read(self, tmp_path: Path) -> None:
         album, album_id, image_id, video_id = _album_with_ids(tmp_path / "trip")
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["album", "list-media", "--album-dir", str(album), "--format", "csv"],
         )
 

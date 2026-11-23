@@ -1,14 +1,10 @@
 from pathlib import Path
 
-from typer.testing import CliRunner
-
 from photree.album.id import generate_album_id
 from photree.album.store.metadata import load_album_metadata, save_album_metadata
 from photree.album.store.protocol import ALBUM_YAML, AlbumMetadata
-from photree.cli import app
 from photree.foundation.layout import PHOTREE_DIR
-
-runner = CliRunner()
+from tests.fakes import invoke_cli
 
 
 def _write(path: Path, content: str = "data") -> None:
@@ -31,7 +27,7 @@ class TestAlbumInit:
     def test_creates_album_yaml(self, tmp_path: Path) -> None:
         album = tmp_path / "2024-07-14 - Hiking"
         album.mkdir()
-        result = runner.invoke(app, ["album", "init", "-a", str(album)])
+        result = invoke_cli(["album", "init", "-a", str(album)])
         assert result.exit_code == 0
         assert "Created" in result.output
         assert "Album ID:" in result.output
@@ -40,7 +36,7 @@ class TestAlbumInit:
     def test_generates_valid_id(self, tmp_path: Path) -> None:
         album = tmp_path / "2024-07-14 - Hiking"
         album.mkdir()
-        runner.invoke(app, ["album", "init", "-a", str(album)])
+        invoke_cli(["album", "init", "-a", str(album)])
         metadata = load_album_metadata(album)
         assert metadata is not None
         assert metadata.id
@@ -49,7 +45,7 @@ class TestAlbumInit:
         album = tmp_path / "2024-07-14 - Hiking"
         album.mkdir()
         _mark_album(album)
-        result = runner.invoke(app, ["album", "init", "-a", str(album)])
+        result = invoke_cli(["album", "init", "-a", str(album)])
         assert result.exit_code == 1
         assert "already initialized" in result.output
 
@@ -58,7 +54,7 @@ class TestAlbumInit:
         album.mkdir()
         original_id = generate_album_id()
         save_album_metadata(album, AlbumMetadata(id=original_id))
-        runner.invoke(app, ["album", "init", "-a", str(album)])
+        invoke_cli(["album", "init", "-a", str(album)])
         metadata = load_album_metadata(album)
         assert metadata is not None
         assert metadata.id == original_id
@@ -66,14 +62,14 @@ class TestAlbumInit:
     def test_creates_photree_dir(self, tmp_path: Path) -> None:
         album = tmp_path / "2024-07-14 - Hiking"
         album.mkdir()
-        runner.invoke(app, ["album", "init", "-a", str(album)])
+        invoke_cli(["album", "init", "-a", str(album)])
         assert (album / PHOTREE_DIR / ALBUM_YAML).is_file()
 
     def test_dry_run_writes_nothing(self, tmp_path: Path) -> None:
         album = tmp_path / "2024-07-14 - Hiking"
         album.mkdir()
 
-        result = runner.invoke(app, ["album", "init", "-a", str(album), "--dry-run"])
+        result = invoke_cli(["album", "init", "-a", str(album), "--dry-run"])
 
         assert result.exit_code == 0
         assert result.output.startswith("[dry-run] Would create ")
@@ -87,7 +83,7 @@ class TestAlbumsInit:
         _setup_media_source(a1)
         _setup_media_source(a2)
 
-        result = runner.invoke(app, ["albums", "init", "-d", str(tmp_path)])
+        result = invoke_cli(["albums", "init", "-d", str(tmp_path)])
         assert result.exit_code == 0
         assert load_album_metadata(a1) is not None
         assert load_album_metadata(a2) is not None
@@ -99,7 +95,7 @@ class TestAlbumsInit:
         _setup_media_source(a2)
         _mark_album(a1)
 
-        result = runner.invoke(app, ["albums", "init", "-d", str(tmp_path)])
+        result = invoke_cli(["albums", "init", "-d", str(tmp_path)])
         assert result.exit_code == 1
         assert "already initialized" in result.output
 
@@ -109,7 +105,7 @@ class TestAlbumsInit:
         original_id = generate_album_id()
         save_album_metadata(a1, AlbumMetadata(id=original_id))
 
-        runner.invoke(app, ["albums", "init", "-d", str(tmp_path)])
+        invoke_cli(["albums", "init", "-d", str(tmp_path)])
         metadata = load_album_metadata(a1)
         assert metadata is not None
         assert metadata.id == original_id
@@ -118,20 +114,14 @@ class TestAlbumsInit:
         a1 = tmp_path / "2024-07-14 - Trip A"
         _setup_media_source(a1)
 
-        result = runner.invoke(
-            app,
-            ["albums", "init", "-d", str(tmp_path), "--dry-run"],
-        )
+        result = invoke_cli(["albums", "init", "-d", str(tmp_path), "--dry-run"])
         assert result.exit_code == 0
         assert load_album_metadata(a1) is None
 
     def test_dry_run_labels_batch_summary(self, tmp_path: Path) -> None:
         _setup_media_source(tmp_path / "2024-07-14 - Trip A")
 
-        result = runner.invoke(
-            app,
-            ["albums", "init", "-d", str(tmp_path), "--dry-run"],
-        )
+        result = invoke_cli(["albums", "init", "-d", str(tmp_path), "--dry-run"])
 
         assert result.exit_code == 0
         assert "[dry-run] 1 album(s) would be initialized, 0 failed." in result.output
@@ -142,7 +132,7 @@ class TestAlbumsInit:
         a1.mkdir()
         a2.mkdir()
 
-        result = runner.invoke(app, ["albums", "init", "-a", str(a1), "-a", str(a2)])
+        result = invoke_cli(["albums", "init", "-a", str(a1), "-a", str(a2)])
         assert result.exit_code == 0
         assert load_album_metadata(a1) is not None
         assert load_album_metadata(a2) is not None
@@ -153,22 +143,19 @@ class TestAlbumsInit:
         _setup_media_source(a1)
         # No _mark_album — album.yaml does not exist yet
 
-        result = runner.invoke(app, ["albums", "init", "-d", str(tmp_path)])
+        result = invoke_cli(["albums", "init", "-d", str(tmp_path)])
         assert result.exit_code == 0
         assert load_album_metadata(a1) is not None
 
     def test_no_albums_found(self, tmp_path: Path) -> None:
-        result = runner.invoke(app, ["albums", "init", "-d", str(tmp_path)])
+        result = invoke_cli(["albums", "init", "-d", str(tmp_path)])
         assert result.exit_code == 0
         assert "No albums found" in result.output
 
     def test_dir_and_album_dir_mutually_exclusive(self, tmp_path: Path) -> None:
         a1 = tmp_path / "album"
         a1.mkdir()
-        result = runner.invoke(
-            app,
-            ["albums", "init", "-d", str(tmp_path), "-a", str(a1)],
-        )
+        result = invoke_cli(["albums", "init", "-d", str(tmp_path), "-a", str(a1)])
         assert result.exit_code == 2
         assert "mutually exclusive" in result.output
 
@@ -178,8 +165,7 @@ class TestAlbumFixId:
         album = tmp_path / "2024-07-14 - Trip A"
         _setup_media_source(album)
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["album", "fix", "--id", "--dry-run", "--album-dir", str(album)],
         )
 

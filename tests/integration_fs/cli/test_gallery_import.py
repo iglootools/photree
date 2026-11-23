@@ -11,8 +11,6 @@ function level in ``test_importer.py`` / ``test_reimport.py``.
 
 from pathlib import Path
 
-from typer.testing import CliRunner
-
 from photree.album.cli.runtime import AlbumRuntime
 from photree.album.faces.failures import FaceFailure, FaceFailureStage
 from photree.album.id import generate_album_id
@@ -23,14 +21,11 @@ from photree.album.refresh import (
 )
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
-from photree.cli import app
 from photree.common.exif import ExifTagReader
 from photree.common.sysdeps import SystemDependency
 from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 from photree.foundation.linking import LinkMode
-from tests.fakes import ALL_DEPS_RUNTIME, copy_convert_single, fake_album_runtime
-
-runner = CliRunner()
+from tests.fakes import copy_convert_single, fake_album_runtime, invoke_cli
 
 
 def _write(path: Path, content: str = "data") -> None:
@@ -129,10 +124,8 @@ class TestValidationGate:
         _make_source(base, "2024-07-14 - Morning")
         _make_source(base, "2024-07-14 - Evening")
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["gallery", "import-all", "-d", str(base), "-g", str(gallery)],
-            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 1
@@ -143,10 +136,8 @@ class TestValidationGate:
         gallery = _setup_gallery(tmp_path)
         source = _make_source(tmp_path / "src", "not-an-album-name")
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["gallery", "import", "-a", str(source), "-g", str(gallery)],
-            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 1
@@ -164,10 +155,8 @@ class TestSkip:
         )
         source = _make_source(tmp_path / "src", "2024-07-14 - Hiking")
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["gallery", "import", "-a", str(source), "-g", str(gallery)],
-            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 0
@@ -189,10 +178,8 @@ class TestClobberGuard:
             album_id=generate_album_id(),
         )
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["gallery", "import", "-a", str(source), "-g", str(gallery), "--reimport"],
-            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 1
@@ -208,10 +195,8 @@ class TestDryRun:
         base = tmp_path / "incoming"
         _make_source(base, "2024-07-14 - Hiking")
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["gallery", "import-all", "-d", str(base), "-g", str(gallery), "--dry-run"],
-            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 0
@@ -224,10 +209,9 @@ class TestImport:
         gallery = _setup_gallery(tmp_path)
         source = _make_source(tmp_path / "src", "2024-07-14 - Hiking")
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["gallery", "import", "-a", str(source), "-g", str(gallery)],
-            obj=_runtime_refreshing_with(_copy_refresh),
+            runtime=_runtime_refreshing_with(_copy_refresh),
         )
 
         assert result.exit_code == 0, result.output
@@ -240,10 +224,9 @@ class TestImport:
         gallery = _setup_gallery(tmp_path)
         source = _make_source(tmp_path / "src", "2024-07-14 - Hiking")
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["gallery", "import", "-a", str(source), "-g", str(gallery)],
-            obj=_runtime_refreshing_with(_refresh_with_face_failure),
+            runtime=_runtime_refreshing_with(_refresh_with_face_failure),
         )
 
         assert result.exit_code == 1
@@ -259,10 +242,9 @@ class TestImport:
         gallery = _setup_gallery(tmp_path, faces_enabled=True)
         source = _make_source(tmp_path / "src", "2024-07-14 - Hiking")
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["gallery", "import", "-a", str(source), "-g", str(gallery)],
-            obj=_runtime_refreshing_with(_refresh_with_face_failure),
+            runtime=_runtime_refreshing_with(_refresh_with_face_failure),
         )
 
         assert result.exit_code == 1
@@ -272,10 +254,9 @@ class TestImport:
         gallery = _setup_gallery(tmp_path)
         source = _make_source(tmp_path / "src", "2024-07-14 - Hiking")
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["gallery", "import", "-a", str(source), "-g", str(gallery)],
-            obj=_runtime_refreshing_with(_skipped_refresh),
+            runtime=_runtime_refreshing_with(_skipped_refresh),
         )
 
         assert result.exit_code == 1
@@ -289,8 +270,7 @@ class TestImport:
         gallery = _setup_gallery(tmp_path, LinkMode.HARDLINK)
         source = _make_source(tmp_path / "src", "2024-07-14 - Hiking")
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "gallery",
                 "import",
@@ -301,7 +281,7 @@ class TestImport:
                 "--link-mode",
                 "copy",
             ],
-            obj=_runtime_refreshing_with(_copy_refresh),
+            runtime=_runtime_refreshing_with(_copy_refresh),
         )
 
         assert result.exit_code == 0, result.output
@@ -317,10 +297,9 @@ class TestImportAll:
         _make_source(base, "2024-07-14 - Hiking")
         _make_source(base, "2024-07-15 - Beach")
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["gallery", "import-all", "-d", str(base), "-g", str(gallery)],
-            obj=_runtime_refreshing_with(_copy_refresh),
+            runtime=_runtime_refreshing_with(_copy_refresh),
         )
 
         assert result.exit_code == 0, result.output
@@ -335,10 +314,9 @@ class TestImportAll:
         base = tmp_path / "incoming"
         _make_source(base, "2024-07-14 - Hiking")
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["gallery", "import-all", "-d", str(base), "-g", str(gallery)],
-            obj=_runtime_refreshing_with(_refresh_with_face_failure),
+            runtime=_runtime_refreshing_with(_refresh_with_face_failure),
         )
 
         assert result.exit_code == 1
@@ -351,10 +329,9 @@ class TestImportAll:
         base = tmp_path / "incoming"
         _make_source(base, "2024-07-14 - Hiking")
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["gallery", "import-all", "-d", str(base), "-g", str(gallery)],
-            obj=_runtime_refreshing_with(_skipped_refresh),
+            runtime=_runtime_refreshing_with(_skipped_refresh),
         )
 
         assert result.exit_code == 1
@@ -370,8 +347,7 @@ class TestImportAll:
         base = tmp_path / "incoming"
         _make_source(base, "2024-07-14 - Hiking")
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "gallery",
                 "import-all",
@@ -382,7 +358,7 @@ class TestImportAll:
                 "--link-mode",
                 "copy",
             ],
-            obj=_runtime_refreshing_with(_copy_refresh),
+            runtime=_runtime_refreshing_with(_copy_refresh),
         )
 
         assert result.exit_code == 0, result.output

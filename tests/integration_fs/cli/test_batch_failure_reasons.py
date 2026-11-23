@@ -7,8 +7,6 @@ learn anything the batch already knew. These pin the reason to the output.
 
 from pathlib import Path
 
-from typer.testing import CliRunner
-
 from photree.album.id import generate_album_id
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import ALBUM_YAML, AlbumMetadata
@@ -16,11 +14,8 @@ from photree.albums.batchcli.failures import batch_failures_report
 from photree.albums.cmd_handler import BatchFailure
 from photree.albums.cmd_handler.fix import batch_fix
 from photree.albums.cmd_handler.init import batch_init
-from photree.cli import app
 from photree.foundation.layout import PHOTREE_DIR
-from tests.fakes import ALL_DEPS_RUNTIME
-
-runner = CliRunner()
+from tests.fakes import invoke_cli
 
 
 def _write(path: Path, content: str = "data") -> None:
@@ -42,7 +37,7 @@ class TestBatchInit:
     ) -> None:
         _album(tmp_path, "2024-07-14 - Hiking")
 
-        result = runner.invoke(app, ["albums", "init", "-d", str(tmp_path)])
+        result = invoke_cli(["albums", "init", "-d", str(tmp_path)])
 
         assert result.exit_code == 1
         assert "Failed albums:" in result.output
@@ -52,10 +47,7 @@ class TestBatchInit:
     def test_retry_command_stays_a_dry_run(self, tmp_path: Path) -> None:
         _album(tmp_path, "2024-07-14 - Hiking")
 
-        result = runner.invoke(
-            app,
-            ["albums", "init", "-d", str(tmp_path), "--dry-run"],
-        )
+        result = invoke_cli(["albums", "init", "-d", str(tmp_path), "--dry-run"])
 
         assert result.exit_code == 1
         assert 'album init --album-dir "' in result.output
@@ -70,11 +62,7 @@ class TestBatchRefresh:
         _write(album / "ios-main" / "orig-img" / "IMG_0001.HEIC", "not heic")
         save_album_metadata(album, AlbumMetadata(id=generate_album_id()))
 
-        result = runner.invoke(
-            app,
-            ["albums", "refresh", "-d", str(tmp_path)],
-            obj=ALL_DEPS_RUNTIME,
-        )
+        result = invoke_cli(["albums", "refresh", "-d", str(tmp_path)])
 
         assert result.exit_code == 1
         assert "Failed albums:" in result.output
@@ -86,10 +74,8 @@ class TestBatchRefresh:
         _write(album / "ios-main" / "orig-img" / "IMG_0001.HEIC", "not heic")
         save_album_metadata(album, AlbumMetadata(id=generate_album_id()))
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["albums", "refresh", "-d", str(tmp_path), "--refresh-jpeg"],
-            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 1

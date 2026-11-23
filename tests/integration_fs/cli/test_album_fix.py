@@ -2,14 +2,9 @@
 
 from pathlib import Path
 
-from typer.testing import CliRunner
-
 from photree.album.id import format_album_external_id
 from photree.album.store.metadata import load_album_metadata
-from photree.cli import app
-from tests.fakes import fake_runtime
-
-runner = CliRunner()
+from tests.fakes import fake_runtime, invoke_cli
 
 
 def _write(path: Path) -> None:
@@ -18,7 +13,7 @@ def _write(path: Path) -> None:
 
 
 def _invoke(*args: str) -> tuple[int, str]:
-    result = runner.invoke(app, ["album", *args], obj=fake_runtime())
+    result = invoke_cli(["album", *args], runtime=fake_runtime())
     return result.exit_code, result.output
 
 

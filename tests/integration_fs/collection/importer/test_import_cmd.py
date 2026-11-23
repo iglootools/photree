@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pytest
-from typer.testing import CliRunner
 
 from photree.album.id import (
     format_album_external_id,
@@ -15,7 +14,6 @@ from photree.album.store.media_metadata import (
 )
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
-from photree.cli import app
 from photree.collection.id import generate_collection_id
 from photree.collection.importer.import_members import (
     CollectionImportError,
@@ -41,8 +39,7 @@ from photree.collection.store.protocol import (
     CollectionStrategy,
 )
 from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
-
-runner = CliRunner()
+from tests.fakes import invoke_cli
 
 
 def _write(path: Path, content: str = "data") -> None:
@@ -95,8 +92,7 @@ class TestCollectionImportCmd:
         ext_id = format_album_external_id(album_id)
         _write_csv(col_dir / SELECTION_CSV, [ext_id])
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "collection",
                 "import",
@@ -124,8 +120,7 @@ class TestCollectionImportCmd:
         sel_dir.mkdir()
         (sel_dir / "2024-07-14 - Trip").write_text("")
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "collection",
                 "import",
@@ -147,8 +142,7 @@ class TestCollectionImportCmd:
 
         _write_csv(col_dir / SELECTION_CSV, ["nonexistent-album"])
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "collection",
                 "import",
@@ -169,8 +163,7 @@ class TestCollectionImportCmd:
         ext_id = format_album_external_id(album_id)
         _write_csv(col_dir / SELECTION_CSV, [ext_id])
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "collection",
                 "import",
@@ -208,8 +201,7 @@ class TestCollectionImportCmd:
         ext_id2 = format_album_external_id(album_id2)
         _write_csv(col_dir / SELECTION_CSV, [ext_id2])
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "collection",
                 "import",
@@ -231,8 +223,7 @@ class TestCollectionImportCmd:
         col_dir.mkdir()
         _write_csv(col_dir / SELECTION_CSV, ["something"])
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "collection",
                 "import",
@@ -249,8 +240,7 @@ class TestCollectionImportCmd:
         gallery = _setup_gallery(tmp_path)
         col_dir = _setup_collection(tmp_path)
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "collection",
                 "import",
@@ -295,8 +285,7 @@ class TestSelectionDateErrors:
             encoding="utf-8",
         )
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["collection", "import", "-c", str(col_dir), "-g", str(gallery)],
         )
 
@@ -325,8 +314,7 @@ class TestSelectionCsvErrors:
             encoding="utf-8",
         )
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["collection", "import", "-c", str(col_dir), "-g", str(gallery)],
         )
 
@@ -343,8 +331,7 @@ class TestSelectionCsvErrors:
         col_dir = _setup_collection(tmp_path)
         (col_dir / SELECTION_CSV).write_bytes("entry\nÉté\n".encode("latin-1"))
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["collections", "import", "-c", str(col_dir), "-g", str(gallery)],
         )
 
@@ -389,8 +376,7 @@ class TestCollectionsImportCmd:
         col_dir = _setup_collection(tmp_path)
         _write_csv(col_dir / SELECTION_CSV, ["nonexistent-album"])
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["collections", "import", "-c", str(col_dir), "-g", str(gallery)],
         )
 
@@ -418,8 +404,7 @@ class TestCollectionsImportCmd:
             encoding="utf-8",
         )
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["collections", "import", "-c", str(col_dir), "-g", str(gallery)],
         )
 
@@ -449,8 +434,7 @@ class TestCollectionsImportCmd:
         for col_dir in (first, second):
             _write_csv(col_dir / SELECTION_CSV, ["2024-07-14 - Trip"])
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "collections",
                 "import",

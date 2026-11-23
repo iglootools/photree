@@ -15,12 +15,10 @@ from pathlib import Path
 import pytest
 from rich.console import Console
 from rich.markup import render
-from typer.testing import CliRunner
 
 from photree.album.id import generate_album_id
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
-from photree.cli import app
 from photree.clihelpers.progress import (
     BatchProgressBar,
     FileProgressBar,
@@ -36,9 +34,7 @@ from photree.collection.store.protocol import (
 from photree.common.formatting import CHECK, markup_escape
 from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 from photree.foundation.linking import LinkMode
-from tests.fakes import ALL_DEPS_RUNTIME
-
-runner = CliRunner()
+from tests.fakes import invoke_cli
 
 PRIVATE_ALBUM = "2024-07-14 - Hiking [private]"
 
@@ -136,7 +132,7 @@ class TestAlbumsBatchFailures:
         _album(tmp_path, PRIVATE_ALBUM)
         chdir(tmp_path)
 
-        result = runner.invoke(app, ["albums", "init", "-d", str(tmp_path)])
+        result = invoke_cli(["albums", "init", "-d", str(tmp_path)])
 
         assert result.exit_code == 1
         assert "Failed albums:" in result.output
@@ -156,8 +152,7 @@ class TestAlbumCheck:
         _write(album / "std-nelu" / "orig-img" / "DSC_0001.JPG")
         chdir(tmp_path)
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "album",
                 "check",
@@ -166,7 +161,6 @@ class TestAlbumCheck:
                 "--no-check-exif-date-match",
                 "--no-checksum",
             ],
-            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 1
@@ -181,10 +175,8 @@ class TestGalleryImport:
         gallery = _gallery(tmp_path)
         source = _album(tmp_path / "src", "2024-07-14 - Hiking [secret]")
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["gallery", "import", "-a", str(source), "-g", str(gallery)],
-            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 1
@@ -200,10 +192,8 @@ class TestGalleryImport:
         _write(source / "ios-main" / "orig-img" / "IMG_0001.HEIC")
         save_album_metadata(source, AlbumMetadata(id=album_id))
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["gallery", "import", "-a", str(source), "-g", str(gallery)],
-            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 0
@@ -219,14 +209,10 @@ class TestCollectionCheck:
         gallery = _gallery(tmp_path)
         collection = gallery / "collections" / "Best of [private]"
         collection.mkdir(parents=True)
-        assert (
-            runner.invoke(app, ["collection", "init", "-c", str(collection)]).exit_code
-            == 0
-        )
+        assert invoke_cli(["collection", "init", "-c", str(collection)]).exit_code == 0
         chdir(gallery)
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["collection", "check", "-c", str(collection), "-g", str(gallery)],
         )
 

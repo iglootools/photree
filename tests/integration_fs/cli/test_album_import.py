@@ -2,15 +2,10 @@
 
 from pathlib import Path
 
-from typer.testing import CliRunner
-
 from photree.album.importer.album_import import AlbumImportResult
 from photree.album.importer.image_capture import ImportPlan, IosSourceImportResult
-from photree.cli import app
 from photree.common.sysdeps import SystemDependency
-from tests.fakes import fake_album_runtime
-
-runner = CliRunner()
+from tests.fakes import fake_album_runtime, invoke_cli
 
 
 def _write(path: Path, content: str = "data") -> None:
@@ -31,10 +26,9 @@ def _import(album: Path, source: Path, *flags: str, result: AlbumImportResult) -
     def _run_import(**_: object) -> AlbumImportResult:
         return result
 
-    invoked = runner.invoke(
-        app,
+    invoked = invoke_cli(
         ["album", "import", "-a", str(album), "-s", str(source), *flags],
-        obj=fake_album_runtime(*SystemDependency, run_import=_run_import),
+        runtime=fake_album_runtime(*SystemDependency, run_import=_run_import),
     )
     return f"{invoked.exit_code}\n{invoked.output}"
 
@@ -78,10 +72,9 @@ class TestAlbumImport:
         album = _std_staged_album(tmp_path, "DSC_0001.JPG", "DSC_0001.CR2")
         (tmp_path / "ic").mkdir()
 
-        invoked = runner.invoke(
-            app,
+        invoked = invoke_cli(
             ["album", "import", "-a", str(album), "-s", str(tmp_path / "ic")],
-            obj=fake_album_runtime(*SystemDependency, run_import=_unreachable),
+            runtime=fake_album_runtime(*SystemDependency, run_import=_unreachable),
         )
 
         assert invoked.exit_code == 1
@@ -97,10 +90,9 @@ class TestAlbumImport:
         _write(tmp_path / "ic/notes.txt")
         (tmp_path / "ic/backup").mkdir()
 
-        invoked = runner.invoke(
-            app,
+        invoked = invoke_cli(
             ["album", "import", "-a", str(album), "-s", str(tmp_path / "ic")],
-            obj=fake_album_runtime(*SystemDependency, run_import=_unreachable),
+            runtime=fake_album_runtime(*SystemDependency, run_import=_unreachable),
         )
 
         assert invoked.exit_code == 1

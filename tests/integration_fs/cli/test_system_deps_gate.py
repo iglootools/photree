@@ -8,19 +8,14 @@ album individually, halfway through.
 
 from pathlib import Path
 
-from typer.testing import CliRunner
-
 from photree.album.id import generate_album_id
 from photree.album.staging import ios_import_dir
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
-from photree.cli import app
 from photree.common.sysdeps import SystemDependency
 from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 from photree.foundation.linking import LinkMode
-from tests.fakes import fake_runtime
-
-runner = CliRunner()
+from tests.fakes import fake_runtime, invoke_cli
 
 SEL_DIR = ios_import_dir("main")
 
@@ -63,10 +58,9 @@ class TestAlbumsImportGate:
         albums_dir = tmp_path / "albums"
         album = _staged_album(albums_dir, "2024-07-14 - Hiking")
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["albums", "import", "-d", str(albums_dir), "-s", str(ic_dir)],
-            obj=runtime,
+            runtime=runtime,
         )
 
         assert result.exit_code == 1
@@ -80,10 +74,9 @@ class TestAlbumsImportGate:
         albums_dir = tmp_path / "albums"
         album = _staged_album(albums_dir, "2024-07-14 - Hiking")
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["albums", "import", "-d", str(albums_dir), "-s", str(ic_dir)],
-            obj=runtime,
+            runtime=runtime,
         )
 
         assert result.exit_code == 1
@@ -96,8 +89,7 @@ class TestAlbumsImportGate:
         albums_dir = tmp_path / "albums"
         _staged_album(albums_dir, "2024-07-14 - Hiking")
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             [
                 "albums",
                 "import",
@@ -108,7 +100,7 @@ class TestAlbumsImportGate:
                 "--skip-heic-to-jpeg",
                 "--dry-run",
             ],
-            obj=runtime,
+            runtime=runtime,
         )
 
         assert result.exit_code == 0
@@ -121,10 +113,9 @@ class TestAlbumImportGate:
         ic_dir = _image_capture_dir(tmp_path)
         album = _staged_album(tmp_path / "albums", "2024-07-14 - Hiking")
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["album", "import", "-a", str(album), "-s", str(ic_dir)],
-            obj=runtime,
+            runtime=runtime,
         )
 
         assert result.exit_code == 1
@@ -144,10 +135,9 @@ class TestGalleryImportGate:
         _write(source / "ios-main/orig-img/IMG_0001.HEIC")
         save_album_metadata(source, AlbumMetadata(id=generate_album_id()))
 
-        result = runner.invoke(
-            app,
+        result = invoke_cli(
             ["gallery", "import-all", "-d", str(base), "-g", str(gallery)],
-            obj=runtime,
+            runtime=runtime,
         )
 
         assert result.exit_code == 1
@@ -162,7 +152,7 @@ class TestRefreshGate:
         _write(album / "ios-main/orig-img/IMG_0001.HEIC")
         save_album_metadata(album, AlbumMetadata(id=generate_album_id()))
 
-        result = runner.invoke(app, ["album", "refresh", "-a", str(album)], obj=runtime)
+        result = invoke_cli(["album", "refresh", "-a", str(album)], runtime=runtime)
 
         assert result.exit_code == 1
         assert "exiftool" in result.output
@@ -172,7 +162,7 @@ class TestCheckSystemCmd:
     def test_reports_missing_dependencies(self) -> None:
         runtime = fake_runtime()
 
-        result = runner.invoke(app, ["check", "system"], obj=runtime)
+        result = invoke_cli(["check", "system"], runtime=runtime)
 
         assert result.exit_code == 1
         assert "sips" in result.output
@@ -181,6 +171,6 @@ class TestCheckSystemCmd:
     def test_passes_when_all_present(self) -> None:
         runtime = fake_runtime(*SystemDependency)
 
-        result = runner.invoke(app, ["check", "system"], obj=runtime)
+        result = invoke_cli(["check", "system"], runtime=runtime)
 
         assert result.exit_code == 0

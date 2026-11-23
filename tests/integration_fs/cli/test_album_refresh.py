@@ -1,15 +1,10 @@
 from pathlib import Path
 
-from typer.testing import CliRunner
-
 from photree.album.id import generate_album_id
 from photree.album.store.media_metadata import load_media_metadata
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
-from photree.cli import app
-from tests.fakes import ALL_DEPS_RUNTIME
-
-runner = CliRunner()
+from tests.fakes import invoke_cli
 
 
 def _write(path: Path, content: str = "data") -> None:
@@ -42,11 +37,7 @@ class TestAlbumRefresh:
         album = tmp_path / "album"
         _setup_album(album, images=False)
 
-        result = runner.invoke(
-            app,
-            ["album", "refresh", "-a", str(album)],
-            obj=ALL_DEPS_RUNTIME,
-        )
+        result = invoke_cli(["album", "refresh", "-a", str(album)])
 
         assert result.exit_code == 0
         assert load_media_metadata(album) is not None
@@ -55,11 +46,7 @@ class TestAlbumRefresh:
         album = tmp_path / "album"
         _setup_album(album)
 
-        result = runner.invoke(
-            app,
-            ["album", "refresh", "-a", str(album), "--dry-run"],
-            obj=ALL_DEPS_RUNTIME,
-        )
+        result = invoke_cli(["album", "refresh", "-a", str(album), "--dry-run"])
 
         assert result.exit_code == 0
         assert load_media_metadata(album) is None
@@ -68,11 +55,7 @@ class TestAlbumRefresh:
         album = tmp_path / "album"
         _setup_album(album, images=False)
 
-        result = runner.invoke(
-            app,
-            ["album", "refresh", "-a", str(album), "-n"],
-            obj=ALL_DEPS_RUNTIME,
-        )
+        result = invoke_cli(["album", "refresh", "-a", str(album), "-n"])
 
         assert result.exit_code == 0
         assert "[dry-run] ✓ album refresh planned" in result.output
@@ -81,12 +64,8 @@ class TestAlbumRefresh:
         album = tmp_path / "album"
         _setup_album(album, images=False)
 
-        runner.invoke(app, ["album", "refresh", "-a", str(album)], obj=ALL_DEPS_RUNTIME)
-        result = runner.invoke(
-            app,
-            ["album", "refresh", "-a", str(album)],
-            obj=ALL_DEPS_RUNTIME,
-        )
+        invoke_cli(["album", "refresh", "-a", str(album)])
+        result = invoke_cli(["album", "refresh", "-a", str(album)])
 
         assert result.exit_code == 0
 
@@ -95,11 +74,7 @@ class TestAlbumRefresh:
         album = tmp_path / "album"
         _setup_album(album)
 
-        result = runner.invoke(
-            app,
-            ["album", "refresh", "-a", str(album)],
-            obj=ALL_DEPS_RUNTIME,
-        )
+        result = invoke_cli(["album", "refresh", "-a", str(album)])
 
         assert result.exit_code == 1
         assert "face detection failed for 2 image(s)" in result.output
