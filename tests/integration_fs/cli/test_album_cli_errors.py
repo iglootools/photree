@@ -16,6 +16,7 @@ from photree.album.exporter.settings import (
     ResolvedExportSettings,
     validate_export_settings,
 )
+from photree.album.id import generate_album_id
 from photree.album.importer.album_import import (
     AlbumImportResult,
     EmptyImageCaptureDirError,
@@ -23,6 +24,8 @@ from photree.album.importer.album_import import (
 from photree.album.importer.collision import ImportCollisionError
 from photree.album.store.media_source import std_media_source
 from photree.album.store.media_sources_discovery import MediaSourceConflictError
+from photree.album.store.metadata import load_album_metadata, save_album_metadata
+from photree.album.store.protocol import AlbumMetadata
 from photree.cli import app, main
 from photree.common.sysdeps import SystemDependency
 from photree.foundation.layout import SHARE_SENTINEL
@@ -338,6 +341,55 @@ def test_albums_fix_rm_upstream_refusal_then_force(tmp_path: Path) -> None:
 
     assert forced.exit_code == 0, forced.output
     assert not (album / "std-nelu/orig-vid/clip.mov").exists()
+
+
+def _album_with_id(parent: Path, name: str) -> tuple[Path, str]:
+    album = parent / name
+    _write(album / "ios-main/orig-img/IMG_0001.HEIC")
+    album_id = generate_album_id()
+    save_album_metadata(album, AlbumMetadata(id=album_id))
+    return album, album_id
+
+
+def _album_id(album: Path) -> str | None:
+    meta = load_album_metadata(album)
+    return meta.id if meta is not None else None
+
+
+def test_albums_fix_new_id_on_a_scan_exits_2(tmp_path: Path) -> None:
+    # Regression: a scan gave every album found a new ID, orphaning every
+    # collection and face reference to them.
+    album, album_id = _album_with_id(tmp_path, "2024-07-14 - Trip")
+
+    result = runner.invoke(app, ["albums", "fix", "--new-id", "--dir", str(tmp_path)])
+
+    assert result.exit_code == 2
+    assert "'photree albums fix --new-id --album-dir <album>'" in result.output
+    assert _album_id(album) == album_id
+
+
+def test_albums_fix_new_id_changes_only_the_named_albums(tmp_path: Path) -> None:
+    named, named_id = _album_with_id(tmp_path, "2024-07-14 - Trip copy")
+    other, other_id = _album_with_id(tmp_path, "2024-07-14 - Trip")
+
+    result = runner.invoke(
+        app,
+        ["albums", "fix", "--new-id", "--album-dir", str(named)],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert _album_id(named) not in (None, named_id)
+    assert _album_id(other) == other_id
+
+
+def test_gallery_fix_has_no_new_id(tmp_path: Path) -> None:
+    result = runner.invoke(
+        app,
+        ["gallery", "fix", "--new-id", "--gallery-dir", str(tmp_path)],
+    )
+
+    assert result.exit_code == 2
+    assert "No such option" in result.output
 
 
 def test_gallery_fix_invalid_flags_suggest_help(tmp_path: Path) -> None:

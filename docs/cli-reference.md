@@ -538,6 +538,10 @@ $ photree albums export [OPTIONS]
 
 Fix all albums under a directory or from an explicit list.
 
+--new-id runs only on albums named with --album-dir: a new ID orphans every
+collection and face reference to the album, so it never applies to every
+album a scan finds.
+
 **Usage**:
 
 ```console
@@ -549,7 +553,7 @@ $ photree albums fix [OPTIONS]
 * `-d, --dir <directory>`: Base directory to recursively scan for albums.
 * `-a, --album-dir <directory>`: Album directory (repeatable).
 * `--id`: Generate missing album IDs (.photree/album.yaml).
-* `--new-id`: Regenerate album IDs (replaces existing IDs).
+* `--new-id`: Regenerate the IDs of the albums named with --album-dir (replaces existing IDs). Refused on a --dir scan.
 * `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
 * `--rm-orphan`: Delete edited and main files that have no corresponding orig file.
 * `--force`: With --rm-upstream: also trust an empty {name}-jpg/ as a deletion signal, and allow deleting every item of an archive.
@@ -1117,6 +1121,10 @@ $ photree gallery export [OPTIONS]
 
 Fix all albums in the gallery.
 
+To give albums new IDs, name them: &#x27;photree albums fix --new-id --album-dir
+&lt;album&gt;&#x27;. A gallery-wide --new-id would orphan every collection and face
+reference.
+
 **Usage**:
 
 ```console
@@ -1127,7 +1135,6 @@ $ photree gallery fix [OPTIONS]
 
 * `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--id`: Generate missing album IDs (.photree/album.yaml).
-* `--new-id`: Regenerate album IDs (replaces existing IDs).
 * `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
 * `--rm-orphan`: Delete edited and main files that have no corresponding orig file.
 * `--force`: With --rm-upstream: also trust an empty {name}-jpg/ as a deletion signal, and allow deleting every item of an archive.
