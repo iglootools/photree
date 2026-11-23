@@ -1,10 +1,12 @@
 from pathlib import Path
+from typing import Any, cast
 
 import numpy as np
 
 from photree.gallery.faces.clustering import (
     assign_to_nearest_cluster,
     build_faiss_index,
+    build_knn_connectivity,
     cluster_embeddings,
     compute_medoids,
     load_faiss_index,
@@ -110,6 +112,21 @@ class TestClusterEmbeddings:
         # Should produce at least 2 distinct clusters (3 is ideal but
         # random centroids in 512-d may not be far enough apart at all thresholds)
         assert len(unique_labels) >= 2
+
+
+class TestBuildKnnConnectivity:
+    def test_links_each_face_to_its_nearest_neighbours_both_ways(self) -> None:
+        emb = _make_embeddings(40)
+        k = 4
+
+        # scipy ships no type information, so the matrix's methods are unknown.
+        connectivity = cast("Any", build_knn_connectivity(emb, k=k))
+
+        nearest = np.argsort(-(emb @ emb.T), axis=1)[:, 1 : k + 1]
+        expected = np.zeros((40, 40), dtype=np.int8)
+        expected[np.repeat(np.arange(40), k), nearest.ravel()] = 1
+        expected = np.maximum(expected, expected.T)
+        assert np.array_equal(connectivity.toarray(), expected)
 
 
 class TestAssignToNearestCluster:

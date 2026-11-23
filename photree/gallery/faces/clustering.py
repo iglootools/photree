@@ -99,7 +99,7 @@ def cluster_embeddings(
     )
 
     connectivity = (
-        _build_sparse_connectivity(
+        build_knn_connectivity(
             embeddings,
             k=min(_SPARSE_CONNECTIVITY_NEIGHBOURS, n - 1),
         )
@@ -121,32 +121,39 @@ def cluster_embeddings(
     return labels.astype(np.int32)
 
 
-def _build_sparse_connectivity(embeddings: np.ndarray, *, k: int) -> object:
+def build_knn_connectivity(embeddings: np.ndarray, *, k: int) -> object:
     """
     Build a sparse k-NN connectivity matrix using FAISS.
 
-    Returns a binary adjacency matrix where entry (i, j) = 1 iff
-    j is among the k nearest neighbors of i.
+    Returns a symmetric binary CSR adjacency matrix where entry (i, j) = 1 iff
+    j is among the k nearest neighbours of i, or i among those of j.
     """
     import faiss  # noqa: PLC0415 - ML stack, kept out of CLI startup
 
     # SciPy ships no type information for scipy.sparse.
-    from scipy.sparse import lil_matrix  # pyright: ignore[reportMissingTypeStubs]  # noqa: PLC0415 - ML stack, kept out of CLI startup
+    from scipy.sparse import coo_matrix  # pyright: ignore[reportMissingTypeStubs]  # noqa: PLC0415 - ML stack, kept out of CLI startup
 
     index = faiss.IndexFlatIP(embeddings.shape[1])
     add_to_index(index, embeddings.astype(np.float32))
     _, indices = _search_index(index, embeddings.astype(np.float32), k + 1)
 
-    # lil_matrix is inherently mutable (sparse matrix construction)
     n = len(embeddings)
-    connectivity = lil_matrix((n, n), dtype=np.int8)
-    for i in range(n):
-        for j in indices[i]:
-            if j != i and j >= 0:
-                connectivity[i, j] = 1
-                connectivity[j, i] = 1
-
-    return connectivity.tocsr()
+    rows = np.repeat(np.arange(n), k + 1)
+    cols = indices.ravel()
+    # Each face finds itself, and FAISS pads a short result with -1.
+    keep = (cols >= 0) & (cols != rows)
+    sources, targets = rows[keep], cols[keep]
+    # Each edge goes in both ways; converting to CSR sums the pairs listed twice
+    # (mutual neighbours), and minimum(1) brings them back to 1.
+    both_ways = coo_matrix(
+        (
+            np.ones(2 * len(sources), dtype=np.int8),
+            (np.concatenate([sources, targets]), np.concatenate([targets, sources])),
+        ),
+        shape=(n, n),
+    ).tocsr()
+    # SciPy leaves minimum's parameters unannotated, so its result is partly Unknown.
+    return both_ways.minimum(1)  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
 
 
 def assign_to_nearest_cluster(

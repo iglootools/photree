@@ -3,6 +3,8 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
+from itertools import groupby
+from operator import attrgetter
 from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import uuid7
@@ -645,14 +647,14 @@ def _save_empty(run: _Run, sources: tuple[_AlbumFaceSource, ...]) -> None:
 
 
 def _build_checksums(sources: tuple[_AlbumFaceSource, ...]) -> AlbumFaceChecksums:
+    by_album = attrgetter("album_id")
     return AlbumFaceChecksums(
         albums={
-            album_id: {
-                src.media_source: src.checksum
-                for src in sources
-                if src.album_id == album_id
-            }
-            for album_id in dict.fromkeys(src.album_id for src in sources)
+            album_id: {src.media_source: src.checksum for src in album_sources}
+            for album_id, album_sources in groupby(
+                sorted(sources, key=by_album),
+                key=by_album,
+            )
         },
     )
 
