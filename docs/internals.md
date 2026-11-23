@@ -623,6 +623,12 @@ Every `.photree/*.yaml` reader (`foundation.metadata_io.load_yaml_mapping` /
   fresh `album.yaml`, `media-ids/*.yaml`, `collection.yaml` or `clusters.yaml`
   would carry fresh IDs and silently orphan every reference to the old ones.
 
+Every writer (`foundation.metadata_io.write_yaml`) writes the new content to a
+temporary `.<name>.tmp` beside the file, flushes it to disk and renames it over
+the file, so a command killed mid-write leaves the old file whole rather than a
+truncated one. A `.<name>.tmp` left behind by a crash is overwritten by the next
+write.
+
 ## EXIF Metadata
 
 ### Usage

@@ -386,6 +386,37 @@ class TestYamlMetadataIO:
         write_yaml(path, {"title": "Été à Montréal"})
         assert load_yaml_mapping(path) == {"title": "Été à Montréal"}
 
+    def test_write_replaces_the_file_instead_of_truncating_it(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        # A hard link to the old file keeps its content only when the write
+        # renames a new file over the path rather than rewriting it in place,
+        # which is what spares the old content from an interrupted write.
+        path = tmp_path / "x.yaml"
+        write_yaml(path, {"id": "old"})
+        old_link = tmp_path / "old-link.yaml"
+        old_link.hardlink_to(path)
+
+        write_yaml(path, {"id": "new"})
+
+        assert load_yaml_mapping(path) == {"id": "new"}
+        assert load_yaml_mapping(old_link) == {"id": "old"}
+
+    def test_write_leaves_no_temporary_file(self, tmp_path: Path) -> None:
+        path = tmp_path / "x.yaml"
+        write_yaml(path, {"id": "a"})
+        write_yaml(path, {"id": "b"})
+        assert [p.name for p in tmp_path.iterdir()] == ["x.yaml"]
+
+    def test_failed_write_removes_its_temporary_file(self, tmp_path: Path) -> None:
+        # A directory cannot be replaced by a file.
+        path = tmp_path / "x.yaml"
+        (path / "occupied").mkdir(parents=True)
+        with pytest.raises(IsADirectoryError):
+            write_yaml(path, {"id": "a"})
+        assert [p.name for p in tmp_path.iterdir()] == ["x.yaml"]
+
 
 class TestDiscoverAlbums:
     def test_discovers_proper_albums(self, tmp_path: Path) -> None:
