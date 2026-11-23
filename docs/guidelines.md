@@ -17,7 +17,6 @@ them.
   - [Read `.photree/*.yaml` through `metadata_io`](#read-photreeyaml-through-metadata_io)
   - [Add each new non-CLI domain subpackage to the CLI-layer contract](#add-each-new-non-cli-domain-subpackage-to-the-cli-layer-contract)
   - [Render errors and output with photree's helpers](#render-errors-and-output-with-photrees-helpers)
-  - [Cover all new functionality with tests](#cover-all-new-functionality-with-tests)
 - [Tests](#tests)
 - [Documentation](#documentation)
 <!-- tocstop -->
@@ -119,14 +118,12 @@ photree's helpers for them:
   markup on; progress bars (`clihelpers/progress.py`) escape the labels they
   are given, so callers pass plain text.
 
-### Cover all new functionality with tests
-
-Each new behaviour gets a test, written without patching as
-[general.md › Testability](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#testability)
-describes; photree's deciders, CLI runtime and fakes are in
-[testing.md](./guidelines/testing.md).
-
 ## Tests
+
+Every new behaviour gets a test, as
+[general.md › Give every new behaviour a test](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#give-every-new-behaviour-a-test)
+asks: [testing.md](./guidelines/testing.md) says which suite it goes in, and
+holds photree's deciders, CLI runtime and fakes.
 
 The patches the
 [patching rule](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#patch-only-in-the-three-documented-cases-and-list-each-one)
