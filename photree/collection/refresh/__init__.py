@@ -28,7 +28,7 @@ from photree.collection.refresh.implicit import (
     refresh_implicit_collections,
 )
 from photree.collection.refresh.result import CollectionRefreshResult
-from photree.collection.refresh.scan import scan_existing_collections, scan_gallery
+from photree.collection.refresh.scan import scan_gallery
 from photree.collection.refresh.smart import refresh_smart_collections
 from photree.collection.refresh.title_sync import TitleSync, sync_album_titles
 
@@ -108,15 +108,11 @@ def refresh_collections(
         return partial
 
     with notifier.stage(STAGE_SMART_REFRESH):
-        # Re-scan: the implicit stage may have renamed or created collections.
-        collections, rescan_errors = scan_existing_collections(gallery_dir)
+        # The implicit stage's collections, not the disk's: a dry run wrote
+        # nothing, yet must see what the implicit stage would create or rename.
         smart_updated = refresh_smart_collections(
             sync.albums,
-            collections,
+            implicit.collections,
             dry_run=dry_run,
         )
-    return replace(
-        partial,
-        updated=(*partial.updated, *smart_updated),
-        errors=rescan_errors,
-    )
+    return replace(partial, updated=(*partial.updated, *smart_updated))

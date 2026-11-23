@@ -491,6 +491,34 @@ class TestDryRunMatchesRealRun:
         assert real.album_renames == dry.album_renames
         assert real.created == dry.created
 
+    def test_dry_run_smart_stage_sees_planned_collections(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Regression: the smart stage re-read the disk, which a dry run left as is."""
+        gallery = _setup_gallery(tmp_path)
+        album, _ = _setup_album(gallery, "2024-07-14 - Hiking")
+        july = gallery / COLLECTIONS_DIR / "2024" / "2024-07 - July"
+        july.mkdir(parents=True)
+        save_collection_metadata(
+            july,
+            CollectionMetadata(
+                id=generate_collection_id(),
+                members=CollectionMembers.SMART,
+                lifecycle=CollectionLifecycle.EXPLICIT,
+                strategy=CollectionStrategy.DATE_RANGE,
+            ),
+        )
+        refresh_collections(gallery)
+        # The new series creates an implicit collection inside July's range.
+        album.rename(album.parent / "2024-07-14 - 01 - Trip - Hiking")
+
+        dry = refresh_collections(gallery, dry_run=True)
+        real = refresh_collections(gallery)
+
+        assert dry.updated == ("2024-07 - July",)
+        assert real.updated == dry.updated
+
 
 class TestRefreshErrors:
     def test_naming_issues_are_carried(self, tmp_path: Path) -> None:

@@ -432,6 +432,10 @@ date range containment:
 - Smart collections do not support image or video members — these fields
   are cleared on each refresh.
 
+Phase 4 works on the collections as phase 3 left them in memory rather than
+re-reading the disk, so a dry run sees the implicit collections phase 3 would
+create or rename, as the real run does.
+
 ### Collection Directory Layout
 
 ```text

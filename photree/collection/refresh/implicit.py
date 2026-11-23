@@ -44,6 +44,8 @@ class ImplicitChanges:
     renamed: tuple[tuple[str, str], ...] = ()
     deleted: tuple[str, ...] = ()
     errors: tuple[CollectionRefreshError, ...] = ()
+    collections: tuple[ExistingCollection, ...] = ()
+    """Every collection in the gallery as the stage leaves it, even on dry run."""
 
 
 def _implicit_metadata(
@@ -218,7 +220,30 @@ def _apply(plan: _ImplicitPlan) -> None:
         save_collection_metadata(c.path, c.metadata)
 
 
-def _changes(plan: _ImplicitPlan) -> ImplicitChanges:
+def _planned_collections(
+    existing: tuple[ExistingCollection, ...],
+    plan: _ImplicitPlan,
+) -> tuple[ExistingCollection, ...]:
+    """Return *existing* with the plan's renames, updates, creations and removals."""
+    updated = {
+        u.col.metadata.id: ExistingCollection(u.path, u.metadata, u.name)
+        for u in plan.updates
+    }
+    removed = {col.metadata.id for col in plan.orphans}
+    return (
+        *(
+            updated.get(col.metadata.id, col)
+            for col in existing
+            if col.metadata.id not in removed
+        ),
+        *(ExistingCollection(c.path, c.metadata, c.name) for c in plan.creates),
+    )
+
+
+def _changes(
+    existing: tuple[ExistingCollection, ...],
+    plan: _ImplicitPlan,
+) -> ImplicitChanges:
     return ImplicitChanges(
         created=tuple(c.name for c in plan.creates),
         updated=tuple(u.name for u in plan.updates if u.metadata != u.col.metadata),
@@ -226,6 +251,7 @@ def _changes(plan: _ImplicitPlan) -> ImplicitChanges:
             (u.col.name, u.name) for u in plan.updates if u.col.name != u.name
         ),
         deleted=tuple(col.name for col in plan.orphans),
+        collections=_planned_collections(existing, plan),
     )
 
 
@@ -262,4 +288,4 @@ def refresh_implicit_collections(
         return ImplicitChanges(errors=target_errors)
     if not dry_run:
         _apply(plan)
-    return _changes(plan)
+    return _changes(existing, plan)
