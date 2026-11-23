@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 import pytest
 
-from photree.album.faces.detect import ThumbnailResult
+from photree.album.faces.detect import ThumbnailResult, UnreadableThumbnailError
 from photree.album.faces.failures import FaceFailure, FaceFailureStage
 from photree.album.faces.protocol import (
     FaceProcessedKey,
@@ -355,6 +355,17 @@ class TestFailureReporting:
         assert result.by_media_source[1][1].failed == 0
 
 
+class _RecordingDetector:
+    """A detector that finds no faces and records each image it is given."""
+
+    def __init__(self) -> None:
+        self.calls: list[np.ndarray] = []
+
+    def get(self, img: np.ndarray) -> list[Any]:
+        self.calls.append(img)
+        return []
+
+
 class TestFailureAccounting:
     def test_unreadable_thumbnail_is_a_detection_failure(self, tmp_path: Path) -> None:
         """cv2 returning None used to read as "no faces"; it is a failure."""
@@ -370,17 +381,18 @@ class TestFailureAccounting:
             orig_height=3024,
         )
 
-        class _NeverCalled:
-            def get(self, img: np.ndarray) -> list[Any]:  # noqa: ARG002 - FaceDetector's signature
-                message = "analyzer must not see an unreadable image"
-                raise AssertionError(message)
+        analyzer = _RecordingDetector()
 
-        faces, state_key, failure = detect_single(tr, orig_dir, _NeverCalled())
+        faces, state_key, failure = detect_single(tr, orig_dir, analyzer)
 
+        assert analyzer.calls == []
         assert faces is None
         assert state_key is None
-        assert failure is not None
-        assert failure.stage == FaceFailureStage.DETECTION
+        assert failure == FaceFailure(
+            key="0410",
+            stage=FaceFailureStage.DETECTION,
+            reason=str(UnreadableThumbnailError(thumb)),
+        )
 
     def test_failed_keys_are_not_counted_as_processed(self, tmp_path: Path) -> None:
         """Placeholder bytes cannot be thumbnailed: 1 failure, 0 processed."""
