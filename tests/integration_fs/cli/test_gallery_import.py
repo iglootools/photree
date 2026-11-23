@@ -16,7 +16,6 @@ from typer.testing import CliRunner
 from photree.album.cli.runtime import AlbumRuntime
 from photree.album.faces.failures import FaceFailure, FaceFailureStage
 from photree.album.id import generate_album_id
-from photree.album.jpeg import copy_convert_single
 from photree.album.refresh import (
     AlbumRefreshResult,
     RefreshFn,
@@ -29,7 +28,7 @@ from photree.common.exif import ExifTagReader
 from photree.common.sysdeps import SystemDependency
 from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 from photree.foundation.linking import LinkMode
-from tests.fakes import ALL_DEPS_RUNTIME, fake_album_runtime
+from tests.fakes import ALL_DEPS_RUNTIME, copy_convert_single, fake_album_runtime
 
 runner = CliRunner()
 

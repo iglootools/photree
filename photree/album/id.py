@@ -92,21 +92,3 @@ def format_image_external_id(internal_id: str) -> str:
 def format_video_external_id(internal_id: str) -> str:
     """Return the ``video_<base58>`` external form of a video's UUID."""
     return format_external_id(VIDEO_ID_PREFIX, internal_id)
-
-
-def parse_image_external_id(external_id: str) -> str:
-    """
-    Return the UUID string of an ``image_<base58>`` external ID.
-
-    Raises :class:`InvalidExternalIdError` when it does not parse.
-    """
-    return parse_external_id(external_id, IMAGE_ID_PREFIX)
-
-
-def parse_video_external_id(external_id: str) -> str:
-    """
-    Return the UUID string of a ``video_<base58>`` external ID.
-
-    Raises :class:`InvalidExternalIdError` when it does not parse.
-    """
-    return parse_external_id(external_id, VIDEO_ID_PREFIX)

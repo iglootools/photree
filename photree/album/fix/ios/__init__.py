@@ -18,10 +18,7 @@ from photree.album.fix.ios.miscategorized import (
     MiscategorizedResult,
     apply_miscategorized,
     check_miscategorized_plans,
-    mv_miscategorized,
     plan_miscategorized,
-    rm_miscategorized,
-    rm_miscategorized_safe,
 )
 from photree.album.fix.ios.prefer_higher_quality import (
     PreferHigherQualityResult,
@@ -45,10 +42,7 @@ __all__ = [
     "MiscategorizedResult",
     "PreferHigherQualityResult",
     "RmOrphanSidecarResult",
-    "mv_miscategorized",
     "prefer_higher_quality_when_dups",
-    "rm_miscategorized",
-    "rm_miscategorized_safe",
     "rm_orphan_sidecar",
     "run_fix_ios",
     "validate_fix_flags",

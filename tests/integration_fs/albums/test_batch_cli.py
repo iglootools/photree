@@ -6,7 +6,6 @@ from typer.testing import CliRunner
 
 from photree.album.id import format_album_external_id, generate_album_id
 from photree.album.importer.batch import AlbumFailure, ImportFailureStage
-from photree.album.jpeg import copy_convert_single
 from photree.album.refresh import refresh_album_derived_data
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
@@ -18,7 +17,7 @@ from photree.cli import app
 from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 from photree.foundation.layout import PHOTREE_DIR
 from photree.foundation.linking import LinkMode
-from tests.fakes import ALL_DEPS_RUNTIME, ALL_DEPS_WHICH
+from tests.fakes import ALL_DEPS_RUNTIME, ALL_DEPS_WHICH, copy_convert_single
 
 runner = CliRunner()
 

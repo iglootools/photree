@@ -1,5 +1,6 @@
 """Fakes injected in place of real dependencies (docs/guidelines.md, Tests)."""
 
+import shutil
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -12,6 +13,7 @@ from photree.album.cli.runtime import AlbumRuntime, RunImportFn, widen
 from photree.album.faces.detect import MakeThumbnailFn, ThumbnailResult
 from photree.album.faces.protocol import EMBEDDING_DIM
 from photree.album.importer import album_import
+from photree.album.jpeg import jpeg_name
 from photree.album.refresh import RefreshFn, refresh_album_derived_data
 from photree.clihelpers.runtime import Runtime
 from photree.common.sysdeps import SystemDependency, WhichFn
@@ -169,3 +171,19 @@ class FakeExifTool:
             }
             for f in files
         ]
+
+
+def copy_convert_single(src: Path, dst_dir: Path, *, dry_run: bool) -> Path | None:
+    """
+    Copy each file as-is under its JPEG name, as a ``ConvertFile`` without ``sips``.
+
+    For tests on platforms without ``sips``: HEIC and DNG files are copied
+    unconverted, so the output is not true JPEG.
+    """
+    target = jpeg_name(src.name)
+    if target is None:
+        return None
+    dst = dst_dir / target
+    if not dry_run:
+        shutil.copy(src, dst)
+    return dst

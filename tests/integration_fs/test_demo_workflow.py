@@ -11,7 +11,7 @@ from photree.album.check import check_sips_available, run_album_check
 from photree.album.exporter.single import compute_target_dir, export_album
 from photree.album.importer.album_import import run_import
 from photree.album.importer.testkit import seed_demo
-from photree.album.jpeg import convert_single_file, copy_convert_single
+from photree.album.jpeg import convert_single_file
 from photree.album.store.album_discovery import is_album
 from photree.album.store.media_source import MAIN_MEDIA_SOURCE
 from photree.album.store.media_sources_discovery import discover_media_sources
@@ -21,6 +21,7 @@ from photree.common.exif import exiftool_session
 from photree.foundation.layout import PHOTREE_DIR, SHARE_SENTINEL
 from photree.foundation.linking import LinkMode
 from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
+from tests.fakes import copy_convert_single
 
 
 class TestDemoWorkflow:

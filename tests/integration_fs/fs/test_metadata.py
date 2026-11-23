@@ -5,6 +5,8 @@ import pytest
 import yaml
 
 from photree.album.id import (
+    IMAGE_ID_PREFIX,
+    VIDEO_ID_PREFIX,
     InvalidExternalIdError,
     InvalidExternalIdKind,
     format_album_external_id,
@@ -14,8 +16,6 @@ from photree.album.id import (
     generate_album_id,
     generate_media_id,
     parse_external_id,
-    parse_image_external_id,
-    parse_video_external_id,
 )
 from photree.album.store.album_discovery import (
     discover_albums,
@@ -124,12 +124,12 @@ class TestMediaExternalId:
     def test_image_roundtrip(self) -> None:
         internal = str(uuid.uuid4())
         external = format_image_external_id(internal)
-        assert parse_image_external_id(external) == internal
+        assert parse_external_id(external, IMAGE_ID_PREFIX) == internal
 
     def test_video_roundtrip(self) -> None:
         internal = str(uuid.uuid4())
         external = format_video_external_id(internal)
-        assert parse_video_external_id(external) == internal
+        assert parse_external_id(external, VIDEO_ID_PREFIX) == internal
 
     def test_image_starts_with_prefix(self) -> None:
         internal = str(uuid.uuid4())
@@ -143,7 +143,7 @@ class TestMediaExternalId:
         internal = str(uuid.uuid4())
         external = format_video_external_id(internal)
         with pytest.raises(InvalidExternalIdError) as exc_info:
-            parse_image_external_id(external)
+            parse_external_id(external, IMAGE_ID_PREFIX)
         assert exc_info.value.expected_prefix == "image"
         assert exc_info.value.value == external
 
@@ -151,7 +151,7 @@ class TestMediaExternalId:
         internal = str(uuid.uuid4())
         external = format_image_external_id(internal)
         with pytest.raises(InvalidExternalIdError) as exc_info:
-            parse_video_external_id(external)
+            parse_external_id(external, VIDEO_ID_PREFIX)
         assert exc_info.value.expected_prefix == "video"
         assert exc_info.value.value == external
 

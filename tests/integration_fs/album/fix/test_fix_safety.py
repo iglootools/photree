@@ -16,14 +16,15 @@ from photree.album.fix import (
 from photree.album.fix.ios import (
     FixIosValidationError,
     FixIosValidationErrorKind,
+    MiscategorizedAction,
     MiscategorizedMoveConflictError,
-    mv_miscategorized,
     prefer_higher_quality_when_dups,
     run_fix_ios,
 )
 from photree.album.fix.ios import (
     validate_fix_flags as validate_fix_ios_flags,
 )
+from photree.album.fix.ios.miscategorized import fix_miscategorized
 from photree.album.fix.ios.output import format_fix_ios_result
 from photree.album.fix.output import format_fix_result
 from photree.album.fix.rm_upstream import MediaKind
@@ -317,7 +318,7 @@ class TestMvMiscategorizedOverwrite:
         (tmp_path / "ios-main/edit-img/IMG_E0001.HEIC").write_text("keep-me")
 
         with pytest.raises(MiscategorizedMoveConflictError) as exc_info:
-            mv_miscategorized(tmp_path, MC)
+            fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.MV)
 
         assert exc_info.value.target_dir == "ios-main/edit-img"
         assert exc_info.value.conflicts == ("IMG_E0001.HEIC",)
@@ -331,7 +332,7 @@ class TestMvMiscategorizedOverwrite:
         _setup_dir(tmp_path / "ios-main/edit-vid", ["IMG_E0002.MOV"])
 
         with pytest.raises(MiscategorizedMoveConflictError) as exc_info:
-            mv_miscategorized(tmp_path, MC)
+            fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.MV)
 
         assert exc_info.value.target_dir == "ios-main/edit-vid"
         assert "IMG_E0001.HEIC" in _names(tmp_path / "ios-main/orig-img")

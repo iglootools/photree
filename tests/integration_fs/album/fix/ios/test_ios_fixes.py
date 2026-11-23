@@ -6,13 +6,11 @@ from photree.album.fix import (
 )
 from photree.album.fix.ios import (
     MiscategorizedAction,
-    mv_miscategorized,
     prefer_higher_quality_when_dups,
-    rm_miscategorized,
-    rm_miscategorized_safe,
     rm_orphan_sidecar,
     run_fix_ios,
 )
+from photree.album.fix.ios.miscategorized import fix_miscategorized
 from photree.album.fix.ios.output import format_fix_ios_result
 from photree.album.store.media_source import MAIN_MEDIA_SOURCE
 
@@ -361,7 +359,7 @@ class TestRmMiscategorized:
         )
         _setup_dir(tmp_path / "ios-main/edit-img", [])
 
-        result = rm_miscategorized(tmp_path, MC)
+        result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.RM)
 
         assert set(result.heic.fixed_from_orig) == {"IMG_E0001.HEIC", "IMG_O0001.AAE"}
         assert "IMG_E0001.HEIC" not in _names(tmp_path / "ios-main/orig-img")
@@ -373,7 +371,7 @@ class TestRmMiscategorized:
         _setup_dir(tmp_path / "ios-main/orig-img", [])
         _setup_dir(tmp_path / "ios-main/edit-img", ["IMG_0001.HEIC", "IMG_E0001.HEIC"])
 
-        result = rm_miscategorized(tmp_path, MC)
+        result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.RM)
 
         assert result.heic.fixed_from_rendered == ("IMG_0001.HEIC",)
         assert "IMG_0001.HEIC" not in _names(tmp_path / "ios-main/edit-img")
@@ -383,7 +381,7 @@ class TestRmMiscategorized:
         _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC"])
         _setup_dir(tmp_path / "ios-main/edit-img", ["IMG_E0001.HEIC"])
 
-        result = rm_miscategorized(tmp_path, MC)
+        result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.RM)
 
         assert result.total == 0
 
@@ -391,7 +389,7 @@ class TestRmMiscategorized:
         _setup_dir(tmp_path / "ios-main/orig-vid", ["IMG_E0001.MOV"])
         _setup_dir(tmp_path / "ios-main/edit-vid", [])
 
-        result = rm_miscategorized(tmp_path, MC)
+        result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.RM)
 
         assert result.mov.fixed_from_orig == ("IMG_E0001.MOV",)
 
@@ -399,13 +397,18 @@ class TestRmMiscategorized:
         _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_E0001.HEIC"])
         _setup_dir(tmp_path / "ios-main/edit-img", [])
 
-        result = rm_miscategorized(tmp_path, MC, dry_run=True)
+        result = fix_miscategorized(
+            tmp_path,
+            MC,
+            action=MiscategorizedAction.RM,
+            dry_run=True,
+        )
 
         assert result.total == 1
         assert "IMG_E0001.HEIC" in _names(tmp_path / "ios-main/orig-img")
 
     def test_missing_dirs_are_safe(self, tmp_path: Path) -> None:
-        result = rm_miscategorized(tmp_path, MC)
+        result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.RM)
 
         assert result.total == 0
 
@@ -415,7 +418,7 @@ class TestRmMiscategorizedSafe:
         _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_E0001.HEIC"])
         _setup_dir(tmp_path / "ios-main/edit-img", ["IMG_E0001.HEIC"])
 
-        result = rm_miscategorized_safe(tmp_path, MC)
+        result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.RM_SAFE)
 
         assert result.heic.fixed_from_orig == ("IMG_E0001.HEIC",)
         assert "IMG_E0001.HEIC" not in _names(tmp_path / "ios-main/orig-img")
@@ -425,7 +428,7 @@ class TestRmMiscategorizedSafe:
         _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_E0001.HEIC"])
         _setup_dir(tmp_path / "ios-main/edit-img", [])
 
-        result = rm_miscategorized_safe(tmp_path, MC)
+        result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.RM_SAFE)
 
         assert result.total == 0
         assert "IMG_E0001.HEIC" in _names(tmp_path / "ios-main/orig-img")
@@ -441,7 +444,7 @@ class TestRmMiscategorizedSafe:
             ["IMG_0099.HEIC"],
         )  # 0099 exists in orig too
 
-        result = rm_miscategorized_safe(tmp_path, MC)
+        result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.RM_SAFE)
 
         # IMG_E0001 is in rendered → safe to remove from orig
         assert "IMG_E0001.HEIC" in result.heic.fixed_from_orig
@@ -451,7 +454,7 @@ class TestRmMiscategorizedSafe:
         assert "IMG_0099.HEIC" in result.heic.fixed_from_rendered
 
     def test_missing_dirs_are_safe(self, tmp_path: Path) -> None:
-        result = rm_miscategorized_safe(tmp_path, MC)
+        result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.RM_SAFE)
 
         assert result.total == 0
 
@@ -464,7 +467,7 @@ class TestMvMiscategorized:
         )
         _setup_dir(tmp_path / "ios-main/edit-img", [])
 
-        result = mv_miscategorized(tmp_path, MC)
+        result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.MV)
 
         assert set(result.heic.fixed_from_orig) == {"IMG_E0001.HEIC", "IMG_O0001.AAE"}
         assert "IMG_E0001.HEIC" in _names(tmp_path / "ios-main/edit-img")
@@ -477,7 +480,7 @@ class TestMvMiscategorized:
         _setup_dir(tmp_path / "ios-main/orig-img", [])
         _setup_dir(tmp_path / "ios-main/edit-img", ["IMG_0001.HEIC"])
 
-        result = mv_miscategorized(tmp_path, MC)
+        result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.MV)
 
         assert result.heic.fixed_from_rendered == ("IMG_0001.HEIC",)
         assert "IMG_0001.HEIC" in _names(tmp_path / "ios-main/orig-img")
@@ -487,7 +490,7 @@ class TestMvMiscategorized:
         _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_E0001.HEIC"])
         # ios/edit-img doesn't exist
 
-        result = mv_miscategorized(tmp_path, MC)
+        result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.MV)
 
         assert result.heic.fixed_from_orig == ("IMG_E0001.HEIC",)
         assert "IMG_E0001.HEIC" in _names(tmp_path / "ios-main/edit-img")
@@ -496,14 +499,19 @@ class TestMvMiscategorized:
         _setup_dir(tmp_path / "ios-main/orig-img", ["IMG_E0001.HEIC"])
         _setup_dir(tmp_path / "ios-main/edit-img", [])
 
-        result = mv_miscategorized(tmp_path, MC, dry_run=True)
+        result = fix_miscategorized(
+            tmp_path,
+            MC,
+            action=MiscategorizedAction.MV,
+            dry_run=True,
+        )
 
         assert result.total == 1
         assert "IMG_E0001.HEIC" in _names(tmp_path / "ios-main/orig-img")
         assert "IMG_E0001.HEIC" not in _names(tmp_path / "ios-main/edit-img")
 
     def test_missing_dirs_are_safe(self, tmp_path: Path) -> None:
-        result = mv_miscategorized(tmp_path, MC)
+        result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.MV)
 
         assert result.total == 0
 
