@@ -8,6 +8,8 @@ BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 def base58_encode(data: bytes) -> str:
     """Encode *data* as a base58 string (Bitcoin alphabet)."""
     n = int.from_bytes(data, "big")
+    # Documented exception (docs/guidelines.md): loop-carried state — each
+    # digit is the remainder of the quotient the previous step left.
     result: list[str] = []
     while n > 0:
         n, remainder = divmod(n, 58)
