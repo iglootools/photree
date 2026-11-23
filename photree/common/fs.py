@@ -74,8 +74,6 @@ def matching_subdirectories(
     into. *base_dir* itself is never returned. Returns an empty list when
     *base_dir* does not exist.
     """
-    if not base_dir.is_dir():
-        return []
 
     def walk(directory: Path) -> Iterator[Path]:
         if predicate(directory):
@@ -84,7 +82,11 @@ def matching_subdirectories(
             for child in _visible_subdirs(directory):
                 yield from walk(child)
 
-    return list(walk(base_dir))
+    return (
+        [match for child in _visible_subdirs(base_dir) for match in walk(child)]
+        if base_dir.is_dir()
+        else []
+    )
 
 
 def partition_subdirectories(
