@@ -5,13 +5,11 @@ from typing import Annotated
 
 import typer
 
-from photree.album.id import format_album_external_id
 from photree.albums.batchcli.rename import run_batch_rename_from_csv
+from photree.albums.output import format_duplicate_ids_report
 from photree.clihelpers.console import err_console
 from photree.clihelpers.resolution import resolve_gallery_or_exit
 from photree.clihelpers.runtime import runtime_of
-from photree.common.formatting import indent
-from photree.common.fs import display_path
 from photree.gallery.cli.app import app
 from photree.gallery.cli.ops import build_index_or_exit
 
@@ -74,20 +72,7 @@ def rename_from_csv_cmd(
 
     if index.duplicates:
         err_console.print(
-            "\n".join(
-                [
-                    "Cannot rename — duplicate album IDs in gallery:",
-                    *(
-                        line
-                        for aid, paths in index.duplicates.items()
-                        for line in [
-                            indent(f"{format_album_external_id(aid)}:"),
-                            *(indent(str(display_path(p, cwd)), 2) for p in paths),
-                        ]
-                    ),
-                    "\nResolve duplicates first with 'photree gallery fix --new-id'.",
-                ],
-            ),
+            format_duplicate_ids_report(index.duplicates, cwd),
             markup=False,
         )
         raise typer.Exit(code=1)

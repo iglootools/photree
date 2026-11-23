@@ -205,6 +205,25 @@ class TestAlbumsRenameFromCsv:
         assert "has no location column(s)" in result.output
         assert (tmp_path / "2024-06-15 - Trip @ Paris").is_dir()
 
+    def test_duplicate_ids_suggest_new_ids_for_the_copy_only(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        _, aid = _setup_album(tmp_path, "2024-06-15 - Trip")
+        _setup_album(tmp_path, "2024-06-15 - Trip copy", album_id=aid)
+        csv_file = tmp_path / "rename.csv"
+        csv_file.write_text("id,series,title,location\n")
+        result = runner.invoke(
+            app,
+            ["albums", "rename-from-csv", str(csv_file), "-d", str(tmp_path)],
+        )
+        assert result.exit_code == 1
+        output = " ".join(result.output.split())
+        assert (
+            "'photree albums fix --new-id --album-dir "
+            f'"{tmp_path / "2024-06-15 - Trip copy"}"\''
+        ) in output
+
     def test_corrupt_album_yaml_exits(self, tmp_path: Path) -> None:
         # An empty album.yaml is corrupt metadata, not a missing ID: it must
         # stop the run rather than be treated as absent.
