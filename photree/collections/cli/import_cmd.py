@@ -34,6 +34,7 @@ from photree.common.exif import exiftool_session
 from photree.common.formatting import format_dry_run, indent
 from photree.common.fs import display_path
 from photree.common.sysdeps import WhichFn
+from photree.foundation.layout import COLLECTIONS_DIR
 from photree.foundation.metadata_io import InvalidMetadataError
 
 
@@ -48,7 +49,7 @@ def _resolve_candidates(
         case (None, Path()):
             return discover_collections(collections_dir)
         case _:
-            return discover_collections(gallery_dir)
+            return discover_collections(gallery_dir / COLLECTIONS_DIR)
 
 
 def _format_os_error(exc: OSError, cwd: Path) -> str:

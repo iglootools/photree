@@ -2,6 +2,7 @@
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from functools import cache, partial
 from pathlib import Path
 
 from photree.collection.importer.import_members import (
@@ -9,7 +10,7 @@ from photree.collection.importer.import_members import (
     CollectionImportResult,
     import_collection_members,
 )
-from photree.collection.importer.resolve import scan_gallery
+from photree.collection.importer.resolve import GalleryIndex, scan_gallery
 from photree.collection.importer.selection import has_selection
 from photree.common.exif import ExifTagReader
 from photree.common.progress import ItemEnd
@@ -61,7 +62,7 @@ class BatchImportResult:
 
 def _import_one(
     collection_dir: Path,
-    gallery_dir: Path,
+    gallery_index: Callable[[], GalleryIndex],
     *,
     dry_run: bool,
     exiftool: ExifTagReader | None,
@@ -70,7 +71,7 @@ def _import_one(
     try:
         result = import_collection_members(
             collection_dir,
-            lambda: scan_gallery(gallery_dir),
+            gallery_index,
             dry_run=dry_run,
             exiftool=exiftool,
         )
@@ -89,6 +90,7 @@ def batch_import(
     on_skipped: Callable[[str], None] | None = None,
     on_start: Callable[[str], None] | None = None,
     on_end: ItemEnd | None = None,
+    scan: Callable[[Path], GalleryIndex] = scan_gallery,
 ) -> BatchImportResult:
     """
     Import the selection of every candidate collection that has one.
@@ -97,7 +99,12 @@ def batch_import(
     others are imported in order, between ``on_start(name)`` and
     ``on_end(name, success, error_labels)``. One collection failing never
     stops the batch.
+
+    The gallery is scanned (*scan*) once, when the first collection gets
+    to resolution, and that index serves every collection: an import never
+    changes what it holds.
     """
+    gallery_index = cache(partial(scan, gallery_dir))
     # has_selection is evaluated once per collection: it reads the CSV.
     selected = {d: has_selection(d) for d in candidates}
     skipped = tuple(d for d in candidates if not selected[d])
@@ -107,7 +114,7 @@ def batch_import(
     outcomes = tuple(
         _run_one(
             collection_dir,
-            gallery_dir,
+            gallery_index,
             dry_run=dry_run,
             exiftool=exiftool,
             name=display_fn(collection_dir),
@@ -122,7 +129,7 @@ def batch_import(
 
 def _run_one(
     collection_dir: Path,
-    gallery_dir: Path,
+    gallery_index: Callable[[], GalleryIndex],
     *,
     dry_run: bool,
     exiftool: ExifTagReader | None,
@@ -134,7 +141,7 @@ def _run_one(
         on_start(name)
     outcome = _import_one(
         collection_dir,
-        gallery_dir,
+        gallery_index,
         dry_run=dry_run,
         exiftool=exiftool,
     )

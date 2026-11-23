@@ -8,6 +8,7 @@ from photree.collection.importer.import_members import (
     CollectionImportError,
     CollectionImportErrorKind,
 )
+from photree.collection.importer.resolve import GalleryIndex, scan_gallery
 from photree.collection.importer.selection import SELECTION_CSV
 from photree.collection.store.metadata import (
     load_collection_metadata,
@@ -110,3 +111,19 @@ class TestBatchImport:
         assert outcome.result is None
         assert isinstance(outcome.error, CollectionImportError)
         assert outcome.error.kind == CollectionImportErrorKind.NO_METADATA
+
+    def test_gallery_is_scanned_once_per_batch(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        _setup_album(gallery, "2024-07-14 - Trip")
+        first = _setup_collection(gallery, "2024-07 - One", ["2024-07-14 - Trip"])
+        second = _setup_collection(gallery, "2024-08 - Two", ["2024-07-14 - Trip"])
+        scanned: list[Path] = []
+
+        def counting_scan(gallery_dir: Path) -> GalleryIndex:
+            scanned.append(gallery_dir)
+            return scan_gallery(gallery_dir)
+
+        result = batch_import([first, second], gallery, scan=counting_scan)
+
+        assert [o.success for o in result.outcomes] == [True, True]
+        assert scanned == [gallery]
