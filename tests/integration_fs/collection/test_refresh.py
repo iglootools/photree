@@ -57,6 +57,21 @@ def _setup_album(
     return album_dir, aid
 
 
+def _explicit_collection(gallery: Path, name: str, album_ids: list[str]) -> Path:
+    col_dir = gallery / COLLECTIONS_DIR / name[:4] / name
+    col_dir.mkdir(parents=True)
+    save_collection_metadata(
+        col_dir,
+        CollectionMetadata(
+            id=generate_collection_id(),
+            members=CollectionMembers.MANUAL,
+            lifecycle=CollectionLifecycle.EXPLICIT,
+            albums=album_ids,
+        ),
+    )
+    return col_dir
+
+
 class TestImplicitCollectionDetection:
     def test_creates_collection_from_album_series(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
@@ -265,16 +280,11 @@ class TestImplicitCollectionRename:
         assert by_name["2024-07-14 - Original"].albums == [aid1]
         assert by_name["2024-07-15 - Other"].albums == [aid2]
 
-    def test_album_dropping_series_is_renamed_back(self, tmp_path: Path) -> None:
-        """
-        Rename an album back into its implicit collection's series.
-
-        An implicit collection's membership outlives the album's name: dropping
-        the series does not leave the collection, the refresh restores it.
-        """
+    def test_album_dropping_series_leaves_collection(self, tmp_path: Path) -> None:
+        """Regression: the refresh renamed the album back into the series."""
         gallery = _setup_gallery(tmp_path)
         _, aid1 = _setup_album(gallery, "2024-07-14 - 01 - Original - Day 1")
-        album2, aid2 = _setup_album(gallery, "2024-07-15 - 02 - Original - Day 2")
+        album2, _ = _setup_album(gallery, "2024-07-15 - 02 - Original - Day 2")
 
         refresh_collections(gallery)
 
@@ -282,15 +292,14 @@ class TestImplicitCollectionRename:
 
         result = refresh_collections(gallery)
         assert result.success
-        assert result.album_renames == (
-            ("2024-07-15 - Just Day 2", "2024-07-15 - Original - Just Day 2"),
+        assert result.album_renames == ()
+        assert result.renamed == (
+            ("2024-07-14--2024-07-15 - Original", "2024-07-14 - Original"),
         )
-        assert result.created == ()
-        assert result.deleted == ()
-        assert (album2.parent / "2024-07-15 - Original - Just Day 2").is_dir()
+        assert (album2.parent / "2024-07-15 - Just Day 2").is_dir()
 
         [collection] = discover_collections(gallery)
-        assert _load_metadata(collection).albums == [aid1, aid2]
+        assert _load_metadata(collection).albums == [aid1]
 
 
 class TestSmartCollectionRefresh:
@@ -355,31 +364,33 @@ class TestSmartCollectionRefresh:
 
 
 class TestAlbumTitleSync:
-    def test_removes_series_when_explicit_collection_exists(
+    def test_removes_series_from_explicit_collection_members(
         self,
         tmp_path: Path,
     ) -> None:
         gallery = _setup_gallery(tmp_path)
-        _setup_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
-
-        # Create an explicit collection with matching title
-        col_dir = gallery / COLLECTIONS_DIR / "2024" / "2024-07-14 - Trip"
-        col_dir.mkdir(parents=True)
-        save_collection_metadata(
-            col_dir,
-            CollectionMetadata(
-                id=generate_collection_id(),
-                members=CollectionMembers.MANUAL,
-                lifecycle=CollectionLifecycle.EXPLICIT,
-            ),
-        )
+        _, aid = _setup_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
+        _explicit_collection(gallery, "2024-07-14 - Trip", [aid])
 
         result = refresh_collections(gallery)
         assert result.success
-        assert len(result.album_renames) == 1
-        old, new = result.album_renames[0]
-        assert "Trip" in old
-        assert "Trip" not in new
+        assert result.album_renames == (
+            ("2024-07-14 - 01 - Trip - Hiking", "2024-07-14 - 01 - Hiking"),
+        )
+
+    def test_keeps_series_of_albums_outside_explicit_collection(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Regression: any explicit collection stripped its title gallery-wide."""
+        gallery = _setup_gallery(tmp_path)
+        _setup_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
+        _explicit_collection(gallery, "2019 - Trip", [])
+
+        result = refresh_collections(gallery)
+        assert result.success
+        assert result.album_renames == ()
+        assert result.created == ("2024-07-14 - Trip",)
 
     def test_adds_series_when_implicit_collection_contains_album(
         self,
@@ -409,6 +420,43 @@ class TestAlbumTitleSync:
         assert "Trip" not in old
         assert "Trip" in new
 
+    def test_lifecycle_round_trip_strips_then_restores_series(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = _setup_gallery(tmp_path)
+        album1, aid1 = _setup_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
+        album2, aid2 = _setup_album(gallery, "2024-07-15 - 02 - Trip - Kayaking")
+        refresh_collections(gallery)
+        [col_dir] = discover_collections(gallery)
+        implicit = _load_metadata(col_dir)
+
+        save_collection_metadata(
+            col_dir,
+            implicit.model_copy(
+                update={
+                    "members": CollectionMembers.MANUAL,
+                    "lifecycle": CollectionLifecycle.EXPLICIT,
+                    "strategy": CollectionStrategy.IMPORT,
+                },
+            ),
+        )
+        stripped = refresh_collections(gallery)
+        assert stripped.album_renames == (
+            (album1.name, "2024-07-14 - 01 - Hiking"),
+            (album2.name, "2024-07-15 - 02 - Kayaking"),
+        )
+
+        save_collection_metadata(col_dir, implicit)
+        restored = refresh_collections(gallery)
+        assert restored.success
+        assert restored.album_renames == (
+            ("2024-07-14 - 01 - Hiking", album1.name),
+            ("2024-07-15 - 02 - Kayaking", album2.name),
+        )
+        assert _load_metadata(col_dir) == implicit
+        assert sorted(implicit.albums) == sorted([aid1, aid2])
+
 
 class TestDryRun:
     def test_dry_run_no_changes(self, tmp_path: Path) -> None:
@@ -424,27 +472,13 @@ class TestDryRun:
         assert len(collections) == 0
 
 
-def _explicit_collection(gallery: Path, name: str) -> Path:
-    col_dir = gallery / COLLECTIONS_DIR / "2024" / name
-    col_dir.mkdir(parents=True)
-    save_collection_metadata(
-        col_dir,
-        CollectionMetadata(
-            id=generate_collection_id(),
-            members=CollectionMembers.MANUAL,
-            lifecycle=CollectionLifecycle.EXPLICIT,
-        ),
-    )
-    return col_dir
-
-
 class TestDryRunMatchesRealRun:
     def test_dry_run_sees_title_sync_renames(self, tmp_path: Path) -> None:
         """Regression: the dry run re-scanned disk and saw the unstripped series."""
         gallery = _setup_gallery(tmp_path)
-        _setup_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
-        _setup_album(gallery, "2024-07-15 - 02 - Trip - Kayaking")
-        _explicit_collection(gallery, "2024-07 - Trip")
+        _, aid1 = _setup_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
+        _, aid2 = _setup_album(gallery, "2024-07-15 - 02 - Trip - Kayaking")
+        _explicit_collection(gallery, "2024-07 - Trip", [aid1, aid2])
 
         dry = refresh_collections(gallery, dry_run=True)
 
@@ -473,12 +507,12 @@ class TestRefreshErrors:
     def test_title_sync_onto_existing_album_is_reported(self, tmp_path: Path) -> None:
         """Regression: the rename raised an OSError traceback."""
         gallery = _setup_gallery(tmp_path)
-        source, _ = _setup_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
+        source, aid = _setup_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
         occupied, _ = _setup_album(gallery, "2024-07-14 - 02 - Hiking")
         # Make the stripped name collide with an existing directory.
         stripped = source.parent / "2024-07-14 - 01 - Hiking"
         stripped.mkdir()
-        _explicit_collection(gallery, "2024-07 - Trip")
+        _explicit_collection(gallery, "2024-07 - Trip", [aid])
 
         result = refresh_collections(gallery)
 

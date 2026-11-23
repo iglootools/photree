@@ -1,12 +1,13 @@
 """
 Sync album names with collection lifecycles (refresh phase 2).
 
-An explicit collection owns its grouping, so the series is stripped from its
-albums' names; an implicit collection's title is added as the series of its
-series-less albums.
+An explicit collection owns its grouping, so its title is stripped from the
+series of its member albums. An implicit collection just converted from
+explicit gets its title added back as the series of its series-less members;
+once any member carries the series again, a member without it is one the user
+took out of the series, and phase 3 drops it from the collection.
 """
 
-from collections.abc import Mapping
 from dataclasses import dataclass, replace
 
 from photree.album.naming import ParsedAlbumName, reconstruct_name
@@ -30,24 +31,70 @@ class TitleSync:
     errors: tuple[CollectionRefreshError, ...] = ()
 
 
+def _title(col: ExistingCollection) -> str:
+    return parse_collection_name(col.name).title
+
+
 def _synced_title(
     album: AlbumInfo,
     explicit_titles: frozenset[str],
-    implicit_by_album: Mapping[str, ExistingCollection],
+    converted_title: str | None,
 ) -> ParsedAlbumName:
     """
     Return the album name the collection lifecycles call for.
 
-    - Explicit collection owns the album's series → strip it from the name.
-    - Implicit collection contains a series-less album → add its title.
+    - An explicit collection holding the album has its series as title →
+      strip it from the name.
+    - A just-converted implicit collection holds a series-less album → add
+      its title.
     """
-    match album.parsed.series, implicit_by_album.get(album.album_id):
+    match album.parsed.series, converted_title:
         case str() as series, _ if series in explicit_titles:
             return replace(album.parsed, series=None)
-        case None, ExistingCollection() as col:
-            return replace(album.parsed, series=parse_collection_name(col.name).title)
+        case None, str() as title:
+            return replace(album.parsed, series=title)
         case _:
             return album.parsed
+
+
+def _explicit_titles_by_album(
+    existing: tuple[ExistingCollection, ...],
+) -> dict[str, frozenset[str]]:
+    """Map each album ID to the titles of the explicit collections holding it."""
+    explicit = [
+        col
+        for col in existing
+        if col.metadata.lifecycle == CollectionLifecycle.EXPLICIT
+    ]
+    return {
+        album_id: frozenset(
+            _title(col) for col in explicit if album_id in col.metadata.albums
+        )
+        for album_id in {a for col in explicit for a in col.metadata.albums}
+    }
+
+
+def _converted_titles_by_album(
+    albums: tuple[AlbumInfo, ...],
+    existing: tuple[ExistingCollection, ...],
+) -> dict[str, str]:
+    """
+    Map each member of a just-converted implicit collection to its title.
+
+    An implicit collection counts as just converted from explicit when none of
+    its members carries its title as their series: the explicit collection had
+    them stripped. Phase 3 writes the series into every member's name, so once
+    one member carries it, a member without it was taken out by the user.
+    """
+    series_by_id = {album.album_id: album.parsed.series for album in albums}
+    return {
+        album_id: title
+        for col in existing
+        if col.metadata.lifecycle == CollectionLifecycle.IMPLICIT
+        for title in [_title(col)]
+        if not any(series_by_id.get(a) == title for a in col.metadata.albums)
+        for album_id in col.metadata.albums
+    }
 
 
 def _plan_title_sync(
@@ -55,21 +102,18 @@ def _plan_title_sync(
     existing: tuple[ExistingCollection, ...],
 ) -> list[tuple[AlbumInfo, AlbumInfo]]:
     """Pair each album whose name must change with its renamed self."""
-    explicit_titles = frozenset(
-        parse_collection_name(col.name).title
-        for col in existing
-        if col.metadata.lifecycle == CollectionLifecycle.EXPLICIT
-    )
-    implicit_by_album = {
-        album_id: col
-        for col in existing
-        if col.metadata.lifecycle == CollectionLifecycle.IMPLICIT
-        for album_id in col.metadata.albums
-    }
+    explicit_titles = _explicit_titles_by_album(existing)
+    converted_titles = _converted_titles_by_album(albums, existing)
     return [
         (album, replace(album, path=album.path.parent / new_name, parsed=new_parsed))
         for album in albums
-        for new_parsed in [_synced_title(album, explicit_titles, implicit_by_album)]
+        for new_parsed in [
+            _synced_title(
+                album,
+                explicit_titles.get(album.album_id, frozenset()),
+                converted_titles.get(album.album_id),
+            ),
+        ]
         for new_name in [reconstruct_name(new_parsed)]
         if new_name != album.path.name
     ]

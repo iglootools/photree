@@ -411,13 +411,22 @@ A collection can be converted between lifecycles using
 
 - **Implicit → explicit**: The explicit collection now owns the grouping,
   so the series component in album names is redundant. `gallery refresh`
-  strips the series from album names (e.g.
+  strips the series from the names of the collection's own member albums
+  whose series is the collection title (e.g.
   `2024-07-14 - 01 - Canada Trip - Hiking` becomes
-  `2024-07-14 - 01 - Hiking`).
+  `2024-07-14 - 01 - Hiking`). Albums outside the collection keep their
+  series, even one equal to its title.
 - **Explicit → implicit**: The collection title is added as a series
   component to the contained albums' names (e.g.
   `2024-07-14 - 01 - Hiking` becomes
-  `2024-07-14 - 01 - Canada Trip - Hiking`).
+  `2024-07-14 - 01 - Canada Trip - Hiking`). This happens only right after
+  the conversion, while none of the members carries the title as a series.
+
+Once an implicit collection's albums carry its series, the album names are
+the source of truth: removing the series from an album's name takes that
+album out of the collection on the next `gallery refresh`. Removing it from
+every album at once looks like a fresh explicit → implicit conversion and is
+undone; to dissolve an implicit collection, delete its directory as well.
 
 ### Strategy
 
