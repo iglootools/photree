@@ -22,7 +22,8 @@ jobs:
     with:
       # Pinned here, not in the shared workflow: guidelines/project-setup/workflows.md in
       # iglootools/common requires it to match the version this project's mise.lock was
-      # generated with, and the custom manager below lives in this repository's renovate.json.
+      # generated with, and the custom manager that moves the marker below comes from the
+      # iglootools/common Renovate presets (renovate/base.json) that renovate.json extends.
       # The input is named `version` because that is what that manager matches — see the
       # shared workflow's input description.
       # renovate: datasource=github-releases depName=jdx/mise

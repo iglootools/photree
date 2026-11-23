@@ -50,7 +50,7 @@ jobs:
     uses: iglootools/common/.github/workflows/reusable-demo.yml@ed26d0f2a42a4f392e3873fdef511d6bf1a30b8e # v2.1.0
     with:
       # Pinned here, matching the version mise.lock was generated with; the custom manager in
-      # renovate.json keeps it current.
+      # the iglootools/common Renovate presets that renovate.json extends keeps it current.
       # renovate: datasource=github-releases depName=jdx/mise
       version: 2026.11.12
       # The release to record; empty for a workflow_run or a tag push, which carry their own.
