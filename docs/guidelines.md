@@ -53,16 +53,16 @@ Documented exception to
 and to its filtering instead of `continue`, in two shapes only, each marked
 with a `# Documented exception (docs/guidelines.md)` comment:
 
-- **Loop-carried state.** Grouping a sorted sequence into contiguous runs
-  (`collection/refresh/series.py::_group_contiguous_series`) needs the
-  previous element to decide where the current group ends.
+- **Loop-carried state.** Deduplicating files by inode while stat'ing them
+  (`album/stats/scan.py::_stat_files`) needs every inode seen before to decide
+  whether the current one is new.
 - **Per-item `try`/`except` in a batch.** A loop that records a failure and
   carries on cannot be a comprehension, which has nowhere to put the `except`.
 
 **Why:** in these shapes the comprehension is harder to read, not easier: the
-first needs `itertools.groupby` with a key function closing over mutable
-state, and the second holds the loops that must not swallow errors, where
-clarity matters most. Everywhere else the single-expression form applies.
+first has to thread the growing state through every element, and the second
+holds the loops that must not swallow errors, where clarity matters most.
+Everywhere else the single-expression form applies.
 
 This is structural rather than temporary: no condition retires it while a
 comprehension can neither carry state between elements nor catch an exception
