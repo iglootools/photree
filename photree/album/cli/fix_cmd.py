@@ -26,7 +26,7 @@ from photree.clihelpers.options import (
 )
 from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.usage import invalid_fix_error
-from photree.common.formatting import format_dry_run
+from photree.common.formatting import format_dry_run, format_flags
 from photree.common.fs import display_path
 
 
@@ -144,9 +144,12 @@ def _run_archive_fixes(
                 f'"{exc.media_source}": its browsable directory looks emptied.',
                 markup=False,
             )
+            retry_flags = format_flags(
+                [("--rm-orphan", rm_orphan), ("--dry-run", dry_run)],
+            )
             err_console.print(
                 "If that deletion is intended, run 'photree album fix --rm-upstream "
-                f'--force --album-dir "{display_path(album_dir, cwd)}"\'.',
+                f'--force{retry_flags} --album-dir "{display_path(album_dir, cwd)}"\'.',
                 markup=False,
             )
             raise typer.Exit(code=1) from exc

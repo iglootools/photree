@@ -48,6 +48,18 @@ class TestBatchInit:
         assert "already initialized" in result.output
         assert "To investigate failures:" in result.output
 
+    def test_retry_command_stays_a_dry_run(self, tmp_path: Path) -> None:
+        _album(tmp_path, "2024-07-14 - Hiking")
+
+        result = runner.invoke(
+            app,
+            ["albums", "init", "-d", str(tmp_path), "--dry-run"],
+        )
+
+        assert result.exit_code == 1
+        assert 'album init --album-dir "' in result.output
+        assert '2024-07-14 - Hiking" --dry-run' in result.output
+
 
 class TestBatchRefresh:
     def test_jpeg_failure_reason_reaches_the_summary(self, tmp_path: Path) -> None:
@@ -67,6 +79,20 @@ class TestBatchRefresh:
         assert "Failed albums:" in result.output
         assert "IMG_0001" in result.output
         assert "0 album(s) refreshed, 1 failed" in result.output
+
+    def test_retry_command_repeats_the_run_flags(self, tmp_path: Path) -> None:
+        album = tmp_path / "2024-07-14 - Hiking"
+        _write(album / "ios-main" / "orig-img" / "IMG_0001.HEIC", "not heic")
+        save_album_metadata(album, AlbumMetadata(id=generate_album_id()))
+
+        result = runner.invoke(
+            app,
+            ["albums", "refresh", "-d", str(tmp_path), "--refresh-jpeg"],
+            obj=ALL_DEPS_RUNTIME,
+        )
+
+        assert result.exit_code == 1
+        assert '2024-07-14 - Hiking" --refresh-jpeg' in result.output
 
 
 class TestBatchFailureReport:

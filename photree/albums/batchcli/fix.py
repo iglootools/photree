@@ -121,4 +121,21 @@ def run_batch_fix_ios(
             markup=True,
         ),
     )
-    exit_with_failures(result.failures, "fix-ios", cwd)
+    exit_with_failures(
+        result.failures,
+        "fix-ios",
+        cwd,
+        extra_flags=format_flags(
+            [
+                ("--rm-orphan-sidecar", rm_orphan_sidecar),
+                (
+                    "--prefer-higher-quality-when-dups",
+                    prefer_higher_quality_when_dups,
+                ),
+                ("--rm-miscategorized", rm_miscategorized),
+                ("--rm-miscategorized-safe", rm_miscategorized_safe),
+                ("--mv-miscategorized", mv_miscategorized),
+                ("--dry-run", dry_run),
+            ],
+        ),
+    )
