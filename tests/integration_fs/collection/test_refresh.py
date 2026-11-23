@@ -544,6 +544,56 @@ class TestRefreshErrors:
         # Nothing was written: conflicts are detected on the whole plan.
         assert discover_collections(gallery) == []
 
+    def test_occupied_target_stops_the_whole_stage(self, tmp_path: Path) -> None:
+        """Regression: earlier groups were created and orphans deleted anyway."""
+        gallery = _setup_gallery(tmp_path)
+        _setup_album(gallery, "2024-07-14 - 01 - Alpha - Morning")
+        _setup_album(gallery, "2024-07-16 - 01 - Beta - Morning")
+        occupied = gallery / COLLECTIONS_DIR / "2024" / "2024-07-16 - Beta"
+        occupied.mkdir(parents=True)
+        orphan = gallery / COLLECTIONS_DIR / "2024" / "2024-06-01 - Gone"
+        orphan.mkdir(parents=True)
+        save_collection_metadata(
+            orphan,
+            CollectionMetadata(
+                id=generate_collection_id(),
+                members=CollectionMembers.SMART,
+                lifecycle=CollectionLifecycle.IMPLICIT,
+                strategy=CollectionStrategy.ALBUM_SERIES,
+                albums=["nonexistent-id"],
+            ),
+        )
+
+        result = refresh_collections(gallery)
+
+        assert result.errors == (
+            CollectionRefreshError(
+                CollectionRefreshErrorKind.COLLECTION_TARGET_EXISTS,
+                target=occupied,
+            ),
+        )
+        assert result.created == ()
+        assert discover_collections(gallery) == [orphan]
+
+    def test_case_only_series_rename(self, tmp_path: Path) -> None:
+        """Regression: the collection found itself in its way on APFS."""
+        gallery = _setup_gallery(tmp_path)
+        album1, _ = _setup_album(gallery, "2024-07-14 - 01 - Trip - Morning")
+        album2, _ = _setup_album(gallery, "2024-07-14 - 02 - Trip - Evening")
+        refresh_collections(gallery)
+        [before] = discover_collections(gallery)
+        before_id = _load_metadata(before).id
+        album1.rename(album1.parent / "2024-07-14 - 01 - trip - Morning")
+        album2.rename(album2.parent / "2024-07-14 - 02 - trip - Evening")
+
+        result = refresh_collections(gallery)
+
+        assert result.success
+        assert result.renamed == (("2024-07-14 - Trip", "2024-07-14 - trip"),)
+        [after] = discover_collections(gallery)
+        assert after.name == "2024-07-14 - trip"
+        assert _load_metadata(after).id == before_id
+
     def test_uses_injected_collection_id(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
         _setup_album(gallery, "2024-07-14 - 01 - Trip - Hiking")

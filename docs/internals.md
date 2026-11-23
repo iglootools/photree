@@ -399,6 +399,15 @@ collections:
 4. **Delete orphaned** — implicit collections whose series no longer
    appears in any album are removed.
 
+The whole stage is planned before anything is written. Every rename and
+creation target is checked first: a directory that already exists is
+reported as an error and nothing is changed, unless the plan itself moves
+that directory away or removes it. The check compares directories rather than
+names, so a case-only series rename (`Trip` to `trip`) on a case-insensitive
+filesystem does not find the collection in its own way. Renames go through a
+temporary name, which makes both that case-only rename and one collection
+taking another's vacated name work.
+
 **Limitation**: changing the series title and adding/removing albums at the
 same time (before a refresh) causes the old collection to be deleted and a
 new one created — the collection ID is not preserved. Each tier handles one
