@@ -135,7 +135,8 @@ matter, only the names. Two forms, which may be combined:
 A std (non-iOS) source imports the files themselves — no selection list, no
 Image Capture directory. Place your files under `orig/` (and optionally
 `edit/`); they are copied into `std-<name>/` split by extension. The staging
-directory is removed on success.
+directory is removed on success, so the import refuses one holding anything
+else (another file type, a subdirectory): move those out first.
 
 ```bash
 # Import all staged media for a single album

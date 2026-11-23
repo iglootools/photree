@@ -38,7 +38,7 @@ from photree.album.importer.preflight import (
     ImportPreflightResult,
     SelectionStatus,
 )
-from photree.album.importer.std import StdNoMediaError
+from photree.album.importer.std import StdNoMediaError, StdUnsupportedEntries
 from photree.common.formatting import CHECK, CROSS, indent, markup_escape
 from photree.common.fs import display_path
 from photree.common.sysdeps_output import format_missing_troubleshoot, format_statuses
@@ -346,6 +346,15 @@ def _first_shown(items: Sequence[str]) -> str:
     return ", ".join(items[:_MAX_SHOWN]) + more
 
 
+def _unsupported_entries_message(unsupported: StdUnsupportedEntries) -> str:
+    return (
+        f"{len(unsupported.entries)} entry(ies) would not be imported: "
+        f"{_first_shown(unsupported.entries)}. Only image and video files "
+        "directly under orig/ and edit/ are imported, and the staging directory "
+        "is removed afterwards: move the others out of it first."
+    )
+
+
 def format_archive_collision(collision: ArchiveCollision) -> str:
     """
     One-line description of an archive collision, with the way out.
@@ -373,6 +382,8 @@ def _task_issue_message(detail: TaskIssueDetail) -> str:
             return f"{dropped} dropped in favor of {kept} (duplicate number {n})"
         case StdNoMediaError():
             return "no media files found in orig/ or edit/"
+        case StdUnsupportedEntries() as unsupported:
+            return _unsupported_entries_message(unsupported)
         case DuplicateStem() as dup:
             return format_duplicate_stem(dup)
         case ArchiveCollision() as collision:

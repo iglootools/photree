@@ -316,10 +316,15 @@ source — the files themselves are imported. The staging directory contains
 `orig/` and (optionally) `edit/` subfolders; their files are copied into the
 std archive (`std-<name>/orig-{img,vid}` and `edit-{img,vid}`), split by
 extension. Files are matched across `orig`/`edit` by filename stem. On a
-successful import the whole `to-import-std-<name>/` directory is consumed
-(removed). Duplicate stems within a folder are rejected; an `edit/` file with
-no matching `orig/` stem is allowed (it is imported but, as with existing std
-sources, omitted from the browsable directory).
+successful import the copied files are removed from the staging directory,
+then `orig/`, `edit/` and `to-import-std-<name>/` themselves once they hold
+nothing else; hidden files such as `.DS_Store` are ignored and removed with
+them. Validation rejects anything the import would not copy (a file that is
+not an image or a video, a subdirectory, or an entry beside `orig/` and
+`edit/`), so the user moves it out rather than losing it. Duplicate stems
+within a folder are rejected; an `edit/` file with no matching `orig/` stem is
+allowed (it is imported but, as with existing std sources, omitted from the
+browsable directory).
 
 ## Collections
 

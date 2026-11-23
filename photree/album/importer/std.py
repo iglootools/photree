@@ -5,11 +5,13 @@ The staging dir contains ``orig/`` and ``edit/`` subfolders whose files are
 imported directly into the std archive (``orig-img``/``orig-vid`` and
 ``edit-img``/``edit-vid``), split by extension. Files are matched across
 directories by filename stem. Unlike iOS, the files themselves are imported
-(there is no Image Capture selection list). On success the staging dir is
-consumed (removed).
+(there is no Image Capture selection list). Validation refuses a staging dir
+holding anything else, since nothing else would be imported; on success the
+copied files are removed from the staging dir, and with them the dir itself.
 """
 
 import shutil
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -17,6 +19,7 @@ from typing import TYPE_CHECKING
 from photree.album.check.std import DuplicateStem, check_duplicate_stems
 from photree.album.formats import IMG_EXTENSIONS, VID_EXTENSIONS
 from photree.album.importer.collision import ArchiveCollision
+from photree.album.importer.staging_cleanup import remove_dir_if_only_hidden_files
 from photree.album.store.media_source import MediaSource
 from photree.common.fs import file_ext, list_files
 
@@ -34,9 +37,24 @@ class StdNoMediaError:
     """The staging dir holds no media file under ``orig/`` or ``edit/``."""
 
 
-# Validation errors for a std task: an empty staging dir, or several files
-# sharing a stem within ``orig/`` or ``edit/``.
-type StdValidationError = StdNoMediaError | DuplicateStem
+@dataclass(frozen=True)
+class StdUnsupportedEntries:
+    """
+    Staging entries the import would not copy, relative to the staging dir.
+
+    Anything but an image or a video directly under ``orig/`` or ``edit/``:
+    another file type, a subdirectory, or an entry beside ``orig/`` and
+    ``edit/``. A directory ends with ``/``. Hidden entries (``.DS_Store``) are
+    not listed.
+    """
+
+    entries: tuple[str, ...]
+
+
+# Validation errors for a std task: an empty staging dir, entries the import
+# would leave out, or several files sharing a stem within ``orig/`` or
+# ``edit/``.
+type StdValidationError = StdNoMediaError | StdUnsupportedEntries | DuplicateStem
 
 
 @dataclass(frozen=True)
@@ -44,17 +62,25 @@ class StdImportResult:
     """
     The outcome of importing one std media source.
 
-    *imported* counts the media files copied; *skipped_non_media* lists the
-    staged files left out, as ``orig/<name>`` or ``edit/<name>``.
+    *imported* counts the media files copied.
     """
 
     media_source_name: str
     imported: int
-    skipped_non_media: tuple[str, ...]
 
 
 def _is_media(filename: str) -> bool:
     return file_ext(filename) in _MEDIA_EXTENSIONS
+
+
+def _is_hidden(path: Path) -> bool:
+    return path.name.startswith(".")
+
+
+def _entry_name(path: Path, staging: Path) -> str:
+    """*path* relative to *staging*, with a trailing ``/`` for a directory."""
+    name = path.relative_to(staging).as_posix()
+    return f"{name}/" if path.is_dir() else name
 
 
 class MissingStagingDirError(ValueError):
@@ -94,6 +120,32 @@ def has_media(task: ImportTask) -> bool:
     return bool(_staged_media(task))
 
 
+def _visible_entries(directory: Path) -> list[Path]:
+    """Non-hidden entries of *directory*; none when it is not a directory."""
+    return (
+        [p for p in directory.iterdir() if not _is_hidden(p)]
+        if directory.is_dir()
+        else []
+    )
+
+
+def _unsupported_entries(staging: Path) -> tuple[str, ...]:
+    """Every visible staging entry the import would not copy; see the error."""
+    subdirs = (ORIG_SUBDIR, EDIT_SUBDIR)
+    beside_subdirs = [
+        p for p in _visible_entries(staging) if not (p.is_dir() and p.name in subdirs)
+    ]
+    in_subdirs = [
+        p
+        for sub in subdirs
+        for p in _visible_entries(staging / sub)
+        if not (p.is_file() and _is_media(p.name))
+    ]
+    return tuple(
+        sorted(_entry_name(p, staging) for p in [*beside_subdirs, *in_subdirs]),
+    )
+
+
 def validate_std_task(task: ImportTask) -> tuple[StdValidationError, ...]:
     """
     Validate a std import task.
@@ -104,10 +156,16 @@ def validate_std_task(task: ImportTask) -> tuple[StdValidationError, ...]:
     ``orig/`` or ``edit/``. An ``edit/`` file with no matching ``orig/`` stem
     is allowed (same as existing std sources) — it is imported but omitted from
     the browsable dir.
+
+    Also rejects a staging dir holding anything the import would not copy
+    (:class:`StdUnsupportedEntries`): the import consumes the staging dir, so
+    the user decides where those files go rather than finding them gone.
     """
     staging = _staging_dir(task)
+    unsupported = _unsupported_entries(staging)
     return (
         *(() if has_media(task) else (StdNoMediaError(),)),
+        *((StdUnsupportedEntries(unsupported),) if unsupported else ()),
         *check_duplicate_stems(staging / ORIG_SUBDIR, _MEDIA_EXTENSIONS),
         *check_duplicate_stems(staging / EDIT_SUBDIR, _MEDIA_EXTENSIONS),
     )
@@ -159,21 +217,31 @@ def _plan_copies(
     album_dir: Path,
     staging: Path,
     ms: MediaSource,
-) -> list[tuple[str, Path, Path | None]]:
-    """``(display name, source file, archive dir or None)`` for every staged file."""
+) -> list[tuple[Path, Path]]:
+    """``(source file, archive dir)`` for every staged media file."""
     subdir_targets = (
         (ORIG_SUBDIR, ms.orig_img_dir, ms.orig_vid_dir),
         (EDIT_SUBDIR, ms.edit_img_dir, ms.edit_vid_dir),
     )
     return [
-        (
-            f"{src_sub}/{f}",
-            staging / src_sub / f,
-            _archive_target(album_dir, f, img_dst, vid_dst),
-        )
+        (staging / src_sub / f, dst)
         for src_sub, img_dst, vid_dst in subdir_targets
         for f in list_files(staging / src_sub)
+        if (dst := _archive_target(album_dir, f, img_dst, vid_dst)) is not None
     ]
+
+
+def _consume_staging(staging: Path, copied: Sequence[Path]) -> None:
+    """
+    Remove the *copied* files, then each staging dir they leave empty.
+
+    Never the whole tree: validation refuses a staging dir holding anything
+    else, but should something appear in between, it stays where it is.
+    """
+    for src in copied:
+        src.unlink()
+    for directory in (staging / ORIG_SUBDIR, staging / EDIT_SUBDIR, staging):
+        remove_dir_if_only_hidden_files(directory)
 
 
 def import_std_source(
@@ -186,7 +254,8 @@ def import_std_source(
     Import one std media source from its staging directory.
 
     Splits each staging subfolder by extension into the archive's image/video
-    directories, then (on a non-dry run) removes the staging directory.
+    directories, then (on a non-dry run) removes the copied files from the
+    staging directory, and the directory once nothing else is left in it.
 
     The archive collision check (:func:`find_std_collision`) is the caller's
     job, before any mutation: :func:`photree.album.importer.album_import.run_import`
@@ -194,16 +263,14 @@ def import_std_source(
     """
     staging = _staging_dir(task)
     copies = _plan_copies(album_dir, staging, task.media_source)
-    media = [(src, dst) for _, src, dst in copies if dst is not None]
 
     if not dry_run:
-        for src, dst in media:
+        for src, dst in copies:
             dst.mkdir(parents=True, exist_ok=True)
             shutil.copy(src, dst / src.name)
-        shutil.rmtree(staging)
+        _consume_staging(staging, [src for src, _ in copies])
 
     return StdImportResult(
         media_source_name=task.media_source.name,
-        imported=len(media),
-        skipped_non_media=tuple(name for name, _, dst in copies if dst is None),
+        imported=len(copies),
     )
