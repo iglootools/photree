@@ -63,6 +63,15 @@ def _setup_ios_album_with_video(album: Path) -> None:
     _setup_dir(album / "main-vid", ["IMG_E0115.MOV"])
 
 
+def _setup_ios_album_with_live_photo(album: Path) -> None:
+    """Create an iOS album with one Live Photo (0001): a still and its MOV."""
+    _setup_dir(album / PHOTREE_DIR, [])
+    _mark_album(album)
+    _setup_dir(album / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_0001.MOV"])
+    _setup_dir(album / "main-img", ["IMG_0001.HEIC", "IMG_0001.MOV"])
+    _setup_dir(album / "main-jpg", ["IMG_0001.jpg"])
+
+
 def _setup_std_album(album: Path, media_source_name: str = "nelu") -> None:
     """Create a minimal std contributor album (archive + browsable dirs)."""
     _setup_dir(album / PHOTREE_DIR, [])
@@ -124,6 +133,18 @@ class TestResolveVariants:
         assert "ios-main/orig-vid" in dirs_found
         assert "ios-main/edit-vid" in dirs_found
         assert "main-vid" in dirs_found
+
+    def test_live_photo_mov_resolves_its_image(self, tmp_path: Path) -> None:
+        album = tmp_path / "album"
+        _setup_ios_album_with_live_photo(album)
+
+        result = resolve_variants(album, ["main-img/IMG_0001.MOV"])
+
+        assert dict(result) == {
+            "ios-main/orig-img": ["IMG_0001.HEIC", "IMG_0001.MOV"],
+            "main-img": ["IMG_0001.HEIC", "IMG_0001.MOV"],
+            "main-jpg": ["IMG_0001.jpg"],
+        }
 
     def test_plain_image_resolves_by_stem(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
@@ -379,6 +400,20 @@ class TestRmMedia:
         assert result.total > 0
         assert "IMG_0410.HEIC" in _names(album / "ios-main/orig-img")
         assert "IMG_E0410.jpg" in _names(album / "main-jpg")
+
+    def test_live_photo_mov_removes_the_whole_live_photo(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        album = tmp_path / "album"
+        _setup_ios_album_with_live_photo(album)
+
+        result = rm_media(album, ["ios-main/orig-img/IMG_0001.MOV"])
+
+        assert result.total == 5
+        assert not (album / "ios-main").exists()
+        assert not (album / "main-img").exists()
+        assert not (album / "main-jpg").exists()
 
     def test_ios_video_removes_all_variants(self, tmp_path: Path) -> None:
         album = tmp_path / "album"

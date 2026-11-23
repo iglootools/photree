@@ -10,11 +10,10 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from photree.album.formats import VID_EXTENSIONS
 from photree.album.store.file_matching import find_files_by_key
 from photree.album.store.media_source import MediaSource
 from photree.album.store.media_sources_discovery import discover_media_sources
-from photree.common.fs import delete_files, file_ext, move_files
+from photree.common.fs import delete_files, move_files
 
 # A media file sits in a directory: at least the directory and the file name.
 _MIN_PATH_PARTS = 2
@@ -73,10 +72,6 @@ def _build_dir_to_media_source(
     return {d: ms for ms in media_sources for d in ms.all_subdirs}
 
 
-def _is_video(filename: str) -> bool:
-    return file_ext(filename) in VID_EXTENSIONS
-
-
 def _find_matching_files(
     album_dir: Path,
     subdir: str,
@@ -107,7 +102,10 @@ def _locate(
     Locate a file in its media source.
 
     Handles both flat (``main-jpg/file``) and nested
-    (``ios-main/orig-img/file``) directories.
+    (``ios-main/orig-img/file``) directories. The directory, not the file's
+    extension, says whether the media is an image or a video: a Live Photo's
+    ``.MOV`` sits in the image directories beside its still and belongs to
+    that image.
     """
     parts = Path(rel_path).parts
     if len(parts) < _MIN_PATH_PARTS:
@@ -125,7 +123,11 @@ def _locate(
             subdir=subdir,
         )
     filename = parts[-1]
-    return _Target(ms=ms, is_video=_is_video(filename), key=ms.key_fn(filename))
+    return _Target(
+        ms=ms,
+        is_video=subdir in ms.video_variant_dirs,
+        key=ms.key_fn(filename),
+    )
 
 
 def resolve_variants(
