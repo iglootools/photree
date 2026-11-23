@@ -3,9 +3,7 @@
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO
-
-import numpy as np
+from typing import IO, TYPE_CHECKING
 
 from photree.album.faces.protocol import (
     EMBEDDING_DIM,
@@ -22,6 +20,11 @@ from photree.foundation.metadata_io import (
     validate_metadata,
     write_yaml,
 )
+
+if TYPE_CHECKING:
+    # Annotations only: numpy is imported in the functions that use it, since
+    # `album check` reaches this module at CLI startup.
+    import numpy as np
 
 
 def faces_dir(album_dir: Path) -> Path:
@@ -63,6 +66,8 @@ class FaceData:
     @staticmethod
     def empty() -> FaceData:
         """Return face data holding no faces."""
+        import numpy as np  # noqa: PLC0415 - numpy, kept out of CLI startup
+
         return FaceData(
             keys=np.array([], dtype=np.str_),
             face_indices=np.array([], dtype=np.int32),
@@ -108,15 +113,14 @@ def read_face_count(path: Path) -> int:
     return shape[0] if shape else 0
 
 
-_NPY_HEADER_READERS = {
-    (1, 0): np.lib.format.read_array_header_1_0,
-    (2, 0): np.lib.format.read_array_header_2_0,
-}
-
-
 def _read_npy_header(f: IO[bytes]) -> tuple[tuple[int, ...], np.dtype[np.generic]]:
+    import numpy as np  # noqa: PLC0415 - numpy, kept out of CLI startup
+
     version = np.lib.format.read_magic(f)
-    read_header = _NPY_HEADER_READERS.get(version)
+    read_header = {
+        (1, 0): np.lib.format.read_array_header_1_0,
+        (2, 0): np.lib.format.read_array_header_2_0,
+    }.get(version)
     if read_header is None:
         message = f"unsupported .npy version {version}"
         raise ValueError(message)
@@ -160,6 +164,8 @@ def load_face_data(album_dir: Path, media_source_name: str) -> FaceData | None:
         return None
     if has_legacy_face_data(album_dir, media_source_name):
         raise LegacyFaceDataError(path)
+    import numpy as np  # noqa: PLC0415 - numpy, kept out of CLI startup
+
     try:
         with np.load(path, allow_pickle=False) as npz:
             return FaceData(
@@ -182,6 +188,8 @@ def save_face_data(album_dir: Path, media_source_name: str, data: FaceData) -> N
     fixed-width unicode whatever its dtype in *data*, so reading it back never
     needs unpickling.
     """
+    import numpy as np  # noqa: PLC0415 - numpy, kept out of CLI startup
+
     path = data_path(album_dir, media_source_name)
     path.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(
@@ -235,6 +243,8 @@ def save_face_state(
 
 def filter_face_data(data: FaceData, *, keep_keys: set[str]) -> FaceData:
     """Return *data* restricted to the faces of the images in *keep_keys*."""
+    import numpy as np  # noqa: PLC0415 - numpy, kept out of CLI startup
+
     if data.count == 0:
         return data
     mask = np.isin(data.keys, list(keep_keys))
@@ -250,6 +260,8 @@ def filter_face_data(data: FaceData, *, keep_keys: set[str]) -> FaceData:
 
 def merge_face_data(existing: FaceData, new: FaceData) -> FaceData:
     """Return the faces of *existing* followed by those of *new*."""
+    import numpy as np  # noqa: PLC0415 - numpy, kept out of CLI startup
+
     if existing.count == 0:
         return new
     if new.count == 0:

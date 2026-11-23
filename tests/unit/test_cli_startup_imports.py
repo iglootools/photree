@@ -9,7 +9,15 @@ the face pipeline; this test catches a module-level import creeping back in.
 import subprocess
 import sys
 
-HEAVY_ML_MODULES = ("insightface", "onnxruntime", "cv2", "faiss", "sklearn")
+HEAVY_ML_MODULES = (
+    "insightface",
+    "onnxruntime",
+    "cv2",
+    "faiss",
+    "sklearn",
+    "scipy",
+    "numpy",
+)
 
 
 def test_importing_cli_does_not_load_ml_libraries() -> None:

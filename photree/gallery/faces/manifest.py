@@ -21,7 +21,6 @@ from photree.foundation.metadata_io import (
     validate_metadata,
     write_yaml,
 )
-from photree.gallery.faces.clustering import save_faiss_index
 from photree.gallery.faces.protocol import (
     FACE_CHECKSUMS_FILE,
     FACE_CLUSTERS_FILE,
@@ -129,6 +128,8 @@ def save_face_state(gallery_dir: Path, state: GalleryFaceState) -> None:
     only one between the renames leaves a mix, which the next refresh detects
     and re-clusters.
     """
+    from photree.gallery.faces.clustering import save_faiss_index  # noqa: PLC0415 - numpy, kept out of CLI startup
+
     writes: tuple[tuple[Path, Callable[[Path], None]], ...] = (
         (faiss_index_path(gallery_dir), lambda p: save_faiss_index(state.index, p)),
         (manifest_path(gallery_dir), lambda p: _save_yaml(p, state.manifest)),

@@ -31,10 +31,11 @@ them.
 Documented exception to
 [python.md › Import at module level, and defer with `lazy import`](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md#import-at-module-level-and-defer-with-lazy-import).
 Defer an import only to break an import cycle or to keep the face ML stack
-(`insightface`, `onnxruntime`, `cv2`, `faiss`, `sklearn`, `scipy`) out
-of CLI startup: import it inside the function that uses it, or under
-`TYPE_CHECKING` for an annotation, with a comment saying which case it is. An
-in-function import carries `# noqa: PLC0415` with that reason on its line.
+(`insightface`, `onnxruntime`, `cv2`, `faiss`, `sklearn`, `scipy`, and the
+`numpy` beneath them) out of CLI startup: import it inside the function that
+uses it, or under `TYPE_CHECKING` for an annotation, with a comment saying
+which case it is. An in-function import carries `# noqa: PLC0415` with that
+reason on its line.
 
 **Why:** `lazy import` needs Python 3.15, and photree is held on 3.14 because
 onnxruntime publishes no cp315 wheels (the comment at `requires-python` in

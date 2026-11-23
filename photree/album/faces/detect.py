@@ -14,8 +14,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, cast
 
-import numpy as np
-
 from photree.album.faces.model import (
     DownloadFn,
     ModelChecksumError,
@@ -44,6 +42,8 @@ def is_ort_device_discovery_noise(line: str) -> bool:
 # insightface and onnxruntime ship no type information, so each import, and each call
 # whose signature pyright infers with Unknown parts, carries a suppression.
 if TYPE_CHECKING:
+    # numpy for annotations only: the CLI imports this module at startup.
+    import numpy as np
     from insightface.app import FaceAnalysis  # pyright: ignore[reportMissingTypeStubs]
 
 # A zero-argument factory that produces a prepared :class:`FaceAnalysis`, or a
@@ -246,6 +246,8 @@ class UnreadableThumbnailError(OSError):
 
 def _face_landmarks(face: InsightFace) -> np.ndarray:
     """Return the 5-point landmarks, preferring the 106-point model's first five."""
+    import numpy as np  # noqa: PLC0415 - numpy, kept out of CLI startup
+
     landmark_106 = getattr(face, "landmark_2d_106", None)
     kps = getattr(face, "kps", None)
     if landmark_106 is not None:
@@ -258,6 +260,8 @@ def _face_landmarks(face: InsightFace) -> np.ndarray:
 
 def _face_embedding(face: InsightFace) -> np.ndarray:
     """Return the L2-normalized embedding when available, else the raw one."""
+    import numpy as np  # noqa: PLC0415 - numpy, kept out of CLI startup
+
     normed = getattr(face, "normed_embedding", None)
     return (normed if normed is not None else face.embedding).astype(np.float32)
 
@@ -276,6 +280,7 @@ def detect_faces(
     """
     # Imported here, not at module level: cv2 costs ~0.14 s at CLI startup.
     import cv2  # noqa: PLC0415 - ML stack, kept out of CLI startup
+    import numpy as np  # noqa: PLC0415 - numpy, kept out of CLI startup
 
     img = cv2.imread(str(image_path))
     if img is None:
