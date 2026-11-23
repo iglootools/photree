@@ -30,6 +30,7 @@ from photree.gallery.faces.check import (
     ClusterIndexOutOfBounds,
     FaceClusterIssue,
     FaceCountMismatch,
+    FaceIndexSizeMismatch,
     check_face_clusters,
 )
 
@@ -175,6 +176,11 @@ def _format_face_issue(issue: FaceClusterIssue, cwd: Path) -> str:
         case FaceCountMismatch(recorded=recorded, manifest_size=size):
             return (
                 f"face count mismatch: clusters.yaml says {recorded}, "
+                f"manifest has {size}"
+            )
+        case FaceIndexSizeMismatch(index_rows=rows, manifest_size=size):
+            return (
+                f"face index size mismatch: face-index.faiss has {rows} row(s), "
                 f"manifest has {size}"
             )
         case AlbumFaceDataNotIndexed(album_dir=album_dir, media_source=ms):

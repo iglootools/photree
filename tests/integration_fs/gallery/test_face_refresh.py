@@ -1,3 +1,4 @@
+import shutil
 from collections.abc import Callable
 from pathlib import Path
 
@@ -10,16 +11,27 @@ from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 from photree.foundation.metadata_io import InvalidMetadataError
-from photree.gallery.faces.check import AlbumFaceDataNotIndexed, check_face_clusters
+from photree.gallery.faces.check import (
+    AlbumFaceDataNotIndexed,
+    FaceIndexSizeMismatch,
+    check_face_clusters,
+)
+from photree.gallery.faces.clustering import (
+    build_faiss_index,
+    load_faiss_index,
+    save_faiss_index,
+)
 from photree.gallery.faces.face_refresh import (
     FACE_REFRESH_STAGES,
     FaceRefreshMode,
     refresh_face_clusters,
 )
 from photree.gallery.faces.manifest import (
+    checksums_path,
     clusters_path,
     faiss_index_path,
     load_clusters,
+    manifest_path,
 )
 
 
@@ -55,7 +67,7 @@ def _setup_album_with_faces(gallery: Path, name: str, axes: list[int]) -> Path:
             det_scores=np.ones(n, dtype=np.float32),
             bboxes=np.zeros((n, 4), dtype=np.float32),
             landmarks=np.zeros((n, 5, 2), dtype=np.float32),
-            embeddings=np.stack([_embedding(a) for a in axes]),
+            embeddings=np.array([_embedding(a) for a in axes]).reshape(n, 512),
         ),
     )
     return album_dir
@@ -147,3 +159,169 @@ class TestCheckFaceClusters:
 
     def test_no_clustering_data_is_not_checked(self, tmp_path: Path) -> None:
         assert check_face_clusters(_setup_gallery(tmp_path)) is None
+
+    def test_reports_index_rows_not_matching_manifest(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        _setup_album_with_faces(gallery, "2024-07-14 - Trip", [0])
+        refresh_face_clusters(gallery)
+        _write_index(gallery, [0, 1, 2])
+
+        result = check_face_clusters(gallery)
+
+        assert result is not None
+        assert result.issues == (FaceIndexSizeMismatch(index_rows=3, manifest_size=1),)
+
+
+def _write_index(gallery: Path, axes: list[int]) -> None:
+    embeddings = np.stack([_embedding(a) for a in axes])
+    save_faiss_index(build_faiss_index(embeddings), faiss_index_path(gallery))
+
+
+class TestEmptiedFaceData:
+    def test_removing_every_face_empties_the_index(self, tmp_path: Path) -> None:
+        """Regression: the index kept the removed faces' rows."""
+        gallery = _setup_gallery(tmp_path)
+        album = _setup_album_with_faces(gallery, "2024-07-14 - Trip", [0, 1])
+        refresh_face_clusters(gallery)
+        shutil.rmtree(album)
+
+        refresh_face_clusters(gallery)
+
+        index = load_faiss_index(faiss_index_path(gallery))
+        assert index is not None
+        assert index.ntotal == 0
+        _assert_check_passes(gallery)
+
+    def test_faces_added_after_emptying_are_clustered_together(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = _setup_gallery(tmp_path)
+        album = _setup_album_with_faces(gallery, "2024-07-14 - Trip", [0])
+        refresh_face_clusters(gallery)
+        shutil.rmtree(album)
+        refresh_face_clusters(gallery)
+        _setup_album_with_faces(gallery, "2024-07-15 - Beach", [1, 1])
+
+        result = refresh_face_clusters(gallery)
+
+        assert result.mode is FaceRefreshMode.FULL
+        assert list(_faces_by_cluster_id(gallery).values()) == [[0, 1]]
+        _assert_check_passes(gallery)
+
+    def test_full_recluster_ignores_index_misaligned_with_manifest(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Regression: recovering cluster IDs from such an index raised IndexError."""
+        gallery = _setup_gallery(tmp_path)
+        _setup_album_with_faces(gallery, "2024-07-14 - Trip", [0])
+        refresh_face_clusters(gallery)
+        _write_index(gallery, [0, 1, 2])
+
+        result = refresh_face_clusters(gallery, force_full=True)
+
+        assert (result.mode, result.total_faces) == (FaceRefreshMode.FULL, 1)
+        _assert_check_passes(gallery)
+
+
+def _faces_by_cluster_id(gallery: Path) -> dict[str, list[int]]:
+    clusters = load_clusters(gallery)
+    assert clusters is not None
+    return {c.id: c.face_indices for c in clusters.clusters}
+
+
+def _assert_check_passes(gallery: Path) -> None:
+    check = check_face_clusters(gallery)
+    assert check is not None
+    assert check.issues == ()
+
+
+class TestIncrementalRefresh:
+    def test_new_faces_join_existing_clusters_and_keep_their_ids(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = _setup_gallery(tmp_path)
+        _setup_album_with_faces(gallery, "2024-07-14 - Trip", [0, 1])
+        new_id = _counter_ids()
+        refresh_face_clusters(gallery, new_id=new_id)
+        before = _faces_by_cluster_id(gallery)
+        _setup_album_with_faces(gallery, "2024-07-15 - Beach", [0, 2])
+
+        result = refresh_face_clusters(gallery, new_id=new_id)
+
+        (same_person_id,) = (cid for cid, faces in before.items() if 0 in faces)
+        assert result.mode is FaceRefreshMode.INCREMENTAL
+        assert (result.total_faces, result.new_faces) == (4, 2)
+        assert _faces_by_cluster_id(gallery) == {
+            **before,
+            same_person_id: [*before[same_person_id], 2],
+            "cluster-2": [3],
+        }
+        _assert_check_passes(gallery)
+
+    def test_refresh_after_incremental_refresh_does_nothing(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = _setup_gallery(tmp_path)
+        _setup_album_with_faces(gallery, "2024-07-14 - Trip", [0])
+        refresh_face_clusters(gallery)
+        _setup_album_with_faces(gallery, "2024-07-15 - Beach", [1])
+        refresh_face_clusters(gallery)
+
+        result = refresh_face_clusters(gallery)
+
+        assert result.mode is FaceRefreshMode.NONE
+        assert result.total_faces == 2
+
+    def test_album_without_faces_is_recorded_as_ingested(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Regression: a faceless album stayed new forever and failed the check."""
+        gallery = _setup_gallery(tmp_path)
+        _setup_album_with_faces(gallery, "2024-07-14 - Trip", [0])
+        refresh_face_clusters(gallery)
+        _setup_album_with_faces(gallery, "2024-07-15 - Landscapes", [])
+
+        first = refresh_face_clusters(gallery)
+        second = refresh_face_clusters(gallery)
+
+        assert first.mode is FaceRefreshMode.INCREMENTAL
+        assert second.mode is FaceRefreshMode.NONE
+        _assert_check_passes(gallery)
+
+
+class TestInterruptedSave:
+    @pytest.mark.parametrize(
+        "unwritten",
+        [
+            pytest.param([checksums_path], id="before-checksums"),
+            pytest.param([clusters_path, checksums_path], id="before-clusters"),
+            pytest.param(
+                [manifest_path, clusters_path, checksums_path],
+                id="before-manifest",
+            ),
+        ],
+    )
+    def test_next_refresh_does_not_count_faces_twice(
+        self,
+        tmp_path: Path,
+        unwritten: list[Callable[[Path], Path]],
+    ) -> None:
+        """Regression: faces saved without their checksums were appended again."""
+        gallery = _setup_gallery(tmp_path)
+        _setup_album_with_faces(gallery, "2024-07-14 - Trip", [0])
+        refresh_face_clusters(gallery)
+        previous = {path_of: path_of(gallery).read_bytes() for path_of in unwritten}
+        _setup_album_with_faces(gallery, "2024-07-15 - Beach", [1])
+        refresh_face_clusters(gallery)
+        for path_of, content in previous.items():
+            path_of(gallery).write_bytes(content)
+
+        result = refresh_face_clusters(gallery)
+
+        assert (result.mode, result.total_faces) == (FaceRefreshMode.FULL, 2)
+        _assert_check_passes(gallery)

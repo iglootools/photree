@@ -13,8 +13,10 @@ from photree.album.faces.protocol import FACES_DIR
 from photree.album.store.album_discovery import discover_albums
 from photree.album.store.metadata import load_album_metadata
 from photree.foundation.layout import ALBUMS_DIR, PHOTREE_DIR
+from photree.gallery.faces.clustering import load_faiss_index
 from photree.gallery.faces.manifest import (
     compute_npz_checksum,
+    faiss_index_path,
     load_checksums,
     load_clusters,
     load_manifest,
@@ -39,6 +41,14 @@ class FaceCountMismatch:
 
 
 @dataclass(frozen=True)
+class FaceIndexSizeMismatch:
+    """The FAISS index holds a different number of rows than the manifest."""
+
+    index_rows: int
+    manifest_size: int
+
+
+@dataclass(frozen=True)
 class AlbumFaceDataNotIndexed:
     """An album's face data was never ingested into the gallery index."""
 
@@ -57,6 +67,7 @@ class AlbumFaceDataChanged:
 type FaceClusterIssue = (
     ClusterIndexOutOfBounds
     | FaceCountMismatch
+    | FaceIndexSizeMismatch
     | AlbumFaceDataNotIndexed
     | AlbumFaceDataChanged
 )
@@ -87,6 +98,7 @@ def check_face_clusters(gallery_dir: Path) -> FaceClusterCheck | None:
         issues=(
             *_index_bounds_issues(clusters, manifest_size),
             *_face_count_issues(clusters, manifest_size),
+            *_index_size_issues(gallery_dir, manifest_size),
             *_album_checksum_issues(gallery_dir),
         ),
     )
@@ -115,6 +127,22 @@ def _face_count_issues(
     return (
         [FaceCountMismatch(recorded=clusters.face_count, manifest_size=manifest_size)]
         if clusters.face_count != manifest_size
+        else []
+    )
+
+
+def _index_size_issues(gallery_dir: Path, manifest_size: int) -> list[FaceClusterIssue]:
+    """
+    Report a FAISS index whose row count differs from the manifest size.
+
+    Row *i* of the index is face *i* of the manifest, so any difference
+    misplaces every face a later refresh assigns.
+    """
+    index = load_faiss_index(faiss_index_path(gallery_dir))
+    index_rows = index.ntotal if index is not None else 0
+    return (
+        [FaceIndexSizeMismatch(index_rows=index_rows, manifest_size=manifest_size)]
+        if index_rows != manifest_size
         else []
     )
 

@@ -1010,6 +1010,12 @@ An image needs re-processing when:
       album-checksums.yaml    # tracks ingested album face data
 ```
 
+A refresh writes the four files beside their targets, then renames them into
+place, checksums last, so an interrupted save keeps the previous state. If the
+files still disagree (an interruption between the renames, or a gallery saved
+by an older photree), the next refresh re-clusters everything instead of
+adding faces to them.
+
 #### Clustering Algorithm
 
 Agglomerative clustering with cosine distance and average linkage:
@@ -1040,6 +1046,10 @@ library scale (<50k faces), exact search is instant (~1ms).
   with medoid-based UUID matching to preserve cluster identity.
 - **Threshold change**: Triggers full re-cluster (reuses existing
   FAISS index).
+- **No clustered faces yet** (first run, or every face removed): Full
+  cluster, so the new faces are grouped with each other rather than each
+  starting its own cluster. Removing every face leaves an empty FAISS
+  index, never the old rows.
 
 #### Cluster UUID Stability
 

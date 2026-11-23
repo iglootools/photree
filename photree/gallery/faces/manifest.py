@@ -8,7 +8,10 @@ full re-cluster that mints fresh cluster UUIDs and loses every identity.
 """
 
 import hashlib
+from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
@@ -18,6 +21,7 @@ from photree.foundation.metadata_io import (
     validate_metadata,
     write_yaml,
 )
+from photree.gallery.faces.clustering import save_faiss_index
 from photree.gallery.faces.protocol import (
     FACE_CHECKSUMS_FILE,
     FACE_CLUSTERS_FILE,
@@ -28,6 +32,9 @@ from photree.gallery.faces.protocol import (
     FaceClusteringResult,
     FaceManifest,
 )
+
+if TYPE_CHECKING:
+    import faiss
 
 
 def gallery_faces_dir(gallery_dir: Path) -> Path:
@@ -77,11 +84,6 @@ def load_manifest(gallery_dir: Path) -> FaceManifest | None:
     return _load_yaml(manifest_path(gallery_dir), FaceManifest)
 
 
-def save_manifest(gallery_dir: Path, manifest: FaceManifest) -> None:
-    """Write *manifest* as the gallery's face manifest, creating its directory."""
-    _save_yaml(manifest_path(gallery_dir), manifest)
-
-
 def load_clusters(gallery_dir: Path) -> FaceClusteringResult | None:
     """
     Read the gallery's face clusters, or ``None`` if they do not exist.
@@ -90,11 +92,6 @@ def load_clusters(gallery_dir: Path) -> FaceClusteringResult | None:
     file is corrupt.
     """
     return _load_yaml(clusters_path(gallery_dir), FaceClusteringResult)
-
-
-def save_clusters(gallery_dir: Path, result: FaceClusteringResult) -> None:
-    """Write *result* as the gallery's face clusters, creating its directory."""
-    _save_yaml(clusters_path(gallery_dir), result)
 
 
 def load_checksums(gallery_dir: Path) -> AlbumFaceChecksums | None:
@@ -110,6 +107,42 @@ def load_checksums(gallery_dir: Path) -> AlbumFaceChecksums | None:
 def save_checksums(gallery_dir: Path, checksums: AlbumFaceChecksums) -> None:
     """Write *checksums* as the gallery's per-album face checksums, making its dir."""
     _save_yaml(checksums_path(gallery_dir), checksums)
+
+
+@dataclass(frozen=True)
+class GalleryFaceState:
+    """Everything a clustering refresh saves, which only makes sense together."""
+
+    index: faiss.IndexFlatIP
+    manifest: FaceManifest
+    clusters: FaceClusteringResult
+    checksums: AlbumFaceChecksums
+
+
+def save_face_state(gallery_dir: Path, state: GalleryFaceState) -> None:
+    """
+    Save *state*'s four files so that an interrupted save keeps the previous ones.
+
+    Each file is written beside its target first, then all are renamed into
+    place, checksums last. Writing takes as long as the index is large, and an
+    interruption then leaves the previous state whole, cluster IDs included;
+    only one between the renames leaves a mix, which the next refresh detects
+    and re-clusters.
+    """
+    writes: tuple[tuple[Path, Callable[[Path], None]], ...] = (
+        (faiss_index_path(gallery_dir), lambda p: save_faiss_index(state.index, p)),
+        (manifest_path(gallery_dir), lambda p: _save_yaml(p, state.manifest)),
+        (clusters_path(gallery_dir), lambda p: _save_yaml(p, state.clusters)),
+        (checksums_path(gallery_dir), lambda p: _save_yaml(p, state.checksums)),
+    )
+    for path, write in writes:
+        write(_staging_path(path))
+    for path, _ in writes:
+        _staging_path(path).replace(path)
+
+
+def _staging_path(path: Path) -> Path:
+    return path.with_name(f"{path.name}.tmp")
 
 
 def compute_npz_checksum(npz_path: Path) -> str:
