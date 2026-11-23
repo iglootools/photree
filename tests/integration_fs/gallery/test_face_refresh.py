@@ -147,3 +147,55 @@ class TestCheckFaceClusters:
 
     def test_no_clustering_data_is_not_checked(self, tmp_path: Path) -> None:
         assert check_face_clusters(_setup_gallery(tmp_path)) is None
+
+
+def _faces_by_cluster_id(gallery: Path) -> dict[str, list[int]]:
+    clusters = load_clusters(gallery)
+    assert clusters is not None
+    return {c.id: c.face_indices for c in clusters.clusters}
+
+
+def _assert_check_passes(gallery: Path) -> None:
+    check = check_face_clusters(gallery)
+    assert check is not None
+    assert check.issues == ()
+
+
+class TestIncrementalRefresh:
+    def test_new_faces_join_existing_clusters_and_keep_their_ids(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = _setup_gallery(tmp_path)
+        _setup_album_with_faces(gallery, "2024-07-14 - Trip", [0, 1])
+        new_id = _counter_ids()
+        refresh_face_clusters(gallery, new_id=new_id)
+        before = _faces_by_cluster_id(gallery)
+        _setup_album_with_faces(gallery, "2024-07-15 - Beach", [0, 2])
+
+        result = refresh_face_clusters(gallery, new_id=new_id)
+
+        (same_person_id,) = (cid for cid, faces in before.items() if 0 in faces)
+        assert result.mode is FaceRefreshMode.INCREMENTAL
+        assert (result.total_faces, result.new_faces) == (4, 2)
+        assert _faces_by_cluster_id(gallery) == {
+            **before,
+            same_person_id: [*before[same_person_id], 2],
+            "cluster-2": [3],
+        }
+        _assert_check_passes(gallery)
+
+    def test_refresh_after_incremental_refresh_does_nothing(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = _setup_gallery(tmp_path)
+        _setup_album_with_faces(gallery, "2024-07-14 - Trip", [0])
+        refresh_face_clusters(gallery)
+        _setup_album_with_faces(gallery, "2024-07-15 - Beach", [1])
+        refresh_face_clusters(gallery)
+
+        result = refresh_face_clusters(gallery)
+
+        assert result.mode is FaceRefreshMode.NONE
+        assert result.total_faces == 2
