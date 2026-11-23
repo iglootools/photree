@@ -62,9 +62,11 @@ class TestValidationGate:
         result = runner.invoke(
             app,
             ["gallery", "import-all", "-d", str(base), "-g", str(gallery)],
+            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 1
+        assert "date collision on 2024-07-14" in result.output
         assert not (gallery / "albums").exists()
 
     def test_bad_name_aborts(self, tmp_path: Path) -> None:
@@ -74,9 +76,11 @@ class TestValidationGate:
         result = runner.invoke(
             app,
             ["gallery", "import", "-a", str(source), "-g", str(gallery)],
+            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 1
+        assert "not-an-album-name — naming:" in result.output
         assert not (gallery / "albums").exists()
 
 
@@ -118,9 +122,12 @@ class TestClobberGuard:
         result = runner.invoke(
             app,
             ["gallery", "import", "-a", str(source), "-g", str(gallery), "--reimport"],
+            obj=ALL_DEPS_RUNTIME,
         )
 
         assert result.exit_code == 1
+        assert "a different album already occupies" in result.output
+        assert "Rename the source album before importing." in result.output
 
 
 class TestDryRun:
