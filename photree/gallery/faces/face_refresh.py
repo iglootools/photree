@@ -13,9 +13,9 @@ import numpy as np
 
 from photree.album.faces.protocol import EMBEDDING_DIM, FACES_DIR
 from photree.album.faces.store import load_face_data, read_face_count
-from photree.album.store.album_discovery import discover_albums
+from photree.album.store.album_discovery import discover_gallery_albums
 from photree.album.store.metadata import load_album_metadata
-from photree.foundation.layout import ALBUMS_DIR, PHOTREE_DIR
+from photree.foundation.layout import PHOTREE_DIR
 from photree.gallery.faces.clustering import (
     add_to_index,
     assign_to_nearest_cluster,
@@ -393,7 +393,7 @@ def _assign_new_faces(
 
 def _scan_face_data(gallery_dir: Path) -> _ChangeSet:
     """Scan all albums and compute which face sources changed."""
-    album_dirs = discover_albums(gallery_dir / ALBUMS_DIR)
+    album_dirs = discover_gallery_albums(gallery_dir)
     existing_checksums = load_checksums(gallery_dir) or AlbumFaceChecksums()
     return _compute_changes(album_dirs, existing_checksums)
 

@@ -5,13 +5,13 @@ from typing import Annotated
 
 import typer
 
-from photree.album.store.album_discovery import discover_albums
+from photree.album.store.album_discovery import discover_gallery_albums
 from photree.clihelpers.resolution import resolve_gallery_or_exit
 from photree.clihelpers.runtime import runtime_of
 from photree.common.formatting import indent
 from photree.common.fs import display_path
 from photree.foundation.gallery_metadata import GALLERY_YAML, load_gallery_metadata
-from photree.foundation.layout import ALBUMS_DIR, PHOTREE_DIR
+from photree.foundation.layout import PHOTREE_DIR
 from photree.gallery.cli.app import app
 
 
@@ -38,7 +38,7 @@ def show_cmd(
     cwd = runtime.cwd()
     resolved = resolve_gallery_or_exit(gallery_dir, cwd=cwd)
     metadata = load_gallery_metadata(resolved / PHOTREE_DIR / GALLERY_YAML)
-    albums = discover_albums(resolved / ALBUMS_DIR)
+    albums = discover_gallery_albums(resolved)
 
     typer.echo(
         "\n".join(

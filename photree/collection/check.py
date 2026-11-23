@@ -18,7 +18,7 @@ from enum import StrEnum
 from pathlib import Path
 
 from photree.album.naming import ParsedAlbumName, parse_album_name
-from photree.album.store.album_discovery import discover_albums
+from photree.album.store.album_discovery import discover_gallery_albums
 from photree.album.store.media_metadata import MediaMetadata, load_media_metadata
 from photree.album.store.metadata import load_album_metadata
 from photree.album.store.protocol import AlbumMetadata
@@ -34,7 +34,7 @@ from photree.collection.store.protocol import (
     is_valid_collection_config,
 )
 from photree.dates import date_range, range_contains, ranges_overlap
-from photree.foundation.layout import ALBUMS_DIR, COLLECTIONS_DIR
+from photree.foundation.layout import COLLECTIONS_DIR
 from photree.foundation.metadata_io import InvalidMetadataError
 
 
@@ -197,7 +197,7 @@ def _scan_albums(gallery_dir: Path) -> tuple[list[_AlbumEntry], tuple[Path, ...]
     """
     scanned = [
         (album_dir, _scan_album(album_dir))
-        for album_dir in discover_albums(gallery_dir / ALBUMS_DIR)
+        for album_dir in discover_gallery_albums(gallery_dir)
     ]
     return (
         [s.entry for _, s in scanned if s.entry is not None],

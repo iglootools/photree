@@ -18,7 +18,7 @@ from operator import attrgetter
 from pathlib import Path
 
 from photree.album.naming import parse_album_name
-from photree.album.store.album_discovery import discover_albums
+from photree.album.store.album_discovery import discover_gallery_albums
 from photree.album.store.media_metadata import load_media_metadata
 from photree.album.store.media_source import MediaSource
 from photree.album.store.media_sources_discovery import discover_media_sources
@@ -27,7 +27,7 @@ from photree.collection.naming import parse_collection_name, parse_collection_ye
 from photree.collection.store.collection_discovery import discover_collections
 from photree.collection.store.metadata import load_collection_metadata
 from photree.collection.store.protocol import CollectionMetadata, CollectionStrategy
-from photree.foundation.layout import ALBUMS_DIR, BROWSABLE_DIR, COLLECTIONS_DIR
+from photree.foundation.layout import BROWSABLE_DIR, COLLECTIONS_DIR
 from photree.foundation.metadata_io import read_or_none
 
 
@@ -232,7 +232,7 @@ def _scan_album_entries(
     tuple[BrowsableRefreshError, ...],
 ]:
     """Scan albums and build album + media location lookups."""
-    results = [_try_scan_album(d) for d in discover_albums(gallery_dir / ALBUMS_DIR)]
+    results = [_try_scan_album(d) for d in discover_gallery_albums(gallery_dir)]
     albums = {r.album_id: r for r in results if isinstance(r, _AlbumEntry)}
     media_locations = {
         mid: loc

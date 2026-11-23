@@ -14,7 +14,7 @@ from photree.album.exporter.settings import (
     resolve_export_settings,
     validate_export_settings,
 )
-from photree.album.store.album_discovery import discover_albums
+from photree.album.store.album_discovery import discover_gallery_albums
 from photree.clihelpers.config_errors import format_config_error
 from photree.clihelpers.console import err_console
 from photree.clihelpers.options import (
@@ -31,7 +31,6 @@ from photree.clihelpers.resolution import resolve_gallery_or_exit
 from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.usage import mutually_exclusive_error
 from photree.config import ConfigError, PhotreeConfig
-from photree.foundation.layout import ALBUMS_DIR
 from photree.foundation.linking import LinkMode
 from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 from photree.gallery.cli.app import app
@@ -175,7 +174,7 @@ def _resolve_albums(
             return _batch.find_export_dirs(scan_dir)
         case _:
             gallery = resolve_gallery_or_exit(gallery_dir, cwd=cwd)
-            return discover_albums(gallery / ALBUMS_DIR)
+            return discover_gallery_albums(gallery)
 
 
 def _export(
