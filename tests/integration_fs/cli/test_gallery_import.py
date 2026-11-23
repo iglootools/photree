@@ -42,12 +42,14 @@ def _write(path: Path, content: str = "data") -> None:
 def _setup_gallery(
     tmp_path: Path,
     link_mode: LinkMode = LinkMode.HARDLINK,
+    *,
+    faces_enabled: bool = False,
 ) -> Path:
     gallery = tmp_path / "gallery"
     gallery.mkdir()
     save_gallery_metadata(
         gallery,
-        GalleryMetadata(link_mode=link_mode, faces_enabled=False),
+        GalleryMetadata(link_mode=link_mode, faces_enabled=faces_enabled),
     )
     return gallery
 
@@ -250,6 +252,23 @@ class TestImport:
         assert "model exploded" in result.output
         assert (gallery / "albums" / "2024" / "2024-07-14 - Hiking").is_dir()
 
+    def test_incomplete_derived_data_still_clusters_faces(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Regression: the command exited before clustering the placed album."""
+        gallery = _setup_gallery(tmp_path, faces_enabled=True)
+        source = _make_source(tmp_path / "src", "2024-07-14 - Hiking")
+
+        result = runner.invoke(
+            app,
+            ["gallery", "import", "-a", str(source), "-g", str(gallery)],
+            obj=_runtime_refreshing_with(_refresh_with_face_failure),
+        )
+
+        assert result.exit_code == 1
+        assert "face clustering" in result.output
+
     def test_failed_post_import_check_fails(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)
         source = _make_source(tmp_path / "src", "2024-07-14 - Hiking")
@@ -307,6 +326,26 @@ class TestImportAll:
 
         assert result.exit_code == 0, result.output
         assert "Done. 2 album(s) imported, 0 failed." in result.output
+
+    def test_incomplete_derived_data_still_clusters_faces(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Regression: with no album imported cleanly, clustering was skipped."""
+        gallery = _setup_gallery(tmp_path, faces_enabled=True)
+        base = tmp_path / "incoming"
+        _make_source(base, "2024-07-14 - Hiking")
+
+        result = runner.invoke(
+            app,
+            ["gallery", "import-all", "-d", str(base), "-g", str(gallery)],
+            obj=_runtime_refreshing_with(_refresh_with_face_failure),
+        )
+
+        assert result.exit_code == 1
+        assert "face clustering" in result.output
+        assert "Post-Import Check:" not in result.output
+        assert "0 album(s) imported, 1 failed." in result.output
 
     def test_failed_post_import_check_fails_the_run(self, tmp_path: Path) -> None:
         gallery = _setup_gallery(tmp_path)

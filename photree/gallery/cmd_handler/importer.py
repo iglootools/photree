@@ -135,6 +135,19 @@ class BatchImportResult:
     imported: tuple[Path, ...] = ()
     failures: tuple[AlbumImportFailure, ...] = ()
 
+    @property
+    def placed(self) -> tuple[Path, ...]:
+        """
+        Return the sources now in the gallery: imported, cleanly or not.
+
+        An album whose JPEGs or face detection partly failed is a failure, but
+        it was placed; only one whose import raised was not.
+        """
+        return (
+            *self.imported,
+            *(f.source for f in self.failures if f.error is None),
+        )
+
 
 def _import_one(
     plan: AlbumPlan,

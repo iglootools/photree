@@ -15,6 +15,7 @@ from photree.gallery.cli.app import app
 from photree.gallery.cli.face_ops import cluster_faces_if_enabled
 from photree.gallery.cli.import_ops import (
     plan_imports_or_exit,
+    post_import_check,
     print_single_import_result,
     render_skipped,
     run_single_import,
@@ -101,13 +102,19 @@ def import_cmd(
         refresh=runtime.refresh,
         cwd=cwd,
     )
-    print_single_import_result(
-        result,
-        cwd,
-        link_mode=resolved_lm,
-        dry_run=dry_run,
-        which=which,
+    print_single_import_result(result, cwd, dry_run=dry_run)
+    passed = result.complete and (
+        dry_run
+        or post_import_check(
+            result.target_dir,
+            cwd,
+            link_mode=resolved_lm,
+            which=which,
+        )
     )
-
+    # The album is in the gallery even when it failed, so cluster its faces
+    # before exiting.
     if not dry_run:
         cluster_faces_if_enabled(resolved_gallery)
+    if not passed:
+        raise typer.Exit(code=1)

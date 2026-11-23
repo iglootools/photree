@@ -136,13 +136,14 @@ def import_all_cmd(
         refresh=runtime.refresh,
         cwd=cwd,
     )
-    mutated = not dry_run and bool(result.imported)
+    # Albums whose derived data is incomplete failed, and are not checked
+    # again, but they are in the gallery: their faces are clustered.
     check_failed = (
         _post_import_check(to_import, result, cwd, link_mode=resolved_lm, which=which)
-        if mutated
+        if not dry_run and result.imported
         else []
     )
-    if mutated:
+    if not dry_run and result.placed:
         cluster_faces_if_enabled(resolved_gallery)
 
     typer.echo(

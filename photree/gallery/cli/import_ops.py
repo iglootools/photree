@@ -123,11 +123,9 @@ def print_single_import_result(
     result: AlbumImportResult,
     cwd: Path,
     *,
-    link_mode: LinkMode,
     dry_run: bool,
-    which: WhichFn,
 ) -> None:
-    """Display import result and run post-import preflight check."""
+    """Display the import result, and what derived data it lacks, if any."""
     if not dry_run:
         meta = load_album_metadata(result.target_dir)
         if meta is not None:
@@ -143,21 +141,17 @@ def print_single_import_result(
                 str(display_path(result.target_dir, cwd)),
             ),
         )
-        raise typer.Exit(code=1)
-
-    if not dry_run:
-        _post_import_check(result.target_dir, cwd, link_mode=link_mode, which=which)
 
 
-def _post_import_check(
+def post_import_check(
     target_dir: Path,
     cwd: Path,
     *,
     link_mode: LinkMode,
     which: WhichFn,
-) -> None:
+) -> bool:
     """
-    Run the preflight check on a freshly imported album; exit 1 on failure.
+    Run the preflight check on a freshly imported album; return whether it passed.
 
     *link_mode* is the one the import ran with, so a ``--link-mode`` override
     is checked as such rather than against the gallery's default.
@@ -178,7 +172,7 @@ def _post_import_check(
             f'"{display_path(target_dir, cwd)}"\'.',
             markup=False,
         )
-        raise typer.Exit(code=1)
+    return check_result.success
 
 
 def resolve_import_all_albums(
