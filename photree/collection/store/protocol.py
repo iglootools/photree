@@ -9,6 +9,15 @@ from photree.foundation.model import PhotreeModel
 COLLECTION_YAML = "collection.yaml"
 
 
+class MemberType(StrEnum):
+    """Kind of a collection member: which of the member lists holds it."""
+
+    ALBUM = "album"
+    COLLECTION = "collection"
+    IMAGE = "image"
+    VIDEO = "video"
+
+
 class CollectionMembers(StrEnum):
     """How members are selected."""
 
