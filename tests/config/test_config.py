@@ -5,6 +5,7 @@ The loader takes its environment (``environ``, ``home``, platformdirs
 lookups) as parameters, so these tests pass values instead of patching.
 """
 
+import os
 from pathlib import Path
 from textwrap import dedent
 
@@ -63,6 +64,15 @@ class TestConfigSearchPaths:
 
     def test_default_xdg_when_unset(self, tmp_path: Path) -> None:
         paths = config_search_paths(environ={}, home=tmp_path)
+        assert paths[0] == tmp_path / ".config" / "photree" / "config.toml"
+
+    @pytest.mark.parametrize("xdg", ["", "relative/dir"])
+    def test_default_xdg_when_empty_or_relative(
+        self,
+        tmp_path: Path,
+        xdg: str,
+    ) -> None:
+        paths = config_search_paths(environ={"XDG_CONFIG_HOME": xdg}, home=tmp_path)
         assert paths[0] == tmp_path / ".config" / "photree" / "config.toml"
 
 
@@ -125,6 +135,29 @@ class TestLoadConfig:
         error = _load_error(tmp_path, "invalid = [unclosed\n")
         assert error.kind == ConfigErrorKind.INVALID_TOML
         assert error.path == tmp_path / "config.toml"
+
+    def test_file_that_is_not_utf8_is_invalid_toml(self, tmp_path: Path) -> None:
+        cfg_file = tmp_path / "config.toml"
+        cfg_file.write_bytes(b'[importer]\nimage-capture-dir = "\xff"\n')
+        with pytest.raises(ConfigError) as exc_info:
+            load_config(str(cfg_file))
+        assert exc_info.value.kind == ConfigErrorKind.INVALID_TOML
+        assert exc_info.value.path == cfg_file
+
+    @pytest.mark.skipif(
+        os.geteuid() == 0,
+        reason="root reads a file whatever its permissions",
+    )
+    def test_unreadable_file(self, tmp_path: Path) -> None:
+        cfg_file = Path(_write_config(tmp_path, "[importer]\n"))
+        cfg_file.chmod(0)
+        try:
+            with pytest.raises(ConfigError) as exc_info:
+                load_config(str(cfg_file))
+        finally:
+            cfg_file.chmod(0o600)
+        assert exc_info.value.kind == ConfigErrorKind.UNREADABLE_FILE
+        assert exc_info.value.path == cfg_file
 
     def test_parses_single_profile(self, tmp_path: Path) -> None:
         cfg_file = _write_config(
@@ -241,6 +274,56 @@ class TestLoadConfig:
     def test_empty_profiles_section(self, tmp_path: Path) -> None:
         cfg = load_config(_write_config(tmp_path, "[exporter]\n"))
         assert cfg.exporter.profiles == {}
+
+
+class TestLoadConfigUnknownKeys:
+    def test_unknown_key_in_profile(self, tmp_path: Path) -> None:
+        error = _load_error(
+            tmp_path,
+            """\
+            [exporter.profiles.mega]
+            share-dir = "/mnt/share"
+            link_mode = "copy"
+            """,
+        )
+        assert error.kind == ConfigErrorKind.UNKNOWN_KEY
+        assert error.field == "link_mode"
+        assert error.profile == "mega"
+
+    def test_unknown_key_in_importer(self, tmp_path: Path) -> None:
+        error = _load_error(tmp_path, '[importer]\nimage-capture = "/x"\n')
+        assert error.kind == ConfigErrorKind.UNKNOWN_KEY
+        assert error.field == "importer.image-capture"
+        assert error.profile is None
+
+    def test_unknown_key_in_exporter(self, tmp_path: Path) -> None:
+        error = _load_error(tmp_path, "[exporter.profile.mega]\n")
+        assert error.kind == ConfigErrorKind.UNKNOWN_KEY
+        assert error.field == "exporter.profile"
+
+    def test_unknown_top_level_table(self, tmp_path: Path) -> None:
+        error = _load_error(tmp_path, '[exporters.profiles.mega]\nshare-dir = "/x"\n')
+        assert error.kind == ConfigErrorKind.UNKNOWN_KEY
+        assert error.field == "exporters"
+
+    def test_every_documented_key_is_accepted(self, tmp_path: Path) -> None:
+        cfg = load_config(
+            _write_config(
+                tmp_path,
+                """\
+                [importer]
+                image-capture-dir = "/ic"
+
+                [exporter.profiles.mega]
+                share-dir = "/mnt/share"
+                share-layout = "albums"
+                album-layout = "all"
+                link-mode = "copy"
+                """,
+            ),
+        )
+        assert cfg.importer.image_capture_dir == Path("/ic")
+        assert cfg.exporter.profiles["mega"].link_mode == LinkMode.COPY
 
 
 class TestLoadConfigTypeErrors:

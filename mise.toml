@@ -207,6 +207,7 @@ run = [
   { task = "lint-lock-uv" },
   { task = "lint-toc" },
   { task = "lint-clidocs" },
+  { task = "lint-configdocs" },
   { task = "lint-depgraph" },
   { task = "lint-renovate" },
   { task = "lint-common-pins" },
@@ -239,7 +240,7 @@ run = "rumdl check ."
 
 [tasks.lint-ruff]
 description = "Lint the Python with ruff"
-run = "uv run --no-sync ruff check photree/ tests/"
+run = "uv run --no-sync ruff check photree/ tests/ build-scripts/"
 
 [tasks.lint-types]
 description = "Type-check with pyright"
@@ -253,7 +254,7 @@ run = "uv run --no-sync lint-imports"
 
 [tasks.lint-dead-code]
 description = "Check for unused code (deadcode, configured in pyproject.toml)"
-run = "uv run --no-sync deadcode photree tests"
+run = "uv run --no-sync deadcode photree tests build-scripts"
 
 # The uv.lock counterpart of lint-lock-mise, and the replacement for `poetry check --lock`:
 # asserts uv.lock is consistent with pyproject.toml. Distinct from UV_LOCKED in CI, which
@@ -293,6 +294,7 @@ run = "uv run --no-sync iglootools demo upload"
 description = "Regenerate the reference documentation"
 run = [
   { task = "clidocs" },
+  { task = "configdocs" },
   { task = "depgraph" },
 ]
 
@@ -311,6 +313,16 @@ run = "uv run --no-sync iglootools docs cli"
 [tasks.lint-clidocs]
 description = "Check that the CLI reference in docs/cli-reference.md is up to date (fix with `mise run clidocs`)"
 run = "uv run --no-sync iglootools docs cli --check"
+
+# The config models are photree's own, so the generator is a project script rather than
+# an iglootools command (guidelines/documentation/layout.md in iglootools/common).
+[tasks.configdocs]
+description = "Regenerate the config field tables in docs/config-reference.md"
+run = "uv run --no-sync python build-scripts/configdocs.py"
+
+[tasks.lint-configdocs]
+description = "Check that the config field tables in docs/config-reference.md are up to date (fix with `mise run configdocs`)"
+run = "uv run --no-sync python build-scripts/configdocs.py --check"
 
 [tasks.depgraph]
 description = "Regenerate Module Overview in docs/architecture.md"
