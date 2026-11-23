@@ -97,6 +97,18 @@ class TestCheckRenameCollisions:
                 (_action(a, "2024-01-01 - C"), _action(b, "2024-01-01 - C")),
             )
 
+    def test_case_only_rename_does_not_collide(self, tmp_path: Path) -> None:
+        # Regression: on a case-insensitive filesystem (macOS by default) the
+        # new spelling already exists, as the album itself, and was refused.
+        a = _album(tmp_path, "2024-01-01 - trip")
+        action = _action(a, "2024-01-01 - Trip")
+        check_rename_collisions((action,))
+
+        result = execute_renames((action,))
+
+        assert result.failure is None
+        assert [p.name for p in tmp_path.iterdir()] == ["2024-01-01 - Trip"]
+
 
 class TestValidateRenameCsvColumns:
     def test_header_with_extra_columns_is_valid(self) -> None:

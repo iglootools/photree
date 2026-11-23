@@ -219,7 +219,9 @@ def check_rename_collisions(actions: tuple[RenameAction, ...]) -> None:
     Raises :class:`RenameCollisionError` if any target conflicts with an
     existing directory that is not itself being renamed, or if two renames
     share a target. Swaps (A↔B) and chains (A→B→C) are fine:
-    :func:`execute_renames` moves everything aside before placing it.
+    :func:`execute_renames` moves everything aside before placing it. So is a
+    change of case alone on a case-insensitive filesystem, where the target
+    already exists as the album itself.
     """
     renamed_resolved = {a.album_path.resolve() for a in actions}
     target_counts = Counter(a.target.resolve() for a in actions)
@@ -230,7 +232,10 @@ def check_rename_collisions(actions: tuple[RenameAction, ...]) -> None:
             if target_counts[action.target.resolve()] > 1
             or (
                 action.target.exists()
-                and action.target.resolve() != action.album_path.resolve()
+                # Not a resolve() comparison: it keeps the spelling it is
+                # given, so on a case-insensitive filesystem "2024 - Trip"
+                # and "2024 - trip" differ though they are one directory.
+                and not action.target.samefile(action.album_path)
                 and action.target.resolve() not in renamed_resolved
             )
         ),
