@@ -367,6 +367,13 @@ class TestYamlMetadataIO:
             load_yaml_mapping(path)
         assert info.value.path == path
 
+    def test_file_that_is_not_utf8_raises(self, tmp_path: Path) -> None:
+        path = tmp_path / "bad.yaml"
+        path.write_bytes(b"title: \xff\n")
+        with pytest.raises(InvalidMetadataError) as info:
+            load_yaml_mapping(path)
+        assert info.value.path == path
+
     def test_corrupt_gallery_yaml_raises(self, tmp_path: Path) -> None:
         path = tmp_path / "gallery.yaml"
         path.write_text("link-mode: teleport\n", encoding="utf-8")

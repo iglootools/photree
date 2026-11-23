@@ -617,12 +617,11 @@ Every `.photree/*.yaml` reader (`foundation.metadata_io.load_yaml_mapping` /
 
 - **Absent** — the file does not exist. Commands that create metadata
   (`album init`, `fix --id`, refresh of media IDs) may write it.
-- **Present but unusable** — empty, truncated, not a YAML mapping, or failing
-  validation. This raises `InvalidMetadataError` and the command stops,
-  printing the file and the reason. photree never regenerates such a file:
-  a fresh `album.yaml`, `media-ids/*.yaml`, `collection.yaml` or
-  `clusters.yaml` would carry fresh IDs and silently orphan every reference to
-  the old ones.
+- **Present but unusable** — empty, truncated, not UTF-8, not a YAML mapping, or
+  failing validation. This raises `InvalidMetadataError` and the command stops,
+  printing the file and the reason. photree never regenerates such a file: a
+  fresh `album.yaml`, `media-ids/*.yaml`, `collection.yaml` or `clusters.yaml`
+  would carry fresh IDs and silently orphan every reference to the old ones.
 
 ## EXIF Metadata
 

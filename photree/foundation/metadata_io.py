@@ -36,13 +36,15 @@ def load_yaml_mapping(path: Path) -> dict[str, object] | None:
     Read a YAML mapping, or ``None`` if *path* does not exist.
 
     Raises :class:`InvalidMetadataError` when the file exists but is not
-    parseable YAML or does not hold a mapping (empty and truncated files
-    included).
+    UTF-8, is not parseable YAML or does not hold a mapping (empty and
+    truncated files included).
     """
     if not path.is_file():
         return None
     try:
         raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except UnicodeDecodeError as exc:
+        raise InvalidMetadataError(path, f"not valid UTF-8 ({exc})") from exc
     except yaml.YAMLError as exc:
         raise InvalidMetadataError(path, f"not valid YAML ({exc})") from exc
     if not isinstance(raw, dict):
