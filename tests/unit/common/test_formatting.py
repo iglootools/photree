@@ -1,6 +1,11 @@
 from rich.console import Console
 
-from photree.common.formatting import CHECK, DRY_RUN_LABEL, format_dry_run
+from photree.common.formatting import (
+    CHECK,
+    DRY_RUN_LABEL,
+    format_dry_run,
+    format_flags,
+)
 
 
 class TestFormatDryRun:
@@ -19,3 +24,14 @@ class TestFormatDryRun:
         console = Console(record=True, width=80)
         console.print(format_dry_run(f"{CHECK} done", dry_run=True, markup=True))
         assert console.export_text() == "[dry-run] ✓ done\n"
+
+
+class TestFormatFlags:
+    def test_only_set_flags_are_kept_in_order(self) -> None:
+        assert (
+            format_flags([("--id", True), ("--force", False), ("--dry-run", True)])
+            == " --id --dry-run"
+        )
+
+    def test_no_flag_set_is_empty(self) -> None:
+        assert format_flags([("--id", False)]) == ""

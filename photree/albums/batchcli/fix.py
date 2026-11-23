@@ -15,7 +15,7 @@ from photree.albums.cmd_handler.fix import batch_fix
 from photree.albums.cmd_handler.fix_ios import batch_fix_ios
 from photree.clihelpers.console import console
 from photree.clihelpers.progress import BatchProgressBar
-from photree.common.formatting import format_dry_run
+from photree.common.formatting import format_dry_run, format_flags
 
 
 def _print_reports(reports: tuple[tuple[str, str], ...]) -> None:
@@ -67,17 +67,15 @@ def run_batch_fix(
     )
     # The single-album retry must carry the same fixes, or it only prints
     # "No fix specified".
-    retry_flags = "".join(
-        flag
-        for flag, enabled in (
-            (" --id", fix_id),
-            (" --new-id", new_id),
-            (" --rm-upstream", rm_upstream),
-            (" --rm-orphan", rm_orphan),
-            (" --force", force),
-            (" --dry-run", dry_run),
-        )
-        if enabled
+    retry_flags = format_flags(
+        [
+            ("--id", fix_id),
+            ("--new-id", new_id),
+            ("--rm-upstream", rm_upstream),
+            ("--rm-orphan", rm_orphan),
+            ("--force", force),
+            ("--dry-run", dry_run),
+        ],
     )
     exit_with_failures(result.failures, "fix", cwd, extra_flags=retry_flags)
 

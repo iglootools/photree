@@ -5,6 +5,7 @@ All constants use Rich markup and must be printed via ``console.print``.
 """
 
 import textwrap
+from collections.abc import Iterable
 
 from rich.markup import escape
 
@@ -57,6 +58,17 @@ def format_dry_run(text: str, *, dry_run: bool, markup: bool = False) -> str:
     body = text.lstrip("\n")
     label = markup_escape(DRY_RUN_LABEL) if markup else DRY_RUN_LABEL
     return f"{text[: len(text) - len(body)]}{label} {body}" if dry_run else text
+
+
+def format_flags(flags: Iterable[tuple[str, bool]]) -> str:
+    """
+    Return the command-line flags that are set, each after a space.
+
+    *flags* pairs each flag (``"--dry-run"``) with whether the run used it,
+    so a suggested follow-up command repeats the options of the run that
+    printed it. Returns ``""`` when none is set.
+    """
+    return "".join(f" {flag}" for flag, enabled in flags if enabled)
 
 
 def rich_warning_text(text: str) -> str:
