@@ -61,7 +61,7 @@ mise run demo-upload-latest # upload the demo CI recorded (see Release Process)
 # Running tools directly
 uv run --no-sync pytest tests/ -v                         # all tests
 uv run --no-sync ruff format .                            # formatting
-uv run --no-sync ruff check photree/ tests/ build-scripts/   # linting
+uv run --no-sync ruff check .                             # linting
 uv run --no-sync pyright                                  # type-checking, strict, tests included
 uv run --no-sync lint-imports                             # module boundaries
 uv run --no-sync pytest tests/integration_fs/cli/test_cli.py::TestVersionCommand::test_version_flag -v   # run a single test
