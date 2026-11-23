@@ -58,13 +58,6 @@ def compute_browsable_files(
     )
 
 
-_LINK_MODE_VERBS: dict[LinkMode, str] = {
-    LinkMode.COPY: "copy",
-    LinkMode.HARDLINK: "hardlink",
-    LinkMode.SYMLINK: "symlink",
-}
-
-
 class CrossDeviceHardlinkError(OSError):
     """A hardlink was asked for between two filesystems, which cannot hold one."""
 

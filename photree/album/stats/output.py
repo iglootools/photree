@@ -35,20 +35,37 @@ _SIZE_STYLE = "cyan"
 _TABLE_BOX = rich.box.SIMPLE
 
 
-def _format_bytes(n: int) -> str:
-    """Format *n* bytes as a human-readable string using binary (1024) units."""
+def format_bytes(n: int) -> str:
+    """
+    Format *n* bytes as a human-readable string using binary (1024) units.
+
+    The unit and the number of decimals are chosen from the value as it will
+    print, after rounding: 1048575 bytes is 1023.999 KiB, which would print as
+    ``1024.0 KiB``, so it prints as ``1.00 MiB`` instead.
+    """
     if n < _UNIT_STEP:
         return f"{n} B"
-    value = float(n)
-    for unit in _UNITS[1:]:
-        value /= _UNIT_STEP
-        if value < _UNIT_STEP or unit == _UNITS[-1]:
-            return (
-                f"{value:.1f} {unit}"
-                if value >= _TWO_DECIMALS_BELOW
-                else f"{value:.2f} {unit}"
-            )
-    return f"{value:.1f} {_UNITS[-1]}"
+    else:
+        candidates = [
+            (_format_scaled(n / _UNIT_STEP**exponent), unit)
+            for exponent, unit in enumerate(_UNITS)
+            if exponent > 0
+        ]
+        number, unit = next(
+            (
+                (number, unit)
+                for number, unit in candidates
+                if float(number) < _UNIT_STEP
+            ),
+            candidates[-1],
+        )
+        return f"{number} {unit}"
+
+
+def _format_scaled(value: float) -> str:
+    """Format *value* with two decimals if it prints below 10, one otherwise."""
+    two_decimals = f"{value:.2f}"
+    return two_decimals if float(two_decimals) < _TWO_DECIMALS_BELOW else f"{value:.1f}"
 
 
 def _format_count(n: int) -> str:
@@ -90,12 +107,12 @@ def _size_cells(
 ) -> tuple[str, str, str, str, str, str]:
     browsable = total - archive - derived - cache
     return (
-        _format_bytes(on_disk),
-        _format_bytes(total),
-        _format_bytes(archive),
-        _format_bytes(browsable),
-        _format_bytes(derived),
-        _format_bytes(cache),
+        format_bytes(on_disk),
+        format_bytes(total),
+        format_bytes(archive),
+        format_bytes(browsable),
+        format_bytes(derived),
+        format_bytes(cache),
     )
 
 
@@ -105,15 +122,10 @@ def _bold_size_cells(
     archive: int,
     derived: int,
     cache: int = 0,
-) -> tuple[str, str, str, str, str, str]:
-    browsable = total - archive - derived - cache
-    return (
-        f"[bold]{_format_bytes(on_disk)}[/bold]",
-        f"[bold]{_format_bytes(total)}[/bold]",
-        f"[bold]{_format_bytes(archive)}[/bold]",
-        f"[bold]{_format_bytes(browsable)}[/bold]",
-        f"[bold]{_format_bytes(derived)}[/bold]",
-        f"[bold]{_format_bytes(cache)}[/bold]",
+) -> tuple[str, ...]:
+    return tuple(
+        f"[bold]{cell}[/bold]"
+        for cell in _size_cells(total, on_disk, archive, derived, cache)
     )
 
 
@@ -234,15 +246,15 @@ def _overview_sizes(
         (
             "On-disk size",
             sized(
-                _format_bytes(agg.total.on_disk_bytes + _cache_on_disk(cache_storage)),
+                format_bytes(agg.total.on_disk_bytes + _cache_on_disk(cache_storage)),
             ),
         ),
-        ("Apparent size", sized(_format_bytes(agg.total.apparent_bytes + cb))),
-        ("Space saved", sized(f"{_format_bytes(saved)} ({pct:.1f}%)")),
-        ("Archive size", sized(_format_bytes(agg.archive.apparent_bytes))),
-        ("Browsable size", sized(_format_bytes(browsable))),
-        ("Derived size", sized(_format_bytes(agg.derived.apparent_bytes))),
-        ("Cache size", sized(_format_bytes(cb))),
+        ("Apparent size", sized(format_bytes(agg.total.apparent_bytes + cb))),
+        ("Space saved", sized(f"{format_bytes(saved)} ({pct:.1f}%)")),
+        ("Archive size", sized(format_bytes(agg.archive.apparent_bytes))),
+        ("Browsable size", sized(format_bytes(browsable))),
+        ("Derived size", sized(format_bytes(agg.derived.apparent_bytes))),
+        ("Cache size", sized(format_bytes(cb))),
     ]
 
 

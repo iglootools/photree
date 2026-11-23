@@ -22,9 +22,6 @@ from photree.album.check.std import (
     StdMediaSourceIntegrityResult,
     check_std_media_source_integrity,
 )
-from photree.album.check.system import (
-    check_exiftool_available as check_exiftool_available,
-)
 from photree.album.check.system import check_sips_available as check_sips_available
 from photree.album.check.unexpected_dirs import (
     UnexpectedDirsCheck,
