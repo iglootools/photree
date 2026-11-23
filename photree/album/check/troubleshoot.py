@@ -4,9 +4,9 @@ import shlex
 from collections import defaultdict
 from textwrap import dedent
 
+from photree.album.check.exif_date import ExifMismatch
 from photree.album.check.ios import IosMediaSourceIntegrityResult
 from photree.album.check.std import StdMediaSourceIntegrityResult
-from photree.album.exif_date_check import ExifMismatch
 from photree.album.store.media_source import MediaSource
 from photree.common.formatting import indent, markup_escape
 

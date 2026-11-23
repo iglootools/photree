@@ -260,7 +260,6 @@ source_modules = [
   "photree.album.check",
   "photree.album.exif",
   "photree.album.exif_cache",
-  "photree.album.exif_date_check",
   "photree.album.exporter",
   "photree.album.faces",
   "photree.album.fix",

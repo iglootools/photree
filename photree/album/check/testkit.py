@@ -15,6 +15,11 @@ from photree.album.check.browsable import (
     MissingFile,
     WrongSource,
 )
+from photree.album.check.exif_date import (
+    AlbumNamingResult,
+    ExifMismatch,
+    ExifTimestampCheck,
+)
 from photree.album.check.ios import (
     IosMediaSourceIntegrityResult,
     MiscategorizedFile,
@@ -24,11 +29,6 @@ from photree.album.check.ios.sidecar import SidecarCheck, SidecarIssue, SidecarI
 from photree.album.check.jpeg import AlbumJpegIntegrityResult, JpegCheck
 from photree.album.check.std import DuplicateStem, StdMediaSourceIntegrityResult
 from photree.album.check.unexpected_dirs import UnexpectedDirsCheck
-from photree.album.exif_date_check import (
-    AlbumNamingResult,
-    ExifMismatch,
-    ExifTimestampCheck,
-)
 from photree.album.naming import parse_album_name
 from photree.album.store.media_source import MAIN_MEDIA_SOURCE, std_media_source
 
