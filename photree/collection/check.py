@@ -2,9 +2,13 @@
 Collection validation checks.
 
 Validates:
+- The members/lifecycle/strategy combination is a valid one
 - All member IDs (album, collection, image, video) exist in the gallery
 - Date range covers the min/max dates of contained albums/collections
-- Naming convention
+- Smart collections hold no images or videos
+- Chapter collections do not overlap other chapters
+- The private tag is viral: non-private collections hold no private
+  members, and private smart collections only private ones
 """
 
 from collections.abc import Callable, Mapping
