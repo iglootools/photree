@@ -1,4 +1,12 @@
-"""The photree configuration: importer settings, exporter profiles and its errors."""
+"""
+The photree configuration: importer settings, exporter profiles and its errors.
+
+Each field of a TOML table's dataclass is one key of that table: the key is
+the field name in kebab-case, and its ``metadata`` holds what the
+configuration reference shows for it (``build-scripts/configdocs.py``
+generates the field tables in ``docs/config-reference.md`` from these
+classes).
+"""
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -77,21 +85,59 @@ class ConfigError(Exception):
                 )
 
 
+def toml_key(field_name: str) -> str:
+    """Return the TOML key a config dataclass field is written as (kebab-case)."""
+    return field_name.replace("_", "-")
+
+
+def _doc(description: str, *, shown_default: str | None = None) -> dict[str, str]:
+    """
+    Build a config field's ``metadata`` for the configuration reference.
+
+    *shown_default* replaces the dataclass default in the reference when the
+    real default is applied elsewhere (the dataclass holds ``None``).
+    """
+    return {
+        "description": description,
+        **({"shown_default": shown_default} if shown_default is not None else {}),
+    }
+
+
 @dataclass(frozen=True)
 class ImporterConfig:
     """Configuration for Image Capture import (``photree album import``)."""
 
-    image_capture_dir: Path | None = None
+    image_capture_dir: Path | None = field(
+        default=None,
+        metadata=_doc(
+            "Directory where macOS Image Capture saves the files it imports from"
+            " the phone. macOS names it after the device, with a typographic"
+            " apostrophe (`\u2019`), not an ASCII `'`.",
+            shown_default="~/Pictures/iPhone",
+        ),
+    )
 
 
 @dataclass(frozen=True)
 class ExporterProfile:
     """One named export destination: its share directory, layouts and link mode."""
 
-    share_dir: Path
-    share_layout: ShareDirectoryLayout = ShareDirectoryLayout.FLAT
-    album_layout: AlbumShareLayout = AlbumShareLayout.BROWSABLE_JPG
-    link_mode: LinkMode = LinkMode.HARDLINK
+    share_dir: Path = field(metadata=_doc("Base directory to export into."))
+    share_layout: ShareDirectoryLayout = field(
+        default=ShareDirectoryLayout.FLAT,
+        metadata=_doc(
+            "How albums are arranged under `share-dir`: all side by side"
+            " (`flat`), by year (`albums`), or by month (`by-month`).",
+        ),
+    )
+    album_layout: AlbumShareLayout = field(
+        default=AlbumShareLayout.BROWSABLE_JPG,
+        metadata=_doc("Which of an album's directories are exported."),
+    )
+    link_mode: LinkMode = field(
+        default=LinkMode.HARDLINK,
+        metadata=_doc("How exported files reference the gallery's files."),
+    )
 
 
 @dataclass(frozen=True)

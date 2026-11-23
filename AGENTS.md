@@ -14,8 +14,9 @@ proprietary database. Python, uv, Typer; tasks run through mise.
   otherwise, never a bare tool: another project's virtualenv on `PATH` could
   stand in for this one.
 - Generated documents are regenerated, never edited by hand:
-  `mise run reference-doc` rewrites the CLI reference and the Module Overview,
-  and `mise run toc` the tables of contents. `lint` fails when one is stale.
+  `mise run reference-doc` rewrites the CLI reference, the config field tables
+  and the Module Overview, and `mise run toc` the tables of contents. `lint`
+  fails when one is stale.
 
 ## Guidelines
 

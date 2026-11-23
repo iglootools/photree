@@ -163,6 +163,8 @@ ignore = [
 # specification; its "secrets" are fakes. S108 stays on: a test writes under tmp_path,
 # never /tmp.
 "tests/**" = ["D1", "PLR2004", "S101", "S105", "S106", "S107"]
+# A script run by path, not a package to import.
+"build-scripts/**" = ["INP001"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
@@ -188,7 +190,7 @@ filterwarnings = [
 ]
 
 [tool.pyright]
-include = ["photree", "tests"]
+include = ["photree", "tests", "build-scripts"]
 typeCheckingMode = "strict"
 reportUnnecessaryTypeIgnoreComment = "error"
 pythonVersion = "3.14"

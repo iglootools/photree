@@ -32,9 +32,11 @@ mise run lint-lock-uv       # check that uv.lock is consistent with pyproject.to
 mise run lint-lock-mise     # check that mise.lock is up to date with mise.toml
 mise run renovate-dry-run   # list the updates Renovate would propose, writing nothing (needs gh auth)
 
-mise run reference-doc      # regenerate every generated reference (clidocs + depgraph)
+mise run reference-doc      # regenerate every generated reference (clidocs + configdocs + depgraph)
 mise run clidocs            # regenerate the CLI reference in docs/cli-reference.md
 mise run lint-clidocs       # check that the CLI reference is up to date
+mise run configdocs         # regenerate the config field tables in docs/config-reference.md
+mise run lint-configdocs    # check that the config field tables are up to date
 mise run depgraph           # regenerate the Module Overview in docs/architecture.md
 mise run lint-depgraph      # check that the Module Overview is up to date
 mise run depgraph-ascii     # print the module dependency graph as ASCII art
@@ -59,7 +61,7 @@ mise run demo-upload-latest # upload the demo CI recorded (see Release Process)
 # Running tools directly
 uv run --no-sync pytest tests/ -v                         # all tests
 uv run --no-sync ruff format .                            # formatting
-uv run --no-sync ruff check photree/ tests/               # linting
+uv run --no-sync ruff check photree/ tests/ build-scripts/   # linting
 uv run --no-sync pyright                                  # type-checking, strict, tests included
 uv run --no-sync lint-imports                             # module boundaries
 uv run --no-sync pytest tests/integration_fs/cli/test_cli.py::TestVersionCommand::test_version_flag -v   # run a single test

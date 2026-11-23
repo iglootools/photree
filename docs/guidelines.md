@@ -148,7 +148,7 @@ Before calling a change done, update the documents its kind of change reaches:
 | Change | Update |
 |---|---|
 | CLI command, option or help text | `mise run clidocs` (cli-reference.md); usage.md for the workflow; features.md and the README summary for a new capability |
-| Config field, default or validation rule | config-reference.md (hand-written: no generator), config-examples/config.toml, usage.md "Configuration" |
+| Config field, default or validation rule | the field's `metadata` in config/protocol.py, then `mise run configdocs` (config-reference.md's field tables; the prose around them, such as the Errors table, by hand), config-examples/config.toml, usage.md "Configuration" |
 | Concept, entity, invariant, naming convention or ID format | domain.md |
 | On-disk layout, `.photree/*.yaml` format, refresh/import/export algorithm, external command invoked | internals.md |
 | New package or import edge | the contracts and architecture.md "Layering"; `mise run depgraph` |
