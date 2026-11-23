@@ -13,6 +13,7 @@ import yaml
 
 from photree.album.browsable import refresh_browsable_dir
 from photree.album.check import run_album_check
+from photree.album.check.exif_date import check_exif_date_match, try_read_from_cache
 from photree.album.check.output.album import format_album_preflight_checks
 from photree.album.exif_cache.protocol import (
     EXIF_CACHE_VERSION,
@@ -25,7 +26,6 @@ from photree.album.exif_cache.store import (
     load_exif_cache,
     save_exif_cache,
 )
-from photree.album.exif_date_check import check_exif_date_match, try_read_from_cache
 from photree.album.faces.protocol import FaceProcessedKey, FaceProcessingState
 from photree.album.faces.store import load_face_state, save_face_state
 from photree.album.formats import IMG_EXTENSIONS

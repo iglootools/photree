@@ -25,7 +25,7 @@ from photree.album.naming import (
 from photree.album.store.album_discovery import has_media_sources
 from photree.album.store.metadata import load_album_metadata
 from photree.album.store.protocol import AlbumMetadata
-from photree.gallery import AlbumIndex
+from photree.albums.index import AlbumIndex
 from photree.gallery.importer import compute_target_dir
 
 

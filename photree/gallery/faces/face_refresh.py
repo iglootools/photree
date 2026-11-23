@@ -44,6 +44,8 @@ from photree.gallery.faces.protocol import (
 )
 
 if TYPE_CHECKING:
+    # Annotations only: faiss is imported in the functions that use it, to keep
+    # the face ML stack out of CLI startup.
     import faiss
 
 STAGE_SCAN_FACE_DATA = "scan-face-data"

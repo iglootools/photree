@@ -3,7 +3,7 @@ from pathlib import Path
 from photree.album.id import generate_album_id
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
-from photree.gallery import AlbumIndex
+from photree.albums.index import AlbumIndex
 from photree.gallery.import_plan import (
     ClobberConflict,
     ImportAction,

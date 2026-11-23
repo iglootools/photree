@@ -13,7 +13,7 @@ Where:
 - Parenthesised content (e.g. ``(Day 2)``, ``(bis)``) is ordinary title text
 
 This module only inspects name strings: no filesystem access. EXIF date
-matching lives in :mod:`.exif_date_check`.
+matching lives in :mod:`.check.exif_date`.
 """
 
 import re

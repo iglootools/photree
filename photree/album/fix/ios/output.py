@@ -1,11 +1,7 @@
 """Text the CLI prints for the iOS fixes' results."""
 
-from typing import TYPE_CHECKING
-
+from photree.album.fix.ios import FixIosMiscategorizedResult, FixIosResult
 from photree.album.fix.ios.miscategorized import MiscategorizedAction
-
-if TYPE_CHECKING:
-    from photree.album.fix.ios import FixIosMiscategorizedResult, FixIosResult
 
 
 def _removal_summary(

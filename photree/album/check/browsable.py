@@ -1,7 +1,7 @@
 """Check that browsable directories hold the right variant of each media file."""
 
 import hashlib
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from photree.album.store.file_matching import dedup_media_dict
@@ -70,6 +70,25 @@ class BrowsableDirCheck:
             and not self.size_mismatches
             and not self.checksum_mismatches
         )
+
+
+def filter_live_photo_extras(
+    browsable_check: BrowsableDirCheck,
+    live_photo_vid_filenames: frozenset[str],
+) -> BrowsableDirCheck:
+    """
+    Drop the Live Photo companion videos from a browsable check's extra files.
+
+    Live Photo companion videos are expected in the browsable img dir even
+    though their extension is not an image extension, so a plain browsable
+    check reports them as extra files.
+    """
+    return replace(
+        browsable_check,
+        extra=tuple(
+            f for f in browsable_check.extra if f not in live_photo_vid_filenames
+        ),
+    )
 
 
 def _file_size(path: Path) -> int:

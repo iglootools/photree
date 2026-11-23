@@ -8,6 +8,7 @@ from photree.album.check.exif_cache_state import (
     ExifCacheStateCheck,
     check_exif_cache_state,
 )
+from photree.album.check.exif_date import AlbumNamingResult, check_exif_date_match
 from photree.album.check.face_state import FaceStateCheck, check_face_state
 from photree.album.check.ios import (
     IosMediaSourceIntegrityResult,
@@ -27,7 +28,6 @@ from photree.album.check.unexpected_dirs import (
     UnexpectedDirsCheck,
     check_unexpected_dirs,
 )
-from photree.album.exif_date_check import AlbumNamingResult, check_exif_date_match
 from photree.album.naming import check_album_naming, parse_album_name
 from photree.album.store.album_discovery import discover_albums
 from photree.album.store.media_source import MediaSource, MediaSourceType

@@ -167,7 +167,7 @@ by side; output helpers live next to the logic they render (`output.py`).
     collision checks, preflight), `exporter/` (export to a share directory),
     `refresh.py` with `browsable.py`, `jpeg.py`, `exif_cache/` and `faces/`
     (derived data), `media.py` (move/remove media across sources).
-  - `check/` (the full check, including `exif_date_check.py` for EXIF date
+  - `check/` (the full check, including `exif_date.py` for EXIF date
     matching), `fix/` (repairs, with iOS-specific fixes in `fix/ios/`),
     `stats/`.
 - **`collection/`** — `naming.py`, `store/` (metadata and discovery),

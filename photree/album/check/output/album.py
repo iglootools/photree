@@ -21,6 +21,7 @@ from photree.album.check import (
 from photree.album.check.browsable import BrowsableDirCheck
 from photree.album.check.dir_structure import AlbumDirCheck
 from photree.album.check.exif_cache_state import ExifCacheStateCheck
+from photree.album.check.exif_date import AlbumNamingResult, ExifTimestampCheck
 from photree.album.check.face_state import (
     FaceStateCheck,
     FaceSyncIssue,
@@ -38,7 +39,6 @@ from photree.album.check.media_metadata import MediaMetadataCheck
 from photree.album.check.std import DuplicateStem, StdMediaSourceIntegrityResult
 from photree.album.check.troubleshoot import suggest_exif_fixes
 from photree.album.check.unexpected_dirs import UnexpectedDirsCheck
-from photree.album.exif_date_check import AlbumNamingResult, ExifTimestampCheck
 from photree.album.id import format_album_external_id
 from photree.album.store.media_source import MediaSource
 from photree.common.formatting import (

@@ -1,11 +1,7 @@
 """Text the CLI prints for the generic fixes' results."""
 
-from typing import TYPE_CHECKING
-
+from photree.album.fix import FixResult, FixRmUpstreamResult
 from photree.album.fix.rm_upstream import RmUpstreamSkip, SignalSkipReason
-
-if TYPE_CHECKING:
-    from photree.album.fix import FixResult, FixRmUpstreamResult
 
 
 def rm_upstream_summary(

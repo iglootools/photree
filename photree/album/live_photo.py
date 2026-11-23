@@ -9,20 +9,13 @@ Live Photos are primarily an iOS feature. This module is only applied to
 iOS media sources.
 """
 
-from dataclasses import replace
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from photree.album.browsable import place_file
 from photree.album.store.file_matching import dedup_media_dict
 from photree.album.store.media_source import KeyFn
 from photree.common.fs import list_files
 from photree.foundation.linking import LinkMode
-
-if TYPE_CHECKING:
-    # Annotation only: a runtime import would cycle back through album.check,
-    # whose iOS checks import this module.
-    from photree.album.check.browsable import BrowsableDirCheck
 
 
 def detect_live_photo_keys(
@@ -106,22 +99,3 @@ def augment_browsable_img_with_live_photo_videos(
             place_file(source_dir / filename, browsable_img_dir / filename, link_mode)
 
     return len(videos)
-
-
-def filter_live_photo_extras(
-    browsable_check: BrowsableDirCheck,
-    live_photo_vid_filenames: frozenset[str],
-) -> BrowsableDirCheck:
-    """
-    Drop the Live Photo companion videos from a browsable check's extra files.
-
-    Live Photo companion videos are expected in the browsable img dir even
-    though their extension is not an image extension, so a plain browsable
-    check reports them as extra files.
-    """
-    return replace(
-        browsable_check,
-        extra=tuple(
-            f for f in browsable_check.extra if f not in live_photo_vid_filenames
-        ),
-    )

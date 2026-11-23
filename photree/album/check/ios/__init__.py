@@ -5,14 +5,17 @@ from enum import StrEnum
 from itertools import groupby
 from pathlib import Path
 
-from photree.album.check.browsable import BrowsableDirCheck, check_browsable_dir
+from photree.album.check.browsable import (
+    BrowsableDirCheck,
+    check_browsable_dir,
+    filter_live_photo_extras,
+)
 from photree.album.check.ios.sidecar import SidecarCheck, check_sidecars
 from photree.album.check.jpeg import JpegCheck, check_jpeg_dir
 from photree.album.formats import IOS_IMG_EXTENSIONS, IOS_VID_EXTENSIONS
 from photree.album.live_photo import (
     compute_live_photo_videos,
     detect_live_photo_keys,
-    filter_live_photo_extras,
 )
 from photree.album.store.file_matching import ios_file_prefix, ios_is_media
 from photree.album.store.media_source import (

@@ -3,8 +3,8 @@ import shlex
 import pytest
 from rich.text import Text
 
+from photree.album.check.exif_date import ExifMismatch
 from photree.album.check.troubleshoot import suggest_exif_fixes
-from photree.album.exif_date_check import ExifMismatch
 
 _ALBUM = "albums/2024/2024-07-14 - Bob's [trip]"
 
