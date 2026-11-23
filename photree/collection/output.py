@@ -5,7 +5,7 @@ The core reports kinds and fields; this module turns them into messages.
 Formatters return unindented lines, the caller indents.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 
 from photree.album.id import (
@@ -139,3 +139,35 @@ def format_collection_issue(issue: CollectionCheckIssue) -> str:
             return f"non-private collection contains private {member}"
         case CollectionIssueCode.NON_PRIVATE_HAS_PRIVATE_MEDIA:
             return f"non-private collection contains {member} from private album"
+
+
+def format_issue_suggestions(
+    issues: Iterable[CollectionCheckIssue],
+    collection_dir: Path,
+    cwd: Path,
+) -> list[str]:
+    """
+    Return the commands that fix *issues*, one unindented line each, without repeats.
+
+    Issue kinds no command fixes (a member missing from the gallery, a
+    corrupt metadata file) suggest nothing.
+    """
+    path = display_path(collection_dir, cwd)
+    drop_media = (
+        "Run 'photree gallery refresh' to drop the images and videos of "
+        "smart collections."
+    )
+    by_code = {
+        CollectionIssueCode.NO_METADATA: (
+            f"Run 'photree collection init --collection-dir \"{path}\"' "
+            "to initialize the collection."
+        ),
+        CollectionIssueCode.INVALID_COLLECTION_CONFIG: (
+            "Run 'photree collection metadata set --collection-dir "
+            f'"{path}" --members <members> --lifecycle <lifecycle> '
+            "--strategy <strategy>' with a valid combination."
+        ),
+        CollectionIssueCode.SMART_HAS_IMAGES: drop_media,
+        CollectionIssueCode.SMART_HAS_VIDEOS: drop_media,
+    }
+    return list(dict.fromkeys(by_code[i.code] for i in issues if i.code in by_code))

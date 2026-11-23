@@ -397,3 +397,18 @@ class TestCheckUnreadableAlbum:
         assert result.exit_code == 0, result.output
         assert "cannot read the metadata of album" in result.output
         assert "Run 'photree album check --album-dir" in result.output
+
+
+class TestCollectionCheckCmd:
+    def test_missing_metadata_points_to_init(self, tmp_path: Path) -> None:
+        gallery = _setup_gallery(tmp_path)
+        col_dir = gallery / "collections" / "2024" / "2024-07 - July"
+        col_dir.mkdir(parents=True)
+
+        result = CliRunner().invoke(
+            app,
+            ["collection", "check", "-c", str(col_dir), "-g", str(gallery)],
+        )
+
+        assert result.exit_code == 1
+        assert "Run 'photree collection init --collection-dir" in result.output

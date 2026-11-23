@@ -13,6 +13,7 @@ from photree.collection.cli.app import app
 from photree.collection.cli.options import COLLECTION_DIR_OPTION
 from photree.collection.output import (
     format_collection_issue,
+    format_issue_suggestions,
     format_unreadable_album,
 )
 from photree.common.formatting import CHECK, CROSS, indent, markup_escape
@@ -55,8 +56,15 @@ def check_cmd(
         console.print(f"{CHECK} {markup_escape(display_path(collection_dir, cwd))}")
     else:
         err_console.print(
-            f"\n{len(result.issues)} issue(s) found in "
-            f"{display_path(collection_dir, cwd)}",
+            "\n".join(
+                [
+                    (
+                        f"\n{len(result.issues)} issue(s) found in "
+                        f"{display_path(collection_dir, cwd)}"
+                    ),
+                    *format_issue_suggestions(result.issues, collection_dir, cwd),
+                ],
+            ),
             markup=False,
         )
         raise typer.Exit(code=1)

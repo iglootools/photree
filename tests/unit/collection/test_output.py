@@ -1,6 +1,11 @@
+from pathlib import Path
+
 from photree.album.id import format_album_external_id, generate_album_id
 from photree.collection.check import CollectionCheckIssue, CollectionIssueCode
-from photree.collection.output import format_collection_issue
+from photree.collection.output import (
+    format_collection_issue,
+    format_issue_suggestions,
+)
 from photree.collection.store.protocol import (
     CollectionLifecycle,
     CollectionMembers,
@@ -57,3 +62,36 @@ class TestFormatCollectionIssue:
         assert format_collection_issue(issue).startswith(
             "invalid combination: members=manual, lifecycle=implicit, strategy=import.",
         )
+
+
+class TestFormatIssueSuggestions:
+    def test_missing_metadata_suggests_init(self) -> None:
+        cwd = Path("/gallery")
+
+        assert format_issue_suggestions(
+            [CollectionCheckIssue(CollectionIssueCode.NO_METADATA)],
+            cwd / "collections" / "Best Of",
+            cwd,
+        ) == [
+            (
+                "Run 'photree collection init --collection-dir "
+                '"collections/Best Of"\' to initialize the collection.'
+            ),
+        ]
+
+    def test_same_fix_is_suggested_once(self) -> None:
+        issues = [
+            CollectionCheckIssue(CollectionIssueCode.SMART_HAS_IMAGES, count=2),
+            CollectionCheckIssue(CollectionIssueCode.SMART_HAS_VIDEOS, count=1),
+        ]
+
+        assert len(format_issue_suggestions(issues, Path("c"), Path())) == 1
+
+    def test_missing_member_suggests_nothing(self) -> None:
+        issue = CollectionCheckIssue(
+            CollectionIssueCode.MISSING_ALBUM,
+            member_type=MemberType.ALBUM,
+            member_id="x",
+        )
+
+        assert format_issue_suggestions([issue], Path("c"), Path()) == []
