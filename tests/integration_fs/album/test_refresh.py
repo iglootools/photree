@@ -1,10 +1,12 @@
 from pathlib import Path
 
 from photree.album.id import generate_album_id
-from photree.album.refresh import refresh_media_metadata
+from photree.album.refresh import refresh_album_derived_data, refresh_media_metadata
 from photree.album.store.media_metadata import load_media_metadata
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
+from photree.foundation.linking import LinkMode
+from tests.fakes import FakeExifTool
 
 
 def _write(path: Path, content: str = "data") -> None:
@@ -208,3 +210,31 @@ class TestRefreshMultipleSources:
         # Std source keys are stems
         std_keys = set(meta.media_sources["nelu"].images.values())
         assert std_keys == {"DSC_1234", "DSC_5678"}
+
+
+class TestRefreshDerivedDataJpeg:
+    def test_forced_browsable_refresh_regenerates_jpegs_of_changed_images(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        # The JPEG dir's own gate only checks names, so an image whose content
+        # changed under the same name (an EXIF fix on the archive) must be
+        # regenerated because its browsable img dir was rebuilt.
+        album = tmp_path / "album"
+        _write(album / "std-main" / "orig-img" / "DSC_0001.JPG", "before")
+        refresh_album_derived_data(
+            album,
+            link_mode=LinkMode.COPY,
+            exiftool=FakeExifTool({}),
+        )
+        _write(album / "std-main" / "orig-img" / "DSC_0001.JPG", "after")
+
+        refresh_album_derived_data(
+            album,
+            link_mode=LinkMode.COPY,
+            exiftool=FakeExifTool({}),
+            force_browsable=True,
+        )
+
+        jpeg = album / "main-jpg" / "DSC_0001.JPG"
+        assert jpeg.read_text(encoding="utf-8") == "after"

@@ -219,9 +219,20 @@ def _run_exiftool(args: Sequence[str], paths: Sequence[Path]) -> str:
 
 
 def _write_all_dates(paths: Sequence[Path], assignment: str) -> None:
-    """Apply one tag *assignment* suffix (``=v``, ``+=v``, ``-=v``) to all dates."""
+    """
+    Apply one tag *assignment* suffix (``=v``, ``+=v``, ``-=v``) to all dates.
+
+    Writes each file in place, keeping its inode: ``-overwrite_original``
+    renames a new file over the old one, which silently detaches every
+    hardlinked copy (the browsable dirs link the archive) and leaves it with
+    the old dates.
+    """
     _run_exiftool(
-        [f"-AllDates{assignment}", f"-CreationDate{assignment}", "-overwrite_original"],
+        [
+            f"-AllDates{assignment}",
+            f"-CreationDate{assignment}",
+            "-overwrite_original_in_place",
+        ],
         paths,
     )
 

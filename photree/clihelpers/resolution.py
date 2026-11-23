@@ -43,11 +43,15 @@ def format_gallery_not_found(exc: GalleryNotFoundError, cwd: Path) -> str:
 
 def format_invalid_metadata(exc: InvalidMetadataError, cwd: Path) -> str:
     """Render an :class:`InvalidMetadataError` with a relative path and a fix."""
-    return (
-        f"Invalid metadata in {display_path(exc.path, cwd)}: {exc.reason}\n"
-        "Restore the file from a backup or fix its content; photree does not "
+    fix = (
+        "This cache is derived from the album's files: delete it, or force its "
+        "refresh (e.g. 'photree album refresh --refresh-exif-cache'), and "
+        "photree rebuilds it."
+        if exc.derived
+        else "Restore the file from a backup or fix its content; photree does not "
         "regenerate it, because a fresh file would carry fresh IDs."
     )
+    return f"Invalid metadata in {display_path(exc.path, cwd)}: {exc.reason}\n{fix}"
 
 
 def resolve_gallery_or_exit(

@@ -371,7 +371,7 @@ $ photree album refresh [OPTIONS]
 
 * `-a, --album-dir <directory>`: Album directory.  [default: .]
 * `-n, --dry-run`: Print what would happen without modifying files.
-* `--refresh-browsable`: Force rebuild all browsable directories (skip check gate).
+* `--refresh-browsable`: Force rebuild all browsable dirs and JPEGs (skip check gate).
 * `--refresh-jpeg`: Force rebuild all JPEG directories (skip check gate).
 * `--refresh-exif-cache`: Force re-read all EXIF timestamps.
 * `--redetect-faces`: Re-run face detection on all images (reuses cached thumbnails).
@@ -692,7 +692,7 @@ $ photree albums refresh [OPTIONS]
 * `-d, --dir <directory>`: Base directory to recursively scan for albums.
 * `-a, --album-dir <directory>`: Album directory (repeatable).
 * `-n, --dry-run`: Print what would happen without modifying files.
-* `--refresh-browsable`: Force rebuild all browsable directories (skip check gate).
+* `--refresh-browsable`: Force rebuild all browsable dirs and JPEGs (skip check gate).
 * `--refresh-jpeg`: Force rebuild all JPEG directories (skip check gate).
 * `--refresh-exif-cache`: Force re-read all EXIF timestamps.
 * `--redetect-faces`: Re-run face detection on all images (reuses cached thumbnails).
@@ -1275,7 +1275,7 @@ $ photree gallery refresh [OPTIONS]
 
 * `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `-n, --dry-run`: Print what would happen without modifying files.
-* `--refresh-browsable`: Force rebuild all browsable directories (skip check gate).
+* `--refresh-browsable`: Force rebuild all browsable dirs and JPEGs (skip check gate).
 * `--refresh-jpeg`: Force rebuild all JPEG directories (skip check gate).
 * `--refresh-exif-cache`: Force re-read all EXIF timestamps.
 * `--redetect-faces`: Re-run face detection on all images (reuses cached thumbnails).

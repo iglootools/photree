@@ -88,18 +88,18 @@ class AlbumNamingResult:
 
 
 def _upstream_dirs(ms: MediaSource, *, is_video: bool) -> tuple[str, ...]:
-    """Directories holding the files an EXIF fix must touch for one item."""
-    match (ms.is_ios, is_video):
-        case (True, True):
-            return (ms.orig_vid_dir, ms.edit_vid_dir)
-        case (True, False):
-            return (ms.orig_img_dir, ms.edit_img_dir)
-        case (False, True):
-            return (ms.vid_dir,)
-        case (False, False):
-            # Include both img (source of truth) and jpg (derived) so the
-            # exiftool fix command updates all files in one go.
-            return (ms.img_dir, ms.jpg_dir)
+    """
+    Return the archive dirs holding the files an EXIF fix must touch for one item.
+
+    The archive is the source of truth for iOS and std sources alike: the
+    browsable and JPEG dirs are rebuilt from it, so a fix applied only there
+    would be undone by the next refresh.
+    """
+    return (
+        (ms.orig_vid_dir, ms.edit_vid_dir)
+        if is_video
+        else (ms.orig_img_dir, ms.edit_img_dir)
+    )
 
 
 def _resolve_upstream_files(

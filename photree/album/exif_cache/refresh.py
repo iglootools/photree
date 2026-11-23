@@ -124,7 +124,9 @@ def _empty_cache() -> ExifCache:
 
 
 def _plan_source(album_dir: Path, ms: MediaSource, *, force: bool) -> _SourcePlan:
-    existing = _load_current_cache(album_dir, ms)
+    # A forced refresh re-reads every file, so it never needs the old cache:
+    # not loading it is what lets it replace a corrupt one.
+    existing = _empty_cache() if force else _load_current_cache(album_dir, ms)
     current_files = _scan_browsable_files(album_dir, ms)
     return _SourcePlan(
         existing=existing,
@@ -150,8 +152,11 @@ def _refresh_source(
 
     if plan.is_noop:
         # Ensure the cache file exists (and is current) even when empty, so the
-        # check path knows this source was processed.
-        if not dry_run and load_exif_cache(album_dir, ms.name) != plan.existing:
+        # check path knows this source was processed. A forced refresh writes
+        # without reading the old file, which may be corrupt.
+        if not dry_run and (
+            force or load_exif_cache(album_dir, ms.name) != plan.existing
+        ):
             save_exif_cache(album_dir, ms.name, plan.existing)
         return ExifCacheSourceResult(
             cached=len(plan.current_files),

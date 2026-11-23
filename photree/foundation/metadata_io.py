@@ -23,12 +23,15 @@ class InvalidMetadataError(ValueError):
 
     Carries the path and reason as structured data so the CLI can render the
     path with ``display_path`` and tests can assert on fields, not prose.
+    *derived* marks a cache photree rebuilds from the album's files, which
+    the user can delete, unlike a file holding IDs nothing else records.
     """
 
-    def __init__(self, path: Path, reason: str) -> None:
+    def __init__(self, path: Path, reason: str, *, derived: bool = False) -> None:
         """Build the error from the metadata file's path and why it cannot be used."""
         self.path = path
         self.reason = reason
+        self.derived = derived
         super().__init__(f"Invalid metadata in {path}: {reason}")
 
 

@@ -336,10 +336,38 @@ class TestCorruptMetadata:
         with pytest.raises(InvalidMetadataError):
             refresh_media_metadata(tmp_path)
 
-    def test_corrupt_exif_cache_raises(self, tmp_path: Path) -> None:
+    def test_corrupt_exif_cache_raises_as_derived(self, tmp_path: Path) -> None:
         _write(cache_path(tmp_path, "main"), "")
-        with pytest.raises(InvalidMetadataError):
+        with pytest.raises(InvalidMetadataError) as exc_info:
             load_exif_cache(tmp_path, "main")
+        assert exc_info.value.derived
+
+    def test_forced_refresh_replaces_corrupt_exif_cache(self, tmp_path: Path) -> None:
+        _album_with_same_stem_photo_and_video(tmp_path)
+        _write(cache_path(tmp_path, "main"), "files: [unterminated")
+
+        refresh_exif_cache(
+            tmp_path,
+            exiftool=_FakeExifTool("2024:07:14 10:00:00"),
+            force=True,
+        )
+
+        cache = load_exif_cache(tmp_path, "main")
+        assert cache is not None
+        assert set(cache.files) == {"main-jpg/clip", "main-vid/clip"}
+
+    def test_forced_refresh_replaces_corrupt_empty_source_cache(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        _write(tmp_path / "ios-main/orig-img/IMG_0001.HEIC")
+        _write(cache_path(tmp_path, "main"), "")
+
+        refresh_exif_cache(tmp_path, exiftool=_FakeExifTool("unused"), force=True)
+
+        cache = load_exif_cache(tmp_path, "main")
+        assert cache is not None
+        assert cache.files == {}
 
     def test_corrupt_face_state_raises(self, tmp_path: Path) -> None:
         save_face_state(
