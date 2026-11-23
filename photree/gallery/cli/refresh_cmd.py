@@ -27,7 +27,7 @@ from photree.gallery.browsable_refresh import (
     refresh_browsable as refresh_gallery_browsable,
 )
 from photree.gallery.cli.app import app
-from photree.gallery.cli.ops import run_face_clustering
+from photree.gallery.cli.face_ops import run_face_clustering
 from photree.gallery.cli.refresh_output import (
     format_browsable_error,
     format_collection_changes,

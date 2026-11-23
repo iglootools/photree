@@ -22,15 +22,15 @@ from photree.foundation.gallery_metadata import (
 from photree.foundation.layout import PHOTREE_DIR
 from photree.foundation.linking import LinkMode
 from photree.gallery.cli.app import app
-from photree.gallery.cli.ops import (
-    build_index_or_exit,
+from photree.gallery.cli.face_ops import run_face_clustering
+from photree.gallery.cli.import_ops import (
     plan_imports_or_exit,
     render_skipped,
     resolve_import_all_albums,
     run_batch_import,
     run_batch_post_import_check,
-    run_face_clustering,
 )
+from photree.gallery.cli.index_ops import build_index_or_exit
 from photree.gallery.cmd_handler.importer import BatchImportResult
 from photree.gallery.import_plan import AlbumPlan
 from photree.gallery.output import format_import_all_summary, import_all_failed

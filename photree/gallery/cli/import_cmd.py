@@ -17,14 +17,14 @@ from photree.foundation.gallery_metadata import (
 from photree.foundation.layout import PHOTREE_DIR
 from photree.foundation.linking import LinkMode
 from photree.gallery.cli.app import app
-from photree.gallery.cli.ops import (
-    build_index_or_exit,
+from photree.gallery.cli.face_ops import run_face_clustering
+from photree.gallery.cli.import_ops import (
     plan_imports_or_exit,
     print_single_import_result,
     render_skipped,
-    run_face_clustering,
     run_single_import,
 )
+from photree.gallery.cli.index_ops import build_index_or_exit
 from photree.gallery.import_plan import ImportAction
 
 

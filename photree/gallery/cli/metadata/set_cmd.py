@@ -19,8 +19,8 @@ from photree.foundation.gallery_metadata import (
 )
 from photree.foundation.layout import PHOTREE_DIR
 from photree.foundation.linking import LinkMode
+from photree.gallery.cli.face_ops import require_valid_threshold
 from photree.gallery.cli.metadata.app import app
-from photree.gallery.cli.ops import require_valid_threshold
 
 
 @app.command("set")

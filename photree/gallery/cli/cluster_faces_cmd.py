@@ -18,7 +18,7 @@ from photree.clihelpers.sysdeps import (
 from photree.foundation.gallery_metadata import GALLERY_YAML, load_gallery_metadata
 from photree.foundation.layout import PHOTREE_DIR
 from photree.gallery.cli.app import app
-from photree.gallery.cli.ops import require_valid_threshold, run_face_clustering
+from photree.gallery.cli.face_ops import require_valid_threshold, run_face_clustering
 
 
 @app.command("cluster-faces")
