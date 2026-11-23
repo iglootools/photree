@@ -4,7 +4,6 @@ from pathlib import Path
 
 import typer
 
-from photree.album.fix.ios.output import batch_fix_ios_summary
 from photree.album.fix.output import batch_fix_summary
 from photree.albums.batchcli.failures import (
     album_reports_block,
@@ -119,7 +118,7 @@ def run_batch_fix_ios(
     _print_reports(result.album_reports)
     console.print(
         format_dry_run(
-            batch_fix_ios_summary(result.fixed, len(result.failures), dry_run=dry_run),
+            batch_fix_summary(result.fixed, len(result.failures), dry_run=dry_run),
             dry_run=dry_run,
             markup=True,
         ),

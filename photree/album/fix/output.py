@@ -113,7 +113,7 @@ def format_fix_result(result: FixResult, *, dry_run: bool = False) -> list[str]:
 
 
 def batch_fix_summary(fixed: int, failed: int, *, dry_run: bool = False) -> str:
-    """Return the closing line for a batch fix, preceded by a blank line."""
+    """Return the closing line for a batch fix or fix-ios, after a blank line."""
     return (
         f"\n{fixed} album(s) would be fixed, {failed} failed."
         if dry_run
