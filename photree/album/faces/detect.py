@@ -138,15 +138,18 @@ def memoized_face_analyzer_factory(
 
 @dataclass(frozen=True)
 class ThumbnailResult:
-    """A thumbnail generated for one image, with original and thumbnail pixel sizes."""
+    """
+    A thumbnail ready for detection, with the pixel size of its original.
+
+    The thumbnail's own size is read from the decoded image at detection,
+    rather than here, which would cost a ``sips`` run per thumbnail.
+    """
 
     key: str
     file_name: str
     thumb_path: Path
     orig_width: int
     orig_height: int
-    thumb_width: int
-    thumb_height: int
 
 
 def generate_thumbnail(
@@ -164,17 +167,12 @@ def generate_thumbnail(
 
     resize_to_jpeg(src, dst, max_dimension=max_dimension)
 
-    # May differ from the requested size because of the aspect ratio.
-    thumb_width, thumb_height = get_dimensions(dst)
-
     return ThumbnailResult(
         key=key,
         file_name=file_name,
         thumb_path=dst,
         orig_width=orig_width,
         orig_height=orig_height,
-        thumb_width=thumb_width,
-        thumb_height=thumb_height,
     )
 
 
@@ -188,6 +186,15 @@ class DetectedFace:
     bbox: np.ndarray  # (4,) float32
     landmarks: np.ndarray  # (5, 2) float32
     embedding: np.ndarray  # (512,) float32
+
+
+@dataclass(frozen=True)
+class FaceDetectionResult:
+    """The faces found in one thumbnail, and the thumbnail's pixel size."""
+
+    faces: list[DetectedFace]
+    thumb_width: int
+    thumb_height: int
 
 
 class UnreadableThumbnailError(OSError):
@@ -226,11 +233,13 @@ def detect_faces(
     key: str,
     image_path: Path,
     analyzer: FaceDetector,
-) -> list[DetectedFace]:
+) -> FaceDetectionResult:
     """
-    Detect the faces in one image, returning an empty list when there are none.
+    Detect the faces in one image, with no faces when there are none.
 
-    Raises :class:`UnreadableThumbnailError` when the image cannot be read.
+    The image's size comes from the decoded pixels, which the detection needs
+    anyway. Raises :class:`UnreadableThumbnailError` when the image cannot be
+    read.
     """
     # Imported here, not at module level: cv2 costs ~0.14 s at CLI startup.
     import cv2  # noqa: PLC0415 - ML stack, kept out of CLI startup
@@ -243,18 +252,23 @@ def detect_faces(
         warnings.filterwarnings("ignore", category=FutureWarning, module="insightface")
         faces = analyzer.get(img)
 
-    return [
-        DetectedFace(
-            key=key,
-            face_index=i,
-            det_score=float(face.det_score),
-            bbox=face.bbox.astype(np.float32),
-            landmarks=_face_landmarks(face),
-            embedding=_face_embedding(face),
-        )
-        for i, face in enumerate(faces)
-        if getattr(face, "embedding", None) is not None
-    ]
+    thumb_height, thumb_width = img.shape[:2]
+    return FaceDetectionResult(
+        faces=[
+            DetectedFace(
+                key=key,
+                face_index=i,
+                det_score=float(face.det_score),
+                bbox=face.bbox.astype(np.float32),
+                landmarks=_face_landmarks(face),
+                embedding=_face_embedding(face),
+            )
+            for i, face in enumerate(faces)
+            if getattr(face, "embedding", None) is not None
+        ],
+        thumb_width=thumb_width,
+        thumb_height=thumb_height,
+    )
 
 
 def thumb_filename(key: str) -> str:
