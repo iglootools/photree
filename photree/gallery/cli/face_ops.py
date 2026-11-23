@@ -8,6 +8,8 @@ from photree.clihelpers.console import console
 from photree.clihelpers.progress import StageProgressBar
 from photree.clihelpers.usage import invalid_value_error
 from photree.common.formatting import CHECK, format_dry_run
+from photree.foundation.gallery_metadata import GALLERY_YAML, load_gallery_metadata
+from photree.foundation.layout import PHOTREE_DIR
 from photree.gallery.faces.face_refresh import (
     STAGE_BUILD_INDEX,
     STAGE_CLUSTER,
@@ -58,6 +60,23 @@ def run_face_clustering(
         )
 
     console.print(_face_clustering_line(result))
+
+
+def cluster_faces_if_enabled(
+    gallery_dir: Path,
+    *,
+    dry_run: bool = False,
+    force_full: bool = False,
+) -> None:
+    """Run face clustering with the gallery's threshold, if it has faces enabled."""
+    gallery_meta = load_gallery_metadata(gallery_dir / PHOTREE_DIR / GALLERY_YAML)
+    if gallery_meta.faces_enabled:
+        run_face_clustering(
+            gallery_dir,
+            distance_threshold=gallery_meta.face_cluster_threshold,
+            dry_run=dry_run,
+            force_full=force_full,
+        )
 
 
 def _face_clustering_line(result: GalleryFaceRefreshResult) -> str:

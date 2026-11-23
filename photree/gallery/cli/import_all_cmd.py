@@ -14,15 +14,10 @@ from photree.clihelpers.usage import mutually_exclusive_error
 from photree.common.formatting import format_dry_run, indent, markup_escape
 from photree.common.fs import display_path
 from photree.common.sysdeps import WhichFn
-from photree.foundation.gallery_metadata import (
-    GALLERY_YAML,
-    load_gallery_metadata,
-    resolve_link_mode,
-)
-from photree.foundation.layout import PHOTREE_DIR
+from photree.foundation.gallery_metadata import resolve_link_mode
 from photree.foundation.linking import LinkMode
 from photree.gallery.cli.app import app
-from photree.gallery.cli.face_ops import run_face_clustering
+from photree.gallery.cli.face_ops import cluster_faces_if_enabled
 from photree.gallery.cli.import_ops import (
     plan_imports_or_exit,
     render_skipped,
@@ -147,7 +142,7 @@ def import_all_cmd(
         else []
     )
     if mutated:
-        _cluster_faces(resolved_gallery)
+        cluster_faces_if_enabled(resolved_gallery)
 
     typer.echo(
         format_dry_run(
@@ -223,13 +218,3 @@ def _post_import_check(
             ),
         )
     return check_failed
-
-
-def _cluster_faces(gallery_dir: Path) -> None:
-    """Refresh face clusters when the gallery has face detection enabled."""
-    gallery_meta = load_gallery_metadata(gallery_dir / PHOTREE_DIR / GALLERY_YAML)
-    if gallery_meta.faces_enabled:
-        run_face_clustering(
-            gallery_dir,
-            distance_threshold=gallery_meta.face_cluster_threshold,
-        )

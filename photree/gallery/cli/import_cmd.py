@@ -9,15 +9,10 @@ from photree.clihelpers.options import REIMPORT_OPTION
 from photree.clihelpers.resolution import resolve_gallery_or_exit
 from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.sysdeps import import_deps, require_system_deps
-from photree.foundation.gallery_metadata import (
-    GALLERY_YAML,
-    load_gallery_metadata,
-    resolve_link_mode,
-)
-from photree.foundation.layout import PHOTREE_DIR
+from photree.foundation.gallery_metadata import resolve_link_mode
 from photree.foundation.linking import LinkMode
 from photree.gallery.cli.app import app
-from photree.gallery.cli.face_ops import run_face_clustering
+from photree.gallery.cli.face_ops import cluster_faces_if_enabled
 from photree.gallery.cli.import_ops import (
     plan_imports_or_exit,
     print_single_import_result,
@@ -107,9 +102,5 @@ def import_cmd(
     )
     print_single_import_result(result, cwd, dry_run=dry_run, which=which)
 
-    gallery_meta = load_gallery_metadata(resolved_gallery / PHOTREE_DIR / GALLERY_YAML)
-    if gallery_meta.faces_enabled and not dry_run:
-        run_face_clustering(
-            resolved_gallery,
-            distance_threshold=gallery_meta.face_cluster_threshold,
-        )
+    if not dry_run:
+        cluster_faces_if_enabled(resolved_gallery)
