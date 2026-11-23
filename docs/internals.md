@@ -884,7 +884,9 @@ A file needs EXIF re-reading when:
 - Its mtime differs from cached mtime (file changed)
 
 Stale keys (files removed from disk) are pruned on refresh. The
-`cache/exif` directory is purely derived data and can be safely deleted.
+`cache/exif` directory is purely derived data and can be safely deleted. A
+cache file that exists but cannot be read is an error, never read as absent;
+`album refresh --refresh-exif-cache` replaces it without reading it.
 
 ## Face Detection and Clustering Pipeline
 
