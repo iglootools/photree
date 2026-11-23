@@ -60,6 +60,10 @@ before any `mise run` whenever `uv.lock` or `pyproject.toml` has changed, or
 that is *dirty* rather than *stale*, e.g. after a manual `uv pip install`. Add
 or remove dependencies with `uv add` / `uv remove`.
 
+The `check-links` workflow runs a link checker against the documentation to
+catch broken links. It is scheduled to run weekly, but can also be triggered
+manually using `gh workflow run check-links.yml`.
+
 <!-- toc -->
 **On this page**
 
@@ -91,10 +95,6 @@ so `uv lock` cannot resolve on 3.15. Move to 3.15 when it does — check
 `pythonVersion` in `pyproject.toml` (then `uv lock`), and the `python`
 `allowedVersions` rule in `renovate.json`, which holds Renovate back from
 proposing 3.15 until then.
-
-The `check-links` workflow runs a link checker against the documentation to
-catch broken links. It is scheduled to run weekly, but can also be triggered
-manually using `gh workflow run check-links.yml`.
 
 ## Release Process
 
@@ -173,7 +173,7 @@ manually using `gh workflow run check-links.yml`.
   # expect: ["deletion","non_fast_forward","pull_request","required_status_checks"]
   ```
 
-  `test` must keep running on every pull request (no `paths` filter on its
+  `preflight` must keep running on every pull request (no `paths` filter on its
   workflow), or a pull request it skips can never be merged.
 - **Keep the dependency graph on.** Dependabot security updates (below) read it
   to find vulnerable dependencies. GitHub enables it on every public repository
@@ -186,20 +186,6 @@ manually using `gh workflow run check-links.yml`.
     # expect: com.github.iglootools/photree   (a 404 means the graph is off)
     ```
 
-- **Set the `ASCIINEMA_INSTALL_ID` Actions secret.** The `demo` workflow's
-  upload steps use it to publish the recording under the project's asciinema.org
-  account (they are commented out for now, uploads going through
-  `mise run demo-upload-latest`; the workflow explains why, and the secret stays
-  set so they can be re-enabled). Run `asciinema auth` and open the link it
-  prints to tie the local install id to the account, then store it:
-
-    ```bash
-    gh secret set ASCIINEMA_INSTALL_ID -R iglootools/photree < ~/.local/state/asciinema/install-id
-    gh secret list -R iglootools/photree   # expect a line starting with ASCIINEMA_INSTALL_ID
-    ```
-
-  A secret's value cannot be read back, only its name and update date, so
-  `gh secret list` is as far as verification goes.
 - **The `pypi` and `testpypi` environments**, which the publish workflows run in
   and the PyPI trusted publishers name, are release configuration: they are
   recorded, with the publisher settings that must match them, in
