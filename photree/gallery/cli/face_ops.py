@@ -13,6 +13,8 @@ from photree.foundation.gallery_metadata import GALLERY_YAML, load_gallery_metad
 from photree.foundation.layout import PHOTREE_DIR
 
 if TYPE_CHECKING:
+    # Annotation only: face_refresh loads numpy, which must stay out of CLI
+    # startup; the function that runs it imports it.
     from photree.gallery.faces.face_refresh import GalleryFaceRefreshResult
 
 

@@ -42,7 +42,8 @@ def is_ort_device_discovery_noise(line: str) -> bool:
 # insightface and onnxruntime ship no type information, so each import, and each call
 # whose signature pyright infers with Unknown parts, carries a suppression.
 if TYPE_CHECKING:
-    # numpy for annotations only: the CLI imports this module at startup.
+    # Annotations only: the CLI imports this module at startup, and numpy and
+    # insightface belong to the face ML stack it must not load.
     import numpy as np
     from insightface.app import FaceAnalysis  # pyright: ignore[reportMissingTypeStubs]
 
