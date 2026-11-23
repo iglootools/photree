@@ -6,9 +6,9 @@ from typing import Annotated
 import typer
 
 from photree.album import stats as album_stats
+from photree.album.cli import stats_output
 from photree.album.cli.app import app
 from photree.album.cli.media_source_conflict import exit_on_media_source_conflict
-from photree.album.stats import output as stats_output
 from photree.clihelpers.console import console, err_console
 from photree.clihelpers.runtime import runtime_of
 from photree.common.fs import display_path

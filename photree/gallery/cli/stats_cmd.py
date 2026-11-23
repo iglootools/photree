@@ -10,7 +10,8 @@ from photree.albums.batchcli.stats import run_batch_stats
 from photree.clihelpers.resolution import resolve_gallery_or_exit
 from photree.clihelpers.runtime import runtime_of
 from photree.gallery.cli.app import app
-from photree.gallery.stats import compute_gallery_stats, format_gallery_stats
+from photree.gallery.cli.stats_output import format_gallery_stats
+from photree.gallery.stats import compute_gallery_stats
 
 
 @app.command("stats")

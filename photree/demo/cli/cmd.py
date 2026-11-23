@@ -21,6 +21,7 @@ from photree.album.check.testkit import (
     PREFLIGHT_OK,
     PREFLIGHT_STD,
 )
+from photree.album.cli.stats_output import format_album_stats, format_albums_stats
 from photree.album.fix.output import rm_upstream_summary
 from photree.album.importer import output as importer_output
 from photree.album.importer.testkit import SeedResult, seed_demo
@@ -30,7 +31,6 @@ from photree.album.importer.testkit.preflight import (
 )
 from photree.album.importer.testkit.preflight import PREFLIGHT_OK as IMPORT_PREFLIGHT_OK
 from photree.album.importer.testkit.validation import VALIDATION_ERRORS
-from photree.album.stats.output import format_album_stats, format_albums_stats
 from photree.album.stats.testkit import ALBUM_STATS, ALBUMS_STATS
 from photree.clihelpers.console import console
 
