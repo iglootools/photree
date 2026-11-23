@@ -589,7 +589,7 @@ face-cluster-threshold: 0.45
 |--------------------------|----------------|------------|-------------|
 | `link-mode`              | string         | `hardlink` | Default link mode for refresh and other link-mode operations. Values: `hardlink`, `symlink`, `copy`. |
 | `faces-enabled`          | bool           | `true`     | Enable face detection and clustering during gallery refresh. |
-| `face-cluster-threshold` | float or null  | `null`     | Cosine distance threshold for face clustering (0.0–1.0, validated; 0.0 is valid). When null, defaults to 0.45 at runtime. Lower = stricter (fewer merges). |
+| `face-cluster-threshold` | float or null  | `null`     | Cosine distance threshold for face clustering, from 0.0 to 1.0 (0.0 is valid); a value outside that range makes the file invalid. When null, defaults to 0.45 at runtime. Lower = stricter (fewer merges). |
 
 The `--link-mode` CLI argument overrides the gallery-level setting.
 If no gallery.yaml is found and no CLI argument is given, the default

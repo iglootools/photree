@@ -252,6 +252,28 @@ class TestGalleryMetadata:
         meta = GalleryMetadata()
         assert meta.link_mode == LinkMode.HARDLINK
 
+    @pytest.mark.parametrize("threshold", [0.0, 1.0])
+    def test_load_accepts_threshold_bounds(
+        self,
+        tmp_path: Path,
+        threshold: float,
+    ) -> None:
+        path = tmp_path / "gallery.yaml"
+        write_yaml(path, {"face-cluster-threshold": threshold})
+        assert load_gallery_metadata(path).face_cluster_threshold == threshold
+
+    @pytest.mark.parametrize("threshold", [-0.1, 1.5, 5])
+    def test_load_rejects_threshold_out_of_range(
+        self,
+        tmp_path: Path,
+        threshold: float,
+    ) -> None:
+        path = tmp_path / "gallery.yaml"
+        write_yaml(path, {"face-cluster-threshold": threshold})
+        with pytest.raises(InvalidMetadataError) as info:
+            load_gallery_metadata(path)
+        assert info.value.path == path
+
 
 class TestResolveGalleryMetadata:
     def test_no_gallery_yaml_returns_none(self, tmp_path: Path) -> None:

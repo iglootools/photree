@@ -37,6 +37,8 @@ class GalleryMetadata(PhotreeModel):
     )
     face_cluster_threshold: float | None = Field(
         default=None,
+        ge=0.0,
+        le=1.0,
         description=(
             "Cosine distance threshold for face clustering (0.0-1.0). "
             "Lower = stricter (fewer merges). Default: 0.45 when not set."
