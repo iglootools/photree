@@ -5,18 +5,19 @@ A batch that reports only which albums failed forces a per-album re-run to
 learn anything the batch already knew. These pin the reason to the output.
 """
 
-import importlib
 from pathlib import Path
 
-import pytest
 from typer.testing import CliRunner
 
 from photree.album.id import generate_album_id
 from photree.album.store.metadata import save_album_metadata
-from photree.album.store.protocol import AlbumMetadata
+from photree.album.store.protocol import ALBUM_YAML, AlbumMetadata
 from photree.albums.batchcli.failures import batch_failures_report
 from photree.albums.cmd_handler import BatchFailure
+from photree.albums.cmd_handler.fix import batch_fix
+from photree.albums.cmd_handler.init import batch_init
 from photree.cli import app
+from photree.foundation.layout import PHOTREE_DIR
 from tests.fakes import ALL_DEPS_RUNTIME
 
 runner = CliRunner()
@@ -108,24 +109,30 @@ class TestBatchFailureReport:
         assert "disk on fire" in report
 
 
-@pytest.mark.parametrize(
-    "handler_module",
-    [
-        "photree.albums.cmd_handler.init",
-        "photree.albums.cmd_handler.refresh",
-        "photree.albums.cmd_handler.fix",
-        "photree.albums.cmd_handler.fix_ios",
-    ],
-)
-def test_every_handler_result_exposes_failures(handler_module: str) -> None:
-    """Guard against a handler regressing to a bare list of paths."""
-    module = importlib.import_module(handler_module)
-    result_cls = next(
-        obj
-        for name, obj in vars(module).items()
-        if name.startswith("Batch") and name.endswith("Result")
-    )
-    assert "failures" in result_cls.__dataclass_fields__
-    assert "failed_albums" not in result_cls.__dataclass_fields__, (
-        "failed_albums must be derived from failures, not stored alongside it"
-    )
+class TestHandlerFailureReasons:
+    """
+    Each handler keeps the reason of a failed album, not only its path.
+
+    Refresh and fix-ios are covered in test_face_failure_propagation.py and
+    albums/test_batch_fix_ios.py.
+    """
+
+    def test_init_failure_reason_names_the_existing_id(self, tmp_path: Path) -> None:
+        album = _album(tmp_path, "2024-07-14 - Hiking")
+
+        result = batch_init([album])
+
+        assert [f.album_dir for f in result.failures] == [album]
+        assert result.failures[0].reason.startswith("already initialized: ")
+
+    def test_fix_failure_reason_names_the_unreadable_metadata(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        album = tmp_path / "2024-07-14 - Hiking"
+        _write(album / PHOTREE_DIR / ALBUM_YAML, "id: [not, an, id")
+
+        result = batch_fix([album], fix_id=True)
+
+        assert [f.album_dir for f in result.failures] == [album]
+        assert ALBUM_YAML in result.failures[0].reason

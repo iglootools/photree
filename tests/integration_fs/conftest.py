@@ -13,7 +13,3 @@ missing (it only exists on macOS, while CI runs on Linux). A command that then
 reaches a conversion fails on the test's fake media either way: real ``sips``
 cannot read it, and a missing one raises ``FileNotFoundError``.
 """
-
-import pytest
-
-pytestmark = pytest.mark.integration_fs
