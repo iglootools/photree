@@ -224,25 +224,6 @@ def media_metadata_check_line(check: MediaMetadataCheck) -> str:
             )
 
 
-def album_dir_check(
-    present: tuple[str, ...],
-    missing: tuple[str, ...],
-    optional_present: tuple[str, ...] = (),
-    optional_absent: tuple[str, ...] = (),
-) -> str:
-    """Format one line per required and optional album directory, as Rich markup."""
-    lines = [
-        *[f"{CHECK} dir: {markup_escape(d)}/" for d in present],
-        *[f"{CROSS} dir: {markup_escape(d)}/ (missing)" for d in missing],
-        *[f"{CHECK} dir: {markup_escape(d)}/ (optional)" for d in optional_present],
-        *[
-            f"{CHECK} dir: {markup_escape(d)}/ (optional, absent)"
-            for d in optional_absent
-        ],
-    ]
-    return "\n".join(lines)
-
-
 def unexpected_dirs_check_line(check: UnexpectedDirsCheck) -> str:
     """Format the unexpected directories check, as Rich markup."""
     if check.success:

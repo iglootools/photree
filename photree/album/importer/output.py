@@ -264,16 +264,6 @@ def import_error(exc: NoImportTasksError | EmptyImageCaptureDirError, cwd: Path)
             )
 
 
-def batch_album_importing(album_name: str) -> str:
-    """Return the batch line announcing that *album_name* is being imported."""
-    return f"Importing: {markup_escape(album_name)}"
-
-
-def batch_album_skipped(album_name: str, reason: str) -> str:
-    """Return the batch line saying *album_name* is skipped, and why."""
-    return f"Skipping:  {markup_escape(album_name)} ({markup_escape(reason)})"
-
-
 def batch_summary(
     imported: int,
     skipped: int,
