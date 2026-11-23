@@ -13,6 +13,7 @@ from photree.album import check as album_check
 from photree.album.check.output import album as album_output
 from photree.album.check.output import derived as derived_output
 from photree.album.id import format_album_external_id
+from photree.album.refresh import RefreshFn
 from photree.album.store.album_discovery import discover_potential_albums
 from photree.album.store.metadata import load_album_metadata
 from photree.clihelpers.console import console, err_console
@@ -88,6 +89,7 @@ def run_single_import(
     dry_run: bool,
     max_workers: int | None = None,
     which: WhichFn,
+    refresh: RefreshFn,
     cwd: Path,
 ) -> AlbumImportResult:
     """Execute a single album import/reimport with stage progress bar."""
@@ -108,6 +110,7 @@ def run_single_import(
                 on_stage_end=progress.on_end,
                 max_workers=max_workers,
                 which=which,
+                refresh=refresh,
             )
         except (ValueError, OSError) as exc:
             # Same failure set as the batch import: the importer removes its
@@ -197,6 +200,7 @@ def run_batch_import(
     dry_run: bool,
     max_workers: int | None = None,
     which: WhichFn,
+    refresh: RefreshFn,
     cwd: Path,
 ) -> BatchImportResult:
     """Execute batch import/reimport with progress bar."""
@@ -212,6 +216,7 @@ def run_batch_import(
             dry_run=dry_run,
             max_workers=max_workers,
             which=which,
+            refresh=refresh,
             on_start=progress.on_start,
             on_end=lambda name, failure: progress.on_end(
                 name,

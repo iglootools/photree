@@ -5,10 +5,10 @@ from typing import Annotated
 
 import typer
 
+from photree.album.cli.runtime import album_runtime_of
 from photree.clihelpers.console import err_console
 from photree.clihelpers.options import REIMPORT_OPTION
 from photree.clihelpers.resolution import resolve_gallery_or_exit
-from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.sysdeps import import_deps, require_system_deps
 from photree.clihelpers.usage import mutually_exclusive_error
 from photree.common.formatting import format_dry_run, indent, markup_escape
@@ -97,7 +97,7 @@ def import_all_cmd(
     JPEGs, and runs gallery-wide checks. Already-imported albums are skipped
     unless --reimport is given.
     """
-    runtime = runtime_of(ctx)
+    runtime = album_runtime_of(ctx)
     cwd = runtime.cwd()
     which = runtime.which
     if base_dir is not None and album_dirs is not None:
@@ -133,6 +133,7 @@ def import_all_cmd(
         dry_run=dry_run,
         max_workers=runtime.cpu_count(),
         which=which,
+        refresh=runtime.refresh,
         cwd=cwd,
     )
     mutated = not dry_run and bool(result.imported)

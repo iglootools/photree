@@ -9,6 +9,7 @@ from photree.album.faces.detect import (
     FaceAnalyzerFactory,
     memoized_face_analyzer_factory,
 )
+from photree.album.refresh import RefreshFn, refresh_album_derived_data
 from photree.common.exif import ExifTagReader, exiftool_session
 from photree.common.sysdeps import WhichFn
 from photree.foundation.linking import LinkMode
@@ -38,6 +39,7 @@ def _execute_plan(
     max_workers: int | None = None,
     on_stage_start: Callable[[str], None] | None = None,
     on_stage_end: Callable[[str], None] | None = None,
+    refresh: RefreshFn = refresh_album_derived_data,
 ) -> AlbumImportResult:
     """Dispatch a single plan to import or reimport."""
     match plan.action, plan.existing:
@@ -53,6 +55,7 @@ def _execute_plan(
                 max_workers=max_workers,
                 exiftool=exiftool,
                 analyzer_factory=analyzer_factory,
+                refresh=refresh,
             )
         case ImportAction.NEW, _:
             return gallery_importer.import_album(
@@ -65,6 +68,7 @@ def _execute_plan(
                 max_workers=max_workers,
                 exiftool=exiftool,
                 analyzer_factory=analyzer_factory,
+                refresh=refresh,
             )
         case action, existing:
             # SKIP plans are filtered out by the caller, and the planner
@@ -82,12 +86,14 @@ def run_single_import(
     on_stage_end: Callable[[str], None] | None = None,
     max_workers: int | None = None,
     which: WhichFn = shutil.which,
+    refresh: RefreshFn = refresh_album_derived_data,
 ) -> AlbumImportResult:
     """
     Execute a single album import/reimport with optional stage callbacks.
 
     Creates a shared exiftool and injects a memoized face analyzer factory
-    (loaded lazily, only if a source has images to detect).
+    (loaded lazily, only if a source has images to detect). *refresh* builds
+    the album's derived data.
     Raises :class:`ValueError` or :class:`OSError` on import errors.
     """
     with exiftool_session(which=which) as exiftool:
@@ -101,6 +107,7 @@ def run_single_import(
             max_workers=max_workers,
             on_stage_start=on_stage_start,
             on_stage_end=on_stage_end,
+            refresh=refresh,
         )
 
 
@@ -138,6 +145,7 @@ def _import_one(
     exiftool: ExifTagReader | None,
     analyzer_factory: FaceAnalyzerFactory,
     max_workers: int | None,
+    refresh: RefreshFn,
 ) -> AlbumImportFailure | None:
     """Import one album, returning its failure (``None`` on success)."""
     try:
@@ -149,6 +157,7 @@ def _import_one(
             exiftool=exiftool,
             analyzer_factory=analyzer_factory,
             max_workers=max_workers,
+            refresh=refresh,
         )
     except (ValueError, OSError) as exc:
         return AlbumImportFailure(source=plan.source, error=exc)
@@ -186,6 +195,7 @@ def run_batch_import(
     on_end: Callable[[str, AlbumImportFailure | None], None] | None = None,
     max_workers: int | None = None,
     which: WhichFn = shutil.which,
+    refresh: RefreshFn = refresh_album_derived_data,
 ) -> BatchImportResult:
     """
     Import/reimport multiple albums into a gallery.
@@ -209,6 +219,7 @@ def run_batch_import(
                     exiftool=exiftool,
                     analyzer_factory=analyzer_factory,
                     max_workers=max_workers,
+                    refresh=refresh,
                 ),
                 on_start=on_start,
                 on_end=on_end,

@@ -5,9 +5,9 @@ from typing import Annotated
 
 import typer
 
+from photree.album.cli.runtime import album_runtime_of
 from photree.clihelpers.options import REIMPORT_OPTION
 from photree.clihelpers.resolution import resolve_gallery_or_exit
-from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.sysdeps import import_deps, require_system_deps
 from photree.foundation.gallery_metadata import resolve_link_mode
 from photree.foundation.linking import LinkMode
@@ -70,7 +70,7 @@ def import_cmd(
     reimport: REIMPORT_OPTION = False,
 ) -> None:
     """Import an existing album directory into the gallery."""
-    runtime = runtime_of(ctx)
+    runtime = album_runtime_of(ctx)
     cwd = runtime.cwd()
     which = runtime.which
     require_system_deps(import_deps(), which=which)
@@ -98,6 +98,7 @@ def import_cmd(
         dry_run=dry_run,
         max_workers=runtime.cpu_count(),
         which=which,
+        refresh=runtime.refresh,
         cwd=cwd,
     )
     print_single_import_result(result, cwd, dry_run=dry_run, which=which)
