@@ -67,6 +67,49 @@ def _apply_settings(
     return updated
 
 
+def _media_dropped_by(
+    current: CollectionMetadata,
+    updated: CollectionMetadata,
+) -> tuple[int, int]:
+    """
+    Return how many images and videos the switch to smart will lose.
+
+    A smart collection holds only albums and collections, and the next
+    'gallery refresh' empties its image and video lists.
+    """
+    switching = (
+        current.members != CollectionMembers.SMART
+        and updated.members == CollectionMembers.SMART
+    )
+    return (len(updated.images), len(updated.videos)) if switching else (0, 0)
+
+
+def _require_force_to_drop_media(
+    dropped: tuple[int, int],
+    collection_dir: Path,
+    cwd: Path,
+    *,
+    force: bool,
+) -> None:
+    """Exit unless nothing is dropped or *force* is given; warn when it is."""
+    images, videos = dropped
+    if images == 0 and videos == 0:
+        return
+    problem = (
+        f"{display_path(collection_dir, cwd)} has {images} image(s) and "
+        f"{videos} video(s): a smart collection holds only albums and "
+        "collections, so the next 'photree gallery refresh' drops them."
+    )
+    if force:
+        err_console.print(f"warning: {problem}", markup=False)
+    else:
+        err_console.print(
+            f"{problem}\nRe-run with --force to switch to smart anyway.",
+            markup=False,
+        )
+        raise typer.Exit(code=1)
+
+
 def _format_changes(
     current: CollectionMetadata,
     updated: CollectionMetadata,
@@ -114,6 +157,17 @@ def set_cmd(
             ),
         ),
     ] = None,
+    *,
+    force: Annotated[
+        bool,
+        typer.Option(
+            "--force",
+            help=(
+                "Switch a collection holding images or videos to smart members, "
+                "which the next 'gallery refresh' drops."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Update collection metadata fields."""
     if members is None and lifecycle is None and strategy is None:
@@ -125,6 +179,12 @@ def set_cmd(
     if updated == current:
         typer.echo("No changes — metadata is already up to date.")
         raise typer.Exit(code=0)
+    _require_force_to_drop_media(
+        _media_dropped_by(current, updated),
+        collection_dir,
+        cwd,
+        force=force,
+    )
 
     save_collection_metadata(collection_dir, updated)
     yaml_path = display_path(collection_dir / PHOTREE_DIR / COLLECTION_YAML, cwd)

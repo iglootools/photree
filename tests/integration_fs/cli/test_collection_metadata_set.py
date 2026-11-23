@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from typer.testing import CliRunner
+from typer.testing import CliRunner, Result
 
 from photree.cli import app
 from photree.collection.id import generate_collection_id
@@ -197,3 +197,49 @@ class TestCollectionMetadataSet:
         loaded = load_collection_metadata(tmp_path)
         assert loaded is not None
         assert loaded.albums == [album_id]
+
+
+class TestSwitchToSmartWithMedia:
+    def _setup(self, collection_dir: Path) -> None:
+        save_collection_metadata(
+            collection_dir,
+            CollectionMetadata(
+                id=generate_collection_id(),
+                members=CollectionMembers.MANUAL,
+                lifecycle=CollectionLifecycle.EXPLICIT,
+                images=["img-1", "img-2"],
+                videos=["vid-1"],
+            ),
+        )
+
+    def _switch(self, collection_dir: Path, *extra: str) -> Result:
+        return runner.invoke(
+            app,
+            [
+                *("collection", "metadata", "set", "-d", str(collection_dir)),
+                *("--members", "smart", "--strategy", "date-range", *extra),
+            ],
+        )
+
+    def test_refused_without_force(self, tmp_path: Path) -> None:
+        self._setup(tmp_path)
+
+        result = self._switch(tmp_path)
+
+        assert result.exit_code == 1
+        assert "has 2 image(s) and 1 video(s)" in result.output
+        assert "--force" in result.output
+        loaded = load_collection_metadata(tmp_path)
+        assert loaded is not None
+        assert loaded.members == CollectionMembers.MANUAL
+
+    def test_switches_with_force_and_warns(self, tmp_path: Path) -> None:
+        self._setup(tmp_path)
+
+        result = self._switch(tmp_path, "--force")
+
+        assert result.exit_code == 0, result.output
+        assert "warning:" in result.output
+        loaded = load_collection_metadata(tmp_path)
+        assert loaded is not None
+        assert loaded.members == CollectionMembers.SMART

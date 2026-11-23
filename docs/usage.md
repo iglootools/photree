@@ -316,6 +316,10 @@ photree collection metadata set -d my-collection/ --members smart --strategy dat
 photree collection metadata set -d my-collection/ --lifecycle explicit
 ```
 
+A smart collection holds only albums and collections, and `gallery refresh`
+drops its images and videos. Switching a collection that holds some to
+`--members smart` is refused unless you add `--force`.
+
 **Converting between lifecycles:**
 
 When you convert an implicit collection to explicit (or vice versa),
