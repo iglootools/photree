@@ -1,6 +1,6 @@
 """The ``photree albums export`` command."""
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated
 
@@ -30,8 +30,6 @@ from photree.clihelpers.options import (
 from photree.clihelpers.progress import BatchProgressBar
 from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.usage import mutually_exclusive_error
-from photree.common.formatting import indent
-from photree.common.fs import display_path
 from photree.config import ConfigError, PhotreeConfig
 from photree.foundation.linking import LinkMode
 from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
@@ -97,7 +95,10 @@ def export_cmd(
     result = _export(albums, scan_dir, album_dirs, settings)
     typer.echo(export_output.batch_export_summary(result.exported, len(result.failed)))
     if result.failed:
-        _report_failures(result.failed, cwd)
+        err_console.print(
+            export_output.format_batch_export_failures(result.failed, cwd),
+            markup=False,
+        )
         raise typer.Exit(code=1)
 
 
@@ -162,26 +163,3 @@ def _export(
                 error_labels=(error,),
             ),
         )
-
-
-def _report_failures(failed: Sequence[tuple[Path, str]], cwd: Path) -> None:
-    err_console.print(
-        "\n".join(
-            [
-                "\nFailed albums:",
-                *(
-                    indent(f"{display_path(album_dir, cwd)}\n{indent(error)}")
-                    for album_dir, error in failed
-                ),
-                "\nTo investigate failures:",
-                *(
-                    indent(
-                        "photree album export --album-dir "
-                        f'"{display_path(album_dir, cwd)}"',
-                    )
-                    for album_dir, _ in failed
-                ),
-            ],
-        ),
-        markup=False,
-    )

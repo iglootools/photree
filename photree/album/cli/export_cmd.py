@@ -124,12 +124,20 @@ def export_cmd(
         )
         raise typer.Exit(code=1) from exc
 
-    result = album_export.export_album(
-        album_dir,
-        target_dir,
-        album_layout=settings.album_layout,
-        link_mode=settings.link_mode,
-    )
+    try:
+        result = album_export.export_album(
+            album_dir,
+            target_dir,
+            album_layout=settings.album_layout,
+            link_mode=settings.link_mode,
+        )
+    except OSError as exc:
+        # A full or read-only share, or one that refuses links (exFAT, SMB).
+        err_console.print(
+            export_output.format_export_failure(album_dir, exc, cwd, settings),
+            markup=False,
+        )
+        raise typer.Exit(code=1) from exc
 
     typer.echo(
         export_output.export_summary(
