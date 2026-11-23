@@ -15,9 +15,7 @@ from photree.collection.store.protocol import (
 )
 from photree.foundation.gallery_metadata import (
     GALLERY_YAML,
-    GalleryMetadata,
     load_gallery_metadata,
-    save_gallery_metadata,
 )
 from photree.foundation.layout import PHOTREE_DIR, SHARE_SENTINEL
 from photree.gallery.cmd_handler.importer import (
@@ -26,24 +24,13 @@ from photree.gallery.cmd_handler.importer import (
 )
 from photree.gallery.output import format_import_all_summary, import_all_failed
 from tests.fakes import invoke_cli
-
-
-def _write(path: Path, content: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-
-
-def _setup_gallery(tmp_path: Path) -> Path:
-    gallery = tmp_path / "gallery"
-    gallery.mkdir()
-    save_gallery_metadata(gallery, GalleryMetadata(faces_enabled=False))
-    return gallery
+from tests.testkit import make_gallery, write_file
 
 
 def _setup_album(gallery: Path, name: str) -> Path:
     album_dir = gallery / "albums" / name[:4] / name
-    _write(album_dir / "ios-main" / "orig-img" / "IMG_0001.HEIC")
-    _write(album_dir / "main-jpg" / "IMG_0001.jpg")
+    write_file(album_dir / "ios-main" / "orig-img" / "IMG_0001.HEIC")
+    write_file(album_dir / "main-jpg" / "IMG_0001.jpg")
     save_album_metadata(album_dir, AlbumMetadata(id=generate_album_id()))
     return album_dir
 
@@ -69,7 +56,7 @@ class TestGalleryCheckPhases:
         tmp_path: Path,
     ) -> None:
         """Regression: "no albums" exited 0 before the collection phase ran."""
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path, faces_enabled=False)
         _dangling_collection(gallery)
 
         result = invoke_cli(["gallery", "check", "-g", str(gallery)])
@@ -87,7 +74,7 @@ class TestFaceClusterThreshold:
         tmp_path: Path,
         value: str,
     ) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path, faces_enabled=False)
 
         result = invoke_cli(
             [
@@ -106,7 +93,7 @@ class TestFaceClusterThreshold:
         assert meta.face_cluster_threshold is None
 
     def test_metadata_set_accepts_zero(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path, faces_enabled=False)
 
         result = invoke_cli(
             [
@@ -125,7 +112,7 @@ class TestFaceClusterThreshold:
         assert meta.face_cluster_threshold == 0.0
 
     def test_cluster_faces_rejects_out_of_range(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path, faces_enabled=False)
 
         result = invoke_cli(
             ["gallery", "cluster-faces", "-g", str(gallery), "--threshold", "2"],
@@ -176,7 +163,7 @@ class TestExport:
         chdir: Callable[[Path], None],
     ) -> None:
         """Regression: --gallery-dir was ignored and the cwd was scanned."""
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path, faces_enabled=False)
         _setup_album(gallery, "2024-07-14 - Hiking")
         share = tmp_path / "share"
         share.mkdir()
@@ -200,7 +187,7 @@ class TestExport:
         assert (share / "2024-07-14 - Hiking").is_dir()
 
     def test_gallery_dir_and_dir_are_exclusive(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path, faces_enabled=False)
 
         result = invoke_cli(
             ["gallery", "export", "-g", str(gallery), "--dir", str(tmp_path)],
@@ -215,7 +202,7 @@ class TestListCollections:
         tmp_path: Path,
         chdir: Callable[[Path], None],
     ) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path, faces_enabled=False)
         col_dir = _dangling_collection(gallery)
         chdir(tmp_path)
 
@@ -227,7 +214,7 @@ class TestListCollections:
         assert str(col_dir.relative_to(tmp_path)) in result.output
 
     def test_rejects_unknown_format(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path, faces_enabled=False)
 
         result = invoke_cli(
             ["gallery", "list-collections", "-g", str(gallery), "--format", "json"],
@@ -239,10 +226,10 @@ class TestListCollections:
 class TestGalleryAlbumDiscovery:
     def test_album_outside_the_albums_dir_is_not_listed(self, tmp_path: Path) -> None:
         """Regression: some gallery commands scanned the whole gallery root."""
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path, faces_enabled=False)
         _setup_album(gallery, "2024-07-14 - Trip")
         stray = gallery / "inbox" / "2024-08-01 - Stray"
-        _write(stray / "ios-main" / "orig-img" / "IMG_0001.HEIC")
+        write_file(stray / "ios-main" / "orig-img" / "IMG_0001.HEIC")
         save_album_metadata(stray, AlbumMetadata(id=generate_album_id()))
 
         result = invoke_cli(

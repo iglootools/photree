@@ -12,33 +12,29 @@ from photree.album.exif_cache.protocol import (
 )
 from photree.album.exif_cache.store import save_exif_cache
 from tests.fakes import FakeExifTool
+from tests.testkit import write_file
 
 _ON_DATE = "2024:07:14 10:00:00"
 _OFF_DATE = "2023:01:01 10:00:00"
 
 
-def _write(path: Path, content: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-
-
 def _std_album(album: Path) -> None:
-    _write(album / "std-main" / "orig-img" / "DSC_0001.HEIC")
-    _write(album / "std-main" / "edit-img" / "DSC_0001.HEIC")
-    _write(album / "std-main" / "orig-vid" / "VID_0002.MOV")
-    _write(album / "main-img" / "DSC_0001.HEIC")
-    _write(album / "main-jpg" / "DSC_0001.jpg")
-    _write(album / "main-vid" / "VID_0002.MOV")
+    write_file(album / "std-main" / "orig-img" / "DSC_0001.HEIC")
+    write_file(album / "std-main" / "edit-img" / "DSC_0001.HEIC")
+    write_file(album / "std-main" / "orig-vid" / "VID_0002.MOV")
+    write_file(album / "main-img" / "DSC_0001.HEIC")
+    write_file(album / "main-jpg" / "DSC_0001.jpg")
+    write_file(album / "main-vid" / "VID_0002.MOV")
 
 
 def _ios_album(album: Path) -> None:
-    _write(album / "ios-main" / "orig-img" / "IMG_0001.HEIC")
-    _write(album / "ios-main" / "orig-img" / "IMG_0001.AAE")
-    _write(album / "ios-main" / "edit-img" / "IMG_E0001.HEIC")
-    _write(album / "ios-main" / "orig-vid" / "IMG_0002.MOV")
-    _write(album / "main-img" / "IMG_E0001.HEIC")
-    _write(album / "main-jpg" / "IMG_E0001.jpg")
-    _write(album / "main-vid" / "IMG_0002.MOV")
+    write_file(album / "ios-main" / "orig-img" / "IMG_0001.HEIC")
+    write_file(album / "ios-main" / "orig-img" / "IMG_0001.AAE")
+    write_file(album / "ios-main" / "edit-img" / "IMG_E0001.HEIC")
+    write_file(album / "ios-main" / "orig-vid" / "IMG_0002.MOV")
+    write_file(album / "main-img" / "IMG_E0001.HEIC")
+    write_file(album / "main-jpg" / "IMG_E0001.jpg")
+    write_file(album / "main-vid" / "IMG_0002.MOV")
 
 
 class TestExifTimestampCheck:
@@ -155,7 +151,7 @@ class TestUpstreamFiles:
         assert mismatch.upstream_files == ("ios-main/orig-vid/IMG_0002.MOV",)
 
     def test_album_without_media_source_has_no_upstream(self, tmp_path: Path) -> None:
-        _write(tmp_path / "loose" / "photo.jpg")
+        write_file(tmp_path / "loose" / "photo.jpg")
 
         check = check_exif_date_match(
             tmp_path,

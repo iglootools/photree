@@ -42,22 +42,7 @@ from photree.foundation.metadata_io import (
     load_yaml_mapping,
     write_yaml,
 )
-
-
-def _write(path: Path, content: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-
-
-def _mark_album(album_dir: Path) -> None:
-    save_album_metadata(album_dir, AlbumMetadata(id=generate_album_id()))
-
-
-def _setup_media_source(album_dir: Path) -> None:
-    """Create a minimal iOS media source so the album is detected."""
-    _write(album_dir / "ios-main" / "orig-img" / "IMG_0001.HEIC")
-    (album_dir / "main-img").mkdir(parents=True, exist_ok=True)
-    (album_dir / "main-jpg").mkdir(parents=True, exist_ok=True)
+from tests.testkit import add_ios_media_source, mark_album
 
 
 class TestBase58:
@@ -333,13 +318,13 @@ class TestGenerateAlbumId:
 class TestIsAlbum:
     def test_album_with_metadata(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
-        _setup_media_source(album)
-        _mark_album(album)
+        add_ios_media_source(album)
+        mark_album(album)
         assert is_album(album)
 
     def test_legacy_album_not_detected(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
-        _setup_media_source(album)
+        add_ios_media_source(album)
         (album / PHOTREE_DIR).mkdir(parents=True, exist_ok=True)
         assert not is_album(album)
 
@@ -443,15 +428,15 @@ class TestYamlMetadataIO:
 class TestDiscoverAlbums:
     def test_discovers_proper_albums(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
-        _setup_media_source(album)
-        _mark_album(album)
+        add_ios_media_source(album)
+        mark_album(album)
 
         albums = discover_albums(tmp_path)
         assert albums == [album]
 
     def test_skips_legacy_albums(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
-        _setup_media_source(album)
+        add_ios_media_source(album)
         (album / PHOTREE_DIR).mkdir(parents=True, exist_ok=True)
 
         albums = discover_albums(tmp_path)
@@ -461,7 +446,7 @@ class TestDiscoverAlbums:
 class TestHasMediaSources:
     def test_with_ios_media_source(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
-        _setup_media_source(album)
+        add_ios_media_source(album)
         assert has_media_sources(album) is True
 
     def test_empty_dir(self, tmp_path: Path) -> None:
@@ -473,7 +458,7 @@ class TestHasMediaSources:
 class TestDiscoverPotentialAlbums:
     def test_finds_albums_without_metadata(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
-        _setup_media_source(album)
+        add_ios_media_source(album)
         # No _mark_album — no album.yaml
 
         albums, skipped = discover_potential_albums(tmp_path)
@@ -482,8 +467,8 @@ class TestDiscoverPotentialAlbums:
 
     def test_finds_albums_with_metadata(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
-        _setup_media_source(album)
-        _mark_album(album)
+        add_ios_media_source(album)
+        mark_album(album)
 
         albums, skipped = discover_potential_albums(tmp_path)
         assert albums == [album]
@@ -498,7 +483,7 @@ class TestDiscoverPotentialAlbums:
 
     def test_partitions_albums_and_non_albums(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
-        _setup_media_source(album)
+        add_ios_media_source(album)
         non_album = tmp_path / "new"
         non_album.mkdir()
 
@@ -510,7 +495,7 @@ class TestDiscoverPotentialAlbums:
         container = tmp_path / "trip"
         container.mkdir()
         album = container / "album"
-        _setup_media_source(album)
+        add_ios_media_source(album)
 
         albums, skipped = discover_potential_albums(tmp_path)
         assert albums == [album]

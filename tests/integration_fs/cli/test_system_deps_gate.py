@@ -16,25 +16,21 @@ from photree.common.sysdeps import SystemDependency
 from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 from photree.foundation.linking import LinkMode
 from tests.fakes import fake_runtime, invoke_cli
+from tests.testkit import write_file
 
 SEL_DIR = ios_import_dir("main")
-
-
-def _write(path: Path, content: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
 
 
 def _image_capture_dir(tmp_path: Path) -> Path:
     ic_dir = tmp_path / "image_capture"
     for name in ("IMG_0001.HEIC", "IMG_0001.AAE"):
-        _write(ic_dir / name)
+        write_file(ic_dir / name)
     return ic_dir
 
 
 def _staged_album(parent: Path, name: str) -> Path:
     album = parent / name
-    _write(album / SEL_DIR / "IMG_0001.HEIC")
+    write_file(album / SEL_DIR / "IMG_0001.HEIC")
     return album
 
 
@@ -132,7 +128,7 @@ class TestGalleryImportGate:
         gallery = _gallery(tmp_path)
         base = tmp_path / "incoming"
         source = base / "2024-07-14 - Hiking"
-        _write(source / "ios-main/orig-img/IMG_0001.HEIC")
+        write_file(source / "ios-main/orig-img/IMG_0001.HEIC")
         save_album_metadata(source, AlbumMetadata(id=generate_album_id()))
 
         result = invoke_cli(
@@ -149,7 +145,7 @@ class TestRefreshGate:
     def test_album_refresh_aborts(self, tmp_path: Path) -> None:
         runtime = fake_runtime(SystemDependency.SIPS)
         album = tmp_path / "2024-07-14 - Hiking"
-        _write(album / "ios-main/orig-img/IMG_0001.HEIC")
+        write_file(album / "ios-main/orig-img/IMG_0001.HEIC")
         save_album_metadata(album, AlbumMetadata(id=generate_album_id()))
 
         result = invoke_cli(["album", "refresh", "-a", str(album)], runtime=runtime)

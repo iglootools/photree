@@ -14,32 +14,26 @@ from photree.dates import DatePrefixError, DatePrefixKind
 from photree.foundation.layout import PHOTREE_DIR
 from photree.foundation.linking import LinkMode
 from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
-
-
-def _setup_dir(path: Path, filenames: list[str]) -> Path:
-    path.mkdir(parents=True, exist_ok=True)
-    for name in filenames:
-        (path / name).write_text(f"data-{name}")
-    return path
+from tests.testkit import write_files
 
 
 def _setup_ios_album(album_dir: Path) -> Path:
-    _setup_dir(
+    write_files(
         album_dir / MAIN_MEDIA_SOURCE.orig_img_dir,
         ["IMG_0001.HEIC", "IMG_0002.HEIC"],
     )
-    _setup_dir(album_dir / MAIN_MEDIA_SOURCE.edit_img_dir, ["IMG_E0001.HEIC"])
-    _setup_dir(
+    write_files(album_dir / MAIN_MEDIA_SOURCE.edit_img_dir, ["IMG_E0001.HEIC"])
+    write_files(
         album_dir / MAIN_MEDIA_SOURCE.img_dir,
         ["IMG_E0001.HEIC", "IMG_0002.HEIC"],
     )
-    _setup_dir(
+    write_files(
         album_dir / MAIN_MEDIA_SOURCE.jpg_dir,
         ["IMG_E0001.JPEG", "IMG_0002.JPEG"],
     )
-    _setup_dir(album_dir / MAIN_MEDIA_SOURCE.orig_vid_dir, ["IMG_0010.MOV"])
-    _setup_dir(album_dir / MAIN_MEDIA_SOURCE.edit_vid_dir, ["IMG_E0010.MOV"])
-    _setup_dir(album_dir / MAIN_MEDIA_SOURCE.vid_dir, ["IMG_E0010.MOV"])
+    write_files(album_dir / MAIN_MEDIA_SOURCE.orig_vid_dir, ["IMG_0010.MOV"])
+    write_files(album_dir / MAIN_MEDIA_SOURCE.edit_vid_dir, ["IMG_E0010.MOV"])
+    write_files(album_dir / MAIN_MEDIA_SOURCE.vid_dir, ["IMG_E0010.MOV"])
     return album_dir
 
 
@@ -98,7 +92,7 @@ class TestComputeTargetDir:
 class TestExportOtherAlbum:
     def test_copies_all_files(self, tmp_path: Path) -> None:
         album_dir = tmp_path / "my-album"
-        _setup_dir(album_dir, ["photo1.jpg", "photo2.jpg", "video.mov"])
+        write_files(album_dir, ["photo1.jpg", "photo2.jpg", "video.mov"])
         target = tmp_path / "share" / "my-album"
 
         result = export_album(album_dir, target)
@@ -113,10 +107,10 @@ class TestExportOtherAlbum:
 
     def test_reexport_counts_only_copied_files(self, tmp_path: Path) -> None:
         album_dir = tmp_path / "my-album"
-        _setup_dir(album_dir, ["photo1.jpg", "photo2.jpg"])
+        write_files(album_dir, ["photo1.jpg", "photo2.jpg"])
         target = tmp_path / "share" / "my-album"
         # Leftover from an earlier export that is no longer in the source.
-        _setup_dir(target, ["old.jpg"])
+        write_files(target, ["old.jpg"])
 
         first = export_album(album_dir, target)
         second = export_album(album_dir, target)
@@ -128,8 +122,8 @@ class TestExportOtherAlbum:
 
     def test_copies_nested_directories(self, tmp_path: Path) -> None:
         album_dir = tmp_path / "vacation"
-        _setup_dir(album_dir / "sub", ["nested.jpg"])
-        _setup_dir(album_dir, ["top.jpg"])
+        write_files(album_dir / "sub", ["nested.jpg"])
+        write_files(album_dir, ["top.jpg"])
         target = tmp_path / "share" / "vacation"
 
         result = export_album(album_dir, target)
@@ -140,7 +134,7 @@ class TestExportOtherAlbum:
 
     def test_skips_dotfiles(self, tmp_path: Path) -> None:
         album_dir = tmp_path / "my-album"
-        _setup_dir(album_dir, ["photo.jpg"])
+        write_files(album_dir, ["photo.jpg"])
         (album_dir / ".hidden").write_text("secret")
         (album_dir / ".photree").mkdir()
         (album_dir / ".photree" / "title.bkp").write_text("backup")
@@ -209,11 +203,11 @@ class TestExportIosMain:
 
     def test_handles_missing_browsable_dirs(self, tmp_path: Path) -> None:
         album_dir = tmp_path / "minimal"
-        _setup_dir(album_dir / MAIN_MEDIA_SOURCE.orig_img_dir, ["IMG_0001.HEIC"])
-        _setup_dir(album_dir / MAIN_MEDIA_SOURCE.img_dir, ["IMG_0001.HEIC"])
-        _setup_dir(album_dir / MAIN_MEDIA_SOURCE.jpg_dir, ["IMG_0001.JPEG"])
-        _setup_dir(album_dir / MAIN_MEDIA_SOURCE.orig_vid_dir, ["IMG_0010.MOV"])
-        _setup_dir(album_dir / MAIN_MEDIA_SOURCE.vid_dir, ["IMG_0010.MOV"])
+        write_files(album_dir / MAIN_MEDIA_SOURCE.orig_img_dir, ["IMG_0001.HEIC"])
+        write_files(album_dir / MAIN_MEDIA_SOURCE.img_dir, ["IMG_0001.HEIC"])
+        write_files(album_dir / MAIN_MEDIA_SOURCE.jpg_dir, ["IMG_0001.JPEG"])
+        write_files(album_dir / MAIN_MEDIA_SOURCE.orig_vid_dir, ["IMG_0010.MOV"])
+        write_files(album_dir / MAIN_MEDIA_SOURCE.vid_dir, ["IMG_0010.MOV"])
         target = tmp_path / "share" / "minimal"
 
         result = export_album(
@@ -300,10 +294,10 @@ def _setup_photree_metadata(album_dir: Path) -> None:
     photree = album_dir / PHOTREE_DIR
     (photree).mkdir(parents=True, exist_ok=True)
     (photree / "album.yaml").write_text("id: 0192d4e1-7c3f-7b4a-8c5e-f6a7b8c9d0e1\n")
-    _setup_dir(photree / "media-ids", ["main.yaml"])
+    write_files(photree / "media-ids", ["main.yaml"])
     # cache/ is derived and must be excluded from the archive layout.
-    _setup_dir(photree / "cache" / "exif", ["main.yaml"])
-    _setup_dir(photree / "cache" / "faces", ["main.npz"])
+    write_files(photree / "cache" / "exif", ["main.yaml"])
+    write_files(photree / "cache" / "faces", ["main.npz"])
 
 
 class TestExportIosArchive:
@@ -339,11 +333,11 @@ class TestExportIosArchive:
 def _setup_std_source(album_dir: Path, name: str = "dana") -> None:
     """Create a std media source with a real std-{name}/ archive."""
     ms = std_media_source(name)
-    _setup_dir(album_dir / ms.orig_img_dir, ["photo1.heic", "photo2.heic"])
-    _setup_dir(album_dir / ms.edit_img_dir, ["photo1.heic"])
-    _setup_dir(album_dir / ms.orig_vid_dir, ["clip.mov"])
-    _setup_dir(album_dir / ms.img_dir, ["photo1.heic", "photo2.heic"])
-    _setup_dir(album_dir / ms.jpg_dir, ["photo1.jpg", "photo2.jpg"])
+    write_files(album_dir / ms.orig_img_dir, ["photo1.heic", "photo2.heic"])
+    write_files(album_dir / ms.edit_img_dir, ["photo1.heic"])
+    write_files(album_dir / ms.orig_vid_dir, ["clip.mov"])
+    write_files(album_dir / ms.img_dir, ["photo1.heic", "photo2.heic"])
+    write_files(album_dir / ms.jpg_dir, ["photo1.jpg", "photo2.jpg"])
 
 
 class TestExportStdArchive:
@@ -379,7 +373,7 @@ class TestExportStdArchive:
 class TestExportPlainArchive:
     def test_plain_dir_falls_back_to_full_copy(self, tmp_path: Path) -> None:
         album_dir = tmp_path / "loose"
-        _setup_dir(album_dir, ["a.jpg", "b.jpg"])
+        write_files(album_dir, ["a.jpg", "b.jpg"])
         target = tmp_path / "share" / "loose"
 
         result = export_album(album_dir, target, album_layout=AlbumShareLayout.ARCHIVE)
@@ -414,7 +408,7 @@ class TestExportIosAllLivePhotos:
 
     def _setup_live_photo_album(self, album_dir: Path) -> Path:
         _setup_ios_album(album_dir)
-        _setup_dir(album_dir / MAIN_MEDIA_SOURCE.orig_img_dir, ["IMG_0002.MOV"])
+        write_files(album_dir / MAIN_MEDIA_SOURCE.orig_img_dir, ["IMG_0002.MOV"])
         return album_dir
 
     def test_places_live_photo_videos_in_the_img_dir(self, tmp_path: Path) -> None:
@@ -498,8 +492,8 @@ class TestReexportMirrorsTheAlbum:
 
     def test_plain_dir_mirrors_nested_files(self, tmp_path: Path) -> None:
         album_dir = tmp_path / "notes"
-        _setup_dir(album_dir / "sub", ["a.txt"])
-        _setup_dir(album_dir, ["b.txt"])
+        write_files(album_dir / "sub", ["a.txt"])
+        write_files(album_dir, ["b.txt"])
         target = tmp_path / "share" / "notes"
         export_album(album_dir, target)
         (album_dir / "sub" / "a.txt").unlink()

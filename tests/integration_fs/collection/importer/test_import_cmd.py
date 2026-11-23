@@ -4,7 +4,6 @@ import pytest
 
 from photree.album.id import (
     format_album_external_id,
-    generate_album_id,
     generate_media_id,
 )
 from photree.album.store.media_metadata import (
@@ -12,8 +11,6 @@ from photree.album.store.media_metadata import (
     MediaSourceMediaMetadata,
     save_media_metadata,
 )
-from photree.album.store.metadata import save_album_metadata
-from photree.album.store.protocol import AlbumMetadata
 from photree.collection.id import generate_collection_id
 from photree.collection.importer.import_members import (
     CollectionImportError,
@@ -38,35 +35,13 @@ from photree.collection.store.protocol import (
     CollectionMetadata,
     CollectionStrategy,
 )
-from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 from tests.fakes import invoke_cli
-
-
-def _write(path: Path, content: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
+from tests.testkit import make_gallery, make_gallery_album, write_file
 
 
 def _write_csv(path: Path, entries: list[str]) -> None:
     lines = ["entry,date", *[f"{e}," for e in entries]]
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-
-
-def _setup_gallery(tmp_path: Path) -> Path:
-    gallery = tmp_path / "gallery"
-    gallery.mkdir()
-    save_gallery_metadata(gallery, GalleryMetadata())
-    return gallery
-
-
-def _setup_album(gallery: Path, name: str) -> tuple[Path, str]:
-    album_dir = gallery / "albums" / "2024" / name
-    _write(album_dir / "ios-main" / "orig-img" / "IMG_0001.HEIC")
-    (album_dir / "main-img").mkdir(parents=True, exist_ok=True)
-    (album_dir / "main-jpg").mkdir(parents=True, exist_ok=True)
-    aid = generate_album_id()
-    save_album_metadata(album_dir, AlbumMetadata(id=aid))
-    return album_dir, aid
 
 
 def _setup_collection(tmp_path: Path) -> Path:
@@ -85,8 +60,8 @@ def _setup_collection(tmp_path: Path) -> Path:
 
 class TestCollectionImportCmd:
     def test_import_from_csv(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
-        _, album_id = _setup_album(gallery, "2024-07-14 - Trip")
+        gallery = make_gallery(tmp_path)
+        _, album_id = make_gallery_album(gallery, "2024-07-14 - Trip")
         col_dir = _setup_collection(tmp_path)
 
         ext_id = format_album_external_id(album_id)
@@ -112,8 +87,8 @@ class TestCollectionImportCmd:
         assert not (col_dir / SELECTION_CSV).exists()
 
     def test_import_from_dir(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
-        _, album_id = _setup_album(gallery, "2024-07-14 - Trip")
+        gallery = make_gallery(tmp_path)
+        _, album_id = make_gallery_album(gallery, "2024-07-14 - Trip")
         col_dir = _setup_collection(tmp_path)
 
         sel_dir = col_dir / SELECTION_DIR
@@ -137,7 +112,7 @@ class TestCollectionImportCmd:
         assert not sel_dir.exists()
 
     def test_import_fails_on_unresolved(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         col_dir = _setup_collection(tmp_path)
 
         _write_csv(col_dir / SELECTION_CSV, ["nonexistent-album"])
@@ -156,8 +131,8 @@ class TestCollectionImportCmd:
         assert "not found" in result.output
 
     def test_dry_run_no_changes(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
-        _, album_id = _setup_album(gallery, "2024-07-14 - Trip")
+        gallery = make_gallery(tmp_path)
+        _, album_id = make_gallery_album(gallery, "2024-07-14 - Trip")
         col_dir = _setup_collection(tmp_path)
 
         ext_id = format_album_external_id(album_id)
@@ -183,9 +158,9 @@ class TestCollectionImportCmd:
         assert (col_dir / SELECTION_CSV).exists()
 
     def test_import_merges_with_existing(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
-        _, album_id1 = _setup_album(gallery, "2024-07-14 - Trip A")
-        _, album_id2 = _setup_album(gallery, "2024-07-15 - Trip B")
+        gallery = make_gallery(tmp_path)
+        _, album_id1 = make_gallery_album(gallery, "2024-07-14 - Trip A")
+        _, album_id2 = make_gallery_album(gallery, "2024-07-15 - Trip B")
         col_dir = tmp_path / "my-collection"
         col_dir.mkdir()
         save_collection_metadata(
@@ -218,7 +193,7 @@ class TestCollectionImportCmd:
         assert album_id2 in loaded.albums
 
     def test_fails_without_init(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         col_dir = tmp_path / "uninit"
         col_dir.mkdir()
         _write_csv(col_dir / SELECTION_CSV, ["something"])
@@ -237,7 +212,7 @@ class TestCollectionImportCmd:
         assert "No collection metadata" in result.output
 
     def test_fails_without_selection(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         col_dir = _setup_collection(tmp_path)
 
         result = invoke_cli(
@@ -277,8 +252,8 @@ class TestSelectionDateErrors:
     def test_import_fails_on_invalid_date_without_writing(self, tmp_path: Path) -> None:
         # Regression: an unparseable date used to be dropped silently, so the
         # entry was resolved without the disambiguation the user asked for.
-        gallery = _setup_gallery(tmp_path)
-        _setup_album(gallery, "2024-07-14 - Trip")
+        gallery = make_gallery(tmp_path)
+        make_gallery_album(gallery, "2024-07-14 - Trip")
         col_dir = _setup_collection(tmp_path)
         (col_dir / SELECTION_CSV).write_text(
             "entry,date\n2024-07-14 - Trip,yesterday\n",
@@ -305,10 +280,10 @@ class TestSelectionCsvErrors:
     ) -> None:
         # Regression: a headerless CSV read as empty, so the import succeeded
         # on to-import/ alone and then deleted the CSV with its rows.
-        gallery = _setup_gallery(tmp_path)
-        _setup_album(gallery, "2024-07-14 - Trip")
+        gallery = make_gallery(tmp_path)
+        make_gallery_album(gallery, "2024-07-14 - Trip")
         col_dir = _setup_collection(tmp_path)
-        _write(col_dir / SELECTION_DIR / "2024-07-14 - Trip", "")
+        write_file(col_dir / SELECTION_DIR / "2024-07-14 - Trip", "")
         (col_dir / SELECTION_CSV).write_text(
             "2024-07-14 - Trip,\n",
             encoding="utf-8",
@@ -327,7 +302,7 @@ class TestSelectionCsvErrors:
         assert (col_dir / SELECTION_DIR / "2024-07-14 - Trip").exists()
 
     def test_batch_import_reports_non_utf8_csv(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         col_dir = _setup_collection(tmp_path)
         (col_dir / SELECTION_CSV).write_bytes("entry\nÉté\n".encode("latin-1"))
 
@@ -342,7 +317,7 @@ class TestSelectionCsvErrors:
 
 class TestImportMembersErrors:
     def test_smart_collection_raises_structured_error(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         col_dir = tmp_path / "smart"
         col_dir.mkdir()
         save_collection_metadata(
@@ -362,7 +337,7 @@ class TestImportMembersErrors:
         assert exc_info.value.collection_dir == col_dir
 
     def test_missing_metadata_raises_structured_error(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
 
         with pytest.raises(CollectionImportError) as exc_info:
             import_collection_members(tmp_path, lambda: scan_gallery(gallery))
@@ -372,7 +347,7 @@ class TestImportMembersErrors:
 
 class TestCollectionsImportCmd:
     def test_reports_each_failure_with_reason(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         col_dir = _setup_collection(tmp_path)
         _write_csv(col_dir / SELECTION_CSV, ["nonexistent-album"])
 
@@ -386,8 +361,8 @@ class TestCollectionsImportCmd:
         assert "photree collection import --collection-dir" in result.output
 
     def test_warnings_print_after_the_progress_lines(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
-        album_dir, _ = _setup_album(gallery, "2024-07-14 - Trip")
+        gallery = make_gallery(tmp_path)
+        album_dir, _ = make_gallery_album(gallery, "2024-07-14 - Trip")
         save_media_metadata(
             album_dir,
             MediaMetadata(
@@ -416,10 +391,10 @@ class TestCollectionsImportCmd:
         assert result.output.index("Warnings:") < result.output.index(warning)
 
     def test_unreadable_album_is_warned_once(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
-        broken, _ = _setup_album(gallery, "2024-07-01 - Broken")
+        gallery = make_gallery(tmp_path)
+        broken, _ = make_gallery_album(gallery, "2024-07-01 - Broken")
         (broken / ".photree" / "album.yaml").write_text("- nope\n", encoding="utf-8")
-        _setup_album(gallery, "2024-07-14 - Trip")
+        make_gallery_album(gallery, "2024-07-14 - Trip")
         first = _setup_collection(tmp_path)
         second = tmp_path / "second"
         second.mkdir()

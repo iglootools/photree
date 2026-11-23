@@ -20,11 +20,7 @@ from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.common.sips import SipsError
 from photree.foundation.linking import LinkMode
-
-
-def _write(path: Path, content: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
+from tests.testkit import write_file
 
 
 def _exploding_convert(src: Path, _dst_dir: Path, *, dry_run: bool) -> Path | None:  # noqa: ARG001 - ConvertFile's signature
@@ -35,8 +31,8 @@ def _exploding_convert(src: Path, _dst_dir: Path, *, dry_run: bool) -> Path | No
 class TestSequentialPath:
     def test_failure_is_recorded_not_raised(self, tmp_path: Path) -> None:
         src, dst = tmp_path / "img", tmp_path / "jpg"
-        _write(src / "IMG_0001.HEIC")
-        _write(src / "IMG_0002.HEIC")
+        write_file(src / "IMG_0001.HEIC")
+        write_file(src / "IMG_0002.HEIC")
 
         result = refresh_jpeg_dir(src, dst, convert_file=_exploding_convert)
 
@@ -50,8 +46,8 @@ class TestSequentialPath:
 
     def test_one_bad_file_does_not_abandon_the_rest(self, tmp_path: Path) -> None:
         src, dst = tmp_path / "img", tmp_path / "jpg"
-        _write(src / "good.jpg")
-        _write(src / "bad.HEIC")
+        write_file(src / "good.jpg")
+        write_file(src / "bad.HEIC")
 
         def convert(s: Path, d: Path, *, dry_run: bool) -> Path | None:
             if s.suffix == ".HEIC":
@@ -80,8 +76,8 @@ class TestParallelPath:
         tmp_path: Path,
     ) -> None:
         src, dst = tmp_path / "img", tmp_path / "jpg"
-        _write(src / "IMG_0001.HEIC", "not really heic")
-        _write(src / "IMG_0002.HEIC", "not really heic")
+        write_file(src / "IMG_0001.HEIC", "not really heic")
+        write_file(src / "IMG_0002.HEIC", "not really heic")
 
         result = refresh_jpeg_dir(src, dst, max_workers=4)
 
@@ -92,7 +88,7 @@ class TestParallelPath:
 
     def test_success_is_still_counted(self, tmp_path: Path) -> None:
         src, dst = tmp_path / "img", tmp_path / "jpg"
-        _write(src / "already.jpg")
+        write_file(src / "already.jpg")
 
         result = refresh_jpeg_dir(src, dst, max_workers=4)
 
@@ -140,7 +136,7 @@ class TestSipsError:
 class TestRefreshPropagation:
     def test_album_refresh_surfaces_the_failures(self, tmp_path: Path) -> None:
         album = tmp_path / "2024-07-14 - Hiking"
-        _write(album / "ios-main" / "orig-img" / "IMG_0001.HEIC", "not really heic")
+        write_file(album / "ios-main" / "orig-img" / "IMG_0001.HEIC", "not really heic")
         save_album_metadata(album, AlbumMetadata(id=generate_album_id()))
 
         result = refresh_album_derived_data(

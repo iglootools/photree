@@ -23,29 +23,9 @@ from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.common.exif import ExifTagReader
 from photree.common.sysdeps import SystemDependency
-from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 from photree.foundation.linking import LinkMode
 from tests.fakes import copy_convert_single, fake_album_runtime, invoke_cli
-
-
-def _write(path: Path, content: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-
-
-def _setup_gallery(
-    tmp_path: Path,
-    link_mode: LinkMode = LinkMode.HARDLINK,
-    *,
-    faces_enabled: bool = False,
-) -> Path:
-    gallery = tmp_path / "gallery"
-    gallery.mkdir()
-    save_gallery_metadata(
-        gallery,
-        GalleryMetadata(link_mode=link_mode, faces_enabled=faces_enabled),
-    )
-    return gallery
+from tests.testkit import make_gallery, write_file
 
 
 def _copy_refresh(
@@ -104,7 +84,7 @@ def _runtime_refreshing_with(refresh: RefreshFn) -> AlbumRuntime:
 
 def _make_source(base: Path, name: str, *, album_id: str | None = None) -> Path:
     d = base / name
-    _write(d / "ios-main/orig-img/IMG_0001.HEIC")
+    write_file(d / "ios-main/orig-img/IMG_0001.HEIC")
     if album_id is not None:
         save_album_metadata(d, AlbumMetadata(id=album_id))
     return d
@@ -112,14 +92,14 @@ def _make_source(base: Path, name: str, *, album_id: str | None = None) -> Path:
 
 def _place_gallery_album(gallery: Path, name: str, *, album_id: str) -> Path:
     target = gallery / "albums" / name[:4] / name
-    _write(target / "ios-main/orig-img/IMG_0001.HEIC")
+    write_file(target / "ios-main/orig-img/IMG_0001.HEIC")
     save_album_metadata(target, AlbumMetadata(id=album_id))
     return target
 
 
 class TestValidationGate:
     def test_collision_aborts_batch(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path, faces_enabled=False)
         base = tmp_path / "incoming"
         _make_source(base, "2024-07-14 - Morning")
         _make_source(base, "2024-07-14 - Evening")
@@ -133,7 +113,7 @@ class TestValidationGate:
         assert not (gallery / "albums").exists()
 
     def test_bad_name_aborts(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path, faces_enabled=False)
         source = _make_source(tmp_path / "src", "not-an-album-name")
 
         result = invoke_cli(
@@ -147,7 +127,7 @@ class TestValidationGate:
 
 class TestSkip:
     def test_already_imported_is_skipped(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path, faces_enabled=False)
         _place_gallery_album(
             gallery,
             "2024-07-14 - Hiking",
@@ -165,7 +145,7 @@ class TestSkip:
 
 class TestClobberGuard:
     def test_different_album_same_name_refused(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path, faces_enabled=False)
         _place_gallery_album(
             gallery,
             "2024-07-14 - Hiking",
@@ -191,7 +171,7 @@ class TestDryRun:
     def test_dry_run_imports_nothing(self, tmp_path: Path) -> None:
         # No face-model stubbing needed: the analyzer factory is injected
         # lazily and dry-run never reaches face detection.
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path, faces_enabled=False)
         base = tmp_path / "incoming"
         _make_source(base, "2024-07-14 - Hiking")
 
@@ -206,7 +186,7 @@ class TestDryRun:
 
 class TestImport:
     def test_imports_and_checks_the_album(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path, faces_enabled=False)
         source = _make_source(tmp_path / "src", "2024-07-14 - Hiking")
 
         result = invoke_cli(
@@ -221,7 +201,7 @@ class TestImport:
         assert "Post-Import Check:" in result.output
 
     def test_incomplete_derived_data_fails(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path, faces_enabled=False)
         source = _make_source(tmp_path / "src", "2024-07-14 - Hiking")
 
         result = invoke_cli(
@@ -239,7 +219,7 @@ class TestImport:
         tmp_path: Path,
     ) -> None:
         """Regression: the command exited before clustering the placed album."""
-        gallery = _setup_gallery(tmp_path, faces_enabled=True)
+        gallery = make_gallery(tmp_path)
         source = _make_source(tmp_path / "src", "2024-07-14 - Hiking")
 
         result = invoke_cli(
@@ -251,7 +231,7 @@ class TestImport:
         assert "face clustering" in result.output
 
     def test_failed_post_import_check_fails(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path, faces_enabled=False)
         source = _make_source(tmp_path / "src", "2024-07-14 - Hiking")
 
         result = invoke_cli(
@@ -267,7 +247,11 @@ class TestImport:
         tmp_path: Path,
     ) -> None:
         """Regression: the check expected the gallery's link mode, not the override."""
-        gallery = _setup_gallery(tmp_path, LinkMode.HARDLINK)
+        gallery = make_gallery(
+            tmp_path,
+            link_mode=LinkMode.HARDLINK,
+            faces_enabled=False,
+        )
         source = _make_source(tmp_path / "src", "2024-07-14 - Hiking")
 
         result = invoke_cli(
@@ -292,7 +276,7 @@ class TestImport:
 
 class TestImportAll:
     def test_imports_and_checks_every_album(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path, faces_enabled=False)
         base = tmp_path / "incoming"
         _make_source(base, "2024-07-14 - Hiking")
         _make_source(base, "2024-07-15 - Beach")
@@ -310,7 +294,7 @@ class TestImportAll:
         tmp_path: Path,
     ) -> None:
         """Regression: with no album imported cleanly, clustering was skipped."""
-        gallery = _setup_gallery(tmp_path, faces_enabled=True)
+        gallery = make_gallery(tmp_path)
         base = tmp_path / "incoming"
         _make_source(base, "2024-07-14 - Hiking")
 
@@ -325,7 +309,7 @@ class TestImportAll:
         assert "0 album(s) imported, 1 failed." in result.output
 
     def test_failed_post_import_check_fails_the_run(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path, faces_enabled=False)
         base = tmp_path / "incoming"
         _make_source(base, "2024-07-14 - Hiking")
 
@@ -343,7 +327,11 @@ class TestImportAll:
         tmp_path: Path,
     ) -> None:
         """Regression: the batch check expected the gallery's link mode too."""
-        gallery = _setup_gallery(tmp_path, LinkMode.HARDLINK)
+        gallery = make_gallery(
+            tmp_path,
+            link_mode=LinkMode.HARDLINK,
+            faces_enabled=False,
+        )
         base = tmp_path / "incoming"
         _make_source(base, "2024-07-14 - Hiking")
 

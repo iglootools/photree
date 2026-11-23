@@ -20,14 +20,7 @@ from photree.collection.store.protocol import (
     CollectionMetadata,
 )
 from photree.collections.cmd_handler.import_members import batch_import
-from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
-
-
-def _setup_gallery(tmp_path: Path) -> Path:
-    gallery = tmp_path / "gallery"
-    gallery.mkdir()
-    save_gallery_metadata(gallery, GalleryMetadata())
-    return gallery
+from tests.testkit import make_gallery
 
 
 def _setup_album(gallery: Path, name: str) -> str:
@@ -59,7 +52,7 @@ def _setup_collection(gallery: Path, name: str, entries: list[str] | None) -> Pa
 
 class TestBatchImport:
     def test_imports_skips_and_fails_independently(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         album_id = _setup_album(gallery, "2024-07-14 - Trip")
         good = _setup_collection(gallery, "2024-07 - Good", ["2024-07-14 - Trip"])
         empty = _setup_collection(gallery, "2024-08 - Empty", None)
@@ -100,7 +93,7 @@ class TestBatchImport:
         assert loaded.albums == [album_id]
 
     def test_collection_level_error_is_captured(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         col_dir = gallery / "collections" / "2024" / "2024-07 - Uninitialized"
         col_dir.mkdir(parents=True)
         (col_dir / SELECTION_CSV).write_text("entry\nx\n", encoding="utf-8")
@@ -113,7 +106,7 @@ class TestBatchImport:
         assert outcome.error.kind == CollectionImportErrorKind.NO_METADATA
 
     def test_gallery_is_scanned_once_per_batch(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         _setup_album(gallery, "2024-07-14 - Trip")
         first = _setup_collection(gallery, "2024-07 - One", ["2024-07-14 - Trip"])
         second = _setup_collection(gallery, "2024-08 - Two", ["2024-07-14 - Trip"])

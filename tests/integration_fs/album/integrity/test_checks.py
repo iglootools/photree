@@ -18,34 +18,33 @@ from photree.album.formats import IMG_EXTENSIONS
 from photree.album.store.media_source import MAIN_MEDIA_SOURCE, ios_img_number
 from photree.album.store.media_sources_discovery import discover_media_sources
 from photree.foundation.linking import LinkMode
-
-
-def _write(path: Path, content: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
+from tests.testkit import write_file
 
 
 def _setup_ios_album(album: Path) -> None:
     """Create a well-formed iOS album with matching files across all dirs."""
     # ios/orig-img: IMG_0001.HEIC + AAE, IMG_0002.PNG (no AAE for PNG)
-    _write(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.HEIC", "heic-orig")
-    _write(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.AAE", "aae-orig")
-    _write(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0002.PNG", "png-orig")
+    write_file(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.HEIC", "heic-orig")
+    write_file(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.AAE", "aae-orig")
+    write_file(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0002.PNG", "png-orig")
 
-    _write(album / MAIN_MEDIA_SOURCE.edit_img_dir / "IMG_E0001.HEIC", "heic-rendered")
-    _write(album / MAIN_MEDIA_SOURCE.edit_img_dir / "IMG_O0001.AAE", "aae-rendered")
+    write_file(
+        album / MAIN_MEDIA_SOURCE.edit_img_dir / "IMG_E0001.HEIC",
+        "heic-rendered",
+    )
+    write_file(album / MAIN_MEDIA_SOURCE.edit_img_dir / "IMG_O0001.AAE", "aae-rendered")
 
     # main-img: rendered for 0001, orig PNG for 0002
-    _write(album / MAIN_MEDIA_SOURCE.img_dir / "IMG_E0001.HEIC", "heic-rendered")
-    _write(album / MAIN_MEDIA_SOURCE.img_dir / "IMG_0002.PNG", "png-orig")
+    write_file(album / MAIN_MEDIA_SOURCE.img_dir / "IMG_E0001.HEIC", "heic-rendered")
+    write_file(album / MAIN_MEDIA_SOURCE.img_dir / "IMG_0002.PNG", "png-orig")
 
-    _write(album / MAIN_MEDIA_SOURCE.orig_vid_dir / "IMG_0003.MOV", "mov-orig")
-    _write(album / MAIN_MEDIA_SOURCE.vid_dir / "IMG_0003.MOV", "mov-orig")
+    write_file(album / MAIN_MEDIA_SOURCE.orig_vid_dir / "IMG_0003.MOV", "mov-orig")
+    write_file(album / MAIN_MEDIA_SOURCE.vid_dir / "IMG_0003.MOV", "mov-orig")
 
     (album / MAIN_MEDIA_SOURCE.edit_vid_dir).mkdir(parents=True, exist_ok=True)
 
-    _write(album / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_E0001.jpg", "jpeg-converted")
-    _write(album / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_0002.PNG", "png-copied")
+    write_file(album / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_E0001.jpg", "jpeg-converted")
+    write_file(album / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_0002.PNG", "png-copied")
 
 
 class TestCheckBrowsableDir:
@@ -87,7 +86,7 @@ class TestCheckBrowsableDir:
     def test_extra_file_detected(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_ios_album(album)
-        _write(album / MAIN_MEDIA_SOURCE.img_dir / "EXTRA.HEIC", "extra")
+        write_file(album / MAIN_MEDIA_SOURCE.img_dir / "EXTRA.HEIC", "extra")
 
         result = check_browsable_dir(
             album / MAIN_MEDIA_SOURCE.orig_img_dir,
@@ -105,7 +104,7 @@ class TestCheckBrowsableDir:
         _setup_ios_album(album)
         # Replace rendered with original in browsable (wrong)
         (album / MAIN_MEDIA_SOURCE.img_dir / "IMG_E0001.HEIC").unlink()
-        _write(album / MAIN_MEDIA_SOURCE.img_dir / "IMG_0001.HEIC", "heic-orig")
+        write_file(album / MAIN_MEDIA_SOURCE.img_dir / "IMG_0001.HEIC", "heic-orig")
 
         result = check_browsable_dir(
             album / MAIN_MEDIA_SOURCE.orig_img_dir,
@@ -212,7 +211,7 @@ class TestCheckJpegDir:
     def test_extra_jpeg_detected(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_ios_album(album)
-        _write(album / MAIN_MEDIA_SOURCE.jpg_dir / "EXTRA.jpg", "extra")
+        write_file(album / MAIN_MEDIA_SOURCE.jpg_dir / "EXTRA.jpg", "extra")
 
         result = check_jpeg_dir(
             album / MAIN_MEDIA_SOURCE.img_dir,
@@ -356,11 +355,14 @@ class TestCheckMiscategorizedFiles:
 
 def _setup_hardlinked_album(album: Path) -> None:
     """Create an iOS album where browsable files are hardlinks to orig/rendered."""
-    _write(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.HEIC", "heic-orig")
-    _write(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.AAE", "aae-orig")
-    _write(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0002.PNG", "png-orig")
-    _write(album / MAIN_MEDIA_SOURCE.edit_img_dir / "IMG_E0001.HEIC", "heic-rendered")
-    _write(album / MAIN_MEDIA_SOURCE.edit_img_dir / "IMG_O0001.AAE", "aae-rendered")
+    write_file(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.HEIC", "heic-orig")
+    write_file(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.AAE", "aae-orig")
+    write_file(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0002.PNG", "png-orig")
+    write_file(
+        album / MAIN_MEDIA_SOURCE.edit_img_dir / "IMG_E0001.HEIC",
+        "heic-rendered",
+    )
+    write_file(album / MAIN_MEDIA_SOURCE.edit_img_dir / "IMG_O0001.AAE", "aae-rendered")
 
     (album / MAIN_MEDIA_SOURCE.img_dir).mkdir(parents=True, exist_ok=True)
     os.link(
@@ -372,7 +374,7 @@ def _setup_hardlinked_album(album: Path) -> None:
         album / MAIN_MEDIA_SOURCE.img_dir / "IMG_0002.PNG",
     )
 
-    _write(album / MAIN_MEDIA_SOURCE.orig_vid_dir / "IMG_0003.MOV", "mov-orig")
+    write_file(album / MAIN_MEDIA_SOURCE.orig_vid_dir / "IMG_0003.MOV", "mov-orig")
     (album / MAIN_MEDIA_SOURCE.edit_vid_dir).mkdir(parents=True, exist_ok=True)
     (album / MAIN_MEDIA_SOURCE.vid_dir).mkdir(parents=True, exist_ok=True)
     os.link(
@@ -380,17 +382,20 @@ def _setup_hardlinked_album(album: Path) -> None:
         album / MAIN_MEDIA_SOURCE.vid_dir / "IMG_0003.MOV",
     )
 
-    _write(album / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_E0001.jpg", "jpeg-converted")
-    _write(album / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_0002.PNG", "png-copied")
+    write_file(album / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_E0001.jpg", "jpeg-converted")
+    write_file(album / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_0002.PNG", "png-copied")
 
 
 def _setup_symlinked_album(album: Path) -> None:
     """Create an iOS album where browsable files are relative symlinks."""
-    _write(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.HEIC", "heic-orig")
-    _write(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.AAE", "aae-orig")
-    _write(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0002.PNG", "png-orig")
-    _write(album / MAIN_MEDIA_SOURCE.edit_img_dir / "IMG_E0001.HEIC", "heic-rendered")
-    _write(album / MAIN_MEDIA_SOURCE.edit_img_dir / "IMG_O0001.AAE", "aae-rendered")
+    write_file(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.HEIC", "heic-orig")
+    write_file(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.AAE", "aae-orig")
+    write_file(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0002.PNG", "png-orig")
+    write_file(
+        album / MAIN_MEDIA_SOURCE.edit_img_dir / "IMG_E0001.HEIC",
+        "heic-rendered",
+    )
+    write_file(album / MAIN_MEDIA_SOURCE.edit_img_dir / "IMG_O0001.AAE", "aae-rendered")
 
     (album / MAIN_MEDIA_SOURCE.img_dir).mkdir(parents=True, exist_ok=True)
     Path(album / MAIN_MEDIA_SOURCE.img_dir / "IMG_E0001.HEIC").symlink_to(
@@ -406,7 +411,7 @@ def _setup_symlinked_album(album: Path) -> None:
         ),
     )
 
-    _write(album / MAIN_MEDIA_SOURCE.orig_vid_dir / "IMG_0003.MOV", "mov-orig")
+    write_file(album / MAIN_MEDIA_SOURCE.orig_vid_dir / "IMG_0003.MOV", "mov-orig")
     (album / MAIN_MEDIA_SOURCE.edit_vid_dir).mkdir(parents=True, exist_ok=True)
     (album / MAIN_MEDIA_SOURCE.vid_dir).mkdir(parents=True, exist_ok=True)
     Path(album / MAIN_MEDIA_SOURCE.vid_dir / "IMG_0003.MOV").symlink_to(
@@ -416,8 +421,8 @@ def _setup_symlinked_album(album: Path) -> None:
         ),
     )
 
-    _write(album / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_E0001.jpg", "jpeg-converted")
-    _write(album / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_0002.PNG", "png-copied")
+    write_file(album / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_E0001.jpg", "jpeg-converted")
+    write_file(album / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_0002.PNG", "png-copied")
 
 
 class TestCheckBrowsableDirLinkAware:

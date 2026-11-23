@@ -2,36 +2,10 @@ import csv
 import io
 from pathlib import Path
 
-from photree.album.id import format_album_external_id, generate_album_id
-from photree.album.store.metadata import save_album_metadata
-from photree.album.store.protocol import AlbumMetadata
+from photree.album.id import format_album_external_id
 from photree.foundation.metadata_io import InvalidMetadataError
 from tests.fakes import invoke_cli
-
-
-def _write(path: Path, content: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-
-
-def _setup_media_source(album_dir: Path) -> None:
-    """Create a minimal iOS media source so the album is detected."""
-    _write(album_dir / "ios-main" / "orig-img" / "IMG_0001.HEIC")
-    (album_dir / "main-img").mkdir(parents=True, exist_ok=True)
-    (album_dir / "main-jpg").mkdir(parents=True, exist_ok=True)
-
-
-def _setup_album(
-    base_dir: Path,
-    name: str,
-    album_id: str | None = None,
-) -> tuple[Path, str]:
-    """Create a complete album directory. Returns (path, album_id)."""
-    album_dir = base_dir / name
-    _setup_media_source(album_dir)
-    aid = album_id if album_id is not None else generate_album_id()
-    save_album_metadata(album_dir, AlbumMetadata(id=aid))
-    return (album_dir, aid)
+from tests.testkit import add_ios_media_source, make_album
 
 
 def _write_csv(path: Path, rows: list[dict[str, str]]) -> None:
@@ -59,7 +33,7 @@ class TestVersionCommand:
 
 class TestAlbumsRenameFromCsv:
     def test_rename_title(self, tmp_path: Path) -> None:
-        _, aid = _setup_album(tmp_path, "2024-06-15 - Old Title")
+        _, aid = make_album(tmp_path, "2024-06-15 - Old Title")
         csv_file = tmp_path / "rename.csv"
         _write_csv(
             csv_file,
@@ -81,7 +55,7 @@ class TestAlbumsRenameFromCsv:
         assert not (tmp_path / "2024-06-15 - Old Title").exists()
 
     def test_dry_run(self, tmp_path: Path) -> None:
-        _, aid = _setup_album(tmp_path, "2024-06-15 - Trip")
+        _, aid = make_album(tmp_path, "2024-06-15 - Trip")
         csv_file = tmp_path / "rename.csv"
         _write_csv(
             csv_file,
@@ -109,7 +83,7 @@ class TestAlbumsRenameFromCsv:
         assert (tmp_path / "2024-06-15 - Trip").is_dir()
 
     def test_no_changes(self, tmp_path: Path) -> None:
-        _, aid = _setup_album(tmp_path, "2024-06-15 - Trip")
+        _, aid = make_album(tmp_path, "2024-06-15 - Trip")
         csv_file = tmp_path / "rename.csv"
         _write_csv(
             csv_file,
@@ -138,7 +112,7 @@ class TestAlbumsRenameFromCsv:
         assert "empty" in result.output.lower()
 
     def test_album_dir_option(self, tmp_path: Path) -> None:
-        album_dir, aid = _setup_album(tmp_path, "2024-06-15 - Old")
+        album_dir, aid = make_album(tmp_path, "2024-06-15 - Old")
         csv_file = tmp_path / "rename.csv"
         _write_csv(
             csv_file,
@@ -166,7 +140,7 @@ class TestAlbumsRenameFromCsv:
     def test_csv_with_byte_order_mark_is_read(self, tmp_path: Path) -> None:
         # Regression: the BOM a spreadsheet writes turned the id column into
         # "\ufeffid", so every row failed with "empty album ID".
-        _, aid = _setup_album(tmp_path, "2024-06-15 - Old")
+        _, aid = make_album(tmp_path, "2024-06-15 - Old")
         csv_file = tmp_path / "rename.csv"
         csv_file.write_text(
             f"id,series,title,location\n{format_album_external_id(aid)},,New,\n",
@@ -181,7 +155,7 @@ class TestAlbumsRenameFromCsv:
     def test_missing_column_renames_nothing(self, tmp_path: Path) -> None:
         # Regression: a CSV without its location column stripped the location
         # from every album.
-        _, aid = _setup_album(tmp_path, "2024-06-15 - Trip @ Paris")
+        _, aid = make_album(tmp_path, "2024-06-15 - Trip @ Paris")
         csv_file = tmp_path / "rename.csv"
         _write_csv(
             csv_file,
@@ -198,8 +172,8 @@ class TestAlbumsRenameFromCsv:
         self,
         tmp_path: Path,
     ) -> None:
-        _, aid = _setup_album(tmp_path, "2024-06-15 - Trip")
-        _setup_album(tmp_path, "2024-06-15 - Trip copy", album_id=aid)
+        _, aid = make_album(tmp_path, "2024-06-15 - Trip")
+        make_album(tmp_path, "2024-06-15 - Trip copy", album_id=aid)
         csv_file = tmp_path / "rename.csv"
         csv_file.write_text("id,series,title,location\n")
         result = invoke_cli(
@@ -216,7 +190,7 @@ class TestAlbumsRenameFromCsv:
         # An empty album.yaml is corrupt metadata, not a missing ID: it must
         # stop the run rather than be treated as absent.
         album_dir = tmp_path / "2024-06-15 - Broken"
-        _setup_media_source(album_dir)
+        add_ios_media_source(album_dir)
         photree_dir = album_dir / ".photree"
         photree_dir.mkdir(parents=True, exist_ok=True)
         (photree_dir / "album.yaml").write_text("")

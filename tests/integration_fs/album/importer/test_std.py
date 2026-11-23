@@ -18,10 +18,7 @@ from photree.album.importer.tasks import ImportTask, discover_import_tasks
 from photree.album.staging import ios_import_dir, std_import_dir
 from photree.album.store.media_source import std_media_source
 from photree.common.fs import list_files
-
-
-def _noop_convert(_src: Path, _dst_dir: Path, *, dry_run: bool) -> Path | None:  # noqa: ARG001 - ConvertFile's signature
-    return None
+from tests.fakes import noop_convert
 
 
 def _setup_std_staging(
@@ -163,7 +160,7 @@ class TestImportStdSource:
             run_import(
                 album_dir=album,
                 image_capture_dir=tmp_path / "nonexistent-ic",
-                convert_file=_noop_convert,
+                convert_file=noop_convert,
             )
         assert exc_info.value.media_source == ms
         assert exc_info.value.keys == ("a",)
@@ -182,7 +179,7 @@ class TestRunImportStd:
         result = run_import(
             album_dir=album,
             image_capture_dir=tmp_path / "nonexistent-ic",
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         assert len(result.std_results) == 1
@@ -206,7 +203,7 @@ class TestRunImportStd:
         result = run_import(
             album_dir=album,
             image_capture_dir=ic_dir,
-            convert_file=_noop_convert,
+            convert_file=noop_convert,
         )
 
         assert len(result.ios_results) == 1

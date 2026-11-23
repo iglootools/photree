@@ -9,11 +9,7 @@ from photree.gallery.import_plan import (
     ImportAction,
     plan_imports,
 )
-
-
-def _write(path: Path, content: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
+from tests.testkit import write_file
 
 
 def _make_source(
@@ -26,7 +22,7 @@ def _make_source(
     d = base / name
     d.mkdir(parents=True, exist_ok=True)
     if media:
-        _write(d / "ios-main/orig-img/IMG_0001.HEIC")
+        write_file(d / "ios-main/orig-img/IMG_0001.HEIC")
     if album_id is not None:
         save_album_metadata(d, AlbumMetadata(id=album_id))
     return d

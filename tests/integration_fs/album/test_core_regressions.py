@@ -50,11 +50,7 @@ from photree.albums.cmd_handler.check import batch_check
 from photree.common.sips import SipsError
 from photree.foundation.linking import LinkMode
 from photree.foundation.metadata_io import InvalidMetadataError
-
-
-def _write(path: Path, content: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
+from tests.testkit import write_file
 
 
 def _names(directory: Path) -> set[str]:
@@ -69,7 +65,7 @@ def _names(directory: Path) -> set[str]:
 class TestJpegRefresh:
     def test_sips_error_on_sequential_path_is_recorded(self, tmp_path: Path) -> None:
         src, dst = tmp_path / "img", tmp_path / "jpg"
-        _write(src / "IMG_0001.HEIC")
+        write_file(src / "IMG_0001.HEIC")
 
         def failing_sips(s: Path, _d: Path, *, dry_run: bool) -> Path | None:  # noqa: ARG001 - ConvertFile's signature
             raise SipsError(path=s, returncode=1, stderr="not an image")
@@ -87,8 +83,8 @@ class TestJpegRefresh:
     ) -> None:
         """Both paths report a deliberately skipped file the same way."""
         src, dst = tmp_path / "img", tmp_path / "jpg"
-        _write(src / "IMG_0001.HEIC")
-        _write(src / "IMG_0001.MOV")  # Live Photo video: no JPEG variant
+        write_file(src / "IMG_0001.HEIC")
+        write_file(src / "IMG_0001.MOV")  # Live Photo video: no JPEG variant
         ends: list[tuple[str, bool]] = []
 
         def record_end(name: str, *, success: bool) -> None:
@@ -109,8 +105,8 @@ class TestJpegRefresh:
     def test_parallel_path_uses_the_given_converter(self, tmp_path: Path) -> None:
         """Parallelism is chosen by max_workers alone, never by converter identity."""
         src, dst = tmp_path / "img", tmp_path / "jpg"
-        _write(src / "a.jpg")
-        _write(src / "b.jpg")
+        write_file(src / "a.jpg")
+        write_file(src / "b.jpg")
         calls: list[str] = []
 
         def recording(s: Path, d: Path, *, dry_run: bool) -> Path | None:  # noqa: ARG001 - ConvertFile's signature
@@ -132,7 +128,7 @@ class TestJpegRefresh:
         src, dst = tmp_path / "img", tmp_path / "jpg"
         if src_exists:
             src.mkdir()
-        _write(dst / "stale.jpg")
+        write_file(dst / "stale.jpg")
 
         refresh_jpeg_dir(src, dst)
 
@@ -151,7 +147,7 @@ class TestBrowsableRefresh:
     def test_stale_files_cleared_when_archive_empty(self, tmp_path: Path) -> None:
         orig, edit, browsable = tmp_path / "orig", tmp_path / "edit", tmp_path / "img"
         orig.mkdir()
-        _write(browsable / "IMG_0001.HEIC")
+        write_file(browsable / "IMG_0001.HEIC")
 
         result = refresh_browsable_dir(
             orig,
@@ -209,10 +205,10 @@ class _FakeExifTool:
 
 def _album_with_same_stem_photo_and_video(album: Path) -> None:
     ms = MAIN_MEDIA_SOURCE
-    _write(album / ms.orig_img_dir / "clip.HEIC")
-    _write(album / ms.orig_vid_dir / "clip.MOV")
-    _write(album / ms.jpg_dir / "clip.jpg")
-    _write(album / ms.vid_dir / "clip.MOV")
+    write_file(album / ms.orig_img_dir / "clip.HEIC")
+    write_file(album / ms.orig_vid_dir / "clip.MOV")
+    write_file(album / ms.jpg_dir / "clip.jpg")
+    write_file(album / ms.vid_dir / "clip.MOV")
 
 
 class TestExifCachePaths:
@@ -323,7 +319,7 @@ class TestCorruptMetadata:
     """Corrupt metadata is never treated as absent."""
 
     def test_corrupt_media_ids_raises(self, tmp_path: Path) -> None:
-        _write(tmp_path / "ios-main/orig-img/IMG_0001.HEIC")
+        write_file(tmp_path / "ios-main/orig-img/IMG_0001.HEIC")
         refresh_media_metadata(tmp_path)
         ids_file = tmp_path / ".photree/media-ids/main.yaml"
         ids_file.write_text("images: [unterminated", encoding="utf-8")
@@ -337,14 +333,14 @@ class TestCorruptMetadata:
             refresh_media_metadata(tmp_path)
 
     def test_corrupt_exif_cache_raises_as_derived(self, tmp_path: Path) -> None:
-        _write(cache_path(tmp_path, "main"), "")
+        write_file(cache_path(tmp_path, "main"), "")
         with pytest.raises(InvalidMetadataError) as exc_info:
             load_exif_cache(tmp_path, "main")
         assert exc_info.value.derived
 
     def test_forced_refresh_replaces_corrupt_exif_cache(self, tmp_path: Path) -> None:
         _album_with_same_stem_photo_and_video(tmp_path)
-        _write(cache_path(tmp_path, "main"), "files: [unterminated")
+        write_file(cache_path(tmp_path, "main"), "files: [unterminated")
 
         refresh_exif_cache(
             tmp_path,
@@ -360,8 +356,8 @@ class TestCorruptMetadata:
         self,
         tmp_path: Path,
     ) -> None:
-        _write(tmp_path / "ios-main/orig-img/IMG_0001.HEIC")
-        _write(cache_path(tmp_path, "main"), "")
+        write_file(tmp_path / "ios-main/orig-img/IMG_0001.HEIC")
+        write_file(cache_path(tmp_path, "main"), "")
 
         refresh_exif_cache(tmp_path, exiftool=_FakeExifTool("unused"), force=True)
 
@@ -401,9 +397,9 @@ class TestCorruptMetadata:
 
 class TestMediaSourceConflicts:
     def test_ios_and_std_with_same_name_conflict(self, tmp_path: Path) -> None:
-        _write(tmp_path / "ios-main/orig-img/IMG_0001.HEIC")
-        _write(tmp_path / "std-main/orig-img/DSC_0001.JPG")
-        _write(tmp_path / "std-nelu/orig-img/DSC_0002.JPG")
+        write_file(tmp_path / "ios-main/orig-img/IMG_0001.HEIC")
+        write_file(tmp_path / "std-main/orig-img/DSC_0001.JPG")
+        write_file(tmp_path / "std-nelu/orig-img/DSC_0002.JPG")
 
         assert find_media_source_conflicts(tmp_path) == ("main",)
         with pytest.raises(MediaSourceConflictError) as exc_info:
@@ -413,16 +409,16 @@ class TestMediaSourceConflicts:
 
     def test_discovery_still_finds_conflicted_album(self, tmp_path: Path) -> None:
         """Album discovery must not crash a whole batch on one bad album."""
-        _write(tmp_path / "ios-main/orig-img/IMG_0001.HEIC")
-        _write(tmp_path / "std-main/orig-img/DSC_0001.JPG")
+        write_file(tmp_path / "ios-main/orig-img/IMG_0001.HEIC")
+        write_file(tmp_path / "std-main/orig-img/DSC_0001.JPG")
 
         assert has_media_sources(tmp_path)
 
     def test_check_reports_conflict_instead_of_raising(self, tmp_path: Path) -> None:
         """A batch check must keep going: the clash is a failed check."""
         album = tmp_path / "2024-07-14 - Trip"
-        _write(album / "ios-main/orig-img/IMG_0001.HEIC")
-        _write(album / "std-main/orig-img/DSC_0001.JPG")
+        write_file(album / "ios-main/orig-img/IMG_0001.HEIC")
+        write_file(album / "std-main/orig-img/DSC_0001.JPG")
 
         result = run_album_check(
             album,
@@ -442,10 +438,10 @@ class TestMediaSourceConflicts:
 
     def test_batch_check_continues_past_conflict(self, tmp_path: Path) -> None:
         conflicted = tmp_path / "2024-07-14 - Trip"
-        _write(conflicted / "ios-main/orig-img/IMG_0001.HEIC")
-        _write(conflicted / "std-main/orig-img/DSC_0001.JPG")
+        write_file(conflicted / "ios-main/orig-img/IMG_0001.HEIC")
+        write_file(conflicted / "std-main/orig-img/DSC_0001.JPG")
         healthy = tmp_path / "2024-07-15 - Next"
-        _write(healthy / "ios-main/orig-img/IMG_0002.HEIC")
+        write_file(healthy / "ios-main/orig-img/IMG_0002.HEIC")
         ends: list[tuple[str, bool, tuple[str, ...], tuple[str, ...]]] = []
 
         def record_end(
@@ -470,8 +466,8 @@ class TestMediaSourceConflicts:
         assert "media source conflict" in ends[0][2]
 
     def test_distinct_names_do_not_conflict(self, tmp_path: Path) -> None:
-        _write(tmp_path / "ios-main/orig-img/IMG_0001.HEIC")
-        _write(tmp_path / "std-nelu/orig-img/DSC_0001.JPG")
+        write_file(tmp_path / "ios-main/orig-img/IMG_0001.HEIC")
+        write_file(tmp_path / "std-nelu/orig-img/DSC_0001.JPG")
 
         assert find_media_source_conflicts(tmp_path) == ()
         assert [ms.name for ms in discover_media_sources(tmp_path)] == ["main", "nelu"]
@@ -483,8 +479,8 @@ class TestMediaSourceConflicts:
 
 
 def test_media_ids_use_injected_generator(tmp_path: Path) -> None:
-    _write(tmp_path / "ios-main/orig-img/IMG_0001.HEIC")
-    _write(tmp_path / "ios-main/orig-vid/IMG_0002.MOV")
+    write_file(tmp_path / "ios-main/orig-img/IMG_0001.HEIC")
+    write_file(tmp_path / "ios-main/orig-vid/IMG_0002.MOV")
     ids = iter(["id-image", "id-video"])
 
     refresh_media_metadata(tmp_path, new_id=lambda: next(ids))

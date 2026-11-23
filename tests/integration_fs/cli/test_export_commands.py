@@ -12,25 +12,21 @@ from photree.album.store.protocol import AlbumMetadata
 from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 from photree.foundation.layout import ALBUMS_DIR, SHARE_SENTINEL
 from tests.fakes import fake_runtime, invoke_cli
-
-
-def _write(path: Path, content: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
+from tests.testkit import write_file
 
 
 def _album(path: Path) -> Path:
     """Create an iOS album with one photo and one video, browsable as JPEG."""
-    _write(path / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.HEIC")
-    _write(path / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_0001.jpg")
-    _write(path / MAIN_MEDIA_SOURCE.orig_vid_dir / "IMG_0002.MOV")
-    _write(path / MAIN_MEDIA_SOURCE.vid_dir / "IMG_0002.MOV")
+    write_file(path / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.HEIC")
+    write_file(path / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_0001.jpg")
+    write_file(path / MAIN_MEDIA_SOURCE.orig_vid_dir / "IMG_0002.MOV")
+    write_file(path / MAIN_MEDIA_SOURCE.vid_dir / "IMG_0002.MOV")
     return path
 
 
 def _share(tmp_path: Path) -> Path:
     share = tmp_path / "share"
-    _write(share / SHARE_SENTINEL, "")
+    write_file(share / SHARE_SENTINEL, "")
     return share
 
 
@@ -103,7 +99,7 @@ class TestAlbumsExport:
         album = _album(tmp_path / "2024-07-14 - Trip")
         share = _share(tmp_path)
         config = tmp_path / "config.toml"
-        _write(config, "[exporter\n")
+        write_file(config, "[exporter\n")
 
         result = invoke_cli(
             [

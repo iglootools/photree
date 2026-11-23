@@ -1,9 +1,6 @@
 import shutil
 from pathlib import Path
 
-from photree.album.id import generate_album_id
-from photree.album.store.metadata import save_album_metadata
-from photree.album.store.protocol import AlbumMetadata
 from photree.collection.id import generate_collection_id
 from photree.collection.refresh import refresh_collections
 from photree.collection.refresh.result import (
@@ -21,40 +18,14 @@ from photree.collection.store.protocol import (
     CollectionMetadata,
     CollectionStrategy,
 )
-from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 from photree.foundation.layout import COLLECTIONS_DIR
+from tests.testkit import make_gallery, make_gallery_album, write_file
 
 
 def _load_metadata(collection_dir: Path) -> CollectionMetadata:
     metadata = load_collection_metadata(collection_dir)
     assert metadata is not None
     return metadata
-
-
-def _write(path: Path, content: str = "data") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-
-
-def _setup_gallery(tmp_path: Path) -> Path:
-    gallery = tmp_path / "gallery"
-    gallery.mkdir()
-    save_gallery_metadata(gallery, GalleryMetadata())
-    return gallery
-
-
-def _setup_album(
-    gallery: Path,
-    name: str,
-    album_id: str | None = None,
-) -> tuple[Path, str]:
-    album_dir = gallery / "albums" / "2024" / name
-    _write(album_dir / "ios-main" / "orig-img" / "IMG_0001.HEIC")
-    (album_dir / "main-img").mkdir(parents=True, exist_ok=True)
-    (album_dir / "main-jpg").mkdir(parents=True, exist_ok=True)
-    aid = album_id or generate_album_id()
-    save_album_metadata(album_dir, AlbumMetadata(id=aid))
-    return album_dir, aid
 
 
 def _explicit_collection(gallery: Path, name: str, album_ids: list[str]) -> Path:
@@ -74,9 +45,9 @@ def _explicit_collection(gallery: Path, name: str, album_ids: list[str]) -> Path
 
 class TestImplicitCollectionDetection:
     def test_creates_collection_from_album_series(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
-        _setup_album(gallery, "2024-07-14 - 01 - Canada Trip - Hiking")
-        _setup_album(gallery, "2024-07-15 - 02 - Canada Trip - Kayaking")
+        gallery = make_gallery(tmp_path)
+        make_gallery_album(gallery, "2024-07-14 - 01 - Canada Trip - Hiking")
+        make_gallery_album(gallery, "2024-07-15 - 02 - Canada Trip - Kayaking")
 
         result = refresh_collections(gallery)
         assert result.success
@@ -92,18 +63,18 @@ class TestImplicitCollectionDetection:
         assert len(meta.albums) == 2
 
     def test_date_range_for_multiday_series(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
-        _setup_album(gallery, "2024-07-14 - 01 - Trip - Day 1")
-        _setup_album(gallery, "2024-07-16 - 02 - Trip - Day 2")
+        gallery = make_gallery(tmp_path)
+        make_gallery_album(gallery, "2024-07-14 - 01 - Trip - Day 1")
+        make_gallery_album(gallery, "2024-07-16 - 02 - Trip - Day 2")
 
         result = refresh_collections(gallery)
         assert result.success
         assert any("2024-07-14--2024-07-16" in name for name in result.created)
 
     def test_same_date_series(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
-        _setup_album(gallery, "2024-07-14 - 01 - Trip - Morning")
-        _setup_album(gallery, "2024-07-14 - 02 - Trip - Evening")
+        gallery = make_gallery(tmp_path)
+        make_gallery_album(gallery, "2024-07-14 - 01 - Trip - Morning")
+        make_gallery_album(gallery, "2024-07-14 - 02 - Trip - Evening")
 
         result = refresh_collections(gallery)
         assert result.success
@@ -114,10 +85,10 @@ class TestImplicitCollectionDetection:
         tmp_path: Path,
     ) -> None:
         """Same series interrupted by another album → two collections."""
-        gallery = _setup_gallery(tmp_path)
-        _setup_album(gallery, "2024-07-14 - 01 - Trip - Day 1")
-        _setup_album(gallery, "2024-07-15 - Beach Day")  # interrupts
-        _setup_album(gallery, "2024-07-16 - 02 - Trip - Day 2")
+        gallery = make_gallery(tmp_path)
+        make_gallery_album(gallery, "2024-07-14 - 01 - Trip - Day 1")
+        make_gallery_album(gallery, "2024-07-15 - Beach Day")  # interrupts
+        make_gallery_album(gallery, "2024-07-16 - 02 - Trip - Day 2")
 
         result = refresh_collections(gallery)
         assert result.success
@@ -134,10 +105,10 @@ class TestImplicitCollectionDetection:
 
     def test_contiguous_series_creates_single_collection(self, tmp_path: Path) -> None:
         """Same series with no interruption → one collection."""
-        gallery = _setup_gallery(tmp_path)
-        _setup_album(gallery, "2024-07-14 - 01 - Trip - Day 1")
-        _setup_album(gallery, "2024-07-15 - 02 - Trip - Day 2")
-        _setup_album(gallery, "2024-07-16 - 03 - Trip - Day 3")
+        gallery = make_gallery(tmp_path)
+        make_gallery_album(gallery, "2024-07-14 - 01 - Trip - Day 1")
+        make_gallery_album(gallery, "2024-07-15 - 02 - Trip - Day 2")
+        make_gallery_album(gallery, "2024-07-16 - 03 - Trip - Day 3")
 
         result = refresh_collections(gallery)
         assert result.success
@@ -152,16 +123,16 @@ class TestImplicitCollectionDetection:
         assert len(meta.albums) == 3
 
     def test_no_series_no_collection(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
-        _setup_album(gallery, "2024-07-14 - Just Hiking")
-        _setup_album(gallery, "2024-07-15 - Beach Day")
+        gallery = make_gallery(tmp_path)
+        make_gallery_album(gallery, "2024-07-14 - Just Hiking")
+        make_gallery_album(gallery, "2024-07-15 - Beach Day")
 
         result = refresh_collections(gallery)
         assert result.success
         assert len(result.created) == 0
 
     def test_deletes_orphaned_implicit_collection(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         # Create an implicit collection with no matching albums
         col_dir = gallery / COLLECTIONS_DIR / "2024" / "2024-07-14 - Old Trip"
         col_dir.mkdir(parents=True)
@@ -177,7 +148,7 @@ class TestImplicitCollectionDetection:
         )
 
         # Finder's metadata does not keep the directory alive.
-        _write(col_dir / ".DS_Store")
+        write_file(col_dir / ".DS_Store")
 
         result = refresh_collections(gallery)
         assert result.success
@@ -187,7 +158,7 @@ class TestImplicitCollectionDetection:
 
     def test_orphaned_collection_keeps_user_files(self, tmp_path: Path) -> None:
         """Regression: the orphan was removed with rmtree, user files and all."""
-        gallery = _setup_gallery(tmp_path)
+        gallery = make_gallery(tmp_path)
         col_dir = gallery / COLLECTIONS_DIR / "2024" / "2024-07-14 - Old Trip"
         col_dir.mkdir(parents=True)
         save_collection_metadata(
@@ -200,7 +171,7 @@ class TestImplicitCollectionDetection:
                 albums=["nonexistent-id"],
             ),
         )
-        _write(col_dir / "notes.txt", "keep me")
+        write_file(col_dir / "notes.txt", "keep me")
 
         result = refresh_collections(gallery)
 
@@ -210,8 +181,8 @@ class TestImplicitCollectionDetection:
         assert discover_collections(gallery) == []
 
     def test_adding_album_preserves_collection_id(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
-        _, aid1 = _setup_album(gallery, "2024-07-14 - 01 - Trip - Day 1")
+        gallery = make_gallery(tmp_path)
+        _, aid1 = make_gallery_album(gallery, "2024-07-14 - 01 - Trip - Day 1")
 
         refresh_collections(gallery)
         collections = discover_collections(gallery)
@@ -219,7 +190,7 @@ class TestImplicitCollectionDetection:
         original_id = _load_metadata(collections[0]).id
 
         # Add another album with same series (extends date range)
-        _, aid2 = _setup_album(gallery, "2024-07-15 - 02 - Trip - Day 2")
+        _, aid2 = make_gallery_album(gallery, "2024-07-15 - 02 - Trip - Day 2")
 
         result = refresh_collections(gallery)
         assert result.success
@@ -232,9 +203,9 @@ class TestImplicitCollectionDetection:
         assert meta.id == original_id
 
     def test_removing_album_preserves_collection_id(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
-        _, aid1 = _setup_album(gallery, "2024-07-14 - 01 - Trip - Day 1")
-        album2, _aid2 = _setup_album(gallery, "2024-07-15 - 02 - Trip - Day 2")
+        gallery = make_gallery(tmp_path)
+        _, aid1 = make_gallery_album(gallery, "2024-07-14 - 01 - Trip - Day 1")
+        album2, _aid2 = make_gallery_album(gallery, "2024-07-15 - 02 - Trip - Day 2")
 
         refresh_collections(gallery)
         collections = discover_collections(gallery)
@@ -256,9 +227,9 @@ class TestImplicitCollectionDetection:
 
 class TestImplicitCollectionRename:
     def test_renames_when_all_albums_change_series(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
-        _, _aid1 = _setup_album(gallery, "2024-07-14 - 01 - Old Name - Day 1")
-        _, _aid2 = _setup_album(gallery, "2024-07-15 - 02 - Old Name - Day 2")
+        gallery = make_gallery(tmp_path)
+        _, _aid1 = make_gallery_album(gallery, "2024-07-14 - 01 - Old Name - Day 1")
+        _, _aid2 = make_gallery_album(gallery, "2024-07-15 - 02 - Old Name - Day 2")
 
         refresh_collections(gallery)
         collections = discover_collections(gallery)
@@ -280,9 +251,9 @@ class TestImplicitCollectionRename:
         assert meta.id == old_id
 
     def test_divergent_series_creates_new_and_keeps_old(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
-        _, aid1 = _setup_album(gallery, "2024-07-14 - 01 - Original - Day 1")
-        album2, aid2 = _setup_album(gallery, "2024-07-15 - 02 - Original - Day 2")
+        gallery = make_gallery(tmp_path)
+        _, aid1 = make_gallery_album(gallery, "2024-07-14 - 01 - Original - Day 1")
+        album2, aid2 = make_gallery_album(gallery, "2024-07-15 - 02 - Original - Day 2")
 
         refresh_collections(gallery)
         [original] = discover_collections(gallery)
@@ -310,9 +281,9 @@ class TestImplicitCollectionRename:
 
     def test_album_dropping_series_leaves_collection(self, tmp_path: Path) -> None:
         """Regression: the refresh renamed the album back into the series."""
-        gallery = _setup_gallery(tmp_path)
-        _, aid1 = _setup_album(gallery, "2024-07-14 - 01 - Original - Day 1")
-        album2, _ = _setup_album(gallery, "2024-07-15 - 02 - Original - Day 2")
+        gallery = make_gallery(tmp_path)
+        _, aid1 = make_gallery_album(gallery, "2024-07-14 - 01 - Original - Day 1")
+        album2, _ = make_gallery_album(gallery, "2024-07-15 - 02 - Original - Day 2")
 
         refresh_collections(gallery)
 
@@ -332,10 +303,10 @@ class TestImplicitCollectionRename:
 
 class TestSmartCollectionRefresh:
     def test_materializes_albums_by_date_range(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
-        _, aid1 = _setup_album(gallery, "2024-07-14 - Trip A")
-        _, aid2 = _setup_album(gallery, "2024-07-15 - Trip B")
-        _setup_album(gallery, "2024-08-01 - Unrelated")
+        gallery = make_gallery(tmp_path)
+        _, aid1 = make_gallery_album(gallery, "2024-07-14 - Trip A")
+        _, aid2 = make_gallery_album(gallery, "2024-07-15 - Trip B")
+        make_gallery_album(gallery, "2024-08-01 - Unrelated")
 
         # Create a smart collection covering July
         col_dir = gallery / COLLECTIONS_DIR / "2024" / "2024-07 - July Adventures"
@@ -358,8 +329,8 @@ class TestSmartCollectionRefresh:
         assert sorted(meta.albums) == sorted([aid1, aid2])
 
     def test_smart_includes_sub_collections(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
-        _setup_album(gallery, "2024-07-14 - Trip")
+        gallery = make_gallery(tmp_path)
+        make_gallery_album(gallery, "2024-07-14 - Trip")
 
         # Create a sub-collection in range
         sub_dir = gallery / COLLECTIONS_DIR / "2024" / "2024-07-14 - Sub"
@@ -396,8 +367,8 @@ class TestAlbumTitleSync:
         self,
         tmp_path: Path,
     ) -> None:
-        gallery = _setup_gallery(tmp_path)
-        _, aid = _setup_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
+        gallery = make_gallery(tmp_path)
+        _, aid = make_gallery_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
         _explicit_collection(gallery, "2024-07-14 - Trip", [aid])
 
         result = refresh_collections(gallery)
@@ -411,8 +382,8 @@ class TestAlbumTitleSync:
         tmp_path: Path,
     ) -> None:
         """Regression: any explicit collection stripped its title gallery-wide."""
-        gallery = _setup_gallery(tmp_path)
-        _setup_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
+        gallery = make_gallery(tmp_path)
+        make_gallery_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
         _explicit_collection(gallery, "2019 - Trip", [])
 
         result = refresh_collections(gallery)
@@ -424,8 +395,8 @@ class TestAlbumTitleSync:
         self,
         tmp_path: Path,
     ) -> None:
-        gallery = _setup_gallery(tmp_path)
-        _, aid = _setup_album(gallery, "2024-07-14 - Hiking")
+        gallery = make_gallery(tmp_path)
+        _, aid = make_gallery_album(gallery, "2024-07-14 - Hiking")
 
         # Create an implicit collection that contains this album
         col_dir = gallery / COLLECTIONS_DIR / "2024" / "2024-07-14 - Trip"
@@ -452,9 +423,9 @@ class TestAlbumTitleSync:
         self,
         tmp_path: Path,
     ) -> None:
-        gallery = _setup_gallery(tmp_path)
-        album1, aid1 = _setup_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
-        album2, aid2 = _setup_album(gallery, "2024-07-15 - 02 - Trip - Kayaking")
+        gallery = make_gallery(tmp_path)
+        album1, aid1 = make_gallery_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
+        album2, aid2 = make_gallery_album(gallery, "2024-07-15 - 02 - Trip - Kayaking")
         refresh_collections(gallery)
         [col_dir] = discover_collections(gallery)
         implicit = _load_metadata(col_dir)
@@ -488,9 +459,9 @@ class TestAlbumTitleSync:
 
 class TestDryRun:
     def test_dry_run_no_changes(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
-        _setup_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
-        _setup_album(gallery, "2024-07-15 - 02 - Trip - Kayaking")
+        gallery = make_gallery(tmp_path)
+        make_gallery_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
+        make_gallery_album(gallery, "2024-07-15 - 02 - Trip - Kayaking")
 
         result = refresh_collections(gallery, dry_run=True)
         assert result.success
@@ -503,9 +474,9 @@ class TestDryRun:
 class TestDryRunMatchesRealRun:
     def test_dry_run_sees_title_sync_renames(self, tmp_path: Path) -> None:
         """Regression: the dry run re-scanned disk and saw the unstripped series."""
-        gallery = _setup_gallery(tmp_path)
-        _, aid1 = _setup_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
-        _, aid2 = _setup_album(gallery, "2024-07-15 - 02 - Trip - Kayaking")
+        gallery = make_gallery(tmp_path)
+        _, aid1 = make_gallery_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
+        _, aid2 = make_gallery_album(gallery, "2024-07-15 - 02 - Trip - Kayaking")
         _explicit_collection(gallery, "2024-07 - Trip", [aid1, aid2])
 
         dry = refresh_collections(gallery, dry_run=True)
@@ -524,8 +495,8 @@ class TestDryRunMatchesRealRun:
         tmp_path: Path,
     ) -> None:
         """Regression: the smart stage re-read the disk, which a dry run left as is."""
-        gallery = _setup_gallery(tmp_path)
-        album, _ = _setup_album(gallery, "2024-07-14 - Hiking")
+        gallery = make_gallery(tmp_path)
+        album, _ = make_gallery_album(gallery, "2024-07-14 - Hiking")
         july = gallery / COLLECTIONS_DIR / "2024" / "2024-07 - July"
         july.mkdir(parents=True)
         save_collection_metadata(
@@ -550,8 +521,8 @@ class TestDryRunMatchesRealRun:
 
 class TestRefreshErrors:
     def test_naming_issues_are_carried(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
-        album_dir, _ = _setup_album(gallery, "2024-07-14 -  Double Space")
+        gallery = make_gallery(tmp_path)
+        album_dir, _ = make_gallery_album(gallery, "2024-07-14 -  Double Space")
 
         result = refresh_collections(gallery)
 
@@ -562,9 +533,9 @@ class TestRefreshErrors:
 
     def test_title_sync_onto_existing_album_is_reported(self, tmp_path: Path) -> None:
         """Regression: the rename raised an OSError traceback."""
-        gallery = _setup_gallery(tmp_path)
-        source, aid = _setup_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
-        occupied, _ = _setup_album(gallery, "2024-07-14 - 02 - Hiking")
+        gallery = make_gallery(tmp_path)
+        source, aid = make_gallery_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
+        occupied, _ = make_gallery_album(gallery, "2024-07-14 - 02 - Hiking")
         # Make the stripped name collide with an existing directory.
         stripped = source.parent / "2024-07-14 - 01 - Hiking"
         stripped.mkdir()
@@ -584,10 +555,10 @@ class TestRefreshErrors:
 
     def test_same_series_runs_on_same_date_conflict(self, tmp_path: Path) -> None:
         """Regression: series A, B, A on one date built one name twice."""
-        gallery = _setup_gallery(tmp_path)
-        _setup_album(gallery, "2024-07-14 - 01 - Trip - Morning")
-        _setup_album(gallery, "2024-07-14 - 02 - Other - Noon")
-        _setup_album(gallery, "2024-07-14 - 03 - Trip - Evening")
+        gallery = make_gallery(tmp_path)
+        make_gallery_album(gallery, "2024-07-14 - 01 - Trip - Morning")
+        make_gallery_album(gallery, "2024-07-14 - 02 - Other - Noon")
+        make_gallery_album(gallery, "2024-07-14 - 03 - Trip - Evening")
 
         result = refresh_collections(gallery)
 
@@ -602,9 +573,9 @@ class TestRefreshErrors:
 
     def test_occupied_target_stops_the_whole_stage(self, tmp_path: Path) -> None:
         """Regression: earlier groups were created and orphans deleted anyway."""
-        gallery = _setup_gallery(tmp_path)
-        _setup_album(gallery, "2024-07-14 - 01 - Alpha - Morning")
-        _setup_album(gallery, "2024-07-16 - 01 - Beta - Morning")
+        gallery = make_gallery(tmp_path)
+        make_gallery_album(gallery, "2024-07-14 - 01 - Alpha - Morning")
+        make_gallery_album(gallery, "2024-07-16 - 01 - Beta - Morning")
         occupied = gallery / COLLECTIONS_DIR / "2024" / "2024-07-16 - Beta"
         occupied.mkdir(parents=True)
         orphan = gallery / COLLECTIONS_DIR / "2024" / "2024-06-01 - Gone"
@@ -633,9 +604,9 @@ class TestRefreshErrors:
 
     def test_case_only_series_rename(self, tmp_path: Path) -> None:
         """Regression: the collection found itself in its way on APFS."""
-        gallery = _setup_gallery(tmp_path)
-        album1, _ = _setup_album(gallery, "2024-07-14 - 01 - Trip - Morning")
-        album2, _ = _setup_album(gallery, "2024-07-14 - 02 - Trip - Evening")
+        gallery = make_gallery(tmp_path)
+        album1, _ = make_gallery_album(gallery, "2024-07-14 - 01 - Trip - Morning")
+        album2, _ = make_gallery_album(gallery, "2024-07-14 - 02 - Trip - Evening")
         refresh_collections(gallery)
         [before] = discover_collections(gallery)
         before_id = _load_metadata(before).id
@@ -651,8 +622,8 @@ class TestRefreshErrors:
         assert _load_metadata(after).id == before_id
 
     def test_uses_injected_collection_id(self, tmp_path: Path) -> None:
-        gallery = _setup_gallery(tmp_path)
-        _setup_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
+        gallery = make_gallery(tmp_path)
+        make_gallery_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
         fixed_id = generate_collection_id()
 
         result = refresh_collections(gallery, new_id=lambda: fixed_id)
