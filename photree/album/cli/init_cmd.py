@@ -14,8 +14,9 @@ from photree.album.store.metadata import (
 )
 from photree.album.store.protocol import AlbumMetadata
 from photree.clihelpers.console import err_console
+from photree.clihelpers.options import DRY_RUN_OPTION
 from photree.clihelpers.runtime import runtime_of
-from photree.common.formatting import indent
+from photree.common.formatting import format_dry_run, indent
 from photree.common.fs import display_path
 
 
@@ -33,6 +34,8 @@ def init_cmd(
             resolve_path=True,
         ),
     ] = Path(),
+    *,
+    dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """Initialize album metadata (.photree/album.yaml) with a new album ID."""
     cwd = runtime_of(ctx).cwd()
@@ -48,9 +51,17 @@ def init_cmd(
         err_console.print(indent(str(display_path(album_yaml, cwd))), markup=False)
         raise typer.Exit(code=1)
 
-    generated_id = generate_album_id()
-    save_album_metadata(album_dir, AlbumMetadata(id=generated_id))
-    typer.echo(
-        f"Created {display_path(album_yaml, cwd)}\n"
-        f"Album ID: {format_album_external_id(generated_id)}",
-    )
+    if dry_run:
+        typer.echo(
+            format_dry_run(
+                f"Would create {display_path(album_yaml, cwd)}",
+                dry_run=dry_run,
+            ),
+        )
+    else:
+        generated_id = generate_album_id()
+        save_album_metadata(album_dir, AlbumMetadata(id=generated_id))
+        typer.echo(
+            f"Created {display_path(album_yaml, cwd)}\n"
+            f"Album ID: {format_album_external_id(generated_id)}",
+        )

@@ -69,6 +69,16 @@ class TestAlbumInit:
         runner.invoke(app, ["album", "init", "-a", str(album)])
         assert (album / PHOTREE_DIR / ALBUM_YAML).is_file()
 
+    def test_dry_run_writes_nothing(self, tmp_path: Path) -> None:
+        album = tmp_path / "2024-07-14 - Hiking"
+        album.mkdir()
+
+        result = runner.invoke(app, ["album", "init", "-a", str(album), "--dry-run"])
+
+        assert result.exit_code == 0
+        assert result.output.startswith("[dry-run] Would create ")
+        assert not (album / PHOTREE_DIR).exists()
+
 
 class TestAlbumsInit:
     def test_initializes_multiple_albums(self, tmp_path: Path) -> None:
