@@ -23,6 +23,7 @@ from photree.collection.importer.output import (
     format_resolution_warning,
     format_result_errors,
 )
+from photree.collection.importer.resolve import scan_gallery
 from photree.common.exif import ExifTagReader, exiftool_session
 from photree.common.formatting import format_dry_run, indent
 from photree.common.fs import display_path
@@ -46,7 +47,7 @@ def _run_import(
             progress.add_task("Resolving members...", total=None)
             return import_collection_members(
                 collection_dir,
-                gallery_dir,
+                lambda: scan_gallery(gallery_dir),
                 dry_run=dry_run,
                 exiftool=exiftool,
             )

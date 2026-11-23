@@ -1,10 +1,12 @@
 """Import a collection's selection into its metadata as resolved members."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
 from photree.collection.importer.resolve import (
+    GalleryIndex,
     ResolutionError,
     ResolutionWarning,
     ResolvedMembers,
@@ -138,7 +140,7 @@ def _merged_metadata(
 
 def import_collection_members(
     collection_dir: Path,
-    gallery_dir: Path,
+    gallery_index: Callable[[], GalleryIndex],
     *,
     dry_run: bool = False,
     exiftool: ExifTagReader | None = None,
@@ -146,6 +148,9 @@ def import_collection_members(
     """
     Resolve selection entries and merge into collection metadata.
 
+    *gallery_index* returns the gallery to resolve against. It is called
+    only once the collection and its selection are known to be usable, so a
+    collection that cannot be imported into fails without a gallery scan.
     Returns the result with resolved members or errors. On success (and
     not dry_run), saves updated metadata and cleans up selection sources.
     Unusable selection rows (e.g. an unparseable date) fail the import
@@ -172,7 +177,7 @@ def import_collection_members(
             collection_dir,
         )
 
-    result = resolve_entries(sources.merged, gallery_dir)
+    result = resolve_entries(sources.merged, gallery_index())
     if result.success and not dry_run:
         save_collection_metadata(
             collection_dir,

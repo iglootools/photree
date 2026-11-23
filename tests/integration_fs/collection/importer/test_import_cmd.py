@@ -13,6 +13,7 @@ from photree.collection.importer.import_members import (
     CollectionImportErrorKind,
     import_collection_members,
 )
+from photree.collection.importer.resolve import scan_gallery
 from photree.collection.importer.selection import (
     SELECTION_CSV,
     SELECTION_DIR,
@@ -359,7 +360,7 @@ class TestImportMembersErrors:
         )
 
         with pytest.raises(CollectionImportError) as exc_info:
-            import_collection_members(col_dir, gallery)
+            import_collection_members(col_dir, lambda: scan_gallery(gallery))
 
         assert exc_info.value.kind == CollectionImportErrorKind.SMART_COLLECTION
         assert exc_info.value.collection_dir == col_dir
@@ -368,7 +369,7 @@ class TestImportMembersErrors:
         gallery = _setup_gallery(tmp_path)
 
         with pytest.raises(CollectionImportError) as exc_info:
-            import_collection_members(tmp_path, gallery)
+            import_collection_members(tmp_path, lambda: scan_gallery(gallery))
 
         assert exc_info.value.kind == CollectionImportErrorKind.NO_METADATA
 

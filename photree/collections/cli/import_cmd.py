@@ -24,6 +24,7 @@ from photree.collection.importer.output import (
     format_resolution_warning,
     format_result_errors,
 )
+from photree.collection.importer.resolve import scan_gallery
 from photree.collection.importer.selection import has_selection
 from photree.collection.store.collection_discovery import discover_collections
 from photree.collections.cli.app import app
@@ -72,7 +73,7 @@ def _import_one(
     try:
         result = import_collection_members(
             col_dir,
-            gallery_dir,
+            lambda: scan_gallery(gallery_dir),
             dry_run=dry_run,
             exiftool=exiftool,
         )

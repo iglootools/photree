@@ -3,16 +3,16 @@ Resolve collection import entries against a gallery.
 
 Takes a list of selection entries (IDs, directory names, media filenames)
 and resolves each to a concrete member (album, collection, image, or video)
-by scanning the gallery.
+of a gallery.
 
-Uses a scan-and-match approach: selection entries are loaded into memory,
-then the gallery is scanned once. Each album/collection is checked against
-all pending entries. Matches are collected; ambiguous and unresolved
-entries are reported as errors.
+Uses a scan-and-match approach: the gallery is scanned once into a
+:class:`GalleryIndex`, which can serve several selections. Each album and
+collection of the index is checked against all pending entries. Matches are
+collected; ambiguous and unresolved entries are reported as errors.
 """
 
 import re
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
@@ -220,21 +220,34 @@ def _scanned_album(album_dir: Path, meta: AlbumMetadata) -> ScannedAlbum:
     )
 
 
-def _scan_albums(gallery_dir: Path) -> Iterator[ScannedAlbum]:
-    return (
-        _scanned_album(album_dir, meta)
-        for album_dir in discover_albums(gallery_dir / ALBUMS_DIR)
-        for meta in [load_album_metadata(album_dir)]
-        if meta is not None
-    )
+@dataclass(frozen=True)
+class GalleryIndex:
+    """A gallery's albums and collections, as resolution sees them."""
+
+    albums: tuple[ScannedAlbum, ...]
+    collections: tuple[ScannedCollection, ...]
 
 
-def _scan_collections(gallery_dir: Path) -> Iterator[ScannedCollection]:
-    return (
-        ScannedCollection(collection_id=meta.id, dir_name=col_dir.name)
-        for col_dir in discover_collections(gallery_dir / COLLECTIONS_DIR)
-        for meta in [load_collection_metadata(col_dir)]
-        if meta is not None
+def scan_gallery(gallery_dir: Path) -> GalleryIndex:
+    """
+    Read the metadata of every album, its media and every collection of *gallery_dir*.
+
+    Importing into a collection never changes what the index holds (IDs,
+    names, media keys), so one index can serve every collection of a batch.
+    """
+    return GalleryIndex(
+        albums=tuple(
+            _scanned_album(album_dir, meta)
+            for album_dir in discover_albums(gallery_dir / ALBUMS_DIR)
+            for meta in [load_album_metadata(album_dir)]
+            if meta is not None
+        ),
+        collections=tuple(
+            ScannedCollection(collection_id=meta.id, dir_name=col_dir.name)
+            for col_dir in discover_collections(gallery_dir / COLLECTIONS_DIR)
+            for meta in [load_collection_metadata(col_dir)]
+            if meta is not None
+        ),
     )
 
 
@@ -542,26 +555,18 @@ def _build_results(
 
 def resolve_entries(
     entries: tuple[SelectionEntry, ...],
-    gallery_dir: Path,
+    index: GalleryIndex,
 ) -> ResolutionResult:
     """
-    Resolve selection entries against the gallery.
+    Resolve selection entries against the gallery scanned into *index*.
 
     1. Classify entries into lookup structures
-    2. Scan albums and collections, matching against pending entries
+    2. Match every album and collection of the index against pending entries
     3. Build results with ambiguity and duplicate detection
     """
     lookups = _prepare_lookups(entries)
     pairs = [
-        *(
-            p
-            for album in _scan_albums(gallery_dir)
-            for p in _album_matches(album, lookups)
-        ),
-        *(
-            p
-            for col in _scan_collections(gallery_dir)
-            for p in _collection_matches(col, lookups)
-        ),
+        *(p for album in index.albums for p in _album_matches(album, lookups)),
+        *(p for col in index.collections for p in _collection_matches(col, lookups)),
     ]
     return _build_results(entries, _group_by_entry(entries, pairs))
