@@ -23,7 +23,7 @@ $ photree [OPTIONS] COMMAND [ARGS]...
 * `collection`: Collection management commands.
 * `collections`: Batch operations on multiple collections.
 * `demo`: Demo commands for development.
-* `gallery`: Batch operations on multiple albums.
+* `gallery`: Operations on a gallery: import, refresh,...
 
 ## `photree album`
 
@@ -1000,7 +1000,7 @@ $ photree demo seed [OPTIONS]
 
 ## `photree gallery`
 
-Batch operations on multiple albums.
+Operations on a gallery: import, refresh, check and export its albums.
 
 **Usage**:
 

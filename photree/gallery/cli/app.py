@@ -6,7 +6,7 @@ from photree.gallery.cli import metadata
 
 app = typer.Typer(
     name="gallery",
-    help="Batch operations on multiple albums.",
+    help="Operations on a gallery: import, refresh, check and export its albums.",
     no_args_is_help=True,
 )
 
