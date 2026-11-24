@@ -14,7 +14,7 @@ rumdl = "0.3.4"
 # Drop the exclusion once Renovate no longer resolves to @yarnpkg/libzip@3.2.2; reviewed in
 # iglootools/common's mise.toml.
 "npm:renovate" = { version = "44.239.1", trust_policy_excludes = ["@yarnpkg/libzip@3.2.2"], allow_builds = ["re2"] }
-node = "26.13.0"
+node = "26.13.1"
 jq = "1.8.2"
 
 [env]
