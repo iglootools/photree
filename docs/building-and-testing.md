@@ -144,9 +144,9 @@ proposing 3.15 until then.
   shared
   [repository conventions](https://github.com/iglootools/common/blob/main/guidelines/project-setup/repository.md#protect-the-default-branch-and-release-tags)
   describe: `main` cannot be deleted or force-pushed, changes go through a pull
-  request merged with a merge commit, and the `preflight` check must pass first;
-  `v*` tags cannot be deleted or moved, so a published version keeps pointing at
-  the commit it was built from.
+  request merged with a merge commit, and the `preflight` and `build` checks
+  must pass first; `v*` tags cannot be deleted or moved, so a published version
+  keeps pointing at the commit it was built from.
 
   ```bash
   gh api --method POST repos/iglootools/photree/rulesets --input - <<'JSON'
@@ -168,7 +168,9 @@ proposing 3.15 until then.
       { "type": "required_status_checks", "parameters": {
           "strict_required_status_checks_policy": false,
           "do_not_enforce_on_create": false,
-          "required_status_checks": [{ "context": "preflight", "integration_id": 15368 }] } }
+          "required_status_checks": [
+            { "context": "preflight", "integration_id": 15368 },
+            { "context": "build", "integration_id": 15368 }] } }
     ]
   }
   JSON
@@ -195,8 +197,8 @@ proposing 3.15 until then.
   # expect: ["deletion","non_fast_forward","pull_request","required_status_checks"]
   ```
 
-  `preflight` must keep running on every pull request (no `paths` filter on its
-  workflow), or a pull request it skips can never be merged.
+  `preflight` and `build` must keep running on every pull request (no `paths`
+  filter on their workflow), or a pull request they skip can never be merged.
 - **Keep the dependency graph on.** Dependabot security updates (below) read it
   to find vulnerable dependencies. GitHub enables it on every public repository
   and offers no switch to turn it off there, so there is nothing to apply while
