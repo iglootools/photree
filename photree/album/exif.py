@@ -4,8 +4,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from photree.common import exif as common_exif
-from photree.common.exif import ExifDateChange, ExifTagReader
-from photree.common.exif import read_exif_timestamps_by_file as _generic_read_by_file
+from photree.common.exif import (
+    ExifDateChange,
+    ExifTagReader,
+    read_exif_timestamps_by_file as _generic_read_by_file,
+)
 
 # Tag priority for timestamp extraction (first match wins):
 #

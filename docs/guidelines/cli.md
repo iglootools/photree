@@ -77,19 +77,13 @@ Most entity types support the same set of operations:
   [python.md](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md#start-a-functions-name-with-the-verb-that-says-what-the-caller-gets)
   asks for live in `clihelpers/options.py` (e.g., `DRY_RUN_OPTION`,
   `CHECKSUM_OPTION`, `LINK_MODE_OPTION`)
-- **Dry run**: every command that changes data or runs long takes
-  `--dry-run -n` (`DRY_RUN_OPTION`), and skips every filesystem mutation. Its
-  output carries the label `[dry-run]`, spelled exactly so, from
-  `common.formatting.format_dry_run`:
-  - a line describing one action starts with it, and keeps its "Would …"
-    phrasing: `[dry-run] Would generate album ID.`
-  - a block (a section header, a batch tally, a result summary) carries it
-    once, at the start of its header or summary line, never on every row:
-    `[dry-run] 3 album(s) would be refreshed, 0 failed.`
-  - a labelled line says what would happen, never what was done ("Done.",
-    "Removed"): the formatter takes `dry_run` and words it as hypothetical
-  - the label is a Rich tag: pass `markup=True` when the line is printed
-    with `console.print`, so Rich does not drop it
+- **Dry run**: `--dry-run -n`, as
+  [general.md › Offer `--dry-run` on every command that changes data or runs long](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#offer---dry-run-on-every-command-that-changes-data-or-runs-long)
+  asks, declared with `DRY_RUN_OPTION`; a dry run skips every filesystem
+  mutation. Label output with `common.formatting.format_dry_run`, which takes
+  `dry_run` so a formatter words its line as hypothetical. The label is a Rich
+  tag: pass `markup=True` when the line is printed with `console.print`, so
+  Rich does not drop it.
 
 ## Progress Indicators
 
@@ -190,8 +184,8 @@ Two call styles, matching what the command does:
   staging/Image Capture problems in one pass. `import-check` is a pure
   diagnostic and depends on this.
 
-Probing PATH is the CLI layer's job, as ambient state is under
-[general.md › Testability](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#testability).
+Probing PATH is the CLI layer's job, as reading ambient state is under
+[general.md › Pass the clock, the environment and configuration in](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#pass-the-clock-the-environment-and-configuration-in).
 Library functions take the resolved statuses as a parameter; output layers
 render them with `common/sysdeps_output.py`, never by importing `clihelpers`
 (only CLI modules — `*/cli/`, `albums/batchcli/`, `clihelpers/` — may import
@@ -216,13 +210,16 @@ paths with `display_path`.
 
 ## CSV Output
 
-Commands with `--format csv` follow this pattern:
+photree selects the output format with `--format text|csv` and writes a file
+with `-o/--output FILE`, a
+[documented exception](../guidelines.md#select-the-output-format-with---format-textcsv-and-write-a-file-with--o--output)
+to the shared flags until its next major release. Commands with
+`--format csv` follow this pattern:
 
-- `--format` option: `text` (default) or `csv`, declared with the shared
-  `OUTPUT_FORMAT_OPTION` (an `OutputFormat` enum, so an unknown value is
-  rejected rather than silently rendered as text)
-- `--output -o` option (`OUTPUT_FILE_OPTION`): write to file instead of
-  stdout, for every format
+- `--format` is declared with the shared `OUTPUT_FORMAT_OPTION`, an
+  `OutputFormat` enum, so an unknown value is rejected rather than silently
+  rendered as text
+- `-o/--output` is declared with `OUTPUT_FILE_OPTION`, for every format
 - CSV always includes a header row
 - Write to stdout or file, close file in `finally`
 - When `--format csv`, suppress non-CSV output (e.g., "No albums found"

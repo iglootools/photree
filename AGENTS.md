@@ -10,13 +10,11 @@ proprietary database. Python, uv, Typer; tasks run through mise.
 - `mise run preflight`: every lint and test CI runs, every few commits and
   before review.
 - `mise tasks` lists the rest.
+- `mise run fmt` after editing any file.
 - Run a mise task when one does the job, and `uv run --no-sync <tool>`
-  otherwise, never a bare tool: another project's virtualenv on `PATH` could
-  stand in for this one.
-- Generated documents are regenerated, never edited by hand:
-  `mise run reference-doc` rewrites the CLI reference, the config field tables
-  and the Module Overview, and `mise run toc` the tables of contents. `lint`
-  fails when one is stale.
+  otherwise, never a bare tool.
+- `mise run reference-doc` regenerates the CLI reference, the config field
+  tables and the Module Overview; `mise run toc` the tables of contents.
 
 ## Guidelines
 
@@ -26,7 +24,7 @@ through the `iglootools` plugin. Other agents: read `coding/general.md`,
 whose trigger matches the files you are changing, using
 [iglootools/common's index](https://github.com/iglootools/common/blob/main/guidelines/README.md).
 Read [docs/guidelines.md](docs/guidelines.md) before any change too: it holds
-this project's deviations and its own rules, and links to the project's other
+this project's exceptions and its own rules, and links to the project's other
 guidelines files.
 
 ## Where things are

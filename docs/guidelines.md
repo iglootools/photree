@@ -3,56 +3,65 @@
 Where photree departs from the shared
 [iglootools guidelines](https://github.com/iglootools/common/blob/main/guidelines/README.md),
 and the rules it adds. Read it before any change; the
-[area conventions](#area-conventions) and the
-[task checklists](#adding-a-concept) it links are read when a change reaches
+[area conventions](#area-conventions) it links are read when a change reaches
 them.
 
 <!-- toc -->
 **On this page**
 
-- [Deviations](#deviations)
+- [Area conventions](#area-conventions)
+- [Exceptions](#exceptions)
   - [Defer an import inside the function that needs it, not with `lazy import`](#defer-an-import-inside-the-function-that-needs-it-not-with-lazy-import)
   - [Keep an accumulator for loop-carried state and per-item `try`/`except`](#keep-an-accumulator-for-loop-carried-state-and-per-item-tryexcept)
+  - [Select the output format with `--format text|csv`, and write a file with `-o/--output`](#select-the-output-format-with---format-textcsv-and-write-a-file-with--o--output)
 - [Rules](#rules)
   - [Read `.photree/*.yaml` through `metadata_io`](#read-photreeyaml-through-metadata_io)
   - [Add each new non-CLI domain subpackage to the CLI-layer contract](#add-each-new-non-cli-domain-subpackage-to-the-cli-layer-contract)
   - [Render errors and output with photree's helpers](#render-errors-and-output-with-photrees-helpers)
-  - [Cover all new functionality with tests](#cover-all-new-functionality-with-tests)
 - [Tests](#tests)
-- [Area conventions](#area-conventions)
-- [Adding a concept](#adding-a-concept)
 - [Documentation](#documentation)
 <!-- tocstop -->
 
-## Deviations
+## Area conventions
+
+Read the linked document in full before changing files under these paths.
+
+| Paths | Conventions |
+|-------|-------------|
+| `photree/cli/`, `photree/clihelpers/`, `photree/*/cli/`, `photree/albums/batchcli/` — and adding a command anywhere | [cli.md](./guidelines/cli.md) — command hierarchy, options, progress, exit codes, system dependencies, CSV, batch architecture, validation levels |
+| `tests/` — and adding a parameter a test needs to control | [testing.md](./guidelines/testing.md) — deciders, the CLI runtime, fakes |
+| Introducing a new concept photree manages, such as collections or a future entity type | [adding-a-concept.md](./guidelines/adding-a-concept.md) — the checklist to run first |
+
+## Exceptions
 
 ### Defer an import inside the function that needs it, not with `lazy import`
 
-Documented exception to
-[python.md › Import at module level, and defer with `lazy import`](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md#import-at-module-level-and-defer-with-lazy-import).
-Defer an import only to break an import cycle or to keep the face ML stack
-(`insightface`, `onnxruntime`, `cv2`, `faiss`, `sklearn`, `scipy`, and the
-`numpy` beneath them) out of CLI startup: import it inside the function that
-uses it, or under `TYPE_CHECKING` for an annotation, with a comment saying
-which case it is. An in-function import carries `# noqa: PLC0415` with that
-reason on its line.
+Overrides
+[python.md › Import at module level, and defer with `lazy import`](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md#import-at-module-level-and-defer-with-lazy-import):
+photree defers an import only to break an import cycle or to keep the face ML
+stack (`insightface`, `onnxruntime`, `cv2`, `faiss`, `sklearn`, `scipy`, and
+the `numpy` beneath them) out of CLI startup, by importing it inside the
+function that uses it, or under `TYPE_CHECKING` for an annotation, with a
+comment saying which case it is. An in-function import carries
+`# noqa: PLC0415` with that reason on its line, and
+`tests/unit/test_cli_startup_imports.py` fails if `import photree.cli` loads
+any of the ML stack.
 
 **Why:** `lazy import` needs Python 3.15, and photree is held on 3.14 because
 onnxruntime publishes no cp315 wheels (the comment at `requires-python` in
 `pyproject.toml`). Loading the ML stack at module level adds most of a second
 to every CLI invocation.
 
-- `tests/unit/test_cli_startup_imports.py` fails if `import photree.cli`
-  loads any of the ML stack.
-- **Retires when** photree moves to Python 3.15, once onnxruntime publishes
-  cp315 wheels: these imports then become `lazy import`s.
+**Retires when:** photree moves to Python 3.15, once onnxruntime publishes
+cp315 wheels: these imports then become `lazy import`s.
 
 ### Keep an accumulator for loop-carried state and per-item `try`/`except`
 
-Documented exception to
+Overrides
 [python.md › Build a collection in one expression, not by appending](https://github.com/iglootools/common/blob/main/guidelines/coding/python.md#build-a-collection-in-one-expression-not-by-appending),
-and to its filtering instead of `continue`, in two shapes only, each marked
-with a `# Documented exception (docs/guidelines.md)` comment:
+and its filtering instead of `continue`: photree keeps an accumulator in two
+shapes only, each marked with a `# Documented exception (docs/guidelines.md)`
+comment:
 
 - **Loop-carried state.** Deduplicating files by inode while stat'ing them
   (`album/stats/scan.py::_stat_files`) needs every inode seen before to decide
@@ -60,14 +69,27 @@ with a `# Documented exception (docs/guidelines.md)` comment:
 - **Per-item `try`/`except` in a batch.** A loop that records a failure and
   carries on cannot be a comprehension, which has nowhere to put the `except`.
 
+Everywhere else the single-expression form applies.
+
 **Why:** in these shapes the comprehension is harder to read, not easier: the
 first has to thread the growing state through every element, and the second
 holds the loops that must not swallow errors, where clarity matters most.
-Everywhere else the single-expression form applies.
 
-This is structural rather than temporary: no condition retires it while a
-comprehension can neither carry state between elements nor catch an exception
-per item.
+**Never retires:** a comprehension can neither carry state between elements
+nor catch an exception per item.
+
+### Select the output format with `--format text|csv`, and write a file with `-o/--output`
+
+Overrides
+[general.md › Select the output format with `-o/--output`, and write a file with `-f/--file`](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#select-the-output-format-with--o--output-and-write-a-file-with--f--file):
+photree's listing commands select their format with `--format`, `text` (the
+default) or `csv`, and write the output to a file with `-o/--output FILE`.
+
+**Why:** the flags predate the shared rule, and renaming them breaks every
+script and alias that passes them, which only a major release may do.
+
+**Retires when:** photree's next major release, which moves the format to
+`-o/--output` (`human`, the default, and `csv`) and the file to `-f/--file`.
 
 ## Rules
 
@@ -110,14 +132,12 @@ photree's helpers for them:
   markup on; progress bars (`clihelpers/progress.py`) escape the labels they
   are given, so callers pass plain text.
 
-### Cover all new functionality with tests
-
-Each new behaviour gets a test, written without patching as
-[general.md › Testability](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#testability)
-describes; photree's deciders, CLI runtime and fakes are in
-[testing.md](./guidelines/testing.md).
-
 ## Tests
+
+Every new behaviour gets a test, as
+[general.md › Give every new behaviour a test](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#give-every-new-behaviour-a-test)
+asks: [testing.md](./guidelines/testing.md) says which suite it goes in, and
+holds photree's deciders, CLI runtime and fakes.
 
 The patches the
 [patching rule](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#patch-only-in-the-three-documented-cases-and-list-each-one)
@@ -125,24 +145,9 @@ allows, enforced as
 [python-tooling.md › Enforce the patching rule](https://github.com/iglootools/common/blob/main/guidelines/project-setup/python-tooling.md#enforce-the-patching-rule)
 sets up:
 
-| File | What is replaced | Category | Why, and when to retire it |
-|---|---|---|---|
-| `tests/integration_fs/album/importer/test_preflight.py` | `PATH`, emptied | (c) | The test asserts that `run_preflight` does not read `PATH`, since its caller owns the probing. Changing the process's `PATH` is the only way to show that. |
-
-## Area conventions
-
-Read the linked document in full before changing files under these paths.
-
-| Paths | Conventions |
-|-------|-------------|
-| `photree/cli/`, `photree/clihelpers/`, `photree/*/cli/`, `photree/albums/batchcli/` — and adding a command anywhere | [cli.md](./guidelines/cli.md) — command hierarchy, options, progress, exit codes, system dependencies, CSV, batch architecture, validation levels |
-| `tests/` — and adding a parameter a test needs to control | [testing.md](./guidelines/testing.md) — deciders, the CLI runtime, fakes |
-
-## Adding a concept
-
-Run the checklist in [adding-a-concept.md](./guidelines/adding-a-concept.md)
-before introducing a new concept that photree manages, such as collections or a
-future entity type.
+| File | What it replaces | Category | Why | Retires when |
+|---|---|---|---|---|
+| `tests/integration_fs/album/importer/test_preflight.py` | `PATH`, emptied | (c) | The test asserts that `run_preflight` does not read `PATH`, since its caller owns the probing: it takes process-global state away from the developer's machine to show the outcome does not depend on it. | Never, while the test exists: changing the process's `PATH` is the only way to show that a function ignores it. |
 
 ## Documentation
 
@@ -161,4 +166,4 @@ Before calling a change done, update the documents its kind of change reaches:
 | Release or publish pipeline, trusted publisher | releasing-and-publishing.md |
 | GitHub repository setting | building-and-testing.md "GitHub Config" |
 | Major release | new scenarios in demo/demo.sh (see the Release Process) |
-| Renaming or moving a document | every reference to it: `git grep` the old name, including the CONTRIBUTING.md line and the README's absolute URLs |
+| Renaming or moving a document | every file that points at it, as [layout.md › Write the documents the project's shape calls for, one name per role](https://github.com/iglootools/common/blob/main/guidelines/documentation/layout.md#write-the-documents-the-projects-shape-calls-for-one-name-per-role) lists |

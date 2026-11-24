@@ -20,8 +20,6 @@ from photree.album.fix.ios import (
     MiscategorizedMoveConflictError,
     prefer_higher_quality_when_dups,
     run_fix_ios,
-)
-from photree.album.fix.ios import (
     validate_fix_flags as validate_fix_ios_flags,
 )
 from photree.album.fix.ios.miscategorized import fix_miscategorized

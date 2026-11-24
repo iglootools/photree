@@ -10,8 +10,7 @@ from pathlib import Path
 import typer
 
 from photree.album import check as album_check
-from photree.album.check.output import album as album_output
-from photree.album.check.output import derived as derived_output
+from photree.album.check.output import album as album_output, derived as derived_output
 from photree.album.id import format_album_external_id
 from photree.album.refresh import RefreshFn
 from photree.album.store.album_discovery import discover_potential_albums
@@ -24,9 +23,11 @@ from photree.common.formatting import format_dry_run
 from photree.common.fs import display_path
 from photree.common.sysdeps import WhichFn
 from photree.foundation.linking import LinkMode
-from photree.gallery.cmd_handler.importer import BatchImportResult
-from photree.gallery.cmd_handler.importer import run_batch_import as _run_batch_import
-from photree.gallery.cmd_handler.importer import run_single_import as _run_single_import
+from photree.gallery.cmd_handler.importer import (
+    BatchImportResult,
+    run_batch_import as _run_batch_import,
+    run_single_import as _run_single_import,
+)
 from photree.gallery.cmd_handler.post_import_check import (
     run_batch_post_import_check as _run_batch_post_import_check,
 )

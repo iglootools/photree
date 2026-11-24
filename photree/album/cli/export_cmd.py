@@ -6,8 +6,7 @@ from typing import Annotated
 import typer
 
 from photree.album.cli.app import app
-from photree.album.exporter import output as export_output
-from photree.album.exporter import single as album_export
+from photree.album.exporter import output as export_output, single as album_export
 from photree.album.exporter.settings import (
     ExportSettingsError,
     resolve_export_settings,

@@ -6,11 +6,12 @@ from typing import Annotated
 
 import typer
 
-from photree.album import check as album_check
-from photree.album import naming as album_naming
-from photree.album.check.output import album as album_output
-from photree.album.check.output import batch as batch_output
-from photree.album.check.output import troubleshoot as troubleshoot_output
+from photree.album import check as album_check, naming as album_naming
+from photree.album.check.output import (
+    album as album_output,
+    batch as batch_output,
+    troubleshoot as troubleshoot_output,
+)
 from photree.album.cli.app import app
 from photree.album.cli.media_source_conflict import format_media_source_conflict
 from photree.album.exif_cache.refresh import (

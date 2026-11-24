@@ -8,8 +8,7 @@ from pathlib import Path
 import typer
 
 from photree.album import naming as album_naming
-from photree.album.check.output import album as album_output
-from photree.album.check.output import batch as batch_output
+from photree.album.check.output import album as album_output, batch as batch_output
 from photree.album.check.output.batch import batch_check_summary
 from photree.album.exif_cache.refresh import refresh_exif_cache as _refresh_exif
 from photree.album.id import format_album_external_id, format_image_external_id

@@ -14,7 +14,7 @@ mise run preflight          # every lint and every test (what CI runs)
 mise run preflight-quick    # every lint and the unit tests
 mise run lint               # every lint below
 
-mise run test-all           # All tests (unit + integration)
+mise run test               # All tests (unit + integration)
 mise run test-unit          # Unit tests
 mise run test-integration-fs # Filesystem integration tests (full workflow)
 
@@ -41,8 +41,8 @@ mise run depgraph           # regenerate the Module Overview in docs/architectur
 mise run lint-depgraph      # check that the Module Overview is up to date
 mise run depgraph-ascii     # print the module dependency graph as ASCII art
 mise run depgraph-mermaid   # print the module dependency graph as mermaid
-mise run toc                # regenerate the tables of contents in the Markdown docs
-mise run lint-toc           # check that the tables of contents are up to date
+mise run toc                # add and regenerate the tables of contents in the Markdown files
+mise run lint-toc           # check that every Markdown document has an up-to-date table of contents
 
 mise run build              # build the sdist and wheel into an emptied dist/
 mise run build-verify       # fail if the built wheel carries the 0.0.0 fallback version
@@ -61,7 +61,7 @@ mise run demo-upload-latest # upload the demo CI recorded (see Release Process)
 # Running tools directly
 uv run --no-sync pytest tests/ -v                         # all tests
 uv run --no-sync ruff format .                            # formatting
-uv run --no-sync ruff check photree/ tests/ build-scripts/   # linting
+uv run --no-sync ruff check .                             # linting
 uv run --no-sync pyright                                  # type-checking, strict, tests included
 uv run --no-sync lint-imports                             # module boundaries
 uv run --no-sync pytest tests/integration_fs/cli/test_cli.py::TestVersionCommand::test_version_flag -v   # run a single test
