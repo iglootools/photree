@@ -13,6 +13,7 @@ them.
 - [Exceptions](#exceptions)
   - [Defer an import inside the function that needs it, not with `lazy import`](#defer-an-import-inside-the-function-that-needs-it-not-with-lazy-import)
   - [Keep an accumulator for loop-carried state and per-item `try`/`except`](#keep-an-accumulator-for-loop-carried-state-and-per-item-tryexcept)
+  - [Offer no JSON output yet](#offer-no-json-output-yet)
 - [Rules](#rules)
   - [Read `.photree/*.yaml` through `metadata_io`](#read-photreeyaml-through-metadata_io)
   - [Add each new non-CLI domain subpackage to the CLI-layer contract](#add-each-new-non-cli-domain-subpackage-to-the-cli-layer-contract)
@@ -76,6 +77,27 @@ holds the loops that must not swallow errors, where clarity matters most.
 
 **Never retires:** a comprehension can neither carry state between elements
 nor catch an exception per item.
+
+### Offer no JSON output yet
+
+Overrides
+[general.md › Select the output format with `-o/--output`, and write a file with `-f/--file`](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#select-the-output-format-with--o--output-and-write-a-file-with--f--file),
+which asks every command that prints a result for `-o/--output json`: no
+photree command offers JSON. The listing commands (`albums list` and
+`list-media`, `album list-media`, `gallery list-albums`, `list-media` and
+`list-collections`) take `-o/--output` with `human` and `csv` only. `album`,
+`albums` and `gallery stats`, `album`, `collection` and `gallery show`, the
+`check` commands, `check system` and `import-check` have no format selection
+and print for a human only.
+
+**Why:** photree's results are albums and media on disk, which a script reads
+directly, and a listing it needs to process comes as CSV. A JSON format is a
+schema scripts come to depend on, and photree's result models still change
+from release to release.
+
+**Retires when:** photree's 1.0 release, which freezes the CLI: before it,
+`json` joins `OutputFormat`, every command named above takes
+`-o/--output human|json`, and the listing commands keep `csv`.
 
 ## Rules
 

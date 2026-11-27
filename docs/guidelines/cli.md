@@ -213,7 +213,9 @@ paths with `display_path`.
 The listing commands select the output format with `-o/--output`, `human`
 (the default) or `csv`, and write it to a file with `-f/--file FILE`, as
 [general.md › Select the output format with `-o/--output`, and write a file with `-f/--file`](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#select-the-output-format-with--o--output-and-write-a-file-with--f--file)
-asks. They follow this pattern:
+asks, without its `json` format, a
+[documented exception](../guidelines.md#offer-no-json-output-yet). They
+follow this pattern:
 
 - `-o/--output` is declared with the shared `OUTPUT_FORMAT_OPTION`, an
   `OutputFormat` enum, so an unknown value is rejected rather than silently
