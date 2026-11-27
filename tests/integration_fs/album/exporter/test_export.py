@@ -14,7 +14,7 @@ from photree.dates import DatePrefixError, DatePrefixKind
 from photree.foundation.layout import PHOTREE_DIR
 from photree.foundation.linking import LinkMode
 from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
-from tests.testkit import mark_album, write_files
+from tests.testkit import file_names, mark_album, write_files
 
 
 def _setup_ios_album(album_dir: Path) -> Path:
@@ -248,6 +248,26 @@ class TestExportIosAll:
         assert (target / MAIN_MEDIA_SOURCE.img_dir / "IMG_0002.HEIC").exists()
         assert (target / MAIN_MEDIA_SOURCE.vid_dir / "IMG_E0010.MOV").exists()
         assert result.files_copied > 0
+
+    def test_ios_source_leaves_an_mp4_out_of_the_browsable_vid_dir(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        # The export rebuilds main-vid/ as refresh does: an iOS source holds
+        # only .mov, so the .mp4 is copied with the archive but not linked.
+        album_dir = _setup_ios_album(tmp_path / "trip")
+        write_files(album_dir / MAIN_MEDIA_SOURCE.orig_vid_dir, ["IMG_0011.MP4"])
+        target = tmp_path / "share" / "trip"
+
+        export_album(
+            album_dir,
+            target,
+            album_layout=AlbumShareLayout.ALL,
+            link_mode=LinkMode.COPY,
+        )
+
+        assert (target / MAIN_MEDIA_SOURCE.orig_vid_dir / "IMG_0011.MP4").exists()
+        assert file_names(target / MAIN_MEDIA_SOURCE.vid_dir) == {"IMG_E0010.MOV"}
 
     def test_browsable_uses_hardlinks_by_default(self, tmp_path: Path) -> None:
         album_dir = _setup_ios_album(tmp_path / "trip")
