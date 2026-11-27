@@ -32,20 +32,20 @@ def _gallery_album(parent: Path, name: str, link_mode: LinkMode) -> Path:
 
 class TestList:
     def test_invalid_format_is_rejected(self, tmp_path: Path) -> None:
-        # Regression: an unknown --format silently produced text.
+        # Regression: an unknown format silently produced the human one.
         make_album(tmp_path, "2024-07-14 - Hiking")
 
-        result = invoke_cli(["albums", "list", "-d", str(tmp_path), "--format", "json"])
+        result = invoke_cli(["albums", "list", "-d", str(tmp_path), "--output", "json"])
 
         assert result.exit_code == 2
 
-    def test_text_output_honors_output_file(self, tmp_path: Path) -> None:
-        # Regression: -o was ignored in text mode.
+    def test_human_output_honors_output_file(self, tmp_path: Path) -> None:
+        # Regression: the output file was ignored in the human format.
         albums_dir = tmp_path / "albums"
         _, album_id = make_album(albums_dir, "2024-07-14 - Hiking")
         out = tmp_path / "out.txt"
 
-        result = invoke_cli(["albums", "list", "-d", str(albums_dir), "-o", str(out)])
+        result = invoke_cli(["albums", "list", "-d", str(albums_dir), "-f", str(out)])
 
         assert result.exit_code == 0, result.output
         text = out.read_text(encoding="utf-8")
@@ -64,9 +64,9 @@ class TestList:
                 "list",
                 "-d",
                 str(albums_dir),
-                "--format",
+                "--output",
                 "csv",
-                "-o",
+                "-f",
                 str(out),
             ],
         )
@@ -90,7 +90,7 @@ class TestList:
         make_album(tmp_path, "2024-07-14 - Hiking")
 
         result = invoke_cli(
-            ["albums", "list-media", "-d", str(tmp_path), "--format", "xml"],
+            ["albums", "list-media", "-d", str(tmp_path), "--output", "xml"],
         )
 
         assert result.exit_code == 2

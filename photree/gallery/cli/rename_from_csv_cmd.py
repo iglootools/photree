@@ -22,7 +22,7 @@ def rename_from_csv_cmd(
         Path,
         typer.Argument(
             help=(
-                "CSV with desired album state (from list-albums --format csv, edited)."
+                "CSV with desired album state (from list-albums --output csv, edited)."
             ),
             exists=True,
             dir_okay=False,
@@ -34,7 +34,7 @@ def rename_from_csv_cmd(
     dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """
-    Rename albums from a CSV file (from list-albums --format csv, edited).
+    Rename albums from a CSV file (from list-albums --output csv, edited).
 
     Uses the album ID to look up each album in the gallery, then compares the
     current series, title, and location against the CSV values. Only albums

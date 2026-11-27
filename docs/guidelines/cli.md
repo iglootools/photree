@@ -210,19 +210,18 @@ paths with `display_path`.
 
 ## CSV Output
 
-photree selects the output format with `--format text|csv` and writes a file
-with `-o/--output FILE`, a
-[documented exception](../guidelines.md#select-the-output-format-with---format-textcsv-and-write-a-file-with--o--output)
-to the shared flags until its next major release. Commands with
-`--format csv` follow this pattern:
+The listing commands select the output format with `-o/--output`, `human`
+(the default) or `csv`, and write it to a file with `-f/--file FILE`, as
+[general.md › Select the output format with `-o/--output`, and write a file with `-f/--file`](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#select-the-output-format-with--o--output-and-write-a-file-with--f--file)
+asks. They follow this pattern:
 
-- `--format` is declared with the shared `OUTPUT_FORMAT_OPTION`, an
+- `-o/--output` is declared with the shared `OUTPUT_FORMAT_OPTION`, an
   `OutputFormat` enum, so an unknown value is rejected rather than silently
-  rendered as text
-- `-o/--output` is declared with `OUTPUT_FILE_OPTION`, for every format
+  rendered in the human format
+- `-f/--file` is declared with `OUTPUT_FILE_OPTION`, for every format
 - CSV always includes a header row
 - Write to stdout or file, close file in `finally`
-- When `--format csv`, suppress non-CSV output (e.g., "No albums found"
+- With `--output csv`, suppress non-CSV output (e.g., "No albums found"
   goes to stderr)
 
 ## Resolve the gallery in the CLI layer, and pass the value in

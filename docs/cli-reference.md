@@ -338,8 +338,8 @@ $ photree album list-media [OPTIONS]
 **Options**:
 
 * `-a, --album-dir <directory>`: Album directory.  [default: .]
-* `--format <text|csv>`: Output format.  [default: text]
-* `-o, --output <file>`: Write output to a file instead of stdout.
+* `-o, --output <human|csv>`: Output format.  [default: human]
+* `-f, --file <file>`: Write output to a file instead of stdout.
 * `--help`: Show this message and exit.
 
 ### `photree album mv-media`
@@ -675,8 +675,8 @@ $ photree albums list [OPTIONS]
 * `-d, --dir <directory>`: Base directory to recursively scan for albums.
 * `-a, --album-dir <directory>`: Album directory (repeatable).
 * `--metadata / --no-metadata`: Show parsed album metadata and media sources (default: enabled).  [default: metadata]
-* `--format <text|csv>`: Output format.  [default: text]
-* `-o, --output <file>`: Write output to a file instead of stdout.
+* `-o, --output <human|csv>`: Output format.  [default: human]
+* `-f, --file <file>`: Write output to a file instead of stdout.
 * `--help`: Show this message and exit.
 
 ### `photree albums list-media`
@@ -693,8 +693,8 @@ $ photree albums list-media [OPTIONS]
 
 * `-d, --dir <directory>`: Base directory to recursively scan for albums.
 * `-a, --album-dir <directory>`: Album directory (repeatable).
-* `--format <text|csv>`: Output format.  [default: text]
-* `-o, --output <file>`: Write output to a file instead of stdout.
+* `-o, --output <human|csv>`: Output format.  [default: human]
+* `-f, --file <file>`: Write output to a file instead of stdout.
 * `--help`: Show this message and exit.
 
 ### `photree albums refresh`
@@ -721,7 +721,7 @@ $ photree albums refresh [OPTIONS]
 
 ### `photree albums rename-from-csv`
 
-Rename albums from a CSV file (from list --format csv, edited).
+Rename albums from a CSV file (from list --output csv, edited).
 
 Uses the album ID to look up each album, then compares the
 current series, title, and location against the CSV values. Only albums
@@ -741,7 +741,7 @@ $ photree albums rename-from-csv [OPTIONS] {csv_file}
 
 **Arguments**:
 
-* `csv_file`: CSV with desired album state (from list --format csv, edited).  [required]
+* `csv_file`: CSV with desired album state (from list --output csv, edited).  [required]
 
 **Options**:
 
@@ -1252,8 +1252,8 @@ $ photree gallery list-albums [OPTIONS]
 
 * `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--metadata / --no-metadata`: Show parsed album metadata and media sources (default: enabled).  [default: metadata]
-* `--format <text|csv>`: Output format.  [default: text]
-* `-o, --output <file>`: Write output to a file instead of stdout.
+* `-o, --output <human|csv>`: Output format.  [default: human]
+* `-f, --file <file>`: Write output to a file instead of stdout.
 * `--help`: Show this message and exit.
 
 ### `photree gallery list-collections`
@@ -1270,8 +1270,8 @@ $ photree gallery list-collections [OPTIONS]
 
 * `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--metadata / --no-metadata`: Show parsed collection metadata (default: enabled).  [default: metadata]
-* `--format <text|csv>`: Output format.  [default: text]
-* `-o, --output <file>`: Write output to a file instead of stdout.
+* `-o, --output <human|csv>`: Output format.  [default: human]
+* `-f, --file <file>`: Write output to a file instead of stdout.
 * `--help`: Show this message and exit.
 
 ### `photree gallery list-media`
@@ -1287,8 +1287,8 @@ $ photree gallery list-media [OPTIONS]
 **Options**:
 
 * `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
-* `--format <text|csv>`: Output format.  [default: text]
-* `-o, --output <file>`: Write output to a file instead of stdout.
+* `-o, --output <human|csv>`: Output format.  [default: human]
+* `-f, --file <file>`: Write output to a file instead of stdout.
 * `--help`: Show this message and exit.
 
 ### `photree gallery refresh`
@@ -1314,7 +1314,7 @@ $ photree gallery refresh [OPTIONS]
 
 ### `photree gallery rename-from-csv`
 
-Rename albums from a CSV file (from list-albums --format csv, edited).
+Rename albums from a CSV file (from list-albums --output csv, edited).
 
 Uses the album ID to look up each album in the gallery, then compares the
 current series, title, and location against the CSV values. Only albums
@@ -1334,7 +1334,7 @@ $ photree gallery rename-from-csv [OPTIONS] {csv_file}
 
 **Arguments**:
 
-* `csv_file`: CSV with desired album state (from list-albums --format csv, edited).  [required]
+* `csv_file`: CSV with desired album state (from list-albums --output csv, edited).  [required]
 
 **Options**:
 

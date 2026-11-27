@@ -211,7 +211,7 @@ class TestListMedia:
         album, album_id, image_id, video_id = _album_with_ids(tmp_path / "trip")
 
         result = invoke_cli(
-            ["album", "list-media", "--album-dir", str(album), "--format", "csv"],
+            ["album", "list-media", "--album-dir", str(album), "--output", "csv"],
         )
 
         assert result.exit_code == 0, result.output

@@ -128,14 +128,14 @@ Repair and maintain iOS album consistency with targeted fix commands.
 Batch operations across multiple albums under a directory.
 
 - **`gallery list-albums`**: List all discovered albums with parsed metadata
-  (date, title, series, location, media sources); supports text and CSV output
+  (date, title, series, location, media sources); supports human and CSV output
   formats
 - **`gallery check`**: Check all albums (integrity, naming conventions, EXIF
   timestamps, cross-album date collisions)
 - **`gallery fix`**: Apply fixes to all albums
 - **`gallery fix-ios`**: Apply iOS-specific fixes to all iOS albums
 - **`gallery rename-from-csv`**: Rename albums by diffing current vs desired CSV
-  files (exported from `list-albums --format csv`); only title and location may
+  files (exported from `list-albums --output csv`); only title and location may
   be changed
 - **`gallery export`**: Batch export to a shared directory
 - Gallery commands find the gallery through `--gallery-dir`, or from the

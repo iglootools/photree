@@ -222,7 +222,7 @@ class TestAlbumCheck:
 class TestAlbumListMedia:
     def test_csv_keeps_stdout_clean(self, tmp_path: Path) -> None:
         result = invoke_cli(
-            ["album", "list-media", "--album-dir", str(tmp_path), "--format", "csv"],
+            ["album", "list-media", "--album-dir", str(tmp_path), "--output", "csv"],
         )
 
         assert result.exit_code == 0
@@ -232,7 +232,7 @@ class TestAlbumListMedia:
 
     def test_unknown_format_is_rejected(self, tmp_path: Path) -> None:
         result = invoke_cli(
-            ["album", "list-media", "--album-dir", str(tmp_path), "--format", "json"],
+            ["album", "list-media", "--album-dir", str(tmp_path), "--output", "json"],
         )
 
         assert result.exit_code == 2

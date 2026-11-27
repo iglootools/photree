@@ -44,7 +44,7 @@ def list_media_cmd(
             resolve_path=True,
         ),
     ] = Path(),
-    output_format: OUTPUT_FORMAT_OPTION = OutputFormat.TEXT,
+    output_format: OUTPUT_FORMAT_OPTION = OutputFormat.HUMAN,
     output_file: OUTPUT_FILE_OPTION = None,
 ) -> None:
     """List all media items in an album."""
@@ -64,14 +64,14 @@ def list_media_cmd(
         match output_format:
             case OutputFormat.CSV:
                 err_console.print(message, markup=False)
-            case OutputFormat.TEXT:
+            case OutputFormat.HUMAN:
                 typer.echo(message)
         raise typer.Exit(code=0)
 
     match output_format:
         case OutputFormat.CSV:
             _list_csv(album_ext_id, media_meta, output_file)
-        case OutputFormat.TEXT:
+        case OutputFormat.HUMAN:
             typer.echo(_format_text(album_dir, album_ext_id, media_meta, cwd))
 
 

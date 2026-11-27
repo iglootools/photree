@@ -74,7 +74,7 @@ class TestEmptyCsvListings:
         gallery = make_gallery(tmp_path, faces_enabled=False)
 
         result = invoke_cli(
-            ["gallery", command, "--format", "csv", "--gallery-dir", str(gallery)],
+            ["gallery", command, "--output", "csv", "--gallery-dir", str(gallery)],
         )
 
         assert result.exit_code == 0, result.output
@@ -97,11 +97,11 @@ class TestEmptyCsvListings:
             [
                 "gallery",
                 command,
-                "--format",
+                "--output",
                 "csv",
                 "--gallery-dir",
                 str(gallery),
-                "--output",
+                "--file",
                 str(out),
             ],
         )
@@ -212,7 +212,7 @@ class TestAlbumsReports:
             "list-media",
             "--dir",
             str(gallery.root / "albums"),
-            "--format",
+            "--output",
             "csv",
         )
 

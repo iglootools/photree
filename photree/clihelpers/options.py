@@ -14,24 +14,24 @@ class OutputFormat(StrEnum):
     """
     Output format of the list commands.
 
-    An enum rather than a free ``str`` so Typer rejects ``--format json``
-    instead of silently falling back to text.
+    An enum rather than a free ``str`` so Typer rejects ``--output json``
+    instead of silently falling back to the human format.
     """
 
-    TEXT = "text"
+    HUMAN = "human"
     CSV = "csv"
 
 
 OUTPUT_FORMAT_OPTION = Annotated[
     OutputFormat,
-    typer.Option("--format", help="Output format.", case_sensitive=False),
+    typer.Option("--output", "-o", help="Output format.", case_sensitive=False),
 ]
 
 OUTPUT_FILE_OPTION = Annotated[
     Path | None,
     typer.Option(
-        "--output",
-        "-o",
+        "--file",
+        "-f",
         help="Write output to a file instead of stdout.",
         dir_okay=False,
         resolve_path=True,

@@ -186,7 +186,7 @@ class TestListCollections:
         chdir(tmp_path)
 
         result = invoke_cli(
-            ["gallery", "list-collections", "-g", str(gallery), "--format", "csv"],
+            ["gallery", "list-collections", "-g", str(gallery), "--output", "csv"],
         )
 
         assert result.exit_code == 0
@@ -196,7 +196,7 @@ class TestListCollections:
         gallery = make_gallery(tmp_path, faces_enabled=False)
 
         result = invoke_cli(
-            ["gallery", "list-collections", "-g", str(gallery), "--format", "json"],
+            ["gallery", "list-collections", "-g", str(gallery), "--output", "json"],
         )
 
         assert result.exit_code == 2
@@ -212,7 +212,7 @@ class TestGalleryAlbumDiscovery:
         save_album_metadata(stray, AlbumMetadata(id=generate_album_id()))
 
         result = invoke_cli(
-            ["gallery", "list-albums", "-g", str(gallery), "--format", "csv"],
+            ["gallery", "list-albums", "-g", str(gallery), "--output", "csv"],
         )
 
         assert result.exit_code == 0

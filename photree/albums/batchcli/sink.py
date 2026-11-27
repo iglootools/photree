@@ -1,9 +1,9 @@
 """
 Output sink shared by the ``list*`` wrappers.
 
-``--output/-o`` applies to every format: text listings are written to the
-file just like CSV ones. (It used to be silently ignored in text mode, so
-``list -o out.txt`` printed to the terminal and left no file.)
+``--file/-f`` applies to every format: human listings are written to the
+file just like CSV ones. (It used to be silently ignored for the human
+format, so ``list -f out.txt`` printed to the terminal and left no file.)
 """
 
 import csv

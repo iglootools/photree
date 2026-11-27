@@ -136,7 +136,7 @@ def run_batch_list_albums(
     display_base: Path | None,
     *,
     metadata: bool = True,
-    output_format: OutputFormat = OutputFormat.TEXT,
+    output_format: OutputFormat = OutputFormat.HUMAN,
     output_file: Path | None = None,
     cwd: Path,
 ) -> None:
@@ -149,9 +149,9 @@ def run_batch_list_albums(
     metas = _require_ids(albums, display_base, cwd)
     names = {album: display_name(album, display_base, cwd) for album in albums}
     match output_format, albums:
-        case OutputFormat.TEXT, []:
+        case OutputFormat.HUMAN, []:
             typer.echo("No albums found.")
-        case OutputFormat.TEXT, _:
+        case OutputFormat.HUMAN, _:
             write_text(_text_lines(metas, names, metadata=metadata), output_file)
         case OutputFormat.CSV, []:
             # Keep stdout pure CSV: the notice goes to stderr.

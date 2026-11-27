@@ -55,7 +55,7 @@ def list_collections_cmd(
             help="Show parsed collection metadata (default: enabled).",
         ),
     ] = True,
-    output_format: OUTPUT_FORMAT_OPTION = OutputFormat.TEXT,
+    output_format: OUTPUT_FORMAT_OPTION = OutputFormat.HUMAN,
     output_file: OUTPUT_FILE_OPTION = None,
 ) -> None:
     """List all collections in the gallery."""
@@ -70,11 +70,11 @@ def list_collections_cmd(
             # still written, so a script reading the CSV sees the columns.
             err_console.print("No collections found.")
             _list_csv(collections, cwd, output_file)
-        case OutputFormat.TEXT, []:
+        case OutputFormat.HUMAN, []:
             typer.echo("No collections found.")
         case OutputFormat.CSV, _:
             _list_csv(collections, cwd, output_file)
-        case OutputFormat.TEXT, _:
+        case OutputFormat.HUMAN, _:
             _list_text(collections, cwd, show_metadata=metadata)
 
 
