@@ -15,6 +15,7 @@ from photree.album.fix.removed_files import RemovedFiles
 from photree.album.fix.rm_orphan import RmOrphanResult, rm_orphan
 from photree.album.fix.rm_upstream import (
     RmUpstreamHeicResult,
+    RmUpstreamIncompleteSignalError,
     RmUpstreamMovResult,
     RmUpstreamRefusedError,
     RmUpstreamResult,
@@ -36,6 +37,7 @@ __all__ = [
     "RemovedFiles",
     "RmOrphanResult",
     "RmUpstreamHeicResult",
+    "RmUpstreamIncompleteSignalError",
     "RmUpstreamMovResult",
     "RmUpstreamRefusedError",
     "RmUpstreamResult",

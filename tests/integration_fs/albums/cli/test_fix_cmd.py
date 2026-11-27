@@ -2,7 +2,11 @@ from pathlib import Path
 
 from photree.album.store.metadata import load_album_metadata
 from tests.fakes import invoke_cli
-from tests.testkit import add_emptied_std_media_source, make_album
+from tests.testkit import (
+    add_emptied_std_media_source,
+    add_incomplete_jpg_dir,
+    make_album,
+)
 
 
 def _album_id(album: Path) -> str | None:
@@ -11,6 +15,21 @@ def _album_id(album: Path) -> str | None:
 
 
 class TestAlbumsFix:
+    def test_rm_upstream_on_an_incomplete_refresh_fails_the_album(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        album = tmp_path / "2024-07-14 - Trip"
+        add_incomplete_jpg_dir(album)
+
+        result = invoke_cli(
+            ["albums", "fix", "--rm-upstream", "--album-dir", str(album)],
+        )
+
+        assert result.exit_code == 1
+        assert "photree album refresh" in result.output
+        assert (album / "ios-main/orig-img/IMG_0002.HEIC").exists()
+
     def test_rm_upstream_refusal_then_force(self, tmp_path: Path) -> None:
         """Batch rm-upstream refuses an emptied archive unless --force is given."""
         album = tmp_path / "2024-07-14 - Trip"

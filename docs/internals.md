@@ -276,6 +276,15 @@ directories at the top level are the browsable/shareable versions:
   via HEIC/HEIF/DNG→JPEG conversion (sips). JPG/PNG files are copied as-is.
   Live Photo companion videos are excluded (not convertible to JPEG).
 
+A refresh empties each of these directories before filling it again. It first
+writes a `.photree-incomplete` marker file into the directory, and removes it
+only once every file is in place: a refresh that is interrupted, fails to place
+a file, or fails to convert any JPEG leaves the marker behind. The next
+`album refresh` rebuilds a marked directory even when its files pass the check,
+and `album fix --rm-upstream` refuses a media source with a marked directory,
+even with `--force`, since the files missing from it were never written rather
+than deleted.
+
 ## Import Staging Directories
 
 An album is fed by one or more per-media-source staging entries, named

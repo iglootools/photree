@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import TypedDict, Unpack
 
+from photree.album.browsable import mark_incomplete
 from photree.album.id import generate_album_id
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
@@ -69,6 +70,22 @@ def add_emptied_std_media_source(album_dir: Path) -> None:
     """
     write_file(album_dir / "std-nelu" / "orig-vid" / "clip.mov")
     (album_dir / "nelu-vid").mkdir(parents=True)
+
+
+def add_incomplete_jpg_dir(album_dir: Path) -> None:
+    """
+    Give the album an iOS media source whose ``main-jpg/`` a refresh left incomplete.
+
+    Two images are archived and browsable, but ``main-jpg/`` holds only the
+    first one and carries the incomplete marker, as after sips failed on the
+    second: ``fix --rm-upstream`` must refuse rather than delete its original.
+    """
+    write_file(album_dir / "ios-main/orig-img/IMG_0001.HEIC")
+    write_file(album_dir / "ios-main/orig-img/IMG_0002.HEIC")
+    write_file(album_dir / "main-img/IMG_0001.HEIC")
+    write_file(album_dir / "main-img/IMG_0002.HEIC")
+    write_file(album_dir / "main-jpg/IMG_0001.jpg")
+    mark_incomplete(album_dir / "main-jpg")
 
 
 def make_album(

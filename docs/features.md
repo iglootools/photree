@@ -110,9 +110,10 @@ Repair and maintain iOS album consistency with targeted fix commands.
 
 - **`--rm-upstream`**: Propagate deletions from browsable dirs to upstream dirs
   (useful after curating photos in `main-jpg/`). A missing browsable dir is
-  never read as "everything was deleted", and a run that would empty an entire
+  never read as "everything was deleted", a run that would empty an entire
   archive is refused unless `--force` is given (available on `album fix`,
-  `albums fix` and `gallery fix`)
+  `albums fix` and `gallery fix`), and a browsable dir that a failed or
+  interrupted refresh left incomplete is refused until a refresh completes
 - **`--rm-orphan`**: Remove edited and main files with no corresponding original
 - **`--rm-orphan-sidecar`**: Remove AAE sidecar files with no matching media
   file

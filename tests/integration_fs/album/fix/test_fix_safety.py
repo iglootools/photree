@@ -1,12 +1,19 @@
 """Regression tests for destructive fix operations: refusals and skipped signals."""
 
+from functools import partial
 from pathlib import Path
 
 import pytest
 
+from photree.album.browsable import (
+    is_incomplete,
+    mark_incomplete,
+    refresh_browsable_dir,
+)
 from photree.album.fix import (
     FixValidationError,
     FixValidationErrorKind,
+    RmUpstreamIncompleteSignalError,
     RmUpstreamRefusedError,
     SignalSkipReason,
     rm_upstream,
@@ -26,7 +33,13 @@ from photree.album.fix.ios.miscategorized import fix_miscategorized
 from photree.album.fix.ios.output import format_fix_ios_result
 from photree.album.fix.output import format_fix_result
 from photree.album.fix.rm_upstream import MediaKind
+from photree.album.formats import IMG_EXTENSIONS
+from photree.album.jpeg import refresh_jpeg_dir
+from photree.album.refresh import refresh_album_derived_data
 from photree.album.store.media_source import MAIN_MEDIA_SOURCE, std_media_source
+from photree.common.fs import list_files
+from photree.foundation.linking import LinkMode
+from tests.fakes import FakeExifTool, copy_convert_single
 from tests.testkit import file_names, write_files
 
 MC = MAIN_MEDIA_SOURCE
@@ -185,6 +198,131 @@ class TestRmUpstreamAllKeysRefusal:
             )
 
         assert "IMG_0002.HEIC" in file_names(tmp_path / "ios-main/orig-img")
+
+
+# ---------------------------------------------------------------------------
+# rm-upstream: refusing signal dirs a refresh left incomplete
+# ---------------------------------------------------------------------------
+
+_THREE_HEICS = ["IMG_0001.HEIC", "IMG_0002.HEIC", "IMG_0003.HEIC"]
+
+
+def _convert_only_the_first(src: Path, dst_dir: Path, *, dry_run: bool) -> Path | None:
+    """Stand in for sips failing on every image but IMG_0001."""
+    if src.stem != "IMG_0001":
+        message = f"sips failed on {src.name}"
+        raise OSError(message)
+    return copy_convert_single(src, dst_dir, dry_run=dry_run)
+
+
+class _InterruptedError(Exception):
+    """Stands in for a Ctrl-C partway through a rebuild."""
+
+
+def _interrupt_after_first_file(_filename: str, *, success: bool) -> None:  # noqa: ARG001 - FileEnd's signature
+    raise _InterruptedError
+
+
+class TestRmUpstreamIncompleteSignal:
+    def test_failed_jpeg_conversions_are_not_deleted(self, tmp_path: Path) -> None:
+        """Sips failed on 2 of 3 JPEGs: their originals must survive rm-upstream."""
+        write_files(tmp_path / "ios-main/orig-img", _THREE_HEICS)
+        write_files(tmp_path / "main-img", _THREE_HEICS)
+        refresh_jpeg_dir(
+            tmp_path / "main-img",
+            tmp_path / "main-jpg",
+            convert_file=_convert_only_the_first,
+        )
+        assert list_files(tmp_path / "main-jpg") == ["IMG_0001.jpg"]
+
+        with pytest.raises(RmUpstreamIncompleteSignalError) as exc_info:
+            run_fix(tmp_path, dry_run=False, rm_upstream_flag=True)
+
+        assert exc_info.value.media_source == "main"
+        assert exc_info.value.directories == ("main-jpg",)
+        assert "photree album refresh" in str(exc_info.value)
+        assert file_names(tmp_path / "ios-main/orig-img") == set(_THREE_HEICS)
+        assert file_names(tmp_path / "main-img") == set(_THREE_HEICS)
+
+    def test_force_does_not_override_an_incomplete_signal(self, tmp_path: Path) -> None:
+        write_files(tmp_path / "ios-main/orig-img", _THREE_HEICS)
+        write_files(tmp_path / "main-img", _THREE_HEICS)
+        refresh_jpeg_dir(
+            tmp_path / "main-img",
+            tmp_path / "main-jpg",
+            convert_file=_convert_only_the_first,
+        )
+
+        with pytest.raises(RmUpstreamIncompleteSignalError):
+            run_fix(tmp_path, dry_run=False, rm_upstream_flag=True, force=True)
+
+        assert file_names(tmp_path / "ios-main/orig-img") == set(_THREE_HEICS)
+
+    def test_interrupted_browsable_rebuild_is_not_read_as_deletions(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        write_files(tmp_path / "ios-main/orig-img", _THREE_HEICS)
+        with pytest.raises(_InterruptedError):
+            refresh_browsable_dir(
+                tmp_path / "ios-main/orig-img",
+                tmp_path / "ios-main/edit-img",
+                tmp_path / "main-img",
+                media_extensions=IMG_EXTENSIONS,
+                key_fn=MC.key_fn,
+                link_mode=LinkMode.COPY,
+                on_file_end=_interrupt_after_first_file,
+            )
+        assert list_files(tmp_path / "main-img") == ["IMG_0001.HEIC"]
+
+        with pytest.raises(RmUpstreamIncompleteSignalError) as exc_info:
+            run_fix(tmp_path, dry_run=False, rm_upstream_flag=True)
+
+        assert exc_info.value.directories == ("main-img",)
+        assert file_names(tmp_path / "ios-main/orig-img") == set(_THREE_HEICS)
+
+    def test_deletions_propagate_once_a_refresh_completes(self, tmp_path: Path) -> None:
+        write_files(tmp_path / "ios-main/orig-img", _THREE_HEICS)
+        refresh = partial(
+            refresh_album_derived_data,
+            tmp_path,
+            link_mode=LinkMode.COPY,
+            exiftool=FakeExifTool({}),
+        )
+        refresh(convert_file=_convert_only_the_first)
+        refresh(convert_file=copy_convert_single)
+        (tmp_path / "main-jpg/IMG_0002.jpg").unlink()
+
+        result = run_fix(tmp_path, dry_run=False, rm_upstream_flag=True)
+
+        assert result.rm_upstream_result is not None
+        assert result.rm_upstream_result.heic_orig == 1
+        assert file_names(tmp_path / "ios-main/orig-img") == {
+            "IMG_0001.HEIC",
+            "IMG_0003.HEIC",
+        }
+
+    def test_refresh_rebuilds_a_marked_dir_whose_files_pass_the_check(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """The marker alone makes refresh rebuild, or rm-upstream stays refused."""
+        write_files(tmp_path / "ios-main/orig-img", _THREE_HEICS)
+        refresh = partial(
+            refresh_album_derived_data,
+            tmp_path,
+            link_mode=LinkMode.COPY,
+            exiftool=FakeExifTool({}),
+            convert_file=copy_convert_single,
+        )
+        refresh()
+        for subdir in ("main-img", "main-jpg"):
+            mark_incomplete(tmp_path / subdir)
+
+        refresh()
+
+        assert not is_incomplete(tmp_path / "main-img")
+        assert not is_incomplete(tmp_path / "main-jpg")
 
 
 # ---------------------------------------------------------------------------

@@ -4,7 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-from photree.album.browsable import refresh_browsable_dir
+from photree.album.browsable import is_incomplete, refresh_browsable_dir
 from photree.album.check.browsable import (
     check_browsable_dir,
     filter_live_photo_extras,
@@ -294,6 +294,10 @@ def refresh_album_derived_data(
        as EXIF cache).
 
     The ``force_*`` flags bypass the check gate for the corresponding step.
+    Steps 1 and 2 also rebuild a directory an earlier rebuild left incomplete
+    (:func:`~photree.album.browsable.is_incomplete`), even when its files
+    now pass the check.
+
     *link_mode* is resolved by the caller (CLI option or ``gallery.yaml``):
     looking up the gallery is the CLI layer's job.
 
@@ -371,14 +375,18 @@ def _refresh_browsable_dirs(
         if _refresh_browsable_img(album_dir, ms, link_mode=link_mode, force=force)
     )
     for ms in media_sources:
-        if force or not _browsable_is_fresh(
-            album_dir,
-            ms.orig_vid_dir,
-            ms.edit_vid_dir,
-            ms.vid_dir,
-            extensions=ms.vid_extensions,
-            key_fn=ms.key_fn,
-            link_mode=link_mode,
+        if (
+            force
+            or is_incomplete(album_dir / ms.vid_dir)
+            or not _browsable_is_fresh(
+                album_dir,
+                ms.orig_vid_dir,
+                ms.edit_vid_dir,
+                ms.vid_dir,
+                extensions=ms.vid_extensions,
+                key_fn=ms.key_fn,
+                link_mode=link_mode,
+            )
         ):
             _rebuild_browsable_vid(album_dir, ms, link_mode)
     return rebuilt_img
@@ -392,7 +400,11 @@ def _refresh_browsable_img(
     force: bool,
 ) -> bool:
     """Rebuild ``{name}-img/`` when forced or stale; return whether it was rebuilt."""
-    stale = force or not _browsable_img_is_fresh(album_dir, ms, link_mode=link_mode)
+    stale = (
+        force
+        or is_incomplete(album_dir / ms.img_dir)
+        or not _browsable_img_is_fresh(album_dir, ms, link_mode=link_mode)
+    )
     if stale:
         _rebuild_browsable_img(album_dir, ms, link_mode)
     return stale
@@ -546,6 +558,7 @@ def _refresh_jpeg_dirs(
         and (
             force
             or ms.name in forced_sources
+            or is_incomplete(album_dir / ms.jpg_dir)
             or not check_jpeg_dir(
                 album_dir / ms.img_dir,
                 album_dir / ms.jpg_dir,

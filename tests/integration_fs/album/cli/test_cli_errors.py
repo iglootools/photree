@@ -24,7 +24,12 @@ from photree.common.sysdeps import SystemDependency
 from photree.foundation.layout import SHARE_SENTINEL
 from photree.foundation.metadata_io import InvalidMetadataError
 from tests.fakes import fake_album_runtime, invoke_cli
-from tests.testkit import add_emptied_std_media_source, mark_album, write_file
+from tests.testkit import (
+    add_emptied_std_media_source,
+    add_incomplete_jpg_dir,
+    mark_album,
+    write_file,
+)
 
 _TRUNCATED_YAML = "id: [0192d4e1"
 
@@ -114,6 +119,22 @@ class TestAlbumFix:
         assert result.exit_code == 1
         assert "--force" in result.output
         assert (tmp_path / "std-nelu/orig-vid/clip.mov").exists()
+
+    def test_rm_upstream_on_an_incomplete_refresh_suggests_refresh(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        album = tmp_path / "album"
+        add_incomplete_jpg_dir(album)
+
+        result = invoke_cli(
+            ["album", "fix", "--rm-upstream", "--force", "--album-dir", str(album)],
+        )
+
+        assert result.exit_code == 1
+        assert "main-jpg/" in result.output
+        assert "photree album refresh --album-dir" in result.output
+        assert (album / "ios-main/orig-img/IMG_0002.HEIC").exists()
 
     def test_rm_upstream_refusal_suggestion_keeps_the_run_flags(
         self,

@@ -248,7 +248,10 @@ directory with its source by item key, not filename, so a browsable directory
 older than the archive (an edit added since the last refresh) reads as no
 deletion. A browsable directory that is missing (or a JPEG directory holding
 none of its expected files) is not read as a deletion signal, and a run that
-would remove every item of an archive is refused unless `--force` is given.
+would remove every item of an archive is refused unless `--force` is given. A
+directory that the last refresh left incomplete (it was interrupted, or failed
+to convert some JPEGs) is never read as deletions: `--rm-upstream` refuses the
+media source until `album refresh` completes.
 
 ## Media Item
 

@@ -22,6 +22,32 @@ from photree.common.fs import list_files
 from photree.common.progress import FileEnd
 from photree.foundation.linking import LinkMode
 
+INCOMPLETE_MARKER = ".photree-incomplete"
+"""
+Name of the file a derived directory holds while it is being rebuilt.
+
+Refresh empties ``{name}-img/``, ``{name}-vid/`` and ``{name}-jpg/`` before
+filling them again, so an interrupted or failed rebuild leaves gaps that look
+like files the user deleted. The marker is written before the directory is
+emptied and removed only once every file is in place: while it is there, the
+directory's gaps say nothing about the user's curation.
+"""
+
+
+def mark_incomplete(directory: Path) -> None:
+    """Mark *directory*, which must exist, as being rebuilt."""
+    (directory / INCOMPLETE_MARKER).touch()
+
+
+def mark_complete(directory: Path) -> None:
+    """Remove the incomplete marker of *directory*, if any."""
+    (directory / INCOMPLETE_MARKER).unlink(missing_ok=True)
+
+
+def is_incomplete(directory: Path) -> bool:
+    """Return whether the last rebuild of *directory* failed or was interrupted."""
+    return (directory / INCOMPLETE_MARKER).is_file()
+
 
 def compute_browsable_files(
     orig_dir: Path,
@@ -116,7 +142,9 @@ def refresh_browsable_dir(
     Rebuild the browsable directory from the archive.
 
     The directory is cleared even when the archive is empty or missing, so files of
-    deleted media do not survive the refresh.
+    deleted media do not survive the refresh. It carries the incomplete marker
+    (:data:`INCOMPLETE_MARKER`) until every file is placed, so a failure or an
+    interruption midway leaves it marked.
     """
     files_to_copy = compute_browsable_files(
         orig_dir,
@@ -138,18 +166,22 @@ def refresh_browsable_dir(
         if on_file_end:
             on_file_end(filename, success=True)
 
+    if not dry_run:
+        mark_complete(browsable_dir)
     return RefreshBrowsableDirResult(copied=len(files_to_copy))
 
 
 def _clear_browsable_dir(browsable_dir: Path, *, create: bool) -> None:
     """
-    Remove every entry of *browsable_dir*; create it when *create* is set.
+    Mark *browsable_dir* incomplete and remove its other entries.
 
-    An empty archive leaves an existing browsable dir empty rather than
-    creating one that never existed.
+    It is created when *create* is set: an empty archive leaves an existing
+    browsable dir empty rather than creating one that never existed.
     """
-    if browsable_dir.is_dir():
-        for f in browsable_dir.iterdir():
-            f.unlink()
     if create:
         browsable_dir.mkdir(parents=True, exist_ok=True)
+    if browsable_dir.is_dir():
+        mark_incomplete(browsable_dir)
+        for f in browsable_dir.iterdir():
+            if f.name != INCOMPLETE_MARKER:
+                f.unlink()

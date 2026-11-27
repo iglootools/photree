@@ -155,7 +155,9 @@ albums that already have an ID.
 --rm-upstream: Propagates deletions from browsing directories to
 upstream directories. A missing browsing directory, or an empty
 {name}-jpg/, is never taken as &quot;everything was deleted&quot;; a run that
-would delete every item of an archive is refused unless --force.
+would delete every item of an archive is refused unless --force. A
+browsing directory that a failed or interrupted refresh left incomplete
+is refused even with --force: run &#x27;photree album refresh&#x27; first.
 
 --rm-orphan: Deletes edited and main files whose key has no
 corresponding original file in orig-img/ or orig-vid/.
