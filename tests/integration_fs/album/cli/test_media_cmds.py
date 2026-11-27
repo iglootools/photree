@@ -20,18 +20,14 @@ from photree.album.store.media_metadata import (
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from tests.fakes import invoke_cli
-
-
-def _write(path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(f"data-{path.name}", encoding="utf-8")
+from tests.testkit import write_file
 
 
 def _album(path: Path, files: list[str]) -> Path:
     path.mkdir(parents=True)
     save_album_metadata(path, AlbumMetadata(id=generate_album_id()))
     for rel in files:
-        _write(path / rel)
+        write_file(path / rel, f"data-{Path(rel).name}")
     return path
 
 

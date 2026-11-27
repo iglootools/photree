@@ -36,16 +36,12 @@ from tests.fakes import (
     FakeFaceDetector,
     fake_make_thumbnail,
 )
-
-
-def _make_file(path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("data", encoding="utf-8")
+from tests.testkit import write_file
 
 
 def _make_ios_source(album_dir: Path) -> None:
     """Create a minimal iOS media source so it is discovered."""
-    _make_file(album_dir / "ios-main" / "orig-img" / "IMG_0410.HEIC")
+    write_file(album_dir / "ios-main" / "orig-img" / "IMG_0410.HEIC")
 
 
 class TestAnalyzerInjection:
@@ -151,7 +147,7 @@ class TestDetection:
             make_thumbnail=fake_make_thumbnail(),
         )
         (tmp_path / "ios-main" / "orig-img" / "IMG_0410.HEIC").unlink()
-        _make_file(tmp_path / "ios-main" / "orig-img" / "IMG_0411.HEIC")
+        write_file(tmp_path / "ios-main" / "orig-img" / "IMG_0411.HEIC")
 
         refresh_face_data(
             tmp_path,
@@ -372,7 +368,7 @@ class TestFailureAccounting:
         thumb = tmp_path / "0410.jpg"
         thumb.write_text("not a jpeg", encoding="utf-8")
         orig_dir = tmp_path / "orig"
-        _make_file(orig_dir / "IMG_0410.HEIC")
+        write_file(orig_dir / "IMG_0410.HEIC")
         tr = ThumbnailResult(
             key="0410",
             file_name="IMG_0410.HEIC",
@@ -435,7 +431,7 @@ class TestDetectSingle:
         thumb = tmp_path / "0410.jpg"
         cv2.imwrite(str(thumb), np.zeros((48, 64, 3), dtype=np.uint8))
         orig_dir = tmp_path / "orig"
-        _make_file(orig_dir / "IMG_0410.HEIC")
+        write_file(orig_dir / "IMG_0410.HEIC")
         tr = ThumbnailResult(
             key="0410",
             file_name="IMG_0410.HEIC",
@@ -488,7 +484,7 @@ def _save_processed_state(album_dir: Path) -> None:
 class TestCorruptOrLegacyCache:
     def test_redetect_replaces_corrupt_state(self, tmp_path: Path) -> None:
         _make_ios_source(tmp_path)
-        _make_file(state_path(tmp_path, "main"))
+        write_file(state_path(tmp_path, "main"))
 
         refresh_face_data(
             tmp_path,
@@ -500,7 +496,7 @@ class TestCorruptOrLegacyCache:
 
     def test_redetect_replaces_truncated_data(self, tmp_path: Path) -> None:
         _make_ios_source(tmp_path)
-        _make_file(data_path(tmp_path, "main"))
+        write_file(data_path(tmp_path, "main"))
 
         refresh_face_data(
             tmp_path,
@@ -515,7 +511,7 @@ class TestCorruptOrLegacyCache:
         tmp_path: Path,
     ) -> None:
         _make_ios_source(tmp_path)
-        _make_file(data_path(tmp_path, "main"))
+        write_file(data_path(tmp_path, "main"))
 
         with pytest.raises(InvalidMetadataError) as exc_info:
             refresh_face_data(tmp_path, analyzer_factory=_never_invoked_factory)
