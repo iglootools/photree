@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -345,6 +346,34 @@ class TestCollectionsImportCmd:
         assert "0 collection(s) imported, 0 skipped, 1 failed." in result.output
         assert "[nonexistent-album] not found in gallery" in result.output
         assert "photree collection import --collection-dir" in result.output
+
+    @pytest.mark.parametrize(
+        ("flags", "suggested"),
+        [
+            ([], ""),
+            (["--dry-run"], " --dry-run"),
+        ],
+    )
+    def test_failure_suggestion_repeats_the_run_flags(
+        self,
+        tmp_path: Path,
+        chdir: Callable[[Path], None],
+        flags: list[str],
+        suggested: str,
+    ) -> None:
+        gallery = make_gallery(tmp_path)
+        col_dir, _ = make_collection(tmp_path, "my-collection")
+        _write_csv(col_dir / SELECTION_CSV, ["nonexistent-album"])
+        chdir(tmp_path)
+
+        result = invoke_cli(
+            ["collections", "import", "-c", str(col_dir), "-g", str(gallery), *flags],
+        )
+
+        assert (
+            'photree collection import --collection-dir "my-collection" '
+            f'--gallery-dir "gallery"{suggested}\n'
+        ) in result.output
 
     def test_warnings_print_after_the_progress_lines(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
