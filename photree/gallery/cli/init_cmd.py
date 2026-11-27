@@ -6,10 +6,11 @@ from typing import Annotated
 import typer
 
 from photree.clihelpers.console import err_console
+from photree.clihelpers.options import DRY_RUN_OPTION
 from photree.clihelpers.paths import expand_user_path
 from photree.clihelpers.resolution import format_gallery_flag
 from photree.clihelpers.runtime import runtime_of
-from photree.common.formatting import indent
+from photree.common.formatting import format_dry_run, indent
 from photree.common.fs import display_path
 from photree.foundation.gallery_metadata import (
     GALLERY_YAML,
@@ -41,6 +42,8 @@ def init_cmd(
             help="Default link mode for refresh and other link-mode operations.",
         ),
     ] = LinkMode.HARDLINK,
+    *,
+    dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """Initialize gallery metadata (.photree/gallery.yaml)."""
     runtime = runtime_of(ctx)
@@ -54,6 +57,16 @@ def init_cmd(
             markup=False,
         )
         raise typer.Exit(code=1)
+
+    if dry_run:
+        typer.echo(
+            format_dry_run(
+                f"Would create {display_path(gallery_yaml, cwd)} "
+                f"(link-mode: {link_mode})",
+                dry_run=dry_run,
+            ),
+        )
+        raise typer.Exit(code=0)
 
     save_gallery_metadata(gallery_dir, GalleryMetadata(link_mode=link_mode))
     is_cwd = gallery_dir.resolve() == cwd.resolve()

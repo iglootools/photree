@@ -869,6 +869,7 @@ $ photree collection init [OPTIONS]
 * `--members <smart|manual>`: How members are determined: smart (auto by date range) or manual.  [default: manual]
 * `--lifecycle <implicit|explicit>`: How the collection is managed: explicit (user) or implicit (from album series).  [default: explicit]
 * `--strategy <import|date-range|album-series|chapter>`: Rule for member selection: import, date-range, album-series, or chapter.  [default: import]
+* `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
 ### `photree collection show`
@@ -921,6 +922,7 @@ $ photree collection metadata set [OPTIONS]
 * `--lifecycle <implicit|explicit>`: How the collection is managed: explicit (user) or implicit (from album series).
 * `--strategy <import|date-range|album-series|chapter>`: Rule for member selection: import, date-range, album-series, or chapter.
 * `--force`: Switch a collection holding images or videos to smart members, which the next &#x27;gallery refresh&#x27; drops.
+* `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
 ## `photree collections`
@@ -1236,6 +1238,7 @@ $ photree gallery init [OPTIONS]
 
 * `-g, --gallery-dir <directory>`: Gallery root directory.  [default: .]
 * `--link-mode <copy|hardlink|symlink>`: Default link mode for refresh and other link-mode operations.  [default: hardlink]
+* `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
 ### `photree gallery list-albums`
@@ -1406,4 +1409,5 @@ $ photree gallery metadata set [OPTIONS]
 * `--link-mode <copy|hardlink|symlink>`: Default link mode for refresh and other link-mode operations.
 * `--faces-enabled / --no-faces-enabled`: Enable or disable face detection and clustering during gallery refresh.
 * `--face-cluster-threshold <float>`: Cosine distance threshold for face clustering (0.0-1.0).
+* `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.

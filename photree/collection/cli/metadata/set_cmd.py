@@ -6,6 +6,7 @@ from typing import Annotated
 import typer
 
 from photree.clihelpers.console import err_console
+from photree.clihelpers.options import DRY_RUN_OPTION
 from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.usage import no_fields_error, usage_error
 from photree.collection.cli.metadata.app import app
@@ -23,7 +24,7 @@ from photree.collection.store.protocol import (
     CollectionStrategy,
     is_valid_collection_config,
 )
-from photree.common.formatting import indent
+from photree.common.formatting import format_dry_run, indent
 from photree.common.fs import display_path
 from photree.foundation.layout import PHOTREE_DIR
 
@@ -172,6 +173,7 @@ def set_cmd(
             ),
         ),
     ] = False,
+    dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """Update collection metadata fields."""
     if members is None and lifecycle is None and strategy is None:
@@ -190,7 +192,9 @@ def set_cmd(
         force=force,
     )
 
-    save_collection_metadata(collection_dir, updated)
+    if not dry_run:
+        save_collection_metadata(collection_dir, updated)
     yaml_path = display_path(collection_dir / PHOTREE_DIR / COLLECTION_YAML, cwd)
-    typer.echo(f"Updated {yaml_path}")
+    verb = "Would update" if dry_run else "Updated"
+    typer.echo(format_dry_run(f"{verb} {yaml_path}", dry_run=dry_run))
     typer.echo(indent("\n".join(_format_changes(current, updated))))

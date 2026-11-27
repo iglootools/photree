@@ -33,9 +33,12 @@ def init_collection(
     lifecycle: CollectionLifecycle,
     strategy: CollectionStrategy,
     new_id: Callable[[], str] = generate_collection_id,
+    dry_run: bool = False,
 ) -> CollectionMetadata:
     """
     Write fresh metadata for *collection_dir* and return it.
+
+    With *dry_run*, check and build the metadata but write nothing.
 
     Raises :class:`CollectionAlreadyInitializedError` when metadata exists,
     and :class:`~photree.foundation.metadata_io.InvalidMetadataError` when it exists but
@@ -51,5 +54,6 @@ def init_collection(
         lifecycle=lifecycle,
         strategy=strategy,
     )
-    save_collection_metadata(collection_dir, metadata)
+    if not dry_run:
+        save_collection_metadata(collection_dir, metadata)
     return metadata

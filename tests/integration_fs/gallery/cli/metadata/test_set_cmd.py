@@ -35,6 +35,28 @@ class TestGalleryMetadataSet:
         loaded = load_gallery_metadata(tmp_path / PHOTREE_DIR / GALLERY_YAML)
         assert loaded.link_mode == LinkMode.SYMLINK
 
+    def test_dry_run_leaves_the_metadata_unchanged(self, tmp_path: Path) -> None:
+        _init_gallery(tmp_path, LinkMode.HARDLINK)
+        before = (tmp_path / PHOTREE_DIR / GALLERY_YAML).read_bytes()
+
+        result = invoke_cli(
+            [
+                "gallery",
+                "metadata",
+                "set",
+                "-g",
+                str(tmp_path),
+                "--link-mode",
+                "copy",
+                "-n",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert result.output.startswith("[dry-run] Would update")
+        assert "link-mode: hardlink -> copy" in result.output
+        assert (tmp_path / PHOTREE_DIR / GALLERY_YAML).read_bytes() == before
+
     def test_no_faces_enabled_turns_face_detection_off(self, tmp_path: Path) -> None:
         """Regression: only --faces-enabled existed, so it could not be unset."""
         _init_gallery(tmp_path)

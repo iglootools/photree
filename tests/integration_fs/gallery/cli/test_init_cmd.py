@@ -25,6 +25,16 @@ class TestGalleryInit:
         metadata = load_gallery_metadata(_gallery_yaml(tmp_path))
         assert metadata.link_mode is LinkMode.COPY
 
+    def test_dry_run_writes_nothing(self, tmp_path: Path) -> None:
+        result = invoke_cli(
+            ["gallery", "init", "-g", str(tmp_path), "--dry-run"],
+            runtime=fake_runtime(),
+        )
+
+        assert result.exit_code == 0, result.output
+        assert result.output.startswith("[dry-run] Would create")
+        assert not (tmp_path / PHOTREE_DIR).exists()
+
     def test_defaults_to_hardlink(self, tmp_path: Path) -> None:
         result = invoke_cli(
             ["gallery", "init", "-g", str(tmp_path)],

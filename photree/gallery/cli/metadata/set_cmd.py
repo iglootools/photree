@@ -5,11 +5,15 @@ from typing import Annotated
 
 import typer
 
-from photree.clihelpers.options import GALLERY_DIR_OPTION, GALLERY_LINK_MODE_OPTION
+from photree.clihelpers.options import (
+    DRY_RUN_OPTION,
+    GALLERY_DIR_OPTION,
+    GALLERY_LINK_MODE_OPTION,
+)
 from photree.clihelpers.resolution import resolve_gallery_or_exit
 from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.usage import no_fields_error
-from photree.common.formatting import indent
+from photree.common.formatting import format_dry_run, indent
 from photree.common.fs import display_path
 from photree.foundation.gallery_metadata import (
     GALLERY_YAML,
@@ -44,6 +48,8 @@ def set_cmd(
             help="Cosine distance threshold for face clustering (0.0-1.0).",
         ),
     ] = None,
+    *,
+    dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """Update gallery metadata fields."""
     runtime = runtime_of(ctx)
@@ -72,11 +78,16 @@ def set_cmd(
         typer.echo("No changes — metadata is already up to date.")
         raise typer.Exit(code=0)
 
-    save_gallery_metadata(resolved, updated)
+    if not dry_run:
+        save_gallery_metadata(resolved, updated)
+    verb = "Would update" if dry_run else "Updated"
     typer.echo(
         "\n".join(
             [
-                f"Updated {display_path(gallery_yaml_path, cwd)}",
+                format_dry_run(
+                    f"{verb} {display_path(gallery_yaml_path, cwd)}",
+                    dry_run=dry_run,
+                ),
                 *(indent(line) for line in _changed_fields(current, updated)),
             ],
         ),
