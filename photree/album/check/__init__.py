@@ -143,6 +143,56 @@ class AlbumPreflightResult:
     """
 
     @property
+    def _checks(self) -> tuple[tuple[str, bool], ...]:
+        """
+        Return each check as a (label, failed) pair.
+
+        The single list both :attr:`success` and :attr:`error_labels` read, so
+        a check cannot fail the album without a label, or the reverse. A check
+        that did not run (``None``) has not failed.
+        """
+        return (
+            ("media source conflict", bool(self.media_source_conflicts)),
+            ("missing dirs", not self.dir_check.success),
+            (
+                "missing album id",
+                self.album_id_check is not None and not self.album_id_check.has_id,
+            ),
+            (
+                "unexpected dirs",
+                self.unexpected_dirs_check is not None
+                and not self.unexpected_dirs_check.success,
+            ),
+            (
+                "media metadata stale",
+                self.media_metadata_check is not None
+                and not self.media_metadata_check.in_sync,
+            ),
+            (
+                "integrity errors",
+                self.integrity is not None and not self.integrity.success,
+            ),
+            (
+                "jpeg errors",
+                self.jpeg_check is not None and not self.jpeg_check.success,
+            ),
+            ("naming errors", self.naming is not None and not self.naming.success),
+            (
+                "face state stale",
+                self.face_state_check is not None and not self.face_state_check.success,
+            ),
+            (
+                "exif cache stale",
+                self.exif_cache_check is not None and not self.exif_cache_check.success,
+            ),
+        )
+
+    @property
+    def error_labels(self) -> tuple[str, ...]:
+        """Return a short label for each kind of failed check."""
+        return tuple(label for label, failed in self._checks if failed)
+
+    @property
     def success(self) -> bool:
         """
         Return whether the album passed every check that ran.
@@ -150,20 +200,7 @@ class AlbumPreflightResult:
         Warnings (missing sidecars, EXIF date mismatches) do not count; see
         :meth:`has_fatal_warnings`.
         """
-        return (
-            not self.media_source_conflicts
-            and self.dir_check.success
-            and (self.album_id_check is None or self.album_id_check.has_id)
-            and (
-                self.unexpected_dirs_check is None or self.unexpected_dirs_check.success
-            )
-            and (self.media_metadata_check is None or self.media_metadata_check.in_sync)
-            and (self.integrity is None or self.integrity.success)
-            and (self.jpeg_check is None or self.jpeg_check.success)
-            and (self.naming is None or self.naming.success)
-            and (self.face_state_check is None or self.face_state_check.success)
-            and (self.exif_cache_check is None or self.exif_cache_check.success)
-        )
+        return not self.error_labels
 
     @property
     def has_warnings(self) -> bool:
@@ -179,58 +216,6 @@ class AlbumPreflightResult:
     def has_exif_warnings(self) -> bool:
         """Return whether some files' EXIF dates do not match the album date."""
         return self.naming is not None and self.naming.has_warnings
-
-    @property
-    def error_labels(self) -> tuple[str, ...]:
-        """Return a short label for each kind of failed check."""
-        return (
-            *(["media source conflict"] if self.media_source_conflicts else []),
-            *(["missing dirs"] if not self.dir_check.success else []),
-            *(
-                ["missing album id"]
-                if self.album_id_check is not None and not self.album_id_check.has_id
-                else []
-            ),
-            *(
-                ["unexpected dirs"]
-                if self.unexpected_dirs_check is not None
-                and not self.unexpected_dirs_check.success
-                else []
-            ),
-            *(
-                ["media metadata stale"]
-                if self.media_metadata_check is not None
-                and not self.media_metadata_check.in_sync
-                else []
-            ),
-            *(
-                ["integrity errors"]
-                if self.integrity is not None and not self.integrity.success
-                else []
-            ),
-            *(
-                ["jpeg errors"]
-                if self.jpeg_check is not None and not self.jpeg_check.success
-                else []
-            ),
-            *(
-                ["naming errors"]
-                if self.naming is not None and not self.naming.success
-                else []
-            ),
-            *(
-                ["face state stale"]
-                if self.face_state_check is not None
-                and not self.face_state_check.success
-                else []
-            ),
-            *(
-                ["exif cache stale"]
-                if self.exif_cache_check is not None
-                and not self.exif_cache_check.success
-                else []
-            ),
-        )
 
     def has_fatal_warnings(self, *, fatal_sidecar: bool, fatal_exif: bool) -> bool:
         """Return whether a warning the fatal flags promote to an error is present."""
