@@ -42,7 +42,7 @@ CHECKSUM_OPTION = Annotated[
     bool,
     typer.Option(
         "--checksum/--no-checksum",
-        help="Enable/disable SHA-256 checksum verification (default: enabled).",
+        help="Enable/disable comparing file contents byte by byte (default: enabled).",
     ),
 ]
 

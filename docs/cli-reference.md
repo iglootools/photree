@@ -70,7 +70,7 @@ $ photree album check [OPTIONS]
 **Options**:
 
 * `-a, --album-dir <directory>`: Album directory to check.  [default: .]
-* `--checksum / --no-checksum`: Enable/disable SHA-256 checksum verification (default: enabled).  [default: checksum]
+* `--checksum / --no-checksum`: Enable/disable comparing file contents byte by byte (default: enabled).  [default: checksum]
 * `-W, --fatal-warnings`: Treat all warnings as errors (implies --fatal-sidecar).
 * `--fatal-sidecar`: Treat missing-sidecar warnings as errors.
 * `--fatal-exif-date-match / --no-fatal-exif-date-match`: Treat EXIF date mismatch warnings as errors (default: enabled).  [default: fatal-exif-date-match]
@@ -484,7 +484,7 @@ $ photree albums check [OPTIONS]
 
 * `-d, --dir <directory>`: Base directory to recursively scan for albums.
 * `-a, --album-dir <directory>`: Album directory (repeatable).
-* `--checksum / --no-checksum`: Enable/disable SHA-256 checksum verification (default: enabled).  [default: checksum]
+* `--checksum / --no-checksum`: Enable/disable comparing file contents byte by byte (default: enabled).  [default: checksum]
 * `-W, --fatal-warnings`: Treat all warnings as errors (implies --fatal-sidecar).
 * `--fatal-sidecar`: Treat missing-sidecar warnings as errors.
 * `--fatal-exif-date-match / --no-fatal-exif-date-match`: Treat EXIF date mismatch warnings as errors (default: enabled).  [default: fatal-exif-date-match]
@@ -1072,7 +1072,7 @@ $ photree gallery check [OPTIONS]
 **Options**:
 
 * `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
-* `--checksum / --no-checksum`: Enable/disable SHA-256 checksum verification (default: enabled).  [default: checksum]
+* `--checksum / --no-checksum`: Enable/disable comparing file contents byte by byte (default: enabled).  [default: checksum]
 * `-W, --fatal-warnings`: Treat all warnings as errors (implies --fatal-sidecar).
 * `--fatal-sidecar`: Treat missing-sidecar warnings as errors.
 * `--fatal-exif-date-match / --no-fatal-exif-date-match`: Treat EXIF date mismatch warnings as errors (default: enabled).  [default: fatal-exif-date-match]

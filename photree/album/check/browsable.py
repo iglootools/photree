@@ -1,6 +1,6 @@
 """Check that browsable directories hold the right variant of each media file."""
 
-import hashlib
+import filecmp
 from dataclasses import dataclass, replace
 from pathlib import Path
 
@@ -95,14 +95,6 @@ def _file_size(path: Path) -> int:
     return path.stat().st_size
 
 
-def _file_sha256(path: Path) -> str:
-    h = hashlib.sha256()
-    with Path(path).open("rb") as f:
-        for chunk in iter(lambda: f.read(8192), b""):
-            h.update(chunk)
-    return h.hexdigest()
-
-
 def _is_hardlink_to(main_path: Path, source_path: Path) -> bool:
     return main_path.stat().st_ino == source_path.stat().st_ino
 
@@ -172,7 +164,9 @@ def _compare_content(
             case (True, False):
                 checksum_match = False
             case (True, True):
-                checksum_match = _file_sha256(main_path) == _file_sha256(source_path)
+                # A byte comparison stops at the first difference, where
+                # hashing both files always reads each of them in full.
+                checksum_match = filecmp.cmp(main_path, source_path, shallow=False)
         return FileComparison(
             filename=main_path.name,
             expected_source=source_path.name,

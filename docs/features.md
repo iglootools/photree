@@ -82,8 +82,9 @@ Validate that album directories are consistent and well-formed.
   and `edit/` sources
 - Checks `{name}-jpg/` has a JPEG counterpart for every file in `{name}-img/`
 - Detects missing, extra, and wrong-source files
-- File comparison via size and optional SHA-256 checksum
-- Hardlink/symlink-aware: skips checksum when link integrity is verified
+- File comparison via size and an optional byte-by-byte content comparison
+- Hardlink/symlink-aware: skips the content comparison when link integrity is
+  verified
 - Sidecar validation: detects orphan and missing AAE files
 - Detects miscategorized files (edits in orig dirs or vice versa)
 - Detects duplicate image numbers within the same prefix category
