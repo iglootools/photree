@@ -2,10 +2,12 @@ from pathlib import Path
 
 import pytest
 
+from photree.album.id import generate_album_id
 from photree.album.jpeg import noop_convert_single
 from photree.album.refresh import AlbumRefreshResult
 from photree.album.store.media_metadata import load_media_metadata
-from photree.album.store.metadata import load_album_metadata
+from photree.album.store.metadata import load_album_metadata, save_album_metadata
+from photree.album.store.protocol import AlbumMetadata
 from photree.gallery.importer import (
     ImportPipeline,
     TargetExistsError,
@@ -219,6 +221,29 @@ class TestReimportAlbum:
         assert exc_info.value.target == occupied
         assert (target / "ios-main/orig-img/IMG_0001.HEIC").is_file()
         assert (occupied / "ios-main/orig-img/IMG_0009.HEIC").is_file()
+
+
+class TestReimportOverNonAlbum:
+    def test_keeps_the_source_id_when_the_existing_copy_has_none(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Regression: the source's album.yaml was dropped and a new ID minted."""
+        gallery = make_gallery(tmp_path)
+        source = tmp_path / "2024-07-14 - Hiking"
+        _setup_ios_album(source)
+        save_album_metadata(source, AlbumMetadata(id=generate_album_id()))
+        existing = compute_target_dir(gallery, source.name)
+        write_file(existing / "notes.txt")
+
+        reimport_album(
+            source_dir=source,
+            gallery_dir=gallery,
+            existing_dir=existing,
+            pipeline=ImportPipeline(convert_file=noop_convert_single),
+        )
+
+        assert _album_id(existing) == _album_id(source)
 
 
 class TestSwapIntoPlace:

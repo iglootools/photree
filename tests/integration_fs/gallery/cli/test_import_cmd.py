@@ -166,6 +166,24 @@ class TestClobberGuard:
         assert "a different album already occupies" in result.output
         assert "Rename the source album before importing." in result.output
 
+    def test_non_album_directory_at_the_target_refused(self, tmp_path: Path) -> None:
+        gallery = make_gallery(tmp_path, faces_enabled=False)
+        occupant = gallery / "albums" / "2024" / "2024-07-14 - Hiking"
+        write_file(occupant / "notes.txt", "keep me")
+        source = _make_source(
+            tmp_path / "src",
+            "2024-07-14 - Hiking",
+            album_id=generate_album_id(),
+        )
+
+        result = invoke_cli(
+            ["gallery", "import", "-a", str(source), "-g", str(gallery), "--reimport"],
+        )
+
+        assert result.exit_code == 1
+        assert "a directory that is not an album (no album.yaml)" in result.output
+        assert (occupant / "notes.txt").read_text(encoding="utf-8") == "keep me"
+
 
 class TestInterruptedReimport:
     def test_hidden_album_aborts_with_the_name_to_restore(

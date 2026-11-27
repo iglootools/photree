@@ -69,12 +69,17 @@ class SourceDuplicate:
 
 @dataclass(frozen=True)
 class ClobberConflict:
-    """A target name already taken by a *different* album (different ID)."""
+    """
+    A target name already taken by something other than the source's album.
+
+    *existing_id* is the occupant's album ID, or ``None`` when the occupant
+    has no ``album.yaml``: a directory that is not a gallery album at all.
+    """
 
     source: Path
     existing: Path
     source_id: str
-    existing_id: str
+    existing_id: str | None
 
 
 @dataclass(frozen=True)
@@ -185,25 +190,28 @@ def _clobber_conflict(
     existing: Path | None,
 ) -> ClobberConflict | None:
     """
-    Detect a target name occupied by a *different* album.
+    Detect a target name occupied by something other than the source's album.
 
     Applies to both detection paths: an ID-less match on the target name, and
     an ID match whose source was renamed onto a name another album already
     holds (*existing* is then the album's current, different location).
+    An occupant without an ``album.yaml`` conflicts too: it cannot be the
+    source's copy, and a reimport would replace it, ID-less, with the source.
     An ID-less source cannot be told apart from the occupant, so it never
     conflicts.
     """
     if meta is None or target == existing or not target.exists():
         return None
     occupant = load_album_metadata(target)
+    occupant_id = occupant.id if occupant is not None else None
     return (
         ClobberConflict(
             source=source,
             existing=target,
             source_id=meta.id,
-            existing_id=occupant.id,
+            existing_id=occupant_id,
         )
-        if occupant is not None and occupant.id != meta.id
+        if occupant_id != meta.id
         else None
     )
 

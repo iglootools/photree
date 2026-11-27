@@ -255,14 +255,19 @@ def _restore_photree(metadata_src: Path, dst: Path) -> None:
     (``media-ids/``) from the existing gallery copy; the source's own
     (usually ID-less) metadata and any derived ``cache/`` are discarded so
     the refresh stage rebuilds derived data cleanly.
+
+    An existing copy without an ``album.yaml`` is not the source's album, so
+    the source's own ID and UUIDs are kept instead: dropping them would give
+    the album a new ID and orphan every reference to it.
     """
     photree_dir = dst / PHOTREE_DIR
+    keep_from = metadata_src if load_album_metadata(metadata_src) is not None else dst
+    meta = load_album_metadata(keep_from)
+    media_meta = load_media_metadata(keep_from)
     if photree_dir.exists():
         shutil.rmtree(photree_dir)
-    meta = load_album_metadata(metadata_src)
     if meta is not None:
         save_album_metadata(dst, meta)
-    media_meta = load_media_metadata(metadata_src)
     if media_meta is not None:
         save_media_metadata(dst, media_meta)
 

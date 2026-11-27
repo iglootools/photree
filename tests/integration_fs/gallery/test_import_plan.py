@@ -122,6 +122,33 @@ class TestPlanImportsErrors:
         assert result.clobber_conflicts
         assert not result.to_import
 
+    def test_target_taken_by_a_directory_without_album_yaml_is_a_conflict(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Regression: the source was skipped as already imported, or lost its ID."""
+        gallery = tmp_path / "gallery"
+        album_id = generate_album_id()
+        source = _make_source(
+            tmp_path / "src",
+            "2024-07-14 - Hiking",
+            album_id=album_id,
+        )
+        target = gallery / "albums" / "2024" / "2024-07-14 - Hiking"
+        write_file(target / "notes.txt")
+
+        result = plan_imports([source], _empty_index(), gallery, reimport=True)
+
+        assert result.clobber_conflicts == (
+            ClobberConflict(
+                source=source,
+                existing=target,
+                source_id=album_id,
+                existing_id=None,
+            ),
+        )
+        assert not result.to_import
+
     def test_collision_within_batch(self, tmp_path: Path) -> None:
         gallery = tmp_path / "gallery"
         a = _make_source(tmp_path / "src", "2024-07-14 - Morning")

@@ -161,10 +161,12 @@ reported as failed, and the command exits 1 (as do `album import`,
 
 **Clobber guard.** If the target name exists but is occupied by a *different*
 album (the source carries an ID differing from the existing copy's), the
-import is refused even with `--reimport`. This also applies when the source
-was matched by ID and renamed: the gallery copy is moved to the new name only
-if no other album holds it. An ID-less source cannot be distinguished, so
-`--reimport` proceeds in that case.
+import is refused even with `--reimport`. A source with an ID is refused the
+same way when the target name holds a directory without `album.yaml`: it is not
+the source's copy, and replacing it would drop the source's ID. This also
+applies when the source was matched by ID and renamed: the gallery copy is
+moved to the new name only if no other album holds it. An ID-less source
+cannot be distinguished, so `--reimport` proceeds in that case.
 
 **Swap rollback.** If the final rename of the reimport swap fails, the old copy
 is moved back from its aside name and the staging directory is removed, so the

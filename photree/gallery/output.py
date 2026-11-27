@@ -64,17 +64,29 @@ def _duplicate_id_block(dup: SourceDuplicate, cwd: Path) -> list[str]:
 
 
 def _clobber_block(conflict: ClobberConflict, cwd: Path) -> list[str]:
+    match conflict.existing_id:
+        case None:
+            occupant = "a directory that is not an album (no album.yaml)"
+            existing_id = "none"
+            fix = (
+                "Move that directory away, or rename the source album, "
+                "before importing."
+            )
+        case str() as album_id:
+            occupant = "a different album"
+            existing_id = format_album_external_id(album_id)
+            fix = "Rename the source album before importing."
     return [
         (
-            f"{CROSS} {_shown(conflict.source, cwd)} — a different album "
+            f"{CROSS} {_shown(conflict.source, cwd)} — {occupant} "
             f"already occupies {_shown(conflict.existing, cwd)}"
         ),
         *(
             indent(line, 2)
             for line in (
                 f"source id:   {format_album_external_id(conflict.source_id)}",
-                f"existing id: {format_album_external_id(conflict.existing_id)}",
-                "Rename the source album before importing.",
+                f"existing id: {existing_id}",
+                fix,
             )
         ),
     ]
