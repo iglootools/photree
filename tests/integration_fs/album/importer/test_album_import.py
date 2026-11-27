@@ -8,6 +8,7 @@ from photree.album.importer.album_import import (
     validate_album_import,
 )
 from photree.album.importer.collision import (
+    ArchiveCollision,
     MediaSourceClash,
     MediaSourceClashError,
     MediaSourceClashErrorKind,
@@ -33,6 +34,18 @@ def _image_capture_dir(tmp_path: Path) -> Path:
     write_file(ic_dir / "IMG_0001.HEIC")
     write_file(ic_dir / "IMG_0001.AAE")
     return ic_dir
+
+
+class TestValidateAlbumImport:
+    def test_ios_number_already_archived_is_a_collision(self, tmp_path: Path) -> None:
+        album = tmp_path / "album"
+        ms = ios_media_source("main")
+        write_file(album / ms.orig_img_dir / "IMG_0001.HEIC")
+        _stage_ios(album, "main")
+
+        validation = validate_album_import(album, ["IMG_0001.HEIC", "IMG_0001.AAE"])
+
+        assert validation.errors == (TaskIssue(ms, ArchiveCollision(ms, ("0001",))),)
 
 
 class TestMediaSourceClash:
