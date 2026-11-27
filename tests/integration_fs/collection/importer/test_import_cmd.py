@@ -36,7 +36,7 @@ from photree.collection.store.protocol import (
     CollectionStrategy,
 )
 from tests.fakes import invoke_cli
-from tests.testkit import make_gallery, make_gallery_album, write_file
+from tests.testkit import make_collection, make_gallery, make_gallery_album, write_file
 
 
 def _write_csv(path: Path, entries: list[str]) -> None:
@@ -44,25 +44,11 @@ def _write_csv(path: Path, entries: list[str]) -> None:
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def _setup_collection(tmp_path: Path) -> Path:
-    col_dir = tmp_path / "my-collection"
-    col_dir.mkdir()
-    save_collection_metadata(
-        col_dir,
-        CollectionMetadata(
-            id=generate_collection_id(),
-            members=CollectionMembers.MANUAL,
-            lifecycle=CollectionLifecycle.EXPLICIT,
-        ),
-    )
-    return col_dir
-
-
 class TestCollectionImportCmd:
     def test_import_from_csv(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
         _, album_id = make_gallery_album(gallery, "2024-07-14 - Trip")
-        col_dir = _setup_collection(tmp_path)
+        col_dir, _ = make_collection(tmp_path, "my-collection")
 
         ext_id = format_album_external_id(album_id)
         _write_csv(col_dir / SELECTION_CSV, [ext_id])
@@ -89,7 +75,7 @@ class TestCollectionImportCmd:
     def test_import_from_dir(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
         _, album_id = make_gallery_album(gallery, "2024-07-14 - Trip")
-        col_dir = _setup_collection(tmp_path)
+        col_dir, _ = make_collection(tmp_path, "my-collection")
 
         sel_dir = col_dir / SELECTION_DIR
         sel_dir.mkdir()
@@ -113,7 +99,7 @@ class TestCollectionImportCmd:
 
     def test_import_fails_on_unresolved(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
-        col_dir = _setup_collection(tmp_path)
+        col_dir, _ = make_collection(tmp_path, "my-collection")
 
         _write_csv(col_dir / SELECTION_CSV, ["nonexistent-album"])
 
@@ -133,7 +119,7 @@ class TestCollectionImportCmd:
     def test_dry_run_no_changes(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
         _, album_id = make_gallery_album(gallery, "2024-07-14 - Trip")
-        col_dir = _setup_collection(tmp_path)
+        col_dir, _ = make_collection(tmp_path, "my-collection")
 
         ext_id = format_album_external_id(album_id)
         _write_csv(col_dir / SELECTION_CSV, [ext_id])
@@ -213,7 +199,7 @@ class TestCollectionImportCmd:
 
     def test_fails_without_selection(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
-        col_dir = _setup_collection(tmp_path)
+        col_dir, _ = make_collection(tmp_path, "my-collection")
 
         result = invoke_cli(
             [
@@ -231,7 +217,7 @@ class TestCollectionImportCmd:
 
 class TestSelectionDateErrors:
     def test_invalid_date_is_reported_with_row_and_value(self, tmp_path: Path) -> None:
-        col_dir = _setup_collection(tmp_path)
+        col_dir, _ = make_collection(tmp_path, "my-collection")
         (col_dir / SELECTION_CSV).write_text(
             "entry,date\nIMG_0001.HEIC,2024-07-14\nIMG_0002.HEIC,14/07/2024\n",
             encoding="utf-8",
@@ -254,7 +240,7 @@ class TestSelectionDateErrors:
         # entry was resolved without the disambiguation the user asked for.
         gallery = make_gallery(tmp_path)
         make_gallery_album(gallery, "2024-07-14 - Trip")
-        col_dir = _setup_collection(tmp_path)
+        col_dir, _ = make_collection(tmp_path, "my-collection")
         (col_dir / SELECTION_CSV).write_text(
             "entry,date\n2024-07-14 - Trip,yesterday\n",
             encoding="utf-8",
@@ -282,7 +268,7 @@ class TestSelectionCsvErrors:
         # on to-import/ alone and then deleted the CSV with its rows.
         gallery = make_gallery(tmp_path)
         make_gallery_album(gallery, "2024-07-14 - Trip")
-        col_dir = _setup_collection(tmp_path)
+        col_dir, _ = make_collection(tmp_path, "my-collection")
         write_file(col_dir / SELECTION_DIR / "2024-07-14 - Trip", "")
         (col_dir / SELECTION_CSV).write_text(
             "2024-07-14 - Trip,\n",
@@ -303,7 +289,7 @@ class TestSelectionCsvErrors:
 
     def test_batch_import_reports_non_utf8_csv(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
-        col_dir = _setup_collection(tmp_path)
+        col_dir, _ = make_collection(tmp_path, "my-collection")
         (col_dir / SELECTION_CSV).write_bytes("entry\nÉté\n".encode("latin-1"))
 
         result = invoke_cli(
@@ -348,7 +334,7 @@ class TestImportMembersErrors:
 class TestCollectionsImportCmd:
     def test_reports_each_failure_with_reason(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
-        col_dir = _setup_collection(tmp_path)
+        col_dir, _ = make_collection(tmp_path, "my-collection")
         _write_csv(col_dir / SELECTION_CSV, ["nonexistent-album"])
 
         result = invoke_cli(
@@ -373,7 +359,7 @@ class TestCollectionsImportCmd:
                 },
             ),
         )
-        col_dir = _setup_collection(tmp_path)
+        col_dir, _ = make_collection(tmp_path, "my-collection")
         (col_dir / SELECTION_CSV).write_text(
             "entry,date\nIMG_0001.HEIC,2023-01-01\n",
             encoding="utf-8",
@@ -395,17 +381,8 @@ class TestCollectionsImportCmd:
         broken, _ = make_gallery_album(gallery, "2024-07-01 - Broken")
         (broken / ".photree" / "album.yaml").write_text("- nope\n", encoding="utf-8")
         make_gallery_album(gallery, "2024-07-14 - Trip")
-        first = _setup_collection(tmp_path)
-        second = tmp_path / "second"
-        second.mkdir()
-        save_collection_metadata(
-            second,
-            CollectionMetadata(
-                id=generate_collection_id(),
-                members=CollectionMembers.MANUAL,
-                lifecycle=CollectionLifecycle.EXPLICIT,
-            ),
-        )
+        first, _ = make_collection(tmp_path, "my-collection")
+        second, _ = make_collection(tmp_path, "second")
         for col_dir in (first, second):
             _write_csv(col_dir / SELECTION_CSV, ["2024-07-14 - Trip"])
 

@@ -39,8 +39,9 @@ in
   binaries installed, a home that does not exist, an empty environment, no
   config file), `ALL_DEPS_RUNTIME`, `invoke_cli`, `fake_which`, and
   `fake_album_runtime(*present, run_import=..., refresh=...)`.
-- **Factories**, in `tests/testkit.py`: the files, albums and galleries a
-  test sets up (`write_file`, `write_files`, `make_album`, `make_gallery`,
-  `make_gallery_album`, …). Add a parameter to one rather than copying it
+- **Factories**, in `tests/testkit.py`: the files, albums, galleries and
+  collections a test sets up (`write_file`, `write_files`, `make_album`,
+  `make_gallery`, `make_gallery_album`, `make_collection`,
+  `make_gallery_collection`, …). Add a parameter to one rather than copying it
   into a test module; a module keeps its own helper only for a setup no other
   test shares.

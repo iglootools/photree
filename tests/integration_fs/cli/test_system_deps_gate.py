@@ -13,10 +13,8 @@ from photree.album.staging import ios_import_dir
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.common.sysdeps import SystemDependency
-from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
-from photree.foundation.linking import LinkMode
 from tests.fakes import fake_runtime, invoke_cli
-from tests.testkit import write_file
+from tests.testkit import make_gallery, write_file
 
 SEL_DIR = ios_import_dir("main")
 
@@ -32,16 +30,6 @@ def _staged_album(parent: Path, name: str) -> Path:
     album = parent / name
     write_file(album / SEL_DIR / "IMG_0001.HEIC")
     return album
-
-
-def _gallery(tmp_path: Path) -> Path:
-    gallery = tmp_path / "gallery"
-    gallery.mkdir()
-    save_gallery_metadata(
-        gallery,
-        GalleryMetadata(link_mode=LinkMode.HARDLINK, faces_enabled=False),
-    )
-    return gallery
 
 
 class TestAlbumsImportGate:
@@ -125,7 +113,7 @@ class TestGalleryImportGate:
         tmp_path: Path,
     ) -> None:
         runtime = fake_runtime(SystemDependency.SIPS)
-        gallery = _gallery(tmp_path)
+        gallery = make_gallery(tmp_path, faces_enabled=False)
         base = tmp_path / "incoming"
         source = base / "2024-07-14 - Hiking"
         write_file(source / "ios-main/orig-img/IMG_0001.HEIC")

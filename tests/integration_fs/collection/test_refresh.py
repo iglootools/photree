@@ -19,28 +19,18 @@ from photree.collection.store.protocol import (
     CollectionStrategy,
 )
 from photree.foundation.layout import COLLECTIONS_DIR
-from tests.testkit import make_gallery, make_gallery_album, write_file
+from tests.testkit import (
+    make_gallery,
+    make_gallery_album,
+    make_gallery_collection,
+    write_file,
+)
 
 
 def _load_metadata(collection_dir: Path) -> CollectionMetadata:
     metadata = load_collection_metadata(collection_dir)
     assert metadata is not None
     return metadata
-
-
-def _explicit_collection(gallery: Path, name: str, album_ids: list[str]) -> Path:
-    col_dir = gallery / COLLECTIONS_DIR / name[:4] / name
-    col_dir.mkdir(parents=True)
-    save_collection_metadata(
-        col_dir,
-        CollectionMetadata(
-            id=generate_collection_id(),
-            members=CollectionMembers.MANUAL,
-            lifecycle=CollectionLifecycle.EXPLICIT,
-            albums=album_ids,
-        ),
-    )
-    return col_dir
 
 
 class TestImplicitCollectionDetection:
@@ -369,7 +359,7 @@ class TestAlbumTitleSync:
     ) -> None:
         gallery = make_gallery(tmp_path)
         _, aid = make_gallery_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
-        _explicit_collection(gallery, "2024-07-14 - Trip", [aid])
+        make_gallery_collection(gallery, "2024-07-14 - Trip", albums=[aid])
 
         result = refresh_collections(gallery)
         assert result.success
@@ -384,7 +374,7 @@ class TestAlbumTitleSync:
         """Regression: any explicit collection stripped its title gallery-wide."""
         gallery = make_gallery(tmp_path)
         make_gallery_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
-        _explicit_collection(gallery, "2019 - Trip", [])
+        make_gallery_collection(gallery, "2019 - Trip", albums=[])
 
         result = refresh_collections(gallery)
         assert result.success
@@ -477,7 +467,7 @@ class TestDryRunMatchesRealRun:
         gallery = make_gallery(tmp_path)
         _, aid1 = make_gallery_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
         _, aid2 = make_gallery_album(gallery, "2024-07-15 - 02 - Trip - Kayaking")
-        _explicit_collection(gallery, "2024-07 - Trip", [aid1, aid2])
+        make_gallery_collection(gallery, "2024-07 - Trip", albums=[aid1, aid2])
 
         dry = refresh_collections(gallery, dry_run=True)
 
@@ -539,7 +529,7 @@ class TestRefreshErrors:
         # Make the stripped name collide with an existing directory.
         stripped = source.parent / "2024-07-14 - 01 - Hiking"
         stripped.mkdir()
-        _explicit_collection(gallery, "2024-07 - Trip", [aid])
+        make_gallery_collection(gallery, "2024-07 - Trip", albums=[aid])
 
         result = refresh_collections(gallery)
 

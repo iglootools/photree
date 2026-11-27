@@ -1,11 +1,22 @@
-"""Factories for the files, albums and galleries the tests set up."""
+"""Factories for the files, albums, galleries and collections the tests set up."""
 
+from collections.abc import Sequence
 from pathlib import Path
+from typing import TypedDict, Unpack
 
 from photree.album.id import generate_album_id
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
+from photree.collection.id import generate_collection_id
+from photree.collection.store.metadata import save_collection_metadata
+from photree.collection.store.protocol import (
+    CollectionLifecycle,
+    CollectionMembers,
+    CollectionMetadata,
+    CollectionStrategy,
+)
 from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
+from photree.foundation.layout import ALBUMS_DIR, COLLECTIONS_DIR
 from photree.foundation.linking import LinkMode
 
 
@@ -84,7 +95,7 @@ def make_gallery(
 ) -> Path:
     """Create a ``gallery`` directory under *parent* with its ``gallery.yaml``."""
     gallery = parent / "gallery"
-    gallery.mkdir()
+    gallery.mkdir(parents=True)
     save_gallery_metadata(
         gallery,
         GalleryMetadata(link_mode=link_mode, faces_enabled=faces_enabled),
@@ -99,4 +110,62 @@ def make_gallery_album(
     album_id: str | None = None,
 ) -> tuple[Path, str]:
     """:func:`make_album` in the gallery's year directory, ``albums/<year>/``."""
-    return make_album(gallery / "albums" / name[:4], name, album_id=album_id)
+    return make_album(gallery / ALBUMS_DIR / name[:4], name, album_id=album_id)
+
+
+class CollectionFields(TypedDict, total=False):
+    """The :class:`CollectionMetadata` fields :func:`make_collection` takes."""
+
+    members: CollectionMembers
+    lifecycle: CollectionLifecycle
+    strategy: CollectionStrategy
+    albums: Sequence[str]
+    collections: Sequence[str]
+    images: Sequence[str]
+    videos: Sequence[str]
+
+
+def make_collection(
+    parent: Path,
+    name: str,
+    *,
+    members: CollectionMembers = CollectionMembers.MANUAL,
+    lifecycle: CollectionLifecycle = CollectionLifecycle.EXPLICIT,
+    strategy: CollectionStrategy = CollectionStrategy.IMPORT,
+    albums: Sequence[str] = (),
+    collections: Sequence[str] = (),
+    images: Sequence[str] = (),
+    videos: Sequence[str] = (),
+) -> tuple[Path, str]:
+    """
+    Create collection *name* under *parent* with its ``collection.yaml``.
+
+    A manual, explicit collection by default, holding the given member IDs.
+    Returns the collection's directory and its new ID.
+    """
+    collection_dir = parent / name
+    collection_dir.mkdir(parents=True)
+    collection_id = generate_collection_id()
+    save_collection_metadata(
+        collection_dir,
+        CollectionMetadata(
+            id=collection_id,
+            members=members,
+            lifecycle=lifecycle,
+            strategy=strategy,
+            albums=list(albums),
+            collections=list(collections),
+            images=list(images),
+            videos=list(videos),
+        ),
+    )
+    return collection_dir, collection_id
+
+
+def make_gallery_collection(
+    gallery: Path,
+    name: str,
+    **fields: Unpack[CollectionFields],
+) -> tuple[Path, str]:
+    """:func:`make_collection` in the gallery's ``collections/<year>/``."""
+    return make_collection(gallery / COLLECTIONS_DIR / name[:4], name, **fields)

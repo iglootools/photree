@@ -1,4 +1,3 @@
-from collections.abc import Sequence
 from pathlib import Path
 
 from photree.album.id import generate_media_id
@@ -17,45 +16,23 @@ from photree.collection.store.protocol import (
     CollectionStrategy,
 )
 from tests.fakes import invoke_cli
-from tests.testkit import make_gallery, make_gallery_album, write_file
-
-
-def _setup_collection(
-    gallery: Path,
-    name: str,
-    *,
-    members: CollectionMembers = CollectionMembers.MANUAL,
-    lifecycle: CollectionLifecycle = CollectionLifecycle.EXPLICIT,
-    strategy: CollectionStrategy = CollectionStrategy.IMPORT,
-    albums: Sequence[str] = (),
-    collections: Sequence[str] = (),
-    images: Sequence[str] = (),
-    videos: Sequence[str] = (),
-) -> tuple[Path, str]:
-    col_dir = gallery / "collections" / "2024" / name
-    col_dir.mkdir(parents=True)
-    cid = generate_collection_id()
-    save_collection_metadata(
-        col_dir,
-        CollectionMetadata(
-            id=cid,
-            members=members,
-            lifecycle=lifecycle,
-            strategy=strategy,
-            albums=list(albums),
-            collections=list(collections),
-            images=list(images),
-            videos=list(videos),
-        ),
-    )
-    return col_dir, cid
+from tests.testkit import (
+    make_gallery,
+    make_gallery_album,
+    make_gallery_collection,
+    write_file,
+)
 
 
 class TestCheckMemberExistence:
     def test_valid_album_member(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
         _, album_id = make_gallery_album(gallery, "2024-07-14 - Trip")
-        col_dir, _ = _setup_collection(gallery, "2024-07 - July", albums=[album_id])
+        col_dir, _ = make_gallery_collection(
+            gallery,
+            "2024-07 - July",
+            albums=[album_id],
+        )
 
         lookup = build_gallery_lookup(gallery)
         result = check_collection(col_dir, lookup)
@@ -63,7 +40,7 @@ class TestCheckMemberExistence:
 
     def test_missing_album_member(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
-        col_dir, _ = _setup_collection(
+        col_dir, _ = make_gallery_collection(
             gallery,
             "2024-07 - July",
             albums=["nonexistent-id"],
@@ -76,7 +53,7 @@ class TestCheckMemberExistence:
 
     def test_missing_image_member(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
-        col_dir, _ = _setup_collection(
+        col_dir, _ = make_gallery_collection(
             gallery,
             "2024-07 - July",
             images=["nonexistent-id"],
@@ -99,7 +76,7 @@ class TestCheckMemberExistence:
                 },
             ),
         )
-        col_dir, _ = _setup_collection(gallery, "2024-07 - July", images=[img_id])
+        col_dir, _ = make_gallery_collection(gallery, "2024-07 - July", images=[img_id])
 
         lookup = build_gallery_lookup(gallery)
         result = check_collection(col_dir, lookup)
@@ -107,7 +84,7 @@ class TestCheckMemberExistence:
 
     def test_missing_collection_member(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
-        col_dir, _ = _setup_collection(
+        col_dir, _ = make_gallery_collection(
             gallery,
             "2024-07 - July",
             collections=["nonexistent-id"],
@@ -123,7 +100,11 @@ class TestCheckDateCoverage:
     def test_album_within_range(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
         _, album_id = make_gallery_album(gallery, "2024-07-14 - Trip")
-        col_dir, _ = _setup_collection(gallery, "2024-07 - July", albums=[album_id])
+        col_dir, _ = make_gallery_collection(
+            gallery,
+            "2024-07 - July",
+            albums=[album_id],
+        )
 
         lookup = build_gallery_lookup(gallery)
         result = check_collection(col_dir, lookup)
@@ -132,7 +113,11 @@ class TestCheckDateCoverage:
     def test_album_outside_range(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
         _, album_id = make_gallery_album(gallery, "2024-08-01 - August Trip")
-        col_dir, _ = _setup_collection(gallery, "2024-07 - July", albums=[album_id])
+        col_dir, _ = make_gallery_collection(
+            gallery,
+            "2024-07 - July",
+            albums=[album_id],
+        )
 
         lookup = build_gallery_lookup(gallery)
         result = check_collection(col_dir, lookup)
@@ -162,7 +147,7 @@ class TestCheckDateCoverage:
 class TestCheckCollectionConfig:
     def test_implicit_smart_passes(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
-        col_dir, _ = _setup_collection(
+        col_dir, _ = make_gallery_collection(
             gallery,
             "2024-07 - July",
             members=CollectionMembers.SMART,
@@ -195,7 +180,7 @@ class TestCheckCollectionConfig:
 class TestCheckEmpty:
     def test_empty_collection_passes(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
-        col_dir, _ = _setup_collection(gallery, "2024-07 - July")
+        col_dir, _ = make_gallery_collection(gallery, "2024-07 - July")
 
         lookup = build_gallery_lookup(gallery)
         result = check_collection(col_dir, lookup)
@@ -268,7 +253,7 @@ class TestCheckChapterOverlap:
     ) -> None:
         gallery = make_gallery(tmp_path)
         montreal, _ = _setup_chapter(gallery, "2019", "2019--2022 - Montreal")
-        _setup_collection(
+        make_gallery_collection(
             gallery,
             "2020 - Year",
             members=CollectionMembers.SMART,
@@ -282,8 +267,8 @@ class TestCheckPrivateSmart:
     def test_non_private_members_reported(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
         _, album_id = make_gallery_album(gallery, "2024-07-14 - Trip")
-        _, sub_id = _setup_collection(gallery, "2024-08 - August")
-        col_dir, _ = _setup_collection(
+        _, sub_id = make_gallery_collection(gallery, "2024-08 - August")
+        col_dir, _ = make_gallery_collection(
             gallery,
             "2024 - Best Of [private]",
             members=CollectionMembers.SMART,
@@ -302,8 +287,8 @@ class TestCheckPrivateSmart:
     def test_private_members_pass(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
         _, album_id = make_gallery_album(gallery, "2024-07-14 - Trip [private]")
-        _, sub_id = _setup_collection(gallery, "2024-08 - August [private]")
-        col_dir, _ = _setup_collection(
+        _, sub_id = make_gallery_collection(gallery, "2024-08 - August [private]")
+        col_dir, _ = make_gallery_collection(
             gallery,
             "2024 - Best Of [private]",
             members=CollectionMembers.SMART,
@@ -318,7 +303,7 @@ class TestCheckPrivateSmart:
 class TestCheckInvalidMetadata:
     def test_corrupt_metadata_reported_not_crashing(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
-        col_dir, _ = _setup_collection(gallery, "2024-07 - July")
+        col_dir, _ = make_gallery_collection(gallery, "2024-07 - July")
         (col_dir / ".photree" / "collection.yaml").write_text(
             "- not a mapping\n",
             encoding="utf-8",
@@ -339,7 +324,11 @@ class TestCheckUnreadableAlbum:
         broken, _ = make_gallery_album(gallery, "2024-07-14 - Broken")
         (broken / ".photree" / "album.yaml").write_text("- nope\n", encoding="utf-8")
         _, album_id = make_gallery_album(gallery, "2024-07-20 - Fine")
-        col_dir, _ = _setup_collection(gallery, "2024-07 - July", albums=[album_id])
+        col_dir, _ = make_gallery_collection(
+            gallery,
+            "2024-07 - July",
+            albums=[album_id],
+        )
 
         lookup = build_gallery_lookup(gallery)
 
@@ -353,7 +342,11 @@ class TestCheckUnreadableAlbum:
         gallery = make_gallery(tmp_path)
         album_dir, album_id = make_gallery_album(gallery, "2024-07-14 - Trip")
         write_file(album_dir / ".photree" / "media-ids" / "main.yaml", "- nope\n")
-        col_dir, _ = _setup_collection(gallery, "2024-07 - July", albums=[album_id])
+        col_dir, _ = make_gallery_collection(
+            gallery,
+            "2024-07 - July",
+            albums=[album_id],
+        )
 
         lookup = build_gallery_lookup(gallery)
 
@@ -364,7 +357,7 @@ class TestCheckUnreadableAlbum:
         gallery = make_gallery(tmp_path)
         broken, _ = make_gallery_album(gallery, "2024-07-14 - Broken")
         (broken / ".photree" / "album.yaml").write_text("- nope\n", encoding="utf-8")
-        _setup_collection(gallery, "2024-07 - July")
+        make_gallery_collection(gallery, "2024-07 - July")
 
         result = invoke_cli(["collections", "check", "-g", str(gallery)])
 

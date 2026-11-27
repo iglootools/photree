@@ -1,9 +1,5 @@
 from pathlib import Path
 
-from photree.album.id import generate_album_id
-from photree.album.store.metadata import save_album_metadata
-from photree.album.store.protocol import AlbumMetadata
-from photree.collection.id import generate_collection_id
 from photree.collection.importer.import_members import (
     CollectionImportError,
     CollectionImportErrorKind,
@@ -12,36 +8,13 @@ from photree.collection.importer.resolve import GalleryIndex, scan_gallery
 from photree.collection.importer.selection import SELECTION_CSV
 from photree.collection.store.metadata import (
     load_collection_metadata,
-    save_collection_metadata,
-)
-from photree.collection.store.protocol import (
-    CollectionLifecycle,
-    CollectionMembers,
-    CollectionMetadata,
 )
 from photree.collections.cmd_handler.import_members import batch_import
-from tests.testkit import make_gallery
-
-
-def _setup_album(gallery: Path, name: str) -> str:
-    album_dir = gallery / "albums" / "2024" / name
-    (album_dir / "ios-main" / "orig-img").mkdir(parents=True)
-    album_id = generate_album_id()
-    save_album_metadata(album_dir, AlbumMetadata(id=album_id))
-    return album_id
+from tests.testkit import make_gallery, make_gallery_album, make_gallery_collection
 
 
 def _setup_collection(gallery: Path, name: str, entries: list[str] | None) -> Path:
-    col_dir = gallery / "collections" / "2024" / name
-    col_dir.mkdir(parents=True)
-    save_collection_metadata(
-        col_dir,
-        CollectionMetadata(
-            id=generate_collection_id(),
-            members=CollectionMembers.MANUAL,
-            lifecycle=CollectionLifecycle.EXPLICIT,
-        ),
-    )
+    col_dir, _ = make_gallery_collection(gallery, name)
     if entries is not None:
         (col_dir / SELECTION_CSV).write_text(
             "\n".join(["entry,date", *(f"{e}," for e in entries)]) + "\n",
@@ -53,7 +26,7 @@ def _setup_collection(gallery: Path, name: str, entries: list[str] | None) -> Pa
 class TestBatchImport:
     def test_imports_skips_and_fails_independently(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
-        album_id = _setup_album(gallery, "2024-07-14 - Trip")
+        _, album_id = make_gallery_album(gallery, "2024-07-14 - Trip")
         good = _setup_collection(gallery, "2024-07 - Good", ["2024-07-14 - Trip"])
         empty = _setup_collection(gallery, "2024-08 - Empty", None)
         bad = _setup_collection(gallery, "2024-09 - Bad", ["nonexistent"])
@@ -107,7 +80,7 @@ class TestBatchImport:
 
     def test_gallery_is_scanned_once_per_batch(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
-        _setup_album(gallery, "2024-07-14 - Trip")
+        make_gallery_album(gallery, "2024-07-14 - Trip")
         first = _setup_collection(gallery, "2024-07 - One", ["2024-07-14 - Trip"])
         second = _setup_collection(gallery, "2024-08 - Two", ["2024-07-14 - Trip"])
         scanned: list[Path] = []
