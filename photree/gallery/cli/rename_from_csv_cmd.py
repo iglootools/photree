@@ -9,6 +9,7 @@ from photree.albums.batchcli.rename import run_batch_rename_from_csv
 from photree.albums.output import format_duplicate_ids_report
 from photree.clihelpers.console import err_console
 from photree.clihelpers.options import DRY_RUN_OPTION, GALLERY_DIR_OPTION
+from photree.clihelpers.paths import expand_user_path
 from photree.clihelpers.resolution import resolve_gallery_or_exit
 from photree.clihelpers.runtime import runtime_of
 from photree.gallery.cli.app import app
@@ -24,9 +25,8 @@ def rename_from_csv_cmd(
             help=(
                 "CSV with desired album state (from list-albums --output csv, edited)."
             ),
-            exists=True,
             dir_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(exists=True),
         ),
     ],
     gallery_dir: GALLERY_DIR_OPTION = None,

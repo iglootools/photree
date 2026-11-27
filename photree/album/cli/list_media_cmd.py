@@ -23,6 +23,7 @@ from photree.clihelpers.options import (
     OUTPUT_FORMAT_OPTION,
     OutputFormat,
 )
+from photree.clihelpers.paths import expand_user_path
 from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.sink import write_csv, write_text
 from photree.common.formatting import indent
@@ -40,9 +41,8 @@ def list_media_cmd(
             "--album-dir",
             "-a",
             help="Album directory.",
-            exists=True,
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(exists=True),
         ),
     ] = Path(),
     output_format: OUTPUT_FORMAT_OPTION = OutputFormat.HUMAN,

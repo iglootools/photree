@@ -13,6 +13,7 @@ from photree.clihelpers.options import (
     LINK_MODE_OPTION,
     REIMPORT_OPTION,
 )
+from photree.clihelpers.paths import expand_user_path, expand_user_paths
 from photree.clihelpers.resolution import resolve_gallery_or_exit
 from photree.clihelpers.sysdeps import import_deps, require_system_deps
 from photree.clihelpers.usage import mutually_exclusive_error
@@ -45,9 +46,8 @@ def import_all_cmd(
             "--dir",
             "-d",
             help="Base directory to scan for album subdirectories.",
-            exists=True,
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(exists=True),
         ),
     ] = None,
     album_dirs: Annotated[
@@ -56,9 +56,8 @@ def import_all_cmd(
             "--album-dir",
             "-a",
             help="Album directory to import (repeatable).",
-            exists=True,
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_paths(exists=True),
         ),
     ] = None,
     gallery_dir: GALLERY_DIR_OPTION = None,

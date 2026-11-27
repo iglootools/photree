@@ -8,6 +8,7 @@ import typer
 from photree.album.cli.app import app
 from photree.album.cli.import_preflight import run_import_preflight
 from photree.clihelpers.options import CONFIG_OPTION
+from photree.clihelpers.paths import expand_user_path
 from photree.clihelpers.runtime import runtime_of
 
 
@@ -20,9 +21,8 @@ def import_check_cmd(
             "--album-dir",
             "-a",
             help="Album directory (with to-import-{ios,std}-<name> staging dirs).",
-            exists=True,
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(exists=True),
         ),
     ] = Path(),
     source: Annotated[
@@ -32,7 +32,7 @@ def import_check_cmd(
             "-s",
             help="Image Capture output directory. Overrides config and default.",
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(),
         ),
     ] = None,
     config: CONFIG_OPTION = None,

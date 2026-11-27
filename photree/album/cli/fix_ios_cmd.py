@@ -23,6 +23,7 @@ from photree.clihelpers.options import (
     RM_MISCATEGORIZED_SAFE_OPTION,
     RM_ORPHAN_SIDECAR_OPTION,
 )
+from photree.clihelpers.paths import expand_user_path
 from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.usage import invalid_fix_error
 from photree.common.fs import display_path
@@ -37,9 +38,8 @@ def fix_ios_cmd(
             "--album-dir",
             "-a",
             help="iOS album directory to fix.",
-            exists=True,
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(exists=True),
         ),
     ] = Path(),
     *,

@@ -12,6 +12,7 @@ from photree.album.faces.failures import format_face_failures
 from photree.album.faces.refresh import FaceSourceRefreshResult, refresh_face_data
 from photree.clihelpers.console import err_console
 from photree.clihelpers.options import DRY_RUN_OPTION
+from photree.clihelpers.paths import expand_user_path
 from photree.clihelpers.sysdeps import FACE_DETECTION_DEPS, require_system_deps
 from photree.common.formatting import format_dry_run, indent
 
@@ -25,9 +26,8 @@ def detect_faces_cmd(
             "--album-dir",
             "-a",
             help="Album directory.",
-            exists=True,
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(exists=True),
         ),
     ] = Path(),
     *,

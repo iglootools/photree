@@ -10,6 +10,7 @@ from photree.album.cli import stats_output
 from photree.album.cli.app import app
 from photree.album.cli.media_source_conflict import exit_on_media_source_conflict
 from photree.clihelpers.console import console, err_console
+from photree.clihelpers.paths import expand_user_path
 from photree.clihelpers.runtime import runtime_of
 from photree.common.fs import display_path
 
@@ -23,9 +24,8 @@ def stats_cmd(
             "--album-dir",
             "-a",
             help="Album directory to analyze.",
-            exists=True,
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(exists=True),
         ),
     ] = Path(),
 ) -> None:

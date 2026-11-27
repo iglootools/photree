@@ -33,6 +33,7 @@ from photree.clihelpers.options import (
     FATAL_SIDECAR_OPTION,
     FATAL_WARNINGS_OPTION,
 )
+from photree.clihelpers.paths import expand_user_path
 from photree.clihelpers.progress import SilentProgressBar
 from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.sysdeps import CHECK_DEPS, EXIF_DEPS, require_system_deps
@@ -51,9 +52,8 @@ def check_cmd(
             "--album-dir",
             "-a",
             help="Album directory to check.",
-            exists=True,
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(exists=True),
         ),
     ] = Path(),
     *,

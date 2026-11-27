@@ -37,6 +37,7 @@ from photree.album.importer.testkit.validation import VALIDATION_ERRORS
 from photree.album.stats.testkit import ALBUM_STATS, ALBUMS_STATS
 from photree.albums.output import importer as batch_import_output
 from photree.clihelpers.console import console
+from photree.clihelpers.paths import expand_user_path
 
 app = typer.Typer(
     name="demo",
@@ -345,6 +346,7 @@ def seed_cmd(
             "-d",
             help="Directory to create the demo in. Default: creates a temp directory.",
             file_okay=False,
+            callback=expand_user_path(resolve=False),
         ),
     ] = None,
     album_name: Annotated[

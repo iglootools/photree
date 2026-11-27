@@ -16,6 +16,7 @@ from photree.albums.output import (
 )
 from photree.clihelpers.console import err_console
 from photree.clihelpers.options import DRY_RUN_OPTION
+from photree.clihelpers.paths import expand_user_path
 from photree.clihelpers.runtime import runtime_of
 
 
@@ -26,9 +27,8 @@ def rename_from_csv_cmd(
         Path,
         typer.Argument(
             help="CSV with desired album state (from list --output csv, edited).",
-            exists=True,
             dir_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(exists=True),
         ),
     ],
     base_dir: DIR_OPTION = None,

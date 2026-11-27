@@ -6,6 +6,7 @@ from typing import Annotated
 
 import typer
 
+from photree.clihelpers.paths import expand_user_path
 from photree.foundation.linking import LinkMode
 from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 
@@ -34,7 +35,7 @@ OUTPUT_FILE_OPTION = Annotated[
         "-f",
         help="Write output to a file instead of stdout.",
         dir_okay=False,
-        resolve_path=True,
+        callback=expand_user_path(),
     ),
 ]
 
@@ -105,9 +106,8 @@ GALLERY_DIR_OPTION = Annotated[
         help=(
             "Gallery root directory (or resolved from cwd via .photree/gallery.yaml)."
         ),
-        exists=True,
         file_okay=False,
-        resolve_path=True,
+        callback=expand_user_path(exists=True),
     ),
 ]
 
@@ -230,7 +230,7 @@ SHARE_DIR_OPTION = Annotated[
             "with album names are created)."
         ),
         file_okay=False,
-        resolve_path=True,
+        callback=expand_user_path(),
     ),
 ]
 
@@ -248,6 +248,7 @@ CONFIG_OPTION = Annotated[
     typer.Option(
         "--config",
         help="Path to config file.",
+        callback=expand_user_path(resolve=False),
     ),
 ]
 

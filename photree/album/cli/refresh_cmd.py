@@ -14,6 +14,7 @@ from photree.album.store.album_discovery import has_media_sources
 from photree.album.store.metadata import album_metadata_path
 from photree.clihelpers.console import console, err_console
 from photree.clihelpers.options import DRY_RUN_OPTION
+from photree.clihelpers.paths import expand_user_path
 from photree.clihelpers.progress import run_with_spinner
 from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.sysdeps import refresh_deps, require_system_deps
@@ -32,9 +33,8 @@ def refresh_cmd(
             "--album-dir",
             "-a",
             help="Album directory.",
-            exists=True,
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(exists=True),
         ),
     ] = Path(),
     *,

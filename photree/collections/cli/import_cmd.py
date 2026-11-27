@@ -7,6 +7,7 @@ import typer
 
 from photree.clihelpers.console import console, err_console
 from photree.clihelpers.options import DRY_RUN_OPTION, GALLERY_DIR_OPTION
+from photree.clihelpers.paths import expand_user_path, expand_user_paths
 from photree.clihelpers.progress import BatchProgressBar
 from photree.clihelpers.resolution import (
     format_invalid_metadata,
@@ -201,9 +202,8 @@ def import_cmd(
             "--dir",
             "-d",
             help="Parent directory to scan for collections with selections.",
-            exists=True,
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(exists=True),
         ),
     ] = None,
     collection_dirs: Annotated[
@@ -212,9 +212,8 @@ def import_cmd(
             "--collection-dir",
             "-c",
             help="Collection directory to import (repeatable).",
-            exists=True,
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_paths(exists=True),
         ),
     ] = None,
     gallery_dir: GALLERY_DIR_OPTION = None,

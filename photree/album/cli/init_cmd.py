@@ -15,6 +15,7 @@ from photree.album.store.metadata import (
 from photree.album.store.protocol import AlbumMetadata
 from photree.clihelpers.console import err_console
 from photree.clihelpers.options import DRY_RUN_OPTION
+from photree.clihelpers.paths import expand_user_path
 from photree.clihelpers.runtime import runtime_of
 from photree.common.formatting import format_dry_run, indent
 from photree.common.fs import display_path
@@ -29,9 +30,8 @@ def init_cmd(
             "--album-dir",
             "-a",
             help="Album directory.",
-            exists=True,
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(exists=True),
         ),
     ] = Path(),
     *,

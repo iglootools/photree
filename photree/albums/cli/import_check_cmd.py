@@ -13,6 +13,7 @@ from photree.albums.cli.app import app
 from photree.albums.cmd_handler.importer import scan_albums
 from photree.clihelpers.console import err_console
 from photree.clihelpers.options import CONFIG_OPTION
+from photree.clihelpers.paths import expand_user_path, expand_user_paths
 from photree.clihelpers.progress import BatchProgressBar
 from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.usage import mutually_exclusive_error
@@ -123,9 +124,8 @@ def import_check_cmd(
             "--dir",
             "-d",
             help="Parent directory containing album subdirectories.",
-            exists=True,
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(exists=True),
         ),
     ] = None,
     album_dirs: Annotated[
@@ -134,9 +134,8 @@ def import_check_cmd(
             "--album-dir",
             "-a",
             help="Album directory (repeatable).",
-            exists=True,
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_paths(exists=True),
         ),
     ] = None,
     source: Annotated[
@@ -146,7 +145,7 @@ def import_check_cmd(
             "-s",
             help="Image Capture output directory. Overrides config and default.",
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(),
         ),
     ] = None,
     config: CONFIG_OPTION = None,

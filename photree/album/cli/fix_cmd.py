@@ -25,6 +25,7 @@ from photree.clihelpers.options import (
     RM_ORPHAN_OPTION,
     RM_UPSTREAM_OPTION,
 )
+from photree.clihelpers.paths import expand_user_path
 from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.usage import invalid_fix_error
 from photree.common.formatting import format_dry_run, format_flags
@@ -40,9 +41,8 @@ def fix_cmd(
             "--album-dir",
             "-a",
             help="Album directory to fix.",
-            exists=True,
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(exists=True),
         ),
     ] = Path(),
     *,

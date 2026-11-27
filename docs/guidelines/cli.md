@@ -70,6 +70,13 @@ Most entity types support the same set of operations:
 
 - **Directory options**: `--album-dir -a`, `--collection-dir -c`,
   `--gallery-dir -g`, `--dir -d` (scan base)
+- **Path options**: expand `~` with the `expand_user_path` (or, for a
+  repeatable option, `expand_user_paths`) callback from `clihelpers/paths.py`,
+  as
+  [general.md › Expand `~` in every path a user writes](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#expand--in-every-path-a-user-writes)
+  asks. Pass `exists` and `resolve` to the callback, never `exists` or
+  `resolve_path` to Typer, which would check and resolve the path before `~`
+  is expanded; `file_okay` and `dir_okay` stay on the Typer declaration
 - **Mutually exclusive options**: Check in the command body and
   `raise usage_error(...)` (`clihelpers/usage.py`), which prints to stderr and
   exits 2, like any other [usage error](#error-handling-and-exit-codes)

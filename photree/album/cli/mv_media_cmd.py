@@ -15,6 +15,7 @@ from photree.album.cli.media_op_output import (
 from photree.album.cli.media_source_conflict import exit_on_media_source_conflict
 from photree.clihelpers.console import err_console
 from photree.clihelpers.options import DRY_RUN_OPTION
+from photree.clihelpers.paths import expand_user_path
 from photree.clihelpers.runtime import runtime_of
 from photree.common.formatting import format_dry_run
 from photree.common.fs import display_path
@@ -29,9 +30,8 @@ def mv_media_cmd(
             "--source-album",
             "-s",
             help="Source album directory.",
-            exists=True,
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(exists=True),
         ),
     ],
     dest_album: Annotated[
@@ -40,9 +40,8 @@ def mv_media_cmd(
             "--dest-album",
             "-d",
             help="Destination album directory.",
-            exists=True,
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(exists=True),
         ),
     ],
     files: Annotated[

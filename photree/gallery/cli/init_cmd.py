@@ -6,6 +6,7 @@ from typing import Annotated
 import typer
 
 from photree.clihelpers.console import err_console
+from photree.clihelpers.paths import expand_user_path
 from photree.clihelpers.resolution import format_gallery_flag
 from photree.clihelpers.runtime import runtime_of
 from photree.common.formatting import indent
@@ -29,9 +30,8 @@ def init_cmd(
             "--gallery-dir",
             "-g",
             help="Gallery root directory.",
-            exists=True,
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(exists=True),
         ),
     ] = Path(),
     link_mode: Annotated[
