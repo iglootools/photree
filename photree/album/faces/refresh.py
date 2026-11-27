@@ -33,7 +33,6 @@ from photree.album.faces.store import (
     save_face_state,
     thumbs_dir,
 )
-from photree.album.formats import IMG_EXTENSIONS, IOS_IMG_EXTENSIONS
 from photree.album.store.file_matching import dedup_media_dict
 from photree.album.store.media_source import MediaSource
 from photree.album.store.media_sources_discovery import discover_media_sources
@@ -319,8 +318,11 @@ def _detect_and_save(
 
 def _scan_current_images(album_dir: Path, ms: MediaSource) -> dict[str, str]:
     """Scan ``orig-img/`` and return deduplicated ``{key: filename}`` mapping."""
-    img_ext = IOS_IMG_EXTENSIONS if ms.is_ios else IMG_EXTENSIONS
-    return dedup_media_dict(list_files(album_dir / ms.orig_img_dir), img_ext, ms.key_fn)
+    return dedup_media_dict(
+        list_files(album_dir / ms.orig_img_dir),
+        ms.img_extensions,
+        ms.key_fn,
+    )
 
 
 def _model_version_changed(

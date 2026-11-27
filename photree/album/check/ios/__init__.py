@@ -12,7 +12,6 @@ from photree.album.check.browsable import (
 )
 from photree.album.check.ios.sidecar import SidecarCheck, check_sidecars
 from photree.album.check.jpeg import JpegCheck, check_jpeg_dir
-from photree.album.formats import IOS_IMG_EXTENSIONS, IOS_VID_EXTENSIONS
 from photree.album.live_photo import (
     compute_live_photo_videos,
     detect_live_photo_keys,
@@ -192,8 +191,8 @@ def _detect_live_photo_vid_filenames(
 ) -> frozenset[str]:
     live_keys = detect_live_photo_keys(
         album_dir / ms.orig_img_dir,
-        IOS_IMG_EXTENSIONS,
-        IOS_VID_EXTENSIONS,
+        ms.img_extensions,
+        ms.vid_extensions,
         ms.key_fn,
     )
     if not live_keys:
@@ -202,7 +201,7 @@ def _detect_live_photo_vid_filenames(
         videos = compute_live_photo_videos(
             album_dir / ms.orig_img_dir,
             album_dir / ms.edit_img_dir,
-            IOS_VID_EXTENSIONS,
+            ms.vid_extensions,
             ms.key_fn,
         )
         return frozenset(name for name, _ in videos)
@@ -220,7 +219,7 @@ def _check_browsable(
         album_dir / ms.orig_img_dir,
         album_dir / ms.edit_img_dir,
         album_dir / ms.img_dir,
-        media_extensions=IOS_IMG_EXTENSIONS,
+        media_extensions=ms.img_extensions,
         key_fn=ms.key_fn,
         link_mode=link_mode,
         checksum=checksum,
@@ -230,14 +229,14 @@ def _check_browsable(
         album_dir / ms.orig_vid_dir,
         album_dir / ms.edit_vid_dir,
         album_dir / ms.vid_dir,
-        media_extensions=IOS_VID_EXTENSIONS,
+        media_extensions=ms.vid_extensions,
         key_fn=ms.key_fn,
         link_mode=link_mode,
         checksum=checksum,
         on_file_checked=on_file_checked,
     )
     # Filter Live Photo companion videos from the "extra" list — they are
-    # expected in the browsable img dir but not matched by IOS_IMG_EXTENSIONS.
+    # expected in the browsable img dir but not matched by its img extensions.
     live_videos = _detect_live_photo_vid_filenames(album_dir, ms)
     return filter_live_photo_extras(img, live_videos), vid
 
@@ -255,15 +254,14 @@ def _check_ios_duplicates(
     album_dir: Path,
     ms: MediaSource,
 ) -> tuple[DuplicateNumber, ...]:
-    all_media = IOS_IMG_EXTENSIONS | IOS_VID_EXTENSIONS
     return tuple(
         dup
         for subdir_name in ms.all_subdirs
         if (album_dir / subdir_name).is_dir()
         for dup in check_duplicate_numbers(
             album_dir / subdir_name,
-            all_media,
-            IOS_IMG_EXTENSIONS,
+            ms.media_extensions,
+            ms.img_extensions,
         )
     )
 

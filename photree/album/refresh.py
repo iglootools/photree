@@ -15,12 +15,6 @@ from photree.album.exif_cache.refresh import refresh_exif_cache
 from photree.album.faces.detect import FaceAnalyzerFactory
 from photree.album.faces.failures import FaceFailure
 from photree.album.faces.refresh import refresh_face_data
-from photree.album.formats import (
-    IMG_EXTENSIONS,
-    IOS_IMG_EXTENSIONS,
-    IOS_VID_EXTENSIONS,
-    VID_EXTENSIONS,
-)
 from photree.album.id import generate_media_id
 from photree.album.jpeg import (
     ConvertFile,
@@ -145,15 +139,6 @@ def _reconcile(
     )
 
 
-def _media_extensions(ms: MediaSource) -> tuple[frozenset[str], frozenset[str]]:
-    """Return ``(image_extensions, video_extensions)`` for a media source."""
-    return (
-        (IOS_IMG_EXTENSIONS, IOS_VID_EXTENSIONS)
-        if ms.is_ios
-        else (IMG_EXTENSIONS, VID_EXTENSIONS)
-    )
-
-
 def _refresh_media_source(
     album_dir: Path,
     ms: MediaSource,
@@ -161,16 +146,14 @@ def _refresh_media_source(
     *,
     new_id: Callable[[], str],
 ) -> tuple[MediaSourceMediaMetadata, MediaSourceRefreshResult]:
-    img_ext, vid_ext = _media_extensions(ms)
-
     img = _reconcile(
         existing_ms.images,
-        scan_media_keys(album_dir / ms.orig_img_dir, img_ext, ms.key_fn),
+        scan_media_keys(album_dir / ms.orig_img_dir, ms.img_extensions, ms.key_fn),
         new_id=new_id,
     )
     vid = _reconcile(
         existing_ms.videos,
-        scan_media_keys(album_dir / ms.orig_vid_dir, vid_ext, ms.key_fn),
+        scan_media_keys(album_dir / ms.orig_vid_dir, ms.vid_extensions, ms.key_fn),
         new_id=new_id,
     )
 
@@ -388,17 +371,16 @@ def _refresh_browsable_dirs(
         if _refresh_browsable_img(album_dir, ms, link_mode=link_mode, force=force)
     )
     for ms in media_sources:
-        _, vid_ext = _media_extensions(ms)
         if force or not _browsable_is_fresh(
             album_dir,
             ms.orig_vid_dir,
             ms.edit_vid_dir,
             ms.vid_dir,
-            extensions=vid_ext,
+            extensions=ms.vid_extensions,
             key_fn=ms.key_fn,
             link_mode=link_mode,
         ):
-            _rebuild_browsable_vid(album_dir, ms, vid_ext, link_mode)
+            _rebuild_browsable_vid(album_dir, ms, link_mode)
     return rebuilt_img
 
 
@@ -410,24 +392,15 @@ def _refresh_browsable_img(
     force: bool,
 ) -> bool:
     """Rebuild ``{name}-img/`` when forced or stale; return whether it was rebuilt."""
-    img_ext, vid_ext = _media_extensions(ms)
-    stale = force or not _browsable_img_is_fresh(
-        album_dir,
-        ms,
-        img_ext=img_ext,
-        vid_ext=vid_ext,
-        link_mode=link_mode,
-    )
+    stale = force or not _browsable_img_is_fresh(album_dir, ms, link_mode=link_mode)
     if stale:
-        _rebuild_browsable_img(album_dir, ms, img_ext, vid_ext, link_mode)
+        _rebuild_browsable_img(album_dir, ms, link_mode)
     return stale
 
 
 def _rebuild_browsable_img(
     album_dir: Path,
     ms: MediaSource,
-    img_ext: frozenset[str],
-    vid_ext: frozenset[str],
     link_mode: LinkMode,
 ) -> None:
     """Rebuild ``{name}-img/``, plus Live Photo companion videos for iOS."""
@@ -435,7 +408,7 @@ def _rebuild_browsable_img(
         album_dir / ms.orig_img_dir,
         album_dir / ms.edit_img_dir,
         album_dir / ms.img_dir,
-        media_extensions=img_ext,
+        media_extensions=ms.img_extensions,
         key_fn=ms.key_fn,
         link_mode=link_mode,
     )
@@ -444,7 +417,7 @@ def _rebuild_browsable_img(
             album_dir / ms.orig_img_dir,
             album_dir / ms.edit_img_dir,
             album_dir / ms.img_dir,
-            vid_extensions=vid_ext,
+            vid_extensions=ms.vid_extensions,
             key_fn=ms.key_fn,
             link_mode=link_mode,
             dry_run=False,
@@ -454,7 +427,6 @@ def _rebuild_browsable_img(
 def _rebuild_browsable_vid(
     album_dir: Path,
     ms: MediaSource,
-    vid_ext: frozenset[str],
     link_mode: LinkMode,
 ) -> None:
 
@@ -462,7 +434,7 @@ def _rebuild_browsable_vid(
         album_dir / ms.orig_vid_dir,
         album_dir / ms.edit_vid_dir,
         album_dir / ms.vid_dir,
-        media_extensions=vid_ext,
+        media_extensions=ms.vid_extensions,
         key_fn=ms.key_fn,
         link_mode=link_mode,
     )
@@ -496,8 +468,6 @@ def _browsable_img_is_fresh(
     album_dir: Path,
     ms: MediaSource,
     *,
-    img_ext: frozenset[str],
-    vid_ext: frozenset[str],
     link_mode: LinkMode,
 ) -> bool:
     """
@@ -514,7 +484,7 @@ def _browsable_img_is_fresh(
         orig,
         album_dir / ms.edit_img_dir,
         album_dir / ms.img_dir,
-        media_extensions=img_ext,
+        media_extensions=ms.img_extensions,
         key_fn=ms.key_fn,
         link_mode=link_mode,
         checksum=False,
@@ -524,7 +494,7 @@ def _browsable_img_is_fresh(
 
     # For iOS, filter Live Photo videos from the "extra" list and verify
     # they are all present in the browsable dir.
-    live_videos = _live_photo_vid_filenames(album_dir, ms, img_ext, vid_ext)
+    live_videos = _live_photo_vid_filenames(album_dir, ms)
     browsable_files = frozenset(list_files(album_dir / ms.img_dir))
     return (
         filter_live_photo_extras(result, live_videos).success
@@ -532,20 +502,20 @@ def _browsable_img_is_fresh(
     )
 
 
-def _live_photo_vid_filenames(
-    album_dir: Path,
-    ms: MediaSource,
-    img_ext: frozenset[str],
-    vid_ext: frozenset[str],
-) -> frozenset[str]:
+def _live_photo_vid_filenames(album_dir: Path, ms: MediaSource) -> frozenset[str]:
     orig = album_dir / ms.orig_img_dir
-    live_keys = detect_live_photo_keys(orig, img_ext, vid_ext, ms.key_fn)
+    live_keys = detect_live_photo_keys(
+        orig,
+        ms.img_extensions,
+        ms.vid_extensions,
+        ms.key_fn,
+    )
     if not live_keys:
         return frozenset()
     videos = compute_live_photo_videos(
         orig,
         album_dir / ms.edit_img_dir,
-        vid_ext,
+        ms.vid_extensions,
         ms.key_fn,
     )
     return frozenset(name for name, _ in videos)

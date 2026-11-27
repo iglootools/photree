@@ -5,12 +5,6 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from photree.album.formats import (
-    IMG_EXTENSIONS,
-    IOS_IMG_EXTENSIONS,
-    IOS_VID_EXTENSIONS,
-    VID_EXTENSIONS,
-)
 from photree.album.store.file_matching import scan_media_keys
 from photree.album.store.media_metadata import (
     MediaSourceMediaMetadata,
@@ -98,18 +92,15 @@ def _check_media_source(
     ms: MediaSource,
     existing_ms: MediaSourceMediaMetadata,
 ) -> _SourceCheckResult:
-    img_ext = IOS_IMG_EXTENSIONS if ms.is_ios else IMG_EXTENSIONS
-    vid_ext = IOS_VID_EXTENSIONS if ms.is_ios else VID_EXTENSIONS
-
     img_new, img_stale = _diff_keys(
         set(existing_ms.images.values()),
-        scan_media_keys(album_dir / ms.orig_img_dir, img_ext, ms.key_fn),
+        scan_media_keys(album_dir / ms.orig_img_dir, ms.img_extensions, ms.key_fn),
         ms.name,
         MediaType.IMAGE,
     )
     vid_new, vid_stale = _diff_keys(
         set(existing_ms.videos.values()),
-        scan_media_keys(album_dir / ms.orig_vid_dir, vid_ext, ms.key_fn),
+        scan_media_keys(album_dir / ms.orig_vid_dir, ms.vid_extensions, ms.key_fn),
         ms.name,
         MediaType.VIDEO,
     )

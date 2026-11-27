@@ -2,14 +2,22 @@
 MediaSource — a named source of photos within an album.
 
 Holds the model, its two kinds (iOS, std), the archive/browsable directory
-names each kind lays out, and the key functions that identify a media item
-within a source (image number for iOS, filename stem for std).
+names each kind lays out, the media extensions each kind holds, and the key
+functions that identify a media item within a source (image number for iOS,
+filename stem for std).
 """
 
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
+
+from photree.album.formats import (
+    IMG_EXTENSIONS,
+    IOS_IMG_EXTENSIONS,
+    IOS_VID_EXTENSIONS,
+    VID_EXTENSIONS,
+)
 
 IOS_DIR_PREFIX = "ios-"
 STD_DIR_PREFIX = "std-"
@@ -101,6 +109,34 @@ class MediaSource:
                 return ios_img_number
             case MediaSourceType.STD:
                 return stem_key
+
+    @property
+    def img_extensions(self) -> frozenset[str]:
+        """Return the extensions of the images this source holds."""
+        match self.media_source_type:
+            case MediaSourceType.IOS:
+                return IOS_IMG_EXTENSIONS
+            case MediaSourceType.STD:
+                return IMG_EXTENSIONS
+
+    @property
+    def vid_extensions(self) -> frozenset[str]:
+        """
+        Return the extensions of the videos this source holds.
+
+        An iOS source holds only ``.mov``, what an iPhone records: any other
+        video in its archive is not one of its media items.
+        """
+        match self.media_source_type:
+            case MediaSourceType.IOS:
+                return IOS_VID_EXTENSIONS
+            case MediaSourceType.STD:
+                return VID_EXTENSIONS
+
+    @property
+    def media_extensions(self) -> frozenset[str]:
+        """Return the extensions of every media item this source holds."""
+        return self.img_extensions | self.vid_extensions
 
     @property
     def image_variant_dirs(self) -> tuple[str, ...]:

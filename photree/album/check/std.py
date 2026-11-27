@@ -8,7 +8,6 @@ from typing import TypedDict
 
 from photree.album.check.browsable import BrowsableDirCheck, check_browsable_dir
 from photree.album.check.jpeg import JpegCheck, check_jpeg_dir
-from photree.album.formats import IMG_EXTENSIONS, VID_EXTENSIONS
 from photree.album.store.media_source import (
     MediaSource,
     MediaSourceType,
@@ -101,8 +100,8 @@ def _archive_orphan_edits(album_dir: Path, ms: MediaSource) -> tuple[OrphanEdits
     return tuple(
         OrphanEdits(directory=Path(edit_dir).name, files=files)
         for orig_dir, edit_dir, extensions in (
-            (ms.orig_img_dir, ms.edit_img_dir, IMG_EXTENSIONS),
-            (ms.orig_vid_dir, ms.edit_vid_dir, VID_EXTENSIONS),
+            (ms.orig_img_dir, ms.edit_img_dir, ms.img_extensions),
+            (ms.orig_vid_dir, ms.edit_vid_dir, ms.vid_extensions),
         )
         if (
             files := find_orphan_edits(
@@ -166,20 +165,19 @@ def check_std_media_source_integrity(
         checksum=checksum,
         on_file_checked=on_file_checked,
     )
-    all_media = IMG_EXTENSIONS | VID_EXTENSIONS
     return StdMediaSourceIntegrityResult(
         browsable_img=check_browsable_dir(
             album_dir / ms.orig_img_dir,
             album_dir / ms.edit_img_dir,
             album_dir / ms.img_dir,
-            media_extensions=IMG_EXTENSIONS,
+            media_extensions=ms.img_extensions,
             **browsable_opts,
         ),
         browsable_vid=check_browsable_dir(
             album_dir / ms.orig_vid_dir,
             album_dir / ms.edit_vid_dir,
             album_dir / ms.vid_dir,
-            media_extensions=VID_EXTENSIONS,
+            media_extensions=ms.vid_extensions,
             **browsable_opts,
         ),
         browsable_jpg=check_jpeg_dir(album_dir / ms.img_dir, album_dir / ms.jpg_dir),
@@ -187,7 +185,10 @@ def check_std_media_source_integrity(
             dup
             for subdir_name in ms.all_subdirs
             if (album_dir / subdir_name).is_dir()
-            for dup in check_duplicate_stems(album_dir / subdir_name, all_media)
+            for dup in check_duplicate_stems(
+                album_dir / subdir_name,
+                ms.media_extensions,
+            )
         ),
         orphan_edits=_archive_orphan_edits(album_dir, ms),
     )
