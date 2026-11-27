@@ -10,17 +10,17 @@ from photree.album.faces.detect import (
     FaceAnalyzerFactory,
     memoized_face_analyzer_factory,
 )
-from photree.album.faces.failures import format_face_failures
 from photree.album.refresh import (
     AlbumRefreshResult,
     RefreshFn,
     refresh_album_derived_data,
 )
 from photree.albums.cmd_handler import (
-    AlbumStepError,
     BatchFailure,
+    DescribeErrorFn,
     OnEnd,
     OnStart,
+    describe_step_error,
     failures_of,
     run_album_step,
 )
@@ -35,6 +35,20 @@ class BatchRefreshResult:
 
     refreshed: int
     failures: tuple[BatchFailure, ...] = ()
+
+
+class IncompleteRefreshError(Exception):
+    """
+    An album that refreshed, but only in part: see *result*'s failures.
+
+    *result* carries the JPEG conversions and face detections that failed;
+    the output layer words them.
+    """
+
+    def __init__(self, result: AlbumRefreshResult) -> None:
+        """Keep the refresh *result* whose failures make it incomplete."""
+        self.result = result
+        super().__init__("derived data refreshed only in part")
 
 
 @dataclass(frozen=True)
@@ -75,23 +89,7 @@ def _refresh_one(
     # refreshed, but not completely — report it as failed so the run does not
     # exit 0 on a partial result.
     if not result.success:
-        raise _partial_refresh_error(result)
-
-
-def _partial_refresh_error(result: AlbumRefreshResult) -> AlbumStepError:
-    """One failure carrying every JPEG and face-detection problem as labels."""
-    jpeg = tuple(
-        f"{source}/{failure.filename}: {failure.reason}"
-        for source, failure in result.jpeg_failures
-    )
-    faces = tuple(format_face_failures(result.face_failures))
-    reason = "; ".join(
-        [
-            *([f"jpeg conversion failed: {'; '.join(jpeg)}"] if jpeg else []),
-            *([f"face detection failed: {'; '.join(faces)}"] if faces else []),
-        ],
-    )
-    return AlbumStepError(reason, (*jpeg, *faces))
+        raise IncompleteRefreshError(result)
 
 
 def batch_refresh(
@@ -110,6 +108,7 @@ def batch_refresh(
     refresh: RefreshFn = refresh_album_derived_data,
     which: WhichFn = shutil.which,
     max_workers: int | None = None,
+    describe_error: DescribeErrorFn = describe_step_error,
 ) -> BatchRefreshResult:
     """
     Refresh all derived data for multiple albums.
@@ -124,6 +123,9 @@ def batch_refresh(
     (from ``gallery.yaml``), since albums of one batch need not share a
     gallery. It is called inside the album's step, so a corrupt
     ``gallery.yaml`` fails that album rather than the batch.
+
+    An album that refreshed only in part fails with an
+    :class:`IncompleteRefreshError`, which *describe_error* words.
 
     *refresh* refreshes one album; tests pass a fake. *which* finds exiftool.
     """
@@ -153,6 +155,7 @@ def batch_refresh(
                 name=display_fn(album_dir),
                 on_start=on_start,
                 on_end=on_end,
+                describe_error=describe_error,
             )
             for album_dir in albums
         ]

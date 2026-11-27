@@ -13,7 +13,8 @@ from photree.album.importer.album_import import AlbumImportResult
 from photree.album.importer.output import import_problems
 from photree.album.refresh import AlbumRefreshResult
 from photree.albums.cmd_handler.importer import result_failure
-from photree.albums.cmd_handler.refresh import batch_refresh
+from photree.albums.cmd_handler.refresh import IncompleteRefreshError, batch_refresh
+from photree.albums.output.refresh import describe_refresh_error
 from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 from photree.foundation.linking import LinkMode
 from photree.gallery.cmd_handler.importer import import_failure_of
@@ -51,8 +52,18 @@ def test_batch_refresh_counts_face_failures_as_failed(tmp_path: Path) -> None:
 
     assert result.refreshed == 0
     assert [f.album_dir for f in result.failures] == [album]
-    assert "face detection failed" in result.failures[0].reason
-    assert "main/0001 (detection): model exploded" in result.failures[0].reason
+    error = result.failures[0].error
+    assert isinstance(error, IncompleteRefreshError)
+    assert error.result.face_failures == _FACE_FAILURES
+
+
+def test_batch_refresh_words_face_failures() -> None:
+    error = IncompleteRefreshError(AlbumRefreshResult(face_failures=_FACE_FAILURES))
+
+    assert describe_refresh_error(error) == (
+        "face detection failed: main/0001 (detection): model exploded",
+        ("main/0001 (detection): model exploded",),
+    )
 
 
 def test_gallery_import_exposes_face_failures(tmp_path: Path) -> None:

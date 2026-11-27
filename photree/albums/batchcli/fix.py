@@ -1,10 +1,12 @@
 """``albums fix`` / ``albums fix-ios`` wrappers."""
 
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
 import typer
 
-from photree.album.fix.output import batch_fix_summary
+from photree.album.fix.ios.output import format_fix_ios_result
+from photree.album.fix.output import batch_fix_summary, format_fix_result
 from photree.albums.batchcli.failures import (
     album_reports_block,
     exit_if_no_albums,
@@ -18,7 +20,16 @@ from photree.clihelpers.progress import BatchProgressBar
 from photree.common.formatting import format_dry_run, format_flags
 
 
-def _print_reports(reports: tuple[tuple[str, str], ...]) -> None:
+def _print_reports[R](
+    album_results: Sequence[tuple[str, R]],
+    format_result: Callable[[R], list[str]],
+) -> None:
+    """Print each album's fix result, leaving out those with nothing to say."""
+    reports = [
+        (name, "\n".join(lines))
+        for name, result in album_results
+        if (lines := format_result(result))
+    ]
     if reports:
         typer.echo("")
         typer.echo(album_reports_block(reports), color=True)
@@ -57,7 +68,10 @@ def run_batch_fix(
             on_end=progress.on_end,
         )
 
-    _print_reports(result.album_reports)
+    _print_reports(
+        result.album_results,
+        lambda fix_result: format_fix_result(fix_result, dry_run=dry_run),
+    )
     console.print(
         format_dry_run(
             batch_fix_summary(result.fixed, len(result.failures), dry_run=dry_run),
@@ -113,7 +127,10 @@ def run_batch_fix_ios(
             on_end=progress.on_end,
         )
 
-    _print_reports(result.album_reports)
+    _print_reports(
+        result.album_results,
+        lambda fix_result: format_fix_ios_result(fix_result, dry_run=dry_run),
+    )
     console.print(
         format_dry_run(
             batch_fix_summary(result.fixed, len(result.failures), dry_run=dry_run),

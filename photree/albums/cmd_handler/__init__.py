@@ -23,10 +23,13 @@ class BatchFailure:
     The reason is the point: a batch that reports only *which* albums failed
     forces the user to re-run each one individually to learn anything, which
     is the slowest possible way to deliver information the batch already had.
+    *error* is the exception the album's step raised, for a caller that needs
+    more than the reason's wording.
     """
 
     album_dir: Path
     reason: str
+    error: Exception | None = None
 
 
 class AlbumStepError(Exception):
@@ -56,6 +59,23 @@ class StepOutcome[T]:
 
 type OnStart = Callable[[str], None] | None
 type OnEnd = ItemEnd | None
+type DescribeErrorFn = Callable[[Exception], tuple[str, tuple[str, ...]]]
+"""Word a failed step's exception: its reason, then its progress labels."""
+
+
+def describe_step_error(exc: Exception) -> tuple[str, tuple[str, ...]]:
+    """
+    Return the reason and progress labels of a failed step's exception.
+
+    An :class:`AlbumStepError` carries its own; any other exception is shown
+    as raised. A command whose steps raise a structured error passes its own
+    :data:`DescribeErrorFn`, from its output layer, falling back on this one.
+    """
+    match exc:
+        case AlbumStepError(reason=reason, labels=labels):
+            return reason, labels
+        case _:
+            return str(exc), (str(exc),)
 
 
 def run_album_step[T](
@@ -65,21 +85,22 @@ def run_album_step[T](
     name: str,
     on_start: OnStart = None,
     on_end: OnEnd = None,
+    describe_error: DescribeErrorFn = describe_step_error,
 ) -> StepOutcome[T]:
     """
     Run *step* for one album, reporting progress and capturing any failure.
 
-    Every exception becomes a :class:`BatchFailure` carrying its message:
-    one bad album must never abort the batch nor be counted as a success.
+    Every exception becomes a :class:`BatchFailure` carrying the reason
+    *describe_error* gives it: one bad album must never abort the batch nor
+    be counted as a success.
     """
     if on_start:
         on_start(name)
     try:
         value = step()
-    except AlbumStepError as exc:
-        failure, labels = BatchFailure(album_dir, exc.reason), exc.labels
     except Exception as exc:
-        failure, labels = BatchFailure(album_dir, str(exc)), (str(exc),)
+        reason, labels = describe_error(exc)
+        failure = BatchFailure(album_dir, reason, exc)
     else:
         if on_end:
             on_end(name, success=True, error_labels=())

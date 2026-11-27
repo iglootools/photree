@@ -7,6 +7,7 @@ import typer
 from photree.albums.batchcli.failures import announce_albums, exit_with_failures
 from photree.albums.batchcli.resolution import make_display_fn
 from photree.albums.cmd_handler.refresh import batch_refresh
+from photree.albums.output.refresh import describe_refresh_error
 from photree.clihelpers.progress import BatchProgressBar
 from photree.clihelpers.runtime import Runtime
 from photree.common.formatting import format_dry_run, format_flags
@@ -53,6 +54,7 @@ def run_batch_refresh(
             display_fn=make_display_fn(display_base, cwd),
             which=runtime.which,
             max_workers=runtime.cpu_count(),
+            describe_error=describe_refresh_error,
             on_start=progress.on_start,
             on_end=progress.on_end,
         )
