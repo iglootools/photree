@@ -15,7 +15,12 @@ from photree.common.sysdeps import WhichFn
 from photree.foundation.linking import LinkMode
 from photree.gallery import importer as gallery_importer
 from photree.gallery.import_plan import AlbumPlan, ImportAction
-from photree.gallery.importer import AlbumImportResult, FaceFailures, JpegFailures
+from photree.gallery.importer import (
+    AlbumImportResult,
+    FaceFailures,
+    ImportPipeline,
+    JpegFailures,
+)
 
 
 class UnexecutablePlanError(ValueError):
@@ -42,33 +47,30 @@ def _execute_plan(
     refresh: RefreshFn = refresh_album_derived_data,
 ) -> AlbumImportResult:
     """Dispatch a single plan to import or reimport."""
+    pipeline = ImportPipeline(
+        link_mode=link_mode,
+        max_workers=max_workers,
+        exiftool=exiftool,
+        analyzer_factory=analyzer_factory,
+        refresh=refresh,
+        on_stage_start=on_stage_start,
+        on_stage_end=on_stage_end,
+    )
     match plan.action, plan.existing:
         case ImportAction.REIMPORT, Path() as existing:
             return gallery_importer.reimport_album(
                 source_dir=plan.source,
                 gallery_dir=gallery_dir,
                 existing_dir=existing,
-                link_mode=link_mode,
+                pipeline=pipeline,
                 dry_run=dry_run,
-                on_stage_start=on_stage_start,
-                on_stage_end=on_stage_end,
-                max_workers=max_workers,
-                exiftool=exiftool,
-                analyzer_factory=analyzer_factory,
-                refresh=refresh,
             )
         case ImportAction.NEW, _:
             return gallery_importer.import_album(
                 source_dir=plan.source,
                 gallery_dir=gallery_dir,
-                link_mode=link_mode,
+                pipeline=pipeline,
                 dry_run=dry_run,
-                on_stage_start=on_stage_start,
-                on_stage_end=on_stage_end,
-                max_workers=max_workers,
-                exiftool=exiftool,
-                analyzer_factory=analyzer_factory,
-                refresh=refresh,
             )
         case action, existing:
             # SKIP plans are filtered out by the caller, and the planner

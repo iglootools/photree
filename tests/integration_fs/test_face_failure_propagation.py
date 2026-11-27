@@ -20,6 +20,7 @@ from photree.foundation.linking import LinkMode
 from photree.gallery.cmd_handler.importer import import_failure_of
 from photree.gallery.importer import (
     AlbumImportResult as GalleryImportResult,
+    ImportPipeline,
     import_album,
 )
 from photree.gallery.output import format_import_failure_labels
@@ -75,7 +76,9 @@ def test_gallery_import_exposes_face_failures(tmp_path: Path) -> None:
     result = import_album(
         source_dir=album,
         gallery_dir=gallery,
-        refresh=_refresh_with_face_failures,
+        pipeline=ImportPipeline(
+            refresh=_refresh_with_face_failures,
+        ),
     )
 
     assert result.face_failures == _FACE_FAILURES

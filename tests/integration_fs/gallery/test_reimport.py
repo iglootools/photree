@@ -7,6 +7,7 @@ from photree.album.refresh import AlbumRefreshResult
 from photree.album.store.media_metadata import load_media_metadata
 from photree.album.store.metadata import load_album_metadata
 from photree.gallery.importer import (
+    ImportPipeline,
     TargetExistsError,
     compute_target_dir,
     import_album,
@@ -45,7 +46,9 @@ def _first_import(tmp_path: Path) -> tuple[Path, Path, Path]:
     result = import_album(
         source_dir=source,
         gallery_dir=gallery,
-        convert_file=noop_convert_single,
+        pipeline=ImportPipeline(
+            convert_file=noop_convert_single,
+        ),
     )
     return gallery, source, result.target_dir
 
@@ -71,7 +74,9 @@ class TestReimportAlbum:
             source_dir=source,
             gallery_dir=gallery,
             existing_dir=target,
-            convert_file=noop_convert_single,
+            pipeline=ImportPipeline(
+                convert_file=noop_convert_single,
+            ),
         )
 
         meta = load_album_metadata(target)
@@ -90,7 +95,9 @@ class TestReimportAlbum:
             source_dir=source,
             gallery_dir=gallery,
             existing_dir=target,
-            convert_file=noop_convert_single,
+            pipeline=ImportPipeline(
+                convert_file=noop_convert_single,
+            ),
         )
         uuid_0001 = _uuid_for_key(target, "0001")
 
@@ -100,7 +107,9 @@ class TestReimportAlbum:
             source_dir=source,
             gallery_dir=gallery,
             existing_dir=target,
-            convert_file=noop_convert_single,
+            pipeline=ImportPipeline(
+                convert_file=noop_convert_single,
+            ),
         )
 
         assert _uuid_for_key(target, "0002") is None
@@ -117,7 +126,9 @@ class TestReimportAlbum:
             source_dir=source,
             gallery_dir=gallery,
             existing_dir=target,
-            convert_file=noop_convert_single,
+            pipeline=ImportPipeline(
+                convert_file=noop_convert_single,
+            ),
         )
 
         # Reimport mirrors the source, so the stale gallery-only file is gone.
@@ -134,8 +145,10 @@ class TestReimportAlbum:
                 source_dir=source,
                 gallery_dir=gallery,
                 existing_dir=target,
-                convert_file=noop_convert_single,
-                refresh=_failing_refresh,
+                pipeline=ImportPipeline(
+                    convert_file=noop_convert_single,
+                    refresh=_failing_refresh,
+                ),
             )
 
         meta = load_album_metadata(target)
@@ -154,7 +167,9 @@ class TestReimportAlbum:
             gallery_dir=gallery,
             existing_dir=target,
             dry_run=True,
-            convert_file=noop_convert_single,
+            pipeline=ImportPipeline(
+                convert_file=noop_convert_single,
+            ),
         )
 
         assert not (target / "ios-main/orig-img/IMG_0002.HEIC").exists()
@@ -172,7 +187,9 @@ class TestReimportAlbum:
             source_dir=renamed,
             gallery_dir=gallery,
             existing_dir=target,
-            convert_file=noop_convert_single,
+            pipeline=ImportPipeline(
+                convert_file=noop_convert_single,
+            ),
         )
 
         assert not target.exists()
@@ -194,7 +211,9 @@ class TestReimportAlbum:
                 source_dir=renamed,
                 gallery_dir=gallery,
                 existing_dir=target,
-                convert_file=noop_convert_single,
+                pipeline=ImportPipeline(
+                    convert_file=noop_convert_single,
+                ),
             )
 
         assert exc_info.value.target == occupied

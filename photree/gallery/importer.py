@@ -88,20 +88,27 @@ def _hidden_sibling(target_dir: Path, suffix: str) -> Path:
 
 
 @dataclass(frozen=True)
-class _Pipeline:
-    """Everything the copy → ID → refresh stages need besides the paths."""
+class ImportPipeline:
+    """
+    Everything the copy → ID → refresh stages need besides the paths.
 
-    link_mode: LinkMode
-    max_workers: int | None
-    convert_file: ConvertFile | None
-    exiftool: ExifTagReader | None
-    analyzer_factory: FaceAnalyzerFactory | None
-    refresh: RefreshFn
-    new_id: Callable[[], str]
-    on_stage_start: Callable[[str], None] | None
-    on_stage_end: Callable[[str], None] | None
+    One value shared by a first import and a reimport, so a new option or seam
+    is added in one place. The defaults are the real implementations; *refresh*
+    and *new_id* are seams tests replace.
+    """
+
+    link_mode: LinkMode = LinkMode.HARDLINK
+    max_workers: int | None = None
+    convert_file: ConvertFile | None = None
+    exiftool: ExifTagReader | None = None
+    analyzer_factory: FaceAnalyzerFactory | None = None
+    refresh: RefreshFn = refresh_album_derived_data
+    new_id: Callable[[], str] = generate_album_id
+    on_stage_start: Callable[[str], None] | None = None
+    on_stage_end: Callable[[str], None] | None = None
 
     def stage(self, name: str) -> _StageScope:
+        """Return a scope that notifies the start and successful end of *name*."""
         return _StageScope(self, name)
 
     def generate_id(self, work_dir: Path, *, dry_run: bool) -> bool:
@@ -188,7 +195,7 @@ def _import_result(
 class _StageScope:
     """Context manager notifying stage start and (successful) end."""
 
-    pipeline: _Pipeline
+    pipeline: ImportPipeline
     name: str
 
     def __enter__(self) -> None:
@@ -253,20 +260,15 @@ def swap_into_place(existing_dir: Path, staging: Path, target_dir: Path) -> None
     shutil.rmtree(backup)
 
 
+_DEFAULT_PIPELINE = ImportPipeline()
+
+
 def import_album(
     *,
     source_dir: Path,
     gallery_dir: Path,
-    link_mode: LinkMode = LinkMode.HARDLINK,
+    pipeline: ImportPipeline = _DEFAULT_PIPELINE,
     dry_run: bool = False,
-    on_stage_start: Callable[[str], None] | None = None,
-    on_stage_end: Callable[[str], None] | None = None,
-    convert_file: ConvertFile | None = None,
-    max_workers: int | None = None,
-    exiftool: ExifTagReader | None = None,
-    analyzer_factory: FaceAnalyzerFactory | None = None,
-    refresh: RefreshFn = refresh_album_derived_data,
-    new_id: Callable[[], str] = generate_album_id,
 ) -> AlbumImportResult:
     """
     Import an album directory into a gallery.
@@ -286,17 +288,6 @@ def import_album(
     target_dir = compute_target_dir(gallery_dir, source_dir.name)
     if target_dir.exists():
         raise TargetExistsError(target_dir)
-    pipeline = _Pipeline(
-        link_mode=link_mode,
-        max_workers=max_workers,
-        convert_file=convert_file,
-        exiftool=exiftool,
-        analyzer_factory=analyzer_factory,
-        refresh=refresh,
-        new_id=new_id,
-        on_stage_start=on_stage_start,
-        on_stage_end=on_stage_end,
-    )
     if dry_run:
         return pipeline.dry_run(source_dir, target_dir)
 
@@ -321,16 +312,8 @@ def reimport_album(
     source_dir: Path,
     gallery_dir: Path,
     existing_dir: Path,
-    link_mode: LinkMode = LinkMode.HARDLINK,
+    pipeline: ImportPipeline = _DEFAULT_PIPELINE,
     dry_run: bool = False,
-    on_stage_start: Callable[[str], None] | None = None,
-    on_stage_end: Callable[[str], None] | None = None,
-    convert_file: ConvertFile | None = None,
-    max_workers: int | None = None,
-    exiftool: ExifTagReader | None = None,
-    analyzer_factory: FaceAnalyzerFactory | None = None,
-    refresh: RefreshFn = refresh_album_derived_data,
-    new_id: Callable[[], str] = generate_album_id,
 ) -> AlbumImportResult:
     """
     Replace an already-imported album's media with the source's.
@@ -348,17 +331,6 @@ def reimport_album(
     target_dir = compute_target_dir(gallery_dir, source_dir.name)
     if target_dir != existing_dir and target_dir.exists():
         raise TargetExistsError(target_dir)
-    pipeline = _Pipeline(
-        link_mode=link_mode,
-        max_workers=max_workers,
-        convert_file=convert_file,
-        exiftool=exiftool,
-        analyzer_factory=analyzer_factory,
-        refresh=refresh,
-        new_id=new_id,
-        on_stage_start=on_stage_start,
-        on_stage_end=on_stage_end,
-    )
     if dry_run:
         # Nothing is generated on a reimport: the existing ID is preserved.
         return replace(pipeline.dry_run(source_dir, target_dir), id_generated=False)

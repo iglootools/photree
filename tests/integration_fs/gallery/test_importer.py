@@ -9,6 +9,7 @@ from photree.album.store.metadata import load_album_metadata, save_album_metadat
 from photree.album.store.protocol import AlbumMetadata
 from photree.dates import DatePrefixError
 from photree.gallery.importer import (
+    ImportPipeline,
     TargetExistsError,
     compute_target_dir,
     import_album,
@@ -64,7 +65,9 @@ class TestImportAlbum:
         result = import_album(
             source_dir=album,
             gallery_dir=gallery,
-            convert_file=noop_convert_single,
+            pipeline=ImportPipeline(
+                convert_file=noop_convert_single,
+            ),
         )
 
         assert result.album_name == "2024-07-14 - Hiking"
@@ -82,7 +85,9 @@ class TestImportAlbum:
         result = import_album(
             source_dir=album,
             gallery_dir=gallery,
-            convert_file=noop_convert_single,
+            pipeline=ImportPipeline(
+                convert_file=noop_convert_single,
+            ),
         )
 
         assert result.id_generated
@@ -100,7 +105,9 @@ class TestImportAlbum:
         result = import_album(
             source_dir=album,
             gallery_dir=gallery,
-            convert_file=noop_convert_single,
+            pipeline=ImportPipeline(
+                convert_file=noop_convert_single,
+            ),
         )
 
         assert not result.id_generated
@@ -121,7 +128,9 @@ class TestImportAlbum:
             import_album(
                 source_dir=album,
                 gallery_dir=gallery,
-                convert_file=noop_convert_single,
+                pipeline=ImportPipeline(
+                    convert_file=noop_convert_single,
+                ),
             )
         assert exc_info.value.target == target
 
@@ -134,7 +143,9 @@ class TestImportAlbum:
             source_dir=album,
             gallery_dir=gallery,
             dry_run=True,
-            convert_file=noop_convert_single,
+            pipeline=ImportPipeline(
+                convert_file=noop_convert_single,
+            ),
         )
 
         assert not result.target_dir.exists()
@@ -147,7 +158,9 @@ class TestImportAlbum:
         result = import_album(
             source_dir=album,
             gallery_dir=gallery,
-            convert_file=noop_convert_single,
+            pipeline=ImportPipeline(
+                convert_file=noop_convert_single,
+            ),
         )
 
         target = result.target_dir
@@ -164,7 +177,9 @@ class TestImportAlbum:
         result = import_album(
             source_dir=album,
             gallery_dir=gallery,
-            convert_file=copy_convert_single,
+            pipeline=ImportPipeline(
+                convert_file=copy_convert_single,
+            ),
         )
 
         # Unified pipeline rebuilds JPEGs when stale
@@ -179,9 +194,11 @@ class TestImportAlbum:
         import_album(
             source_dir=album,
             gallery_dir=gallery,
-            on_stage_start=lambda s: stages.append(("start", s)),
-            on_stage_end=lambda s: stages.append(("end", s)),
-            convert_file=noop_convert_single,
+            pipeline=ImportPipeline(
+                on_stage_start=lambda s: stages.append(("start", s)),
+                on_stage_end=lambda s: stages.append(("end", s)),
+                convert_file=noop_convert_single,
+            ),
         )
 
         stage_names = [name for _, name in stages]
@@ -205,8 +222,10 @@ class TestImportAlbum:
             import_album(
                 source_dir=album,
                 gallery_dir=gallery,
-                convert_file=noop_convert_single,
-                refresh=failing_refresh,
+                pipeline=ImportPipeline(
+                    convert_file=noop_convert_single,
+                    refresh=failing_refresh,
+                ),
             )
 
         year_dir = gallery / "albums" / "2024"
@@ -221,8 +240,10 @@ class TestImportAlbum:
         result = import_album(
             source_dir=album,
             gallery_dir=gallery,
-            convert_file=noop_convert_single,
-            new_id=lambda: fixed_id,
+            pipeline=ImportPipeline(
+                convert_file=noop_convert_single,
+                new_id=lambda: fixed_id,
+            ),
         )
 
         meta = load_album_metadata(result.target_dir)
