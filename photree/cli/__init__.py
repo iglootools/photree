@@ -15,6 +15,8 @@ from photree.clihelpers.config_errors import format_config_error
 from photree.clihelpers.console import err_console
 from photree.clihelpers.resolution import format_invalid_metadata
 from photree.clihelpers.runtime import Runtime
+from photree.common.fs import FileDeletionError
+from photree.common.fs_output import format_file_deletion_error
 from photree.common.sysdeps import MissingSystemDependencyError
 from photree.common.sysdeps_output import format_missing_troubleshoot
 from photree.config import ConfigError
@@ -63,6 +65,12 @@ def main(*, run: Callable[..., object] = app, runtime: Runtime | None = None) ->
     except ModelDownloadError as exc:
         # Raised where the face model first loads, as the checksum error is.
         err_console.print(format_model_download_error(exc), markup=False)
+        sys.exit(1)
+    except FileDeletionError as exc:
+        # A destructive command (fix, rm-media) stopped partway: say which
+        # files are already gone, since the run cannot be retried as if
+        # nothing happened.
+        err_console.print(format_file_deletion_error(exc, resolved.cwd()), markup=False)
         sys.exit(1)
     except ConfigError as exc:
         # Safety net for config reads not handled by the command: an invalid

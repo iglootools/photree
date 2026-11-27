@@ -8,9 +8,10 @@ import pytest
 from photree.album.id import format_album_external_id
 from photree.album.store.media_sources_discovery import MediaSourceConflictError
 from photree.cli import main
+from photree.common.fs import delete_files
 from photree.foundation.metadata_io import InvalidMetadataError
 from tests.fakes import invoke_cli
-from tests.testkit import add_ios_media_source, make_album
+from tests.testkit import add_ios_media_source, make_album, write_file
 
 
 def _write_csv(path: Path, rows: list[dict[str, str]]) -> None:
@@ -267,6 +268,29 @@ class TestAlbumsRenameFromCsv:
 
 
 class TestMain:
+    def test_reports_a_partial_deletion(
+        self,
+        tmp_path: Path,
+        chdir: Callable[[Path], None],
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """A deletion that stops partway says which files are already gone."""
+        jpg_dir = tmp_path / "album/main-jpg"
+        write_file(jpg_dir / "IMG_0001.jpg")
+
+        def _delete(**_: object) -> None:
+            delete_files(jpg_dir, ["IMG_0001.jpg", "IMG_0002.jpg"], dry_run=False)
+
+        chdir(tmp_path)
+
+        with pytest.raises(SystemExit) as exc_info:
+            main(run=_delete)
+
+        assert exc_info.value.code == 1
+        err = capsys.readouterr().err
+        assert "Could not delete IMG_0002.jpg from album/main-jpg" in err
+        assert "Already deleted from album/main-jpg before it failed:" in err
+
     def test_reports_media_source_conflict(
         self,
         tmp_path: Path,

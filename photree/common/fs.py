@@ -149,14 +149,58 @@ def move_files(
             shutil.move(str(src_dir / f), str(dst_dir / f))
 
 
+class FileDeletionError(OSError):
+    """
+    Deleting one of several files failed, after the files before it were deleted.
+
+    Carries the *directory*, the files already *deleted*, the one that
+    *failed*, and those never attempted (*remaining*), so the caller can report
+    the partial state. The original error is the ``__cause__``.
+    """
+
+    def __init__(
+        self,
+        directory: Path,
+        *,
+        deleted: tuple[str, ...],
+        failed: str,
+        remaining: tuple[str, ...],
+        reason: str,
+    ) -> None:
+        """Build the error from where the deletion stopped and why."""
+        self.directory = directory
+        self.deleted = deleted
+        self.failed = failed
+        self.remaining = remaining
+        self.reason = reason
+        super().__init__(
+            f"Could not delete {failed} from {directory} ({reason}) after deleting "
+            f"{len(deleted)} file(s) there: {', '.join(deleted) or 'none'}",
+        )
+
+
 def delete_files(
     directory: Path,
     filenames: list[str],
     *,
     dry_run: bool,
 ) -> int:
-    """Delete *filenames* from *directory*. Returns the number of files deleted."""
-    for f in filenames:
-        if not dry_run:
-            (directory / f).unlink()
+    """
+    Delete *filenames* from *directory*. Returns the number of files deleted.
+
+    Stops at the first file that cannot be deleted, raising
+    :class:`FileDeletionError` with the files already deleted.
+    """
+    if not dry_run:
+        for index, f in enumerate(filenames):
+            try:
+                (directory / f).unlink()
+            except OSError as exc:
+                raise FileDeletionError(
+                    directory,
+                    deleted=tuple(filenames[:index]),
+                    failed=f,
+                    remaining=tuple(filenames[index + 1 :]),
+                    reason=exc.strerror or str(exc),
+                ) from exc
     return len(filenames)

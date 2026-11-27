@@ -1,6 +1,14 @@
 from pathlib import Path
 
-from photree.common.fs import matching_subdirectories, partition_subdirectories
+import pytest
+
+from photree.common.fs import (
+    FileDeletionError,
+    delete_files,
+    matching_subdirectories,
+    partition_subdirectories,
+)
+from photree.common.fs_output import format_file_deletion_error
 
 
 def _mkdirs(base: Path, *names: str) -> None:
@@ -52,4 +60,46 @@ class TestMatchingSubdirectories:
 
         assert matching_subdirectories(tmp_path, lambda _p: True) == [
             tmp_path / "child",
+        ]
+
+
+class TestDeleteFiles:
+    def test_failure_reports_the_files_already_deleted(self, tmp_path: Path) -> None:
+        (tmp_path / "a.jpg").touch()
+        (tmp_path / "c.jpg").touch()
+
+        with pytest.raises(FileDeletionError) as exc_info:
+            delete_files(tmp_path, ["a.jpg", "b.jpg", "c.jpg"], dry_run=False)
+
+        assert exc_info.value.deleted == ("a.jpg",)
+        assert exc_info.value.failed == "b.jpg"
+        assert exc_info.value.remaining == ("c.jpg",)
+        assert not (tmp_path / "a.jpg").exists()
+        assert (tmp_path / "c.jpg").exists()
+
+    def test_dry_run_deletes_nothing(self, tmp_path: Path) -> None:
+        (tmp_path / "a.jpg").touch()
+
+        assert delete_files(tmp_path, ["a.jpg"], dry_run=True) == 1
+        assert (tmp_path / "a.jpg").exists()
+
+    def test_error_lists_deleted_and_kept_files_relative_to_cwd(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        exc = FileDeletionError(
+            tmp_path / "album/main-jpg",
+            deleted=("a.jpg",),
+            failed="b.jpg",
+            remaining=("c.jpg",),
+            reason="Permission denied",
+        )
+
+        assert format_file_deletion_error(exc, tmp_path).splitlines() == [
+            "Could not delete b.jpg from album/main-jpg: Permission denied.",
+            "Already deleted from album/main-jpg before it failed:",
+            "  a.jpg",
+            "Not deleted (still in album/main-jpg):",
+            "  b.jpg",
+            "  c.jpg",
         ]
