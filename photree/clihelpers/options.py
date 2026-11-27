@@ -133,7 +133,7 @@ RM_UPSTREAM_OPTION = Annotated[
         "--rm-upstream",
         help=(
             "Propagate deletions from browsing dirs "
-            "(main-jpg, main-vid) to upstream dirs."
+            "(main-img, main-jpg, main-vid) to upstream dirs."
         ),
     ),
 ]

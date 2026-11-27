@@ -173,7 +173,7 @@ $ photree album fix [OPTIONS]
 * `-a, --album-dir <directory>`: Album directory to fix.  [default: .]
 * `--id`: Generate missing album ID (.photree/album.yaml).
 * `--new-id`: Regenerate album ID (replaces existing ID).
-* `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
+* `--rm-upstream`: Propagate deletions from browsing dirs (main-img, main-jpg, main-vid) to upstream dirs.
 * `--rm-orphan`: Delete edited and main files that have no corresponding orig file.
 * `--force`: With --rm-upstream: also trust an empty {name}-jpg/ as a deletion signal, and allow deleting every item of an archive.
 * `-n, --dry-run`: Print what would happen without modifying files.
@@ -561,7 +561,7 @@ $ photree albums fix [OPTIONS]
 * `-a, --album-dir <directory>`: Album directory (repeatable).
 * `--id`: Generate missing album IDs (.photree/album.yaml).
 * `--new-id`: Regenerate the IDs of the albums named with --album-dir (replaces existing IDs). Refused on a --dir scan.
-* `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
+* `--rm-upstream`: Propagate deletions from browsing dirs (main-img, main-jpg, main-vid) to upstream dirs.
 * `--rm-orphan`: Delete edited and main files that have no corresponding orig file.
 * `--force`: With --rm-upstream: also trust an empty {name}-jpg/ as a deletion signal, and allow deleting every item of an archive.
 * `-n, --dry-run`: Print what would happen without modifying files.
@@ -1150,7 +1150,7 @@ $ photree gallery fix [OPTIONS]
 
 * `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--id`: Generate missing album IDs (.photree/album.yaml).
-* `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
+* `--rm-upstream`: Propagate deletions from browsing dirs (main-img, main-jpg, main-vid) to upstream dirs.
 * `--rm-orphan`: Delete edited and main files that have no corresponding orig file.
 * `--force`: With --rm-upstream: also trust an empty {name}-jpg/ as a deletion signal, and allow deleting every item of an archive.
 * `-n, --dry-run`: Print what would happen without modifying files.
