@@ -78,3 +78,31 @@ class TestAlbumRefresh:
         assert "photree album detect-faces --album-dir" in result.output
         # The other steps still ran
         assert load_media_metadata(album) is not None
+
+
+class TestAlbumRefreshOfANonAlbum:
+    def test_directory_without_album_or_media_source_is_refused(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        not_album = tmp_path / "gallery root"
+        write_file(not_album / "notes.txt")
+
+        result = invoke_cli(["album", "refresh", "-a", str(not_album)])
+
+        assert result.exit_code == 1
+        assert "Not an album" in result.output
+        assert "photree album init --album-dir" in result.output
+        assert sorted(p.name for p in not_album.iterdir()) == ["notes.txt"]
+
+    def test_media_source_without_album_yaml_is_refreshed(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        album = tmp_path / "album"
+        write_file(album / "ios-main" / "orig-vid" / "IMG_0115.MOV")
+
+        result = invoke_cli(["album", "refresh", "-a", str(album)])
+
+        assert result.exit_code == 0, result.output
+        assert load_media_metadata(album) is not None

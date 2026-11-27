@@ -10,6 +10,8 @@ from photree.album.cli.app import app
 from photree.album.cli.media_source_conflict import exit_on_media_source_conflict
 from photree.album.faces.detect import memoized_face_analyzer_factory
 from photree.album.refresh import AlbumRefreshResult, refresh_album_derived_data
+from photree.album.store.album_discovery import has_media_sources
+from photree.album.store.metadata import album_metadata_path
 from photree.clihelpers.console import console, err_console
 from photree.clihelpers.options import DRY_RUN_OPTION
 from photree.clihelpers.progress import run_with_spinner
@@ -77,6 +79,7 @@ def refresh_cmd(
     runtime = runtime_of(ctx)
     cwd = runtime.cwd()
     which = runtime.which
+    _require_album(album_dir, cwd)
     require_system_deps(refresh_deps(), which=which)
 
     with exiftool_session(which=which) as exiftool, exit_on_media_source_conflict(cwd):
@@ -108,6 +111,27 @@ def refresh_cmd(
             markup=True,
         ),
     )
+
+
+def _require_album(album_dir: Path, cwd: Path) -> None:
+    """
+    Exit 1 unless *album_dir* has an ``album.yaml`` or a media source.
+
+    A refresh writes ``.photree/`` into the directory it is given, so run on
+    the wrong one (a gallery root, an empty directory) it would report
+    success having turned that directory into a broken album.
+    """
+    album_yaml = album_metadata_path(album_dir)
+    if not (album_yaml.is_file() or has_media_sources(album_dir)):
+        shown = display_path(album_dir, cwd)
+        err_console.print(
+            f"Not an album: {shown} has no {display_path(album_yaml, cwd)}"
+            " and no media source (ios-<name>/ or std-<name>/).\n"
+            f"Run 'photree album init --album-dir \"{shown}\"' to make it one,"
+            " or pass an album with --album-dir.",
+            markup=False,
+        )
+        raise typer.Exit(code=1)
 
 
 def _report_failures(result: AlbumRefreshResult, *, album_dir: Path) -> None:
