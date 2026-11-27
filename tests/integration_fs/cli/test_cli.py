@@ -173,6 +173,37 @@ class TestAlbumsRenameFromCsv:
         assert "has no location column(s)" in result.output
         assert (tmp_path / "2024-06-15 - Trip @ Paris").is_dir()
 
+    def test_csv_that_is_not_utf8_is_reported(self, tmp_path: Path) -> None:
+        _, aid = make_album(tmp_path, "2024-06-15 - Old")
+        csv_file = tmp_path / "rename.csv"
+        csv_file.write_text(
+            f"id,series,title,location\n{format_album_external_id(aid)},,Été,\n",
+            encoding="latin-1",
+        )
+        result = invoke_cli(
+            ["albums", "rename-from-csv", str(csv_file), "-d", str(tmp_path)],
+        )
+        assert result.exit_code == 1, result.output
+        assert isinstance(result.exception, SystemExit)
+        assert "rename.csv is not UTF-8 text" in result.output
+        assert (tmp_path / "2024-06-15 - Old").is_dir()
+
+    def test_malformed_csv_is_reported_with_its_line(self, tmp_path: Path) -> None:
+        _, aid = make_album(tmp_path, "2024-06-15 - Old")
+        csv_file = tmp_path / "rename.csv"
+        oversized = "x" * (csv.field_size_limit() + 1)
+        csv_file.write_text(
+            f"id,series,title,location\n{format_album_external_id(aid)},,{oversized},\n",
+            encoding="utf-8",
+        )
+        result = invoke_cli(
+            ["albums", "rename-from-csv", str(csv_file), "-d", str(tmp_path)],
+        )
+        assert result.exit_code == 1, result.output
+        assert isinstance(result.exception, SystemExit)
+        assert "rename.csv, line 2: malformed CSV (field larger" in result.output
+        assert (tmp_path / "2024-06-15 - Old").is_dir()
+
     def test_duplicate_ids_suggest_new_ids_for_the_copy_only(
         self,
         tmp_path: Path,

@@ -69,6 +69,35 @@ class RenameCsvColumnsError(ValueError):
         super().__init__(f"Missing CSV column(s): {', '.join(missing)}")
 
 
+class RenameCsvFormatErrorKind(StrEnum):
+    """Why a rename CSV cannot be read as CSV at all."""
+
+    NOT_UTF8 = "not-utf8"
+    MALFORMED = "malformed"
+
+
+class RenameCsvFormatError(ValueError):
+    """
+    A rename CSV is not UTF-8 text, or the CSV parser rejects it.
+
+    *line* is the line the parser stopped at (``None`` when the file is not
+    UTF-8), and *reason* the parser's own explanation of a malformed file.
+    """
+
+    def __init__(
+        self,
+        kind: RenameCsvFormatErrorKind,
+        *,
+        line: int | None = None,
+        reason: str = "",
+    ) -> None:
+        """Build the error from its *kind*, and where and why parsing stopped."""
+        self.kind = kind
+        self.line = line
+        self.reason = reason
+        super().__init__(f"Unreadable rename CSV: {kind}")
+
+
 def validate_rename_csv_columns(fieldnames: Sequence[str] | None) -> None:
     """
     Check that a CSV header has every column a rename needs.

@@ -10,6 +10,8 @@ from photree.albums.renamer import (
     RENAME_CSV_COLUMNS,
     RenameCollisionError,
     RenameCsvColumnsError,
+    RenameCsvFormatError,
+    RenameCsvFormatErrorKind,
     RenameFailure,
     RenamePhase,
     RenamePlanError,
@@ -76,6 +78,23 @@ def format_rename_csv_columns_error(
     )
 
 
+def format_rename_csv_format_error(
+    error: RenameCsvFormatError,
+    csv_file: Path,
+    cwd: Path,
+) -> str:
+    """Describe a rename CSV that cannot be read as CSV, and the fix."""
+    shown = display_path(csv_file, cwd)
+    match error.kind:
+        case RenameCsvFormatErrorKind.NOT_UTF8:
+            return f"{shown} is not UTF-8 text. Save it as CSV UTF-8 and re-run."
+        case RenameCsvFormatErrorKind.MALFORMED:
+            return (
+                f"{shown}, line {error.line}: malformed CSV ({error.reason})."
+                " Fix the file and re-run."
+            )
+
+
 def _print_plan(result: BatchRenameResult, cwd: Path) -> None:
     typer.echo(f"{result.row_count} row(s) in CSV, {len(result.actions)} change(s).\n")
     for action in result.actions:
@@ -95,6 +114,12 @@ def run_batch_rename_from_csv(
     """Shared implementation for gallery rename-from-csv / albums rename-from-csv."""
     try:
         result = batch_rename_from_csv(index, csv_file, dry_run=dry_run)
+    except RenameCsvFormatError as exc:
+        err_console.print(
+            format_rename_csv_format_error(exc, csv_file, cwd),
+            markup=False,
+        )
+        raise typer.Exit(code=1) from exc
     except RenameCsvColumnsError as exc:
         err_console.print(
             format_rename_csv_columns_error(exc, csv_file, cwd),
