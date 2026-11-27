@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any, Protocol, cast
 from photree.album.faces.model import (
     DownloadFn,
     ModelChecksumError,
+    ModelDownloadError,
     download_url,
     ensure_model,
     resolve_model_archive,
@@ -103,7 +104,9 @@ def create_face_analyzer(
     (``~/.insightface`` by default) and checked against its pinned sha256
     before insightface sees it (:func:`~photree.album.faces.model.ensure_model`);
     later calls load it from there (a few seconds). Raises
-    :class:`~photree.album.faces.model.ModelChecksumError` on a mismatch.
+    :class:`~photree.album.faces.model.ModelChecksumError` on a mismatch, and
+    :class:`~photree.album.faces.model.ModelDownloadError` when the download
+    fails or stalls.
     """
     model_root = root if root is not None else Path("~/.insightface").expanduser()
     ensure_model(model_root, resolve_model_archive(model_name), download=download)
@@ -145,21 +148,22 @@ def memoized_face_analyzer_factory(
     batch refresh shares one analyzer and a no-op refresh loads nothing.
 
     *create* builds the analyzer; tests pass a fake instead of loading the model.
-    A model archive that failed its checksum is not downloaded again for every
-    album of a batch: the factory raises the same error on each later call.
+    A model archive that failed its checksum or its download is not downloaded
+    again for every album of a batch: the factory raises the same error on each
+    later call.
     """
     cached: FaceAnalysis | None = None
-    checksum_error: ModelChecksumError | None = None
+    model_error: ModelChecksumError | ModelDownloadError | None = None
 
     def factory() -> FaceAnalysis:
-        nonlocal cached, checksum_error
-        if checksum_error is not None:
-            raise checksum_error
+        nonlocal cached, model_error
+        if model_error is not None:
+            raise model_error
         if cached is None:
             try:
                 cached = create(model_name)
-            except ModelChecksumError as exc:
-                checksum_error = exc
+            except (ModelChecksumError, ModelDownloadError) as exc:
+                model_error = exc
                 raise
         return cached
 

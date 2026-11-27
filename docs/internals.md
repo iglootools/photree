@@ -970,7 +970,9 @@ hash, so photree downloads the model archive itself the first time a face is
 to be detected. `photree/album/faces/model.py` pins its URL and sha256: the
 archive is checked before it is extracted into `~/.insightface/models/<name>/`
 and handed to insightface, and a mismatch stops the run with both hashes and
-installs nothing. A `.photree-sha256` file in the extracted directory records
+installs nothing. A download that cannot connect, gets an HTTP error, or
+receives nothing for 60 seconds stops the run the same way, naming the URL
+and the cause. A `.photree-sha256` file in the extracted directory records
 the hash it was verified as, so later runs skip the check; an archive
 insightface left in `~/.insightface/models/` is reused when its hash matches.
 Moving to a new archive means downloading it, reviewing it and pinning its
