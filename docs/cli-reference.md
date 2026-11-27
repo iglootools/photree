@@ -642,6 +642,9 @@ $ photree albums import [OPTIONS]
 
 Initialize album metadata (.photree/album.yaml) for multiple albums.
 
+Albums that already have an ID are skipped and keep it, so re-running
+init over a directory initializes only the albums added since.
+
 **Usage**:
 
 ```console

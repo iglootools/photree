@@ -19,29 +19,29 @@ from tests.fakes import invoke_cli
 from tests.testkit import write_file
 
 
-def _album(base: Path, name: str) -> Path:
+def _corrupt_album(base: Path, name: str) -> Path:
     album = base / name
     write_file(album / "ios-main" / "orig-img" / "IMG_0001.HEIC")
-    save_album_metadata(album, AlbumMetadata(id=generate_album_id()))
+    write_file(album / PHOTREE_DIR / ALBUM_YAML, "id: [not, an, id")
     return album
 
 
 class TestBatchInit:
-    def test_reason_is_printed_for_an_already_initialized_album(
+    def test_reason_is_printed_for_an_unreadable_album_yaml(
         self,
         tmp_path: Path,
     ) -> None:
-        _album(tmp_path, "2024-07-14 - Hiking")
+        _corrupt_album(tmp_path, "2024-07-14 - Hiking")
 
         result = invoke_cli(["albums", "init", "-d", str(tmp_path)])
 
         assert result.exit_code == 1
         assert "Failed albums:" in result.output
-        assert "already initialized" in result.output
+        assert ALBUM_YAML in result.output
         assert "To investigate failures:" in result.output
 
     def test_retry_command_stays_a_dry_run(self, tmp_path: Path) -> None:
-        _album(tmp_path, "2024-07-14 - Hiking")
+        _corrupt_album(tmp_path, "2024-07-14 - Hiking")
 
         result = invoke_cli(["albums", "init", "-d", str(tmp_path), "--dry-run"])
 
@@ -50,8 +50,8 @@ class TestBatchInit:
         assert '2024-07-14 - Hiking" --dry-run' in result.output
 
     def test_one_command_retries_every_failed_album(self, tmp_path: Path) -> None:
-        _album(tmp_path, "2024-07-14 - Hiking")
-        _album(tmp_path, "2024-07-15 - Beach")
+        _corrupt_album(tmp_path, "2024-07-14 - Hiking")
+        _corrupt_album(tmp_path, "2024-07-15 - Beach")
 
         result = invoke_cli(["albums", "init", "-d", str(tmp_path), "--dry-run"])
 
@@ -136,13 +136,16 @@ class TestHandlerFailureReasons:
     albums/test_batch_fix_ios.py.
     """
 
-    def test_init_failure_reason_names_the_existing_id(self, tmp_path: Path) -> None:
-        album = _album(tmp_path, "2024-07-14 - Hiking")
+    def test_init_failure_reason_names_the_unreadable_metadata(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        album = _corrupt_album(tmp_path, "2024-07-14 - Hiking")
 
         result = batch_init([album])
 
         assert [f.album_dir for f in result.failures] == [album]
-        assert result.failures[0].reason.startswith("already initialized: ")
+        assert ALBUM_YAML in result.failures[0].reason
 
     def test_fix_failure_reason_names_the_unreadable_metadata(
         self,

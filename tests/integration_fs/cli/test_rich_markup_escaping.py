@@ -102,7 +102,8 @@ class TestAlbumsBatchFailures:
         tmp_path: Path,
         chdir: Callable[[Path], None],
     ) -> None:
-        make_album(tmp_path, PRIVATE_ALBUM)
+        album, _ = make_album(tmp_path, PRIVATE_ALBUM)
+        write_file(album / ".photree" / "album.yaml", "id: [not, an, id")
         chdir(tmp_path)
 
         result = invoke_cli(["albums", "init", "-d", str(tmp_path)])

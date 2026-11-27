@@ -73,7 +73,10 @@ class TestAlbumsInit:
         assert load_album_metadata(a1) is not None
         assert load_album_metadata(a2) is not None
 
-    def test_fails_if_any_already_initialized(self, tmp_path: Path) -> None:
+    def test_already_initialized_album_is_skipped_not_failed(
+        self,
+        tmp_path: Path,
+    ) -> None:
         a1 = tmp_path / "2024-07-14 - Trip A"
         a2 = tmp_path / "2024-07-15 - Trip B"
         add_ios_media_source(a1)
@@ -81,8 +84,12 @@ class TestAlbumsInit:
         mark_album(a1)
 
         result = invoke_cli(["albums", "init", "-d", str(tmp_path)])
-        assert result.exit_code == 1
-        assert "already initialized" in result.output
+        assert result.exit_code == 0, result.output
+        assert "2024-07-14 - Trip A (already initialized: album_" in result.output
+        assert (
+            "1 album(s) initialized, 1 already initialized (skipped), 0 failed."
+        ) in result.output
+        assert load_album_metadata(a2) is not None
 
     def test_does_not_overwrite_existing_ids(self, tmp_path: Path) -> None:
         a1 = tmp_path / "2024-07-14 - Trip A"
