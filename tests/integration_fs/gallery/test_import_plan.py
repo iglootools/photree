@@ -6,6 +6,7 @@ from photree.album.store.protocol import AlbumMetadata
 from photree.albums.index import AlbumIndex
 from photree.gallery.import_plan import (
     ClobberConflict,
+    GalleryDuplicate,
     ImportAction,
     InterruptedReimport,
     plan_imports,
@@ -148,6 +149,34 @@ class TestPlanImportsErrors:
             ),
         )
         assert not result.to_import
+
+    def test_id_shared_by_several_gallery_albums_is_an_error(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Regression: the reimport targeted whichever album the index kept."""
+        gallery = tmp_path / "gallery"
+        album_id = generate_album_id()
+        copies = (
+            gallery / "albums" / "2024" / "2024-07-14 - Hiking",
+            gallery / "albums" / "2024" / "2024-07-14 - Hiking copy",
+        )
+        index = AlbumIndex(
+            id_to_path={album_id: copies[0]},
+            duplicates={album_id: copies},
+        )
+        source = _make_source(
+            tmp_path / "src",
+            "2024-07-14 - Hiking",
+            album_id=album_id,
+        )
+
+        result = plan_imports([source], index, gallery, reimport=True)
+
+        assert result.gallery_duplicate_ids == (
+            GalleryDuplicate(source=source, album_id=album_id, paths=copies),
+        )
+        assert result.has_errors
 
     def test_collision_within_batch(self, tmp_path: Path) -> None:
         gallery = tmp_path / "gallery"

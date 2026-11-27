@@ -185,6 +185,30 @@ class TestClobberGuard:
         assert (occupant / "notes.txt").read_text(encoding="utf-8") == "keep me"
 
 
+class TestGalleryDuplicateIds:
+    def test_source_whose_id_several_gallery_albums_share_is_refused(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = make_gallery(tmp_path, faces_enabled=False)
+        album_id = generate_album_id()
+        _place_gallery_album(gallery, "2024-07-14 - Hiking", album_id=album_id)
+        _place_gallery_album(gallery, "2024-07-15 - Hiking copy", album_id=album_id)
+        source = _make_source(
+            tmp_path / "src",
+            "2024-07-14 - Hiking",
+            album_id=album_id,
+        )
+
+        result = invoke_cli(
+            ["gallery", "import", "-a", str(source), "-g", str(gallery), "--reimport"],
+        )
+
+        assert result.exit_code == 1
+        assert "is shared by several gallery albums" in result.output
+        assert "photree albums fix --new-id --album-dir" in result.output
+
+
 class TestInterruptedReimport:
     def test_hidden_album_aborts_with_the_name_to_restore(
         self,

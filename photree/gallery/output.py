@@ -18,6 +18,7 @@ from photree.gallery.cmd_handler.importer import AlbumImportFailure, BatchImport
 from photree.gallery.import_plan import (
     AlbumPlan,
     ClobberConflict,
+    GalleryDuplicate,
     GalleryImportPlan,
     InterruptedReimport,
     SourceDuplicate,
@@ -60,6 +61,24 @@ def _duplicate_id_block(dup: SourceDuplicate, cwd: Path) -> list[str]:
             "among source albums:"
         ),
         *(indent(_shown(p, cwd), 2) for p in dup.paths),
+    ]
+
+
+def _gallery_duplicate_block(dup: GalleryDuplicate, cwd: Path) -> list[str]:
+    album_dirs = " ".join(f'--album-dir "{_shown(p, cwd)}"' for p in dup.paths[1:])
+    return [
+        (
+            f"{CROSS} {_shown(dup.source, cwd)} — its album ID "
+            f"{format_album_external_id(dup.album_id)} is shared by several "
+            "gallery albums:"
+        ),
+        *(indent(_shown(p, cwd), 2) for p in dup.paths),
+        indent(
+            f"Run 'photree albums fix --new-id {album_dirs}' to give new IDs to "
+            "all but the first, or name the ones the source is not, then import "
+            "again.",
+            2,
+        ),
     ]
 
 
@@ -127,6 +146,7 @@ def format_import_errors(plan: GalleryImportPlan, cwd: Path) -> str:
         *(_collision_block(d, names) for d, names in plan.date_collisions),
         *(_duplicate_id_block(dup, cwd) for dup in plan.source_duplicate_ids),
         *(_clobber_block(conflict, cwd) for conflict in plan.clobber_conflicts),
+        *(_gallery_duplicate_block(dup, cwd) for dup in plan.gallery_duplicate_ids),
         *(
             _interrupted_reimport_block(interrupted, cwd)
             for interrupted in plan.interrupted_reimports

@@ -68,6 +68,20 @@ class SourceDuplicate:
 
 
 @dataclass(frozen=True)
+class GalleryDuplicate:
+    """
+    A source album whose ID several gallery albums share.
+
+    Which of *paths* the source would replace cannot be told, so it is not
+    imported until the duplicates get distinct IDs.
+    """
+
+    source: Path
+    album_id: str
+    paths: tuple[Path, ...]
+
+
+@dataclass(frozen=True)
 class ClobberConflict:
     """
     A target name already taken by something other than the source's album.
@@ -107,6 +121,7 @@ class GalleryImportPlan:
     date_collisions: tuple[tuple[str, tuple[str, ...]], ...] = ()
     source_duplicate_ids: tuple[SourceDuplicate, ...] = ()
     clobber_conflicts: tuple[ClobberConflict, ...] = ()
+    gallery_duplicate_ids: tuple[GalleryDuplicate, ...] = ()
     interrupted_reimports: tuple[InterruptedReimport, ...] = ()
 
     @property
@@ -118,6 +133,7 @@ class GalleryImportPlan:
             or self.date_collisions
             or self.source_duplicate_ids
             or self.clobber_conflicts
+            or self.gallery_duplicate_ids
             or self.interrupted_reimports,
         )
 
@@ -273,9 +289,9 @@ def plan_imports(
     Plan the import of *albums* and collect all pre-import validation errors.
 
     The returned :class:`GalleryImportPlan` carries a per-album plan plus
-    any naming, structure, collision, duplicate-ID, clobber or
-    interrupted-reimport errors. The caller must abort (import nothing) when
-    ``has_errors`` is true.
+    any naming, structure, collision, duplicate-ID (in the batch or the
+    gallery), clobber or interrupted-reimport errors. The caller must abort
+    (import nothing) when ``has_errors`` is true.
     """
     metas = {a: load_album_metadata(a) for a in albums}
 
@@ -308,5 +324,10 @@ def plan_imports(
         date_collisions=date_collisions,
         source_duplicate_ids=source_duplicate_ids,
         clobber_conflicts=tuple(clobber_conflicts),
+        gallery_duplicate_ids=tuple(
+            GalleryDuplicate(a, meta.id, index.duplicates[meta.id])
+            for a, meta in metas.items()
+            if meta is not None and meta.id in index.duplicates
+        ),
         interrupted_reimports=_find_interrupted_reimports(gallery_dir, index),
     )

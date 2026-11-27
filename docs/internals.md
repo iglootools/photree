@@ -120,8 +120,9 @@ source album is validated: name (`check_album_naming`), cross-album date
 collisions across the batch **and** the existing gallery
 (`check_batch_date_collisions`), and the presence of at least one media
 source (`has_media_sources`). Duplicate IDs within the batch are also
-rejected. If any album fails, the command reports all problems and imports
-nothing.
+rejected, as is a source whose ID several gallery albums share: which of them
+it would replace cannot be told. If any album fails, the command reports all
+problems and imports nothing.
 
 **"Already imported" detection (hybrid).** Albums created by `album import`
 or `album init` already carry an ID in `.photree/album.yaml`, and gallery
