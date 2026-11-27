@@ -38,6 +38,7 @@ from photree.album.stats.testkit import ALBUM_STATS, ALBUMS_STATS
 from photree.albums.output import importer as batch_import_output
 from photree.clihelpers.console import console
 from photree.clihelpers.paths import expand_user_path
+from photree.clihelpers.runtime import runtime_of
 
 app = typer.Typer(
     name="demo",
@@ -339,6 +340,7 @@ def _commands_panel(result: SeedResult, album_name: str) -> Panel:
 
 @app.command("seed")
 def seed_cmd(
+    ctx: typer.Context,
     base_dir: Annotated[
         Path | None,
         typer.Option(
@@ -363,6 +365,10 @@ def seed_cmd(
         if base_dir is not None
         else Path(tempfile.mkdtemp(prefix="photree-demo-"))
     )
-    result = seed_demo(resolved_base, album_name=album_name)
+    result = seed_demo(
+        resolved_base,
+        album_name=album_name,
+        which=runtime_of(ctx).which,
+    )
     console.print(_summary_panel(result, album_name))
     console.print(_commands_panel(result, album_name))
