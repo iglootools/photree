@@ -48,6 +48,18 @@ def add_ios_media_source(album_dir: Path) -> None:
     (album_dir / "main-jpg").mkdir(parents=True, exist_ok=True)
 
 
+def add_emptied_std_media_source(album_dir: Path) -> None:
+    """
+    Give the album a std media source whose browsable directory is empty.
+
+    The archive keeps one video (``std-nelu/orig-vid/clip.mov``) while
+    ``nelu-vid/`` holds nothing, so ``fix --rm-upstream`` refuses to delete
+    the whole archive unless forced.
+    """
+    write_file(album_dir / "std-nelu" / "orig-vid" / "clip.mov")
+    (album_dir / "nelu-vid").mkdir(parents=True)
+
+
 def make_album(
     parent: Path,
     name: str,

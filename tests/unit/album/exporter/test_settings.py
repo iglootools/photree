@@ -189,3 +189,20 @@ class TestValidateExportSettings:
 
         assert info.value.kind == ExportSettingsErrorKind.MISSING_SENTINEL
         assert info.value.share_dir == Path("/nonexistent/share")
+
+    def test_existing_share_dir_without_sentinel_is_an_error(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        with pytest.raises(ExportSettingsError) as info:
+            validate_export_settings(
+                ResolvedExportSettings(
+                    share_dir=tmp_path,
+                    share_layout=ShareDirectoryLayout.FLAT,
+                    album_layout=AlbumShareLayout.BROWSABLE_JPG,
+                    link_mode=LinkMode.HARDLINK,
+                ),
+            )
+
+        assert info.value.kind == ExportSettingsErrorKind.MISSING_SENTINEL
+        assert info.value.share_dir == tmp_path

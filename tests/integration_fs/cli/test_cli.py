@@ -1,8 +1,13 @@
 import csv
 import io
+from collections.abc import Callable
 from pathlib import Path
 
+import pytest
+
 from photree.album.id import format_album_external_id
+from photree.album.store.media_sources_discovery import MediaSourceConflictError
+from photree.cli import main
 from photree.foundation.metadata_io import InvalidMetadataError
 from tests.fakes import invoke_cli
 from tests.testkit import add_ios_media_source, make_album
@@ -203,3 +208,28 @@ class TestAlbumsRenameFromCsv:
         assert result.exit_code == 1
         assert isinstance(result.exception, InvalidMetadataError)
         assert result.exception.path == album_dir / ".photree" / "album.yaml"
+
+
+class TestMain:
+    def test_reports_media_source_conflict(
+        self,
+        tmp_path: Path,
+        chdir: Callable[[Path], None],
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """A conflict no command wrapped ends in a message and exit 1."""
+        album = tmp_path / "2024-07-14 - Trip [private]"
+
+        def _raise(**_: object) -> None:
+            raise MediaSourceConflictError(album, ("main",))
+
+        chdir(tmp_path)
+
+        with pytest.raises(SystemExit) as exc_info:
+            main(run=_raise)
+
+        assert exc_info.value.code == 1
+        err = capsys.readouterr().err
+        assert "ios-<name>/ and std-<name>/" in err
+        # Relative, and "[private]" is not swallowed as Rich markup.
+        assert "2024-07-14 - Trip [private] has both" in err
