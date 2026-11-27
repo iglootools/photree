@@ -33,6 +33,19 @@ def _load_metadata(collection_dir: Path) -> CollectionMetadata:
     return metadata
 
 
+def _smart_collection(
+    gallery: Path,
+    name: str,
+    strategy: CollectionStrategy = CollectionStrategy.DATE_RANGE,
+) -> tuple[Path, str]:
+    return make_gallery_collection(
+        gallery,
+        name,
+        members=CollectionMembers.SMART,
+        strategy=strategy,
+    )
+
+
 class TestImplicitCollectionDetection:
     def test_creates_collection_from_album_series(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
@@ -350,6 +363,41 @@ class TestSmartCollectionRefresh:
         meta = load_collection_metadata(smart_dir)
         assert meta is not None
         assert sub_meta.id in meta.collections
+
+    def test_smart_never_lists_itself(self, tmp_path: Path) -> None:
+        gallery = make_gallery(tmp_path)
+        make_gallery_album(gallery, "2024-07-14 - Trip")
+        col_dir, cid = _smart_collection(gallery, "2024-07 - July")
+
+        refresh_collections(gallery)
+
+        assert cid not in _load_metadata(col_dir).collections
+
+    def test_public_smart_leaves_out_private_members(self, tmp_path: Path) -> None:
+        gallery = make_gallery(tmp_path)
+        _, public_aid = make_gallery_album(gallery, "2024-07-14 - Trip")
+        make_gallery_album(gallery, "2024-07-15 - Secret [private]")
+        _, public_cid = _smart_collection(gallery, "2024-07-14 - Day")
+        _smart_collection(gallery, "2024-07-15 - Night [private]")
+        col_dir, _ = _smart_collection(gallery, "2024-07 - July")
+
+        refresh_collections(gallery)
+
+        meta = _load_metadata(col_dir)
+        assert (meta.albums, meta.collections) == ([public_aid], [public_cid])
+
+    def test_private_smart_takes_only_private_members(self, tmp_path: Path) -> None:
+        gallery = make_gallery(tmp_path)
+        make_gallery_album(gallery, "2024-07-14 - Trip")
+        _, private_aid = make_gallery_album(gallery, "2024-07-15 - Secret [private]")
+        _smart_collection(gallery, "2024-07-14 - Day")
+        _, private_cid = _smart_collection(gallery, "2024-07-15 - Night [private]")
+        col_dir, _ = _smart_collection(gallery, "2024-07 - July [private]")
+
+        refresh_collections(gallery)
+
+        meta = _load_metadata(col_dir)
+        assert (meta.albums, meta.collections) == ([private_aid], [private_cid])
 
 
 class TestAlbumTitleSync:
