@@ -83,18 +83,32 @@ before any `mise run` whenever `uv.lock` or `pyproject.toml` has changed, or
 that is *dirty* rather than *stale*, e.g. after a manual `uv pip install`. Add
 or remove dependencies with `uv add` / `uv remove`.
 
-The `check-links` workflow runs a link checker against the documentation to
-catch broken links. It is scheduled to run weekly, but can also be triggered
-manually using `gh workflow run check-links.yml`.
-
 <!-- toc -->
 **On this page**
 
+- [Continuous Integration](#continuous-integration)
 - [Python version](#python-version)
 - [Release Process](#release-process)
 - [GitHub Config](#github-config)
 - [Renovate](#renovate)
 <!-- tocstop -->
+
+## Continuous Integration
+
+Each workflow in `.github/workflows/` runs a `ci-*` task or a shared workflow
+from `iglootools/common`. Every one but `renovate-mise-lock` can also be run by
+hand with `gh workflow run <file> --ref <branch>`.
+
+| Workflow | Runs on | What it runs |
+|---|---|---|
+| `preflight.yml` | every pull request, pushes to `main`, every tag | job `preflight`: `mise run ci-preflight` (every lint and test, after installing graphviz and exiftool); job `build`: `mise run ci-build` (build, then `build-verify`) |
+| `check-links.yml` | weekly, Monday 18:00 UTC | the shared link checker over the documentation; it files an issue with what it finds |
+| `uv-dependency-submission.yml` | pushes to `main` that change `uv.lock`, and weekly | submits `uv.lock` to GitHub's dependency graph, which does not parse it, so Dependabot alerts see the Python dependencies |
+| `renovate-mise-lock.yml` | pushes to `renovate/**` branches | regenerates `mise.lock` on a Renovate branch and pushes it |
+| `release.yml`, `publish.yml`, `publish-test.yml`, `demo.yml` | a release | see [Releasing and Publishing](releasing-and-publishing.md) |
+
+The `main` ruleset requires the `preflight` and `build` jobs to pass before a
+pull request merges ([GitHub Config](#github-config)).
 
 ## Python version
 
