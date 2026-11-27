@@ -15,14 +15,25 @@ from photree.album.importer.collision import (
 )
 from photree.album.staging import ios_import_dir, std_import_dir
 from photree.album.store.media_source import ios_media_source, std_media_source
+from photree.album.store.metadata import load_album_metadata
+from photree.foundation.layout import PHOTREE_DIR
 from tests.fakes import noop_convert
 from tests.testkit import write_file
 
 
-def _stage_std(album: Path, name: str) -> Path:
-    staged = album / std_import_dir(name) / "orig" / "photo.jpg"
+def _stage_std(album: Path, name: str, filename: str = "photo.jpg") -> Path:
+    staged = album / std_import_dir(name) / "orig" / filename
     write_file(staged)
     return staged
+
+
+def _run_std_import(tmp_path: Path, album: Path, *, dry_run: bool = False) -> None:
+    run_import(
+        album_dir=album,
+        image_capture_dir=tmp_path / "no-image-capture",
+        convert_file=noop_convert,
+        dry_run=dry_run,
+    )
 
 
 def _stage_ios(album: Path, name: str) -> None:
@@ -46,6 +57,28 @@ class TestValidateAlbumImport:
         validation = validate_album_import(album, ["IMG_0001.HEIC", "IMG_0001.AAE"])
 
         assert validation.errors == (TaskIssue(ms, ArchiveCollision(ms, ("0001",))),)
+
+
+class TestRunImportAlbumMetadata:
+    def test_second_import_keeps_the_album_id(self, tmp_path: Path) -> None:
+        album = tmp_path / "album"
+        _stage_std(album, "nelu", "a.jpg")
+        _run_std_import(tmp_path, album)
+        first = load_album_metadata(album)
+
+        _stage_std(album, "nelu", "b.jpg")
+        _run_std_import(tmp_path, album)
+
+        assert first is not None
+        assert load_album_metadata(album) == first
+
+    def test_dry_run_writes_no_metadata(self, tmp_path: Path) -> None:
+        album = tmp_path / "album"
+        _stage_std(album, "nelu")
+
+        _run_std_import(tmp_path, album, dry_run=True)
+
+        assert not (album / PHOTREE_DIR).exists()
 
 
 class TestMediaSourceClash:
