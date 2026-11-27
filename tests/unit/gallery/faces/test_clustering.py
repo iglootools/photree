@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import numpy as np
+import pytest
 
 from photree.gallery.faces.clustering import (
     assign_to_nearest_cluster,
@@ -180,6 +181,66 @@ class TestAssignToNearestCluster:
         assert list(new_labels) == [0, 1, 2]
 
 
+def _normalized(vectors: np.ndarray) -> np.ndarray:
+    """L2-normalize each row of *vectors*, as float32."""
+    return (vectors / np.linalg.norm(vectors, axis=1, keepdims=True)).astype(
+        np.float32,
+    )
+
+
+def _normal_embeddings(n: int, *, seed: int) -> np.ndarray:
+    """Random L2-normalized embeddings spread over the whole sphere."""
+    return _normalized(np.random.default_rng(seed).normal(size=(n, 512)))
+
+
+def _reference_medoids(embeddings: np.ndarray, labels: np.ndarray) -> dict[int, int]:
+    """Each cluster's face closest to its normalized centroid, one mask per label."""
+    return {
+        int(label): int(indices[np.argmax(members @ (centroid / norm))])
+        for label in np.unique(labels)
+        for indices in [np.where(labels == label)[0]]
+        for members in [embeddings[indices]]
+        for centroid in [members.mean(axis=0)]
+        for norm in [np.linalg.norm(centroid) + 1e-10]
+    }
+
+
+def _reference_matching(
+    old: tuple[np.ndarray, np.ndarray, dict[int, str]],
+    new: tuple[np.ndarray, np.ndarray],
+    threshold: float,
+) -> dict[int, str]:
+    """
+    Match each new medoid, in label order, to the nearest unused old UUID.
+
+    Brute force over every pair, as the greedy matching is specified.
+    """
+    old_emb, old_labels, old_ids = old
+    new_emb, new_labels = new
+    old_medoids = _reference_medoids(old_emb, old_labels)
+    # Documented exception (docs/guidelines.md): loop-carried state, the UUIDs
+    # earlier new clusters already took.
+    matched: dict[int, str] = {}
+    for new_label, new_idx in sorted(_reference_medoids(new_emb, new_labels).items()):
+        similarities = {
+            old_label: float(old_emb[old_idx] @ new_emb[new_idx])
+            for old_label, old_idx in old_medoids.items()
+        }
+        uuid = next(
+            (
+                old_ids[old_label]
+                for old_label in sorted(similarities, key=lambda o: -similarities[o])
+                if old_label in old_ids
+                and 1.0 - similarities[old_label] <= threshold
+                and old_ids[old_label] not in matched.values()
+            ),
+            None,
+        )
+        if uuid is not None:
+            matched[new_label] = uuid
+    return matched
+
+
 class TestComputeMedoids:
     def test_medoid_is_closest_to_centroid(self) -> None:
         emb, true_labels = _make_clustered_embeddings([5, 5], spread=0.02)
@@ -188,6 +249,12 @@ class TestComputeMedoids:
         assert set(medoids.keys()) == {0, 1}
         assert true_labels[medoids[0]] == 0
         assert true_labels[medoids[1]] == 1
+
+    def test_medoids_match_one_mask_per_label(self) -> None:
+        emb = _normal_embeddings(400, seed=1)
+        labels = np.random.default_rng(2).integers(0, 90, size=400).astype(np.int32)
+
+        assert compute_medoids(emb, labels) == _reference_medoids(emb, labels)
 
 
 class TestMatchClustersByMedoid:
@@ -248,3 +315,59 @@ class TestMatchClustersByMedoid:
         )
 
         assert matched == {0: "uuid-a", 1: "uuid-b"}
+
+    @pytest.mark.parametrize("threshold", [0.45, 0.9, 2.0])
+    def test_matches_the_greedy_nearest_unused_uuid_of_every_new_cluster(
+        self,
+        threshold: float,
+    ) -> None:
+        old_emb = _normal_embeddings(600, seed=3)
+        old_labels = np.random.default_rng(4).integers(0, 120, 600).astype(np.int32)
+        # Some old clusters have no UUID, and the new faces are the old ones moved
+        # a little and regrouped, so new clusters compete for the same old UUIDs.
+        old_ids = {label: f"uuid-{label}" for label in range(120) if label % 7 != 0}
+        noisy = old_emb + np.random.default_rng(5).normal(0, 0.03, old_emb.shape)
+        new_emb = _normalized(noisy)
+        new_labels = (old_labels * 3 // 4).astype(np.int32)
+
+        matched = match_clusters_by_medoid(
+            old_emb,
+            old_labels,
+            old_ids,
+            new_emb,
+            new_labels,
+            threshold=threshold,
+        )
+
+        assert matched == _reference_matching(
+            (old_emb, old_labels, old_ids),
+            (new_emb, new_labels),
+            threshold,
+        )
+        assert matched
+
+    def test_new_clusters_all_nearest_the_same_old_ones_take_every_old_uuid(
+        self,
+    ) -> None:
+        """More new clusters compete for the same old UUIDs than one search lists."""
+        old_emb = _normal_embeddings(20, seed=6)
+        old_labels = np.arange(20, dtype=np.int32)
+        old_ids = {label: f"uuid-{label}" for label in range(20)}
+        noisy = old_emb[0] + np.random.default_rng(7).normal(0, 0.01, (20, 512))
+        new_emb = _normalized(noisy)
+
+        matched = match_clusters_by_medoid(
+            old_emb,
+            old_labels,
+            old_ids,
+            new_emb,
+            old_labels,
+            threshold=2.0,
+        )
+
+        assert matched == _reference_matching(
+            (old_emb, old_labels, old_ids),
+            (new_emb, old_labels),
+            2.0,
+        )
+        assert sorted(matched.values()) == sorted(old_ids.values())
