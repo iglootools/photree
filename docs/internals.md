@@ -717,7 +717,10 @@ then dropped, so photos and videos compare on the same basis.
 `album fix-exif` writes all the files in one exiftool run, which carries on past
 a file it cannot write. The command then prints exiftool's diagnostics with the
 files concerned (for `--set-date`, exactly those that failed) and exits 1; the
-other files keep their new value. It writes each file in place
+other files keep their new value. exiftool reads the file paths from an argfile
+on stdin (`-@ -`), as absolute paths, so no number of files exceeds the OS
+argument limit and no file name is read as an option. It writes each file in
+place
 (`-overwrite_original_in_place`), keeping its inode, so the browsable copies
 hardlinked to an archive file see the new dates at once. The JPEGs in
 `{name}-jpg/` are converted copies: `album refresh --refresh-browsable`
