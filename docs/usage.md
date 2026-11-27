@@ -378,6 +378,12 @@ photree gallery export -p mega --dry-run
   (`2024-06/2024-06-15 - Summer Vacation/`); for date ranges, the start month is
   used
 
+Two albums of one export that would land in the same directory, such as
+`2023/Misc` and `2024/Misc` under the `flat` layout (names differing only in
+case count as the same), are both reported as failed and neither is exported:
+the second would otherwise delete the first's files as stale. Rename one of
+them.
+
 The share directory must contain a `.photree-share` sentinel file to prevent
 accidental exports.
 

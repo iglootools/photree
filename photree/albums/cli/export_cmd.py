@@ -95,7 +95,7 @@ def export_cmd(
         typer.echo("No albums found.")
         raise typer.Exit(code=0)
 
-    result = _export(albums, scan_dir, album_dirs, settings, dry_run=dry_run)
+    result = _export(albums, scan_dir, album_dirs, settings, cwd, dry_run=dry_run)
     typer.echo(
         batch_export_output.batch_export_summary(
             result.exported,
@@ -151,6 +151,7 @@ def _export(
     scan_dir: Path | None,
     album_dirs: list[Path] | None,
     settings: ResolvedExportSettings,
+    cwd: Path,
     *,
     dry_run: bool,
 ) -> BatchExportResult:
@@ -169,9 +170,11 @@ def _export(
             dry_run=dry_run,
             on_exporting=progress.on_start,
             on_exported=lambda name: progress.on_end(name, success=True),
-            on_error=lambda name, error: progress.on_end(
+            on_error=lambda name, failure: progress.on_end(
                 name,
                 success=False,
-                error_labels=(error,),
+                error_labels=(
+                    batch_export_output.format_export_failure_reason(failure, cwd),
+                ),
             ),
         )

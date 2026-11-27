@@ -2,7 +2,9 @@ from pathlib import Path
 
 from photree.album.store.media_source import MAIN_MEDIA_SOURCE
 from photree.albums.cmd_handler.exporter import (
+    ExportFailure,
     find_export_dirs,
+    find_target_collisions,
     run_batch_export,
 )
 from photree.foundation.linking import LinkMode
@@ -149,7 +151,7 @@ class TestBatchExport:
         share_dir = tmp_path / "share"
         share_dir.mkdir()
 
-        errors: list[tuple[str, str]] = []
+        errors: list[tuple[str, ExportFailure]] = []
 
         result = run_batch_export(
             album_dirs=[album],
@@ -164,8 +166,9 @@ class TestBatchExport:
         assert len(result.failed) == 1
         assert (
             'album name "no-date-album" does not start with a YYYY date'
-            in (result.failed[0][1])
+            in result.failed[0].reason
         )
+        assert errors == [("no-date-album", result.failed[0])]
 
     def test_by_month_archive_layout(self, tmp_path: Path) -> None:
         album = _setup_ios_album(tmp_path / "2024-06-15 - Vacation")
@@ -205,3 +208,74 @@ class TestBatchExportDryRun:
         assert result.exported == 1
         assert [f.album_dir.name for f in result.failed] == ["Undated"]
         assert list(share_dir.iterdir()) == []
+
+
+class TestBatchExportTargetCollisions:
+    def test_albums_sharing_a_target_are_not_exported(self, tmp_path: Path) -> None:
+        misc_2023 = _setup_ios_album(tmp_path / "2023" / "Misc")
+        misc_2024 = _setup_ios_album(tmp_path / "2024" / "Misc")
+        trip = _setup_ios_album(tmp_path / "2024" / "2024-07-14 - Trip")
+        share_dir = tmp_path / "share"
+        share_dir.mkdir()
+        errors: list[str] = []
+
+        result = run_batch_export(
+            album_dirs=[misc_2023, misc_2024, trip],
+            share_dir=share_dir,
+            on_error=lambda name, _failure: errors.append(name),
+        )
+
+        assert result.exported == 1
+        assert result.failed == (
+            ExportFailure(
+                misc_2023,
+                target_dir=share_dir / "Misc",
+                colliding_albums=(misc_2024,),
+            ),
+            ExportFailure(
+                misc_2024,
+                target_dir=share_dir / "Misc",
+                colliding_albums=(misc_2023,),
+            ),
+        )
+        assert errors == ["Misc", "Misc"]
+        assert not (share_dir / "Misc").exists()
+        assert (share_dir / "2024-07-14 - Trip").is_dir()
+
+
+class TestFindTargetCollisions:
+    def test_names_differing_only_in_case_collide(self, tmp_path: Path) -> None:
+        upper, lower = tmp_path / "a" / "Misc", tmp_path / "b" / "misc"
+
+        collisions = find_target_collisions(
+            [upper, lower],
+            tmp_path / "share",
+            ShareDirectoryLayout.FLAT,
+        )
+
+        assert collisions[upper].colliding_albums == (lower,)
+        assert collisions[lower].colliding_albums == (upper,)
+
+    def test_same_album_listed_twice_is_not_a_collision(self, tmp_path: Path) -> None:
+        album = tmp_path / "2024-07-14 - Trip"
+
+        assert (
+            find_target_collisions(
+                [album, album],
+                tmp_path / "share",
+                ShareDirectoryLayout.FLAT,
+            )
+            == {}
+        )
+
+    def test_unplaceable_name_is_left_to_its_export(self, tmp_path: Path) -> None:
+        albums = [tmp_path / "a" / "Undated", tmp_path / "b" / "Undated"]
+
+        assert (
+            find_target_collisions(
+                albums,
+                tmp_path / "share",
+                ShareDirectoryLayout.ALBUMS,
+            )
+            == {}
+        )

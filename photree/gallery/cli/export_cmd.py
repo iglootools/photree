@@ -186,10 +186,12 @@ def _export(
             dry_run=dry_run,
             on_exporting=progress.on_start,
             on_exported=lambda name: progress.on_end(name, success=True),
-            on_error=lambda name, error: progress.on_end(
+            on_error=lambda name, failure: progress.on_end(
                 name,
                 success=False,
-                error_labels=(error,),
+                error_labels=(
+                    _batch_export_output.format_export_failure_reason(failure, cwd),
+                ),
             ),
         )
 

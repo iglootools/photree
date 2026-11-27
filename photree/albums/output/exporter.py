@@ -20,6 +20,24 @@ def batch_export_summary(exported: int, failed: int, *, dry_run: bool = False) -
     )
 
 
+def format_export_failure_reason(failure: ExportFailure, cwd: Path) -> str:
+    """
+    Word why an album of a batch export failed (plain text).
+
+    An album refused because others export to the same directory names them
+    and the directory, relative to *cwd*.
+    """
+    match failure:
+        case ExportFailure(target_dir=Path() as target, colliding_albums=others):
+            shown = ", ".join(f'"{display_path(other, cwd)}"' for other in others)
+            return (
+                f"not exported: {shown} would export to the same directory,"
+                f" {display_path(target, cwd)}; rename one of them"
+            )
+        case _:
+            return failure.reason
+
+
 def format_batch_export_failures(failed: Sequence[ExportFailure], cwd: Path) -> str:
     """
     Plain text (print with ``markup=False``) listing each failed album and why.
@@ -30,16 +48,19 @@ def format_batch_export_failures(failed: Sequence[ExportFailure], cwd: Path) -> 
         [
             "\nFailed albums:",
             *(
-                indent(f"{display_path(album_dir, cwd)}\n{indent(error)}")
-                for album_dir, error in failed
+                indent(
+                    f"{display_path(failure.album_dir, cwd)}\n"
+                    f"{indent(format_export_failure_reason(failure, cwd))}",
+                )
+                for failure in failed
             ),
             "\nTo investigate failures:",
             *(
                 indent(
                     "photree album export --album-dir "
-                    f'"{display_path(album_dir, cwd)}"',
+                    f'"{display_path(failure.album_dir, cwd)}"',
                 )
-                for album_dir, _ in failed
+                for failure in failed
             ),
         ],
     )
