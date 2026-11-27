@@ -65,8 +65,8 @@ class TestBatchInit:
 
 class TestBatchRefresh:
     def test_jpeg_failure_reason_reaches_the_summary(self, tmp_path: Path) -> None:
-        # A .HEIC whose bytes are not HEIC: sips rejects it on macOS, and the
-        # is missing (FileNotFoundError) everywhere else.
+        # A .HEIC whose bytes are not HEIC: sips rejects it on macOS, and
+        # sips is missing (FileNotFoundError) everywhere else.
         album = tmp_path / "2024-07-14 - Hiking"
         write_file(album / "ios-main" / "orig-img" / "IMG_0001.HEIC", "not heic")
         save_album_metadata(album, AlbumMetadata(id=generate_album_id()))
