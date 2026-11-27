@@ -238,10 +238,18 @@ def _read_dir_entries(
 
 
 def _dedupe(entries: list[SelectionEntry]) -> tuple[SelectionEntry, ...]:
-    """Deduplicate by value, keeping the first occurrence in order."""
-    # Reversed so the dict keeps the *first* entry per value; the index then
+    """
+    Drop repeated entries, keeping the first occurrence in order.
+
+    Entries repeat only when both value and date hint match: the same media
+    filename with two hints names two items (iPhone numbers repeat across
+    albums), so both are kept and resolved separately.
+    """
+    # Reversed so the dict keeps the *first* entry per key; the index then
     # restores the original order.
-    first = {e.value: (i, e) for i, e in reversed(list(enumerate(entries)))}
+    first = {
+        (e.value, e.date_hint): (i, e) for i, e in reversed(list(enumerate(entries)))
+    }
     return tuple(e for _, e in sorted(first.values(), key=lambda pair: pair[0]))
 
 
@@ -253,9 +261,10 @@ def read_selection(
     """
     Read selection entries from ``to-import/`` and ``to-import.csv``.
 
-    Entries are deduplicated by value (first occurrence wins, dir entries
-    first). For ``to-import/`` media files, EXIF dates are read into
-    ``date_hint``. Unusable CSV rows are reported in ``errors``.
+    Entries with the same value and date hint are deduplicated (first
+    occurrence wins, dir entries first). For ``to-import/`` media files,
+    EXIF dates are read into ``date_hint``. Unusable CSV rows are reported
+    in ``errors``.
     """
     dir_entries = _read_dir_entries(collection_dir / SELECTION_DIR, exiftool=exiftool)
     csv_entries, csv_errors = _read_csv(collection_dir / SELECTION_CSV)

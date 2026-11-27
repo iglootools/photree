@@ -79,7 +79,10 @@ def format_resolution_error(error: ResolutionError) -> str:
             reason = (
                 f"duplicate: same item already referenced by '{error.duplicate_of}'"
             )
-    return f"[{error.entry}] {reason}"
+    dated = (
+        f" (date {error.date_hint.isoformat()})" if error.date_hint is not None else ""
+    )
+    return f"[{error.entry}]{dated} {reason}"
 
 
 def format_resolution_warning(warning: ResolutionWarning) -> str:

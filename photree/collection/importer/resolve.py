@@ -77,11 +77,13 @@ class ResolutionError:
     Fields beyond ``entry`` and ``kind`` are only meaningful for some kinds:
     ``match_count``/``unique_count``/``date_hint_missing`` for AMBIGUOUS,
     ``duplicate_of`` (the entry that already claimed the item) for DUPLICATE.
-    The human message is rendered by :mod:`.output`.
+    ``date_hint`` is the entry's own, which tells apart two entries with the
+    same value. The human message is rendered by :mod:`.output`.
     """
 
     entry: str
     kind: ResolutionErrorKind
+    date_hint: datetime | None = None
     match_count: int = 0
     unique_count: int = 0
     date_hint_missing: bool = False
@@ -539,13 +541,18 @@ def _resolve_entry(
     )
     match candidates:
         case []:
-            return ResolutionError(entry.value, ResolutionErrorKind.NOT_FOUND)
+            return ResolutionError(
+                entry.value,
+                ResolutionErrorKind.NOT_FOUND,
+                date_hint=entry.date_hint,
+            )
         case [single]:
             return single
         case _:
             return ResolutionError(
                 entry.value,
                 ResolutionErrorKind.AMBIGUOUS,
+                date_hint=entry.date_hint,
                 match_count=len(candidates),
                 unique_count=len({m.internal_id for m in candidates}),
                 date_hint_missing=entry.date_hint is None and is_media,
@@ -572,6 +579,7 @@ def _flag_duplicates(
         ResolutionError(
             entries[i].value,
             ResolutionErrorKind.DUPLICATE,
+            date_hint=entries[i].date_hint,
             duplicate_of=entries[first_index[o.internal_id]].value,
         )
         if isinstance(o, _Match) and first_index[o.internal_id] != i

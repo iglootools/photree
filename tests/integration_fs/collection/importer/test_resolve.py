@@ -366,6 +366,43 @@ class TestResolveErrors:
         assert not result.success
         assert result.errors[0].kind == ResolutionErrorKind.AMBIGUOUS
 
+    def test_same_filename_with_two_date_hints_resolves_both(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = make_gallery(tmp_path)
+        img_ids = [
+            _setup_album_with_media(gallery, name)[2]
+            for name in ("2019-03-01 - Old Trip", "2024-08-10 - New Trip")
+        ]
+
+        result = resolve_entries(
+            (
+                _entry("IMG_0001.HEIC", date_hint=datetime(2019, 3, 1)),
+                _entry("IMG_0001.HEIC", date_hint=datetime(2024, 8, 10)),
+            ),
+            scan_gallery(gallery),
+        )
+
+        assert result.success
+        assert result.members.images == tuple(img_ids)
+
+    def test_errors_carry_the_date_hint_of_their_entry(self, tmp_path: Path) -> None:
+        gallery = make_gallery(tmp_path)
+        _setup_album_with_media(gallery, "2019-03-01 - Old Trip")
+
+        result = resolve_entries(
+            (
+                _entry("IMG_0001.HEIC", date_hint=datetime(2019, 3, 1)),
+                _entry("IMG_0009.HEIC", date_hint=datetime(2024, 8, 10)),
+            ),
+            scan_gallery(gallery),
+        )
+
+        assert [(e.entry, e.kind, e.date_hint) for e in result.errors] == [
+            ("IMG_0009.HEIC", ResolutionErrorKind.NOT_FOUND, datetime(2024, 8, 10)),
+        ]
+
     def test_duplicate_entry(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
         _, album_id = make_gallery_album(gallery, "2024-07-14 - Trip")

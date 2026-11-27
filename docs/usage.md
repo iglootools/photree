@@ -280,7 +280,8 @@ photree collection init -c "2024 - Best of 2024" --members smart --strategy date
 
 ```bash
 # Create a to-import.csv (UTF-8, header row "entry,date") with album names,
-# IDs, or media filenames; the optional date disambiguates a media filename
+# IDs, or media filenames; the optional date disambiguates a media filename,
+# so the same filename may appear on two rows with different dates
 echo "entry,date" > my-collection/to-import.csv
 echo "2024-07-14 - Hiking the Rockies," >> my-collection/to-import.csv
 echo "album_3K8vJxNm2cYpR7qWz5FhG," >> my-collection/to-import.csv
