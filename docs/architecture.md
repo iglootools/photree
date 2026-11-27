@@ -136,6 +136,12 @@ for how to change them.
   `collection/cli/stats_output.py` (for `albums stats`, `gallery stats` and
   `demo`). The entry point, `cli/`, sits above every group and may import
   any of them.
+- **Only `demo/cli/` imports the testkits.** The `testkit` modules
+  (`album/check/`, `album/faces/`, `album/importer/` and `album/stats/`) hold
+  the fake data the tests and `photree demo` use, and ship inside the packages
+  they fake; a protected contract keeps every other production module off
+  them. Tests sit outside the `photree` package, so the contract does not
+  restrict them.
 - **No heavy imports at startup.** The face ML stack is imported only inside
   the functions that use it. import-linter still sees function-level imports,
   so this is not a contract: `tests/unit/test_cli_startup_imports.py` checks

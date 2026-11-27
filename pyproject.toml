@@ -347,6 +347,15 @@ allowed_importers = [
   "photree.clihelpers",
 ]
 
+# The testkit modules hold fake albums, stats and validation errors for tests and
+# `photree demo`. They ship inside the packages they fake, so only this contract keeps
+# production code from depending on fake data.
+[[tool.importlinter.contracts]]
+name = "Only the demo commands import the testkits"
+type = "protected"
+protected_modules = ["photree.**.testkit"]
+allowed_importers = ["photree.demo.cli", "photree.**.testkit"]
+
 # Command groups do not import each other, directly or indirectly: they share the batch
 # layer, albums/batchcli, and the few album-level CLI pieces listed below. A new shared
 # piece is an architecture change: list it here and in architecture.md together.
