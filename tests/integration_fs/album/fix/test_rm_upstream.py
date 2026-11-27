@@ -30,16 +30,6 @@ from tests.testkit import file_names, write_files
 MC = MAIN_MEDIA_SOURCE
 
 
-def _files(directory: Path) -> set[Path]:
-    if not directory.is_dir():
-        return set()
-    return {f for f in directory.iterdir() if f.is_file()}
-
-
-def _names(directory: Path) -> set[str]:
-    return {f.name for f in _files(directory)}
-
-
 STD = std_media_source("nelu")
 
 
@@ -81,9 +71,9 @@ class TestRmUpstreamHeic:
         assert result.heic.removed_browsable == ("IMG_E0410.HEIC",)
         assert set(result.heic.removed_rendered) == {"IMG_E0410.HEIC", "IMG_O0410.AAE"}
         assert set(result.heic.removed_orig) == {"IMG_0410.HEIC", "IMG_0410.AAE"}
-        assert _names(tmp_path / "main-img") == set()
-        assert _names(tmp_path / "ios-main/edit-img") == set()
-        assert _names(tmp_path / "ios-main/orig-img") == set()
+        assert file_names(tmp_path / "main-img") == set()
+        assert file_names(tmp_path / "ios-main/edit-img") == set()
+        assert file_names(tmp_path / "ios-main/orig-img") == set()
 
     def test_keeps_files_with_jpeg_present(self, tmp_path: Path) -> None:
         write_files(
@@ -97,9 +87,9 @@ class TestRmUpstreamHeic:
         [result] = rm_upstream(tmp_path, [MC], dry_run=False, force=False)
 
         assert result.heic.removed_browsable == ("IMG_0002.HEIC",)
-        assert "IMG_0002.HEIC" not in _names(tmp_path / "ios-main/orig-img")
-        assert "IMG_0001.HEIC" in _names(tmp_path / "ios-main/orig-img")
-        assert "IMG_0001.AAE" in _names(tmp_path / "ios-main/orig-img")
+        assert "IMG_0002.HEIC" not in file_names(tmp_path / "ios-main/orig-img")
+        assert "IMG_0001.HEIC" in file_names(tmp_path / "ios-main/orig-img")
+        assert "IMG_0001.AAE" in file_names(tmp_path / "ios-main/orig-img")
 
     def test_nothing_to_remove(self, tmp_path: Path) -> None:
         """No deletions when all jpegs are present."""
@@ -141,9 +131,9 @@ class TestRmUpstreamHeic:
         assert result.heic.removed_browsable == ()
         assert set(result.heic.removed_rendered) == {"IMG_E0001.HEIC", "IMG_O0001.AAE"}
         assert set(result.heic.removed_orig) == {"IMG_0001.HEIC", "IMG_0001.AAE"}
-        assert "IMG_0002.HEIC" in _names(tmp_path / "ios-main/orig-img")
-        assert "IMG_0002.HEIC" in _names(tmp_path / "main-img")
-        assert "IMG_0002.jpg" in _names(tmp_path / "main-jpg")
+        assert "IMG_0002.HEIC" in file_names(tmp_path / "ios-main/orig-img")
+        assert "IMG_0002.HEIC" in file_names(tmp_path / "main-img")
+        assert "IMG_0002.jpg" in file_names(tmp_path / "main-jpg")
 
     def test_both_jpeg_and_heic_deletions_merged(self, tmp_path: Path) -> None:
         write_files(
@@ -171,8 +161,8 @@ class TestRmUpstreamHeic:
         [result] = rm_upstream(tmp_path, [MC], dry_run=True, force=True)
 
         assert result.heic.removed_browsable == ("IMG_0001.HEIC",)
-        assert "IMG_0001.HEIC" in _names(tmp_path / "ios-main/orig-img")
-        assert "IMG_0001.HEIC" in _names(tmp_path / "main-img")
+        assert "IMG_0001.HEIC" in file_names(tmp_path / "ios-main/orig-img")
+        assert "IMG_0001.HEIC" in file_names(tmp_path / "main-img")
 
     def test_missing_dirs_are_safe(self, tmp_path: Path) -> None:
         """No crash when directories don't exist."""
@@ -192,8 +182,8 @@ class TestRmUpstreamMov:
 
         assert result.mov.removed_rendered == ("IMG_E0115.MOV",)
         assert result.mov.removed_orig == ("IMG_0115.MOV",)
-        assert _names(tmp_path / "ios-main/edit-vid") == set()
-        assert _names(tmp_path / "ios-main/orig-vid") == set()
+        assert file_names(tmp_path / "ios-main/edit-vid") == set()
+        assert file_names(tmp_path / "ios-main/orig-vid") == set()
 
     def test_keeps_files_with_browsable_vid_present(self, tmp_path: Path) -> None:
         write_files(tmp_path / "ios-main/orig-vid", ["IMG_0001.MOV", "IMG_0002.MOV"])
@@ -204,8 +194,8 @@ class TestRmUpstreamMov:
 
         # IMG_0002 was removed from main-vid → propagate
         assert result.mov.removed_orig == ("IMG_0002.MOV",)
-        assert "IMG_0001.MOV" in _names(tmp_path / "ios-main/orig-vid")
-        assert "IMG_E0001.MOV" in _names(tmp_path / "ios-main/edit-vid")
+        assert "IMG_0001.MOV" in file_names(tmp_path / "ios-main/orig-vid")
+        assert "IMG_E0001.MOV" in file_names(tmp_path / "ios-main/edit-vid")
 
     def test_nothing_to_remove(self, tmp_path: Path) -> None:
         write_files(tmp_path / "ios-main/orig-vid", ["IMG_0001.MOV"])
@@ -253,7 +243,10 @@ class TestRmUpstreamSignals:
         [result] = rm_upstream(tmp_path, [STD], dry_run=False, force=False)
 
         assert result.mov.removed_orig == ()
-        assert file_names(tmp_path / "std-nelu/orig-vid") == {"clip.mov", "other.mov"}
+        assert file_names(tmp_path / "std-nelu/orig-vid") == {
+            "clip.mov",
+            "other.mov",
+        }
         assert ("nelu-vid", SignalSkipReason.MISSING) in [
             (s.directory, s.reason) for s in result.skipped
         ]
@@ -313,7 +306,10 @@ class TestRmUpstreamAllKeysRefusal:
         assert exc_info.value.media_source == "nelu"
         assert exc_info.value.kind == MediaKind.VIDEOS
         assert exc_info.value.key_count == 2
-        assert file_names(tmp_path / "std-nelu/orig-vid") == {"clip.mov", "other.mov"}
+        assert file_names(tmp_path / "std-nelu/orig-vid") == {
+            "clip.mov",
+            "other.mov",
+        }
 
     def test_emptied_img_dir_is_refused(self, tmp_path: Path) -> None:
         write_files(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_0002.HEIC"])

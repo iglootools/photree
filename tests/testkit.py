@@ -6,6 +6,7 @@ from typing import TypedDict, Unpack
 
 from photree.album.browsable import mark_incomplete
 from photree.album.id import generate_album_id
+from photree.album.store.media_source import MAIN_MEDIA_SOURCE
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.collection.id import generate_collection_id
@@ -86,6 +87,37 @@ def add_incomplete_jpg_dir(album_dir: Path) -> None:
     write_file(album_dir / "main-img/IMG_0002.HEIC")
     write_file(album_dir / "main-jpg/IMG_0001.jpg")
     mark_incomplete(album_dir / "main-jpg")
+
+
+def add_consistent_ios_album(album: Path) -> None:
+    """
+    Give *album* a well-formed iOS media source, consistent across every directory.
+
+    Two images (a HEIC with its edit and AAE sidecars, a PNG) and a video,
+    with matching browsable and JPEG copies, so every check passes on it.
+    """
+    # ios/orig-img: IMG_0001.HEIC + AAE, IMG_0002.PNG (no AAE for PNG)
+    write_file(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.HEIC", "heic-orig")
+    write_file(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.AAE", "aae-orig")
+    write_file(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0002.PNG", "png-orig")
+
+    write_file(
+        album / MAIN_MEDIA_SOURCE.edit_img_dir / "IMG_E0001.HEIC",
+        "heic-rendered",
+    )
+    write_file(album / MAIN_MEDIA_SOURCE.edit_img_dir / "IMG_O0001.AAE", "aae-rendered")
+
+    # main-img: rendered for 0001, orig PNG for 0002
+    write_file(album / MAIN_MEDIA_SOURCE.img_dir / "IMG_E0001.HEIC", "heic-rendered")
+    write_file(album / MAIN_MEDIA_SOURCE.img_dir / "IMG_0002.PNG", "png-orig")
+
+    write_file(album / MAIN_MEDIA_SOURCE.orig_vid_dir / "IMG_0003.MOV", "mov-orig")
+    write_file(album / MAIN_MEDIA_SOURCE.vid_dir / "IMG_0003.MOV", "mov-orig")
+
+    (album / MAIN_MEDIA_SOURCE.edit_vid_dir).mkdir(parents=True, exist_ok=True)
+
+    write_file(album / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_E0001.jpg", "jpeg-converted")
+    write_file(album / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_0002.PNG", "png-copied")
 
 
 def make_album(

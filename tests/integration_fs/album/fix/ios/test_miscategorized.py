@@ -14,16 +14,6 @@ from tests.testkit import file_names, write_files
 MC = MAIN_MEDIA_SOURCE
 
 
-def _files(directory: Path) -> set[Path]:
-    if not directory.is_dir():
-        return set()
-    return {f for f in directory.iterdir() if f.is_file()}
-
-
-def _names(directory: Path) -> set[str]:
-    return {f.name for f in _files(directory)}
-
-
 class TestRmMiscategorized:
     def test_removes_rendered_from_orig(self, tmp_path: Path) -> None:
         write_files(
@@ -40,10 +30,10 @@ class TestRmMiscategorized:
         )
 
         assert set(result.heic.fixed_from_orig) == {"IMG_E0001.HEIC", "IMG_O0001.AAE"}
-        assert "IMG_E0001.HEIC" not in _names(tmp_path / "ios-main/orig-img")
-        assert "IMG_O0001.AAE" not in _names(tmp_path / "ios-main/orig-img")
-        assert "IMG_0001.HEIC" in _names(tmp_path / "ios-main/orig-img")
-        assert "IMG_0001.AAE" in _names(tmp_path / "ios-main/orig-img")
+        assert "IMG_E0001.HEIC" not in file_names(tmp_path / "ios-main/orig-img")
+        assert "IMG_O0001.AAE" not in file_names(tmp_path / "ios-main/orig-img")
+        assert "IMG_0001.HEIC" in file_names(tmp_path / "ios-main/orig-img")
+        assert "IMG_0001.AAE" in file_names(tmp_path / "ios-main/orig-img")
 
     def test_removes_original_from_rendered(self, tmp_path: Path) -> None:
         write_files(tmp_path / "ios-main/orig-img", [])
@@ -57,8 +47,8 @@ class TestRmMiscategorized:
         )
 
         assert result.heic.fixed_from_rendered == ("IMG_0001.HEIC",)
-        assert "IMG_0001.HEIC" not in _names(tmp_path / "ios-main/edit-img")
-        assert "IMG_E0001.HEIC" in _names(tmp_path / "ios-main/edit-img")
+        assert "IMG_0001.HEIC" not in file_names(tmp_path / "ios-main/edit-img")
+        assert "IMG_E0001.HEIC" in file_names(tmp_path / "ios-main/edit-img")
 
     def test_nothing_to_remove(self, tmp_path: Path) -> None:
         write_files(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC"])
@@ -98,7 +88,7 @@ class TestRmMiscategorized:
         )
 
         assert result.total == 1
-        assert "IMG_E0001.HEIC" in _names(tmp_path / "ios-main/orig-img")
+        assert "IMG_E0001.HEIC" in file_names(tmp_path / "ios-main/orig-img")
 
     def test_missing_dirs_are_safe(self, tmp_path: Path) -> None:
         [result] = fix_miscategorized(
@@ -124,8 +114,8 @@ class TestRmMiscategorizedSafe:
         )
 
         assert result.heic.fixed_from_orig == ("IMG_E0001.HEIC",)
-        assert "IMG_E0001.HEIC" not in _names(tmp_path / "ios-main/orig-img")
-        assert "IMG_E0001.HEIC" in _names(tmp_path / "ios-main/edit-img")
+        assert "IMG_E0001.HEIC" not in file_names(tmp_path / "ios-main/orig-img")
+        assert "IMG_E0001.HEIC" in file_names(tmp_path / "ios-main/edit-img")
 
     def test_keeps_when_not_present_in_correct_dir(self, tmp_path: Path) -> None:
         write_files(tmp_path / "ios-main/orig-img", ["IMG_E0001.HEIC"])
@@ -139,7 +129,7 @@ class TestRmMiscategorizedSafe:
         )
 
         assert result.total == 0
-        assert "IMG_E0001.HEIC" in _names(tmp_path / "ios-main/orig-img")
+        assert "IMG_E0001.HEIC" in file_names(tmp_path / "ios-main/orig-img")
 
     def test_both_directions(self, tmp_path: Path) -> None:
         write_files(
@@ -193,11 +183,11 @@ class TestMvMiscategorized:
         )
 
         assert set(result.heic.fixed_from_orig) == {"IMG_E0001.HEIC", "IMG_O0001.AAE"}
-        assert "IMG_E0001.HEIC" in _names(tmp_path / "ios-main/edit-img")
-        assert "IMG_O0001.AAE" in _names(tmp_path / "ios-main/edit-img")
-        assert "IMG_E0001.HEIC" not in _names(tmp_path / "ios-main/orig-img")
-        assert "IMG_O0001.AAE" not in _names(tmp_path / "ios-main/orig-img")
-        assert "IMG_0001.HEIC" in _names(tmp_path / "ios-main/orig-img")
+        assert "IMG_E0001.HEIC" in file_names(tmp_path / "ios-main/edit-img")
+        assert "IMG_O0001.AAE" in file_names(tmp_path / "ios-main/edit-img")
+        assert "IMG_E0001.HEIC" not in file_names(tmp_path / "ios-main/orig-img")
+        assert "IMG_O0001.AAE" not in file_names(tmp_path / "ios-main/orig-img")
+        assert "IMG_0001.HEIC" in file_names(tmp_path / "ios-main/orig-img")
 
     def test_moves_original_from_rendered_to_orig(self, tmp_path: Path) -> None:
         write_files(tmp_path / "ios-main/orig-img", [])
@@ -211,8 +201,8 @@ class TestMvMiscategorized:
         )
 
         assert result.heic.fixed_from_rendered == ("IMG_0001.HEIC",)
-        assert "IMG_0001.HEIC" in _names(tmp_path / "ios-main/orig-img")
-        assert "IMG_0001.HEIC" not in _names(tmp_path / "ios-main/edit-img")
+        assert "IMG_0001.HEIC" in file_names(tmp_path / "ios-main/orig-img")
+        assert "IMG_0001.HEIC" not in file_names(tmp_path / "ios-main/edit-img")
 
     def test_creates_target_dir_if_missing(self, tmp_path: Path) -> None:
         write_files(tmp_path / "ios-main/orig-img", ["IMG_E0001.HEIC"])
@@ -226,7 +216,7 @@ class TestMvMiscategorized:
         )
 
         assert result.heic.fixed_from_orig == ("IMG_E0001.HEIC",)
-        assert "IMG_E0001.HEIC" in _names(tmp_path / "ios-main/edit-img")
+        assert "IMG_E0001.HEIC" in file_names(tmp_path / "ios-main/edit-img")
 
     def test_dry_run_does_not_modify(self, tmp_path: Path) -> None:
         write_files(tmp_path / "ios-main/orig-img", ["IMG_E0001.HEIC"])
@@ -240,8 +230,8 @@ class TestMvMiscategorized:
         )
 
         assert result.total == 1
-        assert "IMG_E0001.HEIC" in _names(tmp_path / "ios-main/orig-img")
-        assert "IMG_E0001.HEIC" not in _names(tmp_path / "ios-main/edit-img")
+        assert "IMG_E0001.HEIC" in file_names(tmp_path / "ios-main/orig-img")
+        assert "IMG_E0001.HEIC" not in file_names(tmp_path / "ios-main/edit-img")
 
     def test_missing_dirs_are_safe(self, tmp_path: Path) -> None:
         [result] = fix_miscategorized(

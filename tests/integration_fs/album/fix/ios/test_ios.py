@@ -5,17 +5,7 @@ from photree.album.fix.ios import (
     run_fix_ios,
 )
 from photree.album.fix.ios.output import format_fix_ios_result
-from tests.testkit import write_files
-
-
-def _files(directory: Path) -> set[Path]:
-    if not directory.is_dir():
-        return set()
-    return {f for f in directory.iterdir() if f.is_file()}
-
-
-def _names(directory: Path) -> set[str]:
-    return {f.name for f in _files(directory)}
+from tests.testkit import file_names, write_files
 
 
 def _two_sources_with_miscategorized_files(album: Path) -> None:
@@ -39,11 +29,11 @@ class TestRunFixIosMiscategorized:
         assert result.miscategorized_result.heic_from_rendered == 1
         assert result.miscategorized_result.mov_from_orig == 1
         assert result.miscategorized_result.mov_from_rendered == 1
-        assert _names(tmp_path / "ios-main/edit-img") == {
+        assert file_names(tmp_path / "ios-main/edit-img") == {
             "IMG_E0001.HEIC",
             "IMG_E0002.HEIC",
         }
-        assert _names(tmp_path / "ios-nelu/orig-vid") == {
+        assert file_names(tmp_path / "ios-nelu/orig-vid") == {
             "IMG_0005.MOV",
             "IMG_0006.MOV",
         }
@@ -67,7 +57,7 @@ class TestRunFixIosMiscategorized:
                 "1 edited file(s) from orig-vid, 1 original file(s) from edit-vid."
             ),
         ]
-        assert "IMG_E0004.HEIC" in _names(tmp_path / "ios-nelu/orig-img")
+        assert "IMG_E0004.HEIC" in file_names(tmp_path / "ios-nelu/orig-img")
 
     def test_rm_safe_counts_only_files_already_in_place(self, tmp_path: Path) -> None:
         _two_sources_with_miscategorized_files(tmp_path)
@@ -81,5 +71,5 @@ class TestRunFixIosMiscategorized:
         assert format_fix_ios_result(result) == [
             "Done. Removed 1 miscategorized file(s): 1 edited file(s) from orig-img.",
         ]
-        assert _names(tmp_path / "ios-nelu/orig-img") == {"IMG_0004.HEIC"}
-        assert "IMG_E0001.HEIC" in _names(tmp_path / "ios-main/orig-img")
+        assert file_names(tmp_path / "ios-nelu/orig-img") == {"IMG_0004.HEIC"}
+        assert "IMG_E0001.HEIC" in file_names(tmp_path / "ios-main/orig-img")

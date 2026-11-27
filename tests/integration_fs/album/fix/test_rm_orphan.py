@@ -12,16 +12,6 @@ from tests.testkit import file_names, write_files
 MC = MAIN_MEDIA_SOURCE
 
 
-def _files(directory: Path) -> set[Path]:
-    if not directory.is_dir():
-        return set()
-    return {f for f in directory.iterdir() if f.is_file()}
-
-
-def _names(directory: Path) -> set[str]:
-    return {f.name for f in _files(directory)}
-
-
 STD = std_media_source("nelu")
 
 
@@ -39,13 +29,13 @@ class TestRmOrphanHeic:
 
         # 9999 has no orig → orphan
         assert result.heic.total > 0
-        assert "IMG_E9999.HEIC" not in _names(tmp_path / "ios-main/edit-img")
-        assert "IMG_E9999.HEIC" not in _names(tmp_path / "main-img")
-        assert "IMG_E9999.jpg" not in _names(tmp_path / "main-jpg")
+        assert "IMG_E9999.HEIC" not in file_names(tmp_path / "ios-main/edit-img")
+        assert "IMG_E9999.HEIC" not in file_names(tmp_path / "main-img")
+        assert "IMG_E9999.jpg" not in file_names(tmp_path / "main-jpg")
         # 0001 has orig → kept
-        assert "IMG_E0001.HEIC" in _names(tmp_path / "ios-main/edit-img")
-        assert "IMG_E0001.HEIC" in _names(tmp_path / "main-img")
-        assert "IMG_E0001.jpg" in _names(tmp_path / "main-jpg")
+        assert "IMG_E0001.HEIC" in file_names(tmp_path / "ios-main/edit-img")
+        assert "IMG_E0001.HEIC" in file_names(tmp_path / "main-img")
+        assert "IMG_E0001.jpg" in file_names(tmp_path / "main-jpg")
 
     def test_nothing_to_remove(self, tmp_path: Path) -> None:
         write_files(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC"])
@@ -63,7 +53,7 @@ class TestRmOrphanHeic:
         result = rm_orphan(tmp_path, MC, dry_run=True)
 
         assert result.heic.total > 0
-        assert "IMG_E9999.HEIC" in _names(tmp_path / "ios-main/edit-img")
+        assert "IMG_E9999.HEIC" in file_names(tmp_path / "ios-main/edit-img")
 
     def test_missing_dirs_are_safe(self, tmp_path: Path) -> None:
         result = rm_orphan(tmp_path, MC)
@@ -80,10 +70,10 @@ class TestRmOrphanMov:
 
         rm_orphan(tmp_path, MC)
 
-        assert "IMG_E9999.MOV" not in _names(tmp_path / "ios-main/edit-vid")
-        assert "IMG_E9999.MOV" not in _names(tmp_path / "main-vid")
-        assert "IMG_E0001.MOV" in _names(tmp_path / "ios-main/edit-vid")
-        assert "IMG_E0001.MOV" in _names(tmp_path / "main-vid")
+        assert "IMG_E9999.MOV" not in file_names(tmp_path / "ios-main/edit-vid")
+        assert "IMG_E9999.MOV" not in file_names(tmp_path / "main-vid")
+        assert "IMG_E0001.MOV" in file_names(tmp_path / "ios-main/edit-vid")
+        assert "IMG_E0001.MOV" in file_names(tmp_path / "main-vid")
 
 
 class TestRmOrphanStd:
