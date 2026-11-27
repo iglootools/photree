@@ -619,7 +619,7 @@ class TestRunFixIosMiscategorized:
 
         assert format_fix_ios_result(result, dry_run=True) == [
             (
-                "Would remove 5 miscategorized file(s): "
+                "[dry-run] Would remove 5 miscategorized file(s): "
                 "2 edited file(s) from orig-img, 1 original file(s) from edit-img, "
                 "1 edited file(s) from orig-vid, 1 original file(s) from edit-vid."
             ),

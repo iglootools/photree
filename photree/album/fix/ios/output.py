@@ -3,6 +3,7 @@
 from photree.album.fix.ios import FixIosMiscategorizedResult, FixIosResult
 from photree.album.fix.ios.miscategorized import MiscategorizedAction
 from photree.album.fix.output import format_removal_summary
+from photree.common.formatting import format_dry_run
 
 
 def rm_orphan_sidecar_summary(
@@ -94,11 +95,16 @@ def _miscategorized_line(mc: FixIosMiscategorizedResult, *, dry_run: bool) -> st
 
 
 def format_fix_ios_result(result: FixIosResult, *, dry_run: bool = False) -> list[str]:
-    """Every requested operation produces a line, including "nothing found"."""
+    """
+    Every requested operation produces a line, including "nothing found".
+
+    Each line of a dry run carries the ``[dry-run]`` label, since a batch
+    prints them apart from its own labelled summary.
+    """
     sidecars = result.rm_orphan_sidecar_removed_by_dir
     dups = result.prefer_higher_quality_removed_by_dir
     miscategorized = result.miscategorized_result
-    return [
+    lines = [
         *(
             ["No iOS media sources found; nothing to fix."]
             if result.no_ios_media_sources
@@ -120,3 +126,4 @@ def format_fix_ios_result(result: FixIosResult, *, dry_run: bool = False) -> lis
             else []
         ),
     ]
+    return [format_dry_run(line, dry_run=dry_run) for line in lines]

@@ -25,7 +25,6 @@ from photree.clihelpers.options import (
 )
 from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.usage import invalid_fix_error
-from photree.common.formatting import format_dry_run
 from photree.common.fs import display_path
 
 
@@ -102,7 +101,7 @@ def fix_ios_cmd(
         raise typer.Exit(code=1)
 
     for line in format_fix_ios_result(result, dry_run=dry_run):
-        typer.echo(format_dry_run(line, dry_run=dry_run))
+        typer.echo(line)
 
 
 def _report_move_conflict(exc: MiscategorizedMoveConflictError, album: Path) -> None:

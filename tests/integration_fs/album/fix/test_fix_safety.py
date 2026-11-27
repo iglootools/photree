@@ -348,7 +348,7 @@ class TestFixReporting:
         result = run_fix(tmp_path, dry_run=True, rm_orphan_flag=True)
 
         assert format_fix_result(result, dry_run=True) == [
-            "Would remove 1 orphan(s): 1 from edit-img.",
+            "[dry-run] Would remove 1 orphan(s): 1 from edit-img.",
         ]
         assert (tmp_path / "std-nelu/edit-img/orphan.jpg").exists()
 

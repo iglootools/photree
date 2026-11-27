@@ -51,6 +51,21 @@ class TestAlbumFixRmUpstream:
         )
         assert (tmp_path / "std-nelu/orig-img/b.jpg").exists()
 
+    def test_albums_dry_run_labels_each_album_report(self, tmp_path: Path) -> None:
+        album = tmp_path / "2024-07-14 - Trip"
+        _album_with_curated_photo(album)
+
+        result = invoke_cli(
+            ["albums", "fix", "--rm-upstream", "--dry-run", "--album-dir", str(album)],
+            runtime=fake_runtime(),
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "[dry-run] Would remove heic: 0 jpeg, 0 main, 0 edit, 1 orig." in (
+            result.output
+        )
+        assert (album / "std-nelu/orig-img/b.jpg").exists()
+
 
 class TestAlbumFixRmOrphan:
     def test_rm_orphan_removes_the_edit_without_original(

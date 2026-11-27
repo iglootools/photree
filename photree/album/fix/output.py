@@ -2,6 +2,7 @@
 
 from photree.album.fix import FixResult, FixRmUpstreamResult
 from photree.album.fix.rm_upstream import RmUpstreamSkip, SignalSkipReason
+from photree.common.formatting import format_dry_run
 
 
 def rm_upstream_summary(
@@ -109,8 +110,13 @@ def _rm_upstream_lines(ru: FixRmUpstreamResult, *, dry_run: bool) -> list[str]:
 
 
 def format_fix_result(result: FixResult, *, dry_run: bool = False) -> list[str]:
-    """One line per requested fix; a dry run says what each would remove."""
-    return [
+    """
+    One line per requested fix; a dry run says what each would remove.
+
+    Each line of a dry run carries the ``[dry-run]`` label, since a batch
+    prints them apart from its own labelled summary.
+    """
+    lines = [
         *(
             ["No media sources found; nothing to fix."]
             if result.no_media_sources
@@ -127,6 +133,7 @@ def format_fix_result(result: FixResult, *, dry_run: bool = False) -> list[str]:
             else []
         ),
     ]
+    return [format_dry_run(line, dry_run=dry_run) for line in lines]
 
 
 def batch_fix_summary(fixed: int, failed: int, *, dry_run: bool = False) -> str:
