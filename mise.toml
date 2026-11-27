@@ -5,6 +5,7 @@ github-cli = "2.103.3"
 "aqua:asciinema/asciinema" = "3.2.1"
 "aqua:asciinema/agg" = "1.9.0"
 shellcheck = "0.11.0"
+actionlint = "1.7.12"
 dprint = "0.64.3"
 rumdl = "0.3.4"
 # Renovate, for lint-renovate and renovate-dry-run (guidelines/project-setup/dependency-automation.md
@@ -58,6 +59,10 @@ run = "uv run --no-sync iglootools python reinstall"
 [tasks.lint-shell]
 description = "Lint the tracked shell scripts with shellcheck"
 run = "uv run --no-sync iglootools shell lint"
+
+[tasks.lint-github-actions]
+description = "Lint the tracked GitHub Actions workflows with actionlint"
+run = "uv run --no-sync iglootools github lint"
 
 # Every pin on iglootools/common names the same release, and `iglootools common adopt` would
 # move each one (guidelines/project-setup/iglootools-cli.md in iglootools/common).
@@ -157,6 +162,7 @@ run = [
   { task = "lint-fmt" },
   { task = "lint-ruff" },
   { task = "lint-shell" },
+  { task = "lint-github-actions" },
   { task = "lint-markdown" },
   { task = "lint-types" },
   { task = "lint-boundaries" },
