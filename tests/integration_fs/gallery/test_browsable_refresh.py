@@ -1,4 +1,7 @@
+import os
 from pathlib import Path
+
+import pytest
 
 from photree.album.id import generate_album_id, generate_media_id
 from photree.album.store.media_metadata import (
@@ -459,6 +462,32 @@ class TestBrowsableRefreshDuplicateAlbumIds:
         )
         # The previous render survives.
         assert (gallery / BROWSABLE_DIR / "public" / "albums").is_dir()
+
+
+class TestBrowsableRefreshFilesystemErrors:
+    @pytest.mark.skipif(
+        os.geteuid() == 0,
+        reason="root writes whatever the permissions",
+    )
+    def test_failed_write_is_an_error(self, tmp_path: Path) -> None:
+        """Regression: the OSError left as a traceback, browsable/ half-built."""
+        gallery = make_gallery(tmp_path)
+        _setup_album(gallery, "2024-07-14 - Trip")
+        gallery.chmod(0o500)
+        try:
+            result = refresh_browsable(gallery)
+        finally:
+            gallery.chmod(0o700)
+
+        assert result.errors == (
+            BrowsableRefreshError(
+                BrowsableRefreshErrorKind.FILESYSTEM_ERROR,
+                gallery / BROWSABLE_DIR,
+                reason=result.errors[0].reason,
+            ),
+        )
+        assert result.errors[0].reason
+        assert result.symlinks_created == 0
 
 
 class TestBrowsableRefreshLinkCollisions:

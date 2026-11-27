@@ -13,6 +13,7 @@ from photree.collection.refresh.implicit_match import (
 from photree.collection.refresh.result import (
     CollectionRefreshError,
     CollectionRefreshErrorKind,
+    filesystem_error,
 )
 from photree.collection.refresh.scan import (
     MOVING_PREFIX,
@@ -379,7 +380,8 @@ def refresh_implicit_collections(
 
     Nothing is written when the plan has an error: series name conflicts and
     occupied target directories are detected on the whole plan first, taking
-    into account the directories the plan itself moves away or removes.
+    into account the directories the plan itself moves away or removes. A
+    write that fails while applying the plan is returned as an error.
     """
     index = ImplicitIndex.build(existing)
     matches = match_groups(series_targets(albums), index)
@@ -398,7 +400,11 @@ def refresh_implicit_collections(
     if target_errors:
         return ImplicitChanges(errors=target_errors)
     changes = _changes(existing, plan)
-    move_error = None if dry_run else _apply(plan)
+    try:
+        move_error = None if dry_run else _apply(plan)
+    except OSError as exc:
+        # A write outside the rolled-back moves (creating a collection).
+        return ImplicitChanges(errors=(filesystem_error(exc),))
     return (
         ImplicitChanges(
             deleted=changes.deleted,

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from photree.collection.naming import parse_collection_name
+from photree.collection.refresh.result import CollectionRefreshError, filesystem_error
 from photree.collection.refresh.scan import AlbumInfo, ExistingCollection
 from photree.collection.store.metadata import save_collection_metadata
 from photree.collection.store.protocol import (
@@ -12,6 +13,14 @@ from photree.collection.store.protocol import (
     CollectionStrategy,
 )
 from photree.dates import DateRange, date_range, range_contains
+
+
+@dataclass(frozen=True)
+class SmartChanges:
+    """The smart collections whose members were updated, and a write that failed."""
+
+    updated: tuple[str, ...] = ()
+    errors: tuple[CollectionRefreshError, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -88,11 +97,12 @@ def refresh_smart_collections(
     all_collections: tuple[ExistingCollection, ...],
     *,
     dry_run: bool,
-) -> tuple[str, ...]:
+) -> SmartChanges:
     """
     Materialize members for smart collections by date range.
 
-    Returns the names of the updated collections.
+    Returns the names of the updated collections; a save that fails stops the
+    stage, and the collections saved before it are still returned.
     """
     dated_albums = tuple(
         _DatedMember(album.album_id, *rng, album.parsed.private)
@@ -117,7 +127,24 @@ def refresh_smart_collections(
         for new_meta in [_smart_metadata(col, dated_albums, dated_collections)]
         if new_meta is not None and new_meta != col.metadata
     ]
-    if not dry_run:
-        for col, new_meta in changed:
+    return (
+        SmartChanges(updated=tuple(col.name for col, _ in changed))
+        if dry_run
+        else _save_changed(changed)
+    )
+
+
+def _save_changed(
+    changed: list[tuple[ExistingCollection, CollectionMetadata]],
+) -> SmartChanges:
+    """Save each changed collection, stopping at the first save that fails."""
+    # Documented exception (docs/guidelines.md): per-item try/except, recording
+    # the collections saved before a failure.
+    saved: list[str] = []
+    for col, new_meta in changed:
+        try:
             save_collection_metadata(col.path, new_meta)
-    return tuple(col.name for col, _ in changed)
+        except OSError as exc:
+            return SmartChanges(updated=tuple(saved), errors=(filesystem_error(exc),))
+        saved.append(col.name)
+    return SmartChanges(updated=tuple(saved))

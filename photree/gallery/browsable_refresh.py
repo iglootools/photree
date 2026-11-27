@@ -55,6 +55,9 @@ class BrowsableRefreshErrorKind(StrEnum):
     LINK_COLLISION = "link-collision"
     """``path``: link that two different ``targets`` would both claim."""
 
+    FILESYSTEM_ERROR = "filesystem-error"
+    """``path``: what a failed write named; ``reason``: why. The tree is partial."""
+
 
 @dataclass(frozen=True)
 class BrowsableRefreshError:
@@ -66,6 +69,7 @@ class BrowsableRefreshError:
     targets: tuple[Path, ...] = ()
     album_id: str | None = None
     albums: tuple[Path, ...] = ()
+    reason: str | None = None
 
 
 class DanglingMemberKind(StrEnum):
@@ -608,7 +612,8 @@ def refresh_browsable(
     2. Plan the links: albums by year, collections by year/chapter/all-time,
        each under public/private
     3. Remove the existing browsable/ directory
-    4. Create the planned links
+    4. Create the planned links (a write that fails stops here, reported as a
+       ``FILESYSTEM_ERROR`` with the links created so far)
 
     Unreadable albums or collections, albums sharing an ID, and links two
     targets would claim, abort before anything is removed; dangling
@@ -638,14 +643,39 @@ def refresh_browsable(
             dangling_members=dangling,
         )
 
-    if browsable_dir.exists():
-        shutil.rmtree(browsable_dir)
-    for planned_link in links:
-        _make_relative_symlink(planned_link.target, planned_link.link)
+    created, write_error = _render(browsable_dir, links)
     return BrowsableRefreshResult(
         albums_rendered=len(albums),
         collections_rendered=len(collections),
-        symlinks_created=len(links),
-        errors=render_errors,
+        symlinks_created=created,
+        errors=(*render_errors, *([write_error] if write_error is not None else [])),
         dangling_members=dangling,
     )
+
+
+def _render(
+    browsable_dir: Path,
+    links: tuple[_Link, ...],
+) -> tuple[int, BrowsableRefreshError | None]:
+    """
+    Replace *browsable_dir* with *links*, stopping at the first write that fails.
+
+    Returns how many links were created and the failure, if any: the tree is
+    then partial, and the next refresh rebuilds it whole.
+    """
+    # Documented exception (docs/guidelines.md): per-item try/except, counting
+    # the links created before a failure.
+    created = 0
+    try:
+        if browsable_dir.exists():
+            shutil.rmtree(browsable_dir)
+        for planned_link in links:
+            _make_relative_symlink(planned_link.target, planned_link.link)
+            created += 1
+    except OSError as exc:
+        return created, BrowsableRefreshError(
+            BrowsableRefreshErrorKind.FILESYSTEM_ERROR,
+            Path(exc.filename) if exc.filename is not None else browsable_dir,
+            reason=exc.strerror or str(exc),
+        )
+    return created, None

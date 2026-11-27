@@ -1,5 +1,8 @@
+import os
 import shutil
 from pathlib import Path
+
+import pytest
 
 from photree.collection.id import generate_collection_id
 from photree.collection.refresh import refresh_collections
@@ -754,3 +757,84 @@ class TestRefreshErrors:
         meta = load_collection_metadata(col_dir)
         assert meta is not None
         assert meta.id == fixed_id
+
+
+_ROOT_WRITES_ANYWHERE = pytest.mark.skipif(
+    os.geteuid() == 0,
+    reason="root writes whatever the permissions",
+)
+
+
+class TestRefreshFilesystemErrors:
+    @_ROOT_WRITES_ANYWHERE
+    def test_failed_album_rename_reports_the_renames_already_done(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Regression: the OSError left as a traceback, the done renames unlisted."""
+        gallery = make_gallery(tmp_path)
+        _, done_id = make_gallery_album(gallery, "2023-07-14 - 01 - Trip - Hiking")
+        stuck, stuck_id = make_gallery_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
+        make_gallery_collection(gallery, "2023 - Trip", albums=[done_id, stuck_id])
+        stuck.parent.chmod(0o500)
+        try:
+            result = refresh_collections(gallery)
+        finally:
+            stuck.parent.chmod(0o700)
+
+        assert result.album_renames == (
+            ("2023-07-14 - 01 - Trip - Hiking", "2023-07-14 - 01 - Hiking"),
+        )
+        [error] = result.errors
+        assert error.kind is CollectionRefreshErrorKind.FILESYSTEM_ERROR
+        assert error.path == stuck
+        assert error.reason
+
+    @_ROOT_WRITES_ANYWHERE
+    def test_failed_implicit_collection_creation_is_an_error(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = make_gallery(tmp_path)
+        make_gallery_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
+        collections_dir = gallery / COLLECTIONS_DIR
+        collections_dir.mkdir()
+        collections_dir.chmod(0o500)
+        try:
+            result = refresh_collections(gallery)
+        finally:
+            collections_dir.chmod(0o700)
+
+        assert [error.kind for error in result.errors] == [
+            CollectionRefreshErrorKind.FILESYSTEM_ERROR,
+        ]
+
+    @_ROOT_WRITES_ANYWHERE
+    def test_failed_smart_collection_save_is_an_error(self, tmp_path: Path) -> None:
+        gallery = make_gallery(tmp_path)
+        make_gallery_album(gallery, "2024-07-14 - Trip")
+        col_dir = gallery / COLLECTIONS_DIR / "2024" / "2024-07 - July"
+        col_dir.mkdir(parents=True)
+        save_collection_metadata(
+            col_dir,
+            CollectionMetadata(
+                id=generate_collection_id(),
+                members=CollectionMembers.SMART,
+                lifecycle=CollectionLifecycle.EXPLICIT,
+                strategy=CollectionStrategy.DATE_RANGE,
+            ),
+        )
+        metadata_dir = col_dir / ".photree"
+        metadata_files = [metadata_dir, *metadata_dir.iterdir()]
+        for path in metadata_files:
+            path.chmod(0o500)
+        try:
+            result = refresh_collections(gallery)
+        finally:
+            for path in metadata_files:
+                path.chmod(0o700)
+
+        assert result.updated == ()
+        assert [error.kind for error in result.errors] == [
+            CollectionRefreshErrorKind.FILESYSTEM_ERROR,
+        ]

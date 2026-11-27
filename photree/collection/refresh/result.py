@@ -41,6 +41,8 @@ class CollectionRefreshErrorKind(StrEnum):
 
     STRANDED_COLLECTION_MOVE = "stranded-collection-move"
     """``path``: a collection left under its temporary name by an earlier run."""
+    FILESYSTEM_ERROR = "filesystem-error"
+    """``path`` (and ``target``): what a failed write named; ``reason``: why."""
 
 
 @dataclass(frozen=True)
@@ -61,6 +63,16 @@ class CollectionRefreshError:
     album_names: tuple[str, ...] = ()
     reason: str | None = None
     stranded: tuple[Path, ...] = ()
+
+
+def filesystem_error(exc: OSError) -> CollectionRefreshError:
+    """Return the refresh error for a write that failed with *exc*."""
+    return CollectionRefreshError(
+        CollectionRefreshErrorKind.FILESYSTEM_ERROR,
+        path=Path(exc.filename) if exc.filename is not None else None,
+        target=Path(exc.filename2) if exc.filename2 is not None else None,
+        reason=exc.strerror or str(exc),
+    )
 
 
 @dataclass(frozen=True)

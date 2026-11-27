@@ -197,6 +197,23 @@ class TestFormatCollectionRefreshError:
         )
 
 
+class TestFormatCollectionFilesystemError:
+    def test_names_both_paths_and_says_earlier_changes_were_applied(self) -> None:
+        error = CollectionRefreshError(
+            CollectionRefreshErrorKind.FILESYSTEM_ERROR,
+            path=ALBUM,
+            target=ALBUM.with_name("2024-07-14 - Hike"),
+            reason="Permission denied",
+        )
+
+        assert format_collection_refresh_error(error, CWD) == (
+            "cannot write albums/2024/2024-07-14 - Trip -> "
+            "albums/2024/2024-07-14 - Hike: Permission denied\n"
+            "The changes listed above were applied. Fix the cause, then run "
+            "'photree gallery refresh'."
+        )
+
+
 class TestFormatBrowsableError:
     def test_regular_file(self) -> None:
         error = BrowsableRefreshError(
@@ -208,6 +225,19 @@ class TestFormatBrowsableError:
             "browsable/ contains a regular file: browsable/notes.txt\n"
             "Expected only directories and symlinks. Remove the file (or "
             "browsable/), then run 'photree gallery refresh'."
+        )
+
+    def test_filesystem_error_says_the_tree_is_incomplete(self) -> None:
+        error = BrowsableRefreshError(
+            BrowsableRefreshErrorKind.FILESYSTEM_ERROR,
+            CWD / "browsable",
+            reason="Permission denied",
+        )
+
+        assert format_browsable_error(error, CWD) == (
+            "cannot write browsable: Permission denied\n"
+            "browsable/ is left incomplete. Fix the cause, then run "
+            "'photree gallery refresh'."
         )
 
     def test_duplicate_album_id_names_every_album_and_the_fix(self) -> None:

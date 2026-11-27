@@ -85,6 +85,15 @@ def format_collection_refresh_error(err: CollectionRefreshError, cwd: Path) -> s
                 f"{source}: {_path(err.target, cwd)} already exists\n"
                 "Move the existing directory away, then run 'photree gallery refresh'."
             )
+        case CollectionRefreshErrorKind.FILESYSTEM_ERROR:
+            paths = " -> ".join(
+                _path(p, cwd) for p in (err.path, err.target) if p is not None
+            )
+            return (
+                f"cannot write {paths or '?'}: {err.reason}\n"
+                "The changes listed above were applied. Fix the cause, then run "
+                "'photree gallery refresh'."
+            )
         case CollectionRefreshErrorKind.SERIES_NAME_CONFLICT:
             return (
                 f"implicit collection '{err.name}' is claimed by two separate "
@@ -183,6 +192,12 @@ def format_browsable_error(err: BrowsableRefreshError, cwd: Path) -> str:
                 f"cycle detected: collection {_path(err.path, cwd)} "
                 f"({collection_id}) contains itself through its members\n"
                 f"Run {_collection_check(err.path, cwd)} to investigate."
+            )
+        case BrowsableRefreshErrorKind.FILESYSTEM_ERROR:
+            return (
+                f"cannot write {_path(err.path, cwd)}: {err.reason}\n"
+                "browsable/ is left incomplete. Fix the cause, then run "
+                "'photree gallery refresh'."
             )
         case BrowsableRefreshErrorKind.LINK_COLLISION:
             return "\n".join(

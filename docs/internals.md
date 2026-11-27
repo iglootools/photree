@@ -373,7 +373,11 @@ virality.
 
 `gallery refresh` runs the following phases for collections, after the
 album media refresh. They are implemented in `photree/collection/refresh/`
-(one module per phase, orchestrated by `refresh_collections`):
+(one module per phase, orchestrated by `refresh_collections`). A write that
+fails while a phase applies its changes (a permission error, a full disk) stops
+the refresh with that error, and the changes already applied, album renames
+included, are still listed. The browsable step that follows stops the same way,
+leaving `browsable/` incomplete until the next refresh rebuilds it.
 
 #### Phase 1: Scan and Validate Albums
 
