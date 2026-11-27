@@ -24,8 +24,39 @@ from photree.clihelpers.console import console, err_console
 from photree.clihelpers.progress import BatchProgressBar, run_with_spinner
 from photree.clihelpers.sysdeps import CHECK_DEPS, EXIF_DEPS, require_system_deps
 from photree.common.exif import ExifTagReader, exiftool_session
+from photree.common.formatting import format_flags
 from photree.common.sysdeps import WhichFn
 from photree.foundation.gallery_metadata import resolve_link_mode
+
+
+def check_retry_flags(
+    *,
+    checksum: bool,
+    fatal_warnings: bool,
+    fatal_sidecar: bool,
+    fatal_exif_date_match: bool,
+    check_naming: bool,
+    check_date_part_collision: bool,
+    check_exif_date_match: bool,
+    refresh_exif_cache: bool,
+) -> list[tuple[str, bool]]:
+    """
+    Pair each flag that reproduces a batch check on one album with whether it applies.
+
+    A suggested command that silently drops the caller's flags would not
+    reproduce the failure it is suggested for. Pass the result to
+    :func:`~photree.common.formatting.format_flags`.
+    """
+    return [
+        ("--no-checksum", not checksum),
+        ("--fatal-warnings", fatal_warnings),
+        ("--fatal-sidecar", fatal_sidecar),
+        ("--no-fatal-exif-date-match", not fatal_exif_date_match),
+        ("--no-check-naming", not check_naming),
+        ("--no-check-date-part-collision", not check_date_part_collision),
+        ("--no-check-exif-date-match", not check_exif_date_match),
+        ("--refresh-exif-cache", refresh_exif_cache),
+    ]
 
 
 @dataclass(frozen=True)
@@ -36,6 +67,8 @@ class _CheckFlags:
     fatal_exif_date_match: bool
     check_naming: bool
     check_date_part_collision: bool
+    check_exif_date_match: bool
+    refresh_exif_cache: bool
 
     @property
     def fatal_sidecar(self) -> bool:
@@ -46,10 +79,17 @@ class _CheckFlags:
         return self.fatal_warnings or self.fatal_exif_date_match
 
     def retry_flags(self) -> str:
-        return batch_output.batch_check_retry_flags(
-            fatal_warnings=self.fatal_warnings,
-            fatal_sidecar=self.fatal_sidecar_arg,
-            fatal_exif_date_match=self.fatal_exif_date_match,
+        return format_flags(
+            check_retry_flags(
+                checksum=self.checksum,
+                fatal_warnings=self.fatal_warnings,
+                fatal_sidecar=self.fatal_sidecar_arg,
+                fatal_exif_date_match=self.fatal_exif_date_match,
+                check_naming=self.check_naming,
+                check_date_part_collision=self.check_date_part_collision,
+                check_exif_date_match=self.check_exif_date_match,
+                refresh_exif_cache=self.refresh_exif_cache,
+            ),
         )
 
 
@@ -91,6 +131,8 @@ def run_batch_check(
         fatal_exif_date_match,
         check_naming,
         check_date_part_collision,
+        check_exif_date_match,
+        refresh_exif_cache,
     )
     # --refresh-exif-cache cannot degrade without exiftool, so it is required.
     require_system_deps(

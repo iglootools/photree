@@ -188,6 +188,7 @@ class TestRunBatchCheck:
         assert "Done." in result.output
         investigate = result.output.split("To investigate failures:")[1]
         assert "2024-07-14 - Hiking" in investigate
+        assert "--no-checksum" in investigate, "the retry reproduces the run"
 
     def test_no_albums_returns_true_without_exit(self, tmp_path: Path) -> None:
         assert (

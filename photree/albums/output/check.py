@@ -56,24 +56,3 @@ def duplicate_ids_report(
 def no_duplicate_ids_line(kind: str) -> str:
     """Return the success counterpart of :func:`duplicate_ids_report`."""
     return f"{CHECK} no duplicate {kind} ids"
-
-
-def batch_check_retry_flags(
-    *,
-    fatal_warnings: bool,
-    fatal_sidecar: bool,
-    fatal_exif_date_match: bool,
-) -> str:
-    """
-    Reconstruct the flags needed to reproduce a batch check on one album.
-
-    A suggested command that silently drops the caller's flags would not
-    reproduce the failure it is suggested for.
-    """
-    return "".join(
-        [
-            " --fatal-warnings" if fatal_warnings else "",
-            " --fatal-sidecar" if fatal_sidecar else "",
-            " --no-fatal-exif-date-match" if not fatal_exif_date_match else "",
-        ],
-    )
