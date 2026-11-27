@@ -7,7 +7,7 @@ import typer
 
 from photree.clihelpers.console import err_console
 from photree.clihelpers.runtime import runtime_of
-from photree.clihelpers.usage import no_fields_error
+from photree.clihelpers.usage import no_fields_error, usage_error
 from photree.collection.cli.metadata.app import app
 from photree.collection.cli.options import COLLECTION_DIR_OPTION
 from photree.collection.output import format_invalid_collection_config
@@ -48,7 +48,12 @@ def _apply_settings(
     lifecycle: CollectionLifecycle | None,
     strategy: CollectionStrategy | None,
 ) -> CollectionMetadata:
-    """Return *current* with every given setting applied, or exit if invalid."""
+    """
+    Return *current* with every given setting applied, or exit if invalid.
+
+    An invalid combination is a usage error (exit 2), as in
+    ``collection init``: the options asked for it.
+    """
     updated = current.model_copy(
         update={
             k: v
@@ -62,8 +67,7 @@ def _apply_settings(
     )
     config = (updated.members, updated.lifecycle, updated.strategy)
     if not is_valid_collection_config(*config):
-        err_console.print(format_invalid_collection_config(*config), markup=False)
-        raise typer.Exit(code=1)
+        raise usage_error(format_invalid_collection_config(*config), markup=False)
     return updated
 
 

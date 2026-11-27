@@ -69,7 +69,7 @@ class TestCollectionMetadataSet:
                 "implicit",
             ],
         )
-        assert result.exit_code == 1
+        assert result.exit_code == 2
         assert "invalid combination" in result.output
 
     def test_updates_lifecycle_to_implicit_with_smart(self, tmp_path: Path) -> None:
