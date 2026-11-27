@@ -440,12 +440,23 @@ def detect_single(
 
     Detection is best-effort per image — one unreadable file must not abandon
     the album — but the reason is carried out rather than dropped, so the
-    caller can tell the user which image failed and why.
+    caller can tell the user which image failed and why. Only the errors an
+    unreadable or undecodable image raises (``OSError``, ``ValueError``) are
+    carried: any other is a defect, and propagates rather than turning into
+    one opaque failure per image.
     """
     try:
         detected = detect_faces(tr.key, tr.thumb_path, analyzer)
+        mtime = (orig_dir / tr.file_name).stat().st_mtime
+    except (OSError, ValueError) as exc:
+        return (
+            None,
+            None,
+            FaceFailure(key=tr.key, stage=FaceFailureStage.DETECTION, reason=str(exc)),
+        )
+    else:
         state_key = FaceProcessedKey(
-            mtime=(orig_dir / tr.file_name).stat().st_mtime,
+            mtime=mtime,
             file_name=tr.file_name,
             face_count=len(detected.faces),
             orig_width=tr.orig_width,
@@ -453,13 +464,6 @@ def detect_single(
             thumb_width=detected.thumb_width,
             thumb_height=detected.thumb_height,
         )
-    except Exception as exc:
-        return (
-            None,
-            None,
-            FaceFailure(key=tr.key, stage=FaceFailureStage.DETECTION, reason=str(exc)),
-        )
-    else:
         return (detected.faces, state_key, None)
 
 

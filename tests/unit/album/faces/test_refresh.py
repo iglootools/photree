@@ -451,6 +451,54 @@ class TestDetectSingle:
         assert (state_key.thumb_width, state_key.thumb_height) == (64, 48)
         assert (state_key.orig_width, state_key.orig_height) == (4032, 3024)
 
+    def test_opencv_failure_on_the_pixels_is_a_detection_failure(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        tr = _readable_thumbnail(tmp_path)
+
+        class _OpenCvFails:
+            def get(self, img: np.ndarray) -> list[Any]:  # noqa: ARG002 - FaceDetector's signature
+                message = "warpAffine: bad size"
+                raise cv2.error(message)
+
+        faces, state_key, failure = detect_single(tr, tmp_path / "orig", _OpenCvFails())
+
+        assert (faces, state_key) == (None, None)
+        assert failure == FaceFailure(
+            key="0410",
+            stage=FaceFailureStage.DETECTION,
+            reason=str(UnreadableThumbnailError(tr.thumb_path)),
+        )
+
+    def test_defect_propagates_instead_of_failing_the_image(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        tr = _readable_thumbnail(tmp_path)
+
+        class _Defective:
+            def get(self, img: np.ndarray) -> list[Any]:  # noqa: ARG002 - FaceDetector's signature
+                message = "'NoneType' object has no attribute 'bbox'"
+                raise AttributeError(message)
+
+        with pytest.raises(AttributeError):
+            detect_single(tr, tmp_path / "orig", _Defective())
+
+
+def _readable_thumbnail(tmp_path: Path) -> ThumbnailResult:
+    """Write a decodable thumbnail and its original; return them as a result."""
+    thumb = tmp_path / "0410.jpg"
+    cv2.imwrite(str(thumb), np.zeros((48, 64, 3), dtype=np.uint8))
+    write_file(tmp_path / "orig" / "IMG_0410.HEIC")
+    return ThumbnailResult(
+        key="0410",
+        file_name="IMG_0410.HEIC",
+        thumb_path=thumb,
+        orig_width=4032,
+        orig_height=3024,
+    )
+
 
 def _processed(width: int, height: int, *, mtime: float = 1.0) -> FaceProcessedKey:
     return FaceProcessedKey(
