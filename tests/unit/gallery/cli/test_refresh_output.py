@@ -166,6 +166,36 @@ class TestFormatCollectionRefreshError:
             "'photree gallery refresh'."
         )
 
+    def test_collection_move_failed_lists_what_is_stranded(self) -> None:
+        stranded = COLLECTION.with_name(".photree-moving-x")
+        error = CollectionRefreshError(
+            CollectionRefreshErrorKind.COLLECTION_MOVE_FAILED,
+            path=COLLECTION,
+            target=CWD / "collections" / "2025" / "2025-07 - Summer",
+            reason="File exists",
+            stranded=(stranded,),
+        )
+
+        failure = (
+            "cannot rename collections/2024/2024-07 - Summer to "
+            "collections/2025/2025-07 - Summer: File exists"
+        )
+        assert format_collection_refresh_error(error, CWD).split("\n")[:2] == [
+            failure,
+            "  left under a temporary name: collections/2024/.photree-moving-x",
+        ]
+
+    def test_stranded_collection_move(self) -> None:
+        error = CollectionRefreshError(
+            CollectionRefreshErrorKind.STRANDED_COLLECTION_MOVE,
+            path=COLLECTION.with_name(".photree-moving-x"),
+        )
+
+        assert format_collection_refresh_error(error, CWD).startswith(
+            "collection collections/2024/.photree-moving-x was left under a "
+            "temporary name by an interrupted refresh\n",
+        )
+
 
 class TestFormatBrowsableError:
     def test_regular_file(self) -> None:

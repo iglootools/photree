@@ -439,8 +439,14 @@ reported as an error and nothing is changed, unless the plan itself moves
 that directory away or removes it. The check compares directories rather than
 names, so a case-only series rename (`Trip` to `trip`) on a case-insensitive
 filesystem does not find the collection in its own way. Renames go through a
-temporary name, which makes both that case-only rename and one collection
-taking another's vacated name work.
+temporary name (`.photree-moving-<id>`, beside the collection), which makes
+both that case-only rename and one collection taking another's vacated name
+work. If a move fails, the moves already done are rolled back and the error
+lists any directory that could not be put back. Discovery skips dot
+directories, so a collection left under its temporary name (a rollback that
+failed, or a killed process) would be invisible and get a fresh ID on the
+next refresh: the scan reports any such directory and the refresh stops
+until it is renamed back.
 
 **Limitation**: changing the series title and adding/removing albums at the
 same time (before a refresh) causes the old collection to be deleted and a

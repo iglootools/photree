@@ -28,6 +28,9 @@ from photree.collection.store.protocol import CollectionMetadata
 from photree.foundation.layout import COLLECTIONS_DIR
 from photree.foundation.metadata_io import read_or_none
 
+MOVING_PREFIX = ".photree-moving-"
+"""Prefix of the temporary name an implicit collection is moved through."""
+
 
 @dataclass(frozen=True)
 class AlbumInfo:
@@ -108,6 +111,38 @@ def scan_existing_collections(
     )
 
 
+def _stranded_move_errors(gallery_dir: Path) -> tuple[CollectionRefreshError, ...]:
+    """
+    Report each collection still under its temporary name from an earlier run.
+
+    Discovery skips dot directories, so such a collection is invisible:
+    planning without it would mint a new ID for its series and orphan every
+    reference to the old one.
+    """
+    collections_dir = gallery_dir / COLLECTIONS_DIR
+    candidates = (
+        [
+            *(child for child in collections_dir.iterdir() if child.is_dir()),
+            *(
+                grandchild
+                for child in collections_dir.iterdir()
+                if child.is_dir() and not child.name.startswith(MOVING_PREFIX)
+                for grandchild in child.iterdir()
+            ),
+        ]
+        if collections_dir.is_dir()
+        else []
+    )
+    return tuple(
+        CollectionRefreshError(
+            CollectionRefreshErrorKind.STRANDED_COLLECTION_MOVE,
+            path=path,
+        )
+        for path in sorted(candidates)
+        if path.is_dir() and path.name.startswith(MOVING_PREFIX)
+    )
+
+
 def _date_collision_errors(
     albums: tuple[AlbumInfo, ...],
 ) -> tuple[CollectionRefreshError, ...]:
@@ -141,6 +176,7 @@ def scan_gallery(gallery_dir: Path) -> GalleryScan:
         errors=(
             *album_errors,
             *collection_errors,
+            *_stranded_move_errors(gallery_dir),
             *(() if album_errors else _date_collision_errors(albums)),
         ),
     )

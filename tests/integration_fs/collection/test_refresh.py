@@ -593,6 +593,53 @@ class TestDryRunMatchesRealRun:
         assert real.updated == dry.updated
 
 
+def _move_series_to_2025(gallery: Path) -> None:
+    """Create the 2024 Trip series and its collection, then re-date it to 2025."""
+    for day in ("14", "15"):
+        make_gallery_album(gallery, f"2024-07-{day} - 01 - Trip - Day {day}")
+    refresh_collections(gallery)
+    albums = gallery / "albums"
+    (albums / "2025").mkdir()
+    for day in ("14", "15"):
+        name = f"07-{day} - 01 - Trip - Day {day}"
+        (albums / "2024" / f"2024-{name}").rename(albums / "2025" / f"2025-{name}")
+
+
+class TestImplicitCollectionMoveFailure:
+    def test_failed_move_is_rolled_back_and_reported(self, tmp_path: Path) -> None:
+        gallery = make_gallery(tmp_path)
+        _move_series_to_2025(gallery)
+        [col_dir] = discover_collections(gallery)
+        col_id = _load_metadata(col_dir).id
+        # A file where the 2025 year directory should go makes the move fail.
+        write_file(gallery / COLLECTIONS_DIR / "2025")
+
+        result = refresh_collections(gallery)
+
+        assert [(e.kind, e.path, e.stranded) for e in result.errors] == [
+            (CollectionRefreshErrorKind.COLLECTION_MOVE_FAILED, col_dir, ()),
+        ]
+        assert discover_collections(gallery) == [col_dir]
+        assert _load_metadata(col_dir).id == col_id
+
+    def test_collection_left_under_temporary_name_stops_the_refresh(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = make_gallery(tmp_path)
+        _move_series_to_2025(gallery)
+        [col_dir] = discover_collections(gallery)
+        stranded = col_dir.with_name(f".photree-moving-{_load_metadata(col_dir).id}")
+        col_dir.rename(stranded)
+
+        result = refresh_collections(gallery)
+
+        assert [(e.kind, e.path) for e in result.errors] == [
+            (CollectionRefreshErrorKind.STRANDED_COLLECTION_MOVE, stranded),
+        ]
+        assert discover_collections(gallery) == []
+
+
 class TestRefreshErrors:
     def test_naming_issues_are_carried(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)

@@ -91,6 +91,33 @@ def format_collection_refresh_error(err: CollectionRefreshError, cwd: Path) -> s
                 "Give the runs distinct series names, then run "
                 "'photree gallery refresh'."
             )
+        case CollectionRefreshErrorKind.COLLECTION_MOVE_FAILED:
+            failure = (
+                f"cannot rename {_path(err.path, cwd)} to "
+                f"{_path(err.target, cwd)}: {err.reason}"
+            )
+            fix = (
+                "Fix the cause, rename any directory left under a temporary "
+                "name back to its collection name, then run "
+                "'photree gallery refresh'."
+            )
+            return "\n".join(
+                [
+                    failure,
+                    *(
+                        indent(f"left under a temporary name: {_path(p, cwd)}")
+                        for p in err.stranded
+                    ),
+                    fix,
+                ],
+            )
+        case CollectionRefreshErrorKind.STRANDED_COLLECTION_MOVE:
+            return (
+                f"collection {_path(err.path, cwd)} was left under a temporary "
+                "name by an interrupted refresh\n"
+                "Rename it back to its collection name, then run "
+                "'photree gallery refresh'."
+            )
 
 
 def format_collection_changes(result: CollectionRefreshResult) -> list[str]:
