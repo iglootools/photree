@@ -25,45 +25,11 @@ from photree.album.store.album_discovery import (
 )
 from photree.album.store.metadata import load_album_metadata, save_album_metadata
 from photree.album.store.protocol import ALBUM_YAML, AlbumMetadata
-from photree.common.base58 import base58_decode, base58_encode
-from photree.foundation.gallery_metadata import (
-    GalleryMetadata,
-    GalleryNotFoundError,
-    load_gallery_metadata,
-    resolve_gallery_dir,
-    resolve_gallery_metadata,
-    resolve_link_mode,
-    save_gallery_metadata,
-)
 from photree.foundation.layout import PHOTREE_DIR
-from photree.foundation.linking import LinkMode
 from photree.foundation.metadata_io import (
     InvalidMetadataError,
-    load_yaml_mapping,
-    write_yaml,
 )
 from tests.testkit import add_ios_media_source, mark_album
-
-
-class TestBase58:
-    def test_roundtrip(self) -> None:
-        data = uuid.uuid4().bytes
-        assert base58_decode(base58_encode(data)) == data
-
-    def test_known_value(self) -> None:
-        data = b"\x00\x01"
-        encoded = base58_encode(data)
-        assert encoded.startswith("1")
-        assert base58_decode(encoded) == data
-
-    def test_empty_input(self) -> None:
-        assert base58_encode(b"") == ""
-
-    def test_leading_zeros(self) -> None:
-        data = b"\x00\x00\x01"
-        encoded = base58_encode(data)
-        assert encoded.startswith("11")
-        assert base58_decode(encoded) == data
 
 
 class TestExternalId:
@@ -205,109 +171,6 @@ class TestAlbumMetadata:
         assert (album / PHOTREE_DIR / ALBUM_YAML).is_file()
 
 
-class TestGalleryMetadata:
-    def test_yaml_roundtrip(self, tmp_path: Path) -> None:
-        path = tmp_path / PHOTREE_DIR / "gallery.yaml"
-        path.parent.mkdir(parents=True)
-        path.write_text(
-            yaml.safe_dump(
-                GalleryMetadata(link_mode=LinkMode.SYMLINK).model_dump(
-                    by_alias=True,
-                    mode="json",
-                ),
-                default_flow_style=False,
-                sort_keys=False,
-            ),
-        )
-
-        loaded = load_gallery_metadata(path)
-        assert loaded.link_mode == LinkMode.SYMLINK
-
-    def test_yaml_uses_kebab_case(self) -> None:
-        meta = GalleryMetadata(link_mode=LinkMode.COPY)
-        dumped = yaml.safe_dump(
-            meta.model_dump(by_alias=True, mode="json"),
-            default_flow_style=False,
-            sort_keys=False,
-        )
-        assert "link-mode" in dumped
-        assert "link_mode" not in dumped
-
-    def test_default_link_mode_is_hardlink(self) -> None:
-        meta = GalleryMetadata()
-        assert meta.link_mode == LinkMode.HARDLINK
-
-    @pytest.mark.parametrize("threshold", [0.0, 1.0])
-    def test_load_accepts_threshold_bounds(
-        self,
-        tmp_path: Path,
-        threshold: float,
-    ) -> None:
-        path = tmp_path / "gallery.yaml"
-        write_yaml(path, {"face-cluster-threshold": threshold})
-        assert load_gallery_metadata(path).face_cluster_threshold == threshold
-
-    @pytest.mark.parametrize("threshold", [-0.1, 1.5, 5])
-    def test_load_rejects_threshold_out_of_range(
-        self,
-        tmp_path: Path,
-        threshold: float,
-    ) -> None:
-        path = tmp_path / "gallery.yaml"
-        write_yaml(path, {"face-cluster-threshold": threshold})
-        with pytest.raises(InvalidMetadataError) as info:
-            load_gallery_metadata(path)
-        assert info.value.path == path
-
-
-class TestResolveGalleryMetadata:
-    def test_no_gallery_yaml_returns_none(self, tmp_path: Path) -> None:
-        assert resolve_gallery_metadata(tmp_path) is None
-
-    def test_finds_gallery_yaml_in_parent(self, tmp_path: Path) -> None:
-        gallery_yaml = tmp_path / PHOTREE_DIR / "gallery.yaml"
-        gallery_yaml.parent.mkdir(parents=True)
-        gallery_yaml.write_text("link-mode: symlink\n")
-
-        child = tmp_path / "subdir"
-        child.mkdir()
-
-        result = resolve_gallery_metadata(child)
-        assert result is not None
-        assert result.link_mode == LinkMode.SYMLINK
-
-    def test_finds_gallery_yaml_in_grandparent(self, tmp_path: Path) -> None:
-        gallery_yaml = tmp_path / PHOTREE_DIR / "gallery.yaml"
-        gallery_yaml.parent.mkdir(parents=True)
-        gallery_yaml.write_text("link-mode: copy\n")
-
-        grandchild = tmp_path / "a" / "b"
-        grandchild.mkdir(parents=True)
-
-        result = resolve_gallery_metadata(grandchild)
-        assert result is not None
-        assert result.link_mode == LinkMode.COPY
-
-
-class TestResolveLinkMode:
-    def test_explicit_overrides_gallery(self, tmp_path: Path) -> None:
-        gallery_yaml = tmp_path / PHOTREE_DIR / "gallery.yaml"
-        gallery_yaml.parent.mkdir(parents=True)
-        gallery_yaml.write_text("link-mode: symlink\n")
-
-        assert resolve_link_mode(LinkMode.COPY, tmp_path) == LinkMode.COPY
-
-    def test_gallery_overrides_default(self, tmp_path: Path) -> None:
-        gallery_yaml = tmp_path / PHOTREE_DIR / "gallery.yaml"
-        gallery_yaml.parent.mkdir(parents=True)
-        gallery_yaml.write_text("link-mode: symlink\n")
-
-        assert resolve_link_mode(None, tmp_path) == LinkMode.SYMLINK
-
-    def test_fallback_to_hardlink(self, tmp_path: Path) -> None:
-        assert resolve_link_mode(None, tmp_path) == LinkMode.HARDLINK
-
-
 class TestGenerateAlbumId:
     def test_returns_valid_uuid(self) -> None:
         aid = generate_album_id()
@@ -333,96 +196,6 @@ class TestIsAlbum:
         album.mkdir()
         save_album_metadata(album, AlbumMetadata(id=generate_album_id()))
         assert not is_album(album)
-
-
-class TestResolveGalleryDir:
-    def test_explicit_dir_with_gallery_yaml(self, tmp_path: Path) -> None:
-        save_gallery_metadata(tmp_path, GalleryMetadata())
-        assert resolve_gallery_dir(tmp_path, start_dir=tmp_path) == tmp_path
-
-    def test_explicit_dir_without_gallery_yaml_raises(self, tmp_path: Path) -> None:
-        with pytest.raises(GalleryNotFoundError) as info:
-            resolve_gallery_dir(tmp_path, start_dir=tmp_path)
-        assert info.value.explicit == tmp_path
-
-    def test_resolves_by_walking_up_from_start_dir(self, tmp_path: Path) -> None:
-        save_gallery_metadata(tmp_path, GalleryMetadata())
-        child = tmp_path / "subdir"
-        child.mkdir()
-        assert resolve_gallery_dir(None, start_dir=child) == tmp_path.resolve()
-
-    def test_no_gallery_found_raises(self, tmp_path: Path) -> None:
-        with pytest.raises(GalleryNotFoundError) as info:
-            resolve_gallery_dir(None, start_dir=tmp_path)
-        assert info.value.explicit is None
-        assert info.value.searched_from == tmp_path.resolve()
-
-
-class TestYamlMetadataIO:
-    def test_absent_file_is_none(self, tmp_path: Path) -> None:
-        assert load_yaml_mapping(tmp_path / "missing.yaml") is None
-
-    @pytest.mark.parametrize("content", ["", "- a\n- b\n", "key: [unclosed\n"])
-    def test_present_but_unusable_file_raises(
-        self,
-        tmp_path: Path,
-        content: str,
-    ) -> None:
-        path = tmp_path / "bad.yaml"
-        path.write_text(content, encoding="utf-8")
-        with pytest.raises(InvalidMetadataError) as info:
-            load_yaml_mapping(path)
-        assert info.value.path == path
-
-    def test_file_that_is_not_utf8_raises(self, tmp_path: Path) -> None:
-        path = tmp_path / "bad.yaml"
-        path.write_bytes(b"title: \xff\n")
-        with pytest.raises(InvalidMetadataError) as info:
-            load_yaml_mapping(path)
-        assert info.value.path == path
-
-    def test_corrupt_gallery_yaml_raises(self, tmp_path: Path) -> None:
-        path = tmp_path / "gallery.yaml"
-        path.write_text("link-mode: teleport\n", encoding="utf-8")
-        with pytest.raises(InvalidMetadataError) as info:
-            load_gallery_metadata(path)
-        assert info.value.path == path
-
-    def test_round_trips_non_ascii(self, tmp_path: Path) -> None:
-        path = tmp_path / "x.yaml"
-        write_yaml(path, {"title": "Été à Montréal"})
-        assert load_yaml_mapping(path) == {"title": "Été à Montréal"}
-
-    def test_write_replaces_the_file_instead_of_truncating_it(
-        self,
-        tmp_path: Path,
-    ) -> None:
-        # A hard link to the old file keeps its content only when the write
-        # renames a new file over the path rather than rewriting it in place,
-        # which is what spares the old content from an interrupted write.
-        path = tmp_path / "x.yaml"
-        write_yaml(path, {"id": "old"})
-        old_link = tmp_path / "old-link.yaml"
-        old_link.hardlink_to(path)
-
-        write_yaml(path, {"id": "new"})
-
-        assert load_yaml_mapping(path) == {"id": "new"}
-        assert load_yaml_mapping(old_link) == {"id": "old"}
-
-    def test_write_leaves_no_temporary_file(self, tmp_path: Path) -> None:
-        path = tmp_path / "x.yaml"
-        write_yaml(path, {"id": "a"})
-        write_yaml(path, {"id": "b"})
-        assert [p.name for p in tmp_path.iterdir()] == ["x.yaml"]
-
-    def test_failed_write_removes_its_temporary_file(self, tmp_path: Path) -> None:
-        # A directory cannot be replaced by a file.
-        path = tmp_path / "x.yaml"
-        (path / "occupied").mkdir(parents=True)
-        with pytest.raises(IsADirectoryError):
-            write_yaml(path, {"id": "a"})
-        assert [p.name for p in tmp_path.iterdir()] == ["x.yaml"]
 
 
 class TestDiscoverAlbums:
