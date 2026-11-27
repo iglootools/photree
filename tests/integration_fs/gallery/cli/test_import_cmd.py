@@ -167,6 +167,35 @@ class TestClobberGuard:
         assert "Rename the source album before importing." in result.output
 
 
+class TestInterruptedReimport:
+    def test_hidden_album_aborts_with_the_name_to_restore(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = make_gallery(tmp_path, faces_enabled=False)
+        album_id = generate_album_id()
+        album = _place_gallery_album(
+            gallery,
+            "2024-07-14 - Hiking",
+            album_id=album_id,
+        )
+        album.rename(album.with_name(f".{album.name}.old"))
+        source = _make_source(
+            tmp_path / "src",
+            "2024-07-14 - Hiking",
+            album_id=album_id,
+        )
+
+        result = invoke_cli(
+            ["gallery", "import", "-a", str(source), "-g", str(gallery), "--reimport"],
+        )
+
+        assert result.exit_code == 1
+        assert "an interrupted reimport left this album hidden" in result.output
+        assert f"Rename it back to {album}" in result.output
+        assert not album.exists()
+
+
 class TestDryRun:
     def test_dry_run_imports_nothing(self, tmp_path: Path) -> None:
         # No face-model stubbing needed: the analyzer factory is injected

@@ -26,7 +26,11 @@ from photree.album.store.album_discovery import has_media_sources
 from photree.album.store.metadata import load_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.albums.index import AlbumIndex
-from photree.gallery.importer import compute_target_dir
+from photree.gallery.importer import (
+    backed_up_album_dir,
+    compute_target_dir,
+    find_reimport_backups,
+)
 
 
 class ImportAction(StrEnum):
@@ -74,6 +78,21 @@ class ClobberConflict:
 
 
 @dataclass(frozen=True)
+class InterruptedReimport:
+    """
+    A gallery album a reimport moved aside and did not remove.
+
+    *live* is the gallery album holding the same ID: the reimport finished
+    and *backup* is a stale copy. ``None`` means the album exists only as
+    *backup*, hidden from the gallery, and belongs back at *album_dir*.
+    """
+
+    backup: Path
+    album_dir: Path
+    live: Path | None
+
+
+@dataclass(frozen=True)
 class GalleryImportPlan:
     """The planned outcome of importing a batch of albums into a gallery."""
 
@@ -83,6 +102,7 @@ class GalleryImportPlan:
     date_collisions: tuple[tuple[str, tuple[str, ...]], ...] = ()
     source_duplicate_ids: tuple[SourceDuplicate, ...] = ()
     clobber_conflicts: tuple[ClobberConflict, ...] = ()
+    interrupted_reimports: tuple[InterruptedReimport, ...] = ()
 
     @property
     def has_errors(self) -> bool:
@@ -92,7 +112,8 @@ class GalleryImportPlan:
             or self.structure_errors
             or self.date_collisions
             or self.source_duplicate_ids
-            or self.clobber_conflicts,
+            or self.clobber_conflicts
+            or self.interrupted_reimports,
         )
 
     @property
@@ -187,6 +208,28 @@ def _clobber_conflict(
     )
 
 
+def _find_interrupted_reimports(
+    gallery_dir: Path,
+    index: AlbumIndex,
+) -> tuple[InterruptedReimport, ...]:
+    """
+    Find the albums an interrupted reimport left moved aside.
+
+    Importing on top of one would not see the hidden album: its source would be
+    imported as new, with fresh media IDs that orphan every collection
+    referring to the album's media.
+    """
+    return tuple(
+        InterruptedReimport(
+            backup=backup,
+            album_dir=backed_up_album_dir(backup),
+            live=index.id_to_path.get(meta.id) if meta is not None else None,
+        )
+        for backup in find_reimport_backups(gallery_dir)
+        for meta in [load_album_metadata(backup)]
+    )
+
+
 def _plan_album_import(
     source: Path,
     meta: AlbumMetadata | None,
@@ -222,8 +265,9 @@ def plan_imports(
     Plan the import of *albums* and collect all pre-import validation errors.
 
     The returned :class:`GalleryImportPlan` carries a per-album plan plus
-    any naming, structure, collision, duplicate-ID, or clobber errors. The
-    caller must abort (import nothing) when ``has_errors`` is true.
+    any naming, structure, collision, duplicate-ID, clobber or
+    interrupted-reimport errors. The caller must abort (import nothing) when
+    ``has_errors`` is true.
     """
     metas = {a: load_album_metadata(a) for a in albums}
 
@@ -256,4 +300,5 @@ def plan_imports(
         date_collisions=date_collisions,
         source_duplicate_ids=source_duplicate_ids,
         clobber_conflicts=tuple(clobber_conflicts),
+        interrupted_reimports=_find_interrupted_reimports(gallery_dir, index),
     )

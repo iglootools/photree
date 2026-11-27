@@ -170,6 +170,15 @@ if no other album holds it. An ID-less source cannot be distinguished, so
 is moved back from its aside name and the staging directory is removed, so the
 album never disappears from the gallery.
 
+**Interrupted swap guard.** The aside name is `.<album-name>.old`, beside the
+live album and named after it. A process that dies between the two renames
+leaves the album only under that hidden name, which album discovery skips, so
+the next import would plan its source as new and mint fresh media IDs. Every
+import therefore refuses to run while such a directory exists under
+`albums/YYYY/`: it names the album to rename it back to, or, when another
+gallery album already holds its ID (the swap finished), reports it as a stale
+copy to delete.
+
 **Caveat.** UUID preservation holds only when source keys (iOS image numbers,
 std filename stems) are stable; a re-export that renumbers files rotates the
 UUIDs and breaks collection references to those media items.

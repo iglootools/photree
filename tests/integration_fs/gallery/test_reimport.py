@@ -235,4 +235,4 @@ class TestSwapIntoPlace:
             swap_into_place(existing, staging, target)
 
         assert (existing / "live.txt").read_text(encoding="utf-8") == "live"
-        assert not (target.parent / ".2024-07-14 - Renamed.old").exists()
+        assert not (existing.parent / ".2024-07-14 - Hiking.old").exists()

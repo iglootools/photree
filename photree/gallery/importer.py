@@ -82,9 +82,39 @@ def compute_target_dir(gallery_dir: Path, album_name: str) -> Path:
     return gallery_dir / ALBUMS_DIR / year / album_name
 
 
+_BACKUP_SUFFIX = "old"
+
+
 def _hidden_sibling(target_dir: Path, suffix: str) -> Path:
     """Return a dot-prefixed sibling of *target_dir*, invisible to album discovery."""
     return target_dir.parent / f".{target_dir.name}.{suffix}"
+
+
+def find_reimport_backups(gallery_dir: Path) -> tuple[Path, ...]:
+    """
+    Return the gallery albums a reimport moved aside and never removed.
+
+    A reimport moves the live album to a hidden ``.<name>.old`` sibling while
+    it swaps the rebuilt copy in. One that is still there means the process
+    died during the swap: either the album exists only as that hidden copy,
+    which album discovery skips, or the copy is a stale duplicate.
+    """
+    albums_dir = gallery_dir / ALBUMS_DIR
+    return tuple(
+        sorted(
+            backup
+            for year_dir in (albums_dir.iterdir() if albums_dir.is_dir() else ())
+            if year_dir.is_dir()
+            for backup in year_dir.glob(f".*.{_BACKUP_SUFFIX}")
+            if backup.is_dir()
+        ),
+    )
+
+
+def backed_up_album_dir(backup: Path) -> Path:
+    """Return where the album moved aside to *backup* lived before the swap."""
+    name = backup.name.removeprefix(".").removesuffix(f".{_BACKUP_SUFFIX}")
+    return backup.with_name(name)
 
 
 @dataclass(frozen=True)
@@ -246,8 +276,12 @@ def swap_into_place(existing_dir: Path, staging: Path, target_dir: Path) -> None
     renames keep the window where neither copy exists as small as possible.
     If the second rename fails, the live album is moved back before the error
     propagates, so a failed swap never loses the gallery copy.
+
+    The aside copy sits beside *existing_dir* and is named after it, so a
+    process that dies between the renames leaves a copy whose name says where
+    it belongs (see :func:`find_reimport_backups`).
     """
-    backup = _hidden_sibling(target_dir, "old")
+    backup = _hidden_sibling(existing_dir, _BACKUP_SUFFIX)
     if backup.exists():
         shutil.rmtree(backup)
     existing_dir.rename(backup)

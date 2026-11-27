@@ -7,6 +7,7 @@ from photree.albums.index import AlbumIndex
 from photree.gallery.import_plan import (
     ClobberConflict,
     ImportAction,
+    InterruptedReimport,
     plan_imports,
 )
 from tests.testkit import write_file
@@ -200,3 +201,56 @@ class TestPlanImportsRenamedSource:
         assert not result.has_errors
         assert result.plans[0].action is ImportAction.REIMPORT
         assert result.plans[0].existing == existing
+
+
+class TestPlanImportsInterruptedReimport:
+    def test_album_hidden_by_an_interrupted_reimport_is_an_error(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Regression: the hidden album's source was planned as new."""
+        gallery = tmp_path / "gallery"
+        album_id = generate_album_id()
+        backup = _make_source(
+            gallery / "albums" / "2024",
+            ".2024-07-14 - Hiking.old",
+            album_id=album_id,
+        )
+        source = _make_source(
+            tmp_path / "src",
+            "2024-07-14 - Hiking",
+            album_id=album_id,
+        )
+
+        result = plan_imports([source], _empty_index(), gallery, reimport=True)
+
+        assert result.interrupted_reimports == (
+            InterruptedReimport(
+                backup=backup,
+                album_dir=gallery / "albums" / "2024" / "2024-07-14 - Hiking",
+                live=None,
+            ),
+        )
+        assert result.has_errors
+
+    def test_stale_copy_names_the_album_holding_its_id(self, tmp_path: Path) -> None:
+        gallery = tmp_path / "gallery"
+        album_id = generate_album_id()
+        backup = _make_source(
+            gallery / "albums" / "2024",
+            ".2024-07-14 - Hiking.old",
+            album_id=album_id,
+        )
+        live = gallery / "albums" / "2024" / "2024-07-14 - Hiking the Rockies"
+        index = AlbumIndex(id_to_path={album_id: live}, duplicates={})
+        source = _make_source(tmp_path / "src", "2024-08-01 - Beach")
+
+        result = plan_imports([source], index, gallery, reimport=False)
+
+        assert result.interrupted_reimports == (
+            InterruptedReimport(
+                backup=backup,
+                album_dir=gallery / "albums" / "2024" / "2024-07-14 - Hiking",
+                live=live,
+            ),
+        )

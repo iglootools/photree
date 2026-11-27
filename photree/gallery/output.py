@@ -19,6 +19,7 @@ from photree.gallery.import_plan import (
     AlbumPlan,
     ClobberConflict,
     GalleryImportPlan,
+    InterruptedReimport,
     SourceDuplicate,
 )
 from photree.gallery.importer import TargetExistsError
@@ -79,6 +80,33 @@ def _clobber_block(conflict: ClobberConflict, cwd: Path) -> list[str]:
     ]
 
 
+def _interrupted_reimport_block(
+    interrupted: InterruptedReimport,
+    cwd: Path,
+) -> list[str]:
+    match interrupted.live:
+        case None:
+            return [
+                (
+                    f"{CROSS} {_shown(interrupted.backup, cwd)} — an interrupted "
+                    "reimport left this album hidden from the gallery"
+                ),
+                indent(
+                    "Rename it back to "
+                    f"{_shown(interrupted.album_dir, cwd)}, then import again.",
+                    2,
+                ),
+            ]
+        case live:
+            return [
+                (
+                    f"{CROSS} {_shown(interrupted.backup, cwd)} — a stale copy "
+                    f"an interrupted reimport left of {_shown(live, cwd)}"
+                ),
+                indent("Delete it, then import again.", 2),
+            ]
+
+
 def format_import_errors(plan: GalleryImportPlan, cwd: Path) -> str:
     """Format every pre-import validation error as a single block."""
     blocks = [
@@ -87,6 +115,10 @@ def format_import_errors(plan: GalleryImportPlan, cwd: Path) -> str:
         *(_collision_block(d, names) for d, names in plan.date_collisions),
         *(_duplicate_id_block(dup, cwd) for dup in plan.source_duplicate_ids),
         *(_clobber_block(conflict, cwd) for conflict in plan.clobber_conflicts),
+        *(
+            _interrupted_reimport_block(interrupted, cwd)
+            for interrupted in plan.interrupted_reimports
+        ),
     ]
     return "\n".join(line for block in blocks for line in block)
 
