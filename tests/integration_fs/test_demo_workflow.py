@@ -1,23 +1,24 @@
 """
 Integration test: full demo workflow (seed → import → check → export).
 
-Mirrors the demo.sh script with assertions at each stage.
+Mirrors the demo.sh script with assertions at each stage. It runs the same
+code on every platform: JPEG conversion is faked and exiftool is not used, so
+the outcome never depends on what the developer has installed. Real sips and
+exiftool are covered by the tests dedicated to them, which skip where the tool
+is missing.
 """
 
-import shutil
 from pathlib import Path
 
-from photree.album.check import check_sips_available, run_album_check
+from photree.album.check import run_album_check
 from photree.album.exporter.single import compute_target_dir, export_album
 from photree.album.importer.album_import import run_import
 from photree.album.importer.testkit import seed_demo
-from photree.album.jpeg import convert_single_file
 from photree.album.store.album_discovery import is_album
 from photree.album.store.media_source import MAIN_MEDIA_SOURCE
 from photree.album.store.media_sources_discovery import discover_media_sources
 from photree.album.store.metadata import load_album_metadata
 from photree.album.store.protocol import ALBUM_YAML
-from photree.common.exif import exiftool_session
 from photree.foundation.layout import PHOTREE_DIR, SHARE_SENTINEL
 from photree.foundation.linking import LinkMode
 from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
@@ -57,15 +58,11 @@ def _seed(tmp_path: Path) -> tuple[Path, Path]:
 
 
 def _import(album_dir: Path, ic_dir: Path) -> None:
-    # Use noop converter on Linux where sips is unavailable
-    converter = (
-        convert_single_file if shutil.which("sips") is not None else copy_convert_single
-    )
     import_result = run_import(
         album_dir=album_dir,
         image_capture_dir=ic_dir,
         link_mode=LinkMode.COPY,
-        convert_file=converter,
+        convert_file=copy_convert_single,
     )
 
     assert len(import_result.ios_results) == 1
@@ -153,14 +150,13 @@ def _assert_browsable_dirs(album_dir: Path) -> list[str]:
 
 
 def _assert_check_passes(album_dir: Path) -> None:
-    with exiftool_session() as exiftool:
-        preflight = run_album_check(
-            album_dir,
-            sips_available=check_sips_available(),
-            exiftool=exiftool,
-            link_mode=LinkMode.COPY,
-            checksum=True,
-        )
+    preflight = run_album_check(
+        album_dir,
+        sips_available=True,
+        exiftool=None,
+        link_mode=LinkMode.COPY,
+        checksum=True,
+    )
 
     assert preflight.media_source_summary.has_ios
     assert preflight.dir_check.success
