@@ -9,7 +9,7 @@ from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.foundation.linking import LinkMode
 from tests.fakes import FakeExifTool
-from tests.testkit import file_names, write_file
+from tests.testkit import file_names, mark_album, write_file
 
 
 def _setup_ios_album(album_dir: Path) -> None:
@@ -208,6 +208,42 @@ class TestRefreshMultipleSources:
         # Std source keys are stems
         std_keys = set(meta.media_sources["nelu"].images.values())
         assert std_keys == {"DSC_1234", "DSC_5678"}
+
+
+def _snapshot(album: Path) -> dict[str, tuple[str, float]]:
+    """Return every file under *album* with its content and mtime."""
+    return {
+        str(f.relative_to(album)): (f.read_text(encoding="utf-8"), f.stat().st_mtime)
+        for f in album.rglob("*")
+        if f.is_file()
+    }
+
+
+class TestRefreshDerivedDataDryRun:
+    def test_dry_run_leaves_every_derived_file_alone(self, tmp_path: Path) -> None:
+        # Every step has work to do: a Live Photo missing from main-img/, a
+        # JPEG dir with a stale file, no media IDs and no EXIF cache, which
+        # the std source, with no browsable files to read, would only create.
+        album = tmp_path / "album"
+        write_file(album / "std-nelu" / "orig-img" / "DSC_0001.JPG")
+        write_file(album / "ios-main" / "orig-img" / "IMG_0001.JPG")
+        write_file(album / "ios-main" / "orig-img" / "IMG_0002.JPG")
+        write_file(album / "ios-main" / "orig-img" / "IMG_0002.MOV")
+        write_file(album / "main-img" / "IMG_0001.JPG")
+        write_file(album / "main-jpg" / "IMG_0001.JPG")
+        write_file(album / "main-jpg" / "IMG_9999.JPG")
+        mark_album(album)
+        before = _snapshot(album)
+
+        refresh_album_derived_data(
+            album,
+            link_mode=LinkMode.COPY,
+            exiftool=FakeExifTool({}),
+            dry_run=True,
+        )
+
+        assert _snapshot(album) == before
+        assert not (album / "main-vid").exists()
 
 
 class TestRefreshDerivedDataJpeg:
