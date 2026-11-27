@@ -68,18 +68,6 @@ def _panel(title: str, content: str) -> None:
 # every sample. Grouped by the module whose output functions they exercise.
 _SAMPLES: tuple[tuple[str, Callable[[], str]], ...] = (
     (
-        "album_output.sips_check(available=True)",
-        lambda: album_output.sips_check(available=True),
-    ),
-    (
-        "album_output.sips_check(available=False)",
-        lambda: album_output.sips_check(available=False),
-    ),
-    (
-        "troubleshoot_output.sips_troubleshoot()",
-        troubleshoot_output.sips_troubleshoot,
-    ),
-    (
         "preflight_output.rm_upstream_summary()",
         lambda: rm_upstream_summary(
             heic_jpeg=2,

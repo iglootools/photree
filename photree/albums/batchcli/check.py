@@ -226,8 +226,6 @@ def _check_albums(
     ) as progress:
         return batch_check(
             albums,
-            # require_system_deps exited already if sips were missing.
-            sips_available=True,
             exiftool=exiftool,
             link_mode_for=lambda album_dir: resolve_link_mode(None, album_dir),
             checksum=flags.checksum,

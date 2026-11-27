@@ -161,8 +161,6 @@ def post_import_check(
     with exiftool_session(which=which) as exiftool:
         check_result = album_check.run_album_check(
             target_dir,
-            # The import gate (import_deps) already required sips.
-            sips_available=True,
             exiftool=exiftool,
             link_mode=link_mode,
         )
@@ -256,8 +254,6 @@ def run_batch_post_import_check(
         return _run_batch_post_import_check(
             imported_targets,
             link_mode=link_mode,
-            # The import gate (import_deps) already required sips.
-            sips_available=True,
             which=which,
             display_fn=lambda p: str(display_path(p, cwd)),
             on_start=check_progress.on_start,

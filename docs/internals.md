@@ -794,11 +794,12 @@ failure N times — worse, it does so after some albums have already been
 written. The gate prints a check line per dependency, then install
 instructions for whatever is missing, and exits 1 having modified nothing.
 
-Every lookup a command makes (the gate, the import preflight, the `sips`
-availability passed to checks, each exiftool session) uses the `which` of the
-command's runtime (`photree/clihelpers/runtime.py`), so all of them agree on
-what is installed. Commands whose gate already required a binary do not probe
-for it again: the gallery post-import checks take `sips` as available.
+Every lookup a command makes (the gate, the import preflight, each exiftool
+session) uses the `which` of the command's runtime
+(`photree/clihelpers/runtime.py`), so all of them agree on what is installed.
+The album check itself never probes: its caller's gate (the check commands', or
+the import gate before the gallery post-import checks) already required what it
+needs.
 
 | Command | Requires |
 |---|---|
@@ -807,8 +808,7 @@ for it again: the gallery post-import checks take `sips` as available.
 | `album refresh`, `albums refresh`, `gallery refresh` | `sips` + `exiftool` |
 | `collection import`, `collections import` | `exiftool` |
 | `album detect-faces`, `albums detect-faces` | `sips` |
-| `albums check`, `gallery check` | `sips` (`CHECK_DEPS`); with `--refresh-exif-cache` also `exiftool` |
-| `album check` | nothing: a missing `sips` is reported as a failed check, and `--refresh-exif-cache` is not gated on `exiftool` |
+| `album check`, `albums check`, `gallery check` | `sips` (`CHECK_DEPS`); with `--refresh-exif-cache` also `exiftool` |
 | `gallery cluster-faces` | `sips`; also `exiftool` with `--redetect` / `--refresh-thumbs` |
 | `album fix-exif` | `exiftool` |
 | `check system` | reports both, exits 1 if any is missing |
@@ -816,10 +816,11 @@ for it again: the gallery post-import checks take `sips` as available.
 For `album import` / `albums import` the gate is folded into the existing
 import preflight block, so all preflight failures are reported together.
 
-The `check` commands are deliberately **not** gated on `exiftool`: EXIF
-validation is optional there and degrades to a "checks skipped" line. The batch
-ones are still gated on `sips`, which the browsable/JPEG consistency checks
-need; `album check` reports it as a check instead.
+The `check` commands are deliberately **not** gated on `exiftool`, unless
+`--refresh-exif-cache` asks for it: EXIF validation is optional there and
+degrades to a "checks skipped" line. Every scope is gated on `sips`, which the
+browsable/JPEG consistency checks need, so a machine without it fails `album
+check` up front exactly as it fails `albums check` and `gallery check`.
 
 ### Defense in depth
 

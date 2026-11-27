@@ -8,6 +8,9 @@ album individually, halfway through.
 
 from pathlib import Path
 
+import pytest
+
+from photree.album.exif_cache.store import exif_cache_dir
 from photree.album.id import generate_album_id
 from photree.album.staging import ios_import_dir
 from photree.album.store.metadata import save_album_metadata
@@ -140,6 +143,50 @@ class TestRefreshGate:
 
         assert result.exit_code == 1
         assert "exiftool" in result.output
+
+
+class TestCheckGate:
+    @pytest.mark.parametrize(
+        "args",
+        [["album", "check", "-a"], ["albums", "check", "-d"]],
+    )
+    def test_missing_sips_aborts_before_checking(
+        self,
+        tmp_path: Path,
+        args: list[str],
+    ) -> None:
+        runtime = fake_runtime(SystemDependency.EXIFTOOL)
+        albums_dir = tmp_path / "albums"
+        album = albums_dir / "2024-07-14 - Hiking"
+        write_file(album / "ios-main/orig-img/IMG_0001.HEIC")
+        save_album_metadata(album, AlbumMetadata(id=generate_album_id()))
+        target = album if args[0] == "album" else albums_dir
+
+        result = invoke_cli([*args, str(target)], runtime=runtime)
+
+        assert result.exit_code == 1
+        assert "sips" in result.output
+        assert "Nothing was modified" in result.output
+        assert "Structure:" not in result.output
+        assert "Checking" not in result.output
+
+    def test_album_check_refresh_exif_cache_requires_exiftool(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        runtime = fake_runtime(SystemDependency.SIPS)
+        album = tmp_path / "2024-07-14 - Hiking"
+        write_file(album / "ios-main/orig-img/IMG_0001.HEIC")
+        save_album_metadata(album, AlbumMetadata(id=generate_album_id()))
+
+        result = invoke_cli(
+            ["album", "check", "-a", str(album), "--refresh-exif-cache"],
+            runtime=runtime,
+        )
+
+        assert result.exit_code == 1
+        assert "exiftool" in result.output
+        assert not exif_cache_dir(album).exists()
 
 
 class TestCheckSystemCmd:

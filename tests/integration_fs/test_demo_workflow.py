@@ -152,7 +152,6 @@ def _assert_browsable_dirs(album_dir: Path) -> list[str]:
 def _assert_check_passes(album_dir: Path) -> None:
     preflight = run_album_check(
         album_dir,
-        sips_available=True,
         exiftool=None,
         link_mode=LinkMode.COPY,
         checksum=True,

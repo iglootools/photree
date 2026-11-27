@@ -244,8 +244,6 @@ _IOS_DIR_CHECK_OK = AlbumDirCheck(
 )
 
 PREFLIGHT_OK = AlbumPreflightResult(
-    sips_available=True,
-    exiftool_available=True,
     media_source_summary=AlbumMediaSourceSummary(media_sources=(MAIN_MEDIA_SOURCE,)),
     dir_check=_IOS_DIR_CHECK_OK,
     album_id_check=AlbumIdCheck(
@@ -258,8 +256,6 @@ PREFLIGHT_OK = AlbumPreflightResult(
 )
 
 PREFLIGHT_FAILURES = AlbumPreflightResult(
-    sips_available=False,
-    exiftool_available=True,
     media_source_summary=AlbumMediaSourceSummary(media_sources=(MAIN_MEDIA_SOURCE,)),
     dir_check=AlbumDirCheck(
         present=("ios-main/orig-img", "main-img"),
@@ -275,8 +271,6 @@ PREFLIGHT_FAILURES = AlbumPreflightResult(
 )
 
 PREFLIGHT_STD = AlbumPreflightResult(
-    sips_available=True,
-    exiftool_available=True,
     media_source_summary=AlbumMediaSourceSummary(
         media_sources=(std_media_source("main"),),
     ),

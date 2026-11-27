@@ -200,7 +200,6 @@ class TestMediaSourceConflicts:
 
         result = run_album_check(
             album,
-            sips_available=True,
             exiftool=None,
             link_mode=LinkMode.HARDLINK,
         )
@@ -233,7 +232,6 @@ class TestMediaSourceConflicts:
 
         batch_check(
             [conflicted, healthy],
-            sips_available=True,
             link_mode_for=lambda _: LinkMode.HARDLINK,
             check_naming=False,
             on_end=record_end,

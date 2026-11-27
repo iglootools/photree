@@ -61,14 +61,6 @@ def _bullets(items: Sequence[str]) -> list[str]:
     return [indent(f"- {markup_escape(item)}") for item in items]
 
 
-def sips_check(*, available: bool) -> str:
-    """Format the sips availability line, as Rich markup."""
-    if available:
-        return f"{CHECK} sips"
-    else:
-        return f"{CROSS} sips (not found)"
-
-
 def exiftool_check(*, available: bool) -> str:
     """
     Format the exiftool availability line, as Rich markup.
@@ -605,23 +597,12 @@ def format_album_preflight_checks(
 ) -> str:
     """Format all album preflight check lines, grouped by category."""
     sections = [
-        _format_system_section(result),
         _format_structure_section(result),
         _format_media_section(result, fatal_sidecar=fatal_sidecar),
         _format_naming_section(result, fatal_exif=fatal_exif, album_dir=album_dir),
         _format_cache_section(result),
     ]
     return "\n\n".join(s for s in sections if s)
-
-
-def _format_system_section(result: AlbumPreflightResult) -> str:
-    return "\n".join(
-        [
-            "System:",
-            sips_check(available=result.sips_available),
-            exiftool_check(available=result.exiftool_available),
-        ],
-    )
 
 
 def _format_structure_section(result: AlbumPreflightResult) -> str:

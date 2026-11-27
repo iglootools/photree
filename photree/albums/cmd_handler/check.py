@@ -38,7 +38,6 @@ class BatchCheckResult:
 class CheckOptions:
     """Per-album check settings shared by every album of a batch."""
 
-    sips_available: bool
     exiftool: ExifTagReader | None
     link_mode_for: Callable[[Path], LinkMode]
     checksum: bool = True
@@ -72,7 +71,6 @@ def _check_one(
 ) -> _AlbumOutcome:
     result = album_check.run_album_check(
         album_dir,
-        sips_available=opts.sips_available,
         exiftool=opts.exiftool,
         link_mode=opts.link_mode_for(album_dir),
         checksum=opts.checksum,
@@ -119,7 +117,6 @@ def _check_one_safely(
 def batch_check(
     albums: list[Path],
     *,
-    sips_available: bool,
     exiftool: ExifTagReader | None = None,
     link_mode_for: Callable[[Path], LinkMode],
     checksum: bool = True,
@@ -143,7 +140,6 @@ def batch_check(
     The caller is responsible for managing the exiftool process lifecycle.
     """
     opts = CheckOptions(
-        sips_available=sips_available,
         exiftool=exiftool,
         link_mode_for=link_mode_for,
         checksum=checksum,

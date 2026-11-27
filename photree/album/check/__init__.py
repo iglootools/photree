@@ -23,7 +23,6 @@ from photree.album.check.std import (
     StdMediaSourceIntegrityResult,
     check_std_media_source_integrity,
 )
-from photree.album.check.system import check_sips_available as check_sips_available
 from photree.album.check.unexpected_dirs import (
     UnexpectedDirsCheck,
     check_unexpected_dirs,
@@ -126,8 +125,6 @@ class AlbumPreflightResult:
     A check left at ``None`` was not run.
     """
 
-    sips_available: bool
-    exiftool_available: bool
     media_source_summary: AlbumMediaSourceSummary
     dir_check: AlbumDirCheck
     album_id_check: AlbumIdCheck | None = None
@@ -151,11 +148,10 @@ class AlbumPreflightResult:
         Return whether the album passed every check that ran.
 
         Warnings (missing sidecars, EXIF date mismatches) do not count; see
-        :meth:`has_fatal_warnings`. A missing exiftool is not a failure.
+        :meth:`has_fatal_warnings`.
         """
         return (
-            self.sips_available
-            and not self.media_source_conflicts
+            not self.media_source_conflicts
             and self.dir_check.success
             and (self.album_id_check is None or self.album_id_check.has_id)
             and (
@@ -188,7 +184,6 @@ class AlbumPreflightResult:
     def error_labels(self) -> tuple[str, ...]:
         """Return a short label for each kind of failed check."""
         return (
-            *(["sips not found"] if not self.sips_available else []),
             *(["media source conflict"] if self.media_source_conflicts else []),
             *(["missing dirs"] if not self.dir_check.success else []),
             *(
@@ -340,7 +335,6 @@ def _check_media_source_integrity(
 def run_album_check(
     album_dir: Path,
     *,
-    sips_available: bool,
     exiftool: ExifTagReader | None,
     link_mode: LinkMode,
     checksum: bool = True,
@@ -350,8 +344,9 @@ def run_album_check(
     """
     Run every check on one album.
 
-    Accepts ``sips_available`` and ``exiftool`` as parameters so
-    system checks can be done once for batch operations.
+    Takes the *exiftool* session as a parameter so a batch starts it once;
+    ``None`` skips the EXIF date match. The caller gates on the system
+    dependencies the check needs before running it.
 
     An iOS/std media source name clash is reported as a failed check (see
     :attr:`AlbumPreflightResult.media_source_conflicts`) rather than raised,
@@ -362,8 +357,6 @@ def run_album_check(
         return _conflicted_album_result(
             album_dir,
             conflicts,
-            sips_available=sips_available,
-            exiftool_available=exiftool is not None,
             check_naming_flag=check_naming_flag,
         )
     media_sources = discover_media_sources(album_dir)
@@ -386,8 +379,6 @@ def run_album_check(
     face_state, exif_cache_state = _check_cache(album_dir, media_sources)
 
     return AlbumPreflightResult(
-        sips_available=sips_available,
-        exiftool_available=exiftool is not None,
         media_source_summary=summary,
         dir_check=dir_check,
         album_id_check=album_id,
@@ -405,8 +396,6 @@ def _conflicted_album_result(
     album_dir: Path,
     conflicts: tuple[str, ...],
     *,
-    sips_available: bool,
-    exiftool_available: bool,
     check_naming_flag: bool,
 ) -> AlbumPreflightResult:
     """
@@ -417,8 +406,6 @@ def _conflicted_album_result(
     """
     metadata = load_album_metadata(album_dir)
     return AlbumPreflightResult(
-        sips_available=sips_available,
-        exiftool_available=exiftool_available,
         media_source_summary=AlbumMediaSourceSummary(media_sources=()),
         dir_check=AlbumDirCheck(present=(), missing=()),
         album_id_check=AlbumIdCheck(

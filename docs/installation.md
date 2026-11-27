@@ -63,10 +63,9 @@ than once per album, halfway through. See
 command requires what.
 
 The `check` commands only partly follow this. Without `exiftool` they report
-that the EXIF checks were skipped rather than failing. `albums check` and
-`gallery check` still require `sips`, and `exiftool` too with
-`--refresh-exif-cache`, and abort without them; `album check` reports a missing
-`sips` as a failed check instead. The
+that the EXIF checks were skipped rather than failing. `album check`,
+`albums check` and `gallery check` still require `sips`, and `exiftool` too
+with `--refresh-exif-cache`, and abort without them. The
 [Internals table](internals.md#system-dependencies) lists each case.
 
 ## Install with uv
