@@ -14,7 +14,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from itertools import groupby
-from operator import attrgetter
+from operator import attrgetter, itemgetter
 from pathlib import Path
 
 from photree.album.naming import parse_album_name
@@ -165,15 +165,6 @@ class _MediaLocation:
     album_path: Path
     media_source: MediaSource
     key: str
-
-    def matches(self, filename: str) -> bool:
-        """
-        Whether *filename* belongs to this item, by its source's key rule.
-
-        The rule follows the media source type, not the filename: a std
-        source may hold ``IMG_1234.JPG`` files, which are keyed by stem.
-        """
-        return self.media_source.key_fn(filename) == self.key
 
 
 type _DirPicker = Callable[[MediaSource], str]
@@ -379,19 +370,57 @@ def _plan_album(album: _AlbumEntry, target_dir: Path) -> list[_Link]:
     ]
 
 
-def _matching_files(loc: _MediaLocation, pick_dir: _DirPicker) -> list[Path]:
-    """Return one media item's browsable files in the directory *pick_dir* names."""
-    browsable_dir = loc.album_path / pick_dir(loc.media_source)
-    return (
-        [f for f in browsable_dir.iterdir() if f.is_file() and loc.matches(f.name)]
-        if browsable_dir.is_dir()
-        else []
+def _files_by_key(
+    browsable_dir: Path,
+    media_source: MediaSource,
+) -> dict[str, tuple[Path, ...]]:
+    """
+    Index the files of *browsable_dir* by media key, by its source's key rule.
+
+    The rule follows the media source type, not the filename: a std source
+    may hold ``IMG_1234.JPG`` files, which are keyed by stem.
+    """
+    keyed = sorted(
+        (
+            (media_source.key_fn(f.name), f)
+            for f in (browsable_dir.iterdir() if browsable_dir.is_dir() else ())
+            if f.is_file()
+        ),
+        key=itemgetter(0),
     )
+    return {
+        key: tuple(f for _, f in group)
+        for key, group in groupby(keyed, key=itemgetter(0))
+    }
+
+
+class _BrowsableFiles:
+    """
+    The files of each album browsable directory, by media key, listed once.
+
+    Collections pick media one ID at a time, often many from the same album,
+    and a sub-collection is planned again under each parent: listing and
+    stat'ing the directory per media ID would cost its size each time.
+    """
+
+    def __init__(self) -> None:
+        """Start with no directory listed."""
+        self._by_dir: dict[Path, dict[str, tuple[Path, ...]]] = {}
+
+    def matching(self, loc: _MediaLocation, pick_dir: _DirPicker) -> tuple[Path, ...]:
+        """Return one media item's files in the directory *pick_dir* names."""
+        browsable_dir = loc.album_path / pick_dir(loc.media_source)
+        if browsable_dir not in self._by_dir:
+            self._by_dir[browsable_dir] = _files_by_key(
+                browsable_dir,
+                loc.media_source,
+            )
+        return self._by_dir[browsable_dir].get(loc.key, ())
 
 
 def _plan_media_files(
     media_ids: tuple[str, ...],
-    media_locations: Mapping[str, _MediaLocation],
+    gallery: _Gallery,
     target_subdir: Path,
     pick_dir: _DirPicker,
 ) -> list[_Link]:
@@ -410,9 +439,9 @@ def _plan_media_files(
             / f"{loc.album_path.name} - {loc.media_source.name} - {f.name}",
         )
         for mid in media_ids
-        for loc in [media_locations.get(mid)]
+        for loc in [gallery.media_locations.get(mid)]
         if loc is not None
-        for f in _matching_files(loc, pick_dir)
+        for f in gallery.browsable_files.matching(loc, pick_dir)
     ]
 
 
@@ -423,6 +452,7 @@ class _Gallery:
     albums: Mapping[str, _AlbumEntry]
     collections: Mapping[str, _CollectionEntry]
     media_locations: Mapping[str, _MediaLocation]
+    browsable_files: _BrowsableFiles
 
 
 def _plan_collection(
@@ -456,13 +486,13 @@ def _plan_collection(
     )
     image_links = _plan_media_files(
         collection.image_ids,
-        gallery.media_locations,
+        gallery,
         col_target / "images",
         _image_dir,
     )
     video_links = _plan_media_files(
         collection.video_ids,
-        gallery.media_locations,
+        gallery,
         col_target / "videos",
         _video_dir,
     )
@@ -595,7 +625,7 @@ def refresh_browsable(
     if album_errors or collection_errors:
         return BrowsableRefreshResult(errors=(*album_errors, *collection_errors))
 
-    gallery = _Gallery(albums, collections, media_locations)
+    gallery = _Gallery(albums, collections, media_locations, _BrowsableFiles())
     dangling = _dangling_members(collections, albums, media_locations)
     planned, render_errors = _plan_all(gallery, browsable_dir)
     links, collisions = _dedupe_links(planned)

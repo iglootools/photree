@@ -345,6 +345,46 @@ class TestBrowsableRefreshMediaMembers:
             "2024-07-14 - Camera - cam - IMG_1234.jpg",
         ]
 
+    def test_collections_picking_from_one_album_each_link_their_own_files(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = make_gallery(tmp_path)
+        album_dir = gallery / "albums" / "2024" / "2024-07-14 - Trip"
+        write_file(album_dir / "ios-main" / "orig-img" / "IMG_0001.HEIC")
+        for name in ("IMG_0001.jpg", "IMG_E0001.jpg", "IMG_0002.jpg", "IMG_0003.jpg"):
+            write_file(album_dir / "main-jpg" / name)
+        save_album_metadata(album_dir, AlbumMetadata(id=generate_album_id()))
+        ids = {key: generate_media_id() for key in ("0001", "0002", "0003")}
+        save_media_metadata(
+            album_dir,
+            MediaMetadata(
+                media_sources={
+                    "main": MediaSourceMediaMetadata(
+                        images={mid: key for key, mid in ids.items()},
+                    ),
+                },
+            ),
+        )
+        _save_collection(gallery, "2024-07 - Picks", images=[ids["0001"], ids["0003"]])
+        _save_collection(gallery, "2024-07 - Best", images=[ids["0002"]])
+
+        result = refresh_browsable(gallery)
+
+        assert result.success
+        by_year = gallery / BROWSABLE_DIR / "public" / "collections" / "by-year"
+        assert {
+            name: sorted(p.name for p in (by_year / "2024" / name / "images").iterdir())
+            for name in ("2024-07 - Picks", "2024-07 - Best")
+        } == {
+            "2024-07 - Picks": [
+                "2024-07-14 - Trip - main - IMG_0001.jpg",
+                "2024-07-14 - Trip - main - IMG_0003.jpg",
+                "2024-07-14 - Trip - main - IMG_E0001.jpg",
+            ],
+            "2024-07 - Best": ["2024-07-14 - Trip - main - IMG_0002.jpg"],
+        }
+
 
 class TestBrowsableRefreshDanglingMembers:
     def test_reports_unknown_member_ids(self, tmp_path: Path) -> None:
