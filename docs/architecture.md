@@ -79,6 +79,7 @@ graph TD
     demo --> album
     demo --> albums
     demo --> clihelpers
+    demo --> common
     gallery --> album
     gallery --> albums
     gallery --> clihelpers

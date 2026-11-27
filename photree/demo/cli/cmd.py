@@ -36,9 +36,10 @@ from photree.album.importer.testkit.preflight import (
 from photree.album.importer.testkit.validation import VALIDATION_ERRORS
 from photree.album.stats.testkit import ALBUM_STATS, ALBUMS_STATS
 from photree.albums.output import importer as batch_import_output
-from photree.clihelpers.console import console
+from photree.clihelpers.console import console, err_console
 from photree.clihelpers.paths import expand_user_path
 from photree.clihelpers.runtime import runtime_of
+from photree.common.fs import display_path
 
 app = typer.Typer(
     name="demo",
@@ -338,6 +339,10 @@ def _commands_panel(result: SeedResult, album_name: str) -> Panel:
     )
 
 
+def _is_non_empty_dir(path: Path) -> bool:
+    return path.is_dir() and any(path.iterdir())
+
+
 @app.command("seed")
 def seed_cmd(
     ctx: typer.Context,
@@ -358,8 +363,25 @@ def seed_cmd(
             help="Album name.",
         ),
     ] = "2024-06-15 - Demo Album",
+    *,
+    force: Annotated[
+        bool,
+        typer.Option(
+            "--force",
+            help="Seed into a --base-dir that is not empty, overwriting files.",
+        ),
+    ] = False,
 ) -> None:
     """Generate a demo environment with Image Capture files and an album."""
+    runtime = runtime_of(ctx)
+    if base_dir is not None and _is_non_empty_dir(base_dir) and not force:
+        err_console.print(
+            f"{display_path(base_dir, runtime.cwd())} is not empty: seeding "
+            "would overwrite files with the demo's names.\n"
+            "Re-run with --force to seed into it anyway, or pick a new directory.",
+            markup=False,
+        )
+        raise typer.Exit(code=1)
     resolved_base = (
         base_dir
         if base_dir is not None
@@ -368,7 +390,7 @@ def seed_cmd(
     result = seed_demo(
         resolved_base,
         album_name=album_name,
-        which=runtime_of(ctx).which,
+        which=runtime.which,
     )
     console.print(_summary_panel(result, album_name))
     console.print(_commands_panel(result, album_name))

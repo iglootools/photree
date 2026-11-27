@@ -1024,6 +1024,7 @@ $ photree demo seed [OPTIONS]
 
 * `-d, --base-dir <directory>`: Directory to create the demo in. Default: creates a temp directory.
 * `--album-name <str>`: Album name.  [default: 2024-06-15 - Demo Album]
+* `--force`: Seed into a --base-dir that is not empty, overwriting files.
 * `--help`: Show this message and exit.
 
 ## `photree gallery`
