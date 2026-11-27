@@ -70,7 +70,7 @@ def _panel(title: str, content: str) -> None:
 # every sample. Grouped by the module whose output functions they exercise.
 _SAMPLES: tuple[tuple[str, Callable[[], str]], ...] = (
     (
-        "preflight_output.rm_upstream_summary()",
+        "fix_output.rm_upstream_summary()",
         lambda: rm_upstream_summary(
             heic_jpeg=2,
             heic_browsable=3,
@@ -81,11 +81,11 @@ _SAMPLES: tuple[tuple[str, Callable[[], str]], ...] = (
         ),
     ),
     (
-        "integrity_output.format_integrity_checks (all ok)",
+        "album_output.format_integrity_checks (all ok)",
         lambda: format_integrity_checks(INTEGRITY_OK),
     ),
     (
-        "integrity_output.format_integrity_checks (failures)",
+        "album_output.format_integrity_checks (failures)",
         lambda: format_integrity_checks(INTEGRITY_FAILURES),
     ),
     (
