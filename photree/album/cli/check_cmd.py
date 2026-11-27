@@ -9,7 +9,6 @@ import typer
 from photree.album import check as album_check, naming as album_naming
 from photree.album.check.output import (
     album as album_output,
-    batch as batch_output,
     troubleshoot as troubleshoot_output,
 )
 from photree.album.cli.app import app
@@ -34,8 +33,10 @@ from photree.clihelpers.options import (
     FATAL_SIDECAR_OPTION,
     FATAL_WARNINGS_OPTION,
 )
+from photree.clihelpers.paths import expand_user_path
 from photree.clihelpers.progress import SilentProgressBar
 from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.sysdeps import CHECK_DEPS, EXIF_DEPS, require_system_deps
 from photree.common.exif import exiftool_session
 from photree.common.fs import count_unique_media_numbers, display_path
 from photree.common.sysdeps import WhichFn
@@ -51,9 +52,8 @@ def check_cmd(
             "--album-dir",
             "-a",
             help="Album directory to check.",
-            exists=True,
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(exists=True),
         ),
     ] = Path(),
     *,
@@ -76,6 +76,13 @@ def check_cmd(
     runtime = runtime_of(ctx)
     cwd = runtime.cwd()
     which = runtime.which
+    # The same gate as albums and gallery check: a missing binary is a property
+    # of the machine, reported once before any work rather than as a failed
+    # check. --refresh-exif-cache cannot degrade without exiftool.
+    require_system_deps(
+        (*CHECK_DEPS, *EXIF_DEPS) if refresh_exif_cache else CHECK_DEPS,
+        which=which,
+    )
     _require_no_media_source_conflict(album_dir, cwd)
     if refresh_exif_cache:
         refresh_album_exif_cache(album_dir, which=which)
@@ -85,8 +92,10 @@ def check_cmd(
         checksum=checksum,
         check_naming=check_naming,
         check_exif_date_match=check_exif_date_match,
+        print_exiftool_status=not refresh_exif_cache,
         which=which,
     )
+    typer.echo("")
 
     fatal_sidecar = fatal_warnings or fatal_sidecar_arg
     fatal_exif = fatal_warnings or fatal_exif_date_match
@@ -148,8 +157,15 @@ def _run_check(
     checksum: bool,
     check_naming: bool,
     check_exif_date_match: bool,
+    print_exiftool_status: bool,
     which: WhichFn,
 ) -> album_check.AlbumPreflightResult:
+    """
+    Run every check on the album, with a progress bar over its media items.
+
+    With *print_exiftool_status*, print whether exiftool was found, under the
+    gate's system checks (the gate printed it already when it required it).
+    """
     file_count = _count_media_items(album_dir)
     progress_cm = (
         SilentProgressBar(total=file_count, description="Checking")
@@ -160,9 +176,10 @@ def _run_check(
         exiftool_session(enabled=check_exif_date_match, which=which) as exiftool,
         progress_cm as progress,
     ):
+        if print_exiftool_status:
+            console.print(album_output.exiftool_check(available=exiftool is not None))
         return album_check.run_album_check(
             album_dir,
-            sips_available=album_check.check_sips_available(which=which),
             exiftool=exiftool,
             link_mode=resolve_link_mode(None, album_dir),
             checksum=checksum,
@@ -179,7 +196,7 @@ def _check_sibling_date_collisions(album_dir: Path) -> bool:
         if (parsed := album_naming.parse_album_name(a.name)) is not None
     ]
     batch_naming = album_naming.check_batch_date_collisions(parsed_siblings)
-    console.print(batch_output.format_batch_naming_issues(batch_naming))
+    console.print(album_output.format_batch_naming_issues(batch_naming))
     return batch_naming.success
 
 

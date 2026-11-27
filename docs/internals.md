@@ -120,8 +120,9 @@ source album is validated: name (`check_album_naming`), cross-album date
 collisions across the batch **and** the existing gallery
 (`check_batch_date_collisions`), and the presence of at least one media
 source (`has_media_sources`). Duplicate IDs within the batch are also
-rejected. If any album fails, the command reports all problems and imports
-nothing.
+rejected, as is a source whose ID several gallery albums share: which of them
+it would replace cannot be told. If any album fails, the command reports all
+problems and imports nothing.
 
 **"Already imported" detection (hybrid).** Albums created by `album import`
 or `album init` already carry an ID in `.photree/album.yaml`, and gallery
@@ -161,14 +162,25 @@ reported as failed, and the command exits 1 (as do `album import`,
 
 **Clobber guard.** If the target name exists but is occupied by a *different*
 album (the source carries an ID differing from the existing copy's), the
-import is refused even with `--reimport`. This also applies when the source
-was matched by ID and renamed: the gallery copy is moved to the new name only
-if no other album holds it. An ID-less source cannot be distinguished, so
-`--reimport` proceeds in that case.
+import is refused even with `--reimport`. A source with an ID is refused the
+same way when the target name holds a directory without `album.yaml`: it is not
+the source's copy, and replacing it would drop the source's ID. This also
+applies when the source was matched by ID and renamed: the gallery copy is
+moved to the new name only if no other album holds it. An ID-less source
+cannot be distinguished, so `--reimport` proceeds in that case.
 
 **Swap rollback.** If the final rename of the reimport swap fails, the old copy
 is moved back from its aside name and the staging directory is removed, so the
 album never disappears from the gallery.
+
+**Interrupted swap guard.** The aside name is `.<album-name>.old`, beside the
+live album and named after it. A process that dies between the two renames
+leaves the album only under that hidden name, which album discovery skips, so
+the next import would plan its source as new and mint fresh media IDs. Every
+import therefore refuses to run while such a directory exists under
+`albums/YYYY/`: it names the album to rename it back to, or, when another
+gallery album already holds its ID (the swap finished), reports it as a stale
+copy to delete.
 
 **Caveat.** UUID preservation holds only when source keys (iOS image numbers,
 std filename stems) are stable; a re-export that renumbers files rotates the
@@ -276,6 +288,15 @@ directories at the top level are the browsable/shareable versions:
   via HEIC/HEIF/DNG→JPEG conversion (sips). JPG/PNG files are copied as-is.
   Live Photo companion videos are excluded (not convertible to JPEG).
 
+A refresh empties each of these directories before filling it again. It first
+writes a `.photree-incomplete` marker file into the directory, and removes it
+only once every file is in place: a refresh that is interrupted, fails to place
+a file, or fails to convert any JPEG leaves the marker behind. The next
+`album refresh` rebuilds a marked directory even when its files pass the check,
+and `album fix --rm-upstream` refuses a media source with a marked directory,
+even with `--force`, since the files missing from it were never written rather
+than deleted.
+
 ## Import Staging Directories
 
 An album is fed by one or more per-media-source staging entries, named
@@ -283,8 +304,10 @@ An album is fed by one or more per-media-source staging entries, named
 discover every staging entry in the album, validate them all, import each into
 its target media source, then refresh derived data once. Validation includes
 the archive collision checks (an incoming iOS image number or std stem that
-already exists in the target archive), so a collision in any entry refuses the
-whole import before anything is copied. Each entry's files are copied into
+already exists in the target archive) and the media source name check (a name
+staged for one type while the album holds the other type's archive under it, or
+staged for both types), so a collision in any entry refuses the whole import
+before anything is copied. Each entry's files are copied into
 `.photree/import-in-progress/` first, then renamed into the archive, and
 removed from it again if a rename fails: an import interrupted part-way (a full
 disk, Ctrl-C) leaves that entry's archive and staging as they were, so
@@ -312,7 +335,8 @@ the second half of a Live Photo export (`IMG_0410.HEIC` + `IMG_0410.MOV`). The
 directory is removed once nothing but hidden files (`.DS_Store`) is left in it;
 no other directory of the album is touched. A CSV
 is deleted once all its numbers are processed, and otherwise rewritten with only
-its remaining rows. This
+its remaining rows, through a temporary file renamed over it, so an interrupted
+write never loses the rows still to import. This
 decouples the selection from any specific tool: exporting from Apple Photos is
 the most common workflow, but the list can equally come from a phone, a custom
 CLI, an LLM, AppleScript, or anything that produces filenames.
@@ -330,9 +354,14 @@ nothing else; hidden files such as `.DS_Store` are ignored and removed with
 them. Validation rejects anything the import would not copy (a file that is
 not an image or a video, a subdirectory, or an entry beside `orig/` and
 `edit/`), so the user moves it out rather than losing it. Duplicate stems
-within a folder are rejected; an `edit/` file with no matching `orig/` stem is
-allowed (it is imported but, as with existing std sources, omitted from the
-browsable directory).
+within a folder are rejected, and so is an `edit/` file with no `orig/` file
+of the same stem and kind (image or video): the browsable directory would leave
+it out and `album fix --rm-orphan` would delete it, possibly the only copy of
+the photo. `album check` reports such an edit in an existing std archive.
+Duplicate stems and archive collisions are found ignoring case, in validation
+and in `album check`: on a case-insensitive filesystem, the macOS default,
+`Photo.HEIC` becomes `Photo.jpg` in the JPEG directory, the same file as the
+copied `photo.jpg`.
 
 ## Collections
 
@@ -344,7 +373,11 @@ virality.
 
 `gallery refresh` runs the following phases for collections, after the
 album media refresh. They are implemented in `photree/collection/refresh/`
-(one module per phase, orchestrated by `refresh_collections`):
+(one module per phase, orchestrated by `refresh_collections`). A write that
+fails while a phase applies its changes (a permission error, a full disk) stops
+the refresh with that error, and the changes already applied, album renames
+included, are still listed. The browsable step that follows stops the same way,
+leaving `browsable/` incomplete until the next refresh rebuilds it.
 
 #### Phase 1: Scan and Validate Albums
 
@@ -422,8 +455,14 @@ reported as an error and nothing is changed, unless the plan itself moves
 that directory away or removes it. The check compares directories rather than
 names, so a case-only series rename (`Trip` to `trip`) on a case-insensitive
 filesystem does not find the collection in its own way. Renames go through a
-temporary name, which makes both that case-only rename and one collection
-taking another's vacated name work.
+temporary name (`.photree-moving-<id>`, beside the collection), which makes
+both that case-only rename and one collection taking another's vacated name
+work. If a move fails, the moves already done are rolled back and the error
+lists any directory that could not be put back. Discovery skips dot
+directories, so a collection left under its temporary name (a rollback that
+failed, or a killed process) would be invisible and get a fresh ID on the
+next refresh: the scan reports any such directory and the refresh stops
+until it is renamed back.
 
 **Limitation**: changing the series title and adding/removing albums at the
 same time (before a refresh) causes the old collection to be deleted and a
@@ -444,6 +483,10 @@ date range containment:
   entire date range must fall within the collection's boundaries.
 - Private smart collections only include private members; non-private
   smart collections exclude private members.
+- A collection never lists itself, nor another date-derived smart
+  collection (`date-range` or `chapter`) with exactly the same range: that
+  one would list this collection back, and the browsable refresh would
+  fail on the cycle.
 - Writes the matched IDs into `collection.yaml`, replacing the previous
   album and collection member lists.
 - Smart collections do not support image or video members — these fields
@@ -513,12 +556,13 @@ The browsable directory is **deleted and recreated** on each
 the directory only contains directories and symlinks (no regular files
 that could be accidentally destroyed). Albums or collections whose metadata
 cannot be read, or whose name does not parse, abort the step before anything is
-deleted. Every link is planned before the deletion too: a member listed twice
-is linked once, and a link two different targets would claim (two albums, or
-two collections, with the same name in the same place) aborts the step with
-both targets named. Collection members whose ID no longer resolves are rendered
-without that member and reported as warnings. All symlinks are relative for
-gallery portability.
+deleted, as do albums that share an ID (a copied album directory): only one of
+them could be rendered. Every link is planned before the deletion too: a member
+listed twice is linked once, and a link two different targets would claim (two
+albums, or two collections, with the same name in the same place) aborts the
+step with both targets named. Collection members whose ID no longer resolves
+are rendered without that member and reported as warnings. All symlinks are
+relative for gallery portability.
 
 Collection `images/` and `videos/` entries are matched with the media source's
 own key rule (image number for iOS, filename stem for std), so a std source
@@ -589,7 +633,12 @@ Media IDs are derived from archive directories (`orig-img/`, `orig-vid/`).
 destination album's file for the same media source, so collections that
 reference them still resolve after the next refresh. It reads both albums'
 `media-ids` before moving any file and refuses the move when either cannot be
-read.
+read. The move is all or nothing: when a file fails to move or the run is
+interrupted, every file already moved goes back to the source album (and a
+partial cross-filesystem copy is deleted), so no media is left split between
+the two. The IDs are written once every file is in the destination, the
+destination's first, so a run killed between the two writes leaves the moved
+IDs in both files, and the source's next refresh drops them as stale.
 
 ### Collection Metadata (`.photree/collection.yaml`)
 
@@ -709,7 +758,10 @@ then dropped, so photos and videos compare on the same basis.
 `album fix-exif` writes all the files in one exiftool run, which carries on past
 a file it cannot write. The command then prints exiftool's diagnostics with the
 files concerned (for `--set-date`, exactly those that failed) and exits 1; the
-other files keep their new value. It writes each file in place
+other files keep their new value. exiftool reads the file paths from an argfile
+on stdin (`-@ -`), as absolute paths, so no number of files exceeds the OS
+argument limit and no file name is read as an option. It writes each file in
+place
 (`-overwrite_original_in_place`), keeping its inode, so the browsable copies
 hardlinked to an archive file see the new dates at once. The JPEGs in
 `{name}-jpg/` are converted copies: `album refresh --refresh-browsable`
@@ -786,11 +838,12 @@ failure N times — worse, it does so after some albums have already been
 written. The gate prints a check line per dependency, then install
 instructions for whatever is missing, and exits 1 having modified nothing.
 
-Every lookup a command makes (the gate, the import preflight, the `sips`
-availability passed to checks, each exiftool session) uses the `which` of the
-command's runtime (`photree/clihelpers/runtime.py`), so all of them agree on
-what is installed. Commands whose gate already required a binary do not probe
-for it again: the gallery post-import checks take `sips` as available.
+Every lookup a command makes (the gate, the import preflight, each exiftool
+session) uses the `which` of the command's runtime
+(`photree/clihelpers/runtime.py`), so all of them agree on what is installed.
+The album check itself never probes: its caller's gate (the check commands', or
+the import gate before the gallery post-import checks) already required what it
+needs.
 
 | Command | Requires |
 |---|---|
@@ -799,8 +852,7 @@ for it again: the gallery post-import checks take `sips` as available.
 | `album refresh`, `albums refresh`, `gallery refresh` | `sips` + `exiftool` |
 | `collection import`, `collections import` | `exiftool` |
 | `album detect-faces`, `albums detect-faces` | `sips` |
-| `albums check`, `gallery check` | `sips` (`CHECK_DEPS`); with `--refresh-exif-cache` also `exiftool` |
-| `album check` | nothing: a missing `sips` is reported as a failed check, and `--refresh-exif-cache` is not gated on `exiftool` |
+| `album check`, `albums check`, `gallery check` | `sips` (`CHECK_DEPS`); with `--refresh-exif-cache` also `exiftool` |
 | `gallery cluster-faces` | `sips`; also `exiftool` with `--redetect` / `--refresh-thumbs` |
 | `album fix-exif` | `exiftool` |
 | `check system` | reports both, exits 1 if any is missing |
@@ -808,10 +860,11 @@ for it again: the gallery post-import checks take `sips` as available.
 For `album import` / `albums import` the gate is folded into the existing
 import preflight block, so all preflight failures are reported together.
 
-The `check` commands are deliberately **not** gated on `exiftool`: EXIF
-validation is optional there and degrades to a "checks skipped" line. The batch
-ones are still gated on `sips`, which the browsable/JPEG consistency checks
-need; `album check` reports it as a check instead.
+The `check` commands are deliberately **not** gated on `exiftool`, unless
+`--refresh-exif-cache` asks for it: EXIF validation is optional there and
+degrades to a "checks skipped" line. Every scope is gated on `sips`, which the
+browsable/JPEG consistency checks need, so a machine without it fails `album
+check` up front exactly as it fails `albums check` and `gallery check`.
 
 ### Defense in depth
 
@@ -961,7 +1014,9 @@ hash, so photree downloads the model archive itself the first time a face is
 to be detected. `photree/album/faces/model.py` pins its URL and sha256: the
 archive is checked before it is extracted into `~/.insightface/models/<name>/`
 and handed to insightface, and a mismatch stops the run with both hashes and
-installs nothing. A `.photree-sha256` file in the extracted directory records
+installs nothing. A download that cannot connect, gets an HTTP error, or
+receives nothing for 60 seconds stops the run the same way, naming the URL
+and the cause. A `.photree-sha256` file in the extracted directory records
 the hash it was verified as, so later runs skip the check; an archive
 insightface left in `~/.insightface/models/` is reused when its hash matches.
 Moving to a new archive means downloading it, reviewing it and pinning its

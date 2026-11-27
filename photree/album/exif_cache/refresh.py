@@ -71,7 +71,8 @@ def refresh_exif_cache(
     When *force* is True, re-read all files regardless of mtime.
     *exiftool* can be shared across albums in batch operations; when it is
     ``None`` a transient one is started (and closed) for this album, if
-    *which* finds the binary.
+    *which* finds the binary. When it does not, reading a file raises
+    :class:`~photree.common.sysdeps.MissingSystemDependencyError`.
     """
     sources = discover_media_sources(album_dir)
     if not sources:
@@ -92,6 +93,7 @@ def refresh_exif_cache(
                         exiftool=et,
                         force=force,
                         dry_run=dry_run,
+                        which=which,
                     ),
                 )
                 for ms in sources
@@ -147,6 +149,7 @@ def _refresh_source(
     exiftool: ExifTagReader | None,
     force: bool,
     dry_run: bool,
+    which: WhichFn,
 ) -> ExifCacheSourceResult:
     plan = _plan_source(album_dir, ms, force=force)
 
@@ -171,7 +174,7 @@ def _refresh_source(
             pruned=len(plan.stale_keys),
         )
 
-    return _apply_plan(album_dir, ms, plan, exiftool=exiftool)
+    return _apply_plan(album_dir, ms, plan, exiftool=exiftool, which=which)
 
 
 def _apply_plan(
@@ -180,6 +183,7 @@ def _apply_plan(
     plan: _SourcePlan,
     *,
     exiftool: ExifTagReader | None,
+    which: WhichFn,
 ) -> ExifCacheSourceResult:
     """Read EXIF for new/changed files, merge with the kept entries, and save."""
     new_entries = _read_exif_for_keys(
@@ -187,6 +191,7 @@ def _apply_plan(
         plan.current_files,
         album_dir,
         exiftool=exiftool,
+        which=which,
     )
     retained = {
         k: v
@@ -254,10 +259,11 @@ def _read_exif_for_keys(
     album_dir: Path,
     *,
     exiftool: ExifTagReader | None,
+    which: WhichFn,
 ) -> dict[str, ExifCacheEntry]:
     files = [album_dir / current_files[key] for key in keys]
 
-    timestamps = _batch_read_timestamps(files, exiftool=exiftool)
+    timestamps = _batch_read_timestamps(files, exiftool=exiftool, which=which)
 
     return {
         key: ExifCacheEntry(
@@ -273,10 +279,16 @@ def _batch_read_timestamps(
     files: list[Path],
     *,
     exiftool: ExifTagReader | None,
+    which: WhichFn,
 ) -> list[datetime | None]:
     """Read EXIF timestamps for files, returning None for unreadable ones."""
     if not files:
         return []
 
-    metadata_list = get_metadata(files, TIMESTAMP_TAGS, exiftool=exiftool)
+    metadata_list = get_metadata(
+        files,
+        TIMESTAMP_TAGS,
+        exiftool=exiftool,
+        which=which,
+    )
     return [extract_timestamp(m, TIMESTAMP_TAGS) for m in metadata_list]

@@ -2,8 +2,9 @@
 Output formatting for album checks, one module per audience.
 
 One album's check (:mod:`.album`), its troubleshooting
-(:mod:`.troubleshoot`), a check over many albums (:mod:`.batch`), and the
-per-file failures of a refresh of derived data (:mod:`.derived`).
+(:mod:`.troubleshoot`), and the per-file failures of a refresh of derived
+data (:mod:`.derived`). A check over many albums is rendered by
+:mod:`photree.albums.output.check`.
 
 Formatters return unindented lines; nested detail lines are indented relative
 to their heading with :func:`~photree.common.formatting.indent`, and the call

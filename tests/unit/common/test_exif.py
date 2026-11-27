@@ -10,11 +10,13 @@ import pytest
 from photree.album.exif import TIMESTAMP_TAGS
 from photree.common.exif import (
     ExifToolError,
+    build_exiftool_invocation,
     classify_failed_writes,
     exiftool_session,
     extract_timestamp,
     parse_timestamp,
     read_exif_timestamps,
+    read_first_timestamps,
     set_exif_date_time,
     shift_exif_date,
     shift_exif_time,
@@ -261,6 +263,19 @@ class TestExifWriting:
         assert _read(dashed) == datetime(2023, 1, 2, 3, 4, 5)
         assert _read(other) == datetime(2023, 1, 2, 3, 4, 5)
 
+    def test_read_returns_each_file_as_given(
+        self,
+        tmp_path: Path,
+        chdir: Callable[[Path], None],
+    ) -> None:
+        # exiftool is handed absolute paths; the caller still gets its own.
+        chdir(tmp_path)
+        img = _jpeg(Path("a.jpg"))
+
+        assert read_first_timestamps([img], TIMESTAMP_TAGS) == (
+            (img, "2024:07:20 13:55:20"),
+        )
+
     def test_failed_write_raises_structured_error(self, tmp_path: Path) -> None:
         """Regression: failed writes used to be counted as updated."""
         not_media = tmp_path / "notes.txt"
@@ -296,3 +311,25 @@ class TestClassifyFailedWrites:
 
     def test_no_failure_when_unattributable_but_exit_is_zero(self) -> None:
         assert classify_failed_writes(_PATHS, ["${status}"] * 3, 0) == ()
+
+
+class TestBuildExiftoolInvocation:
+    def test_paths_go_to_stdin_not_the_command_line(self, tmp_path: Path) -> None:
+        # Together, the paths of a large album exceed the OS argument limit.
+        paths = [tmp_path / f"IMG_{i:04}.HEIC" for i in range(5000)]
+
+        invocation = build_exiftool_invocation(["-json"], paths)
+
+        assert invocation.argv == ("exiftool", "-json", "-@", "-")
+        assert invocation.stdin.splitlines() == [f"#[CSTR]{p}" for p in paths]
+
+    def test_relative_path_is_made_absolute(
+        self,
+        tmp_path: Path,
+        chdir: Callable[[Path], None],
+    ) -> None:
+        chdir(tmp_path)
+
+        invocation = build_exiftool_invocation([], [Path("-AllDates=x.jpg")])
+
+        assert invocation.stdin == f"#[CSTR]{tmp_path / '-AllDates=x.jpg'}\n"

@@ -20,10 +20,11 @@ from photree.album.importer.image_capture import (
 )
 from photree.album.importer.selection import read_selection_csv
 from photree.album.staging import ios_import_csv, ios_import_dir, std_import_dir
-from photree.album.store.media_source import std_media_source
+from photree.album.store.media_source import MAIN_MEDIA_SOURCE, std_media_source
 from photree.common.fs import list_files
 from photree.foundation.linking import LinkMode
 from tests.fakes import noop_convert
+from tests.testkit import write_file
 
 SEL_DIR = ios_import_dir("main")
 SEL_CSV = ios_import_csv("main")
@@ -728,3 +729,17 @@ class TestCollisionBeforeMutation:
         assert not (album / "ios-main").exists()
         assert (album / SEL_DIR / "IMG_0001.HEIC").exists()
         assert not (album / ".photree").exists()
+
+    def test_validation_reports_collision_with_an_edit_left_without_original(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        album = _setup_album(tmp_path, ["IMG_0001.HEIC"])
+        ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0001.HEIC", "IMG_0001.AAE"])
+        write_file(album / MAIN_MEDIA_SOURCE.edit_img_dir / "IMG_E0001.HEIC", "edit")
+
+        validation = validate_album_import(album, list_files(ic_dir))
+
+        assert [i.detail for i in validation.errors] == [
+            ArchiveCollision(MAIN_MEDIA_SOURCE, ("0001",)),
+        ]

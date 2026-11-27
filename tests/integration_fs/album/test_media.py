@@ -1,3 +1,6 @@
+import itertools
+import shutil
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -30,6 +33,31 @@ def _image_ids(album: Path) -> dict[str, str]:
     metadata = load_media_metadata(album)
     assert metadata is not None
     return dict(metadata.media_sources["main"].images)
+
+
+class _InterruptedError(Exception):
+    """Stands in for a Ctrl-C or a full disk partway through a move."""
+
+
+def _interrupting_after_moves(count: int) -> Callable[[Path, Path], object]:
+    """Return a ``move_file`` that moves *count* files, then fails once."""
+    calls = itertools.count()
+
+    def move(src: Path, dst: Path) -> object:
+        if next(calls) == count:
+            raise _InterruptedError
+        return shutil.move(src, dst)
+
+    return move
+
+
+def _all_files(album: Path) -> set[str]:
+    """Every media file of *album*, outside ``.photree/``, relative to it."""
+    return {
+        p.relative_to(album).as_posix()
+        for p in album.rglob("*")
+        if p.is_file() and PHOTREE_DIR not in p.parts
+    }
 
 
 def _setup_ios_album(album: Path) -> None:
@@ -427,6 +455,54 @@ class TestMoveMedia:
 
         assert _image_ids(dst) == {media_id: "0410"}
 
+    def test_interrupted_move_puts_every_file_back(self, tmp_path: Path) -> None:
+        src = tmp_path / "src-album"
+        dst = tmp_path / "dst-album"
+        _setup_ios_album(src)
+        refresh_media_metadata(src)
+        ids_before = _image_ids(src)
+        files_before = _all_files(src)
+        write_files(dst / PHOTREE_DIR, [])
+        mark_album(dst)
+
+        with pytest.raises(_InterruptedError):
+            move_media(
+                src,
+                dst,
+                ["main-jpg/IMG_E0410.jpg"],
+                move_file=_interrupting_after_moves(2),
+            )
+
+        assert _all_files(src) == files_before
+        assert _all_files(dst) == set()
+        assert not (dst / "main-jpg").exists()
+        assert _image_ids(src) == ids_before
+        assert load_media_metadata(dst) is None
+
+    def test_partial_cross_filesystem_copy_is_removed(self, tmp_path: Path) -> None:
+        """A copy interrupted before deleting its source leaves no file behind."""
+        src = tmp_path / "src-album"
+        dst = tmp_path / "dst-album"
+        _setup_ios_album(src)
+        files_before = _all_files(src)
+        write_files(dst / PHOTREE_DIR, [])
+        mark_album(dst)
+
+        def copy_then_interrupt(from_path: Path, to_path: Path) -> None:
+            shutil.copy(from_path, to_path)
+            raise _InterruptedError
+
+        with pytest.raises(_InterruptedError):
+            move_media(
+                src,
+                dst,
+                ["main-jpg/IMG_E0410.jpg"],
+                move_file=copy_then_interrupt,
+            )
+
+        assert _all_files(src) == files_before
+        assert _all_files(dst) == set()
+
     def test_dry_run_leaves_media_ids(self, tmp_path: Path) -> None:
         src = tmp_path / "src-album"
         dst = tmp_path / "dst-album"
@@ -459,6 +535,44 @@ class TestMoveMedia:
         with pytest.raises(InvalidMetadataError):
             move_media(src, dst, ["main-jpg/IMG_E0410.jpg"])
         assert "IMG_0410.HEIC" in file_names(src / "ios-main/orig-img")
+
+
+class TestUnmatchedPaths:
+    def test_rm_media_refuses_a_path_matching_no_file(self, tmp_path: Path) -> None:
+        album = tmp_path / "album"
+        _setup_ios_album(album)
+
+        with pytest.raises(MediaOpError) as exc_info:
+            rm_media(album, ["main-jpg/IMG_E0410.jpg", "main-jpg/IMG_9999.jpg"])
+
+        assert exc_info.value.kind == MediaOpErrorKind.NO_MATCHING_FILE
+        assert exc_info.value.rel_paths == ("main-jpg/IMG_9999.jpg",)
+        assert "IMG_E0410.jpg" in file_names(album / "main-jpg")
+
+    def test_mv_media_refuses_a_path_matching_no_file(self, tmp_path: Path) -> None:
+        src = tmp_path / "src-album"
+        dst = tmp_path / "dst-album"
+        _setup_ios_album(src)
+        write_files(dst / PHOTREE_DIR, [])
+        mark_album(dst)
+
+        with pytest.raises(MediaOpError) as exc_info:
+            move_media(src, dst, ["main-jpg/IMG_E0410.jpg", "main-jpg/IMG_9999.jpg"])
+
+        assert exc_info.value.kind == MediaOpErrorKind.NO_MATCHING_FILE
+        assert "IMG_E0410.jpg" in file_names(src / "main-jpg")
+        assert not (dst / "main-jpg").exists()
+
+    def test_error_lists_every_unmatched_path(self, tmp_path: Path) -> None:
+        album = tmp_path / "album"
+        _setup_ios_album(album)
+
+        with pytest.raises(MediaOpError) as exc_info:
+            rm_media(album, ["main-jpg/IMG_9998.jpg", "main-vid/IMG_9999.MOV"])
+
+        message = format_media_op_error(exc_info.value, tmp_path)
+        assert "main-jpg/IMG_9998.jpg" in message
+        assert "main-vid/IMG_9999.MOV" in message
 
 
 class TestRmMedia:

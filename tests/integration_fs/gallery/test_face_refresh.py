@@ -9,9 +9,12 @@ from photree.album.faces.store import FaceData, save_face_data
 from photree.album.id import generate_album_id
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
-from photree.foundation.metadata_io import InvalidMetadataError
+from photree.foundation.metadata_io import InvalidMetadataError, write_yaml
 from photree.gallery.faces.check import (
+    AlbumFaceDataChanged,
     AlbumFaceDataNotIndexed,
+    ClusterIndexOutOfBounds,
+    FaceCountMismatch,
     FaceIndexSizeMismatch,
     check_face_clusters,
 )
@@ -32,6 +35,7 @@ from photree.gallery.faces.manifest import (
     load_clusters,
     manifest_path,
 )
+from photree.gallery.faces.protocol import FaceClusteringResult
 from tests.testkit import make_gallery, write_file
 
 
@@ -45,6 +49,11 @@ def _setup_album_with_faces(gallery: Path, name: str, axes: list[int]) -> Path:
     album_dir = gallery / "albums" / "2024" / name
     write_file(album_dir / "ios-main" / "orig-img" / "IMG_0001.HEIC")
     save_album_metadata(album_dir, AlbumMetadata(id=generate_album_id()))
+    _save_faces(album_dir, axes)
+    return album_dir
+
+
+def _save_faces(album_dir: Path, axes: list[int]) -> None:
     n = len(axes)
     save_face_data(
         album_dir,
@@ -58,7 +67,6 @@ def _setup_album_with_faces(gallery: Path, name: str, axes: list[int]) -> Path:
             embeddings=np.array([_embedding(a) for a in axes]).reshape(n, 512),
         ),
     )
-    return album_dir
 
 
 def _counter_ids() -> Callable[[], str]:
@@ -158,6 +166,67 @@ class TestCheckFaceClusters:
 
         assert result is not None
         assert result.issues == (FaceIndexSizeMismatch(index_rows=3, manifest_size=1),)
+
+    def test_reports_cluster_indices_past_the_manifest(self, tmp_path: Path) -> None:
+        gallery = make_gallery(tmp_path)
+        _setup_album_with_faces(gallery, "2024-07-14 - Trip", [0])
+        refresh_face_clusters(gallery)
+        clusters = _loaded_clusters(gallery)
+        (cluster,) = clusters.clusters
+        _write_clusters(
+            gallery,
+            clusters.model_copy(
+                update={
+                    "clusters": [
+                        cluster.model_copy(update={"face_indices": [0, 1, 7]}),
+                    ],
+                },
+            ),
+        )
+
+        result = check_face_clusters(gallery)
+
+        assert result is not None
+        assert result.issues == (ClusterIndexOutOfBounds(cluster.id, count=2),)
+
+    def test_reports_recorded_face_count_not_matching_manifest(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = make_gallery(tmp_path)
+        _setup_album_with_faces(gallery, "2024-07-14 - Trip", [0])
+        refresh_face_clusters(gallery)
+        clusters = _loaded_clusters(gallery)
+        _write_clusters(gallery, clusters.model_copy(update={"face_count": 3}))
+
+        result = check_face_clusters(gallery)
+
+        assert result is not None
+        assert result.issues == (FaceCountMismatch(recorded=3, manifest_size=1),)
+
+    def test_reports_album_face_data_changed_since_indexed(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = make_gallery(tmp_path)
+        album = _setup_album_with_faces(gallery, "2024-07-14 - Trip", [0])
+        refresh_face_clusters(gallery)
+        _save_faces(album, [1])
+
+        result = check_face_clusters(gallery)
+
+        assert result is not None
+        assert result.issues == (AlbumFaceDataChanged(album, "main"),)
+
+
+def _loaded_clusters(gallery: Path) -> FaceClusteringResult:
+    clusters = load_clusters(gallery)
+    assert clusters is not None
+    return clusters
+
+
+def _write_clusters(gallery: Path, clusters: FaceClusteringResult) -> None:
+    write_yaml(clusters_path(gallery), clusters.model_dump(by_alias=True, mode="json"))
 
 
 def _write_index(gallery: Path, axes: list[int]) -> None:

@@ -16,18 +16,15 @@ from photree.album.fix.ios.miscategorized import (
     MiscategorizedDirResult,
     MiscategorizedMoveConflictError,
     MiscategorizedResult,
-    apply_miscategorized,
-    check_miscategorized_plans,
-    plan_miscategorized,
+    fix_miscategorized,
 )
 from photree.album.fix.ios.prefer_higher_quality import (
-    PreferHigherQualityResult,
     prefer_higher_quality_when_dups,
 )
 from photree.album.fix.ios.rm_orphan_sidecar import (
-    RmOrphanSidecarResult,
     rm_orphan_sidecar,
 )
+from photree.album.fix.removed_files import RemovedFiles
 from photree.album.store.media_source import MediaSource
 from photree.album.store.media_sources_discovery import discover_media_sources
 
@@ -40,8 +37,6 @@ __all__ = [
     "MiscategorizedDirResult",
     "MiscategorizedMoveConflictError",
     "MiscategorizedResult",
-    "PreferHigherQualityResult",
-    "RmOrphanSidecarResult",
     "prefer_higher_quality_when_dups",
     "rm_orphan_sidecar",
     "run_fix_ios",
@@ -177,10 +172,12 @@ def _run_miscategorized(
     *,
     dry_run: bool,
 ) -> FixIosMiscategorizedResult:
-    """Plan every source first, so a move conflict leaves the whole album untouched."""
-    plans = [plan_miscategorized(album_dir, ms, action=action) for ms in media_sources]
-    check_miscategorized_plans(plans)
-    results = [apply_miscategorized(plan, dry_run=dry_run) for plan in plans]
+    results = fix_miscategorized(
+        album_dir,
+        media_sources,
+        action=action,
+        dry_run=dry_run,
+    )
     return FixIosMiscategorizedResult(
         action=action,
         heic_from_orig=sum(len(r.heic.fixed_from_orig) for r in results),
@@ -191,7 +188,7 @@ def _run_miscategorized(
 
 
 def _removed_by_dir(
-    fix: Callable[..., PreferHigherQualityResult | RmOrphanSidecarResult],
+    fix: Callable[..., RemovedFiles],
     album_dir: Path,
     media_sources: list[MediaSource],
     *,

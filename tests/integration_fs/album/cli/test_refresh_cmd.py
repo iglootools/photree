@@ -28,6 +28,15 @@ def _setup_album(album_dir: Path, *, images: bool = True) -> None:
         write_file(album_dir / "main-jpg" / "IMG_0411.jpg")
 
 
+def _snapshot(album: Path) -> dict[str, tuple[bytes, int]]:
+    """Return every file under *album* with its content and mtime."""
+    return {
+        str(f.relative_to(album)): (f.read_bytes(), f.stat().st_mtime_ns)
+        for f in album.rglob("*")
+        if f.is_file()
+    }
+
+
 class TestAlbumRefresh:
     def test_creates_media_ids(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
@@ -56,14 +65,16 @@ class TestAlbumRefresh:
         assert result.exit_code == 0
         assert "[dry-run] ✓ album refresh planned" in result.output
 
-    def test_idempotent(self, tmp_path: Path) -> None:
+    def test_second_run_changes_nothing(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_album(album, images=False)
-
         invoke_cli(["album", "refresh", "-a", str(album)])
+        after_first = _snapshot(album)
+
         result = invoke_cli(["album", "refresh", "-a", str(album)])
 
         assert result.exit_code == 0
+        assert _snapshot(album) == after_first
 
     def test_face_detection_failures_are_reported(self, tmp_path: Path) -> None:
         """Regression: face failures used to be dropped and the refresh exit 0."""
@@ -77,4 +88,32 @@ class TestAlbumRefresh:
         assert "main/0410 (thumbnail)" in result.output
         assert "photree album detect-faces --album-dir" in result.output
         # The other steps still ran
+        assert load_media_metadata(album) is not None
+
+
+class TestAlbumRefreshOfANonAlbum:
+    def test_directory_without_album_or_media_source_is_refused(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        not_album = tmp_path / "gallery root"
+        write_file(not_album / "notes.txt")
+
+        result = invoke_cli(["album", "refresh", "-a", str(not_album)])
+
+        assert result.exit_code == 1
+        assert "Not an album" in result.output
+        assert "photree album init --album-dir" in result.output
+        assert sorted(p.name for p in not_album.iterdir()) == ["notes.txt"]
+
+    def test_media_source_without_album_yaml_is_refreshed(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        album = tmp_path / "album"
+        write_file(album / "ios-main" / "orig-vid" / "IMG_0115.MOV")
+
+        result = invoke_cli(["album", "refresh", "-a", str(album)])
+
+        assert result.exit_code == 0, result.output
         assert load_media_metadata(album) is not None

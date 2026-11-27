@@ -84,6 +84,9 @@ def refresh_collections(
     2. Sync album titles with existing collection lifecycle changes
     3. Refresh implicit collections from album series
     4. Materialize smart collection members
+
+    A stage that fails stops the refresh; a write that fails part-way through
+    is returned as a ``FILESYSTEM_ERROR``, with the changes already applied.
     """
     notifier = _Notifier(on_stage_start, on_stage_end)
     with notifier.stage(STAGE_SCAN_ALBUMS):
@@ -94,7 +97,7 @@ def refresh_collections(
     with notifier.stage(STAGE_TITLE_SYNC):
         sync = sync_album_titles(scan.albums, scan.collections, dry_run=dry_run)
     if sync.errors:
-        return CollectionRefreshResult(errors=sync.errors)
+        return CollectionRefreshResult(album_renames=sync.renames, errors=sync.errors)
 
     with notifier.stage(STAGE_IMPLICIT_REFRESH):
         implicit = refresh_implicit_collections(
@@ -111,9 +114,13 @@ def refresh_collections(
     with notifier.stage(STAGE_SMART_REFRESH):
         # The implicit stage's collections, not the disk's: a dry run wrote
         # nothing, yet must see what the implicit stage would create or rename.
-        smart_updated = refresh_smart_collections(
+        smart = refresh_smart_collections(
             sync.albums,
             implicit.collections,
             dry_run=dry_run,
         )
-    return replace(partial, updated=(*partial.updated, *smart_updated))
+    return replace(
+        partial,
+        updated=(*partial.updated, *smart.updated),
+        errors=smart.errors,
+    )

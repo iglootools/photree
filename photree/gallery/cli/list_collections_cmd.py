@@ -1,13 +1,11 @@
 """The ``photree gallery list-collections`` command."""
 
-import csv
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
 from photree.clihelpers.console import err_console
-from photree.clihelpers.csvout import csv_output
 from photree.clihelpers.options import (
     GALLERY_DIR_OPTION,
     OUTPUT_FILE_OPTION,
@@ -16,6 +14,7 @@ from photree.clihelpers.options import (
 )
 from photree.clihelpers.resolution import resolve_gallery_or_exit
 from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.sink import write_csv, write_text
 from photree.collection.id import format_collection_external_id
 from photree.collection.naming import ParsedCollectionName, parse_collection_name
 from photree.collection.store.collection_discovery import discover_collections
@@ -55,7 +54,7 @@ def list_collections_cmd(
             help="Show parsed collection metadata (default: enabled).",
         ),
     ] = True,
-    output_format: OUTPUT_FORMAT_OPTION = OutputFormat.TEXT,
+    output_format: OUTPUT_FORMAT_OPTION = OutputFormat.HUMAN,
     output_file: OUTPUT_FILE_OPTION = None,
 ) -> None:
     """List all collections in the gallery."""
@@ -69,24 +68,34 @@ def list_collections_cmd(
             # Keep stdout pure CSV: the notice goes to stderr. The header is
             # still written, so a script reading the CSV sees the columns.
             err_console.print("No collections found.")
-            _list_csv(collections, cwd, output_file)
-        case OutputFormat.TEXT, []:
+            write_csv(_CSV_HEADER, [], output_file)
+        case OutputFormat.HUMAN, []:
             typer.echo("No collections found.")
         case OutputFormat.CSV, _:
-            _list_csv(collections, cwd, output_file)
-        case OutputFormat.TEXT, _:
-            _list_text(collections, cwd, show_metadata=metadata)
+            rows = (_csv_row(col_dir, cwd) for col_dir in collections)
+            write_csv(_CSV_HEADER, rows, output_file)
+        case OutputFormat.HUMAN, _:
+            lines = _text_lines(collections, cwd, show_metadata=metadata)
+            write_text(lines, output_file)
 
 
-def _member_counts(meta: CollectionMetadata | None) -> list[int]:
-    return (
-        [len(meta.albums), len(meta.collections), len(meta.images), len(meta.videos)]
-        if meta is not None
-        else [0, 0, 0, 0]
-    )
+def _member_counts(meta: CollectionMetadata | None) -> list[str]:
+    return [
+        str(count)
+        for count in (
+            [
+                len(meta.albums),
+                len(meta.collections),
+                len(meta.images),
+                len(meta.videos),
+            ]
+            if meta is not None
+            else [0, 0, 0, 0]
+        )
+    ]
 
 
-def _csv_row(col_dir: Path, cwd: Path) -> list[str | int]:
+def _csv_row(col_dir: Path, cwd: Path) -> list[str]:
     meta = load_collection_metadata(col_dir)
     parsed = parse_collection_name(col_dir.name)
     return [
@@ -103,13 +112,6 @@ def _csv_row(col_dir: Path, cwd: Path) -> list[str | int]:
         ),
         *_member_counts(meta),
     ]
-
-
-def _list_csv(collections: list[Path], cwd: Path, output_file: Path | None) -> None:
-    with csv_output(output_file) as out:
-        writer = csv.writer(out)
-        writer.writerow(_CSV_HEADER)
-        writer.writerows(_csv_row(col_dir, cwd) for col_dir in collections)
 
 
 def _name_line(parsed: ParsedCollectionName) -> str:
@@ -167,10 +169,14 @@ def _text_block(col_dir: Path, cwd: Path, *, show_metadata: bool) -> str:
     return "\n".join([str(display_path(col_dir, cwd)), *(indent(d) for d in details)])
 
 
-def _list_text(collections: list[Path], cwd: Path, *, show_metadata: bool) -> None:
-    typer.echo(f"Found {len(collections)} collection(s).\n")
-    typer.echo(
-        "\n".join(
-            _text_block(c, cwd, show_metadata=show_metadata) for c in collections
-        ),
-    )
+def _text_lines(
+    collections: list[Path],
+    cwd: Path,
+    *,
+    show_metadata: bool,
+) -> list[str]:
+    return [
+        f"Found {len(collections)} collection(s).",
+        "",
+        *(_text_block(c, cwd, show_metadata=show_metadata) for c in collections),
+    ]

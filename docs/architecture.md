@@ -77,13 +77,14 @@ graph TD
     collections --> foundation
     config --> foundation
     demo --> album
+    demo --> albums
     demo --> clihelpers
+    demo --> common
     gallery --> album
     gallery --> albums
     gallery --> clihelpers
     gallery --> collection
     gallery --> common
-    gallery --> config
     gallery --> dates
     gallery --> foundation
 ```
@@ -136,6 +137,12 @@ for how to change them.
   `collection/cli/stats_output.py` (for `albums stats`, `gallery stats` and
   `demo`). The entry point, `cli/`, sits above every group and may import
   any of them.
+- **Only `demo/cli/` imports the testkits.** The `testkit` modules
+  (`album/check/`, `album/faces/`, `album/importer/` and `album/stats/`) hold
+  the fake data the tests and `photree demo` use, and ship inside the packages
+  they fake; a protected contract keeps every other production module off
+  them. Tests sit outside the `photree` package, so the contract does not
+  restrict them.
 - **No heavy imports at startup.** The face ML stack is imported only inside
   the functions that use it. import-linter still sees function-level imports,
   so this is not a contract: `tests/unit/test_cli_startup_imports.py` checks
@@ -180,9 +187,13 @@ by side; output helpers live next to the logic they render (`output.py`).
   `title_sync`, `implicit` / `implicit_match` / `series`, `smart`),
   orchestrated by `refresh_collections`. See
   [internals.md — Collection Refresh](./internals.md#collection-refresh).
-- **`albums/`** — `cmd_handler/` holds the pure batch logic; `batchcli/` the
-  batch presentation layer shared by the `albums` and `gallery` command groups
-  (one `run_batch_*` wrapper per operation, plus `resolution` for
+- **`albums/`** — `cmd_handler/` holds the pure batch logic, one module per
+  operation, including the batch import (`importer.py`) and export
+  (`exporter.py`) that `albums import`, `albums export` and `gallery export`
+  run; `output/` renders the batch results (the import, export and check
+  summaries and failures, and the ID reports); `batchcli/` the batch
+  presentation layer shared by the `albums` and `gallery` command groups (one
+  `run_batch_*` wrapper per operation, plus `resolution` for
   `--dir` / `--album-dir` to an album list); `cli/` only the `albums` commands
   themselves. `index.py` and `media_index.py` map IDs to paths and detect
   duplicates; `renamer.py` plans batch renames from CSV.

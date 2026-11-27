@@ -7,6 +7,7 @@ import typer
 
 from photree.clihelpers.console import console, err_console
 from photree.clihelpers.options import DRY_RUN_OPTION, GALLERY_DIR_OPTION
+from photree.clihelpers.paths import expand_user_path, expand_user_paths
 from photree.clihelpers.progress import BatchProgressBar
 from photree.clihelpers.resolution import (
     format_invalid_metadata,
@@ -121,7 +122,39 @@ def _print_warnings(outcomes: tuple[CollectionImportOutcome, ...], cwd: Path) ->
         )
 
 
-def _print_summary(result: BatchImportResult, *, dry_run: bool, cwd: Path) -> None:
+def _format_rerun(
+    collection_dir: Path,
+    gallery_dir: Path | None,
+    *,
+    dry_run: bool,
+    cwd: Path,
+) -> str:
+    """Return the single-collection import that repeats this run's flags."""
+    gallery = (
+        f' --gallery-dir "{display_path(gallery_dir, cwd)}"'
+        if gallery_dir is not None
+        else ""
+    )
+    return (
+        "photree collection import --collection-dir "
+        f'"{display_path(collection_dir, cwd)}"{gallery}'
+        + (" --dry-run" if dry_run else "")
+    )
+
+
+def _print_summary(
+    result: BatchImportResult,
+    gallery_dir: Path | None,
+    *,
+    dry_run: bool,
+    cwd: Path,
+) -> None:
+    """
+    Print the counts, then each failure and the command that investigates it.
+
+    *gallery_dir* is the ``--gallery-dir`` the user passed, if any: the
+    suggested command repeats the flags of this run.
+    """
     failures = result.failures
     imported = len(result.outcomes) - len(failures)
     verb = "would be imported" if dry_run else "imported"
@@ -146,8 +179,12 @@ def _print_summary(result: BatchImportResult, *, dry_run: bool, cwd: Path) -> No
         err_console.print(
             "\n".join(
                 indent(
-                    "photree collection import --collection-dir "
-                    f'"{display_path(o.collection_dir, cwd)}" --dry-run',
+                    _format_rerun(
+                        o.collection_dir,
+                        gallery_dir,
+                        dry_run=dry_run,
+                        cwd=cwd,
+                    ),
                 )
                 for o in failures
             ),
@@ -165,9 +202,8 @@ def import_cmd(
             "--dir",
             "-d",
             help="Parent directory to scan for collections with selections.",
-            exists=True,
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(exists=True),
         ),
     ] = None,
     collection_dirs: Annotated[
@@ -176,9 +212,8 @@ def import_cmd(
             "--collection-dir",
             "-c",
             help="Collection directory to import (repeatable).",
-            exists=True,
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_paths(exists=True),
         ),
     ] = None,
     gallery_dir: GALLERY_DIR_OPTION = None,
@@ -213,7 +248,7 @@ def import_cmd(
     )
     _print_unreadable(result.outcomes, cwd)
     _print_warnings(result.outcomes, cwd)
-    _print_summary(result, dry_run=dry_run, cwd=cwd)
+    _print_summary(result, gallery_dir, dry_run=dry_run, cwd=cwd)
 
 
 def _import_all(

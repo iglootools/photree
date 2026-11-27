@@ -47,7 +47,7 @@ also take `--config <path>` to use a specific file.
 # Directory where macOS Image Capture saves imported files
 # \u2019 is the Unicode right single quotation mark (') used by macOS in device names.
 # A regular ASCII apostrophe (') won't match the actual directory name.
-image-capture-dir = "~/Pictures/Sami Dalouche\u2019s iPhone"
+image-capture-dir = "~/Pictures/Jane\u2019s iPhone"
 
 [exporter.profiles.mega]
 share-dir = "~/MEGAsync/to-share"
@@ -134,9 +134,11 @@ matter, only the names. Two forms, which may be combined:
 
 A std (non-iOS) source imports the files themselves — no selection list, no
 Image Capture directory. Place your files under `orig/` (and optionally
-`edit/`); they are copied into `std-<name>/` split by extension. The staging
-directory is removed on success, so the import refuses one holding anything
-else (another file type, a subdirectory): move those out first.
+`edit/`); they are copied into `std-<name>/` split by extension. Each file in
+`edit/` needs its original, under the same stem, in `orig/`: the import refuses
+an edit without one. The staging directory is removed on success, so the import
+refuses one holding anything else (another file type, a subdirectory): move
+those out first.
 
 ```bash
 # Import all staged media for a single album
@@ -265,18 +267,21 @@ combinations are valid, and
 **Initialize a collection:**
 
 ```bash
-# Manual collection (default)
-photree collection init -d "2024-07 - July Highlights"
+# Manual collection (default): init takes an existing directory
+mkdir "2024-07 - July Highlights"
+photree collection init -c "2024-07 - July Highlights"
 
 # Smart collection (auto-populates by date range)
-photree collection init -d "2024 - Best of 2024" --members smart --strategy date-range
+mkdir "2024 - Best of 2024"
+photree collection init -c "2024 - Best of 2024" --members smart --strategy date-range
 ```
 
 **Import members into a collection:**
 
 ```bash
 # Create a to-import.csv (UTF-8, header row "entry,date") with album names,
-# IDs, or media filenames; the optional date disambiguates a media filename
+# IDs, or media filenames; the optional date disambiguates a media filename,
+# so the same filename may appear on two rows with different dates
 echo "entry,date" > my-collection/to-import.csv
 echo "2024-07-14 - Hiking the Rockies," >> my-collection/to-import.csv
 echo "album_3K8vJxNm2cYpR7qWz5FhG," >> my-collection/to-import.csv
@@ -299,7 +304,7 @@ photree gallery refresh
 
 ```bash
 # Check a single collection
-photree collection check -d my-collection/ -g ~/Pictures/gallery
+photree collection check -c my-collection/ -g ~/Pictures/gallery
 
 # Check all collections in the gallery
 photree collections check
@@ -312,8 +317,8 @@ photree gallery check
 
 ```bash
 # Change kind or lifecycle
-photree collection metadata set -d my-collection/ --members smart --strategy date-range
-photree collection metadata set -d my-collection/ --lifecycle explicit
+photree collection metadata set -c my-collection/ --members smart --strategy date-range
+photree collection metadata set -c my-collection/ --lifecycle explicit
 ```
 
 A smart collection holds only albums and collections, and `gallery refresh`
@@ -375,6 +380,12 @@ photree gallery export -p mega --dry-run
 - `by-month`: albums organized by month
   (`2024-06/2024-06-15 - Summer Vacation/`); for date ranges, the start month is
   used
+
+Two albums of one export that would land in the same directory, such as
+`2023/Misc` and `2024/Misc` under the `flat` layout (names differing only in
+case count as the same), are both reported as failed and neither is exported:
+the second would otherwise delete the first's files as stale. Rename one of
+them.
 
 The share directory must contain a `.photree-share` sentinel file to prevent
 accidental exports.

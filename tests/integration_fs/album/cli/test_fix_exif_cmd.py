@@ -34,10 +34,26 @@ class TestFlagSelection:
         assert result.exit_code == 2
         assert "mutually exclusive" in result.output
 
-    def test_invalid_date(self) -> None:
-        result = invoke_cli(["album", "fix-exif", "--set-date", "2024-07", "x.jpg"])
+    @pytest.mark.parametrize(
+        "value",
+        ["2024-07", "2024-02-30", "2024-13-45", "24-7-20"],
+    )
+    def test_impossible_date_is_a_usage_error(self, value: str) -> None:
+        result = invoke_cli(["album", "fix-exif", "--set-date", value, "x.jpg"])
         assert result.exit_code == 2
-        assert "expected YYYY-MM-DD" in result.output
+        assert "YYYY-MM-DD" in result.output
+
+    @pytest.mark.parametrize(
+        "value",
+        ["2024-02-30T10:00:00", "2024-07-20T25:00:00", "yesterday", "2024-07-20"],
+    )
+    def test_impossible_or_date_only_timestamp_is_a_usage_error(
+        self,
+        value: str,
+    ) -> None:
+        result = invoke_cli(["album", "fix-exif", "--set-date-time", value, "x.jpg"])
+        assert result.exit_code == 2
+        assert "Invalid timestamp" in result.output
 
 
 @requires_exiftool

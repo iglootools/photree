@@ -8,15 +8,16 @@ album individually, halfway through.
 
 from pathlib import Path
 
+import pytest
+
+from photree.album.exif_cache.store import exif_cache_dir
 from photree.album.id import generate_album_id
 from photree.album.staging import ios_import_dir
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.common.sysdeps import SystemDependency
-from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
-from photree.foundation.linking import LinkMode
 from tests.fakes import fake_runtime, invoke_cli
-from tests.testkit import write_file
+from tests.testkit import make_gallery, write_file
 
 SEL_DIR = ios_import_dir("main")
 
@@ -32,16 +33,6 @@ def _staged_album(parent: Path, name: str) -> Path:
     album = parent / name
     write_file(album / SEL_DIR / "IMG_0001.HEIC")
     return album
-
-
-def _gallery(tmp_path: Path) -> Path:
-    gallery = tmp_path / "gallery"
-    gallery.mkdir()
-    save_gallery_metadata(
-        gallery,
-        GalleryMetadata(link_mode=LinkMode.HARDLINK, faces_enabled=False),
-    )
-    return gallery
 
 
 class TestAlbumsImportGate:
@@ -125,7 +116,7 @@ class TestGalleryImportGate:
         tmp_path: Path,
     ) -> None:
         runtime = fake_runtime(SystemDependency.SIPS)
-        gallery = _gallery(tmp_path)
+        gallery = make_gallery(tmp_path, faces_enabled=False)
         base = tmp_path / "incoming"
         source = base / "2024-07-14 - Hiking"
         write_file(source / "ios-main/orig-img/IMG_0001.HEIC")
@@ -152,6 +143,50 @@ class TestRefreshGate:
 
         assert result.exit_code == 1
         assert "exiftool" in result.output
+
+
+class TestCheckGate:
+    @pytest.mark.parametrize(
+        "args",
+        [["album", "check", "-a"], ["albums", "check", "-d"]],
+    )
+    def test_missing_sips_aborts_before_checking(
+        self,
+        tmp_path: Path,
+        args: list[str],
+    ) -> None:
+        runtime = fake_runtime(SystemDependency.EXIFTOOL)
+        albums_dir = tmp_path / "albums"
+        album = albums_dir / "2024-07-14 - Hiking"
+        write_file(album / "ios-main/orig-img/IMG_0001.HEIC")
+        save_album_metadata(album, AlbumMetadata(id=generate_album_id()))
+        target = album if args[0] == "album" else albums_dir
+
+        result = invoke_cli([*args, str(target)], runtime=runtime)
+
+        assert result.exit_code == 1
+        assert "sips" in result.output
+        assert "Nothing was modified" in result.output
+        assert "Structure:" not in result.output
+        assert "Checking" not in result.output
+
+    def test_album_check_refresh_exif_cache_requires_exiftool(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        runtime = fake_runtime(SystemDependency.SIPS)
+        album = tmp_path / "2024-07-14 - Hiking"
+        write_file(album / "ios-main/orig-img/IMG_0001.HEIC")
+        save_album_metadata(album, AlbumMetadata(id=generate_album_id()))
+
+        result = invoke_cli(
+            ["album", "check", "-a", str(album), "--refresh-exif-cache"],
+            runtime=runtime,
+        )
+
+        assert result.exit_code == 1
+        assert "exiftool" in result.output
+        assert not exif_cache_dir(album).exists()
 
 
 class TestCheckSystemCmd:

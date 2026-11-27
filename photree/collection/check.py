@@ -7,6 +7,7 @@ Validates:
 - Date range covers the min/max dates of contained albums/collections
 - Smart collections hold no images or videos
 - Chapter collections do not overlap other chapters
+- No collection contains itself, directly or through its sub-collections
 - The private tag is viral: non-private collections hold no private
   members, and private smart collections only private ones
 """
@@ -52,6 +53,7 @@ class CollectionIssueCode(StrEnum):
     SMART_HAS_IMAGES = "smart-has-images"
     SMART_HAS_VIDEOS = "smart-has-videos"
     CHAPTER_DATE_OVERLAP = "chapter-date-overlap"
+    MEMBERSHIP_CYCLE = "membership-cycle"
     PRIVATE_SMART_HAS_NON_PRIVATE_ALBUM = "private-smart-has-non-private-album"
     PRIVATE_SMART_HAS_NON_PRIVATE_COLLECTION = (
         "private-smart-has-non-private-collection"
@@ -69,7 +71,8 @@ class CollectionCheckIssue:
     Fields beyond ``code`` are only set for some codes:
 
     - ``member_type`` and ``member_id`` (internal ID) for the member a
-      MISSING_*, DATE_NOT_COVERED, PRIVATE_SMART_* or NON_PRIVATE_* issue is about
+      MISSING_*, DATE_NOT_COVERED, MEMBERSHIP_CYCLE, PRIVATE_SMART_* or
+      NON_PRIVATE_* issue is about
     - ``member_date`` and ``collection_date`` for DATE_NOT_COVERED
     - ``collection_date``, ``other_chapter`` (its directory name) and
       ``other_date`` for CHAPTER_DATE_OVERLAP
@@ -125,6 +128,8 @@ class _GalleryLookup:
     collection_ids: frozenset[str]
     collection_dates: Mapping[str, str | None]  # collection_id → date or None
     collection_private: Mapping[str, bool]  # collection_id → private flag
+    # collection_id → the IDs of its sub-collections, for the cycle check
+    collection_members: Mapping[str, tuple[str, ...]]
     image_ids: frozenset[str]
     video_ids: frozenset[str]
     # media_id → album_id (for checking if media comes from a private album)
@@ -266,6 +271,7 @@ def build_gallery_lookup(gallery_dir: Path) -> _GalleryLookup:
         collection_ids=frozenset(c.meta.id for c in collections),
         collection_dates={c.meta.id: c.parsed.date for c in collections},
         collection_private={c.meta.id: c.parsed.private for c in collections},
+        collection_members={c.meta.id: tuple(c.meta.collections) for c in collections},
         image_ids=frozenset(image_owners),
         video_ids=frozenset(video_owners),
         media_album={**image_owners, **video_owners},
@@ -450,6 +456,47 @@ def _check_chapter_no_overlap(
     )
 
 
+def _reachable_collections(
+    start: str,
+    members: Mapping[str, tuple[str, ...]],
+) -> frozenset[str]:
+    """Return *start* and every collection reachable from it through *members*."""
+
+    def walk(frontier: frozenset[str], seen: frozenset[str]) -> frozenset[str]:
+        new = frontier - seen
+        return (
+            walk(
+                frozenset(sub for cid in new for sub in members.get(cid, ())),
+                seen | new,
+            )
+            if new
+            else seen
+        )
+
+    return walk(frozenset({start}), frozenset())
+
+
+def _check_membership_cycle(
+    metadata: CollectionMetadata,
+    lookup: _GalleryLookup,
+) -> list[CollectionCheckIssue]:
+    """
+    Report each sub-collection through which this collection contains itself.
+
+    A cycle cannot be rendered as nested directories, so ``gallery refresh``
+    fails on it; reporting it here lets ``gallery check`` catch it first.
+    """
+    return [
+        CollectionCheckIssue(
+            CollectionIssueCode.MEMBERSHIP_CYCLE,
+            member_type=MemberType.COLLECTION,
+            member_id=cid,
+        )
+        for cid in dict.fromkeys(metadata.collections)
+        if metadata.id in _reachable_collections(cid, lookup.collection_members)
+    ]
+
+
 def _private_smart_issues(
     metadata: CollectionMetadata,
     lookup: _GalleryLookup,
@@ -573,6 +620,7 @@ def _metadata_issues(
         *_check_date_coverage(collection_dir, metadata, lookup),
         *_check_smart_no_media(metadata),
         *_check_chapter_no_overlap(collection_dir, metadata, lookup),
+        *_check_membership_cycle(metadata, lookup),
         *_check_private_viral(collection_dir, metadata, lookup),
     )
 

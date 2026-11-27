@@ -39,17 +39,12 @@ def build_album_index(albums: list[Path]) -> AlbumIndex:
 
     Raises :class:`MissingAlbumIdError` if any album lacks an ID.
     """
-    missing = tuple(
-        album_dir for album_dir in albums if load_album_metadata(album_dir) is None
-    )
+    loaded = [(album_dir, load_album_metadata(album_dir)) for album_dir in albums]
+    missing = tuple(album_dir for album_dir, meta in loaded if meta is None)
     if missing:
         raise MissingAlbumIdError(albums=missing)
 
-    pairs = [
-        (meta.id, album_dir)
-        for album_dir in albums
-        if (meta := load_album_metadata(album_dir)) is not None
-    ]
+    pairs = [(meta.id, album_dir) for album_dir, meta in loaded if meta is not None]
 
     sorted_pairs = sorted(pairs, key=lambda t: t[0])
     grouped = {

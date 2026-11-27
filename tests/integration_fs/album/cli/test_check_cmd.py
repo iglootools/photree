@@ -15,6 +15,7 @@ from photree.common.exif import exiftool_session, set_exif_date_time
 from photree.common.sysdeps import SystemDependency
 from photree.foundation.linking import LinkMode
 from tests.fakes import fake_runtime, invoke_cli
+from tests.testkit import make_album, mark_album, write_file
 
 requires_exiftool = pytest.mark.skipif(
     not shutil.which("exiftool"),
@@ -80,3 +81,52 @@ class TestAlbumCheckExifDateMismatch:
         assert result.exit_code == 0, result.output
         assert "exif: 1 file(s) outside album date (2024-07-20)" in result.output
         assert "Failed due to fatal warning flags:" not in result.output
+
+
+def _passing_std_album(parent: Path, name: str) -> Path:
+    """Build a std album that passes every check (no EXIF cache, no faces)."""
+    album = parent / name
+    write_file(album / "std-main" / "orig-img" / "DSC_0001.jpg")
+    mark_album(album)
+    refresh_album_derived_data(album, link_mode=LinkMode.HARDLINK, exiftool=None)
+    return album
+
+
+class TestAlbumCheckSiblingDateCollision:
+    _ARGS = ("--no-check-exif-date-match",)
+
+    def test_album_passes_without_a_sibling_on_its_date(self, tmp_path: Path) -> None:
+        album = _passing_std_album(tmp_path, "2024-07-14 - Hike")
+
+        result = invoke_cli(["album", "check", "-a", str(album), *self._ARGS])
+
+        assert result.exit_code == 0, result.output
+
+    def test_a_sibling_on_the_same_date_fails_the_check(self, tmp_path: Path) -> None:
+        album = _passing_std_album(tmp_path, "2024-07-14 - Hike")
+        make_album(tmp_path, "2024-07-14 - Swim")
+
+        result = invoke_cli(["album", "check", "-a", str(album), *self._ARGS])
+
+        assert result.exit_code == 1, result.output
+        assert "date collisions: 1 date(s)" in result.output
+
+    def test_no_check_date_part_collision_ignores_the_sibling(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        album = _passing_std_album(tmp_path, "2024-07-14 - Hike")
+        make_album(tmp_path, "2024-07-14 - Swim")
+
+        result = invoke_cli(
+            [
+                "album",
+                "check",
+                "-a",
+                str(album),
+                *self._ARGS,
+                "--no-check-date-part-collision",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output

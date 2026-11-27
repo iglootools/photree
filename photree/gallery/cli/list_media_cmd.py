@@ -19,7 +19,7 @@ from photree.gallery.cli.app import app
 def list_media_cmd(
     ctx: typer.Context,
     gallery_dir: GALLERY_DIR_OPTION = None,
-    output_format: OUTPUT_FORMAT_OPTION = OutputFormat.TEXT,
+    output_format: OUTPUT_FORMAT_OPTION = OutputFormat.HUMAN,
     output_file: OUTPUT_FILE_OPTION = None,
 ) -> None:
     """List all media items across all albums in the gallery."""

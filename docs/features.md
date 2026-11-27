@@ -82,11 +82,14 @@ Validate that album directories are consistent and well-formed.
   and `edit/` sources
 - Checks `{name}-jpg/` has a JPEG counterpart for every file in `{name}-img/`
 - Detects missing, extra, and wrong-source files
-- File comparison via size and optional SHA-256 checksum
-- Hardlink/symlink-aware: skips checksum when link integrity is verified
+- File comparison via size and an optional byte-by-byte content comparison
+- Hardlink/symlink-aware: skips the content comparison when link integrity is
+  verified
 - Sidecar validation: detects orphan and missing AAE files
 - Detects miscategorized files (edits in orig dirs or vice versa)
 - Detects duplicate image numbers within the same prefix category
+- Std sources: detects stems shared within a directory (ignoring case) and
+  edits with no original
 - Troubleshooting suggestions with actionable fix commands
 
 ## Linked Browsable Directories
@@ -107,9 +110,10 @@ Repair and maintain iOS album consistency with targeted fix commands.
 
 - **`--rm-upstream`**: Propagate deletions from browsable dirs to upstream dirs
   (useful after curating photos in `main-jpg/`). A missing browsable dir is
-  never read as "everything was deleted", and a run that would empty an entire
+  never read as "everything was deleted", a run that would empty an entire
   archive is refused unless `--force` is given (available on `album fix`,
-  `albums fix` and `gallery fix`)
+  `albums fix` and `gallery fix`), and a browsable dir that a failed or
+  interrupted refresh left incomplete is refused until a refresh completes
 - **`--rm-orphan`**: Remove edited and main files with no corresponding original
 - **`--rm-orphan-sidecar`**: Remove AAE sidecar files with no matching media
   file
@@ -124,14 +128,14 @@ Repair and maintain iOS album consistency with targeted fix commands.
 Batch operations across multiple albums under a directory.
 
 - **`gallery list-albums`**: List all discovered albums with parsed metadata
-  (date, title, series, location, media sources); supports text and CSV output
+  (date, title, series, location, media sources); supports human and CSV output
   formats
 - **`gallery check`**: Check all albums (integrity, naming conventions, EXIF
   timestamps, cross-album date collisions)
 - **`gallery fix`**: Apply fixes to all albums
 - **`gallery fix-ios`**: Apply iOS-specific fixes to all iOS albums
 - **`gallery rename-from-csv`**: Rename albums by diffing current vs desired CSV
-  files (exported from `list-albums --format csv`); only title and location may
+  files (exported from `list-albums --output csv`); only title and location may
   be changed
 - **`gallery export`**: Batch export to a shared directory
 - Gallery commands find the gallery through `--gallery-dir`, or from the
@@ -265,8 +269,12 @@ TOML-based configuration with platform-aware search paths.
 | Format | Type | Notes |
 |--------|------|-------|
 | HEIC | Image | Native iPhone format (High Efficiency) |
+| HEIF | Image | High Efficiency images from other devices |
 | DNG | Image | Apple ProRAW |
 | JPEG/JPG | Image | Most Compatible mode, front camera, ProRAW edits |
 | PNG | Image | Screenshots |
 | MOV | Video | Standard and ProRes codec |
+| MP4 | Video | Standard media sources only |
+| AVI | Video | Standard media sources only |
+| WMV | Video | Standard media sources only |
 | AAE | Sidecar | Apple Adjustments and Edits |

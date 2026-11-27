@@ -5,11 +5,7 @@ from pathlib import Path
 from photree.album.id import format_album_external_id
 from photree.album.store.metadata import load_album_metadata
 from tests.fakes import fake_runtime, invoke_cli
-
-
-def _write(path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(f"data-{path.name}", encoding="utf-8")
+from tests.testkit import write_files
 
 
 def _invoke(*args: str) -> tuple[int, str]:
@@ -19,13 +15,9 @@ def _invoke(*args: str) -> tuple[int, str]:
 
 def _album_with_curated_photo(album: Path) -> None:
     """b.jpg is in the archive but was deleted from nelu-img/ and nelu-jpg/."""
-    for name in (
-        "std-nelu/orig-img/a.jpg",
-        "std-nelu/orig-img/b.jpg",
-        "nelu-img/a.jpg",
-        "nelu-jpg/a.jpg",
-    ):
-        _write(album / name)
+    write_files(album / "std-nelu/orig-img", ["a.jpg", "b.jpg"])
+    write_files(album / "nelu-img", ["a.jpg"])
+    write_files(album / "nelu-jpg", ["a.jpg"])
 
 
 class TestAlbumFixRmUpstream:
@@ -59,18 +51,29 @@ class TestAlbumFixRmUpstream:
         )
         assert (tmp_path / "std-nelu/orig-img/b.jpg").exists()
 
+    def test_albums_dry_run_labels_each_album_report(self, tmp_path: Path) -> None:
+        album = tmp_path / "2024-07-14 - Trip"
+        _album_with_curated_photo(album)
+
+        result = invoke_cli(
+            ["albums", "fix", "--rm-upstream", "--dry-run", "--album-dir", str(album)],
+            runtime=fake_runtime(),
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "[dry-run] Would remove heic: 0 jpeg, 0 main, 0 edit, 1 orig." in (
+            result.output
+        )
+        assert (album / "std-nelu/orig-img/b.jpg").exists()
+
 
 class TestAlbumFixRmOrphan:
     def test_rm_orphan_removes_the_edit_without_original(
         self,
         tmp_path: Path,
     ) -> None:
-        for name in (
-            "std-nelu/orig-img/a.jpg",
-            "std-nelu/edit-img/a.jpg",
-            "std-nelu/edit-img/b.jpg",
-        ):
-            _write(tmp_path / name)
+        write_files(tmp_path / "std-nelu/orig-img", ["a.jpg"])
+        write_files(tmp_path / "std-nelu/edit-img", ["a.jpg", "b.jpg"])
 
         code, output = _invoke("fix", "--rm-orphan", "--album-dir", str(tmp_path))
 
@@ -114,8 +117,7 @@ class TestAlbumFixId:
 
 class TestAlbumFixIos:
     def test_mv_miscategorized_moves_the_edit(self, tmp_path: Path) -> None:
-        _write(tmp_path / "ios-main/orig-img/IMG_0001.HEIC")
-        _write(tmp_path / "ios-main/orig-img/IMG_E0001.HEIC")
+        write_files(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_E0001.HEIC"])
 
         code, output = _invoke(
             "fix-ios",
@@ -132,8 +134,7 @@ class TestAlbumFixIos:
         assert not (tmp_path / "ios-main/orig-img/IMG_E0001.HEIC").exists()
 
     def test_mv_miscategorized_dry_run_moves_nothing(self, tmp_path: Path) -> None:
-        _write(tmp_path / "ios-main/orig-img/IMG_0001.HEIC")
-        _write(tmp_path / "ios-main/orig-img/IMG_E0001.HEIC")
+        write_files(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_E0001.HEIC"])
 
         code, output = _invoke(
             "fix-ios",
@@ -156,9 +157,8 @@ class TestAlbumFixIos:
         self,
         tmp_path: Path,
     ) -> None:
-        _write(tmp_path / "ios-main/orig-img/IMG_0001.HEIC")
-        _write(tmp_path / "ios-main/orig-img/IMG_E0001.HEIC")
-        _write(tmp_path / "ios-main/edit-img/IMG_E0001.HEIC")
+        write_files(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_E0001.HEIC"])
+        write_files(tmp_path / "ios-main/edit-img", ["IMG_E0001.HEIC"])
 
         code, output = _invoke(
             "fix-ios",

@@ -26,6 +26,17 @@ class TestCollectionInit:
         assert "Collection ID:" in result.output
         assert load_collection_metadata(col) is not None
 
+    def test_dry_run_writes_nothing(self, tmp_path: Path) -> None:
+        col = tmp_path / "my-collection"
+        col.mkdir()
+
+        result = invoke_cli(["collection", "init", "-d", str(col), "--dry-run"])
+
+        assert result.exit_code == 0, result.output
+        assert result.output.startswith("[dry-run] Would create")
+        assert "Collection ID:" not in result.output
+        assert load_collection_metadata(col) is None
+
     def test_defaults_to_manual_explicit(self, tmp_path: Path) -> None:
         col = tmp_path / "my-collection"
         col.mkdir()

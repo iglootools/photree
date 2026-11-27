@@ -1,7 +1,7 @@
 """
 Troubleshooting output for a failed album check.
 
-What to install, rename or run to fix each failure.
+What to rename or run to fix each failure.
 
 Formatters return unindented lines; nested detail lines are indented relative
 to their heading with :func:`~photree.common.formatting.indent`, and the call
@@ -18,13 +18,6 @@ from textwrap import dedent
 from photree.album.check import AlbumPreflightResult
 from photree.album.check.troubleshoot import suggest_fixes
 from photree.common.formatting import markup_escape
-from photree.common.sysdeps import SystemDependency
-from photree.common.sysdeps_output import format_missing_troubleshoot
-
-
-def sips_troubleshoot() -> str:
-    """Return the troubleshooting text for a missing sips."""
-    return format_missing_troubleshoot([SystemDependency.SIPS])
 
 
 def media_source_conflicts_troubleshoot(conflicts: tuple[str, ...]) -> str:
@@ -101,7 +94,6 @@ def format_album_preflight_troubleshoot(
         *_media_metadata_suggestions(result, album_dir_flag),
     ]
     lines = [
-        *([sips_troubleshoot()] if not result.sips_available else []),
         *(
             [media_source_conflicts_troubleshoot(result.media_source_conflicts)]
             if result.media_source_conflicts

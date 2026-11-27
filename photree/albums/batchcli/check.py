@@ -1,32 +1,62 @@
 """``albums check`` / ``gallery check`` wrapper."""
 
-from collections.abc import Mapping
 from dataclasses import dataclass
-from functools import partial
 from pathlib import Path
 
 import typer
 
-from photree.album import naming as album_naming
-from photree.album.check.output import album as album_output, batch as batch_output
-from photree.album.check.output.batch import batch_check_summary
-from photree.album.exif_cache.refresh import refresh_exif_cache as _refresh_exif
+from photree.album.check.output import album as album_output
 from photree.album.id import format_album_external_id, format_image_external_id
-from photree.album.naming import BatchNamingResult
-from photree.album.store.media_metadata import load_media_metadata
-from photree.album.store.metadata import load_album_metadata
 from photree.albums.batchcli.failures import batch_failures_report, investigate_commands
 from photree.albums.batchcli.resolution import make_display_fn
-from photree.albums.cmd_handler import BatchFailure, failures_of, run_album_step
-from photree.albums.cmd_handler.check import BatchCheckResult, batch_check
-from photree.albums.index import find_duplicate_album_ids
-from photree.albums.media_index import find_duplicate_media_ids
+from photree.albums.cmd_handler import BatchFailure
+from photree.albums.cmd_handler.check import (
+    BatchCheckResult,
+    CrossAlbumCheckResult,
+    batch_check,
+    check_cross_album,
+    compute_batch_check_summary,
+    refresh_exif_caches,
+)
+from photree.albums.output import check as batch_output
+from photree.albums.output.check import batch_check_summary
 from photree.clihelpers.console import console, err_console
 from photree.clihelpers.progress import BatchProgressBar, run_with_spinner
 from photree.clihelpers.sysdeps import CHECK_DEPS, EXIF_DEPS, require_system_deps
 from photree.common.exif import ExifTagReader, exiftool_session
+from photree.common.formatting import format_flags
 from photree.common.sysdeps import WhichFn
 from photree.foundation.gallery_metadata import resolve_link_mode
+
+
+def check_retry_flags(
+    *,
+    checksum: bool,
+    fatal_warnings: bool,
+    fatal_sidecar: bool,
+    fatal_exif_date_match: bool,
+    check_naming: bool,
+    check_date_part_collision: bool,
+    check_exif_date_match: bool,
+    refresh_exif_cache: bool,
+) -> list[tuple[str, bool]]:
+    """
+    Pair each flag that reproduces a batch check on one album with whether it applies.
+
+    A suggested command that silently drops the caller's flags would not
+    reproduce the failure it is suggested for. Pass the result to
+    :func:`~photree.common.formatting.format_flags`.
+    """
+    return [
+        ("--no-checksum", not checksum),
+        ("--fatal-warnings", fatal_warnings),
+        ("--fatal-sidecar", fatal_sidecar),
+        ("--no-fatal-exif-date-match", not fatal_exif_date_match),
+        ("--no-check-naming", not check_naming),
+        ("--no-check-date-part-collision", not check_date_part_collision),
+        ("--no-check-exif-date-match", not check_exif_date_match),
+        ("--refresh-exif-cache", refresh_exif_cache),
+    ]
 
 
 @dataclass(frozen=True)
@@ -37,6 +67,8 @@ class _CheckFlags:
     fatal_exif_date_match: bool
     check_naming: bool
     check_date_part_collision: bool
+    check_exif_date_match: bool
+    refresh_exif_cache: bool
 
     @property
     def fatal_sidecar(self) -> bool:
@@ -47,19 +79,18 @@ class _CheckFlags:
         return self.fatal_warnings or self.fatal_exif_date_match
 
     def retry_flags(self) -> str:
-        return batch_output.batch_check_retry_flags(
-            fatal_warnings=self.fatal_warnings,
-            fatal_sidecar=self.fatal_sidecar_arg,
-            fatal_exif_date_match=self.fatal_exif_date_match,
+        return format_flags(
+            check_retry_flags(
+                checksum=self.checksum,
+                fatal_warnings=self.fatal_warnings,
+                fatal_sidecar=self.fatal_sidecar_arg,
+                fatal_exif_date_match=self.fatal_exif_date_match,
+                check_naming=self.check_naming,
+                check_date_part_collision=self.check_date_part_collision,
+                check_exif_date_match=self.check_exif_date_match,
+                refresh_exif_cache=self.refresh_exif_cache,
+            ),
         )
-
-
-@dataclass(frozen=True)
-class _CrossAlbumResult:
-    naming_result: BatchNamingResult | None
-    duplicate_ids: Mapping[str, tuple[Path, ...]]
-    duplicate_media_ids: Mapping[str, tuple[Path, ...]]
-    failed_albums: frozenset[Path]
 
 
 def _conclude(*, success: bool, exit_on_failure: bool) -> bool:
@@ -100,6 +131,8 @@ def run_batch_check(
         fatal_exif_date_match,
         check_naming,
         check_date_part_collision,
+        check_exif_date_match,
+        refresh_exif_cache,
     )
     # --refresh-exif-cache cannot degrade without exiftool, so it is required.
     require_system_deps(
@@ -124,7 +157,11 @@ def run_batch_check(
 
     cross_album = run_with_spinner(
         "Running cross-album checks...",
-        lambda: _compute_cross_album_checks(albums, flags),
+        lambda: check_cross_album(
+            albums,
+            check_date_collisions=flags.check_naming
+            and flags.check_date_part_collision,
+        ),
     )
     _print_cross_album(cross_album, cwd)
     success = _report(albums, result, cross_album, refresh_failures, flags, cwd=cwd)
@@ -167,16 +204,9 @@ def _refresh_exif_caches(
     exiftool: ExifTagReader | None,
     cwd: Path,
 ) -> tuple[BatchFailure, ...]:
-    """Refresh every album's EXIF cache; a failing album is reported, not fatal."""
+    """Refresh every album's EXIF cache, printing the albums that failed."""
     typer.echo("\nRefreshing EXIF cache...")
-    failures = failures_of(
-        run_album_step(
-            album_dir,
-            partial(_refresh_exif, album_dir, exiftool=exiftool),
-            name=album_dir.name,
-        )
-        for album_dir in albums
-    )
+    failures = refresh_exif_caches(albums, exiftool)
     if failures:
         err_console.print(batch_failures_report(failures, cwd))
     return failures
@@ -196,8 +226,6 @@ def _check_albums(
     ) as progress:
         return batch_check(
             albums,
-            # require_system_deps exited already if sips were missing.
-            sips_available=True,
             exiftool=exiftool,
             link_mode_for=lambda album_dir: resolve_link_mode(None, album_dir),
             checksum=flags.checksum,
@@ -210,14 +238,14 @@ def _check_albums(
         )
 
 
-def _print_cross_album(cross_album: _CrossAlbumResult, cwd: Path) -> None:
+def _print_cross_album(cross_album: CrossAlbumCheckResult, cwd: Path) -> None:
     typer.echo("\nCross-album checks:")
     if cross_album.naming_result is not None:
         console.print(
-            batch_output.format_batch_naming_issues(cross_album.naming_result),
+            album_output.format_batch_naming_issues(cross_album.naming_result),
         )
     for kind, duplicates, format_id in (
-        ("album", cross_album.duplicate_ids, format_album_external_id),
+        ("album", cross_album.duplicate_album_ids, format_album_external_id),
         ("media", cross_album.duplicate_media_ids, format_image_external_id),
     ):
         if duplicates:
@@ -236,92 +264,33 @@ def _print_cross_album(cross_album: _CrossAlbumResult, cwd: Path) -> None:
 def _report(
     albums: list[Path],
     result: BatchCheckResult,
-    cross_album: _CrossAlbumResult,
+    cross_album: CrossAlbumCheckResult,
     refresh_failures: tuple[BatchFailure, ...],
     flags: _CheckFlags,
     *,
     cwd: Path,
 ) -> bool:
     """Print the summary (and retry commands); ``True`` when nothing failed."""
-    # An album can fail several ways (refresh, per-album, cross-album checks):
-    # it is counted once, and ``passed`` is whatever did not fail.
-    failed = frozenset(
-        {
-            *result.failed_albums,
-            *cross_album.failed_albums,
-            *(f.album_dir for f in refresh_failures),
-        },
+    summary = compute_batch_check_summary(
+        albums,
+        result,
+        cross_album,
+        refresh_failures,
     )
-    warned = len(set(result.warned_albums) - failed)
-    console.print(batch_check_summary(len(albums) - len(failed), len(failed), warned))
-    if failed:
+    console.print(
+        batch_check_summary(
+            summary.passed,
+            len(summary.failed_albums),
+            summary.warned,
+        ),
+    )
+    if summary.failed_albums:
         err_console.print(
             investigate_commands(
                 "check",
-                sorted(failed),
+                summary.failed_albums,
                 cwd,
                 extra_flags=flags.retry_flags(),
             ),
         )
-    return not failed
-
-
-def _date_collision_check(
-    albums: list[Path],
-    flags: _CheckFlags,
-) -> tuple[BatchNamingResult | None, frozenset[Path]]:
-    if not (flags.check_naming and flags.check_date_part_collision):
-        return None, frozenset()
-    naming_result = album_naming.check_batch_date_collisions(
-        [
-            (album.name, parsed)
-            for album in albums
-            if (parsed := album_naming.parse_album_name(album.name)) is not None
-        ],
-    )
-    colliding = {name for _, names in naming_result.date_collisions for name in names}
-    return naming_result, frozenset(a for a in albums if a.name in colliding)
-
-
-def _has_readable_metadata(album_dir: Path) -> bool:
-    """Tell whether the album's ID and media-ID files load (or are absent)."""
-    try:
-        load_album_metadata(album_dir)
-        load_media_metadata(album_dir)
-    except ValueError:
-        # InvalidMetadataError: the per-album check already reported why.
-        return False
-    return True
-
-
-def _compute_cross_album_checks(
-    albums: list[Path],
-    flags: _CheckFlags,
-) -> _CrossAlbumResult:
-    """
-    Run cross-album checks (date collisions, duplicate IDs).
-
-    An album whose metadata cannot be read is left out of the duplicate-ID
-    scans and counted as failed, so the summary and the other albums'
-    results are still reported.
-    """
-    naming_result, colliding = _date_collision_check(albums, flags)
-    unreadable = frozenset(a for a in albums if not _has_readable_metadata(a))
-    readable = [a for a in albums if a not in unreadable]
-    duplicate_ids = {k: tuple(v) for k, v in find_duplicate_album_ids(readable).items()}
-    duplicate_media_ids = {
-        k: tuple(v) for k, v in find_duplicate_media_ids(readable).items()
-    }
-    return _CrossAlbumResult(
-        naming_result=naming_result,
-        duplicate_ids=duplicate_ids,
-        duplicate_media_ids=duplicate_media_ids,
-        failed_albums=frozenset(
-            {
-                *colliding,
-                *unreadable,
-                *(p for paths in duplicate_ids.values() for p in paths),
-                *(p for paths in duplicate_media_ids.values() for p in paths),
-            },
-        ),
-    )
+    return summary.success

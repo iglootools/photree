@@ -17,9 +17,9 @@ from photree.album.store.media_metadata import (
 )
 from photree.album.store.metadata import load_album_metadata
 from photree.albums.batchcli.resolution import display_name
-from photree.albums.batchcli.sink import write_csv, write_text
 from photree.clihelpers.console import err_console
 from photree.clihelpers.options import OutputFormat
+from photree.clihelpers.sink import write_csv, write_text
 from photree.common.formatting import indent
 
 _CSV_HEADER = ("album_id", "media_source", "type", "id", "key")
@@ -105,7 +105,7 @@ def run_batch_list_media(
     albums: list[Path],
     display_base: Path | None,
     *,
-    output_format: OutputFormat = OutputFormat.TEXT,
+    output_format: OutputFormat = OutputFormat.HUMAN,
     output_file: Path | None = None,
     cwd: Path,
 ) -> None:
@@ -117,7 +117,7 @@ def run_batch_list_media(
     """
     loaded = _load(albums, display_base, cwd=cwd)
     match output_format, albums:
-        case OutputFormat.TEXT, []:
+        case OutputFormat.HUMAN, []:
             typer.echo("No albums found.")
         case OutputFormat.CSV, []:
             # Keep stdout pure CSV: the notice goes to stderr.
@@ -125,5 +125,5 @@ def run_batch_list_media(
             write_csv(_CSV_HEADER, [], output_file)
         case OutputFormat.CSV, _:
             write_csv(_CSV_HEADER, _csv_rows(loaded), output_file)
-        case OutputFormat.TEXT, _:
+        case OutputFormat.HUMAN, _:
             write_text(_text_lines(loaded), output_file)

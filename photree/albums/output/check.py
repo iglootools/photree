@@ -16,7 +16,6 @@ result with markup enabled and must not escape it again.
 from collections.abc import Callable
 from pathlib import Path
 
-from photree.album.naming import BatchNamingResult
 from photree.common.formatting import (
     CHECK,
     CROSS,
@@ -24,26 +23,6 @@ from photree.common.formatting import (
     markup_escape,
 )
 from photree.common.fs import display_path
-
-
-def format_batch_naming_issues(result: BatchNamingResult) -> str:
-    """Format cross-album naming issues (date collisions)."""
-    if result.success:
-        return f"{CHECK} no date collisions"
-    else:
-        return "\n".join(
-            [
-                f"{CROSS} date collisions: {len(result.date_collisions)} date(s)",
-                *(
-                    line
-                    for album_date, albums in result.date_collisions
-                    for line in (
-                        indent(f"{album_date}:"),
-                        *(indent(markup_escape(album), 2) for album in albums),
-                    )
-                ),
-            ],
-        )
 
 
 def batch_check_summary(passed: int, failed: int, warned: int = 0) -> str:
@@ -77,24 +56,3 @@ def duplicate_ids_report(
 def no_duplicate_ids_line(kind: str) -> str:
     """Return the success counterpart of :func:`duplicate_ids_report`."""
     return f"{CHECK} no duplicate {kind} ids"
-
-
-def batch_check_retry_flags(
-    *,
-    fatal_warnings: bool,
-    fatal_sidecar: bool,
-    fatal_exif_date_match: bool,
-) -> str:
-    """
-    Reconstruct the flags needed to reproduce a batch check on one album.
-
-    A suggested command that silently drops the caller's flags would not
-    reproduce the failure it is suggested for.
-    """
-    return "".join(
-        [
-            " --fatal-warnings" if fatal_warnings else "",
-            " --fatal-sidecar" if fatal_sidecar else "",
-            " --no-fatal-exif-date-match" if not fatal_exif_date_match else "",
-        ],
-    )

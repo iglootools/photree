@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from photree.album.check import run_album_check
+from photree.album.check import AlbumCheckFailureKind, run_album_check
 from photree.album.check.output.album import format_album_preflight_checks
 from photree.album.store.album_discovery import has_media_sources
 from photree.album.store.media_source import (
@@ -200,18 +200,17 @@ class TestMediaSourceConflicts:
 
         result = run_album_check(
             album,
-            sips_available=True,
             exiftool=None,
             link_mode=LinkMode.HARDLINK,
         )
 
         assert result.media_source_conflicts == ("main",)
         assert not result.success
-        assert "media source conflict" in result.error_labels
+        assert AlbumCheckFailureKind.MEDIA_SOURCE_CONFLICT in result.failures
         assert result.naming is not None
         assert result.naming.success
         assert "ios-<name>/ and std-<name>/ both present for: main" in (
-            format_album_preflight_checks(result)
+            format_album_preflight_checks(result, album_dir=album.name)
         )
 
     def test_batch_check_continues_past_conflict(self, tmp_path: Path) -> None:
@@ -233,7 +232,6 @@ class TestMediaSourceConflicts:
 
         batch_check(
             [conflicted, healthy],
-            sips_available=True,
             link_mode_for=lambda _: LinkMode.HARDLINK,
             check_naming=False,
             on_end=record_end,

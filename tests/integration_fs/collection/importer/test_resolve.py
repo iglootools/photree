@@ -17,7 +17,6 @@ from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.collection.id import (
     format_collection_external_id,
-    generate_collection_id,
 )
 from photree.collection.importer.resolve import (
     ResolutionErrorKind,
@@ -25,13 +24,12 @@ from photree.collection.importer.resolve import (
     scan_gallery,
 )
 from photree.collection.importer.selection import SelectionEntry
-from photree.collection.store.metadata import save_collection_metadata
-from photree.collection.store.protocol import (
-    CollectionLifecycle,
-    CollectionMembers,
-    CollectionMetadata,
+from tests.testkit import (
+    make_gallery,
+    make_gallery_album,
+    make_gallery_collection,
+    write_file,
 )
-from tests.testkit import make_gallery, make_gallery_album, write_file
 
 
 def _entry(value: str, date_hint: datetime | None = None) -> SelectionEntry:
@@ -72,21 +70,6 @@ def _setup_album_with_media(gallery: Path, name: str) -> tuple[Path, str, str, s
     return album_dir, album_id, img_id, vid_id
 
 
-def _setup_collection(gallery: Path, name: str) -> tuple[Path, str]:
-    col_dir = gallery / "collections" / "2024" / name
-    col_dir.mkdir(parents=True)
-    cid = generate_collection_id()
-    save_collection_metadata(
-        col_dir,
-        CollectionMetadata(
-            id=cid,
-            members=CollectionMembers.MANUAL,
-            lifecycle=CollectionLifecycle.EXPLICIT,
-        ),
-    )
-    return col_dir, cid
-
-
 class TestResolveByExternalId:
     def test_resolve_album_by_external_id(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
@@ -99,7 +82,7 @@ class TestResolveByExternalId:
 
     def test_resolve_collection_by_external_id(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
-        _, col_id = _setup_collection(gallery, "2024 - Best Of")
+        _, col_id = make_gallery_collection(gallery, "2024 - Best Of")
 
         ext_id = format_collection_external_id(col_id)
         result = resolve_entries((_entry(ext_id),), scan_gallery(gallery))
@@ -154,7 +137,7 @@ class TestResolveByName:
 
     def test_resolve_collection_by_dir_name(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
-        _, col_id = _setup_collection(gallery, "2024 - Best Of")
+        _, col_id = make_gallery_collection(gallery, "2024 - Best Of")
 
         result = resolve_entries((_entry("2024 - Best Of"),), scan_gallery(gallery))
         assert result.success
@@ -331,7 +314,7 @@ class TestResolveMixed:
     def test_resolve_mixed_entries(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
         _, album_id, img_id, _ = _setup_album_with_media(gallery, "2024-07-14 - Trip")
-        _, col_id = _setup_collection(gallery, "2024 - Best Of")
+        _, col_id = make_gallery_collection(gallery, "2024 - Best Of")
 
         result = resolve_entries(
             (
@@ -382,6 +365,43 @@ class TestResolveErrors:
         result = resolve_entries((_entry(name),), scan_gallery(gallery))
         assert not result.success
         assert result.errors[0].kind == ResolutionErrorKind.AMBIGUOUS
+
+    def test_same_filename_with_two_date_hints_resolves_both(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = make_gallery(tmp_path)
+        img_ids = [
+            _setup_album_with_media(gallery, name)[2]
+            for name in ("2019-03-01 - Old Trip", "2024-08-10 - New Trip")
+        ]
+
+        result = resolve_entries(
+            (
+                _entry("IMG_0001.HEIC", date_hint=datetime(2019, 3, 1)),
+                _entry("IMG_0001.HEIC", date_hint=datetime(2024, 8, 10)),
+            ),
+            scan_gallery(gallery),
+        )
+
+        assert result.success
+        assert result.members.images == tuple(img_ids)
+
+    def test_errors_carry_the_date_hint_of_their_entry(self, tmp_path: Path) -> None:
+        gallery = make_gallery(tmp_path)
+        _setup_album_with_media(gallery, "2019-03-01 - Old Trip")
+
+        result = resolve_entries(
+            (
+                _entry("IMG_0001.HEIC", date_hint=datetime(2019, 3, 1)),
+                _entry("IMG_0009.HEIC", date_hint=datetime(2024, 8, 10)),
+            ),
+            scan_gallery(gallery),
+        )
+
+        assert [(e.entry, e.kind, e.date_hint) for e in result.errors] == [
+            ("IMG_0009.HEIC", ResolutionErrorKind.NOT_FOUND, datetime(2024, 8, 10)),
+        ]
 
     def test_duplicate_entry(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
@@ -483,7 +503,7 @@ class TestScanGalleryUnreadable:
 
     def test_corrupt_collection_is_listed(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
-        col_dir, _ = _setup_collection(gallery, "2024 - Best Of")
+        col_dir, _ = make_gallery_collection(gallery, "2024 - Best Of")
         (col_dir / ".photree" / "collection.yaml").write_text(
             "- nope\n",
             encoding="utf-8",

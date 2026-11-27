@@ -3,30 +3,9 @@ from pathlib import Path
 from photree.album.id import generate_album_id
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
-from photree.collection.id import generate_collection_id
-from photree.collection.store.metadata import save_collection_metadata
-from photree.collection.store.protocol import (
-    CollectionLifecycle,
-    CollectionMembers,
-    CollectionMetadata,
-)
 from photree.foundation.layout import BROWSABLE_DIR, PHOTREE_DIR
 from tests.fakes import invoke_cli
-from tests.testkit import make_gallery
-
-
-def _setup_collection(gallery: Path, name: str = "2024-07 - Summer") -> Path:
-    col_dir = gallery / "collections" / "2024" / name
-    col_dir.mkdir(parents=True)
-    save_collection_metadata(
-        col_dir,
-        CollectionMetadata(
-            id=generate_collection_id(),
-            members=CollectionMembers.MANUAL,
-            lifecycle=CollectionLifecycle.EXPLICIT,
-        ),
-    )
-    return col_dir
+from tests.testkit import make_gallery, make_gallery_collection
 
 
 def _setup_album(gallery: Path, name: str = "2024-07-14 - Trip") -> Path:
@@ -47,7 +26,7 @@ class TestGalleryRefreshWithoutAlbums:
     def test_collections_and_browsable_are_refreshed(self, tmp_path: Path) -> None:
         """Regression: "no albums" exited 0 before the gallery-level stages ran."""
         gallery = make_gallery(tmp_path, faces_enabled=False)
-        _setup_collection(gallery)
+        make_gallery_collection(gallery, "2024-07 - Summer")
 
         exit_code, output = _refresh(gallery)
 

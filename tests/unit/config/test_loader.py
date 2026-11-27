@@ -33,10 +33,10 @@ def _isolated_find(tmp_path: Path, xdg: Path | None = None) -> Path | None:
     )
 
 
-def _write_config(tmp_path: Path, content: str) -> str:
+def _write_config(tmp_path: Path, content: str) -> Path:
     cfg_file = tmp_path / "config.toml"
     cfg_file.write_text(dedent(content), encoding="utf-8")
-    return str(cfg_file)
+    return cfg_file
 
 
 def _load_error(tmp_path: Path, content: str) -> ConfigError:
@@ -80,12 +80,12 @@ class TestFindConfigFile:
     def test_explicit_path(self, tmp_path: Path) -> None:
         cfg = tmp_path / "my.toml"
         cfg.write_text("", encoding="utf-8")
-        assert find_config_file(str(cfg)) == cfg
+        assert find_config_file(cfg) == cfg
 
     def test_explicit_path_not_found(self, tmp_path: Path) -> None:
         missing = tmp_path / "missing.toml"
         with pytest.raises(ConfigError) as exc_info:
-            find_config_file(str(missing))
+            find_config_file(missing)
         assert exc_info.value.kind == ConfigErrorKind.FILE_NOT_FOUND
         assert exc_info.value.path == missing
 
@@ -140,7 +140,7 @@ class TestLoadConfig:
         cfg_file = tmp_path / "config.toml"
         cfg_file.write_bytes(b'[importer]\nimage-capture-dir = "\xff"\n')
         with pytest.raises(ConfigError) as exc_info:
-            load_config(str(cfg_file))
+            load_config(cfg_file)
         assert exc_info.value.kind == ConfigErrorKind.INVALID_TOML
         assert exc_info.value.path == cfg_file
 
@@ -149,11 +149,11 @@ class TestLoadConfig:
         reason="root reads a file whatever its permissions",
     )
     def test_unreadable_file(self, tmp_path: Path) -> None:
-        cfg_file = Path(_write_config(tmp_path, "[importer]\n"))
+        cfg_file = _write_config(tmp_path, "[importer]\n")
         cfg_file.chmod(0)
         try:
             with pytest.raises(ConfigError) as exc_info:
-                load_config(str(cfg_file))
+                load_config(cfg_file)
         finally:
             cfg_file.chmod(0o600)
         assert exc_info.value.kind == ConfigErrorKind.UNREADABLE_FILE

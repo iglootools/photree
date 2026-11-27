@@ -5,6 +5,8 @@ from typing import Annotated
 
 import typer
 
+from photree.clihelpers.paths import expand_user_path
+
 COLLECTION_DIR_OPTION = Annotated[
     Path,
     typer.Option(
@@ -17,8 +19,7 @@ COLLECTION_DIR_OPTION = Annotated[
         "--dir",
         "-d",
         help="Collection directory.",
-        exists=True,
         file_okay=False,
-        resolve_path=True,
+        callback=expand_user_path(exists=True),
     ),
 ]

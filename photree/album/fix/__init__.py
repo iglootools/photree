@@ -5,22 +5,22 @@ Unlike :mod:`fix.ios` which requires iOS media sources, these operations
 work with both iOS and std media sources.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
 from photree.album.fix.helpers import MissingArchiveError
-from photree.album.fix.rm_orphan import RmOrphanDirResult, RmOrphanResult, rm_orphan
+from photree.album.fix.removed_files import RemovedFiles
+from photree.album.fix.rm_orphan import RmOrphanResult, rm_orphan
 from photree.album.fix.rm_upstream import (
     RmUpstreamHeicResult,
+    RmUpstreamIncompleteSignalError,
     RmUpstreamMovResult,
     RmUpstreamRefusedError,
     RmUpstreamResult,
     RmUpstreamSkip,
     SignalSkipReason,
-    apply_rm_upstream,
-    check_rm_upstream_plans,
-    plan_rm_upstream,
     rm_upstream,
 )
 from photree.album.store.media_source import MediaSource
@@ -34,9 +34,10 @@ __all__ = [
     "FixValidationErrorKind",
     "LinkMode",
     "MissingArchiveError",
-    "RmOrphanDirResult",
+    "RemovedFiles",
     "RmOrphanResult",
     "RmUpstreamHeicResult",
+    "RmUpstreamIncompleteSignalError",
     "RmUpstreamMovResult",
     "RmUpstreamRefusedError",
     "RmUpstreamResult",
@@ -94,7 +95,7 @@ class FixRmUpstreamResult:
     skipped: tuple[RmUpstreamSkip, ...] = ()
 
     @staticmethod
-    def from_results(results: list[RmUpstreamResult]) -> FixRmUpstreamResult:
+    def from_results(results: Sequence[RmUpstreamResult]) -> FixRmUpstreamResult:
         """Sum the per-media-source *results* and collect every skipped signal."""
         return FixRmUpstreamResult(
             heic_jpeg=sum(len(r.heic.removed_jpeg) for r in results),
@@ -119,21 +120,6 @@ class FixResult:
     rm_upstream_result: FixRmUpstreamResult | None = None
     rm_orphan_removed_by_dir: tuple[tuple[str, tuple[str, ...]], ...] | None = None
     no_media_sources: bool = False
-
-
-def _run_rm_upstream(
-    album_dir: Path,
-    media_sources: list[MediaSource],
-    *,
-    dry_run: bool,
-    force: bool,
-) -> FixRmUpstreamResult:
-    """Plan every source first, so one refusal leaves the whole album untouched."""
-    plans = [plan_rm_upstream(album_dir, ms, force=force) for ms in media_sources]
-    check_rm_upstream_plans(plans, force=force)
-    return FixRmUpstreamResult.from_results(
-        [apply_rm_upstream(album_dir, plan, dry_run=dry_run) for plan in plans],
-    )
 
 
 def _run_rm_orphan(
@@ -170,7 +156,9 @@ def run_fix(
 
     return FixResult(
         rm_upstream_result=(
-            _run_rm_upstream(album_dir, media_sources, dry_run=dry_run, force=force)
+            FixRmUpstreamResult.from_results(
+                rm_upstream(album_dir, media_sources, dry_run=dry_run, force=force),
+            )
             if rm_upstream_flag
             else None
         ),

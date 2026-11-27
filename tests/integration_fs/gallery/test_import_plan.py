@@ -6,7 +6,9 @@ from photree.album.store.protocol import AlbumMetadata
 from photree.albums.index import AlbumIndex
 from photree.gallery.import_plan import (
     ClobberConflict,
+    GalleryDuplicate,
     ImportAction,
+    InterruptedReimport,
     plan_imports,
 )
 from tests.testkit import write_file
@@ -121,6 +123,61 @@ class TestPlanImportsErrors:
         assert result.clobber_conflicts
         assert not result.to_import
 
+    def test_target_taken_by_a_directory_without_album_yaml_is_a_conflict(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Regression: the source was skipped as already imported, or lost its ID."""
+        gallery = tmp_path / "gallery"
+        album_id = generate_album_id()
+        source = _make_source(
+            tmp_path / "src",
+            "2024-07-14 - Hiking",
+            album_id=album_id,
+        )
+        target = gallery / "albums" / "2024" / "2024-07-14 - Hiking"
+        write_file(target / "notes.txt")
+
+        result = plan_imports([source], _empty_index(), gallery, reimport=True)
+
+        assert result.clobber_conflicts == (
+            ClobberConflict(
+                source=source,
+                existing=target,
+                source_id=album_id,
+                existing_id=None,
+            ),
+        )
+        assert not result.to_import
+
+    def test_id_shared_by_several_gallery_albums_is_an_error(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Regression: the reimport targeted whichever album the index kept."""
+        gallery = tmp_path / "gallery"
+        album_id = generate_album_id()
+        copies = (
+            gallery / "albums" / "2024" / "2024-07-14 - Hiking",
+            gallery / "albums" / "2024" / "2024-07-14 - Hiking copy",
+        )
+        index = AlbumIndex(
+            id_to_path={album_id: copies[0]},
+            duplicates={album_id: copies},
+        )
+        source = _make_source(
+            tmp_path / "src",
+            "2024-07-14 - Hiking",
+            album_id=album_id,
+        )
+
+        result = plan_imports([source], index, gallery, reimport=True)
+
+        assert result.gallery_duplicate_ids == (
+            GalleryDuplicate(source=source, album_id=album_id, paths=copies),
+        )
+        assert result.has_errors
+
     def test_collision_within_batch(self, tmp_path: Path) -> None:
         gallery = tmp_path / "gallery"
         a = _make_source(tmp_path / "src", "2024-07-14 - Morning")
@@ -200,3 +257,56 @@ class TestPlanImportsRenamedSource:
         assert not result.has_errors
         assert result.plans[0].action is ImportAction.REIMPORT
         assert result.plans[0].existing == existing
+
+
+class TestPlanImportsInterruptedReimport:
+    def test_album_hidden_by_an_interrupted_reimport_is_an_error(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Regression: the hidden album's source was planned as new."""
+        gallery = tmp_path / "gallery"
+        album_id = generate_album_id()
+        backup = _make_source(
+            gallery / "albums" / "2024",
+            ".2024-07-14 - Hiking.old",
+            album_id=album_id,
+        )
+        source = _make_source(
+            tmp_path / "src",
+            "2024-07-14 - Hiking",
+            album_id=album_id,
+        )
+
+        result = plan_imports([source], _empty_index(), gallery, reimport=True)
+
+        assert result.interrupted_reimports == (
+            InterruptedReimport(
+                backup=backup,
+                album_dir=gallery / "albums" / "2024" / "2024-07-14 - Hiking",
+                live=None,
+            ),
+        )
+        assert result.has_errors
+
+    def test_stale_copy_names_the_album_holding_its_id(self, tmp_path: Path) -> None:
+        gallery = tmp_path / "gallery"
+        album_id = generate_album_id()
+        backup = _make_source(
+            gallery / "albums" / "2024",
+            ".2024-07-14 - Hiking.old",
+            album_id=album_id,
+        )
+        live = gallery / "albums" / "2024" / "2024-07-14 - Hiking the Rockies"
+        index = AlbumIndex(id_to_path={album_id: live}, duplicates={})
+        source = _make_source(tmp_path / "src", "2024-08-01 - Beach")
+
+        result = plan_imports([source], index, gallery, reimport=False)
+
+        assert result.interrupted_reimports == (
+            InterruptedReimport(
+                backup=backup,
+                album_dir=gallery / "albums" / "2024" / "2024-07-14 - Hiking",
+                live=live,
+            ),
+        )

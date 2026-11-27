@@ -18,7 +18,9 @@ from photree.gallery.cmd_handler.importer import AlbumImportFailure, BatchImport
 from photree.gallery.import_plan import (
     AlbumPlan,
     ClobberConflict,
+    GalleryDuplicate,
     GalleryImportPlan,
+    InterruptedReimport,
     SourceDuplicate,
 )
 from photree.gallery.importer import TargetExistsError
@@ -62,21 +64,78 @@ def _duplicate_id_block(dup: SourceDuplicate, cwd: Path) -> list[str]:
     ]
 
 
-def _clobber_block(conflict: ClobberConflict, cwd: Path) -> list[str]:
+def _gallery_duplicate_block(dup: GalleryDuplicate, cwd: Path) -> list[str]:
+    album_dirs = " ".join(f'--album-dir "{_shown(p, cwd)}"' for p in dup.paths[1:])
     return [
         (
-            f"{CROSS} {_shown(conflict.source, cwd)} — a different album "
+            f"{CROSS} {_shown(dup.source, cwd)} — its album ID "
+            f"{format_album_external_id(dup.album_id)} is shared by several "
+            "gallery albums:"
+        ),
+        *(indent(_shown(p, cwd), 2) for p in dup.paths),
+        indent(
+            f"Run 'photree albums fix --new-id {album_dirs}' to give new IDs to "
+            "all but the first, or name the ones the source is not, then import "
+            "again.",
+            2,
+        ),
+    ]
+
+
+def _clobber_block(conflict: ClobberConflict, cwd: Path) -> list[str]:
+    match conflict.existing_id:
+        case None:
+            occupant = "a directory that is not an album (no album.yaml)"
+            existing_id = "none"
+            fix = (
+                "Move that directory away, or rename the source album, "
+                "before importing."
+            )
+        case str() as album_id:
+            occupant = "a different album"
+            existing_id = format_album_external_id(album_id)
+            fix = "Rename the source album before importing."
+    return [
+        (
+            f"{CROSS} {_shown(conflict.source, cwd)} — {occupant} "
             f"already occupies {_shown(conflict.existing, cwd)}"
         ),
         *(
             indent(line, 2)
             for line in (
                 f"source id:   {format_album_external_id(conflict.source_id)}",
-                f"existing id: {format_album_external_id(conflict.existing_id)}",
-                "Rename the source album before importing.",
+                f"existing id: {existing_id}",
+                fix,
             )
         ),
     ]
+
+
+def _interrupted_reimport_block(
+    interrupted: InterruptedReimport,
+    cwd: Path,
+) -> list[str]:
+    match interrupted.live:
+        case None:
+            return [
+                (
+                    f"{CROSS} {_shown(interrupted.backup, cwd)} — an interrupted "
+                    "reimport left this album hidden from the gallery"
+                ),
+                indent(
+                    "Rename it back to "
+                    f"{_shown(interrupted.album_dir, cwd)}, then import again.",
+                    2,
+                ),
+            ]
+        case live:
+            return [
+                (
+                    f"{CROSS} {_shown(interrupted.backup, cwd)} — a stale copy "
+                    f"an interrupted reimport left of {_shown(live, cwd)}"
+                ),
+                indent("Delete it, then import again.", 2),
+            ]
 
 
 def format_import_errors(plan: GalleryImportPlan, cwd: Path) -> str:
@@ -87,6 +146,11 @@ def format_import_errors(plan: GalleryImportPlan, cwd: Path) -> str:
         *(_collision_block(d, names) for d, names in plan.date_collisions),
         *(_duplicate_id_block(dup, cwd) for dup in plan.source_duplicate_ids),
         *(_clobber_block(conflict, cwd) for conflict in plan.clobber_conflicts),
+        *(_gallery_duplicate_block(dup, cwd) for dup in plan.gallery_duplicate_ids),
+        *(
+            _interrupted_reimport_block(interrupted, cwd)
+            for interrupted in plan.interrupted_reimports
+        ),
     ]
     return "\n".join(line for block in blocks for line in block)
 

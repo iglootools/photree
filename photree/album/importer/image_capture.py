@@ -462,15 +462,20 @@ def find_ios_collision(
     """
     Find a selected image number the archive already holds.
 
-    Matched by image number regardless of extension. Live Photos are checked
-    against ``orig-img`` since both of their files land there.
+    Matched by image number regardless of extension, in the original and the
+    edit dirs alike: an edit left without its original would otherwise be
+    overwritten by the copy, and deleted by its rollback. Live Photos are
+    checked against the image dirs since both of their files land there.
     """
     incoming_img = {m.img_number for m in plan.matches if m.routes_to_images}
     incoming_vid = {m.img_number for m in plan.matches if not m.routes_to_images}
-    collisions = sorted(
-        (incoming_img & _archive_numbers(album_dir / ms.orig_img_dir))
-        | (incoming_vid & _archive_numbers(album_dir / ms.orig_vid_dir)),
+    archive_img = _archive_numbers(album_dir / ms.orig_img_dir) | _archive_numbers(
+        album_dir / ms.edit_img_dir,
     )
+    archive_vid = _archive_numbers(album_dir / ms.orig_vid_dir) | _archive_numbers(
+        album_dir / ms.edit_vid_dir,
+    )
+    collisions = sorted((incoming_img & archive_img) | (incoming_vid & archive_vid))
     return ArchiveCollision(ms, tuple(collisions)) if collisions else None
 
 

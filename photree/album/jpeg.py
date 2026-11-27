@@ -17,6 +17,7 @@ from functools import partial
 from pathlib import Path
 from typing import Protocol
 
+from photree.album.browsable import INCOMPLETE_MARKER, mark_complete, mark_incomplete
 from photree.album.formats import (
     CONVERT_TO_JPEG_EXTENSIONS,
     COPY_AS_IS_TO_JPEG_EXTENSIONS,
@@ -143,10 +144,11 @@ class RefreshResult:
 
 
 def _clear_dir(directory: Path) -> None:
-    """Delete the regular files of *directory*, creating it if needed."""
+    """Mark *directory* incomplete and delete its other files, creating it if needed."""
     directory.mkdir(parents=True, exist_ok=True)
+    mark_incomplete(directory)
     for f in directory.iterdir():
-        if f.is_file():
+        if f.is_file() and f.name != INCOMPLETE_MARKER:
             f.unlink()
 
 
@@ -164,7 +166,10 @@ def refresh_jpeg_dir(
     Rebuild the JPEG directory from the source directory.
 
     The destination is cleared even when the source is empty or missing, so
-    JPEGs of deleted images do not survive the refresh.
+    JPEGs of deleted images do not survive the refresh. It keeps the
+    incomplete marker (:data:`~photree.album.browsable.INCOMPLETE_MARKER`)
+    unless every file converted, so rm-upstream never reads a JPEG that failed
+    to convert as one the user deleted.
 
     Calls ``on_file_start(filename)`` before and ``on_file_end(filename, success)``
     after each convertible file; files with no JPEG variant are counted as
@@ -193,7 +198,10 @@ def refresh_jpeg_dir(
         if max_workers is not None and max_workers > 1
         else _run_sequential(tasks, on_start=on_file_start, on_end=on_file_end)
     )
-    return _summarize(results, skipped=len(all_files) - len(src_files))
+    result = _summarize(results, skipped=len(all_files) - len(src_files))
+    if not dry_run and result.success:
+        mark_complete(dst_dir)
+    return result
 
 
 def _run_sequential(

@@ -70,7 +70,7 @@ $ photree album check [OPTIONS]
 **Options**:
 
 * `-a, --album-dir <directory>`: Album directory to check.  [default: .]
-* `--checksum / --no-checksum`: Enable/disable SHA-256 checksum verification (default: enabled).  [default: checksum]
+* `--checksum / --no-checksum`: Enable/disable comparing file contents byte by byte (default: enabled).  [default: checksum]
 * `-W, --fatal-warnings`: Treat all warnings as errors (implies --fatal-sidecar).
 * `--fatal-sidecar`: Treat missing-sidecar warnings as errors.
 * `--fatal-exif-date-match / --no-fatal-exif-date-match`: Treat EXIF date mismatch warnings as errors (default: enabled).  [default: fatal-exif-date-match]
@@ -136,7 +136,7 @@ $ photree album export [OPTIONS]
 * `-a, --album-dir <directory>`: Album directory to export.  [default: .]
 * `-s, --share-dir <directory>`: Base directory to export into (subdirectories with album names are created).
 * `-p, --profile <str>`: Exporter profile name from config.
-* `-c, --config <str>`: Path to config file.
+* `--config <path>`: Path to config file.
 * `--share-layout <flat|albums|by-month>`: Share layout: flat (default), albums (by year), or by-month (by month).
 * `--album-layout <browsable-jpg|browsable|all|archive>`: Export layout: browsable-jpg (default), browsable, all, or archive (originals + edits + .photree metadata only).
 * `--link-mode <copy|hardlink|symlink>`: How to create main files in all layout: hardlink (default), symlink, or copy.
@@ -155,7 +155,9 @@ albums that already have an ID.
 --rm-upstream: Propagates deletions from browsing directories to
 upstream directories. A missing browsing directory, or an empty
 {name}-jpg/, is never taken as &quot;everything was deleted&quot;; a run that
-would delete every item of an archive is refused unless --force.
+would delete every item of an archive is refused unless --force. A
+browsing directory that a failed or interrupted refresh left incomplete
+is refused even with --force: run &#x27;photree album refresh&#x27; first.
 
 --rm-orphan: Deletes edited and main files whose key has no
 corresponding original file in orig-img/ or orig-vid/.
@@ -171,7 +173,7 @@ $ photree album fix [OPTIONS]
 * `-a, --album-dir <directory>`: Album directory to fix.  [default: .]
 * `--id`: Generate missing album ID (.photree/album.yaml).
 * `--new-id`: Regenerate album ID (replaces existing ID).
-* `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
+* `--rm-upstream`: Propagate deletions from browsing dirs (main-img, main-jpg, main-vid) to upstream dirs.
 * `--rm-orphan`: Delete edited and main files that have no corresponding orig file.
 * `--force`: With --rm-upstream: also trust an empty {name}-jpg/ as a deletion signal, and allow deleting every item of an archive.
 * `-n, --dry-run`: Print what would happen without modifying files.
@@ -270,7 +272,7 @@ $ photree album import-check [OPTIONS]
 
 * `-a, --album-dir <directory>`: Album directory (with to-import-{ios,std}-&lt;name&gt; staging dirs).  [default: .]
 * `-s, --source <directory>`: Image Capture output directory. Overrides config and default.
-* `-c, --config <str>`: Path to config file.
+* `--config <path>`: Path to config file.
 * `--help`: Show this message and exit.
 
 ### `photree album import`
@@ -300,7 +302,7 @@ $ photree album import [OPTIONS]
 
 * `-a, --album-dir <directory>`: Album directory (with to-import-{ios,std}-&lt;name&gt; staging dirs).  [default: .]
 * `-s, --source <directory>`: Image Capture output directory. Overrides config and default.
-* `-c, --config <str>`: Path to config file.
+* `--config <path>`: Path to config file.
 * `--link-mode <copy|hardlink|symlink>`: How to create main files: hardlink (default), symlink, or copy.
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `-f, --force`: Skip preflight checks on the source directory.
@@ -336,8 +338,8 @@ $ photree album list-media [OPTIONS]
 **Options**:
 
 * `-a, --album-dir <directory>`: Album directory.  [default: .]
-* `--format <text|csv>`: Output format.  [default: text]
-* `-o, --output <file>`: Write output to a file instead of stdout.
+* `-o, --output <human|csv>`: Output format.  [default: human]
+* `-f, --file <file>`: Write output to a file instead of stdout.
 * `--help`: Show this message and exit.
 
 ### `photree album mv-media`
@@ -484,7 +486,7 @@ $ photree albums check [OPTIONS]
 
 * `-d, --dir <directory>`: Base directory to recursively scan for albums.
 * `-a, --album-dir <directory>`: Album directory (repeatable).
-* `--checksum / --no-checksum`: Enable/disable SHA-256 checksum verification (default: enabled).  [default: checksum]
+* `--checksum / --no-checksum`: Enable/disable comparing file contents byte by byte (default: enabled).  [default: checksum]
 * `-W, --fatal-warnings`: Treat all warnings as errors (implies --fatal-sidecar).
 * `--fatal-sidecar`: Treat missing-sidecar warnings as errors.
 * `--fatal-exif-date-match / --no-fatal-exif-date-match`: Treat EXIF date mismatch warnings as errors (default: enabled).  [default: fatal-exif-date-match]
@@ -532,7 +534,7 @@ $ photree albums export [OPTIONS]
 * `-a, --album-dir <directory>`: Album directory (repeatable).
 * `-s, --share-dir <directory>`: Base directory to export into (subdirectories with album names are created).
 * `-p, --profile <str>`: Exporter profile name from config.
-* `-c, --config <str>`: Path to config file.
+* `--config <path>`: Path to config file.
 * `--share-layout <flat|albums|by-month>`: Share layout: flat (default), albums (by year), or by-month (by month).
 * `--album-layout <browsable-jpg|browsable|all|archive>`: Export layout: browsable-jpg (default), browsable, all, or archive (originals + edits + .photree metadata only).
 * `--link-mode <copy|hardlink|symlink>`: How to create main files in all layout: hardlink (default), symlink, or copy.
@@ -559,7 +561,7 @@ $ photree albums fix [OPTIONS]
 * `-a, --album-dir <directory>`: Album directory (repeatable).
 * `--id`: Generate missing album IDs (.photree/album.yaml).
 * `--new-id`: Regenerate the IDs of the albums named with --album-dir (replaces existing IDs). Refused on a --dir scan.
-* `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
+* `--rm-upstream`: Propagate deletions from browsing dirs (main-img, main-jpg, main-vid) to upstream dirs.
 * `--rm-orphan`: Delete edited and main files that have no corresponding orig file.
 * `--force`: With --rm-upstream: also trust an empty {name}-jpg/ as a deletion signal, and allow deleting every item of an archive.
 * `-n, --dry-run`: Print what would happen without modifying files.
@@ -607,7 +609,7 @@ $ photree albums import-check [OPTIONS]
 * `-d, --dir <directory>`: Parent directory containing album subdirectories.
 * `-a, --album-dir <directory>`: Album directory (repeatable).
 * `-s, --source <directory>`: Image Capture output directory. Overrides config and default.
-* `-c, --config <str>`: Path to config file.
+* `--config <path>`: Path to config file.
 * `--help`: Show this message and exit.
 
 ### `photree albums import`
@@ -631,7 +633,7 @@ $ photree albums import [OPTIONS]
 * `-d, --dir <directory>`: Parent directory containing album subdirectories.
 * `-a, --album-dir <directory>`: Album directory to import (repeatable).
 * `-s, --source <directory>`: Image Capture output directory. Overrides config and default.
-* `-c, --config <str>`: Path to config file.
+* `--config <path>`: Path to config file.
 * `--link-mode <copy|hardlink|symlink>`: How to create main files: hardlink (default), symlink, or copy.
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `-f, --force`: Skip preflight checks on the source directory.
@@ -641,6 +643,9 @@ $ photree albums import [OPTIONS]
 ### `photree albums init`
 
 Initialize album metadata (.photree/album.yaml) for multiple albums.
+
+Albums that already have an ID are skipped and keep it, so re-running
+init over a directory initializes only the albums added since.
 
 **Usage**:
 
@@ -670,8 +675,8 @@ $ photree albums list [OPTIONS]
 * `-d, --dir <directory>`: Base directory to recursively scan for albums.
 * `-a, --album-dir <directory>`: Album directory (repeatable).
 * `--metadata / --no-metadata`: Show parsed album metadata and media sources (default: enabled).  [default: metadata]
-* `--format <text|csv>`: Output format.  [default: text]
-* `-o, --output <file>`: Write output to a file instead of stdout.
+* `-o, --output <human|csv>`: Output format.  [default: human]
+* `-f, --file <file>`: Write output to a file instead of stdout.
 * `--help`: Show this message and exit.
 
 ### `photree albums list-media`
@@ -688,8 +693,8 @@ $ photree albums list-media [OPTIONS]
 
 * `-d, --dir <directory>`: Base directory to recursively scan for albums.
 * `-a, --album-dir <directory>`: Album directory (repeatable).
-* `--format <text|csv>`: Output format.  [default: text]
-* `-o, --output <file>`: Write output to a file instead of stdout.
+* `-o, --output <human|csv>`: Output format.  [default: human]
+* `-f, --file <file>`: Write output to a file instead of stdout.
 * `--help`: Show this message and exit.
 
 ### `photree albums refresh`
@@ -716,7 +721,7 @@ $ photree albums refresh [OPTIONS]
 
 ### `photree albums rename-from-csv`
 
-Rename albums from a CSV file (from list --format csv, edited).
+Rename albums from a CSV file (from list --output csv, edited).
 
 Uses the album ID to look up each album, then compares the
 current series, title, and location against the CSV values. Only albums
@@ -724,8 +729,9 @@ where a mutable field changed are renamed. Immutable fields (date, part,
 tags) are preserved from the current on-disk album name.
 
 The CSV needs the id, series, title and location columns; other columns
-are ignored. A missing column, or an album ID on more than one row, stops
-the run before anything is renamed.
+are ignored. A missing column, an album ID on more than one row, or a
+field that would not read back from the new name (one holding &#x27;/&#x27;, &#x27; - &#x27;,
+&#x27; @ &#x27; or a &#x27;&#x27;) stops the run before anything is renamed.
 
 **Usage**:
 
@@ -735,7 +741,7 @@ $ photree albums rename-from-csv [OPTIONS] {csv_file}
 
 **Arguments**:
 
-* `csv_file`: CSV with desired album state (from list --format csv, edited).  [required]
+* `csv_file`: CSV with desired album state (from list --output csv, edited).  [required]
 
 **Options**:
 
@@ -863,6 +869,7 @@ $ photree collection init [OPTIONS]
 * `--members <smart|manual>`: How members are determined: smart (auto by date range) or manual.  [default: manual]
 * `--lifecycle <implicit|explicit>`: How the collection is managed: explicit (user) or implicit (from album series).  [default: explicit]
 * `--strategy <import|date-range|album-series|chapter>`: Rule for member selection: import, date-range, album-series, or chapter.  [default: import]
+* `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
 ### `photree collection show`
@@ -915,6 +922,7 @@ $ photree collection metadata set [OPTIONS]
 * `--lifecycle <implicit|explicit>`: How the collection is managed: explicit (user) or implicit (from album series).
 * `--strategy <import|date-range|album-series|chapter>`: Rule for member selection: import, date-range, album-series, or chapter.
 * `--force`: Switch a collection holding images or videos to smart members, which the next &#x27;gallery refresh&#x27; drops.
+* `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
 ## `photree collections`
@@ -1016,6 +1024,7 @@ $ photree demo seed [OPTIONS]
 
 * `-d, --base-dir <directory>`: Directory to create the demo in. Default: creates a temp directory.
 * `--album-name <str>`: Album name.  [default: 2024-06-15 - Demo Album]
+* `--force`: Seed into a --base-dir that is not empty, overwriting files.
 * `--help`: Show this message and exit.
 
 ## `photree gallery`
@@ -1068,7 +1077,7 @@ $ photree gallery check [OPTIONS]
 **Options**:
 
 * `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
-* `--checksum / --no-checksum`: Enable/disable SHA-256 checksum verification (default: enabled).  [default: checksum]
+* `--checksum / --no-checksum`: Enable/disable comparing file contents byte by byte (default: enabled).  [default: checksum]
 * `-W, --fatal-warnings`: Treat all warnings as errors (implies --fatal-sidecar).
 * `--fatal-sidecar`: Treat missing-sidecar warnings as errors.
 * `--fatal-exif-date-match / --no-fatal-exif-date-match`: Treat EXIF date mismatch warnings as errors (default: enabled).  [default: fatal-exif-date-match]
@@ -1119,7 +1128,7 @@ $ photree gallery export [OPTIONS]
 * `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `-s, --share-dir <directory>`: Base directory to export into (subdirectories with album names are created).
 * `-p, --profile <str>`: Exporter profile name from config.
-* `-c, --config <str>`: Path to config file.
+* `--config <path>`: Path to config file.
 * `--share-layout <flat|albums|by-month>`: Share layout: flat (default), albums (by year), or by-month (by month).
 * `--album-layout <browsable-jpg|browsable|all|archive>`: Export layout: browsable-jpg (default), browsable, all, or archive (originals + edits + .photree metadata only).
 * `--link-mode <copy|hardlink|symlink>`: How to create main files in all layout: hardlink (default), symlink, or copy.
@@ -1144,7 +1153,7 @@ $ photree gallery fix [OPTIONS]
 
 * `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--id`: Generate missing album IDs (.photree/album.yaml).
-* `--rm-upstream`: Propagate deletions from browsing dirs (main-jpg, main-vid) to upstream dirs.
+* `--rm-upstream`: Propagate deletions from browsing dirs (main-img, main-jpg, main-vid) to upstream dirs.
 * `--rm-orphan`: Delete edited and main files that have no corresponding orig file.
 * `--force`: With --rm-upstream: also trust an empty {name}-jpg/ as a deletion signal, and allow deleting every item of an archive.
 * `-n, --dry-run`: Print what would happen without modifying files.
@@ -1230,6 +1239,7 @@ $ photree gallery init [OPTIONS]
 
 * `-g, --gallery-dir <directory>`: Gallery root directory.  [default: .]
 * `--link-mode <copy|hardlink|symlink>`: Default link mode for refresh and other link-mode operations.  [default: hardlink]
+* `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.
 
 ### `photree gallery list-albums`
@@ -1246,8 +1256,8 @@ $ photree gallery list-albums [OPTIONS]
 
 * `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--metadata / --no-metadata`: Show parsed album metadata and media sources (default: enabled).  [default: metadata]
-* `--format <text|csv>`: Output format.  [default: text]
-* `-o, --output <file>`: Write output to a file instead of stdout.
+* `-o, --output <human|csv>`: Output format.  [default: human]
+* `-f, --file <file>`: Write output to a file instead of stdout.
 * `--help`: Show this message and exit.
 
 ### `photree gallery list-collections`
@@ -1264,8 +1274,8 @@ $ photree gallery list-collections [OPTIONS]
 
 * `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `--metadata / --no-metadata`: Show parsed collection metadata (default: enabled).  [default: metadata]
-* `--format <text|csv>`: Output format.  [default: text]
-* `-o, --output <file>`: Write output to a file instead of stdout.
+* `-o, --output <human|csv>`: Output format.  [default: human]
+* `-f, --file <file>`: Write output to a file instead of stdout.
 * `--help`: Show this message and exit.
 
 ### `photree gallery list-media`
@@ -1281,8 +1291,8 @@ $ photree gallery list-media [OPTIONS]
 **Options**:
 
 * `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
-* `--format <text|csv>`: Output format.  [default: text]
-* `-o, --output <file>`: Write output to a file instead of stdout.
+* `-o, --output <human|csv>`: Output format.  [default: human]
+* `-f, --file <file>`: Write output to a file instead of stdout.
 * `--help`: Show this message and exit.
 
 ### `photree gallery refresh`
@@ -1308,7 +1318,7 @@ $ photree gallery refresh [OPTIONS]
 
 ### `photree gallery rename-from-csv`
 
-Rename albums from a CSV file (from list-albums --format csv, edited).
+Rename albums from a CSV file (from list-albums --output csv, edited).
 
 Uses the album ID to look up each album in the gallery, then compares the
 current series, title, and location against the CSV values. Only albums
@@ -1316,8 +1326,9 @@ where a mutable field changed are renamed. Immutable fields (date, part,
 tags) are preserved from the current on-disk album name.
 
 The CSV needs the id, series, title and location columns; other columns
-are ignored. A missing column, or an album ID on more than one row, stops
-the run before anything is renamed.
+are ignored. A missing column, an album ID on more than one row, or a
+field that would not read back from the new name (one holding &#x27;/&#x27;, &#x27; - &#x27;,
+&#x27; @ &#x27; or a &#x27;&#x27;) stops the run before anything is renamed.
 
 **Usage**:
 
@@ -1327,7 +1338,7 @@ $ photree gallery rename-from-csv [OPTIONS] {csv_file}
 
 **Arguments**:
 
-* `csv_file`: CSV with desired album state (from list-albums --format csv, edited).  [required]
+* `csv_file`: CSV with desired album state (from list-albums --output csv, edited).  [required]
 
 **Options**:
 
@@ -1399,4 +1410,5 @@ $ photree gallery metadata set [OPTIONS]
 * `--link-mode <copy|hardlink|symlink>`: Default link mode for refresh and other link-mode operations.
 * `--faces-enabled / --no-faces-enabled`: Enable or disable face detection and clustering during gallery refresh.
 * `--face-cluster-threshold <float>`: Cosine distance threshold for face clustering (0.0-1.0).
+* `-n, --dry-run`: Print what would happen without modifying files.
 * `--help`: Show this message and exit.

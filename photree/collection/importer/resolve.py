@@ -12,7 +12,7 @@ collected; ambiguous and unresolved entries are reported as errors.
 """
 
 import re
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
@@ -77,11 +77,13 @@ class ResolutionError:
     Fields beyond ``entry`` and ``kind`` are only meaningful for some kinds:
     ``match_count``/``unique_count``/``date_hint_missing`` for AMBIGUOUS,
     ``duplicate_of`` (the entry that already claimed the item) for DUPLICATE.
-    The human message is rendered by :mod:`.output`.
+    ``date_hint`` is the entry's own, which tells apart two entries with the
+    same value. The human message is rendered by :mod:`.output`.
     """
 
     entry: str
     kind: ResolutionErrorKind
+    date_hint: datetime | None = None
     match_count: int = 0
     unique_count: int = 0
     date_hint_missing: bool = False
@@ -311,17 +313,22 @@ class _Match:
 @dataclass(frozen=True)
 class _MediaRequest:
     media_type: MemberType  # IMAGE or VIDEO
-    entry_value: str
+    entry_index: int
 
 
 @dataclass(frozen=True)
 class _PendingLookups:
-    """Pre-classified selection entries for efficient matching during scan."""
+    """
+    Pre-classified selection entries for efficient matching during scan.
 
-    # internal UUID → every SelectionEntry.value that requested it, in order
-    wanted_ids: Mapping[str, tuple[str, ...]]
-    # SelectionEntry.value strings that are directory names
-    wanted_names: frozenset[str]
+    Entries are referred to by their position in the selection, not their
+    value, so two entries with the same value each get their own matches.
+    """
+
+    # internal UUID → the position of every entry that requested it, in order
+    wanted_ids: Mapping[str, tuple[int, ...]]
+    # directory name → the position of every entry that named it, in order
+    wanted_names: Mapping[str, tuple[int, ...]]
     # media source type → media key in that type → every media entry
     # requesting that key, in order
     wanted_media_keys: Mapping[MediaSourceType, Mapping[str, tuple[_MediaRequest, ...]]]
@@ -330,12 +337,13 @@ class _PendingLookups:
 @dataclass(frozen=True)
 class _IdRequest:
     internal_id: str
-    entry_value: str
+    entry_index: int
 
 
 @dataclass(frozen=True)
 class _NameRequest:
-    entry_value: str
+    name: str
+    entry_index: int
 
 
 @dataclass(frozen=True)
@@ -355,18 +363,18 @@ class _KeyRequest:
 type _Request = _IdRequest | _NameRequest | _KeyRequest
 
 
-def _classify(value: str) -> _Request | None:
+def _classify(index: int, value: str) -> _Request | None:
     """
-    Classify one entry; ``None`` for an unparseable external ID.
+    Classify the entry at position *index*; ``None`` for an unparseable external ID.
 
     An unparseable ID is not looked up at all, so it ends up NOT_FOUND.
     """
     match value:
         case _ if _looks_like_external_id(value):
             internal = _parse_external_id_safe(value)
-            return _IdRequest(internal, value) if internal is not None else None
+            return _IdRequest(internal, index) if internal is not None else None
         case _ if _looks_like_uuid(value):
-            return _IdRequest(value, value)
+            return _IdRequest(value, index)
         case _ if _has_media_extension(value):
             media_type = (
                 MemberType.IMAGE
@@ -378,10 +386,10 @@ def _classify(value: str) -> _Request | None:
                     MediaSourceType.IOS: ios_img_number(value),
                     MediaSourceType.STD: stem_key(value),
                 },
-                _MediaRequest(media_type, value),
+                _MediaRequest(media_type, index),
             )
         case _:
-            return _NameRequest(value)
+            return _NameRequest(value, index)
 
 
 def _grouped[V](pairs: Iterable[tuple[str, V]]) -> dict[str, tuple[V, ...]]:
@@ -401,15 +409,20 @@ def _prepare_lookups(entries: tuple[SelectionEntry, ...]) -> _PendingLookups:
     or key: two entries naming the same item must both match it, so the
     second is reported as a DUPLICATE rather than as NOT_FOUND.
     """
-    requests = [r for e in entries for r in [_classify(e.value)] if r is not None]
+    requests = [
+        r
+        for i, e in enumerate(entries)
+        for r in [_classify(i, e.value)]
+        if r is not None
+    ]
     return _PendingLookups(
         wanted_ids=_grouped(
-            (r.internal_id, r.entry_value)
+            (r.internal_id, r.entry_index)
             for r in requests
             if isinstance(r, _IdRequest)
         ),
-        wanted_names=frozenset(
-            r.entry_value for r in requests if isinstance(r, _NameRequest)
+        wanted_names=_grouped(
+            (r.name, r.entry_index) for r in requests if isinstance(r, _NameRequest)
         ),
         wanted_media_keys={
             source_type: _grouped(
@@ -422,11 +435,11 @@ def _prepare_lookups(entries: tuple[SelectionEntry, ...]) -> _PendingLookups:
     )
 
 
-type _EntryMatch = tuple[str, _Match]  # (entry value, match)
+type _EntryMatch = tuple[int, _Match]  # (entry position, match)
 
 
-def _media_requesters(media: ScannedMedia, lookups: _PendingLookups) -> list[str]:
-    """Entry values requesting this media item, by ID and/or by filename key."""
+def _media_requesters(media: ScannedMedia, lookups: _PendingLookups) -> list[int]:
+    """Return the positions of the entries requesting this media item, by ID or key."""
     by_key = (
         lookups.wanted_media_keys[media.source_type].get(media.key, ())
         if media.source_type is not None
@@ -434,15 +447,15 @@ def _media_requesters(media: ScannedMedia, lookups: _PendingLookups) -> list[str
     )
     return [
         *lookups.wanted_ids.get(media.media_id, ()),
-        *(r.entry_value for r in by_key if r.media_type == media.media_type),
+        *(r.entry_index for r in by_key if r.media_type == media.media_type),
     ]
 
 
 def _media_matches(album: ScannedAlbum, lookups: _PendingLookups) -> list[_EntryMatch]:
     return [
-        (value, _Match(media.media_type, media.media_id, album_date=album.album_date))
+        (index, _Match(media.media_type, media.media_id, album_date=album.album_date))
         for media in album.media
-        for value in _media_requesters(media, lookups)
+        for index in _media_requesters(media, lookups)
     ]
 
 
@@ -450,12 +463,8 @@ def _album_matches(album: ScannedAlbum, lookups: _PendingLookups) -> list[_Entry
     """Check a single album against all pending entries."""
     as_album = _Match(MemberType.ALBUM, album.album_id)
     return [
-        *((value, as_album) for value in lookups.wanted_ids.get(album.album_id, ())),
-        *(
-            [(album.dir_name, as_album)]
-            if album.dir_name in lookups.wanted_names
-            else []
-        ),
+        *((index, as_album) for index in lookups.wanted_ids.get(album.album_id, ())),
+        *((index, as_album) for index in lookups.wanted_names.get(album.dir_name, ())),
         *_media_matches(album, lookups),
     ]
 
@@ -468,13 +477,12 @@ def _collection_matches(
     as_collection = _Match(MemberType.COLLECTION, col.collection_id)
     return [
         *(
-            (value, as_collection)
-            for value in lookups.wanted_ids.get(col.collection_id, ())
+            (index, as_collection)
+            for index in lookups.wanted_ids.get(col.collection_id, ())
         ),
         *(
-            [(col.dir_name, as_collection)]
-            if col.dir_name in lookups.wanted_names
-            else []
+            (index, as_collection)
+            for index in lookups.wanted_names.get(col.dir_name, ())
         ),
     ]
 
@@ -482,14 +490,14 @@ def _collection_matches(
 def _group_by_entry(
     entries: tuple[SelectionEntry, ...],
     pairs: Iterable[_EntryMatch],
-) -> dict[str, list[_Match]]:
-    """Group matches by entry value; every entry gets a (possibly empty) list."""
+) -> list[list[_Match]]:
+    """Group matches by entry position; every entry gets a (possibly empty) list."""
     # sorted() is stable, so matches keep their scan order within an entry.
     grouped = {
-        value: [m for _, m in group]
-        for value, group in groupby(sorted(pairs, key=itemgetter(0)), key=itemgetter(0))
+        index: [m for _, m in group]
+        for index, group in groupby(sorted(pairs, key=itemgetter(0)), key=itemgetter(0))
     }
-    return {e.value: grouped.get(e.value, []) for e in entries}
+    return [grouped.get(i, []) for i in range(len(entries))]
 
 
 def _check_date_mismatch(entry: SelectionEntry, m: _Match) -> list[ResolutionWarning]:
@@ -533,13 +541,18 @@ def _resolve_entry(
     )
     match candidates:
         case []:
-            return ResolutionError(entry.value, ResolutionErrorKind.NOT_FOUND)
+            return ResolutionError(
+                entry.value,
+                ResolutionErrorKind.NOT_FOUND,
+                date_hint=entry.date_hint,
+            )
         case [single]:
             return single
         case _:
             return ResolutionError(
                 entry.value,
                 ResolutionErrorKind.AMBIGUOUS,
+                date_hint=entry.date_hint,
                 match_count=len(candidates),
                 unique_count=len({m.internal_id for m in candidates}),
                 date_hint_missing=entry.date_hint is None and is_media,
@@ -566,6 +579,7 @@ def _flag_duplicates(
         ResolutionError(
             entries[i].value,
             ResolutionErrorKind.DUPLICATE,
+            date_hint=entries[i].date_hint,
             duplicate_of=entries[first_index[o.internal_id]].value,
         )
         if isinstance(o, _Match) and first_index[o.internal_id] != i
@@ -580,12 +594,12 @@ def _members_of(matches: list[_Match], member_type: MemberType) -> tuple[str, ..
 
 def _build_results(
     entries: tuple[SelectionEntry, ...],
-    matches: Mapping[str, list[_Match]],
+    matches: Sequence[list[_Match]],
 ) -> ResolutionResult:
-    """Convert raw matches into a ResolutionResult with error detection."""
+    """Convert each entry's matches, by position, into a ResolutionResult."""
     outcomes = _flag_duplicates(
         entries,
-        [_resolve_entry(e, matches[e.value]) for e in entries],
+        [_resolve_entry(e, m) for e, m in zip(entries, matches, strict=True)],
     )
     resolved = [
         (e, o) for e, o in zip(entries, outcomes, strict=True) if isinstance(o, _Match)

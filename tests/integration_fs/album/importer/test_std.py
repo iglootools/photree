@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from photree.album.check.std import DuplicateStem
+from photree.album.check.std import DuplicateStem, OrphanEdits
 from photree.album.importer.album_import import run_import, validate_album_import
 from photree.album.importer.collision import ArchiveCollision, ImportCollisionError
 from photree.album.importer.std import (
@@ -19,6 +19,7 @@ from photree.album.staging import ios_import_dir, std_import_dir
 from photree.album.store.media_source import std_media_source
 from photree.common.fs import list_files
 from tests.fakes import noop_convert
+from tests.testkit import write_file
 
 
 def _setup_std_staging(
@@ -62,10 +63,36 @@ class TestValidateStdTask:
             DuplicateStem(directory="orig", stem="a", files=("a.heic", "a.jpg")),
         )
 
-    def test_orphan_edit_allowed(self, tmp_path: Path) -> None:
-        # An edit with no matching orig is allowed (matches existing std behavior).
+    def test_stems_differing_only_in_case_rejected(self, tmp_path: Path) -> None:
+        album = tmp_path / "album"
+        _setup_std_staging(album, "nelu", orig=["Photo.HEIC", "photo.jpg"])
+        errors = validate_std_task(_std_task(album, "nelu"))
+        assert errors == (
+            DuplicateStem(
+                directory="orig",
+                stem="photo",
+                files=("Photo.HEIC", "photo.jpg"),
+            ),
+        )
+
+    def test_orphan_edit_rejected(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_std_staging(album, "nelu", orig=["a.jpg"], edit=["b.jpg"])
+        errors = validate_std_task(_std_task(album, "nelu"))
+        assert errors == (OrphanEdits(directory="edit", files=("b.jpg",)),)
+
+    def test_edit_video_of_an_original_image_is_an_orphan(self, tmp_path: Path) -> None:
+        album = tmp_path / "album"
+        _setup_std_staging(album, "nelu", orig=["a.jpg"], edit=["a.mov"])
+        errors = validate_std_task(_std_task(album, "nelu"))
+        assert errors == (OrphanEdits(directory="edit", files=("a.mov",)),)
+
+    def test_edit_with_original_of_another_extension_accepted(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        album = tmp_path / "album"
+        _setup_std_staging(album, "nelu", orig=["a.heic"], edit=["a.jpg"])
         assert validate_std_task(_std_task(album, "nelu")) == ()
 
     def test_unsupported_entries_rejected(self, tmp_path: Path) -> None:
@@ -166,6 +193,16 @@ class TestImportStdSource:
         assert exc_info.value.keys == ("a",)
         # Refused before any mutation: the staging dir is still there.
         assert (album / std_import_dir("nelu") / "orig" / "a.jpg").exists()
+
+    def test_collision_ignores_case(self, tmp_path: Path) -> None:
+        album = tmp_path / "album"
+        ms = std_media_source("nelu")
+        write_file(album / ms.orig_img_dir / "Photo.HEIC")
+        _setup_std_staging(album, "nelu", orig=["photo.jpg"])
+
+        assert find_std_collision(album, _std_task(album, "nelu")) == (
+            ArchiveCollision(ms, ("photo",))
+        )
 
 
 class TestRunImportStd:

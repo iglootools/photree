@@ -78,6 +78,17 @@ def find_media_source_conflicts(album_dir: Path) -> tuple[str, ...]:
     return tuple(sorted(ios_names & std_names))
 
 
+def has_media_source_archive(album_dir: Path, ms: MediaSource) -> bool:
+    """
+    Return whether *album_dir* holds *ms*'s archive, as discovery finds one.
+
+    That is, ``orig-img/`` or ``orig-vid/`` under its archive directory.
+    """
+    return (album_dir / ms.orig_img_dir).is_dir() or (
+        album_dir / ms.orig_vid_dir
+    ).is_dir()
+
+
 def has_any_media_source(album_dir: Path) -> bool:
     """
     Return whether *album_dir* holds at least one media source archive.

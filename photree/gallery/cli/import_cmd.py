@@ -12,6 +12,7 @@ from photree.clihelpers.options import (
     LINK_MODE_OPTION,
     REIMPORT_OPTION,
 )
+from photree.clihelpers.paths import expand_user_path
 from photree.clihelpers.resolution import resolve_gallery_or_exit
 from photree.clihelpers.sysdeps import import_deps, require_system_deps
 from photree.foundation.gallery_metadata import resolve_link_mode
@@ -37,9 +38,8 @@ def import_cmd(
             "--album-dir",
             "-a",
             help="Album directory to import into the gallery.",
-            exists=True,
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(exists=True),
         ),
     ],
     gallery_dir: GALLERY_DIR_OPTION = None,

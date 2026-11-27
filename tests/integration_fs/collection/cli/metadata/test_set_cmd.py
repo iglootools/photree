@@ -55,6 +55,30 @@ class TestCollectionMetadataSet:
         assert loaded is not None
         assert loaded.members == CollectionMembers.SMART
 
+    def test_dry_run_leaves_the_metadata_unchanged(self, tmp_path: Path) -> None:
+        _init_collection(tmp_path, members=CollectionMembers.MANUAL)
+        before = load_collection_metadata(tmp_path)
+
+        result = invoke_cli(
+            [
+                "collection",
+                "metadata",
+                "set",
+                "-d",
+                str(tmp_path),
+                "--members",
+                "smart",
+                "--strategy",
+                "date-range",
+                "--dry-run",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert result.output.startswith("[dry-run] Would update")
+        assert "members: manual -> smart" in result.output
+        assert load_collection_metadata(tmp_path) == before
+
     def test_updates_lifecycle_to_implicit_requires_smart(self, tmp_path: Path) -> None:
         """Setting lifecycle=implicit on a manual collection is rejected."""
         _init_collection(tmp_path, lifecycle=CollectionLifecycle.EXPLICIT)
@@ -69,7 +93,7 @@ class TestCollectionMetadataSet:
                 "implicit",
             ],
         )
-        assert result.exit_code == 1
+        assert result.exit_code == 2
         assert "invalid combination" in result.output
 
     def test_updates_lifecycle_to_implicit_with_smart(self, tmp_path: Path) -> None:

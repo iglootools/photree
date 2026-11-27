@@ -2,33 +2,21 @@
 
 from pathlib import Path
 
-from photree.album.id import generate_album_id, generate_media_id
+from photree.album.id import generate_media_id
 from photree.album.refresh import refresh_media_metadata
 from photree.album.store.media_metadata import (
     MediaMetadata,
     MediaSourceMediaMetadata,
     save_media_metadata,
 )
-from photree.album.store.metadata import save_album_metadata
-from photree.album.store.protocol import AlbumMetadata
 from photree.albums.media_index import find_duplicate_media_ids
-from tests.testkit import write_file
-
-
-def _setup_ios_album(album_dir: Path) -> None:
-    album_dir.mkdir(parents=True, exist_ok=True)
-    save_album_metadata(album_dir, AlbumMetadata(id=generate_album_id()))
-    write_file(album_dir / "ios-main" / "orig-img" / "IMG_0410.HEIC")
-    (album_dir / "main-img").mkdir(parents=True, exist_ok=True)
-    (album_dir / "main-jpg").mkdir(parents=True, exist_ok=True)
+from tests.testkit import make_album
 
 
 class TestFindDuplicateMediaIds:
     def test_no_duplicates(self, tmp_path: Path) -> None:
-        album1 = tmp_path / "album1"
-        album2 = tmp_path / "album2"
-        _setup_ios_album(album1)
-        _setup_ios_album(album2)
+        album1, _ = make_album(tmp_path, "album1")
+        album2, _ = make_album(tmp_path, "album2")
         refresh_media_metadata(album1)
         refresh_media_metadata(album2)
 
@@ -37,10 +25,8 @@ class TestFindDuplicateMediaIds:
         assert result == {}
 
     def test_duplicate_detected(self, tmp_path: Path) -> None:
-        album1 = tmp_path / "album1"
-        album2 = tmp_path / "album2"
-        _setup_ios_album(album1)
-        _setup_ios_album(album2)
+        album1, _ = make_album(tmp_path, "album1")
+        album2, _ = make_album(tmp_path, "album2")
 
         shared_id = generate_media_id()
         for album_dir in [album1, album2]:
@@ -49,7 +35,7 @@ class TestFindDuplicateMediaIds:
                 MediaMetadata(
                     media_sources={
                         "main": MediaSourceMediaMetadata(
-                            images={shared_id: "0410"},
+                            images={shared_id: "0001"},
                         ),
                     },
                 ),
@@ -61,10 +47,8 @@ class TestFindDuplicateMediaIds:
         assert set(result[shared_id]) == {album1, album2}
 
     def test_albums_without_media_yaml_skipped(self, tmp_path: Path) -> None:
-        album1 = tmp_path / "album1"
-        album2 = tmp_path / "album2"
-        _setup_ios_album(album1)
-        _setup_ios_album(album2)
+        album1, _ = make_album(tmp_path, "album1")
+        album2, _ = make_album(tmp_path, "album2")
         refresh_media_metadata(album1)
         # album2 has no media.yaml
 
@@ -77,10 +61,8 @@ class TestFindDuplicateMediaIds:
         assert result == {}
 
     def test_video_duplicate_detected(self, tmp_path: Path) -> None:
-        album1 = tmp_path / "album1"
-        album2 = tmp_path / "album2"
-        _setup_ios_album(album1)
-        _setup_ios_album(album2)
+        album1, _ = make_album(tmp_path, "album1")
+        album2, _ = make_album(tmp_path, "album2")
 
         shared_id = generate_media_id()
         for album_dir in [album1, album2]:

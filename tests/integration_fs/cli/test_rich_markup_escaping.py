@@ -16,9 +16,6 @@ import pytest
 from rich.console import Console
 from rich.markup import render
 
-from photree.album.id import generate_album_id
-from photree.album.store.metadata import save_album_metadata
-from photree.album.store.protocol import AlbumMetadata
 from photree.clihelpers.progress import (
     BatchProgressBar,
     FileProgressBar,
@@ -32,30 +29,10 @@ from photree.collection.store.protocol import (
     CollectionStrategy,
 )
 from photree.common.formatting import CHECK, markup_escape
-from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
-from photree.foundation.linking import LinkMode
 from tests.fakes import invoke_cli
-from tests.testkit import write_file
+from tests.testkit import make_album, make_gallery, make_gallery_album, write_file
 
 PRIVATE_ALBUM = "2024-07-14 - Hiking [private]"
-
-
-def _album(base: Path, name: str, *, with_id: bool = True) -> Path:
-    album = base / name
-    write_file(album / "ios-main" / "orig-img" / "IMG_0001.HEIC")
-    if with_id:
-        save_album_metadata(album, AlbumMetadata(id=generate_album_id()))
-    return album
-
-
-def _gallery(tmp_path: Path) -> Path:
-    gallery = tmp_path / "gallery"
-    gallery.mkdir()
-    save_gallery_metadata(
-        gallery,
-        GalleryMetadata(link_mode=LinkMode.HARDLINK, faces_enabled=False),
-    )
-    return gallery
 
 
 class TestMarkupEscape:
@@ -125,7 +102,8 @@ class TestAlbumsBatchFailures:
         tmp_path: Path,
         chdir: Callable[[Path], None],
     ) -> None:
-        _album(tmp_path, PRIVATE_ALBUM)
+        album, _ = make_album(tmp_path, PRIVATE_ALBUM)
+        write_file(album / ".photree" / "album.yaml", "id: [not, an, id")
         chdir(tmp_path)
 
         result = invoke_cli(["albums", "init", "-d", str(tmp_path)])
@@ -143,7 +121,7 @@ class TestAlbumCheck:
         tmp_path: Path,
         chdir: Callable[[Path], None],
     ) -> None:
-        album = _album(tmp_path, PRIVATE_ALBUM)
+        album, _ = make_album(tmp_path, PRIVATE_ALBUM)
         # A second media source makes every media line carry a "[name] " prefix.
         write_file(album / "std-nelu" / "orig-img" / "DSC_0001.JPG")
         chdir(tmp_path)
@@ -168,8 +146,8 @@ class TestAlbumCheck:
 
 class TestGalleryImport:
     def test_naming_error_keeps_bracketed_tag(self, tmp_path: Path) -> None:
-        gallery = _gallery(tmp_path)
-        source = _album(tmp_path / "src", "2024-07-14 - Hiking [secret]")
+        gallery = make_gallery(tmp_path, faces_enabled=False)
+        source, _ = make_album(tmp_path / "src", "2024-07-14 - Hiking [secret]")
 
         result = invoke_cli(
             ["gallery", "import", "-a", str(source), "-g", str(gallery)],
@@ -179,14 +157,9 @@ class TestGalleryImport:
         assert "2024-07-14 - Hiking [secret] — naming:" in result.output
 
     def test_skipped_listing_keeps_private_tag(self, tmp_path: Path) -> None:
-        gallery = _gallery(tmp_path)
-        album_id = generate_album_id()
-        target = gallery / "albums" / "2024" / PRIVATE_ALBUM
-        write_file(target / "ios-main" / "orig-img" / "IMG_0001.HEIC")
-        save_album_metadata(target, AlbumMetadata(id=album_id))
-        source = tmp_path / "src" / PRIVATE_ALBUM
-        write_file(source / "ios-main" / "orig-img" / "IMG_0001.HEIC")
-        save_album_metadata(source, AlbumMetadata(id=album_id))
+        gallery = make_gallery(tmp_path, faces_enabled=False)
+        _, album_id = make_gallery_album(gallery, PRIVATE_ALBUM)
+        source, _ = make_album(tmp_path / "src", PRIVATE_ALBUM, album_id=album_id)
 
         result = invoke_cli(
             ["gallery", "import", "-a", str(source), "-g", str(gallery)],
@@ -202,7 +175,7 @@ class TestCollectionCheck:
         tmp_path: Path,
         chdir: Callable[[Path], None],
     ) -> None:
-        gallery = _gallery(tmp_path)
+        gallery = make_gallery(tmp_path, faces_enabled=False)
         collection = gallery / "collections" / "Best of [private]"
         collection.mkdir(parents=True)
         assert invoke_cli(["collection", "init", "-c", str(collection)]).exit_code == 0

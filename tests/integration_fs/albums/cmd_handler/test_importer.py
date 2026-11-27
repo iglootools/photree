@@ -1,12 +1,19 @@
+import errno
+import os
 from pathlib import Path
 
-from photree.album.importer.batch import (
+from photree.album.importer.album_import import AlbumImportResult
+from photree.album.jpeg import JpegConversionFailure
+from photree.album.staging import ios_import_csv, ios_import_dir, std_import_dir
+from photree.albums.cmd_handler.importer import (
+    AlbumFailure,
+    ImportFailureStage,
     categorize_albums,
+    result_failure,
     run_batch_import,
     scan_albums,
     validate_albums,
 )
-from photree.album.staging import ios_import_csv, ios_import_dir, std_import_dir
 from photree.foundation.linking import LinkMode
 from photree.foundation.metadata_io import InvalidMetadataError
 from tests.fakes import noop_convert
@@ -154,15 +161,21 @@ class TestBatchImport:
                 raise InvalidMetadataError(album_dir / "gallery.yaml", "not valid YAML")
             return LinkMode.HARDLINK
 
+        errors: list[tuple[str, AlbumFailure]] = []
+
         result = run_batch_import(
             album_dirs=[broken, healthy],
             image_capture_dir=ic_dir,
             link_mode_for=link_mode_for,
             convert_file=noop_convert,
+            on_error=lambda name, failure: errors.append((name, failure)),
         )
 
         assert result.imported == 1
         assert [f.album_dir for f in result.failed] == [broken]
+        assert [(name, f.album_dir) for name, f in errors] == [
+            ("2024-07-02 - Paris", broken),
+        ]
 
     def test_dry_run_does_not_modify(self, tmp_path: Path) -> None:
         albums_dir = tmp_path / "albums"
@@ -344,3 +357,45 @@ class TestBatchImportCsv:
             albums_dir / "2024-07-06 - CSV Trip" / "ios-main/orig-img" / "IMG_0001.HEIC"
         ).exists()
         assert not (albums_dir / "2024-07-06 - CSV Trip" / SEL_CSV).exists()
+
+
+def _failing_convert(src: Path, _dst_dir: Path, *, dry_run: bool) -> Path | None:  # noqa: ARG001 - ConvertFile's signature
+    raise OSError(errno.EIO, os.strerror(errno.EIO), str(src))
+
+
+class TestBatchImportFailures:
+    def test_jpeg_conversion_failure_fails_the_album(self, tmp_path: Path) -> None:
+        albums_dir = tmp_path / "albums"
+        albums_dir.mkdir()
+        ic_dir = _setup_image_capture_dir(tmp_path, ["IMG_0001.HEIC", "IMG_0001.AAE"])
+        album = _setup_album(albums_dir, "2024-07-01 - Trip", ["IMG_0001.HEIC"])
+        errors: list[tuple[str, AlbumFailure]] = []
+
+        result = run_batch_import(
+            albums_dir=albums_dir,
+            image_capture_dir=ic_dir,
+            convert_file=_failing_convert,
+            on_error=lambda name, failure: errors.append((name, failure)),
+        )
+
+        assert (result.imported, result.success) == (0, False)
+        assert [f.album_dir for f in result.failed] == [album]
+        assert result.failed[0].stages == {ImportFailureStage.JPEG}
+        assert [name for name, _ in errors] == ["2024-07-01 - Trip"]
+
+
+class TestResultFailure:
+    def test_jpeg_failure_is_a_jpeg_stage_failure(self, tmp_path: Path) -> None:
+        jpeg_failures = (("main", JpegConversionFailure("IMG_0001.HEIC", "bad")),)
+
+        failure = result_failure(
+            tmp_path,
+            AlbumImportResult(jpeg_failures=jpeg_failures),
+        )
+
+        assert failure is not None
+        assert failure.stages == {ImportFailureStage.JPEG}
+        assert failure.jpeg_failures == jpeg_failures
+
+    def test_complete_import_is_not_a_failure(self, tmp_path: Path) -> None:
+        assert result_failure(tmp_path, AlbumImportResult()) is None

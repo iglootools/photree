@@ -1,13 +1,15 @@
 from pathlib import Path
 
+from photree.album.check.media_metadata import check_media_metadata
 from photree.album.id import generate_album_id
 from photree.album.refresh import refresh_album_derived_data, refresh_media_metadata
 from photree.album.store.media_metadata import load_media_metadata
+from photree.album.store.media_sources_discovery import discover_media_sources
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from photree.foundation.linking import LinkMode
 from tests.fakes import FakeExifTool
-from tests.testkit import write_file
+from tests.testkit import file_names, mark_album, write_file
 
 
 def _setup_ios_album(album_dir: Path) -> None:
@@ -208,6 +210,42 @@ class TestRefreshMultipleSources:
         assert std_keys == {"DSC_1234", "DSC_5678"}
 
 
+def _snapshot(album: Path) -> dict[str, tuple[str, float]]:
+    """Return every file under *album* with its content and mtime."""
+    return {
+        str(f.relative_to(album)): (f.read_text(encoding="utf-8"), f.stat().st_mtime)
+        for f in album.rglob("*")
+        if f.is_file()
+    }
+
+
+class TestRefreshDerivedDataDryRun:
+    def test_dry_run_leaves_every_derived_file_alone(self, tmp_path: Path) -> None:
+        # Every step has work to do: a Live Photo missing from main-img/, a
+        # JPEG dir with a stale file, no media IDs and no EXIF cache, which
+        # the std source, with no browsable files to read, would only create.
+        album = tmp_path / "album"
+        write_file(album / "std-nelu" / "orig-img" / "DSC_0001.JPG")
+        write_file(album / "ios-main" / "orig-img" / "IMG_0001.JPG")
+        write_file(album / "ios-main" / "orig-img" / "IMG_0002.JPG")
+        write_file(album / "ios-main" / "orig-img" / "IMG_0002.MOV")
+        write_file(album / "main-img" / "IMG_0001.JPG")
+        write_file(album / "main-jpg" / "IMG_0001.JPG")
+        write_file(album / "main-jpg" / "IMG_9999.JPG")
+        mark_album(album)
+        before = _snapshot(album)
+
+        refresh_album_derived_data(
+            album,
+            link_mode=LinkMode.COPY,
+            exiftool=FakeExifTool({}),
+            dry_run=True,
+        )
+
+        assert _snapshot(album) == before
+        assert not (album / "main-vid").exists()
+
+
 class TestRefreshDerivedDataJpeg:
     def test_forced_browsable_refresh_regenerates_jpegs_of_changed_images(
         self,
@@ -234,6 +272,47 @@ class TestRefreshDerivedDataJpeg:
 
         jpeg = album / "main-jpg" / "DSC_0001.JPG"
         assert jpeg.read_text(encoding="utf-8") == "after"
+
+
+class TestRefreshVideoExtensions:
+    def test_ios_source_leaves_an_mp4_out(self, tmp_path: Path) -> None:
+        # An iPhone records only .mov: an .mp4 in an iOS archive is not one of
+        # its media items, gets no ID and is not linked into main-vid/.
+        album = tmp_path / "album"
+        write_file(album / "ios-main" / "orig-img" / "IMG_0001.JPG")
+        write_file(album / "ios-main" / "orig-vid" / "IMG_0115.MOV")
+        write_file(album / "ios-main" / "orig-vid" / "IMG_0116.MP4")
+
+        refresh_album_derived_data(
+            album,
+            link_mode=LinkMode.COPY,
+            exiftool=FakeExifTool({}),
+        )
+
+        meta = load_media_metadata(album)
+        assert meta is not None
+        assert set(meta.media_sources["main"].videos.values()) == {"0115"}
+        assert file_names(album / "main-vid") == {"IMG_0115.MOV"}
+        sources = discover_media_sources(album)
+        assert check_media_metadata(album, media_sources=sources).in_sync
+
+    def test_std_source_keeps_an_mp4(self, tmp_path: Path) -> None:
+        album = tmp_path / "album"
+        write_file(album / "std-main" / "orig-img" / "DSC_0001.JPG")
+        write_file(album / "std-main" / "orig-vid" / "VID_001.MOV")
+        write_file(album / "std-main" / "orig-vid" / "VID_002.MP4")
+
+        refresh_album_derived_data(
+            album,
+            link_mode=LinkMode.COPY,
+            exiftool=FakeExifTool({}),
+        )
+
+        meta = load_media_metadata(album)
+        assert meta is not None
+        videos = set(meta.media_sources["main"].videos.values())
+        assert videos == {"VID_001", "VID_002"}
+        assert file_names(album / "main-vid") == {"VID_001.MOV", "VID_002.MP4"}
 
 
 def test_media_ids_use_injected_generator(tmp_path: Path) -> None:

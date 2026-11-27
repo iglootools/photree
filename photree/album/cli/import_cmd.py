@@ -20,13 +20,18 @@ from photree.album.importer.album_import import (
     import_stage_labels,
     validate_album_import,
 )
-from photree.album.importer.collision import ArchiveCollision, ImportCollisionError
+from photree.album.importer.collision import (
+    ArchiveCollision,
+    ImportCollisionError,
+    MediaSourceClashError,
+)
 from photree.album.importer.naming_gate import check_import_naming
 from photree.album.importer.tasks import discover_import_tasks
 from photree.album.jpeg import convert_single_file, noop_convert_single
 from photree.album.naming import parse_album_name
 from photree.clihelpers.console import console, err_console
 from photree.clihelpers.options import CONFIG_OPTION, DRY_RUN_OPTION, LINK_MODE_OPTION
+from photree.clihelpers.paths import expand_user_path
 from photree.clihelpers.progress import StageProgressBar
 from photree.common.exif import ExifTagReader, exiftool_session
 from photree.common.formatting import format_dry_run
@@ -48,9 +53,8 @@ def import_cmd(
             "--album-dir",
             "-a",
             help="Album directory (with to-import-{ios,std}-<name> staging dirs).",
-            exists=True,
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(exists=True),
         ),
     ] = Path(),
     source: Annotated[
@@ -60,7 +64,7 @@ def import_cmd(
             "-s",
             help="Image Capture output directory. Overrides config and default.",
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(),
         ),
     ] = None,
     config: CONFIG_OPTION = None,
@@ -234,6 +238,12 @@ def _run_import(
         # or the archive changed, in between): report, never a traceback.
         except (NoImportTasksError, EmptyImageCaptureDirError) as exc:
             err_console.print(importer_output.import_error(exc, cwd))
+            raise typer.Exit(code=1) from exc
+        except MediaSourceClashError as exc:
+            err_console.print(
+                importer_output.format_media_source_clash(exc.clash),
+                markup=False,
+            )
             raise typer.Exit(code=1) from exc
         except ImportCollisionError as exc:
             err_console.print(

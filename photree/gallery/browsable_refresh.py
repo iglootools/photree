@@ -14,7 +14,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from itertools import groupby
-from operator import attrgetter
+from operator import attrgetter, itemgetter
 from pathlib import Path
 
 from photree.album.naming import parse_album_name
@@ -43,6 +43,9 @@ class BrowsableRefreshErrorKind(StrEnum):
     ALBUM_UNPARSEABLE_NAME = "album-unparseable-name"
     """``path``: album whose name has no parseable date."""
 
+    DUPLICATE_ALBUM_ID = "duplicate-album-id"
+    """``album_id``: an ID several albums share; ``albums``: those albums."""
+
     COLLECTION_UNREADABLE_METADATA = "collection-unreadable-metadata"
     """``path``: collection whose ``collection.yaml`` cannot be read."""
 
@@ -51,6 +54,9 @@ class BrowsableRefreshErrorKind(StrEnum):
 
     LINK_COLLISION = "link-collision"
     """``path``: link that two different ``targets`` would both claim."""
+
+    FILESYSTEM_ERROR = "filesystem-error"
+    """``path``: what a failed write named; ``reason``: why. The tree is partial."""
 
 
 @dataclass(frozen=True)
@@ -61,6 +67,9 @@ class BrowsableRefreshError:
     path: Path
     collection_id: str | None = None
     targets: tuple[Path, ...] = ()
+    album_id: str | None = None
+    albums: tuple[Path, ...] = ()
+    reason: str | None = None
 
 
 class DanglingMemberKind(StrEnum):
@@ -161,15 +170,6 @@ class _MediaLocation:
     media_source: MediaSource
     key: str
 
-    def matches(self, filename: str) -> bool:
-        """
-        Whether *filename* belongs to this item, by its source's key rule.
-
-        The rule follows the media source type, not the filename: a std
-        source may hold ``IMG_1234.JPG`` files, which are keyed by stem.
-        """
-        return self.media_source.key_fn(filename) == self.key
-
 
 type _DirPicker = Callable[[MediaSource], str]
 
@@ -231,16 +231,48 @@ def _scan_album_entries(
     dict[str, _MediaLocation],
     tuple[BrowsableRefreshError, ...],
 ]:
-    """Scan albums and build album + media location lookups."""
+    """
+    Scan albums and build album + media location lookups.
+
+    Albums that share an ID (a copied album directory) are an error: only one
+    of them could be rendered, and their media IDs would collide too.
+    """
     results = [_try_scan_album(d) for d in discover_gallery_albums(gallery_dir)]
-    albums = {r.album_id: r for r in results if isinstance(r, _AlbumEntry)}
+    entries = [r for r in results if isinstance(r, _AlbumEntry)]
+    albums = {entry.album_id: entry for entry in entries}
     media_locations = {
         mid: loc
         for album in albums.values()
         for mid, loc in _build_media_locations(album).items()
     }
-    errors = tuple(r for r in results if isinstance(r, BrowsableRefreshError))
+    errors = (
+        *(r for r in results if isinstance(r, BrowsableRefreshError)),
+        *_duplicate_id_errors(entries),
+    )
     return albums, media_locations, errors
+
+
+def _duplicate_id_errors(
+    entries: list[_AlbumEntry],
+) -> tuple[BrowsableRefreshError, ...]:
+    """Return one error per album ID that several of *entries* share."""
+    paths_by_id = {
+        album_id: tuple(entry.path for entry in group)
+        for album_id, group in groupby(
+            sorted(entries, key=attrgetter("album_id")),
+            key=attrgetter("album_id"),
+        )
+    }
+    return tuple(
+        BrowsableRefreshError(
+            BrowsableRefreshErrorKind.DUPLICATE_ALBUM_ID,
+            paths[0],
+            album_id=album_id,
+            albums=paths,
+        )
+        for album_id, paths in paths_by_id.items()
+        if len(paths) > 1
+    )
 
 
 def _collection_entry(col_dir: Path, meta: CollectionMetadata) -> _CollectionEntry:
@@ -342,19 +374,57 @@ def _plan_album(album: _AlbumEntry, target_dir: Path) -> list[_Link]:
     ]
 
 
-def _matching_files(loc: _MediaLocation, pick_dir: _DirPicker) -> list[Path]:
-    """Return one media item's browsable files in the directory *pick_dir* names."""
-    browsable_dir = loc.album_path / pick_dir(loc.media_source)
-    return (
-        [f for f in browsable_dir.iterdir() if f.is_file() and loc.matches(f.name)]
-        if browsable_dir.is_dir()
-        else []
+def _files_by_key(
+    browsable_dir: Path,
+    media_source: MediaSource,
+) -> dict[str, tuple[Path, ...]]:
+    """
+    Index the files of *browsable_dir* by media key, by its source's key rule.
+
+    The rule follows the media source type, not the filename: a std source
+    may hold ``IMG_1234.JPG`` files, which are keyed by stem.
+    """
+    keyed = sorted(
+        (
+            (media_source.key_fn(f.name), f)
+            for f in (browsable_dir.iterdir() if browsable_dir.is_dir() else ())
+            if f.is_file()
+        ),
+        key=itemgetter(0),
     )
+    return {
+        key: tuple(f for _, f in group)
+        for key, group in groupby(keyed, key=itemgetter(0))
+    }
+
+
+class _BrowsableFiles:
+    """
+    The files of each album browsable directory, by media key, listed once.
+
+    Collections pick media one ID at a time, often many from the same album,
+    and a sub-collection is planned again under each parent: listing and
+    stat'ing the directory per media ID would cost its size each time.
+    """
+
+    def __init__(self) -> None:
+        """Start with no directory listed."""
+        self._by_dir: dict[Path, dict[str, tuple[Path, ...]]] = {}
+
+    def matching(self, loc: _MediaLocation, pick_dir: _DirPicker) -> tuple[Path, ...]:
+        """Return one media item's files in the directory *pick_dir* names."""
+        browsable_dir = loc.album_path / pick_dir(loc.media_source)
+        if browsable_dir not in self._by_dir:
+            self._by_dir[browsable_dir] = _files_by_key(
+                browsable_dir,
+                loc.media_source,
+            )
+        return self._by_dir[browsable_dir].get(loc.key, ())
 
 
 def _plan_media_files(
     media_ids: tuple[str, ...],
-    media_locations: Mapping[str, _MediaLocation],
+    gallery: _Gallery,
     target_subdir: Path,
     pick_dir: _DirPicker,
 ) -> list[_Link]:
@@ -373,9 +443,9 @@ def _plan_media_files(
             / f"{loc.album_path.name} - {loc.media_source.name} - {f.name}",
         )
         for mid in media_ids
-        for loc in [media_locations.get(mid)]
+        for loc in [gallery.media_locations.get(mid)]
         if loc is not None
-        for f in _matching_files(loc, pick_dir)
+        for f in gallery.browsable_files.matching(loc, pick_dir)
     ]
 
 
@@ -386,6 +456,7 @@ class _Gallery:
     albums: Mapping[str, _AlbumEntry]
     collections: Mapping[str, _CollectionEntry]
     media_locations: Mapping[str, _MediaLocation]
+    browsable_files: _BrowsableFiles
 
 
 def _plan_collection(
@@ -419,13 +490,13 @@ def _plan_collection(
     )
     image_links = _plan_media_files(
         collection.image_ids,
-        gallery.media_locations,
+        gallery,
         col_target / "images",
         _image_dir,
     )
     video_links = _plan_media_files(
         collection.video_ids,
-        gallery.media_locations,
+        gallery,
         col_target / "videos",
         _video_dir,
     )
@@ -541,11 +612,13 @@ def refresh_browsable(
     2. Plan the links: albums by year, collections by year/chapter/all-time,
        each under public/private
     3. Remove the existing browsable/ directory
-    4. Create the planned links
+    4. Create the planned links (a write that fails stops here, reported as a
+       ``FILESYSTEM_ERROR`` with the links created so far)
 
-    Unreadable albums or collections, and links two targets would claim,
-    abort before anything is removed; dangling collection members are
-    reported and skipped, and a member listed twice is rendered once.
+    Unreadable albums or collections, albums sharing an ID, and links two
+    targets would claim, abort before anything is removed; dangling
+    collection members are reported and skipped, and a member listed twice is
+    rendered once.
     """
     browsable_dir = gallery_dir / BROWSABLE_DIR
     safety_error = _validate_browsable_dir(browsable_dir)
@@ -557,7 +630,7 @@ def refresh_browsable(
     if album_errors or collection_errors:
         return BrowsableRefreshResult(errors=(*album_errors, *collection_errors))
 
-    gallery = _Gallery(albums, collections, media_locations)
+    gallery = _Gallery(albums, collections, media_locations, _BrowsableFiles())
     dangling = _dangling_members(collections, albums, media_locations)
     planned, render_errors = _plan_all(gallery, browsable_dir)
     links, collisions = _dedupe_links(planned)
@@ -570,14 +643,39 @@ def refresh_browsable(
             dangling_members=dangling,
         )
 
-    if browsable_dir.exists():
-        shutil.rmtree(browsable_dir)
-    for planned_link in links:
-        _make_relative_symlink(planned_link.target, planned_link.link)
+    created, write_error = _render(browsable_dir, links)
     return BrowsableRefreshResult(
         albums_rendered=len(albums),
         collections_rendered=len(collections),
-        symlinks_created=len(links),
-        errors=render_errors,
+        symlinks_created=created,
+        errors=(*render_errors, *([write_error] if write_error is not None else [])),
         dangling_members=dangling,
     )
+
+
+def _render(
+    browsable_dir: Path,
+    links: tuple[_Link, ...],
+) -> tuple[int, BrowsableRefreshError | None]:
+    """
+    Replace *browsable_dir* with *links*, stopping at the first write that fails.
+
+    Returns how many links were created and the failure, if any: the tree is
+    then partial, and the next refresh rebuilds it whole.
+    """
+    # Documented exception (docs/guidelines.md): per-item try/except, counting
+    # the links created before a failure.
+    created = 0
+    try:
+        if browsable_dir.exists():
+            shutil.rmtree(browsable_dir)
+        for planned_link in links:
+            _make_relative_symlink(planned_link.target, planned_link.link)
+            created += 1
+    except OSError as exc:
+        return created, BrowsableRefreshError(
+            BrowsableRefreshErrorKind.FILESYSTEM_ERROR,
+            Path(exc.filename) if exc.filename is not None else browsable_dir,
+            reason=exc.strerror or str(exc),
+        )
+    return created, None

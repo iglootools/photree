@@ -22,6 +22,7 @@ mise run fmt                # ruff, dprint and rumdl format every file (fmt-ruff
 mise run lint-fmt           # ruff format --check + dprint check (lint-fmt-ruff, lint-fmt-dprint)
 mise run lint-ruff          # ruff check
 mise run lint-shell         # shellcheck on the tracked shell scripts
+mise run lint-github-actions # actionlint on the tracked GitHub Actions workflows
 mise run lint-markdown      # rumdl check (also what rumdl fmt would change)
 mise run lint-types         # pyright
 mise run lint-boundaries    # import-linter (module boundary contracts in pyproject.toml — see architecture.md)
@@ -54,7 +55,7 @@ mise run reinstall          # delete .venv and sync from scratch
 mise run demo-record        # record the demo to demo/demo.cast
 mise run demo-upload        # upload demo/demo.cast to asciinema.org
 mise run demo               # demo-record, then demo-upload
-mise run demo-upload-latest # upload the demo CI recorded (see Release Process)
+mise run demo-upload-latest # upload the demo CI recorded (see releasing-and-publishing.md)
 
 # ci-preflight, ci-build and ci-demo-record are what the workflows run.
 
@@ -82,18 +83,31 @@ before any `mise run` whenever `uv.lock` or `pyproject.toml` has changed, or
 that is *dirty* rather than *stale*, e.g. after a manual `uv pip install`. Add
 or remove dependencies with `uv add` / `uv remove`.
 
-The `check-links` workflow runs a link checker against the documentation to
-catch broken links. It is scheduled to run weekly, but can also be triggered
-manually using `gh workflow run check-links.yml`.
-
 <!-- toc -->
 **On this page**
 
+- [Continuous Integration](#continuous-integration)
 - [Python version](#python-version)
-- [Release Process](#release-process)
 - [GitHub Config](#github-config)
 - [Renovate](#renovate)
 <!-- tocstop -->
+
+## Continuous Integration
+
+Each workflow in `.github/workflows/` runs a `ci-*` task or a shared workflow
+from `iglootools/common`. Every one but `renovate-mise-lock` can also be run by
+hand with `gh workflow run <file> --ref <branch>`.
+
+| Workflow | Runs on | What it runs |
+|---|---|---|
+| `preflight.yml` | every pull request, pushes to `main`, every tag | job `preflight`: `mise run ci-preflight` (every lint and test, after installing graphviz and exiftool); job `build`: `mise run ci-build` (build, then `build-verify`) |
+| `check-links.yml` | weekly, Monday 18:00 UTC | the shared link checker over the documentation; it files an issue with what it finds |
+| `uv-dependency-submission.yml` | pushes to `main` that change `uv.lock`, and weekly | submits `uv.lock` to GitHub's dependency graph, which does not parse it, so Dependabot alerts see the Python dependencies |
+| `renovate-mise-lock.yml` | pushes to `renovate/**` branches | regenerates `mise.lock` on a Renovate branch and pushes it |
+| `release.yml`, `publish.yml`, `publish-test.yml`, `demo.yml` | a release | see [Releasing and Publishing › Release a Version](releasing-and-publishing.md#release-a-version) |
+
+The `main` ruleset requires the `preflight` and `build` jobs to pass before a
+pull request merges ([GitHub Config](#github-config)).
 
 ## Python version
 
@@ -117,26 +131,6 @@ so `uv lock` cannot resolve on 3.15. Move to 3.15 when it does — check
 `pythonVersion` in `pyproject.toml` (then `uv lock`), and the `python`
 `allowedVersions` rule in `renovate.json`, which holds Renovate back from
 proposing 3.15 until then.
-
-## Release Process
-
-- Trigger the `release` workflow: `gh workflow run release.yml`
-- Let github workflows take care of the rest
-  - `release` workflow: will bump version according to conventional commit
-    conventions, push tag, and create a Github release
-  - `publish` workflow: will publish the new version to PyPI
-  - `demo` workflow: records the demo and keeps it as the `demo-recording`
-    artifact
-- When this is a major release, manually (nothing else prompts these):
-  - before triggering the release, add scenarios for what the release introduced
-    to `demo/demo.sh`, so the demo keeps showing what the tool is for
-  - once the release's `demo` workflow has succeeded, run
-    `mise run demo-upload-latest`: it uploads that recording to asciinema.org,
-    repoints the asciicast embed at the top of `README.md` at it, and commits
-    that change (open a pull request for it, since `main` is protected). CI
-    cannot publish it: GitHub-hosted runners have no route to asciinema.org (see
-    `.github/workflows/demo.yml`). Between major releases, do the same when a
-    release visibly changes what the demo shows.
 
 ## GitHub Config
 

@@ -10,10 +10,15 @@ from photree.album.exif_cache.protocol import (
     ExifCache,
     ExifCacheEntry,
 )
-from photree.album.exif_cache.refresh import refresh_exif_cache
+from photree.album.exif_cache.refresh import (
+    ExifCacheSourceResult,
+    refresh_exif_cache,
+)
 from photree.album.exif_cache.store import cache_path, load_exif_cache, save_exif_cache
 from photree.album.store.media_source import MAIN_MEDIA_SOURCE
+from photree.common.sysdeps import MissingSystemDependencyError
 from photree.foundation.metadata_io import InvalidMetadataError
+from tests.fakes import fake_which
 from tests.testkit import write_file
 
 
@@ -167,3 +172,35 @@ class TestCorruptExifCache:
         cache = load_exif_cache(tmp_path, "main")
         assert cache is not None
         assert cache.files == {}
+
+
+class TestExifToolDiscovery:
+    def test_missing_exiftool_is_looked_up_with_the_callers_which(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        # The installed exiftool must not be found: only the injected which
+        # decides, so the refresh stops on a missing tool.
+        _album_with_same_stem_photo_and_video(tmp_path)
+
+        with pytest.raises(MissingSystemDependencyError):
+            refresh_exif_cache(tmp_path, which=fake_which())
+
+        assert load_exif_cache(tmp_path, "main") is None
+
+
+class TestExifCachePruning:
+    def test_deleted_file_is_pruned(self, tmp_path: Path) -> None:
+        _album_with_same_stem_photo_and_video(tmp_path)
+        exiftool = _FakeExifTool("2024:07:14 10:00:00")
+        refresh_exif_cache(tmp_path, exiftool=exiftool)
+        (tmp_path / MAIN_MEDIA_SOURCE.vid_dir / "clip.MOV").unlink()
+
+        result = refresh_exif_cache(tmp_path, exiftool=exiftool)
+
+        assert result.by_media_source == (
+            ("main", ExifCacheSourceResult(cached=1, refreshed=0, pruned=1)),
+        )
+        cache = load_exif_cache(tmp_path, "main")
+        assert cache is not None
+        assert set(cache.files) == {"main-jpg/clip"}

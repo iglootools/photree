@@ -82,26 +82,63 @@ def compute_target_dir(gallery_dir: Path, album_name: str) -> Path:
     return gallery_dir / ALBUMS_DIR / year / album_name
 
 
+_BACKUP_SUFFIX = "old"
+
+
 def _hidden_sibling(target_dir: Path, suffix: str) -> Path:
     """Return a dot-prefixed sibling of *target_dir*, invisible to album discovery."""
     return target_dir.parent / f".{target_dir.name}.{suffix}"
 
 
-@dataclass(frozen=True)
-class _Pipeline:
-    """Everything the copy → ID → refresh stages need besides the paths."""
+def find_reimport_backups(gallery_dir: Path) -> tuple[Path, ...]:
+    """
+    Return the gallery albums a reimport moved aside and never removed.
 
-    link_mode: LinkMode
-    max_workers: int | None
-    convert_file: ConvertFile | None
-    exiftool: ExifTagReader | None
-    analyzer_factory: FaceAnalyzerFactory | None
-    refresh: RefreshFn
-    new_id: Callable[[], str]
-    on_stage_start: Callable[[str], None] | None
-    on_stage_end: Callable[[str], None] | None
+    A reimport moves the live album to a hidden ``.<name>.old`` sibling while
+    it swaps the rebuilt copy in. One that is still there means the process
+    died during the swap: either the album exists only as that hidden copy,
+    which album discovery skips, or the copy is a stale duplicate.
+    """
+    albums_dir = gallery_dir / ALBUMS_DIR
+    return tuple(
+        sorted(
+            backup
+            for year_dir in (albums_dir.iterdir() if albums_dir.is_dir() else ())
+            if year_dir.is_dir()
+            for backup in year_dir.glob(f".*.{_BACKUP_SUFFIX}")
+            if backup.is_dir()
+        ),
+    )
+
+
+def backed_up_album_dir(backup: Path) -> Path:
+    """Return where the album moved aside to *backup* lived before the swap."""
+    name = backup.name.removeprefix(".").removesuffix(f".{_BACKUP_SUFFIX}")
+    return backup.with_name(name)
+
+
+@dataclass(frozen=True)
+class ImportPipeline:
+    """
+    Everything the copy → ID → refresh stages need besides the paths.
+
+    One value shared by a first import and a reimport, so a new option or seam
+    is added in one place. The defaults are the real implementations; *refresh*
+    and *new_id* are seams tests replace.
+    """
+
+    link_mode: LinkMode = LinkMode.HARDLINK
+    max_workers: int | None = None
+    convert_file: ConvertFile | None = None
+    exiftool: ExifTagReader | None = None
+    analyzer_factory: FaceAnalyzerFactory | None = None
+    refresh: RefreshFn = refresh_album_derived_data
+    new_id: Callable[[], str] = generate_album_id
+    on_stage_start: Callable[[str], None] | None = None
+    on_stage_end: Callable[[str], None] | None = None
 
     def stage(self, name: str) -> _StageScope:
+        """Return a scope that notifies the start and successful end of *name*."""
         return _StageScope(self, name)
 
     def generate_id(self, work_dir: Path, *, dry_run: bool) -> bool:
@@ -188,7 +225,7 @@ def _import_result(
 class _StageScope:
     """Context manager notifying stage start and (successful) end."""
 
-    pipeline: _Pipeline
+    pipeline: ImportPipeline
     name: str
 
     def __enter__(self) -> None:
@@ -218,14 +255,19 @@ def _restore_photree(metadata_src: Path, dst: Path) -> None:
     (``media-ids/``) from the existing gallery copy; the source's own
     (usually ID-less) metadata and any derived ``cache/`` are discarded so
     the refresh stage rebuilds derived data cleanly.
+
+    An existing copy without an ``album.yaml`` is not the source's album, so
+    the source's own ID and UUIDs are kept instead: dropping them would give
+    the album a new ID and orphan every reference to it.
     """
     photree_dir = dst / PHOTREE_DIR
+    keep_from = metadata_src if load_album_metadata(metadata_src) is not None else dst
+    meta = load_album_metadata(keep_from)
+    media_meta = load_media_metadata(keep_from)
     if photree_dir.exists():
         shutil.rmtree(photree_dir)
-    meta = load_album_metadata(metadata_src)
     if meta is not None:
         save_album_metadata(dst, meta)
-    media_meta = load_media_metadata(metadata_src)
     if media_meta is not None:
         save_media_metadata(dst, media_meta)
 
@@ -239,8 +281,12 @@ def swap_into_place(existing_dir: Path, staging: Path, target_dir: Path) -> None
     renames keep the window where neither copy exists as small as possible.
     If the second rename fails, the live album is moved back before the error
     propagates, so a failed swap never loses the gallery copy.
+
+    The aside copy sits beside *existing_dir* and is named after it, so a
+    process that dies between the renames leaves a copy whose name says where
+    it belongs (see :func:`find_reimport_backups`).
     """
-    backup = _hidden_sibling(target_dir, "old")
+    backup = _hidden_sibling(existing_dir, _BACKUP_SUFFIX)
     if backup.exists():
         shutil.rmtree(backup)
     existing_dir.rename(backup)
@@ -253,20 +299,15 @@ def swap_into_place(existing_dir: Path, staging: Path, target_dir: Path) -> None
     shutil.rmtree(backup)
 
 
+_DEFAULT_PIPELINE = ImportPipeline()
+
+
 def import_album(
     *,
     source_dir: Path,
     gallery_dir: Path,
-    link_mode: LinkMode = LinkMode.HARDLINK,
+    pipeline: ImportPipeline = _DEFAULT_PIPELINE,
     dry_run: bool = False,
-    on_stage_start: Callable[[str], None] | None = None,
-    on_stage_end: Callable[[str], None] | None = None,
-    convert_file: ConvertFile | None = None,
-    max_workers: int | None = None,
-    exiftool: ExifTagReader | None = None,
-    analyzer_factory: FaceAnalyzerFactory | None = None,
-    refresh: RefreshFn = refresh_album_derived_data,
-    new_id: Callable[[], str] = generate_album_id,
 ) -> AlbumImportResult:
     """
     Import an album directory into a gallery.
@@ -286,17 +327,6 @@ def import_album(
     target_dir = compute_target_dir(gallery_dir, source_dir.name)
     if target_dir.exists():
         raise TargetExistsError(target_dir)
-    pipeline = _Pipeline(
-        link_mode=link_mode,
-        max_workers=max_workers,
-        convert_file=convert_file,
-        exiftool=exiftool,
-        analyzer_factory=analyzer_factory,
-        refresh=refresh,
-        new_id=new_id,
-        on_stage_start=on_stage_start,
-        on_stage_end=on_stage_end,
-    )
     if dry_run:
         return pipeline.dry_run(source_dir, target_dir)
 
@@ -321,16 +351,8 @@ def reimport_album(
     source_dir: Path,
     gallery_dir: Path,
     existing_dir: Path,
-    link_mode: LinkMode = LinkMode.HARDLINK,
+    pipeline: ImportPipeline = _DEFAULT_PIPELINE,
     dry_run: bool = False,
-    on_stage_start: Callable[[str], None] | None = None,
-    on_stage_end: Callable[[str], None] | None = None,
-    convert_file: ConvertFile | None = None,
-    max_workers: int | None = None,
-    exiftool: ExifTagReader | None = None,
-    analyzer_factory: FaceAnalyzerFactory | None = None,
-    refresh: RefreshFn = refresh_album_derived_data,
-    new_id: Callable[[], str] = generate_album_id,
 ) -> AlbumImportResult:
     """
     Replace an already-imported album's media with the source's.
@@ -348,17 +370,6 @@ def reimport_album(
     target_dir = compute_target_dir(gallery_dir, source_dir.name)
     if target_dir != existing_dir and target_dir.exists():
         raise TargetExistsError(target_dir)
-    pipeline = _Pipeline(
-        link_mode=link_mode,
-        max_workers=max_workers,
-        convert_file=convert_file,
-        exiftool=exiftool,
-        analyzer_factory=analyzer_factory,
-        refresh=refresh,
-        new_id=new_id,
-        on_stage_start=on_stage_start,
-        on_stage_end=on_stage_end,
-    )
     if dry_run:
         # Nothing is generated on a reimport: the existing ID is preserved.
         return replace(pipeline.dry_run(source_dir, target_dir), id_generated=False)

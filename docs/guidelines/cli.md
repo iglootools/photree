@@ -70,6 +70,13 @@ Most entity types support the same set of operations:
 
 - **Directory options**: `--album-dir -a`, `--collection-dir -c`,
   `--gallery-dir -g`, `--dir -d` (scan base)
+- **Path options**: expand `~` with the `expand_user_path` (or, for a
+  repeatable option, `expand_user_paths`) callback from `clihelpers/paths.py`,
+  as
+  [general.md › Expand `~` in every path a user writes](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#expand--in-every-path-a-user-writes)
+  asks. Pass `exists` and `resolve` to the callback, never `exists` or
+  `resolve_path` to Typer, which would check and resolve the path before `~`
+  is expanded; `file_okay` and `dir_okay` stay on the Typer declaration
 - **Mutually exclusive options**: Check in the command body and
   `raise usage_error(...)` (`clihelpers/usage.py`), which prints to stderr and
   exits 2, like any other [usage error](#error-handling-and-exit-codes)
@@ -210,19 +217,22 @@ paths with `display_path`.
 
 ## CSV Output
 
-photree selects the output format with `--format text|csv` and writes a file
-with `-o/--output FILE`, a
-[documented exception](../guidelines.md#select-the-output-format-with---format-textcsv-and-write-a-file-with--o--output)
-to the shared flags until its next major release. Commands with
-`--format csv` follow this pattern:
+The listing commands select the output format with `-o/--output`, `human`
+(the default) or `csv`, and write it to a file with `-f/--file FILE`, as
+[general.md › Select the output format with `-o/--output`, and write a file with `-f/--file`](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#select-the-output-format-with--o--output-and-write-a-file-with--f--file)
+asks, without its `json` format, a
+[documented exception](../guidelines.md#offer-no-json-output-yet). They
+follow this pattern:
 
-- `--format` is declared with the shared `OUTPUT_FORMAT_OPTION`, an
+- `-o/--output` is declared with the shared `OUTPUT_FORMAT_OPTION`, an
   `OutputFormat` enum, so an unknown value is rejected rather than silently
-  rendered as text
-- `-o/--output` is declared with `OUTPUT_FILE_OPTION`, for every format
+  rendered in the human format
+- `-f/--file` is declared with `OUTPUT_FILE_OPTION`, and applies to every
+  format: write the output with `write_text` and `write_csv` from
+  `clihelpers/sink.py`, never with `typer.echo`
 - CSV always includes a header row
 - Write to stdout or file, close file in `finally`
-- When `--format csv`, suppress non-CSV output (e.g., "No albums found"
+- With `--output csv`, suppress non-CSV output (e.g., "No albums found"
   goes to stderr)
 
 ## Resolve the gallery in the CLI layer, and pass the value in

@@ -11,6 +11,7 @@ from photree.album.id import format_album_external_id
 from photree.album.naming import ParsedAlbumName, parse_album_name
 from photree.album.store.media_sources_discovery import discover_media_sources
 from photree.album.store.metadata import load_album_metadata
+from photree.clihelpers.paths import expand_user_path
 from photree.clihelpers.runtime import runtime_of
 from photree.common.formatting import indent
 from photree.common.fs import display_path
@@ -25,9 +26,8 @@ def show_cmd(
             "--album-dir",
             "-a",
             help="Album directory.",
-            exists=True,
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(exists=True),
         ),
     ] = Path(),
 ) -> None:

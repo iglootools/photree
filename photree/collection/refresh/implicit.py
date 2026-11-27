@@ -13,8 +13,13 @@ from photree.collection.refresh.implicit_match import (
 from photree.collection.refresh.result import (
     CollectionRefreshError,
     CollectionRefreshErrorKind,
+    filesystem_error,
 )
-from photree.collection.refresh.scan import AlbumInfo, ExistingCollection
+from photree.collection.refresh.scan import (
+    MOVING_PREFIX,
+    AlbumInfo,
+    ExistingCollection,
+)
 from photree.collection.refresh.series import SeriesTarget, series_targets
 from photree.collection.store.metadata import (
     remove_collection_metadata,
@@ -228,37 +233,102 @@ def _target_errors(plan: _ImplicitPlan) -> tuple[CollectionRefreshError, ...]:
     )
 
 
-def _apply(plan: _ImplicitPlan) -> None:
+type _Move = tuple[Path, Path]  # source, then destination
+
+
+def _move_all(moves: list[_Move]) -> tuple[int, OSError | None]:
+    """
+    Perform the moves in order, stopping at the first failure.
+
+    Returns how many moves were done and the error that stopped the run.
+    """
+    # Documented exception (docs/guidelines.md): a per-item try/except that
+    # must stop the run cannot be a comprehension.
+    for done, (src, dst) in enumerate(moves):
+        try:
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            src.rename(dst)
+        except OSError as exc:
+            return done, exc
+    return len(moves), None
+
+
+def _undo(moves: list[_Move]) -> tuple[Path, ...]:
+    """Reverse each move; return the destinations that could not be moved back."""
+    return tuple(dst for src, dst in moves if _move_all([(dst, src)])[1] is not None)
+
+
+def _move_failed(
+    update: _Update,
+    exc: OSError,
+    stranded: tuple[Path, ...],
+) -> CollectionRefreshError:
+    return CollectionRefreshError(
+        CollectionRefreshErrorKind.COLLECTION_MOVE_FAILED,
+        path=update.col.path,
+        target=update.path,
+        reason=exc.strerror or type(exc).__name__,
+        stranded=stranded,
+    )
+
+
+def _move_collections(updates: list[_Update]) -> CollectionRefreshError | None:
+    """
+    Move each collection to its new path, all or nothing (best effort).
+
+    Moves go through a temporary name first, so a case-only rename and one
+    collection taking another's vacated name both work. On a failure, the
+    moves done are rolled back, and the error lists what could not be.
+    """
+    to_temporary = [
+        (u.col.path, u.col.path.with_name(f"{MOVING_PREFIX}{u.metadata.id}"))
+        for u in updates
+    ]
+    to_final = [
+        (temp, u.path) for u, (_, temp) in zip(updates, to_temporary, strict=True)
+    ]
+    staged, exc = _move_all(to_temporary)
+    if exc is not None:
+        return _move_failed(updates[staged], exc, _undo(to_temporary[:staged]))
+    done, exc = _move_all(to_final)
+    if exc is None:
+        return None
+    unrestored = _undo(to_final[:done])
+    # A collection whose final move could not be undone is not at its
+    # temporary name either, so only the others are moved back from there.
+    restorable = [
+        move
+        for move, (_, final) in zip(to_temporary, to_final, strict=True)
+        if final not in unrestored
+    ]
+    return _move_failed(updates[done], exc, (*unrestored, *_undo(restorable)))
+
+
+def _apply(plan: _ImplicitPlan) -> CollectionRefreshError | None:
     """
     Write *plan* to disk: removals, then moves, then metadata and creations.
 
     An orphan loses only its metadata; its directory goes too only when that
     leaves it empty, so files the user keeps there survive.
 
-    Moves go through a temporary name first, so a case-only rename and one
-    collection taking another's vacated name both work.
+    Returns the error that stopped the moves, before any metadata is
+    written or collection created.
     """
     for orphan in plan.orphans:
         remove_collection_metadata(orphan.col.path)
         if orphan.empties:
             (orphan.col.path / _FINDER_METADATA).unlink(missing_ok=True)
             orphan.col.path.rmdir()
-    staged = [
-        (u, u.col.path.with_name(f".photree-moving-{u.metadata.id}"))
-        for u in plan.updates
-        if u.moves
-    ]
-    for u, temporary in staged:
-        u.col.path.rename(temporary)
-    for u, temporary in staged:
-        u.path.parent.mkdir(parents=True, exist_ok=True)
-        temporary.rename(u.path)
+    move_error = _move_collections([u for u in plan.updates if u.moves])
+    if move_error is not None:
+        return move_error
     for u in plan.updates:
         if u.metadata != u.col.metadata:
             save_collection_metadata(u.path, u.metadata)
     for c in plan.creates:
         c.path.mkdir(parents=True)
         save_collection_metadata(c.path, c.metadata)
+    return None
 
 
 def _planned_collections(
@@ -310,7 +380,8 @@ def refresh_implicit_collections(
 
     Nothing is written when the plan has an error: series name conflicts and
     occupied target directories are detected on the whole plan first, taking
-    into account the directories the plan itself moves away or removes.
+    into account the directories the plan itself moves away or removes. A
+    write that fails while applying the plan is returned as an error.
     """
     index = ImplicitIndex.build(existing)
     matches = match_groups(series_targets(albums), index)
@@ -328,6 +399,18 @@ def refresh_implicit_collections(
     target_errors = _target_errors(plan)
     if target_errors:
         return ImplicitChanges(errors=target_errors)
-    if not dry_run:
-        _apply(plan)
-    return _changes(existing, plan)
+    changes = _changes(existing, plan)
+    try:
+        move_error = None if dry_run else _apply(plan)
+    except OSError as exc:
+        # A write outside the rolled-back moves (creating a collection).
+        return ImplicitChanges(errors=(filesystem_error(exc),))
+    return (
+        ImplicitChanges(
+            deleted=changes.deleted,
+            kept_directories=changes.kept_directories,
+            errors=(move_error,),
+        )
+        if move_error is not None
+        else changes
+    )

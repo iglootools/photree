@@ -1,11 +1,17 @@
 import csv
 import io
+from collections.abc import Callable
 from pathlib import Path
 
+import pytest
+
 from photree.album.id import format_album_external_id
+from photree.album.store.media_sources_discovery import MediaSourceConflictError
+from photree.cli import main
+from photree.common.fs import delete_files
 from photree.foundation.metadata_io import InvalidMetadataError
 from tests.fakes import invoke_cli
-from tests.testkit import add_ios_media_source, make_album
+from tests.testkit import add_ios_media_source, make_album, write_file
 
 
 def _write_csv(path: Path, rows: list[dict[str, str]]) -> None:
@@ -168,6 +174,62 @@ class TestAlbumsRenameFromCsv:
         assert "has no location column(s)" in result.output
         assert (tmp_path / "2024-06-15 - Trip @ Paris").is_dir()
 
+    def test_csv_that_is_not_utf8_is_reported(self, tmp_path: Path) -> None:
+        _, aid = make_album(tmp_path, "2024-06-15 - Old")
+        csv_file = tmp_path / "rename.csv"
+        csv_file.write_text(
+            f"id,series,title,location\n{format_album_external_id(aid)},,Été,\n",
+            encoding="latin-1",
+        )
+        result = invoke_cli(
+            ["albums", "rename-from-csv", str(csv_file), "-d", str(tmp_path)],
+        )
+        assert result.exit_code == 1, result.output
+        assert isinstance(result.exception, SystemExit)
+        assert "rename.csv is not UTF-8 text" in result.output
+        assert (tmp_path / "2024-06-15 - Old").is_dir()
+
+    def test_malformed_csv_is_reported_with_its_line(self, tmp_path: Path) -> None:
+        _, aid = make_album(tmp_path, "2024-06-15 - Old")
+        csv_file = tmp_path / "rename.csv"
+        oversized = "x" * (csv.field_size_limit() + 1)
+        csv_file.write_text(
+            f"id,series,title,location\n{format_album_external_id(aid)},,{oversized},\n",
+            encoding="utf-8",
+        )
+        result = invoke_cli(
+            ["albums", "rename-from-csv", str(csv_file), "-d", str(tmp_path)],
+        )
+        assert result.exit_code == 1, result.output
+        assert isinstance(result.exception, SystemExit)
+        assert "rename.csv, line 2: malformed CSV (field larger" in result.output
+        assert (tmp_path / "2024-06-15 - Old").is_dir()
+
+    def test_title_with_a_separator_renames_nothing(self, tmp_path: Path) -> None:
+        _, aid = make_album(tmp_path, "2024-06-15 - Trip")
+        csv_file = tmp_path / "rename.csv"
+        _write_csv(
+            csv_file,
+            [
+                {
+                    "id": format_album_external_id(aid),
+                    "series": "",
+                    "title": "Paris @ Night",
+                    "location": "",
+                },
+            ],
+        )
+        result = invoke_cli(
+            ["albums", "rename-from-csv", str(csv_file), "-d", str(tmp_path)],
+        )
+        assert result.exit_code == 1, result.output
+        output = " ".join(result.output.split())
+        assert (
+            "2024-06-15 - Paris @ Night would read back as another series,"
+            " title or location"
+        ) in output
+        assert (tmp_path / "2024-06-15 - Trip").is_dir()
+
     def test_duplicate_ids_suggest_new_ids_for_the_copy_only(
         self,
         tmp_path: Path,
@@ -203,3 +265,51 @@ class TestAlbumsRenameFromCsv:
         assert result.exit_code == 1
         assert isinstance(result.exception, InvalidMetadataError)
         assert result.exception.path == album_dir / ".photree" / "album.yaml"
+
+
+class TestMain:
+    def test_reports_a_partial_deletion(
+        self,
+        tmp_path: Path,
+        chdir: Callable[[Path], None],
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """A deletion that stops partway says which files are already gone."""
+        jpg_dir = tmp_path / "album/main-jpg"
+        write_file(jpg_dir / "IMG_0001.jpg")
+
+        def _delete(**_: object) -> None:
+            delete_files(jpg_dir, ["IMG_0001.jpg", "IMG_0002.jpg"], dry_run=False)
+
+        chdir(tmp_path)
+
+        with pytest.raises(SystemExit) as exc_info:
+            main(run=_delete)
+
+        assert exc_info.value.code == 1
+        err = capsys.readouterr().err
+        assert "Could not delete IMG_0002.jpg from album/main-jpg" in err
+        assert "Already deleted from album/main-jpg before it failed:" in err
+
+    def test_reports_media_source_conflict(
+        self,
+        tmp_path: Path,
+        chdir: Callable[[Path], None],
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """A conflict no command wrapped ends in a message and exit 1."""
+        album = tmp_path / "2024-07-14 - Trip [private]"
+
+        def _raise(**_: object) -> None:
+            raise MediaSourceConflictError(album, ("main",))
+
+        chdir(tmp_path)
+
+        with pytest.raises(SystemExit) as exc_info:
+            main(run=_raise)
+
+        assert exc_info.value.code == 1
+        err = capsys.readouterr().err
+        assert "ios-<name>/ and std-<name>/" in err
+        # Relative, and "[private]" is not swallowed as Rich markup.
+        assert "2024-07-14 - Trip [private] has both" in err

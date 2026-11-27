@@ -6,7 +6,7 @@ from functools import partial
 from pathlib import Path
 
 from photree.album import fix as album_fixes
-from photree.album.fix.output import format_fix_result
+from photree.album.fix import FixResult
 from photree.album.id import generate_album_id
 from photree.album.store.metadata import load_album_metadata, save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
@@ -21,12 +21,16 @@ from photree.albums.cmd_handler import (
 
 @dataclass(frozen=True)
 class BatchFixResult:
-    """Result of batch album fixing: how many albums were fixed, failures, reports."""
+    """
+    Result of batch album fixing: how many albums were fixed, failures, results.
+
+    *album_results* pairs each album's display name with what its file fixes
+    (``--rm-upstream``, ``--rm-orphan``) did, for every album that ran them.
+    """
 
     fixed: int
     failures: tuple[BatchFailure, ...] = ()
-    # (album display name, report) for each album whose fix had something to say
-    album_reports: tuple[tuple[str, str], ...] = ()
+    album_results: tuple[tuple[str, FixResult], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -40,22 +44,23 @@ class _FixOptions:
     generate_id: Callable[[], str]
 
 
-def _fix_one(album_dir: Path, opts: _FixOptions) -> str:
-    """Fix one album; returns its report ("" when there is nothing to say)."""
+def _fix_one(album_dir: Path, opts: _FixOptions) -> FixResult | None:
+    """Fix one album; return what its file fixes did, ``None`` when none ran."""
     needs_id = (opts.fix_id and load_album_metadata(album_dir) is None) or opts.new_id
     if needs_id and not opts.dry_run:
         save_album_metadata(album_dir, AlbumMetadata(id=opts.generate_id()))
 
-    if not (opts.rm_upstream or opts.rm_orphan):
-        return ""
-    result = album_fixes.run_fix(
-        album_dir,
-        dry_run=opts.dry_run,
-        rm_upstream_flag=opts.rm_upstream,
-        rm_orphan_flag=opts.rm_orphan,
-        force=opts.force,
+    return (
+        album_fixes.run_fix(
+            album_dir,
+            dry_run=opts.dry_run,
+            rm_upstream_flag=opts.rm_upstream,
+            rm_orphan_flag=opts.rm_orphan,
+            force=opts.force,
+        )
+        if opts.rm_upstream or opts.rm_orphan
+        else None
     )
-    return "\n".join(format_fix_result(result, dry_run=opts.dry_run))
 
 
 def batch_fix(
@@ -101,5 +106,5 @@ def batch_fix(
     return BatchFixResult(
         fixed=len(albums) - len(failures),
         failures=failures,
-        album_reports=tuple((o.name, o.value) for o in outcomes if o.value),
+        album_results=tuple((o.name, o.value) for o in outcomes if o.value is not None),
     )

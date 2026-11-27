@@ -18,7 +18,11 @@ def run_batch_init(
     dry_run: bool = False,
     cwd: Path,
 ) -> None:
-    """Initialize the metadata of *albums*, print a summary, exit 1 on any failure."""
+    """
+    Initialize the metadata of *albums*, print a summary, exit 1 on any failure.
+
+    Albums that already have an ID are skipped, not failed.
+    """
     exit_if_no_albums(albums, display_base)
 
     with BatchProgressBar(
@@ -32,6 +36,11 @@ def run_batch_init(
             display_fn=make_display_fn(display_base, cwd),
             on_start=progress.on_start,
             on_end=progress.on_end,
+            on_already_initialized=lambda name, album_id: progress.on_skipped(
+                name,
+                f"already initialized: {album_id}",
+                warn=True,
+            ),
         )
 
     typer.echo(
@@ -40,6 +49,11 @@ def run_batch_init(
                 f"\n{result.initialized} album(s) would be initialized"
                 if dry_run
                 else f"\nDone. {result.initialized} album(s) initialized"
+            )
+            + (
+                f", {result.skipped} already initialized (skipped)"
+                if result.skipped
+                else ""
             )
             + f", {len(result.failures)} failed.",
             dry_run=dry_run,

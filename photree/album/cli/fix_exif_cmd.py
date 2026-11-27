@@ -1,8 +1,9 @@
 """The ``photree album fix-exif`` command."""
 
 import shlex
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Annotated
 
@@ -28,12 +29,12 @@ from photree.common.fs import display_path
 
 @dataclass(frozen=True)
 class _SetDate:
-    date: str
+    date: date
 
 
 @dataclass(frozen=True)
 class _SetDateTime:
-    timestamp: str
+    timestamp: datetime
 
 
 @dataclass(frozen=True)
@@ -49,7 +50,6 @@ class _ShiftTime:
 type _Operation = _SetDate | _SetDateTime | _ShiftDate | _ShiftTime
 
 
-_DATE_PARTS = 3  # YYYY-MM-DD
 _OPERATION_OPTIONS = ("--set-date", "--set-date-time", "--shift-date", "--shift-time")
 
 
@@ -59,12 +59,18 @@ def _select_operation(
     shift_date: int | None,
     shift_time: int | None,
 ) -> _Operation:
-    """Turn the four mutually exclusive flags into one operation, or a usage error."""
+    """
+    Turn the four mutually exclusive flags into one operation, or a usage error.
+
+    A date or timestamp that names no real moment is a usage error too: it
+    would otherwise be written in place into every file given, typically the
+    archive originals.
+    """
     match (set_date, set_date_time, shift_date, shift_time):
-        case (str() as date, None, None, None):
-            return _SetDate(date)
-        case (None, str() as timestamp, None, None):
-            return _SetDateTime(timestamp)
+        case (str() as value, None, None, None):
+            return _SetDate(_parse_date(value))
+        case (None, str() as value, None, None):
+            return _SetDateTime(_parse_timestamp(value))
         case (None, None, int() as days, None):
             return _ShiftDate(days)
         case (None, None, None, int() as hours):
@@ -75,27 +81,56 @@ def _select_operation(
             raise mutually_exclusive_error(_OPERATION_OPTIONS)
 
 
-def _validate_operation(operation: _Operation) -> None:
-    match operation:
-        case _SetDate(date):
-            parts = date.split("-")
-            if len(parts) != _DATE_PARTS or not all(p.isdigit() for p in parts):
-                raise invalid_value_error(
-                    name="date",
-                    value=date,
-                    expected="YYYY-MM-DD",
-                )
+def _parse_date(value: str) -> date:
+    """Parse ``--set-date``, raising a usage error for anything but a real date."""
+    match _parse_or_none(date.fromisoformat, value):
+        case date() as parsed:
+            return parsed
+        case None:
+            raise invalid_value_error(
+                name="date",
+                value=value,
+                expected="a calendar date as YYYY-MM-DD",
+            )
+
+
+def _parse_timestamp(value: str) -> datetime:
+    """
+    Parse ``--set-date-time``, raising a usage error unless it is a date and time.
+
+    A bare date parses as an ISO timestamp at midnight; it is refused, since
+    a user who means to keep each file's time passes ``--set-date``.
+    """
+    match _parse_or_none(datetime.fromisoformat, value):
+        case datetime() as parsed if _parse_or_none(date.fromisoformat, value) is None:
+            return parsed
         case _:
-            pass
+            raise invalid_value_error(
+                name="timestamp",
+                value=value,
+                expected="an ISO date and time, such as 2024-07-20T13:55:20",
+            )
+
+
+def _parse_or_none[T](parse: Callable[[str], T], value: str) -> T | None:
+    try:
+        return parse(value)
+    except ValueError:
+        return None
+
+
+def _iso_timestamp(timestamp: datetime) -> str:
+    """Return *timestamp* as ``YYYY-MM-DDTHH:MM:SS``, with its offset if any."""
+    return timestamp.isoformat(timespec="seconds")
 
 
 def _plan(operation: _Operation, files: list[Path]) -> tuple[ExifDateChange, ...]:
     """Read *files* and return what *operation* would change, writing nothing."""
     match operation:
-        case _SetDate(date):
-            return album_exif.plan_exif_date(files, date)
+        case _SetDate(day):
+            return album_exif.plan_exif_date(files, day.isoformat())
         case _SetDateTime(timestamp):
-            return album_exif.plan_exif_date_time(files, timestamp)
+            return album_exif.plan_exif_date_time(files, _iso_timestamp(timestamp))
         case _ShiftDate(days):
             return album_exif.plan_exif_shift(files, timedelta(days=days))
         case _ShiftTime(hours):
@@ -112,7 +147,7 @@ def _write(
         case _SetDate():
             common_exif.write_exif_date_changes(changes)
         case _SetDateTime(timestamp):
-            common_exif.set_exif_date_time(files, timestamp)
+            common_exif.set_exif_date_time(files, _iso_timestamp(timestamp))
         case _ShiftDate(days):
             common_exif.shift_exif_date(files, days)
         case _ShiftTime(hours):
@@ -218,7 +253,6 @@ def fix_exif_cmd(
     operation = _select_operation(set_date, set_date_time, shift_date, shift_time)
     if not files:
         raise no_files_error()
-    _validate_operation(operation)
     require_system_deps(EXIF_DEPS, which=runtime.which)
 
     paths = [Path(f) for f in files]

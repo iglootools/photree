@@ -11,6 +11,7 @@ from photree.album.cli.media_source_conflict import exit_on_media_source_conflic
 from photree.album.fix import (
     FixValidationError,
     MissingArchiveError,
+    RmUpstreamIncompleteSignalError,
     RmUpstreamRefusedError,
 )
 from photree.album.fix.output import format_fix_result
@@ -24,6 +25,7 @@ from photree.clihelpers.options import (
     RM_ORPHAN_OPTION,
     RM_UPSTREAM_OPTION,
 )
+from photree.clihelpers.paths import expand_user_path
 from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.usage import invalid_fix_error
 from photree.common.formatting import format_dry_run, format_flags
@@ -39,9 +41,8 @@ def fix_cmd(
             "--album-dir",
             "-a",
             help="Album directory to fix.",
-            exists=True,
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(exists=True),
         ),
     ] = Path(),
     *,
@@ -75,7 +76,9 @@ def fix_cmd(
     --rm-upstream: Propagates deletions from browsing directories to
     upstream directories. A missing browsing directory, or an empty
     {name}-jpg/, is never taken as "everything was deleted"; a run that
-    would delete every item of an archive is refused unless --force.
+    would delete every item of an archive is refused unless --force. A
+    browsing directory that a failed or interrupted refresh left incomplete
+    is refused even with --force: run 'photree album refresh' first.
 
     --rm-orphan: Deletes edited and main files whose key has no
     corresponding original file in orig-img/ or orig-vid/.
@@ -153,6 +156,9 @@ def _run_archive_fixes(
                 markup=False,
             )
             raise typer.Exit(code=1) from exc
+        except RmUpstreamIncompleteSignalError as exc:
+            _print_incomplete_signal(exc, album_dir, cwd)
+            raise typer.Exit(code=1) from exc
         except MissingArchiveError as exc:
             err_console.print(
                 f"Archive directory {exc.archive_dir} does not exist in "
@@ -163,4 +169,23 @@ def _run_archive_fixes(
             raise typer.Exit(code=1) from exc
 
     for line in format_fix_result(result, dry_run=dry_run):
-        typer.echo(format_dry_run(line, dry_run=dry_run))
+        typer.echo(line)
+
+
+def _print_incomplete_signal(
+    exc: RmUpstreamIncompleteSignalError,
+    album_dir: Path,
+    cwd: Path,
+) -> None:
+    dirs = ", ".join(f"{d}/" for d in exc.directories)
+    err_console.print(
+        f'Refusing to propagate deletions from media source "{exc.media_source}": '
+        f"the last refresh failed or was interrupted while writing {dirs}, so the "
+        "files missing there are not deletions.",
+        markup=False,
+    )
+    err_console.print(
+        f"Run 'photree album refresh --album-dir \"{display_path(album_dir, cwd)}\"' "
+        "first, then delete again any file it restores that you meant to remove.",
+        markup=False,
+    )

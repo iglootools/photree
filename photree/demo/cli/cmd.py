@@ -35,7 +35,11 @@ from photree.album.importer.testkit.preflight import (
 )
 from photree.album.importer.testkit.validation import VALIDATION_ERRORS
 from photree.album.stats.testkit import ALBUM_STATS, ALBUMS_STATS
-from photree.clihelpers.console import console
+from photree.albums.output import importer as batch_import_output
+from photree.clihelpers.console import console, err_console
+from photree.clihelpers.paths import expand_user_path
+from photree.clihelpers.runtime import runtime_of
+from photree.common.fs import display_path
 
 app = typer.Typer(
     name="demo",
@@ -67,19 +71,7 @@ def _panel(title: str, content: str) -> None:
 # every sample. Grouped by the module whose output functions they exercise.
 _SAMPLES: tuple[tuple[str, Callable[[], str]], ...] = (
     (
-        "album_output.sips_check(available=True)",
-        lambda: album_output.sips_check(available=True),
-    ),
-    (
-        "album_output.sips_check(available=False)",
-        lambda: album_output.sips_check(available=False),
-    ),
-    (
-        "troubleshoot_output.sips_troubleshoot()",
-        troubleshoot_output.sips_troubleshoot,
-    ),
-    (
-        "preflight_output.rm_upstream_summary()",
+        "fix_output.rm_upstream_summary()",
         lambda: rm_upstream_summary(
             heic_jpeg=2,
             heic_browsable=3,
@@ -90,24 +82,33 @@ _SAMPLES: tuple[tuple[str, Callable[[], str]], ...] = (
         ),
     ),
     (
-        "integrity_output.format_integrity_checks (all ok)",
+        "album_output.format_integrity_checks (all ok)",
         lambda: format_integrity_checks(INTEGRITY_OK),
     ),
     (
-        "integrity_output.format_integrity_checks (failures)",
+        "album_output.format_integrity_checks (failures)",
         lambda: format_integrity_checks(INTEGRITY_FAILURES),
     ),
     (
         "album_output.format_album_preflight_checks (ios, all ok)",
-        lambda: album_output.format_album_preflight_checks(PREFLIGHT_OK),
+        lambda: album_output.format_album_preflight_checks(
+            PREFLIGHT_OK,
+            album_dir="/path/to/album",
+        ),
     ),
     (
         "album_output.format_album_preflight_checks (ios, failures)",
-        lambda: album_output.format_album_preflight_checks(PREFLIGHT_FAILURES),
+        lambda: album_output.format_album_preflight_checks(
+            PREFLIGHT_FAILURES,
+            album_dir="/path/to/album",
+        ),
     ),
     (
         "album_output.format_album_preflight_checks (other)",
-        lambda: album_output.format_album_preflight_checks(PREFLIGHT_STD),
+        lambda: album_output.format_album_preflight_checks(
+            PREFLIGHT_STD,
+            album_dir="/path/to/album",
+        ),
     ),
     (
         "troubleshoot_output.format_album_preflight_troubleshoot (failures)",
@@ -238,8 +239,8 @@ _SAMPLES: tuple[tuple[str, Callable[[], str]], ...] = (
         ),
     ),
     (
-        "importer_output.batch_summary()",
-        lambda: importer_output.batch_summary(imported=5, skipped=2),
+        "batch_import_output.batch_summary()",
+        lambda: batch_import_output.batch_summary(imported=5, skipped=2),
     ),
     (
         "importer_output.validation_errors()",
@@ -338,8 +339,13 @@ def _commands_panel(result: SeedResult, album_name: str) -> Panel:
     )
 
 
+def _is_non_empty_dir(path: Path) -> bool:
+    return path.is_dir() and any(path.iterdir())
+
+
 @app.command("seed")
 def seed_cmd(
+    ctx: typer.Context,
     base_dir: Annotated[
         Path | None,
         typer.Option(
@@ -347,6 +353,7 @@ def seed_cmd(
             "-d",
             help="Directory to create the demo in. Default: creates a temp directory.",
             file_okay=False,
+            callback=expand_user_path(resolve=False),
         ),
     ] = None,
     album_name: Annotated[
@@ -356,13 +363,34 @@ def seed_cmd(
             help="Album name.",
         ),
     ] = "2024-06-15 - Demo Album",
+    *,
+    force: Annotated[
+        bool,
+        typer.Option(
+            "--force",
+            help="Seed into a --base-dir that is not empty, overwriting files.",
+        ),
+    ] = False,
 ) -> None:
     """Generate a demo environment with Image Capture files and an album."""
+    runtime = runtime_of(ctx)
+    if base_dir is not None and _is_non_empty_dir(base_dir) and not force:
+        err_console.print(
+            f"{display_path(base_dir, runtime.cwd())} is not empty: seeding "
+            "would overwrite files with the demo's names.\n"
+            "Re-run with --force to seed into it anyway, or pick a new directory.",
+            markup=False,
+        )
+        raise typer.Exit(code=1)
     resolved_base = (
         base_dir
         if base_dir is not None
         else Path(tempfile.mkdtemp(prefix="photree-demo-"))
     )
-    result = seed_demo(resolved_base, album_name=album_name)
+    result = seed_demo(
+        resolved_base,
+        album_name=album_name,
+        which=runtime.which,
+    )
     console.print(_summary_panel(result, album_name))
     console.print(_commands_panel(result, album_name))

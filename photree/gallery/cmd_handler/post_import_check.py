@@ -5,6 +5,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from photree.album import check as album_check
+from photree.album.check.output.album import format_check_labels
 from photree.common.exif import ExifTagReader, exiftool_session
 from photree.common.progress import ItemEnd
 from photree.common.sysdeps import WhichFn
@@ -15,7 +16,6 @@ def run_batch_post_import_check(
     targets: list[Path],
     *,
     link_mode: LinkMode,
-    sips_available: bool,
     display_fn: Callable[[Path], str] = lambda p: p.name,
     on_start: Callable[[str], None] | None = None,
     on_end: ItemEnd | None = None,
@@ -24,9 +24,9 @@ def run_batch_post_import_check(
     """
     Run post-import checks on imported albums.
 
-    *sips_available* is probed and *link_mode* resolved by the caller (the CLI
-    layer owns PATH and gallery lookups). Returns the list of albums that failed
-    checking.
+    *link_mode* is resolved by the caller (the CLI layer owns gallery
+    lookups), which has already gated on the system dependencies the check
+    needs. Returns the list of albums that failed checking.
     """
     with exiftool_session(which=which) as exiftool:
         passed = [
@@ -34,7 +34,6 @@ def run_batch_post_import_check(
                 target_dir,
                 display_fn(target_dir),
                 link_mode=link_mode,
-                sips_available=sips_available,
                 exiftool=exiftool,
                 on_start=on_start,
                 on_end=on_end,
@@ -49,7 +48,6 @@ def _check_one(
     target_name: str,
     *,
     link_mode: LinkMode,
-    sips_available: bool,
     exiftool: ExifTagReader | None,
     on_start: Callable[[str], None] | None,
     on_end: ItemEnd | None,
@@ -59,7 +57,6 @@ def _check_one(
         on_start(target_name)
     check_result = album_check.run_album_check(
         target_dir,
-        sips_available=sips_available,
         exiftool=exiftool,
         link_mode=link_mode,
     )
@@ -67,6 +64,6 @@ def _check_one(
         on_end(
             target_name,
             success=check_result.success,
-            error_labels=check_result.error_labels,
+            error_labels=format_check_labels(check_result.failures),
         )
     return check_result.success

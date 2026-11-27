@@ -15,6 +15,7 @@ from photree.collection.naming import parse_collection_name
 from photree.collection.refresh.result import (
     CollectionRefreshError,
     CollectionRefreshErrorKind,
+    filesystem_error,
 )
 from photree.collection.refresh.scan import AlbumInfo, ExistingCollection
 from photree.collection.store.protocol import CollectionLifecycle
@@ -151,11 +152,31 @@ def sync_album_titles(
     conflicts = _rename_conflicts(plan)
     if conflicts:
         return TitleSync(albums=albums, errors=conflicts)
-    if not dry_run:
-        for old, new in plan:
-            old.path.rename(new.path)
-    renamed = {old.path: new for old, new in plan}
+    applied, error = (plan, None) if dry_run else _apply_renames(plan)
+    renamed = {old.path: new for old, new in applied}
     return TitleSync(
         albums=tuple(renamed.get(a.path, a) for a in albums),
-        renames=tuple((old.path.name, new.path.name) for old, new in plan),
+        renames=tuple((old.path.name, new.path.name) for old, new in applied),
+        errors=(error,) if error is not None else (),
     )
+
+
+def _apply_renames(
+    plan: list[tuple[AlbumInfo, AlbumInfo]],
+) -> tuple[list[tuple[AlbumInfo, AlbumInfo]], CollectionRefreshError | None]:
+    """
+    Rename the albums of *plan* in order, stopping at the first that fails.
+
+    Returns the renames done and the failure, so a refresh that stops part-way
+    still reports the albums it already renamed.
+    """
+    # Documented exception (docs/guidelines.md): per-item try/except, recording
+    # the renames done before a failure.
+    done: list[tuple[AlbumInfo, AlbumInfo]] = []
+    for old, new in plan:
+        try:
+            old.path.rename(new.path)
+        except OSError as exc:
+            return done, filesystem_error(exc)
+        done.append((old, new))
+    return done, None

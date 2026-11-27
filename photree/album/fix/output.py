@@ -2,6 +2,7 @@
 
 from photree.album.fix import FixResult, FixRmUpstreamResult
 from photree.album.fix.rm_upstream import RmUpstreamSkip, SignalSkipReason
+from photree.common.formatting import format_dry_run
 
 
 def rm_upstream_summary(
@@ -55,20 +56,41 @@ def rm_upstream_skip_line(skip: RmUpstreamSkip) -> str:
     return f"Skipped {skip.directory} as a deletion signal: {why}."
 
 
+def format_removal_summary(
+    removed_by_dir: tuple[tuple[str, tuple[str, ...]], ...],
+    *,
+    what: str,
+    none_found: str,
+    dry_run: bool = False,
+) -> str:
+    """
+    Return the line reporting the files a fix removed, per directory.
+
+    *what* names the removed files (``"orphan(s)"``), and *none_found* is the
+    sentence printed when there were none.
+    """
+    total = sum(len(files) for _, files in removed_by_dir)
+    if total == 0:
+        return none_found if dry_run else f"Done. {none_found}"
+    parts = ", ".join(f"{len(files)} from {name}" for name, files in removed_by_dir)
+    return (
+        f"Would remove {total} {what}: {parts}."
+        if dry_run
+        else f"Done. Removed {total} {what}: {parts}."
+    )
+
+
 def rm_orphan_summary(
     removed_by_dir: tuple[tuple[str, tuple[str, ...]], ...],
     *,
     dry_run: bool = False,
 ) -> str:
     """Return the line reporting the orphans removed, or that none were found."""
-    total = sum(len(files) for _, files in removed_by_dir)
-    if total == 0:
-        return "No orphans found." if dry_run else "Done. No orphans found."
-    parts = ", ".join(f"{len(files)} from {name}" for name, files in removed_by_dir)
-    return (
-        f"Would remove {total} orphan(s): {parts}."
-        if dry_run
-        else f"Done. Removed {total} orphan(s): {parts}."
+    return format_removal_summary(
+        removed_by_dir,
+        what="orphan(s)",
+        none_found="No orphans found.",
+        dry_run=dry_run,
     )
 
 
@@ -88,8 +110,13 @@ def _rm_upstream_lines(ru: FixRmUpstreamResult, *, dry_run: bool) -> list[str]:
 
 
 def format_fix_result(result: FixResult, *, dry_run: bool = False) -> list[str]:
-    """One line per requested fix; a dry run says what each would remove."""
-    return [
+    """
+    One line per requested fix; a dry run says what each would remove.
+
+    Each line of a dry run carries the ``[dry-run]`` label, since a batch
+    prints them apart from its own labelled summary.
+    """
+    lines = [
         *(
             ["No media sources found; nothing to fix."]
             if result.no_media_sources
@@ -106,6 +133,7 @@ def format_fix_result(result: FixResult, *, dry_run: bool = False) -> list[str]:
             else []
         ),
     ]
+    return [format_dry_run(line, dry_run=dry_run) for line in lines]
 
 
 def batch_fix_summary(fixed: int, failed: int, *, dry_run: bool = False) -> str:

@@ -16,6 +16,7 @@ from photree.albums.output import (
 )
 from photree.clihelpers.console import err_console
 from photree.clihelpers.options import DRY_RUN_OPTION
+from photree.clihelpers.paths import expand_user_path
 from photree.clihelpers.runtime import runtime_of
 
 
@@ -25,10 +26,9 @@ def rename_from_csv_cmd(
     csv_file: Annotated[
         Path,
         typer.Argument(
-            help="CSV with desired album state (from list --format csv, edited).",
-            exists=True,
+            help="CSV with desired album state (from list --output csv, edited).",
             dir_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(exists=True),
         ),
     ],
     base_dir: DIR_OPTION = None,
@@ -37,7 +37,7 @@ def rename_from_csv_cmd(
     dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """
-    Rename albums from a CSV file (from list --format csv, edited).
+    Rename albums from a CSV file (from list --output csv, edited).
 
     Uses the album ID to look up each album, then compares the
     current series, title, and location against the CSV values. Only albums
@@ -45,8 +45,9 @@ def rename_from_csv_cmd(
     tags) are preserved from the current on-disk album name.
 
     The CSV needs the id, series, title and location columns; other columns
-    are ignored. A missing column, or an album ID on more than one row, stops
-    the run before anything is renamed.
+    are ignored. A missing column, an album ID on more than one row, or a
+    field that would not read back from the new name (one holding '/', ' - ',
+    ' @ ' or a '[tag]') stops the run before anything is renamed.
     """
     runtime = runtime_of(ctx)
     cwd = runtime.cwd()

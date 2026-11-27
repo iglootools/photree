@@ -29,17 +29,20 @@ from photree.album.check.output.album import (
     format_face_state_check,
     format_integrity_checks,
 )
-from photree.album.check.output.batch import duplicate_ids_report
 from photree.album.check.output.derived import derived_failures_report
 from photree.album.check.output.troubleshoot import (
     format_album_preflight_troubleshoot,
 )
+from photree.album.check.std import OrphanEdits
 from photree.album.check.testkit import (
     INTEGRITY_FAILURES,
     IOS_INTEGRITY_OK,
     PREFLIGHT_OK,
     STD_INTEGRITY_FAILURES,
+    STD_INTEGRITY_OK,
 )
+from photree.album.exif_cache.protocol import ExifCache
+from photree.album.exif_cache.store import save_exif_cache
 from photree.album.faces.failures import FaceFailure, FaceFailureStage
 from photree.album.faces.protocol import (
     DEFAULT_MODEL_NAME,
@@ -51,7 +54,7 @@ from photree.album.faces.store import FaceData, save_face_data, save_face_state
 from photree.album.faces.testkit import write_legacy_face_data
 from photree.album.jpeg import JpegConversionFailure
 from photree.album.store.media_source import ios_media_source, std_media_source
-from photree.foundation.layout import PHOTREE_DIR
+from photree.albums.output.check import duplicate_ids_report
 
 MAIN = ios_media_source("main")
 
@@ -141,15 +144,13 @@ class TestExifCacheState:
         assert check_exif_cache_state(tmp_path, [MAIN]) is None
 
     def test_complete_cache_reports_success(self, tmp_path: Path) -> None:
-        cache_dir = tmp_path / PHOTREE_DIR / "cache" / "exif"
-        cache_dir.mkdir(parents=True)
-        (cache_dir / "main.yaml").write_text("files: {}\n", encoding="utf-8")
+        save_exif_cache(tmp_path, MAIN.name, ExifCache())
 
         check = check_exif_cache_state(tmp_path, [MAIN])
 
         assert check is not None
         assert check.success
-        assert "exif cache" in format_exif_cache_check(check)
+        assert "exif cache" in format_exif_cache_check(check, album_dir="album")
 
 
 class TestIntegrityOutputLabels:
@@ -190,6 +191,32 @@ class TestStdDuplicateStems:
         assert troubleshoot is not None
         assert "--refresh-browsable" in troubleshoot
         assert "sharing a stem" in troubleshoot
+
+
+class TestStdOrphanEdits:
+    _RESULT = AlbumIntegrityResult(
+        by_media_source=(
+            (
+                std_media_source("nelu"),
+                replace(
+                    STD_INTEGRITY_OK,
+                    orphan_edits=(OrphanEdits("edit-img", ("b.jpg",)),),
+                ),
+            ),
+        ),
+    )
+
+    def test_orphan_edits_are_printed(self) -> None:
+        output = format_integrity_checks(self._RESULT)
+        assert "orphan edits" in output
+        assert "edit-img/: no original with the same stem for b.jpg" in output
+
+    def test_orphan_edits_get_suggestions(self) -> None:
+        preflight = replace(PREFLIGHT_OK, integrity=self._RESULT)
+        troubleshoot = format_album_preflight_troubleshoot(preflight, "album")
+        assert troubleshoot is not None
+        assert "Put the original of each orphan edit" in troubleshoot
+        assert "--rm-orphan" in troubleshoot
 
 
 def _render(markup: str) -> str:
@@ -268,23 +295,38 @@ class TestCacheCheckOutput:
             ),
         )
 
-        output = _render(format_face_state_check(check))
+        output = _render(format_face_state_check(check, album_dir="trips/Hike [1]"))
 
         assert "✗ face state (3 issue(s))" in output
         assert "model version mismatch" in output
         assert "main [old]: .yaml records faces but the .npz is missing" in output
         assert "nelu: .npz array lengths inconsistent" in output
-        assert "photree album detect-faces --redetect" in output
+        assert (
+            "Run 'photree album refresh --album-dir \"trips/Hike [1]\"' or 'photree"
+            ' album detect-faces --album-dir "trips/Hike [1]" --redetect\' to fix.'
+        ) in " ".join(output.split())
 
     def test_exif_cache_lists_at_most_five_sources(self) -> None:
         sources = tuple(f"ms{i} [x]" for i in range(7))
 
-        output = _render(format_exif_cache_check(ExifCacheStateCheck(sources)))
+        output = _render(
+            format_exif_cache_check(ExifCacheStateCheck(sources), album_dir="album"),
+        )
 
         assert "✗ exif cache (7 issue(s))" in output
         assert "missing cache: ms0 [x], ms1 [x], ms2 [x], ms3 [x], ms4 [x]" in output
         assert "ms5 [x]" not in output
         assert "... and 2 more" in output
+
+    def test_exif_cache_fix_targets_the_album(self) -> None:
+        output = _render(
+            format_exif_cache_check(ExifCacheStateCheck(("main",)), album_dir="a b"),
+        )
+
+        assert (
+            "Run 'photree album refresh --album-dir \"a b\"' or 'photree album"
+            ' check --album-dir "a b" --refresh-exif-cache\' to fix.'
+        ) in " ".join(output.split())
 
 
 class TestMediaSourceConflictTroubleshoot:

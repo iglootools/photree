@@ -86,11 +86,14 @@ What each layout and link mode produces is described under `album export` in
 [cli-reference.md](cli-reference.md#photree-album-export).
 
 Two rules apply to the export settings once flags and the profile are combined,
-not to the file on its own, and fail the export with exit code 1:
+not to the file on its own:
 
-- `share-layout = "albums"` requires `album-layout = "all"`.
+- `share-layout = "albums"` requires `album-layout = "all"`. Breaking it is a
+  usage error and exits 2, as does selecting a profile the file does not
+  define, or giving neither `--share-dir` nor `--profile`.
 - `share-dir` must contain a `.photree-share` sentinel file, so an export cannot
-  write into a directory that was not prepared for it.
+  write into a directory that was not prepared for it. A missing sentinel
+  depends on the disk, such as a volume that is not mounted, and exits 1.
 
 ## Errors
 

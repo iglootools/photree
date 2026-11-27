@@ -1,12 +1,14 @@
 """Batch album renaming from a CSV file."""
 
 import csv as csv_mod
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 from photree.albums.renamer import (
     RenameAction,
+    RenameCsvFormatError,
+    RenameCsvFormatErrorKind,
     RenameFailure,
     RenamePlanError,
     check_rename_collisions,
@@ -32,6 +34,32 @@ class BatchRenameResult:
     failure: RenameFailure | None = None
 
 
+def _read_csv(csv_file: Path) -> tuple[list[dict[str, str]], Sequence[str] | None]:
+    """
+    Return the CSV's rows and header, the header ``None`` for an empty file.
+
+    Raises :class:`RenameCsvFormatError` when the file is not UTF-8 or the
+    CSV parser rejects it.
+    """
+    try:
+        # utf-8-sig: a spreadsheet that saves the CSV with a byte order mark
+        # would otherwise turn the first column into "\ufeffid".
+        with csv_file.open(encoding="utf-8-sig", newline="") as f:
+            reader = csv_mod.DictReader(f)
+            try:
+                return list(reader), reader.fieldnames
+            except csv_mod.Error as exc:
+                # The inner reader's count: DictReader updates its own only
+                # after a row parses, so it names the line before the bad one.
+                raise RenameCsvFormatError(
+                    RenameCsvFormatErrorKind.MALFORMED,
+                    line=reader.reader.line_num,
+                    reason=str(exc),
+                ) from exc
+    except UnicodeDecodeError as exc:
+        raise RenameCsvFormatError(RenameCsvFormatErrorKind.NOT_UTF8) from exc
+
+
 def batch_rename_from_csv(
     index: Mapping[str, Path],
     csv_file: Path,
@@ -41,15 +69,12 @@ def batch_rename_from_csv(
     """
     Plan and execute album renames from a CSV file.
 
-    Raises :class:`RenameCsvColumnsError` when the CSV lacks a column a
+    Raises :class:`RenameCsvFormatError` when the file is not UTF-8 or not
+    valid CSV, :class:`RenameCsvColumnsError` when the CSV lacks a column a
     rename needs, and :class:`RenameCollisionError` when renames would collide.
     """
-    # utf-8-sig: a spreadsheet that saves the CSV with a byte order mark would
-    # otherwise turn the first column into "\ufeffid".
-    with Path(csv_file).open(encoding="utf-8-sig", newline="") as f:
-        reader = csv_mod.DictReader(f)
-        rows = list(reader)
-    validate_rename_csv_columns(reader.fieldnames)
+    rows, fieldnames = _read_csv(csv_file)
+    validate_rename_csv_columns(fieldnames)
 
     actions, errors = plan_renames_from_csv(rows, index)
     if errors or not actions:

@@ -14,7 +14,11 @@ on:
       - "**/uv.lock"
   schedule:
     - cron: "30 18 * * 1"
+  # Manually trigger the workflow using
+  # gh workflow run uv-dependency-submission.yml # --ref <branch>
+  # gh run list --workflow uv-dependency-submission.yml # --branch <branch>
   workflow_dispatch:
+  repository_dispatch:
 
 # Nothing at workflow level: the write grant below is scoped to the one job that needs it.
 permissions: {}

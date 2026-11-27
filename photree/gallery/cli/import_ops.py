@@ -161,16 +161,20 @@ def post_import_check(
     with exiftool_session(which=which) as exiftool:
         check_result = album_check.run_album_check(
             target_dir,
-            # The import gate (import_deps) already required sips.
-            sips_available=True,
             exiftool=exiftool,
             link_mode=link_mode,
         )
-    console.print(album_output.format_album_preflight_checks(check_result))
+    target_display = str(display_path(target_dir, cwd))
+    console.print(
+        album_output.format_album_preflight_checks(
+            check_result,
+            album_dir=target_display,
+        ),
+    )
     if not check_result.success:
         err_console.print(
             "\nTo investigate, run 'photree album check --album-dir "
-            f'"{display_path(target_dir, cwd)}"\'.',
+            f'"{target_display}"\'.',
             markup=False,
         )
     return check_result.success
@@ -256,8 +260,6 @@ def run_batch_post_import_check(
         return _run_batch_post_import_check(
             imported_targets,
             link_mode=link_mode,
-            # The import gate (import_deps) already required sips.
-            sips_available=True,
             which=which,
             display_fn=lambda p: str(display_path(p, cwd)),
             on_start=check_progress.on_start,

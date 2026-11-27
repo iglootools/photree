@@ -18,7 +18,12 @@ def init_cmd(
     *,
     dry_run: DRY_RUN_OPTION = False,
 ) -> None:
-    """Initialize album metadata (.photree/album.yaml) for multiple albums."""
+    """
+    Initialize album metadata (.photree/album.yaml) for multiple albums.
+
+    Albums that already have an ID are skipped and keep it, so re-running
+    init over a directory initializes only the albums added since.
+    """
     runtime = runtime_of(ctx)
     cwd = runtime.cwd()
     albums, display_base = resolve_init_batch_albums(base_dir, album_dirs, cwd=cwd)

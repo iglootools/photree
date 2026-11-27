@@ -20,18 +20,14 @@ from photree.album.store.media_metadata import (
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
 from tests.fakes import invoke_cli
-
-
-def _write(path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(f"data-{path.name}", encoding="utf-8")
+from tests.testkit import write_file
 
 
 def _album(path: Path, files: list[str]) -> Path:
     path.mkdir(parents=True)
     save_album_metadata(path, AlbumMetadata(id=generate_album_id()))
     for rel in files:
-        _write(path / rel)
+        write_file(path / rel, f"data-{Path(rel).name}")
     return path
 
 
@@ -211,11 +207,24 @@ class TestListMedia:
             f"      {format_video_external_id(video_id)}: 0002",
         ]
 
+    def test_human_output_is_written_to_the_file(self, tmp_path: Path) -> None:
+        # Regression: the human format printed to stdout and ignored --file.
+        album, _, image_id, _ = _album_with_ids(tmp_path / "trip")
+        out = tmp_path / "out.txt"
+
+        result = invoke_cli(
+            ["album", "list-media", "--album-dir", str(album), "-f", str(out)],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert format_image_external_id(image_id) in out.read_text(encoding="utf-8")
+        assert result.output == ""
+
     def test_csv_has_the_header_scripts_read(self, tmp_path: Path) -> None:
         album, album_id, image_id, video_id = _album_with_ids(tmp_path / "trip")
 
         result = invoke_cli(
-            ["album", "list-media", "--album-dir", str(album), "--format", "csv"],
+            ["album", "list-media", "--album-dir", str(album), "--output", "csv"],
         )
 
         assert result.exit_code == 0, result.output

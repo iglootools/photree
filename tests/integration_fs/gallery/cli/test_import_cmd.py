@@ -166,6 +166,77 @@ class TestClobberGuard:
         assert "a different album already occupies" in result.output
         assert "Rename the source album before importing." in result.output
 
+    def test_non_album_directory_at_the_target_refused(self, tmp_path: Path) -> None:
+        gallery = make_gallery(tmp_path, faces_enabled=False)
+        occupant = gallery / "albums" / "2024" / "2024-07-14 - Hiking"
+        write_file(occupant / "notes.txt", "keep me")
+        source = _make_source(
+            tmp_path / "src",
+            "2024-07-14 - Hiking",
+            album_id=generate_album_id(),
+        )
+
+        result = invoke_cli(
+            ["gallery", "import", "-a", str(source), "-g", str(gallery), "--reimport"],
+        )
+
+        assert result.exit_code == 1
+        assert "a directory that is not an album (no album.yaml)" in result.output
+        assert (occupant / "notes.txt").read_text(encoding="utf-8") == "keep me"
+
+
+class TestGalleryDuplicateIds:
+    def test_source_whose_id_several_gallery_albums_share_is_refused(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = make_gallery(tmp_path, faces_enabled=False)
+        album_id = generate_album_id()
+        _place_gallery_album(gallery, "2024-07-14 - Hiking", album_id=album_id)
+        _place_gallery_album(gallery, "2024-07-15 - Hiking copy", album_id=album_id)
+        source = _make_source(
+            tmp_path / "src",
+            "2024-07-14 - Hiking",
+            album_id=album_id,
+        )
+
+        result = invoke_cli(
+            ["gallery", "import", "-a", str(source), "-g", str(gallery), "--reimport"],
+        )
+
+        assert result.exit_code == 1
+        assert "is shared by several gallery albums" in result.output
+        assert "photree albums fix --new-id --album-dir" in result.output
+
+
+class TestInterruptedReimport:
+    def test_hidden_album_aborts_with_the_name_to_restore(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = make_gallery(tmp_path, faces_enabled=False)
+        album_id = generate_album_id()
+        album = _place_gallery_album(
+            gallery,
+            "2024-07-14 - Hiking",
+            album_id=album_id,
+        )
+        album.rename(album.with_name(f".{album.name}.old"))
+        source = _make_source(
+            tmp_path / "src",
+            "2024-07-14 - Hiking",
+            album_id=album_id,
+        )
+
+        result = invoke_cli(
+            ["gallery", "import", "-a", str(source), "-g", str(gallery), "--reimport"],
+        )
+
+        assert result.exit_code == 1
+        assert "an interrupted reimport left this album hidden" in result.output
+        assert f"Rename it back to {album}" in result.output
+        assert not album.exists()
+
 
 class TestDryRun:
     def test_dry_run_imports_nothing(self, tmp_path: Path) -> None:

@@ -25,13 +25,15 @@ TYPE_SPEED=40
 DEMO_COMMENT_COLOR=$CYAN
 
 DEMO_DIR="/tmp/photree-demo"
+# Outside DEMO_DIR: demo seed refuses a directory that is not empty.
+SIPS_SHIM_DIR="/tmp/photree-demo-shims"
 GALLERY="$DEMO_DIR/gallery"
 SHARE="$DEMO_DIR/share"
 
 # Pause between commands so the viewer can read the output
 pause() { sleep "${1:-2}"; }
 
-rm -rf "$DEMO_DIR"
+rm -rf "$DEMO_DIR" "$SIPS_SHIM_DIR"
 
 # On Linux (CI), create a fake sips shim that copies files instead of converting.
 # This lets the demo run without macOS sips — JPEG output won't be real JPEG,
@@ -40,7 +42,6 @@ rm -rf "$DEMO_DIR"
 # detection makes: photree reports a failed query as a face-detection failure
 # and exits 1, which would stop the recording.
 if ! command -v sips &>/dev/null; then
-    SIPS_SHIM_DIR="$DEMO_DIR/.shims"
     mkdir -p "$SIPS_SHIM_DIR"
     cat > "$SIPS_SHIM_DIR/sips" <<'SHIM'
 #!/usr/bin/env bash
@@ -58,9 +59,14 @@ done
 [[ -n "$src" ]] || exit 1
 if $query; then
     # Same layout as real sips: the path, then indented "key: value" lines.
-    # Pillow is a photree dependency, so the environment running photree has it.
-    python -c 'import sys; from PIL import Image
-w, h = Image.open(sys.argv[1]).size
+    # opencv-python is a declared photree dependency, so the environment running
+    # photree has cv2; Pillow is only there transitively. cv2 decodes by content,
+    # and the seeded files are JPEG or PNG whatever their extension.
+    python -c 'import sys, cv2
+image = cv2.imread(sys.argv[1])
+if image is None:
+    sys.exit(f"sips shim: cannot read {sys.argv[1]}")
+h, w = image.shape[:2]
 print(f"{sys.argv[1]}\n  pixelWidth: {w}\n  pixelHeight: {h}")' "$src"
 else
     [[ -n "$dst" ]] && cp "$src" "$dst"

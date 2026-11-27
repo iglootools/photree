@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any, Protocol, cast
 from photree.album.faces.model import (
     DownloadFn,
     ModelChecksumError,
+    ModelDownloadError,
     download_url,
     ensure_model,
     resolve_model_archive,
@@ -103,7 +104,9 @@ def create_face_analyzer(
     (``~/.insightface`` by default) and checked against its pinned sha256
     before insightface sees it (:func:`~photree.album.faces.model.ensure_model`);
     later calls load it from there (a few seconds). Raises
-    :class:`~photree.album.faces.model.ModelChecksumError` on a mismatch.
+    :class:`~photree.album.faces.model.ModelChecksumError` on a mismatch, and
+    :class:`~photree.album.faces.model.ModelDownloadError` when the download
+    fails or stalls.
     """
     model_root = root if root is not None else Path("~/.insightface").expanduser()
     ensure_model(model_root, resolve_model_archive(model_name), download=download)
@@ -145,21 +148,22 @@ def memoized_face_analyzer_factory(
     batch refresh shares one analyzer and a no-op refresh loads nothing.
 
     *create* builds the analyzer; tests pass a fake instead of loading the model.
-    A model archive that failed its checksum is not downloaded again for every
-    album of a batch: the factory raises the same error on each later call.
+    A model archive that failed its checksum or its download is not downloaded
+    again for every album of a batch: the factory raises the same error on each
+    later call.
     """
     cached: FaceAnalysis | None = None
-    checksum_error: ModelChecksumError | None = None
+    model_error: ModelChecksumError | ModelDownloadError | None = None
 
     def factory() -> FaceAnalysis:
-        nonlocal cached, checksum_error
-        if checksum_error is not None:
-            raise checksum_error
+        nonlocal cached, model_error
+        if model_error is not None:
+            raise model_error
         if cached is None:
             try:
                 cached = create(model_name)
-            except ModelChecksumError as exc:
-                checksum_error = exc
+            except (ModelChecksumError, ModelDownloadError) as exc:
+                model_error = exc
                 raise
         return cached
 
@@ -233,7 +237,10 @@ class FaceDetectionResult:
 
 class UnreadableThumbnailError(OSError):
     """
-    OpenCV could not decode a thumbnail (missing, truncated, or not an image).
+    OpenCV could not decode or process a thumbnail.
+
+    The file is missing, truncated or not an image, or OpenCV rejected its
+    pixels during detection.
 
     Raised rather than returning no faces: an unreadable image must be
     recorded as a detection failure, not as "this photo has no faces".
@@ -277,7 +284,9 @@ def detect_faces(
 
     The image's size comes from the decoded pixels, which the detection needs
     anyway. Raises :class:`UnreadableThumbnailError` when the image cannot be
-    read.
+    read, or OpenCV fails on its pixels during detection: ``cv2.error`` is
+    not an ``OSError``, and callers that record a per-image failure catch
+    only that, so a programming error still surfaces.
     """
     # Imported here, not at module level: cv2 costs ~0.14 s at CLI startup.
     import cv2  # noqa: PLC0415 - ML stack, kept out of CLI startup
@@ -287,9 +296,16 @@ def detect_faces(
     if img is None:
         raise UnreadableThumbnailError(image_path)
 
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", category=FutureWarning, module="insightface")
-        faces = analyzer.get(img)
+    try:
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                category=FutureWarning,
+                module="insightface",
+            )
+            faces = analyzer.get(img)
+    except cv2.error as exc:
+        raise UnreadableThumbnailError(image_path) from exc
 
     thumb_height, thumb_width = img.shape[:2]
     return FaceDetectionResult(

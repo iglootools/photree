@@ -1,5 +1,6 @@
 """Face clustering: FAISS index, agglomerative clustering, medoid matching."""
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -240,24 +241,36 @@ def compute_medoids(
 
     The medoid is the face closest to the cluster centroid.
     Returns ``{cluster_label: face_index}``.
+
+    Groups the faces with one stable sort of the labels rather than a mask per
+    cluster, which would cost O(faces x clusters).
     """
+    order = np.argsort(labels, kind="stable")
+    cluster_labels, starts = np.unique(labels[order], return_index=True)
     return {
-        int(label): _medoid_for_cluster(embeddings, labels, label)
-        for label in np.unique(labels)
+        int(label): _medoid_of(embeddings, indices)
+        for label, indices in zip(
+            cluster_labels,
+            np.split(order, starts[1:]),
+            strict=True,
+        )
     }
 
 
-def _medoid_for_cluster(embeddings: np.ndarray, labels: np.ndarray, label: int) -> int:
-    """Return the index of the face closest to the cluster centroid."""
-    mask = labels == label
-    cluster_indices = np.where(mask)[0]
-    cluster_embeddings = embeddings[mask]
+def _medoid_of(embeddings: np.ndarray, cluster_indices: np.ndarray) -> int:
+    """Return the one of *cluster_indices* whose face is closest to their centroid."""
+    cluster_embeddings = embeddings[cluster_indices]
 
     centroid = cluster_embeddings.mean(axis=0)
     centroid = centroid / (np.linalg.norm(centroid) + 1e-10)
 
     similarities = cluster_embeddings @ centroid
     return int(cluster_indices[np.argmax(similarities)])
+
+
+# How many nearest old medoids each new medoid is searched for at once. A new
+# cluster whose candidates are all taken is searched again on its own.
+_MATCH_CANDIDATES = 8
 
 
 def match_clusters_by_medoid(
@@ -278,10 +291,18 @@ def match_clusters_by_medoid(
 
     Returns ``{new_label: uuid_string}``.
     """
-    if not old_cluster_ids or len(old_embeddings) == 0:
+    if not old_cluster_ids or len(old_embeddings) == 0 or len(new_embeddings) == 0:
         return {}
 
-    old_medoids = compute_medoids(old_embeddings, old_labels)
+    # Old clusters without a UUID can give none, so they are left out of the
+    # search rather than skipped in every result.
+    old_medoids = {
+        label: idx
+        for label, idx in compute_medoids(old_embeddings, old_labels).items()
+        if label in old_cluster_ids
+    }
+    if not old_medoids:
+        return {}
     new_medoids = compute_medoids(new_embeddings, new_labels)
 
     old_medoid_index, old_medoid_labels = _build_medoid_index(
@@ -293,8 +314,7 @@ def match_clusters_by_medoid(
         new_medoids,
         new_embeddings,
         old_medoid_index,
-        old_medoid_labels,
-        old_cluster_ids,
+        [old_cluster_ids[label] for label in old_medoid_labels],
         threshold=threshold,
     )
 
@@ -316,34 +336,49 @@ def _build_medoid_index(
     return (index, medoid_labels)
 
 
+@dataclass(frozen=True)
+class _Candidates:
+    """One new medoid's nearest old UUIDs, nearest first, with their distances."""
+
+    uuids: tuple[str, ...]
+    distances: tuple[float, ...]
+    complete: bool
+    """Whether every old medoid is listed, so a farther one cannot be missing."""
+
+
 def _match_new_to_old(
     new_medoids: dict[int, int],
     new_embeddings: np.ndarray,
     old_index: faiss.IndexFlatIP,
-    old_medoid_labels: list[int],
-    old_cluster_ids: dict[int, str],
+    old_uuids: list[str],
     *,
     threshold: float,
 ) -> dict[int, str]:
     """
     Match each new cluster's medoid to the nearest old cluster.
 
-    Greedy: each old UUID is used at most once (first match wins).
+    Greedy: each old UUID is used at most once (first match wins). Every new
+    medoid is searched in one batch; only one whose nearest candidates are all
+    taken is searched again, against every old medoid.
     """
+    new_labels = sorted(new_medoids)
+    queries = np.stack([new_embeddings[new_medoids[label]] for label in new_labels])
+    batch = _nearest_candidates(old_index, old_uuids, queries, _MATCH_CANDIDATES)
     # Documented exception (docs/guidelines.md): loop-carried state — the old
     # UUIDs the earlier matches already used.
     matched: dict[int, str] = {}
     used_old_uuids: set[str] = set()
 
-    for new_label, new_medoid_idx in sorted(new_medoids.items()):
-        match = _find_best_match(
-            new_embeddings[new_medoid_idx],
-            old_index,
-            old_medoid_labels,
-            old_cluster_ids,
-            threshold=threshold,
-            exclude=used_old_uuids,
-        )
+    for row, new_label in enumerate(new_labels):
+        match = _first_usable(batch[row], threshold, used_old_uuids)
+        if match is None and _may_lie_further(batch[row], threshold):
+            (wider,) = _nearest_candidates(
+                old_index,
+                old_uuids,
+                queries[row : row + 1],
+                len(used_old_uuids) + 1,
+            )
+            match = _first_usable(wider, threshold, used_old_uuids)
         if match is not None:
             matched[new_label] = match
             used_old_uuids.add(match)
@@ -351,41 +386,55 @@ def _match_new_to_old(
     return matched
 
 
-def _find_best_match(
-    query_embedding: np.ndarray,
-    old_index: faiss.IndexFlatIP,
-    old_medoid_labels: list[int],
-    old_cluster_ids: dict[int, str],
-    *,
+def _first_usable(
+    candidates: _Candidates,
     threshold: float,
-    exclude: set[str],
+    used: set[str],
 ) -> str | None:
-    """
-    Find the nearest old cluster UUID for a query embedding, skipping *exclude*.
-
-    When the nearest old medoid's UUID is taken or missing, the next nearest
-    within *threshold* is used, so a new cluster keeps an old UUID whenever one
-    is close enough.
-    """
-    # The best usable medoid comes at most after every unusable one.
-    unusable = len(exclude) + sum(
-        1 for label in old_medoid_labels if label not in old_cluster_ids
-    )
-    k = min(old_index.ntotal, unusable + 1)
-    query = query_embedding.reshape(1, -1).astype(np.float32)
-    similarities, indices = _search_index(old_index, query, k)
-    candidates = (
-        (1.0 - float(similarity), old_cluster_ids.get(old_medoid_labels[int(idx)]))
-        for similarity, idx in zip(similarities[0], indices[0], strict=True)
-        if idx >= 0
-    )
+    """Return the nearest candidate UUID within *threshold* that is not *used*."""
     return next(
         (
-            old_uuid
-            for cosine_dist, old_uuid in candidates
-            if old_uuid is not None
-            and cosine_dist <= threshold
-            and old_uuid not in exclude
+            uuid
+            for uuid, distance in zip(
+                candidates.uuids,
+                candidates.distances,
+                strict=True,
+            )
+            if distance <= threshold and uuid not in used
         ),
         None,
     )
+
+
+def _may_lie_further(candidates: _Candidates, threshold: float) -> bool:
+    """
+    Whether an old medoid past the listed candidates may still be within *threshold*.
+
+    The list is nearest first, so that is so when it is incomplete and even its
+    farthest candidate is within *threshold*.
+    """
+    return (
+        not candidates.complete
+        and bool(candidates.distances)
+        and candidates.distances[-1] <= threshold
+    )
+
+
+def _nearest_candidates(
+    old_index: faiss.IndexFlatIP,
+    old_uuids: list[str],
+    queries: np.ndarray,
+    k: int,
+) -> list[_Candidates]:
+    """Search the *k* nearest old medoids of every query, nearest first."""
+    k = min(old_index.ntotal, k)
+    similarities, indices = _search_index(old_index, queries.astype(np.float32), k)
+    return [
+        _Candidates(
+            uuids=tuple(old_uuids[int(idx)] for idx in row_indices[found]),
+            distances=tuple(1.0 - float(sim) for sim in row_similarities[found]),
+            complete=k == old_index.ntotal,
+        )
+        for row_similarities, row_indices in zip(similarities, indices, strict=True)
+        for found in [row_indices >= 0]
+    ]

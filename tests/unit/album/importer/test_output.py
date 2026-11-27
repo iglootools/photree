@@ -7,14 +7,16 @@ from pathlib import Path
 import pytest
 from rich.console import Console
 
+from photree.album.check.std import OrphanEdits
 from photree.album.importer.album_import import (
     AlbumImportResult,
     AlbumImportValidation,
-    EmptyImageCaptureDirError,
-    NoImportTasksError,
     TaskIssue,
 )
-from photree.album.importer.batch import AlbumFailure, ImportFailureStage
+from photree.album.importer.collision import (
+    MediaSourceClash,
+    MediaSourceClashErrorKind,
+)
 from photree.album.importer.image_capture import (
     DedupWarning,
     ImportPlan,
@@ -25,8 +27,6 @@ from photree.album.importer.image_capture import (
     ValidationWarningKind,
 )
 from photree.album.importer.output import (
-    batch_failures,
-    failure_reason,
     format_preflight_troubleshoot,
     format_task_issue,
     image_capture_dir_check_output,
@@ -149,6 +149,32 @@ class TestFormatTaskIssue:
         issue = TaskIssue(std_media_source("nelu"), StdNoMediaError())
         assert _render(format_task_issue(issue)) == (
             "[std:nelu] no media files found in orig/ or edit/\n"
+        )
+
+    def test_media_source_clash_with_existing_archive(self) -> None:
+        ms = std_media_source("main")
+        issue = TaskIssue(
+            ms,
+            MediaSourceClash(ms, MediaSourceClashErrorKind.EXISTING_ARCHIVE),
+        )
+        assert _render(format_task_issue(issue)) == (
+            "[std:main] media source 'main' would have both an iOS and a std "
+            "archive: the album already has ios-main/, and both would share "
+            "main-img/ and its media IDs. Rename to-import-std-main to import "
+            "into a different media source.\n"
+        )
+
+    def test_media_source_clash_with_staged_task(self) -> None:
+        ms = ios_media_source("main")
+        issue = TaskIssue(ms, MediaSourceClash(ms, MediaSourceClashErrorKind.STAGED))
+        assert "to-import-std-main is staged too" in _render(format_task_issue(issue))
+
+    def test_orphan_edits_named_with_the_way_out(self) -> None:
+        issue = TaskIssue(std_media_source("nelu"), OrphanEdits("edit", ("b.jpg",)))
+        assert _render(format_task_issue(issue)) == (
+            "[std:nelu] edit/: no original with the same stem for b.jpg. Std "
+            "sources need the original of every edit: put it in orig/ under the "
+            "same stem, or move the edit there if it is the only version.\n"
         )
 
     def test_user_text_in_brackets_survives_rendering(self) -> None:
@@ -292,68 +318,3 @@ class TestFormatPreflightTroubleshoot:
         std_only = replace(result, ios_import_required=False)
         assert format_preflight_troubleshoot(std_only, cwd=_CWD) is None
         assert "--force" in (format_preflight_troubleshoot(result, cwd=_CWD) or "")
-
-
-class TestFailureReason:
-    def test_no_import_tasks_names_the_album_relative_to_cwd(
-        self,
-        tmp_path: Path,
-    ) -> None:
-        failure = AlbumFailure(
-            tmp_path / "A",
-            reason="",
-            error=NoImportTasksError(tmp_path / "A"),
-        )
-
-        assert failure_reason(failure, tmp_path) == (
-            "No to-import-{ios,std}-<media-source> directories found in A"
-        )
-
-    def test_empty_image_capture_dir_names_the_directory_relative_to_cwd(
-        self,
-        tmp_path: Path,
-    ) -> None:
-        failure = AlbumFailure(
-            tmp_path / "A",
-            reason="",
-            error=EmptyImageCaptureDirError(tmp_path / "ic"),
-        )
-
-        assert failure_reason(failure, tmp_path) == (
-            "Could not find any image capture files in ic"
-        )
-
-    def test_filesystem_error_names_the_file_relative_to_cwd(
-        self,
-        tmp_path: Path,
-    ) -> None:
-        error = PermissionError(13, "Permission denied", str(tmp_path / "A" / "x"))
-        failure = AlbumFailure(tmp_path / "A", reason="", error=error)
-
-        assert failure_reason(failure, tmp_path) == "Permission denied: A/x"
-
-    def test_other_error_is_shown_as_raised(self, tmp_path: Path) -> None:
-        failure = AlbumFailure(tmp_path / "A", reason="", error=ValueError("bad"))
-
-        assert failure_reason(failure, tmp_path) == "bad"
-
-    def test_failure_after_the_import_keeps_its_reason(self, tmp_path: Path) -> None:
-        failure = AlbumFailure(
-            tmp_path / "A",
-            "jpeg conversion failed: x",
-            frozenset({ImportFailureStage.JPEG}),
-        )
-
-        assert failure_reason(failure, tmp_path) == "jpeg conversion failed: x"
-
-    def test_batch_failures_words_a_refusal(self, tmp_path: Path) -> None:
-        failure = AlbumFailure(
-            tmp_path / "A",
-            reason="",
-            error=EmptyImageCaptureDirError(tmp_path / "ic"),
-        )
-
-        assert "Could not find any image capture files in ic" in batch_failures(
-            [failure],
-            tmp_path,
-        )

@@ -9,6 +9,7 @@ from photree.albums.batchcli.rename import run_batch_rename_from_csv
 from photree.albums.output import format_duplicate_ids_report
 from photree.clihelpers.console import err_console
 from photree.clihelpers.options import DRY_RUN_OPTION, GALLERY_DIR_OPTION
+from photree.clihelpers.paths import expand_user_path
 from photree.clihelpers.resolution import resolve_gallery_or_exit
 from photree.clihelpers.runtime import runtime_of
 from photree.gallery.cli.app import app
@@ -22,11 +23,10 @@ def rename_from_csv_cmd(
         Path,
         typer.Argument(
             help=(
-                "CSV with desired album state (from list-albums --format csv, edited)."
+                "CSV with desired album state (from list-albums --output csv, edited)."
             ),
-            exists=True,
             dir_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(exists=True),
         ),
     ],
     gallery_dir: GALLERY_DIR_OPTION = None,
@@ -34,7 +34,7 @@ def rename_from_csv_cmd(
     dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """
-    Rename albums from a CSV file (from list-albums --format csv, edited).
+    Rename albums from a CSV file (from list-albums --output csv, edited).
 
     Uses the album ID to look up each album in the gallery, then compares the
     current series, title, and location against the CSV values. Only albums
@@ -42,8 +42,9 @@ def rename_from_csv_cmd(
     tags) are preserved from the current on-disk album name.
 
     The CSV needs the id, series, title and location columns; other columns
-    are ignored. A missing column, or an album ID on more than one row, stops
-    the run before anything is renamed.
+    are ignored. A missing column, an album ID on more than one row, or a
+    field that would not read back from the new name (one holding '/', ' - ',
+    ' @ ' or a '[tag]') stops the run before anything is renamed.
     """
     runtime = runtime_of(ctx)
     cwd = runtime.cwd()

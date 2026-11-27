@@ -8,6 +8,7 @@ from photree.album.exporter.settings import (
     ExportSettingsError,
     ExportSettingsErrorKind,
     ResolvedExportSettings,
+    is_usage_error,
     resolve_export_settings,
     validate_export_settings,
 )
@@ -24,12 +25,12 @@ _MEGA = ExporterProfile(
 
 
 def _loader(
-    loaded: list[str | None],
+    loaded: list[Path | None],
     **profiles: ExporterProfile,
-) -> Callable[[str | None], PhotreeConfig]:
+) -> Callable[[Path | None], PhotreeConfig]:
     """Return a ``load`` that records each config path and serves *profiles*."""
 
-    def load(config_path: str | None) -> PhotreeConfig:
+    def load(config_path: Path | None) -> PhotreeConfig:
         loaded.append(config_path)
         return PhotreeConfig(
             exporter=ExporterConfig(profiles=MappingProxyType(profiles)),
@@ -39,14 +40,14 @@ def _loader(
 
 
 def _resolve(
-    load: Callable[[str | None], PhotreeConfig],
+    load: Callable[[Path | None], PhotreeConfig],
     *,
     profile_name: str | None = None,
     share_dir: Path | None = None,
     share_layout: ShareDirectoryLayout | None = None,
     album_layout: AlbumShareLayout | None = None,
     link_mode: LinkMode | None = None,
-    config_path: str | None = None,
+    config_path: Path | None = None,
 ) -> ResolvedExportSettings:
     return resolve_export_settings(
         profile_name=profile_name,
@@ -112,22 +113,22 @@ class TestResolveExportSettings:
         )
 
     def test_config_is_not_read_without_a_profile_or_config(self) -> None:
-        loaded: list[str | None] = []
+        loaded: list[Path | None] = []
 
         _resolve(_loader(loaded), share_dir=Path("/share"))
 
         assert loaded == []
 
     def test_explicit_config_is_read_without_a_profile(self) -> None:
-        loaded: list[str | None] = []
+        loaded: list[Path | None] = []
 
         settings = _resolve(
             _loader(loaded, mega=_MEGA),
             share_dir=Path("/share"),
-            config_path="my.toml",
+            config_path=Path("my.toml"),
         )
 
-        assert loaded == ["my.toml"]
+        assert loaded == [Path("my.toml")]
         # No profile is named, so none of the config's profiles applies.
         assert settings.album_layout == AlbumShareLayout.BROWSABLE_JPG
 
@@ -189,3 +190,39 @@ class TestValidateExportSettings:
 
         assert info.value.kind == ExportSettingsErrorKind.MISSING_SENTINEL
         assert info.value.share_dir == Path("/nonexistent/share")
+
+    def test_existing_share_dir_without_sentinel_is_an_error(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        with pytest.raises(ExportSettingsError) as info:
+            validate_export_settings(
+                ResolvedExportSettings(
+                    share_dir=tmp_path,
+                    share_layout=ShareDirectoryLayout.FLAT,
+                    album_layout=AlbumShareLayout.BROWSABLE_JPG,
+                    link_mode=LinkMode.HARDLINK,
+                ),
+            )
+
+        assert info.value.kind == ExportSettingsErrorKind.MISSING_SENTINEL
+        assert info.value.share_dir == tmp_path
+
+
+class TestIsUsageError:
+    @pytest.mark.parametrize(
+        "kind",
+        [
+            ExportSettingsErrorKind.UNKNOWN_PROFILE,
+            ExportSettingsErrorKind.NO_SHARE_DIR,
+            ExportSettingsErrorKind.ALBUMS_LAYOUT_NEEDS_ALL,
+        ],
+    )
+    def test_settings_wrong_whatever_is_on_disk_are_usage_errors(
+        self,
+        kind: ExportSettingsErrorKind,
+    ) -> None:
+        assert is_usage_error(kind)
+
+    def test_missing_sentinel_is_not_a_usage_error(self) -> None:
+        assert not is_usage_error(ExportSettingsErrorKind.MISSING_SENTINEL)

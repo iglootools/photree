@@ -1,4 +1,5 @@
 import csv
+from datetime import datetime
 from pathlib import Path
 
 from photree.collection.importer.selection import (
@@ -71,6 +72,37 @@ class TestReadSelectionCsv:
 
         assert sources.errors == ()
         assert sources.merged == ()
+
+
+class TestReadSelectionDedupe:
+    def test_same_filename_with_different_dates_is_kept_twice(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        # iPhone numbers repeat across albums: the dates name two photos.
+        _write_csv_bytes(
+            tmp_path,
+            b"entry,date\nIMG_0001.HEIC,2019-03-01\nIMG_0001.HEIC,2024-08-10\n",
+        )
+
+        sources = read_selection(tmp_path)
+
+        assert sources.merged == (
+            SelectionEntry("IMG_0001.HEIC", datetime(2019, 3, 1)),
+            SelectionEntry("IMG_0001.HEIC", datetime(2024, 8, 10)),
+        )
+
+    def test_repeated_row_is_kept_once(self, tmp_path: Path) -> None:
+        _write_csv_bytes(
+            tmp_path,
+            b"entry,date\nIMG_0001.HEIC,2019-03-01\nIMG_0001.HEIC,2019-03-01\n",
+        )
+
+        sources = read_selection(tmp_path)
+
+        assert sources.merged == (
+            SelectionEntry("IMG_0001.HEIC", datetime(2019, 3, 1)),
+        )
 
 
 class TestHasSelection:

@@ -14,7 +14,7 @@ from photree.dates import DatePrefixError, DatePrefixKind
 from photree.foundation.layout import PHOTREE_DIR
 from photree.foundation.linking import LinkMode
 from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
-from tests.testkit import write_files
+from tests.testkit import file_names, mark_album, write_files
 
 
 def _setup_ios_album(album_dir: Path) -> Path:
@@ -135,9 +135,9 @@ class TestExportOtherAlbum:
     def test_skips_dotfiles(self, tmp_path: Path) -> None:
         album_dir = tmp_path / "my-album"
         write_files(album_dir, ["photo.jpg"])
-        (album_dir / ".hidden").write_text("secret")
+        (album_dir / ".hidden").write_text("secret", encoding="utf-8")
         (album_dir / ".photree").mkdir()
-        (album_dir / ".photree" / "title.bkp").write_text("backup")
+        (album_dir / ".photree" / "title.bkp").write_text("backup", encoding="utf-8")
         target = tmp_path / "share" / "my-album"
 
         result = export_album(album_dir, target)
@@ -249,6 +249,26 @@ class TestExportIosAll:
         assert (target / MAIN_MEDIA_SOURCE.vid_dir / "IMG_E0010.MOV").exists()
         assert result.files_copied > 0
 
+    def test_ios_source_leaves_an_mp4_out_of_the_browsable_vid_dir(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        # The export rebuilds main-vid/ as refresh does: an iOS source holds
+        # only .mov, so the .mp4 is copied with the archive but not linked.
+        album_dir = _setup_ios_album(tmp_path / "trip")
+        write_files(album_dir / MAIN_MEDIA_SOURCE.orig_vid_dir, ["IMG_0011.MP4"])
+        target = tmp_path / "share" / "trip"
+
+        export_album(
+            album_dir,
+            target,
+            album_layout=AlbumShareLayout.ALL,
+            link_mode=LinkMode.COPY,
+        )
+
+        assert (target / MAIN_MEDIA_SOURCE.orig_vid_dir / "IMG_0011.MP4").exists()
+        assert file_names(target / MAIN_MEDIA_SOURCE.vid_dir) == {"IMG_E0010.MOV"}
+
     def test_browsable_uses_hardlinks_by_default(self, tmp_path: Path) -> None:
         album_dir = _setup_ios_album(tmp_path / "trip")
         target = tmp_path / "share" / "trip"
@@ -261,9 +281,9 @@ class TestExportIosAll:
 
     def test_does_not_export_unmanaged(self, tmp_path: Path) -> None:
         album_dir = _setup_ios_album(tmp_path / "trip")
-        (album_dir / "notes.txt").write_text("my notes")
+        (album_dir / "notes.txt").write_text("my notes", encoding="utf-8")
         (album_dir / "extra-dir").mkdir()
-        (album_dir / "extra-dir" / "file.txt").write_text("extra")
+        (album_dir / "extra-dir" / "file.txt").write_text("extra", encoding="utf-8")
         target = tmp_path / "share" / "trip"
 
         export_album(album_dir, target, album_layout=AlbumShareLayout.ALL)
@@ -292,8 +312,7 @@ class TestExportIosAll:
 def _setup_photree_metadata(album_dir: Path) -> None:
     """Create representative .photree metadata + a derived cache dir."""
     photree = album_dir / PHOTREE_DIR
-    (photree).mkdir(parents=True, exist_ok=True)
-    (photree / "album.yaml").write_text("id: 0192d4e1-7c3f-7b4a-8c5e-f6a7b8c9d0e1\n")
+    mark_album(album_dir)
     write_files(photree / "media-ids", ["main.yaml"])
     # cache/ is derived and must be excluded from the archive layout.
     write_files(photree / "cache" / "exif", ["main.yaml"])
@@ -398,7 +417,7 @@ class TestExplicitConfigIsAlwaysLoaded:
                 share_layout=None,
                 album_layout=None,
                 link_mode=None,
-                config_path=str(missing),
+                config_path=missing,
             )
         assert info.value.kind == ConfigErrorKind.FILE_NOT_FOUND
 

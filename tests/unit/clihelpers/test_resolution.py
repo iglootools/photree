@@ -15,8 +15,14 @@ class TestFormatInvalidMetadata:
         message = format_invalid_metadata(exc, Path("/g"))
 
         assert "album/.photree/cache/exif/main.yaml" in message
-        assert "--refresh-exif-cache" in message
-        assert "--redetect-faces" in message
+        assert (
+            """'photree album refresh --album-dir "album" --refresh-exif-cache'"""
+            in message
+        )
+        assert (
+            """'photree album refresh --album-dir "album" --redetect-faces'"""
+            in message
+        )
         assert "does not regenerate" not in message
 
     def test_source_file_says_to_restore_it(self) -> None:

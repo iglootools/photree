@@ -21,7 +21,7 @@ from photree.config import ConfigError
 
 def run_import_preflight(
     source: Path | None,
-    config_path: str | None,
+    config_path: Path | None,
     *,
     album_dir: Path | None = None,
     force: bool = False,

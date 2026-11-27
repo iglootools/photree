@@ -1,5 +1,6 @@
 """The ``photree album export`` command."""
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated
 
@@ -9,6 +10,8 @@ from photree.album.cli.app import app
 from photree.album.exporter import output as export_output, single as album_export
 from photree.album.exporter.settings import (
     ExportSettingsError,
+    ResolvedExportSettings,
+    is_usage_error,
     resolve_export_settings,
     validate_export_settings,
 )
@@ -29,8 +32,10 @@ from photree.clihelpers.options import (
 from photree.clihelpers.runtime import runtime_of
 from photree.common.formatting import markup_escape
 from photree.common.fs import display_path
-from photree.config import ConfigError
+from photree.config import ConfigError, PhotreeConfig
 from photree.dates import DatePrefixError
+from photree.foundation.linking import LinkMode
+from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 
 
 @app.command("export")
@@ -84,6 +89,46 @@ def export_cmd(
     """
     runtime = runtime_of(ctx)
     cwd = runtime.cwd()
+    settings = _resolve_settings_or_exit(
+        profile=profile,
+        share_dir=share_dir,
+        share_layout=share_layout,
+        album_layout=album_layout,
+        link_mode=link_mode,
+        config=config,
+        cwd=cwd,
+        load=runtime.load_config,
+    )
+    target_dir = _target_dir_or_exit(album_dir, settings, cwd)
+    result = _export_or_exit(album_dir, target_dir, settings, cwd, dry_run=dry_run)
+    typer.echo(
+        export_output.export_summary(
+            result.album_name,
+            result.album_type,
+            files_copied=result.files_copied,
+            files_removed=result.files_removed,
+            target=display_path(target_dir, cwd),
+            dry_run=dry_run,
+        ),
+    )
+
+
+def _resolve_settings_or_exit(
+    *,
+    profile: str | None,
+    share_dir: Path | None,
+    share_layout: ShareDirectoryLayout | None,
+    album_layout: AlbumShareLayout | None,
+    link_mode: LinkMode | None,
+    config: Path | None,
+    cwd: Path,
+    load: Callable[[Path | None], PhotreeConfig],
+) -> ResolvedExportSettings:
+    """
+    Resolve and validate the export settings, or print why not and exit.
+
+    A bad config file or flag exits 2; a share dir without its sentinel, 1.
+    """
     try:
         settings = resolve_export_settings(
             profile_name=profile,
@@ -92,7 +137,7 @@ def export_cmd(
             album_layout=album_layout,
             link_mode=link_mode,
             config_path=config,
-            load=runtime.load_config,
+            load=load,
         )
         validate_export_settings(settings)
     except ConfigError as exc:
@@ -104,10 +149,18 @@ def export_cmd(
             export_output.format_export_settings_error(exc, cwd, "album export"),
             markup=False,
         )
-        raise typer.Exit(code=1) from exc
+        raise typer.Exit(code=2 if is_usage_error(exc.kind) else 1) from exc
+    return settings
 
+
+def _target_dir_or_exit(
+    album_dir: Path,
+    settings: ResolvedExportSettings,
+    cwd: Path,
+) -> Path:
+    """Return where the share layout places the album, or exit 1 with a hint."""
     try:
-        target_dir = export_compute_target_dir(
+        return export_compute_target_dir(
             settings.share_dir,
             album_dir.name,
             settings.share_layout,
@@ -125,8 +178,18 @@ def export_cmd(
         )
         raise typer.Exit(code=1) from exc
 
+
+def _export_or_exit(
+    album_dir: Path,
+    target_dir: Path,
+    settings: ResolvedExportSettings,
+    cwd: Path,
+    *,
+    dry_run: bool,
+) -> album_export.ExportResult:
+    """Export the album to *target_dir*, or exit 1 on a filesystem error."""
     try:
-        result = album_export.export_album(
+        return album_export.export_album(
             album_dir,
             target_dir,
             album_layout=settings.album_layout,
@@ -140,14 +203,3 @@ def export_cmd(
             markup=False,
         )
         raise typer.Exit(code=1) from exc
-
-    typer.echo(
-        export_output.export_summary(
-            result.album_name,
-            result.album_type,
-            files_copied=result.files_copied,
-            files_removed=result.files_removed,
-            target=display_path(target_dir, cwd),
-            dry_run=dry_run,
-        ),
-    )

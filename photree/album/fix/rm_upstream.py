@@ -15,7 +15,13 @@ to wipe the whole archive. So:
   created empty when conversion is skipped): when it holds none of the JPEGs
   it should, it is skipped too, unless ``force`` is set;
 - a plan that would delete every item of an archive — e.g. after emptying
-  ``{name}-img/`` or ``{name}-vid/`` — is refused unless ``force`` is set.
+  ``{name}-img/`` or ``{name}-vid/`` — is refused unless ``force`` is set;
+- a source whose signal directory the last refresh left incomplete (it
+  failed to convert some JPEGs, or was interrupted while rebuilding the
+  directory: see :data:`~photree.album.browsable.INCOMPLETE_MARKER`) is
+  refused, even with ``force``: its gaps are files refresh never wrote, not
+  files the user deleted, and ``force`` only vouches for the user's own
+  deletions.
 
 Directories are compared with their source by item key, never by filename: a
 browsable directory older than the archive (an edit added or moved since the
@@ -80,6 +86,26 @@ class RmUpstreamRefusedError(ValueError):
         )
 
 
+class RmUpstreamIncompleteSignalError(ValueError):
+    """
+    A signal directory was left incomplete by a failed or interrupted refresh.
+
+    Raised before anything is deleted, whatever ``force`` says: the files
+    missing from *directories* were never written, so they are not deletions.
+    Running ``photree album refresh`` rebuilds the directories.
+    """
+
+    def __init__(self, media_source: str, directories: tuple[str, ...]) -> None:
+        """Build the error from the media source and its incomplete directories."""
+        self.media_source = media_source
+        self.directories = directories
+        super().__init__(
+            f"{', '.join(directories)} of media source {media_source!r} "
+            "were left incomplete by a failed or interrupted refresh; run "
+            "'photree album refresh' before --rm-upstream",
+        )
+
+
 @dataclass(frozen=True)
 class RmUpstreamHeicResult:
     """The image files rm-upstream removed, per directory: jpg, img, edit and orig."""
@@ -125,6 +151,15 @@ class RmUpstreamPlan:
     archive_image_keys: frozenset[str]
     archive_video_keys: frozenset[str]
     skipped: tuple[RmUpstreamSkip, ...]
+    incomplete_dirs: tuple[str, ...]
+
+    def incomplete(self) -> RmUpstreamIncompleteSignalError | None:
+        """Return the error to raise if a signal dir is incomplete, else None."""
+        return (
+            RmUpstreamIncompleteSignalError(self.ms.name, self.incomplete_dirs)
+            if self.incomplete_dirs
+            else None
+        )
 
     def refusal(self) -> RmUpstreamRefusedError | None:
         """Return the error to raise if this plan would empty an archive, else None."""
@@ -276,11 +311,27 @@ def plan_rm_upstream(
         archive_image_keys=_keys_in(album_dir / ms.orig_img_dir, ms),
         archive_video_keys=_keys_in(album_dir / ms.orig_vid_dir, ms),
         skipped=tuple(sig.skip for sig in signals if sig.skip is not None),
+        incomplete_dirs=tuple(
+            subdir
+            for subdir in (ms.img_dir, ms.jpg_dir, ms.vid_dir)
+            if browsable_module.is_incomplete(album_dir / subdir)
+        ),
     )
 
 
 def check_rm_upstream_plans(plans: list[RmUpstreamPlan], *, force: bool) -> None:
-    """Raise the first :class:`RmUpstreamRefusedError` among *plans*, unless *force*."""
+    """
+    Raise the first refusal among *plans*.
+
+    :class:`RmUpstreamIncompleteSignalError` is raised whatever *force* says,
+    :class:`RmUpstreamRefusedError` only without *force*.
+    """
+    incomplete = next(
+        (err for plan in plans if (err := plan.incomplete()) is not None),
+        None,
+    )
+    if incomplete is not None:
+        raise incomplete
     refusal = next((err for plan in plans if (err := plan.refusal()) is not None), None)
     if refusal is not None and not force:
         raise refusal
@@ -355,13 +406,13 @@ def apply_rm_upstream(
 
 def rm_upstream(
     album_dir: Path,
-    ms: MediaSource,
+    media_sources: list[MediaSource],
     *,
-    dry_run: bool = False,
-    force: bool = False,
-) -> RmUpstreamResult:
+    dry_run: bool,
+    force: bool,
+) -> tuple[RmUpstreamResult, ...]:
     """
-    Works for both iOS and std media sources.
+    Propagate the deletions in *media_sources*' browsable dirs to their archives.
 
     Images: deletions detected from {name}-jpg or {name}-img are
     propagated to {name}-jpg, {name}-img, edit-img, and orig-img.
@@ -369,9 +420,11 @@ def rm_upstream(
     Videos: files missing from {name}-vid (relative to orig-vid) are
     removed from edit-vid and orig-vid.
 
-    See the module docstring for when a directory is ignored as a signal and
-    when the operation is refused (:class:`RmUpstreamRefusedError`).
+    Every source is planned before anything is deleted, so one refusal
+    (:class:`RmUpstreamRefusedError`) leaves the whole album untouched. See
+    the module docstring for when a directory is ignored as a signal and when
+    the operation is refused.
     """
-    plan = plan_rm_upstream(album_dir, ms, force=force)
-    check_rm_upstream_plans([plan], force=force)
-    return apply_rm_upstream(album_dir, plan, dry_run=dry_run)
+    plans = [plan_rm_upstream(album_dir, ms, force=force) for ms in media_sources]
+    check_rm_upstream_plans(plans, force=force)
+    return tuple(apply_rm_upstream(album_dir, plan, dry_run=dry_run) for plan in plans)

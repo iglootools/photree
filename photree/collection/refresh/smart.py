@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from photree.collection.naming import parse_collection_name
+from photree.collection.refresh.result import CollectionRefreshError, filesystem_error
 from photree.collection.refresh.scan import AlbumInfo, ExistingCollection
 from photree.collection.store.metadata import save_collection_metadata
 from photree.collection.store.protocol import (
@@ -15,16 +16,36 @@ from photree.dates import DateRange, date_range, range_contains
 
 
 @dataclass(frozen=True)
+class SmartChanges:
+    """The smart collections whose members were updated, and a write that failed."""
+
+    updated: tuple[str, ...] = ()
+    errors: tuple[CollectionRefreshError, ...] = ()
+
+
+@dataclass(frozen=True)
 class _DatedMember:
     member_id: str
     start: date
     end: date
     private: bool
+    # Whether this member is itself a date-derived smart collection, which
+    # includes back any dated collection its range contains.
+    date_derived: bool = False
 
 
 def _collection_range(col: ExistingCollection) -> DateRange | None:
     parsed = parse_collection_name(col.name)
     return date_range(parsed.date) if parsed.date is not None else None
+
+
+def _is_date_derived(col: ExistingCollection) -> bool:
+    """Whether *col*'s members are materialized from its date range."""
+    return (
+        col.metadata.members == CollectionMembers.SMART
+        and col.metadata.strategy != CollectionStrategy.ALBUM_SERIES
+        and _collection_range(col) is not None
+    )
 
 
 def _smart_metadata(
@@ -39,13 +60,13 @@ def _smart_metadata(
     album-series ones (owned by the implicit refresh), and undated ones.
     Private smart collections only include private members; non-private ones
     exclude private members.
+
+    A date-derived smart collection with the same range is left out: it
+    would include this collection back, and the two would contain each
+    other, a cycle the browsable tree cannot render.
     """
     col_range = _collection_range(col)
-    if (
-        col.metadata.members != CollectionMembers.SMART
-        or col.metadata.strategy == CollectionStrategy.ALBUM_SERIES
-        or col_range is None
-    ):
+    if not _is_date_derived(col) or col_range is None:
         return None
     private = parse_collection_name(col.name).private
 
@@ -56,6 +77,7 @@ def _smart_metadata(
             if m.member_id != col.metadata.id
             and m.private == private
             and range_contains(col_range, (m.start, m.end))
+            and not (m.date_derived and (m.start, m.end) == col_range)
         )
 
     return CollectionMetadata(
@@ -75,11 +97,12 @@ def refresh_smart_collections(
     all_collections: tuple[ExistingCollection, ...],
     *,
     dry_run: bool,
-) -> tuple[str, ...]:
+) -> SmartChanges:
     """
     Materialize members for smart collections by date range.
 
-    Returns the names of the updated collections.
+    Returns the names of the updated collections; a save that fails stops the
+    stage, and the collections saved before it are still returned.
     """
     dated_albums = tuple(
         _DatedMember(album.album_id, *rng, album.parsed.private)
@@ -88,7 +111,12 @@ def refresh_smart_collections(
         if rng is not None
     )
     dated_collections = tuple(
-        _DatedMember(col.metadata.id, *rng, parse_collection_name(col.name).private)
+        _DatedMember(
+            col.metadata.id,
+            *rng,
+            private=parse_collection_name(col.name).private,
+            date_derived=_is_date_derived(col),
+        )
         for col in all_collections
         for rng in [_collection_range(col)]
         if rng is not None
@@ -99,7 +127,24 @@ def refresh_smart_collections(
         for new_meta in [_smart_metadata(col, dated_albums, dated_collections)]
         if new_meta is not None and new_meta != col.metadata
     ]
-    if not dry_run:
-        for col, new_meta in changed:
+    return (
+        SmartChanges(updated=tuple(col.name for col, _ in changed))
+        if dry_run
+        else _save_changed(changed)
+    )
+
+
+def _save_changed(
+    changed: list[tuple[ExistingCollection, CollectionMetadata]],
+) -> SmartChanges:
+    """Save each changed collection, stopping at the first save that fails."""
+    # Documented exception (docs/guidelines.md): per-item try/except, recording
+    # the collections saved before a failure.
+    saved: list[str] = []
+    for col, new_meta in changed:
+        try:
             save_collection_metadata(col.path, new_meta)
-    return tuple(col.name for col, _ in changed)
+        except OSError as exc:
+            return SmartChanges(updated=tuple(saved), errors=(filesystem_error(exc),))
+        saved.append(col.name)
+    return SmartChanges(updated=tuple(saved))

@@ -20,6 +20,17 @@ class ExportSettingsErrorKind(StrEnum):
     MISSING_SENTINEL = "missing-sentinel"
 
 
+def is_usage_error(kind: ExportSettingsErrorKind) -> bool:
+    """
+    Return whether *kind* is wrong whatever is on disk.
+
+    A usage error (exit 2) is fixed by changing the flags or the config; only
+    a missing sentinel depends on the share directory (exit 1), and may be
+    fixed by mounting the volume.
+    """
+    return kind != ExportSettingsErrorKind.MISSING_SENTINEL
+
+
 class ExportSettingsError(ValueError):
     """
     Invalid export settings.
@@ -63,8 +74,8 @@ def resolve_export_settings(
     share_layout: ShareDirectoryLayout | None,
     album_layout: AlbumShareLayout | None,
     link_mode: LinkMode | None,
-    config_path: str | None,
-    load: Callable[[str | None], PhotreeConfig] = load_config,
+    config_path: Path | None,
+    load: Callable[[Path | None], PhotreeConfig] = load_config,
 ) -> ResolvedExportSettings:
     """
     Resolve export settings: CLI flags > profile > defaults.

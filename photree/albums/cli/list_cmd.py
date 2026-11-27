@@ -29,7 +29,7 @@ def list_cmd(
             help="Show parsed album metadata and media sources (default: enabled).",
         ),
     ] = True,
-    output_format: OUTPUT_FORMAT_OPTION = OutputFormat.TEXT,
+    output_format: OUTPUT_FORMAT_OPTION = OutputFormat.HUMAN,
     output_file: OUTPUT_FILE_OPTION = None,
 ) -> None:
     """List all discovered albums with their metadata and media sources."""

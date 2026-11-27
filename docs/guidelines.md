@@ -13,7 +13,7 @@ them.
 - [Exceptions](#exceptions)
   - [Defer an import inside the function that needs it, not with `lazy import`](#defer-an-import-inside-the-function-that-needs-it-not-with-lazy-import)
   - [Keep an accumulator for loop-carried state and per-item `try`/`except`](#keep-an-accumulator-for-loop-carried-state-and-per-item-tryexcept)
-  - [Select the output format with `--format text|csv`, and write a file with `-o/--output`](#select-the-output-format-with---format-textcsv-and-write-a-file-with--o--output)
+  - [Offer no JSON output yet](#offer-no-json-output-yet)
 - [Rules](#rules)
   - [Read `.photree/*.yaml` through `metadata_io`](#read-photreeyaml-through-metadata_io)
   - [Add each new non-CLI domain subpackage to the CLI-layer contract](#add-each-new-non-cli-domain-subpackage-to-the-cli-layer-contract)
@@ -78,18 +78,26 @@ holds the loops that must not swallow errors, where clarity matters most.
 **Never retires:** a comprehension can neither carry state between elements
 nor catch an exception per item.
 
-### Select the output format with `--format text|csv`, and write a file with `-o/--output`
+### Offer no JSON output yet
 
 Overrides
-[general.md › Select the output format with `-o/--output`, and write a file with `-f/--file`](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#select-the-output-format-with--o--output-and-write-a-file-with--f--file):
-photree's listing commands select their format with `--format`, `text` (the
-default) or `csv`, and write the output to a file with `-o/--output FILE`.
+[general.md › Select the output format with `-o/--output`, and write a file with `-f/--file`](https://github.com/iglootools/common/blob/main/guidelines/coding/general.md#select-the-output-format-with--o--output-and-write-a-file-with--f--file),
+which asks every command that prints a result for `-o/--output json`: no
+photree command offers JSON. The listing commands (`albums list` and
+`list-media`, `album list-media`, `gallery list-albums`, `list-media` and
+`list-collections`) take `-o/--output` with `human` and `csv` only. `album`,
+`albums` and `gallery stats`, `album`, `collection` and `gallery show`, the
+`check` commands, `check system` and `import-check` have no format selection
+and print for a human only.
 
-**Why:** the flags predate the shared rule, and renaming them breaks every
-script and alias that passes them, which only a major release may do.
+**Why:** photree's results are albums and media on disk, which a script reads
+directly, and a listing it needs to process comes as CSV. A JSON format is a
+schema scripts come to depend on, and photree's result models still change
+from release to release.
 
-**Retires when:** photree's next major release, which moves the format to
-`-o/--output` (`human`, the default, and `csv`) and the file to `-f/--file`.
+**Retires when:** photree's 1.0 release, which freezes the CLI: before it,
+`json` joins `OutputFormat`, every command named above takes
+`-o/--output human|json`, and the listing commands keep `csv`.
 
 ## Rules
 
@@ -165,5 +173,5 @@ Before calling a change done, update the documents its kind of change reaches:
 | Toolchain, editor or Claude Code setup | setup-development-environment.md |
 | Release or publish pipeline, trusted publisher | releasing-and-publishing.md |
 | GitHub repository setting | building-and-testing.md "GitHub Config" |
-| Major release | new scenarios in demo/demo.sh (see the Release Process) |
+| Major release | new scenarios in demo/demo.sh (see [releasing-and-publishing.md › Release a Version](./releasing-and-publishing.md#release-a-version)) |
 | Renaming or moving a document | every file that points at it, as [layout.md › Write the documents the project's shape calls for, one name per role](https://github.com/iglootools/common/blob/main/guidelines/documentation/layout.md#write-the-documents-the-projects-shape-calls-for-one-name-per-role) lists |

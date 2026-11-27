@@ -6,6 +6,7 @@ from typing import Annotated
 import typer
 
 from photree.clihelpers.console import err_console
+from photree.clihelpers.options import DRY_RUN_OPTION
 from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.usage import usage_error
 from photree.collection.cli.app import app
@@ -20,7 +21,7 @@ from photree.collection.store.protocol import (
     CollectionStrategy,
     is_valid_collection_config,
 )
-from photree.common.formatting import indent
+from photree.common.formatting import format_dry_run, indent
 from photree.common.fs import display_path
 from photree.foundation.layout import PHOTREE_DIR
 
@@ -56,6 +57,8 @@ def init_cmd(
             ),
         ),
     ] = CollectionStrategy.IMPORT,
+    *,
+    dry_run: DRY_RUN_OPTION = False,
 ) -> None:
     """Initialize collection metadata (.photree/collection.yaml)."""
     cwd = runtime_of(ctx).cwd()
@@ -73,6 +76,7 @@ def init_cmd(
             members=members,
             lifecycle=lifecycle,
             strategy=strategy,
+            dry_run=dry_run,
         )
     except CollectionAlreadyInitializedError as exc:
         err_console.print(
@@ -85,8 +89,11 @@ def init_cmd(
         )
         raise typer.Exit(code=1) from exc
 
-    typer.echo(f"Created {collection_yaml}")
-    typer.echo(f"Collection ID: {format_collection_external_id(metadata.id)}")
+    if dry_run:
+        typer.echo(format_dry_run(f"Would create {collection_yaml}", dry_run=dry_run))
+    else:
+        typer.echo(f"Created {collection_yaml}")
+        typer.echo(f"Collection ID: {format_collection_external_id(metadata.id)}")
     typer.echo(
         indent(f"members: {members}\nlifecycle: {lifecycle}\nstrategy: {strategy}"),
     )

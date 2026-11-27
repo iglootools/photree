@@ -5,8 +5,7 @@ from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
 
-from photree.album.fix.ios import run_fix_ios
-from photree.album.fix.ios.output import format_fix_ios_result
+from photree.album.fix.ios import FixIosResult, run_fix_ios
 from photree.albums.cmd_handler import (
     BatchFailure,
     OnEnd,
@@ -18,12 +17,15 @@ from photree.albums.cmd_handler import (
 
 @dataclass(frozen=True)
 class BatchFixIosResult:
-    """Result of batch iOS fixing: how many albums were fixed, failures, reports."""
+    """
+    Result of batch iOS fixing: how many albums were fixed, failures, results.
+
+    *album_results* pairs each fixed album's display name with what its fix did.
+    """
 
     fixed: int
     failures: tuple[BatchFailure, ...] = ()
-    # (album display name, report) for each album whose fix had something to say
-    album_reports: tuple[tuple[str, str], ...] = ()
+    album_results: tuple[tuple[str, FixIosResult], ...] = ()
 
 
 def batch_fix_ios(
@@ -46,8 +48,8 @@ def batch_fix_ios(
     each album.
     """
 
-    def fix_one(album_dir: Path) -> str:
-        result = run_fix_ios(
+    def fix_one(album_dir: Path) -> FixIosResult:
+        return run_fix_ios(
             album_dir,
             dry_run=dry_run,
             rm_orphan_sidecar=rm_orphan_sidecar,
@@ -56,7 +58,6 @@ def batch_fix_ios(
             rm_miscategorized_safe=rm_miscategorized_safe,
             mv_miscategorized=mv_miscategorized,
         )
-        return "\n".join(format_fix_ios_result(result, dry_run=dry_run))
 
     outcomes = [
         run_album_step(
@@ -72,5 +73,5 @@ def batch_fix_ios(
     return BatchFixIosResult(
         fixed=len(albums) - len(failures),
         failures=failures,
-        album_reports=tuple((o.name, o.value) for o in outcomes if o.value),
+        album_results=tuple((o.name, o.value) for o in outcomes if o.value is not None),
     )

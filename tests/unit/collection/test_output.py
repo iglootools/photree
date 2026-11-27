@@ -49,6 +49,17 @@ class TestFormatCollectionIssue:
             "collection x date 2023-05 outside collection range 2024"
         )
 
+    def test_membership_cycle_names_the_member(self) -> None:
+        issue = CollectionCheckIssue(
+            CollectionIssueCode.MEMBERSHIP_CYCLE,
+            member_type=MemberType.COLLECTION,
+            member_id="x",
+        )
+
+        assert format_collection_issue(issue) == (
+            "collection x contains this collection back (membership cycle)"
+        )
+
     def test_invalid_config_names_the_combination(self) -> None:
         issue = CollectionCheckIssue(
             CollectionIssueCode.INVALID_COLLECTION_CONFIG,

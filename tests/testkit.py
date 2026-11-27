@@ -1,11 +1,24 @@
-"""Factories for the files, albums and galleries the tests set up."""
+"""Factories for the files, albums, galleries and collections the tests set up."""
 
+from collections.abc import Sequence
 from pathlib import Path
+from typing import TypedDict, Unpack
 
+from photree.album.browsable import mark_incomplete
 from photree.album.id import generate_album_id
+from photree.album.store.media_source import MAIN_MEDIA_SOURCE
 from photree.album.store.metadata import save_album_metadata
 from photree.album.store.protocol import AlbumMetadata
+from photree.collection.id import generate_collection_id
+from photree.collection.store.metadata import save_collection_metadata
+from photree.collection.store.protocol import (
+    CollectionLifecycle,
+    CollectionMembers,
+    CollectionMetadata,
+    CollectionStrategy,
+)
 from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
+from photree.foundation.layout import ALBUMS_DIR, COLLECTIONS_DIR
 from photree.foundation.linking import LinkMode
 
 
@@ -48,6 +61,65 @@ def add_ios_media_source(album_dir: Path) -> None:
     (album_dir / "main-jpg").mkdir(parents=True, exist_ok=True)
 
 
+def add_emptied_std_media_source(album_dir: Path) -> None:
+    """
+    Give the album a std media source whose browsable directory is empty.
+
+    The archive keeps one video (``std-nelu/orig-vid/clip.mov``) while
+    ``nelu-vid/`` holds nothing, so ``fix --rm-upstream`` refuses to delete
+    the whole archive unless forced.
+    """
+    write_file(album_dir / "std-nelu" / "orig-vid" / "clip.mov")
+    (album_dir / "nelu-vid").mkdir(parents=True)
+
+
+def add_incomplete_jpg_dir(album_dir: Path) -> None:
+    """
+    Give the album an iOS media source whose ``main-jpg/`` a refresh left incomplete.
+
+    Two images are archived and browsable, but ``main-jpg/`` holds only the
+    first one and carries the incomplete marker, as after sips failed on the
+    second: ``fix --rm-upstream`` must refuse rather than delete its original.
+    """
+    write_file(album_dir / "ios-main/orig-img/IMG_0001.HEIC")
+    write_file(album_dir / "ios-main/orig-img/IMG_0002.HEIC")
+    write_file(album_dir / "main-img/IMG_0001.HEIC")
+    write_file(album_dir / "main-img/IMG_0002.HEIC")
+    write_file(album_dir / "main-jpg/IMG_0001.jpg")
+    mark_incomplete(album_dir / "main-jpg")
+
+
+def add_consistent_ios_album(album: Path) -> None:
+    """
+    Give *album* a well-formed iOS media source, consistent across every directory.
+
+    Two images (a HEIC with its edit and AAE sidecars, a PNG) and a video,
+    with matching browsable and JPEG copies, so every check passes on it.
+    """
+    # ios/orig-img: IMG_0001.HEIC + AAE, IMG_0002.PNG (no AAE for PNG)
+    write_file(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.HEIC", "heic-orig")
+    write_file(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0001.AAE", "aae-orig")
+    write_file(album / MAIN_MEDIA_SOURCE.orig_img_dir / "IMG_0002.PNG", "png-orig")
+
+    write_file(
+        album / MAIN_MEDIA_SOURCE.edit_img_dir / "IMG_E0001.HEIC",
+        "heic-rendered",
+    )
+    write_file(album / MAIN_MEDIA_SOURCE.edit_img_dir / "IMG_O0001.AAE", "aae-rendered")
+
+    # main-img: rendered for 0001, orig PNG for 0002
+    write_file(album / MAIN_MEDIA_SOURCE.img_dir / "IMG_E0001.HEIC", "heic-rendered")
+    write_file(album / MAIN_MEDIA_SOURCE.img_dir / "IMG_0002.PNG", "png-orig")
+
+    write_file(album / MAIN_MEDIA_SOURCE.orig_vid_dir / "IMG_0003.MOV", "mov-orig")
+    write_file(album / MAIN_MEDIA_SOURCE.vid_dir / "IMG_0003.MOV", "mov-orig")
+
+    (album / MAIN_MEDIA_SOURCE.edit_vid_dir).mkdir(parents=True, exist_ok=True)
+
+    write_file(album / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_E0001.jpg", "jpeg-converted")
+    write_file(album / MAIN_MEDIA_SOURCE.jpg_dir / "IMG_0002.PNG", "png-copied")
+
+
 def make_album(
     parent: Path,
     name: str,
@@ -72,7 +144,7 @@ def make_gallery(
 ) -> Path:
     """Create a ``gallery`` directory under *parent* with its ``gallery.yaml``."""
     gallery = parent / "gallery"
-    gallery.mkdir()
+    gallery.mkdir(parents=True)
     save_gallery_metadata(
         gallery,
         GalleryMetadata(link_mode=link_mode, faces_enabled=faces_enabled),
@@ -87,4 +159,62 @@ def make_gallery_album(
     album_id: str | None = None,
 ) -> tuple[Path, str]:
     """:func:`make_album` in the gallery's year directory, ``albums/<year>/``."""
-    return make_album(gallery / "albums" / name[:4], name, album_id=album_id)
+    return make_album(gallery / ALBUMS_DIR / name[:4], name, album_id=album_id)
+
+
+class CollectionFields(TypedDict, total=False):
+    """The :class:`CollectionMetadata` fields :func:`make_collection` takes."""
+
+    members: CollectionMembers
+    lifecycle: CollectionLifecycle
+    strategy: CollectionStrategy
+    albums: Sequence[str]
+    collections: Sequence[str]
+    images: Sequence[str]
+    videos: Sequence[str]
+
+
+def make_collection(
+    parent: Path,
+    name: str,
+    *,
+    members: CollectionMembers = CollectionMembers.MANUAL,
+    lifecycle: CollectionLifecycle = CollectionLifecycle.EXPLICIT,
+    strategy: CollectionStrategy = CollectionStrategy.IMPORT,
+    albums: Sequence[str] = (),
+    collections: Sequence[str] = (),
+    images: Sequence[str] = (),
+    videos: Sequence[str] = (),
+) -> tuple[Path, str]:
+    """
+    Create collection *name* under *parent* with its ``collection.yaml``.
+
+    A manual, explicit collection by default, holding the given member IDs.
+    Returns the collection's directory and its new ID.
+    """
+    collection_dir = parent / name
+    collection_dir.mkdir(parents=True)
+    collection_id = generate_collection_id()
+    save_collection_metadata(
+        collection_dir,
+        CollectionMetadata(
+            id=collection_id,
+            members=members,
+            lifecycle=lifecycle,
+            strategy=strategy,
+            albums=list(albums),
+            collections=list(collections),
+            images=list(images),
+            videos=list(videos),
+        ),
+    )
+    return collection_dir, collection_id
+
+
+def make_gallery_collection(
+    gallery: Path,
+    name: str,
+    **fields: Unpack[CollectionFields],
+) -> tuple[Path, str]:
+    """:func:`make_collection` in the gallery's ``collections/<year>/``."""
+    return make_collection(gallery / COLLECTIONS_DIR / name[:4], name, **fields)

@@ -1,6 +1,8 @@
 import hashlib
 import io
+import socket
 import zipfile
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -12,7 +14,10 @@ from photree.album.faces.model import (
     VERIFIED_MARKER,
     ModelArchive,
     ModelChecksumError,
+    ModelDownloadError,
+    ModelDownloadFailureKind,
     UnknownModelError,
+    download_url,
     ensure_model,
     resolve_model_archive,
 )
@@ -154,3 +159,83 @@ def test_entry_point_reports_checksum_mismatch(
     assert "https://example.invalid/buffalo_l.zip" in err
     assert "expected: aaa" in err
     assert "actual:   bbb" in err
+
+
+@pytest.fixture
+def silent_server() -> Iterator[str]:
+    """Yield the URL of a server that accepts connections and never answers."""
+    with socket.socket() as server:
+        server.bind(("127.0.0.1", 0))
+        server.listen()
+        host, port = server.getsockname()
+        yield f"http://{host}:{port}/buffalo_l.zip"
+
+
+@pytest.fixture
+def closed_port_url() -> str:
+    """Return a URL on a local port nothing listens on."""
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        host, port = probe.getsockname()
+    return f"http://{host}:{port}/buffalo_l.zip"
+
+
+class TestDownloadUrl:
+    def test_stalled_server_times_out(self, silent_server: str, tmp_path: Path) -> None:
+        with pytest.raises(ModelDownloadError) as exc_info:
+            download_url(silent_server, tmp_path / "a.zip", timeout_seconds=0.2)
+
+        assert exc_info.value.kind == ModelDownloadFailureKind.TIMED_OUT
+        assert exc_info.value.url == silent_server
+
+    def test_refused_connection_is_unreachable(
+        self,
+        closed_port_url: str,
+        tmp_path: Path,
+    ) -> None:
+        with pytest.raises(ModelDownloadError) as exc_info:
+            download_url(closed_port_url, tmp_path / "a.zip", timeout_seconds=5)
+
+        assert exc_info.value.kind == ModelDownloadFailureKind.UNREACHABLE
+
+
+class TestMemoizedFactoryOnDownloadError:
+    def test_failed_download_is_not_retried(self) -> None:
+        calls: list[str] = []
+        error = ModelDownloadError(
+            url="u",
+            kind=ModelDownloadFailureKind.TIMED_OUT,
+            detail="timed out",
+        )
+
+        def _create(model_name: str) -> Any:  # noqa: ANN401 - stands in for insightface's untyped FaceAnalysis
+            calls.append(model_name)
+            raise error
+
+        factory = memoized_face_analyzer_factory(create=_create)
+
+        for _ in range(2):
+            with pytest.raises(ModelDownloadError):
+                factory()
+
+        assert calls == ["buffalo_l"]
+
+
+def test_entry_point_reports_download_failure(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def _raise(**_: object) -> None:
+        raise ModelDownloadError(
+            url="https://example.invalid/buffalo_l.zip",
+            kind=ModelDownloadFailureKind.TIMED_OUT,
+            detail="timed out",
+        )
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(run=_raise)
+
+    assert exc_info.value.code == 1
+    err = capsys.readouterr().err
+    assert "timed out" in err
+    assert "https://example.invalid/buffalo_l.zip" in err
+    assert "run the command again" in err

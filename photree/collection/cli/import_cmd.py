@@ -7,6 +7,7 @@ import typer
 
 from photree.clihelpers.console import console, err_console
 from photree.clihelpers.options import DRY_RUN_OPTION, GALLERY_DIR_OPTION
+from photree.clihelpers.paths import expand_user_path
 from photree.clihelpers.progress import run_with_spinner
 from photree.clihelpers.resolution import resolve_gallery_or_exit
 from photree.clihelpers.runtime import runtime_of
@@ -108,9 +109,8 @@ def import_cmd(
             "--collection-dir",
             "-c",
             help="Collection directory (must be initialized).",
-            exists=True,
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(exists=True),
         ),
     ] = Path(),
     gallery_dir: GALLERY_DIR_OPTION = None,

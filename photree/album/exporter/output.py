@@ -1,10 +1,8 @@
 """Text the CLI prints for album exports: errors and summaries."""
 
 import shlex
-from collections.abc import Sequence
 from pathlib import Path
 
-from photree.album.exporter.batch import ExportFailure
 from photree.album.exporter.settings import (
     ExportSettingsError,
     ExportSettingsErrorKind,
@@ -95,43 +93,6 @@ def export_summary(
             f"Done. Exported {album_name} ({album_type}):"
             f" {files_copied} file(s){removed}."
         )
-
-
-def batch_export_summary(exported: int, failed: int, *, dry_run: bool = False) -> str:
-    """Return the closing line for a batch export, preceded by a blank line."""
-    return (
-        format_dry_run(
-            f"\n{exported} album(s) would be exported, {failed} failed.",
-            dry_run=True,
-        )
-        if dry_run
-        else f"\nDone. {exported} album(s) exported, {failed} failed."
-    )
-
-
-def format_batch_export_failures(failed: Sequence[ExportFailure], cwd: Path) -> str:
-    """
-    Plain text (print with ``markup=False``) listing each failed album and why.
-
-    Followed by the ``album export`` command that reruns each one alone.
-    """
-    return "\n".join(
-        [
-            "\nFailed albums:",
-            *(
-                indent(f"{display_path(album_dir, cwd)}\n{indent(error)}")
-                for album_dir, error in failed
-            ),
-            "\nTo investigate failures:",
-            *(
-                indent(
-                    "photree album export --album-dir "
-                    f'"{display_path(album_dir, cwd)}"',
-                )
-                for album_dir, _ in failed
-            ),
-        ],
-    )
 
 
 def _os_error_reason(exc: OSError, cwd: Path) -> str:

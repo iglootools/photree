@@ -11,10 +11,12 @@ pinned here, and hands insightface a directory that already holds it.
 
 import hashlib
 import shutil
+import urllib.error
 import urllib.request
 import zipfile
 from collections.abc import Callable
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 
 
@@ -41,6 +43,12 @@ MODEL_ARCHIVES = {archive.name: archive for archive in (BUFFALO_L,)}
 VERIFIED_MARKER = ".photree-sha256"
 """File in an extracted model directory holding the sha256 it was verified as."""
 
+DOWNLOAD_TIMEOUT_SECONDS = 60.0
+"""How long the download waits on the connection or on each read before failing.
+
+A server or network that stops sending without closing the connection would
+otherwise block the refresh or import that needed the model forever."""
+
 
 class ModelChecksumError(OSError):
     """The downloaded model archive does not have the pinned sha256."""
@@ -53,6 +61,30 @@ class ModelChecksumError(OSError):
         super().__init__(
             f"face model archive {url} has sha256 {actual}, expected {expected}",
         )
+
+
+class ModelDownloadFailureKind(StrEnum):
+    """How the download of the model archive failed."""
+
+    TIMED_OUT = "timed-out"  # no data for DOWNLOAD_TIMEOUT_SECONDS
+    UNREACHABLE = "unreachable"  # refused, reset, DNS, or an HTTP error status
+
+
+class ModelDownloadError(OSError):
+    """The model archive could not be downloaded; nothing was installed."""
+
+    def __init__(
+        self,
+        *,
+        url: str,
+        kind: ModelDownloadFailureKind,
+        detail: str,
+    ) -> None:
+        """Build the error from the URL, how the download failed and the cause."""
+        self.url = url
+        self.kind = kind
+        self.detail = detail
+        super().__init__(f"face model archive {url} could not be downloaded: {detail}")
 
 
 class UnknownModelError(ValueError):
@@ -68,10 +100,37 @@ type DownloadFn = Callable[[str, Path], None]
 """Writes the content at a URL to a path: :func:`download_url`, or a test fake."""
 
 
-def download_url(url: str, dst: Path) -> None:
-    """Write the content at *url* to *dst*, streaming it."""
-    with urllib.request.urlopen(url) as response, dst.open("wb") as f:  # noqa: S310 - the URL is a pinned https constant
-        shutil.copyfileobj(response, f)
+def download_url(
+    url: str,
+    dst: Path,
+    *,
+    timeout_seconds: float = DOWNLOAD_TIMEOUT_SECONDS,
+) -> None:
+    """
+    Write the content at *url* to *dst*, streaming it.
+
+    Raises :class:`ModelDownloadError` when the server cannot be reached,
+    answers with an error, or sends nothing for *timeout_seconds*; an error
+    writing *dst* propagates as it is.
+    """
+    with dst.open("wb") as f:
+        try:
+            with urllib.request.urlopen(url, timeout=timeout_seconds) as response:  # noqa: S310 - the URL is a pinned https constant
+                shutil.copyfileobj(response, f)
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
+            raise _download_error(url, exc) from exc
+
+
+def _download_error(url: str, exc: OSError) -> ModelDownloadError:
+    """Return the :class:`ModelDownloadError` for a failed request to *url*."""
+    # urlopen wraps a connect timeout in URLError; a read timeout comes bare.
+    cause = exc.reason if isinstance(exc, urllib.error.URLError) else exc
+    kind = (
+        ModelDownloadFailureKind.TIMED_OUT
+        if isinstance(cause, TimeoutError)
+        else ModelDownloadFailureKind.UNREACHABLE
+    )
+    return ModelDownloadError(url=url, kind=kind, detail=str(cause))
 
 
 def compute_sha256(path: Path) -> str:

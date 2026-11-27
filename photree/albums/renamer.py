@@ -34,6 +34,8 @@ class RenamePlanErrorKind(StrEnum):
     UNPARSEABLE_NAME = "unparseable-name"
     EMPTY_TITLE = "empty-title"
     DUPLICATE_ID = "duplicate-id"
+    PATH_SEPARATOR = "path-separator"
+    AMBIGUOUS_NAME = "ambiguous-name"
 
 
 @dataclass(frozen=True)
@@ -42,13 +44,15 @@ class RenamePlanError:
     An invalid CSV row.
 
     ``row`` is the 1-based data row (the header is not counted).
-    ``album_name`` is set when the row's album was found.
+    ``album_name`` is set when the row's album was found, and ``new_name``
+    when the name the row asks for was built but cannot be used.
     """
 
     kind: RenamePlanErrorKind
     row: int
     external_id: str
     album_name: str | None = None
+    new_name: str | None = None
 
 
 RENAME_CSV_COLUMNS = ("id", "series", "title", "location")
@@ -67,6 +71,35 @@ class RenameCsvColumnsError(ValueError):
         """Build the error from the required columns the header lacks."""
         self.missing = missing
         super().__init__(f"Missing CSV column(s): {', '.join(missing)}")
+
+
+class RenameCsvFormatErrorKind(StrEnum):
+    """Why a rename CSV cannot be read as CSV at all."""
+
+    NOT_UTF8 = "not-utf8"
+    MALFORMED = "malformed"
+
+
+class RenameCsvFormatError(ValueError):
+    """
+    A rename CSV is not UTF-8 text, or the CSV parser rejects it.
+
+    *line* is the line the parser stopped at (``None`` when the file is not
+    UTF-8), and *reason* the parser's own explanation of a malformed file.
+    """
+
+    def __init__(
+        self,
+        kind: RenameCsvFormatErrorKind,
+        *,
+        line: int | None = None,
+        reason: str = "",
+    ) -> None:
+        """Build the error from its *kind*, and where and why parsing stopped."""
+        self.kind = kind
+        self.line = line
+        self.reason = reason
+        super().__init__(f"Unreadable rename CSV: {kind}")
 
 
 def validate_rename_csv_columns(fieldnames: Sequence[str] | None) -> None:
@@ -160,17 +193,41 @@ def _plan_row(
         case _ if not _has_mutable_changes(parsed, csv_series, csv_title, csv_location):
             return None
         case _:
-            new_name = reconstruct_name(
-                ParsedAlbumName(
-                    date=parsed.date,
-                    part=parsed.part,
-                    private=parsed.private,
-                    series=csv_series,
-                    title=csv_title,
-                    location=csv_location,
-                ),
+            wanted = ParsedAlbumName(
+                date=parsed.date,
+                part=parsed.part,
+                private=parsed.private,
+                series=csv_series,
+                title=csv_title,
+                location=csv_location,
             )
-            return RenameAction(located, located.name, new_name)
+            return _plan_rename(row_number, external_id, located, wanted)
+
+
+def _plan_rename(
+    row_number: int,
+    external_id: str,
+    album_path: Path,
+    wanted: ParsedAlbumName,
+) -> RenameAction | RenamePlanError:
+    """
+    Return the rename to *wanted*'s name, or why that name cannot be used.
+
+    A ``/`` would make the target a path into a directory that does not
+    exist. A field holding a separator (`` - ``, `` @ ``) or a tag builds a
+    name that parses back to other fields: ``Paris @ Night`` as a title
+    reads back as title ``Paris`` at location ``Night``, and ``A - B`` as
+    series ``A``, which the next refresh turns into an implicit collection.
+    """
+    new_name = reconstruct_name(wanted)
+    match new_name:
+        case _ if "/" in new_name:
+            kind = RenamePlanErrorKind.PATH_SEPARATOR
+        case _ if parse_album_name(new_name) != wanted:
+            kind = RenamePlanErrorKind.AMBIGUOUS_NAME
+        case _:
+            return RenameAction(album_path, album_path.name, new_name)
+    return RenamePlanError(kind, row_number, external_id, album_path.name, new_name)
 
 
 def plan_renames_from_csv(

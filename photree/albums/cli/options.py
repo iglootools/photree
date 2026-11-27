@@ -5,15 +5,16 @@ from typing import Annotated
 
 import typer
 
+from photree.clihelpers.paths import expand_user_path, expand_user_paths
+
 DIR_OPTION = Annotated[
     Path | None,
     typer.Option(
         "--dir",
         "-d",
         help="Base directory to recursively scan for albums.",
-        exists=True,
         file_okay=False,
-        resolve_path=True,
+        callback=expand_user_path(exists=True),
     ),
 ]
 
@@ -23,8 +24,7 @@ ALBUM_DIR_OPTION = Annotated[
         "--album-dir",
         "-a",
         help="Album directory (repeatable).",
-        exists=True,
         file_okay=False,
-        resolve_path=True,
+        callback=expand_user_paths(exists=True),
     ),
 ]

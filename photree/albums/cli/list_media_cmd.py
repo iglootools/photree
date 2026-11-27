@@ -19,7 +19,7 @@ def list_media_cmd(
     ctx: typer.Context,
     base_dir: DIR_OPTION = None,
     album_dirs: ALBUM_DIR_OPTION = None,
-    output_format: OUTPUT_FORMAT_OPTION = OutputFormat.TEXT,
+    output_format: OUTPUT_FORMAT_OPTION = OutputFormat.HUMAN,
     output_file: OUTPUT_FILE_OPTION = None,
 ) -> None:
     """List all media items across multiple albums."""

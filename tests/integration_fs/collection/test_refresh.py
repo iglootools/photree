@@ -1,5 +1,8 @@
+import os
 import shutil
 from pathlib import Path
+
+import pytest
 
 from photree.collection.id import generate_collection_id
 from photree.collection.refresh import refresh_collections
@@ -19,7 +22,13 @@ from photree.collection.store.protocol import (
     CollectionStrategy,
 )
 from photree.foundation.layout import COLLECTIONS_DIR
-from tests.testkit import make_gallery, make_gallery_album, write_file
+from photree.gallery.browsable_refresh import refresh_browsable
+from tests.testkit import (
+    make_gallery,
+    make_gallery_album,
+    make_gallery_collection,
+    write_file,
+)
 
 
 def _load_metadata(collection_dir: Path) -> CollectionMetadata:
@@ -28,19 +37,17 @@ def _load_metadata(collection_dir: Path) -> CollectionMetadata:
     return metadata
 
 
-def _explicit_collection(gallery: Path, name: str, album_ids: list[str]) -> Path:
-    col_dir = gallery / COLLECTIONS_DIR / name[:4] / name
-    col_dir.mkdir(parents=True)
-    save_collection_metadata(
-        col_dir,
-        CollectionMetadata(
-            id=generate_collection_id(),
-            members=CollectionMembers.MANUAL,
-            lifecycle=CollectionLifecycle.EXPLICIT,
-            albums=album_ids,
-        ),
+def _smart_collection(
+    gallery: Path,
+    name: str,
+    strategy: CollectionStrategy = CollectionStrategy.DATE_RANGE,
+) -> tuple[Path, str]:
+    return make_gallery_collection(
+        gallery,
+        name,
+        members=CollectionMembers.SMART,
+        strategy=strategy,
     )
-    return col_dir
 
 
 class TestImplicitCollectionDetection:
@@ -361,6 +368,76 @@ class TestSmartCollectionRefresh:
         assert meta is not None
         assert sub_meta.id in meta.collections
 
+    def test_smart_never_lists_itself(self, tmp_path: Path) -> None:
+        gallery = make_gallery(tmp_path)
+        make_gallery_album(gallery, "2024-07-14 - Trip")
+        col_dir, cid = _smart_collection(gallery, "2024-07 - July")
+
+        refresh_collections(gallery)
+
+        assert cid not in _load_metadata(col_dir).collections
+
+    def test_public_smart_leaves_out_private_members(self, tmp_path: Path) -> None:
+        gallery = make_gallery(tmp_path)
+        _, public_aid = make_gallery_album(gallery, "2024-07-14 - Trip")
+        make_gallery_album(gallery, "2024-07-15 - Secret [private]")
+        _, public_cid = _smart_collection(gallery, "2024-07-14 - Day")
+        _smart_collection(gallery, "2024-07-15 - Night [private]")
+        col_dir, _ = _smart_collection(gallery, "2024-07 - July")
+
+        refresh_collections(gallery)
+
+        meta = _load_metadata(col_dir)
+        assert (meta.albums, meta.collections) == ([public_aid], [public_cid])
+
+    def test_private_smart_takes_only_private_members(self, tmp_path: Path) -> None:
+        gallery = make_gallery(tmp_path)
+        make_gallery_album(gallery, "2024-07-14 - Trip")
+        _, private_aid = make_gallery_album(gallery, "2024-07-15 - Secret [private]")
+        _smart_collection(gallery, "2024-07-14 - Day")
+        _, private_cid = _smart_collection(gallery, "2024-07-15 - Night [private]")
+        col_dir, _ = _smart_collection(gallery, "2024-07 - July [private]")
+
+        refresh_collections(gallery)
+
+        meta = _load_metadata(col_dir)
+        assert (meta.albums, meta.collections) == ([private_aid], [private_cid])
+
+    def test_smart_collections_with_same_range_do_not_contain_each_other(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = make_gallery(tmp_path)
+        make_gallery_album(gallery, "2024-07-14 - Trip")
+        highlights_dir, _ = _smart_collection(gallery, "2024 - Highlights")
+        family_dir, _ = _smart_collection(gallery, "2024 - Family")
+        chapter_dir, _ = _smart_collection(
+            gallery,
+            "2024 - Year",
+            CollectionStrategy.CHAPTER,
+        )
+
+        assert refresh_collections(gallery).success
+
+        assert [
+            _load_metadata(d).collections
+            for d in (highlights_dir, family_dir, chapter_dir)
+        ] == [[], [], []]
+        assert refresh_browsable(gallery).success
+
+    def test_smart_contains_manual_collection_with_same_range(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = make_gallery(tmp_path)
+        manual_dir, _ = make_gallery_collection(gallery, "2024 - Picks")
+        smart_dir, _ = _smart_collection(gallery, "2024 - Highlights")
+
+        refresh_collections(gallery)
+
+        manual_id = _load_metadata(manual_dir).id
+        assert _load_metadata(smart_dir).collections == [manual_id]
+
 
 class TestAlbumTitleSync:
     def test_removes_series_from_explicit_collection_members(
@@ -369,7 +446,7 @@ class TestAlbumTitleSync:
     ) -> None:
         gallery = make_gallery(tmp_path)
         _, aid = make_gallery_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
-        _explicit_collection(gallery, "2024-07-14 - Trip", [aid])
+        make_gallery_collection(gallery, "2024-07-14 - Trip", albums=[aid])
 
         result = refresh_collections(gallery)
         assert result.success
@@ -384,7 +461,7 @@ class TestAlbumTitleSync:
         """Regression: any explicit collection stripped its title gallery-wide."""
         gallery = make_gallery(tmp_path)
         make_gallery_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
-        _explicit_collection(gallery, "2019 - Trip", [])
+        make_gallery_collection(gallery, "2019 - Trip", albums=[])
 
         result = refresh_collections(gallery)
         assert result.success
@@ -477,7 +554,7 @@ class TestDryRunMatchesRealRun:
         gallery = make_gallery(tmp_path)
         _, aid1 = make_gallery_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
         _, aid2 = make_gallery_album(gallery, "2024-07-15 - 02 - Trip - Kayaking")
-        _explicit_collection(gallery, "2024-07 - Trip", [aid1, aid2])
+        make_gallery_collection(gallery, "2024-07 - Trip", albums=[aid1, aid2])
 
         dry = refresh_collections(gallery, dry_run=True)
 
@@ -519,6 +596,53 @@ class TestDryRunMatchesRealRun:
         assert real.updated == dry.updated
 
 
+def _move_series_to_2025(gallery: Path) -> None:
+    """Create the 2024 Trip series and its collection, then re-date it to 2025."""
+    for day in ("14", "15"):
+        make_gallery_album(gallery, f"2024-07-{day} - 01 - Trip - Day {day}")
+    refresh_collections(gallery)
+    albums = gallery / "albums"
+    (albums / "2025").mkdir()
+    for day in ("14", "15"):
+        name = f"07-{day} - 01 - Trip - Day {day}"
+        (albums / "2024" / f"2024-{name}").rename(albums / "2025" / f"2025-{name}")
+
+
+class TestImplicitCollectionMoveFailure:
+    def test_failed_move_is_rolled_back_and_reported(self, tmp_path: Path) -> None:
+        gallery = make_gallery(tmp_path)
+        _move_series_to_2025(gallery)
+        [col_dir] = discover_collections(gallery)
+        col_id = _load_metadata(col_dir).id
+        # A file where the 2025 year directory should go makes the move fail.
+        write_file(gallery / COLLECTIONS_DIR / "2025")
+
+        result = refresh_collections(gallery)
+
+        assert [(e.kind, e.path, e.stranded) for e in result.errors] == [
+            (CollectionRefreshErrorKind.COLLECTION_MOVE_FAILED, col_dir, ()),
+        ]
+        assert discover_collections(gallery) == [col_dir]
+        assert _load_metadata(col_dir).id == col_id
+
+    def test_collection_left_under_temporary_name_stops_the_refresh(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = make_gallery(tmp_path)
+        _move_series_to_2025(gallery)
+        [col_dir] = discover_collections(gallery)
+        stranded = col_dir.with_name(f".photree-moving-{_load_metadata(col_dir).id}")
+        col_dir.rename(stranded)
+
+        result = refresh_collections(gallery)
+
+        assert [(e.kind, e.path) for e in result.errors] == [
+            (CollectionRefreshErrorKind.STRANDED_COLLECTION_MOVE, stranded),
+        ]
+        assert discover_collections(gallery) == []
+
+
 class TestRefreshErrors:
     def test_naming_issues_are_carried(self, tmp_path: Path) -> None:
         gallery = make_gallery(tmp_path)
@@ -539,7 +663,7 @@ class TestRefreshErrors:
         # Make the stripped name collide with an existing directory.
         stripped = source.parent / "2024-07-14 - 01 - Hiking"
         stripped.mkdir()
-        _explicit_collection(gallery, "2024-07 - Trip", [aid])
+        make_gallery_collection(gallery, "2024-07 - Trip", albums=[aid])
 
         result = refresh_collections(gallery)
 
@@ -633,3 +757,84 @@ class TestRefreshErrors:
         meta = load_collection_metadata(col_dir)
         assert meta is not None
         assert meta.id == fixed_id
+
+
+_ROOT_WRITES_ANYWHERE = pytest.mark.skipif(
+    os.geteuid() == 0,
+    reason="root writes whatever the permissions",
+)
+
+
+class TestRefreshFilesystemErrors:
+    @_ROOT_WRITES_ANYWHERE
+    def test_failed_album_rename_reports_the_renames_already_done(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Regression: the OSError left as a traceback, the done renames unlisted."""
+        gallery = make_gallery(tmp_path)
+        _, done_id = make_gallery_album(gallery, "2023-07-14 - 01 - Trip - Hiking")
+        stuck, stuck_id = make_gallery_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
+        make_gallery_collection(gallery, "2023 - Trip", albums=[done_id, stuck_id])
+        stuck.parent.chmod(0o500)
+        try:
+            result = refresh_collections(gallery)
+        finally:
+            stuck.parent.chmod(0o700)
+
+        assert result.album_renames == (
+            ("2023-07-14 - 01 - Trip - Hiking", "2023-07-14 - 01 - Hiking"),
+        )
+        [error] = result.errors
+        assert error.kind is CollectionRefreshErrorKind.FILESYSTEM_ERROR
+        assert error.path == stuck
+        assert error.reason
+
+    @_ROOT_WRITES_ANYWHERE
+    def test_failed_implicit_collection_creation_is_an_error(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = make_gallery(tmp_path)
+        make_gallery_album(gallery, "2024-07-14 - 01 - Trip - Hiking")
+        collections_dir = gallery / COLLECTIONS_DIR
+        collections_dir.mkdir()
+        collections_dir.chmod(0o500)
+        try:
+            result = refresh_collections(gallery)
+        finally:
+            collections_dir.chmod(0o700)
+
+        assert [error.kind for error in result.errors] == [
+            CollectionRefreshErrorKind.FILESYSTEM_ERROR,
+        ]
+
+    @_ROOT_WRITES_ANYWHERE
+    def test_failed_smart_collection_save_is_an_error(self, tmp_path: Path) -> None:
+        gallery = make_gallery(tmp_path)
+        make_gallery_album(gallery, "2024-07-14 - Trip")
+        col_dir = gallery / COLLECTIONS_DIR / "2024" / "2024-07 - July"
+        col_dir.mkdir(parents=True)
+        save_collection_metadata(
+            col_dir,
+            CollectionMetadata(
+                id=generate_collection_id(),
+                members=CollectionMembers.SMART,
+                lifecycle=CollectionLifecycle.EXPLICIT,
+                strategy=CollectionStrategy.DATE_RANGE,
+            ),
+        )
+        metadata_dir = col_dir / ".photree"
+        metadata_files = [metadata_dir, *metadata_dir.iterdir()]
+        for path in metadata_files:
+            path.chmod(0o500)
+        try:
+            result = refresh_collections(gallery)
+        finally:
+            for path in metadata_files:
+                path.chmod(0o700)
+
+        assert result.updated == ()
+        assert [error.kind for error in result.errors] == [
+            CollectionRefreshErrorKind.FILESYSTEM_ERROR,
+        ]

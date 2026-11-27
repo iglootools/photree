@@ -205,21 +205,46 @@ class ExifDateChange:
     new_value: str
 
 
+@dataclass(frozen=True)
+class ExiftoolInvocation:
+    """An exiftool command line, and the argfile it reads from stdin."""
+
+    argv: tuple[str, ...]
+    stdin: str
+
+
+def build_exiftool_invocation(
+    args: Sequence[str],
+    paths: Sequence[Path],
+) -> ExiftoolInvocation:
+    """
+    Return the invocation running exiftool with *args* on *paths*.
+
+    The paths go in an argfile on stdin, not on the command line: the
+    absolute paths of a large album exceed the OS argument limit, and
+    ``subprocess.run`` would fail with "Argument list too long". Each line is
+    an absolute path (:func:`_argfile_path`), so a file named like
+    ``-AllDates=x.jpg`` is never read as an option or a tag assignment.
+    """
+    return ExiftoolInvocation(
+        argv=("exiftool", *args, "-@", "-"),
+        stdin="".join(f"{_argfile_path(p)}\n" for p in paths),
+    )
+
+
 def _run_exiftool(args: Sequence[str], paths: Sequence[Path]) -> str:
     """
-    Run ``exiftool *args* -- *paths*`` and return its stdout.
+    Run ``exiftool *args*`` on *paths* and return its stdout.
 
-    The ``--`` ends the options: a relative path starting with a dash (as
-    ``Path("./-AllDates=x.jpg")`` prints) would otherwise be read as an
-    option or a tag assignment, and written to every other file.
-
-    Raises :class:`ExifToolError` on a non-zero exit: exiftool reports
-    per-file failures (unwritable file, unsupported format) through its exit
-    status and stderr, and ignoring them would report unchanged files as
-    updated.
+    The command is :func:`build_exiftool_invocation`'s. Raises
+    :class:`ExifToolError` on a non-zero exit: exiftool reports per-file
+    failures (unwritable file, unsupported format) through its exit status
+    and stderr, and ignoring them would report unchanged files as updated.
     """
+    invocation = build_exiftool_invocation(args, paths)
     result = subprocess.run(
-        ["exiftool", *args, "--", *[str(p) for p in paths]],
+        invocation.argv,
+        input=invocation.stdin,
         check=False,  # returncode is inspected below
         capture_output=True,
         encoding="utf-8",
@@ -351,12 +376,17 @@ def read_first_timestamps(
     """
     Return each file with its first timestamp among *tags*, as exiftool prints it.
 
-    ``None`` for a file with none of *tags*. Raises :class:`ExifToolError`
-    when exiftool fails to read a file.
+    ``None`` for a file with none of *tags*. Each file is returned as given,
+    though exiftool was handed its absolute path. Raises
+    :class:`ExifToolError` when exiftool fails to read a file.
     """
     entries = json.loads(_run_exiftool(["-json", *[f"-{t}" for t in tags]], files))
+    given = {str(f.absolute()): f for f in files}
     return tuple(
-        (Path(str(entry.get("SourceFile", ""))), _first_timestamp(entry, tags))
+        (
+            given.get(source := str(entry.get("SourceFile", "")), Path(source)),
+            _first_timestamp(entry, tags),
+        )
         for entry in entries
     )
 

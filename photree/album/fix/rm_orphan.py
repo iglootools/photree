@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from photree.album.fix.helpers import require_archive
+from photree.album.fix.removed_files import RemovedFiles
 from photree.album.formats import IMG_EXTENSIONS, VID_EXTENSIONS
 from photree.album.store.media_source import KeyFn, MediaSource
 from photree.common.fs import delete_files, file_ext, list_files
@@ -27,28 +28,11 @@ def _find_orphan_files(
 
 
 @dataclass(frozen=True)
-class RmOrphanDirResult:
-    """
-    The orphans removed from one media kind's directories.
-
-    *removed_by_dir* pairs each directory name with the files removed from
-    it; directories with nothing removed are left out.
-    """
-
-    removed_by_dir: tuple[tuple[str, tuple[str, ...]], ...]
-
-    @property
-    def total(self) -> int:
-        """Return the number of files removed."""
-        return sum(len(files) for _, files in self.removed_by_dir)
-
-
-@dataclass(frozen=True)
 class RmOrphanResult:
     """The orphans removed from a media source, for images and videos."""
 
-    heic: RmOrphanDirResult
-    mov: RmOrphanDirResult
+    heic: RemovedFiles
+    mov: RemovedFiles
 
 
 def _rm_orphans_in_dir(
@@ -74,9 +58,9 @@ def _rm_orphans_in_dirs(
     key_fn: KeyFn,
     *,
     dry_run: bool,
-) -> RmOrphanDirResult:
+) -> RemovedFiles:
     """Remove files from directories whose key has no orig counterpart."""
-    return RmOrphanDirResult(
+    return RemovedFiles(
         removed_by_dir=tuple(
             result
             for d in directories

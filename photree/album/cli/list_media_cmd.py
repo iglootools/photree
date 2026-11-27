@@ -1,6 +1,5 @@
 """The ``photree album list-media`` command."""
 
-import csv
 from pathlib import Path
 from typing import Annotated
 
@@ -19,15 +18,18 @@ from photree.album.store.media_metadata import (
 )
 from photree.album.store.metadata import load_album_metadata
 from photree.clihelpers.console import err_console
-from photree.clihelpers.csvout import csv_output
 from photree.clihelpers.options import (
     OUTPUT_FILE_OPTION,
     OUTPUT_FORMAT_OPTION,
     OutputFormat,
 )
+from photree.clihelpers.paths import expand_user_path
 from photree.clihelpers.runtime import runtime_of
+from photree.clihelpers.sink import write_csv, write_text
 from photree.common.formatting import indent
 from photree.common.fs import display_path
+
+_CSV_HEADER = ["album_id", "media_source", "type", "id", "key"]
 
 
 @app.command("list-media")
@@ -39,12 +41,11 @@ def list_media_cmd(
             "--album-dir",
             "-a",
             help="Album directory.",
-            exists=True,
             file_okay=False,
-            resolve_path=True,
+            callback=expand_user_path(exists=True),
         ),
     ] = Path(),
-    output_format: OUTPUT_FORMAT_OPTION = OutputFormat.TEXT,
+    output_format: OUTPUT_FORMAT_OPTION = OutputFormat.HUMAN,
     output_file: OUTPUT_FILE_OPTION = None,
 ) -> None:
     """List all media items in an album."""
@@ -64,15 +65,16 @@ def list_media_cmd(
         match output_format:
             case OutputFormat.CSV:
                 err_console.print(message, markup=False)
-            case OutputFormat.TEXT:
+            case OutputFormat.HUMAN:
                 typer.echo(message)
         raise typer.Exit(code=0)
 
     match output_format:
         case OutputFormat.CSV:
-            _list_csv(album_ext_id, media_meta, output_file)
-        case OutputFormat.TEXT:
-            typer.echo(_format_text(album_dir, album_ext_id, media_meta, cwd))
+            write_csv(_CSV_HEADER, _csv_rows(album_ext_id, media_meta), output_file)
+        case OutputFormat.HUMAN:
+            text = _format_text(album_dir, album_ext_id, media_meta, cwd)
+            write_text([text], output_file)
 
 
 def _csv_rows(album_ext_id: str, media_meta: MediaMetadata) -> list[list[str]]:
@@ -85,17 +87,6 @@ def _csv_rows(album_ext_id: str, media_meta: MediaMetadata) -> list[list[str]]:
         )
         for mid, key in ids.items()
     ]
-
-
-def _list_csv(
-    album_ext_id: str,
-    media_meta: MediaMetadata,
-    output_file: Path | None,
-) -> None:
-    with csv_output(output_file) as out:
-        writer = csv.writer(out)
-        writer.writerow(["album_id", "media_source", "type", "id", "key"])
-        writer.writerows(_csv_rows(album_ext_id, media_meta))
 
 
 def _source_lines(source: MediaSourceMediaMetadata) -> list[str]:

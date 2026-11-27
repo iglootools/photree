@@ -27,12 +27,6 @@ from enum import StrEnum
 from pathlib import Path
 
 from photree.album.browsable import refresh_browsable_dir
-from photree.album.formats import (
-    IMG_EXTENSIONS,
-    IOS_IMG_EXTENSIONS,
-    IOS_VID_EXTENSIONS,
-    VID_EXTENSIONS,
-)
 from photree.album.live_photo import (
     augment_browsable_img_with_live_photo_videos,
     compute_live_photo_videos,
@@ -106,8 +100,8 @@ def compute_target_dir(
 
     The ``albums`` layout nests it under its year and ``by-month`` under its
     month, both parsed from the name's date prefix; ``flat`` puts it directly
-    under *share_dir*. Raises :class:`ValueError` when the layout needs a date
-    the name does not start with.
+    under *share_dir*. Raises :class:`~photree.dates.DatePrefixError` when the
+    layout needs a date the name does not start with.
     """
     match share_layout:
         case ShareDirectoryLayout.FLAT:
@@ -296,7 +290,6 @@ def _live_photo_videos(
     archive_dir: Path,
     target_dir: Path,
     ms: MediaSource,
-    vid_ext: frozenset[str],
     link_mode: LinkMode,
     *,
     dry_run: bool,
@@ -311,13 +304,13 @@ def _live_photo_videos(
     if not ms.is_ios:
         return 0
     elif dry_run:
-        return len(compute_live_photo_videos(orig, edit, vid_ext, ms.key_fn))
+        return len(compute_live_photo_videos(orig, edit, ms.vid_extensions, ms.key_fn))
     else:
         return augment_browsable_img_with_live_photo_videos(
             orig,
             edit,
             target_dir / ms.img_dir,
-            vid_extensions=vid_ext,
+            vid_extensions=ms.vid_extensions,
             key_fn=ms.key_fn,
             link_mode=link_mode,
             dry_run=False,
@@ -340,16 +333,11 @@ def _rebuild_browsable(
     refresh, it uses an iOS source's own extensions and places its Live Photo
     videos in ``{name}-img/``, so ``album check`` finds the export fresh.
     """
-    img_ext, vid_ext = (
-        (IOS_IMG_EXTENSIONS, IOS_VID_EXTENSIONS)
-        if ms.is_ios
-        else (IMG_EXTENSIONS, VID_EXTENSIONS)
-    )
     img = refresh_browsable_dir(
         archive_dir / ms.orig_img_dir,
         archive_dir / ms.edit_img_dir,
         target_dir / ms.img_dir,
-        media_extensions=img_ext,
+        media_extensions=ms.img_extensions,
         key_fn=ms.key_fn,
         link_mode=link_mode,
         dry_run=dry_run,
@@ -358,7 +346,6 @@ def _rebuild_browsable(
         archive_dir,
         target_dir,
         ms,
-        vid_ext,
         link_mode,
         dry_run=dry_run,
     )
@@ -366,7 +353,7 @@ def _rebuild_browsable(
         archive_dir / ms.orig_vid_dir,
         archive_dir / ms.edit_vid_dir,
         target_dir / ms.vid_dir,
-        media_extensions=vid_ext,
+        media_extensions=ms.vid_extensions,
         key_fn=ms.key_fn,
         link_mode=link_mode,
         dry_run=dry_run,

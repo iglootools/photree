@@ -31,6 +31,7 @@ algorithms behind refresh, import, and face clustering, see
   - [Strategy](#strategy)
   - [Valid Combinations](#valid-combinations)
   - [Private Tag Virality](#private-tag-virality)
+  - [No Membership Cycles](#no-membership-cycles)
 - [Identifiers](#identifiers)
 - [Browsable Tree](#browsable-tree)
 - [Faces](#faces)
@@ -248,7 +249,10 @@ directory with its source by item key, not filename, so a browsable directory
 older than the archive (an edit added since the last refresh) reads as no
 deletion. A browsable directory that is missing (or a JPEG directory holding
 none of its expected files) is not read as a deletion signal, and a run that
-would remove every item of an archive is refused unless `--force` is given.
+would remove every item of an archive is refused unless `--force` is given. A
+directory that the last refresh left incomplete (it was interrupted, or failed
+to convert some JPEGs) is never read as deletions: `--rm-upstream` refuses the
+media source until `album refresh` completes.
 
 ## Media Item
 
@@ -274,6 +278,11 @@ An item may exist as several files:
 
 When the same key exists in several image formats, the higher quality wins:
 DNG > HEIC > HEIF > JPG/PNG.
+
+An edited variant needs an original of the same key and kind (image or video):
+an edit without one is left out of the browsable directory, and `album fix
+--rm-orphan` deletes it. For a std source, where the edit may be the only copy
+of the photo, `album import` refuses such an edit and `album check` reports it.
 
 ### iOS Variants (Image Capture)
 
@@ -352,7 +361,8 @@ per media source to fill, named `to-import-{ios,std}-<media-source>`:
   `to-import-ios-<name>.csv` file, or both. Because only names matter, the
   selection can come from anywhere: Photos, a script, a phone, an LLM.
 - **std staging** holds the actual files, in `orig/` and optionally `edit/`.
-  They are copied into `std-<name>/`, split by extension.
+  They are copied into `std-<name>/`, split by extension. Each file in `edit/`
+  needs an original of the same stem in `orig/`.
 
 Staging entries are consumed on success. See
 [internals.md — Import Staging Directories](./internals.md#import-staging-directories).
@@ -438,7 +448,9 @@ The rule that selects members:
   for manual collections.
 - **`date-range`** — all albums and collections whose date range is **fully
   contained** in the collection's date range (mere overlap is not enough).
-  Default for smart explicit collections.
+  Another `date-range` or `chapter` collection with exactly the same range
+  is left out, since it would include this one back and each would contain
+  the other. Default for smart explicit collections.
 - **`album-series`** — the albums of one contiguous album series. Used by
   implicit collections.
 - **`chapter`** — like `date-range`, but chapter collections must not overlap
@@ -477,6 +489,15 @@ private collections.
 
 These rules are enforced by `collection check` (validation) and by
 `gallery refresh` (materialization for smart collections).
+
+### No Membership Cycles
+
+A collection never contains itself, directly or through its
+sub-collections: the browsable tree nests each sub-collection inside its
+parent, which a cycle would make infinite. Smart refresh never creates one
+(see `date-range` above), and `collection check` reports a manual
+`collections` list that closes one, so `gallery check` catches it before
+`gallery refresh` fails on it.
 
 ## Identifiers
 

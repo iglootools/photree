@@ -3,36 +3,25 @@ from pathlib import Path
 import pytest
 import typer
 
-from photree.album.id import format_album_external_id, generate_album_id
-from photree.album.importer.batch import AlbumFailure, ImportFailureStage
+from photree.album.faces.failures import FaceFailure, FaceFailureStage
+from photree.album.id import format_album_external_id
+from photree.album.jpeg import JpegConversionFailure
 from photree.album.refresh import refresh_album_derived_data
-from photree.album.store.metadata import save_album_metadata
-from photree.album.store.protocol import AlbumMetadata
 from photree.albums.batchcli.check import run_batch_check
 from photree.albums.cli.import_cmd import retry_commands
 from photree.albums.cmd_handler import AlbumStepError, run_album_step
+from photree.albums.cmd_handler.importer import AlbumFailure, ImportFailureStage
 from photree.albums.cmd_handler.stats import batch_stats
-from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 from photree.foundation.layout import PHOTREE_DIR
 from photree.foundation.linking import LinkMode
 from tests.fakes import ALL_DEPS_WHICH, copy_convert_single, invoke_cli
+from tests.testkit import make_album, make_gallery, make_gallery_album
 
 
-def _album(base: Path, name: str) -> tuple[Path, str]:
-    album = base / name
-    image = album / "ios-main" / "orig-img" / "IMG_0001.HEIC"
-    image.parent.mkdir(parents=True)
-    image.write_text("data", encoding="utf-8")
-    album_id = generate_album_id()
-    save_album_metadata(album, AlbumMetadata(id=album_id))
-    return album, album_id
-
-
-def _gallery_album(gallery: Path, name: str, link_mode: LinkMode) -> Path:
+def _gallery_album(parent: Path, name: str, link_mode: LinkMode) -> Path:
     """Return an album of a *link_mode* gallery, refreshed so it passes a check."""
-    gallery.mkdir()
-    save_gallery_metadata(gallery, GalleryMetadata(link_mode=link_mode))
-    album, _ = _album(gallery / "albums" / name[:4], name)
+    gallery = make_gallery(parent, link_mode=link_mode)
+    album, _ = make_gallery_album(gallery, name)
     refresh_album_derived_data(
         album,
         link_mode=link_mode,
@@ -43,20 +32,20 @@ def _gallery_album(gallery: Path, name: str, link_mode: LinkMode) -> Path:
 
 class TestList:
     def test_invalid_format_is_rejected(self, tmp_path: Path) -> None:
-        # Regression: an unknown --format silently produced text.
-        _album(tmp_path, "2024-07-14 - Hiking")
+        # Regression: an unknown format silently produced the human one.
+        make_album(tmp_path, "2024-07-14 - Hiking")
 
-        result = invoke_cli(["albums", "list", "-d", str(tmp_path), "--format", "json"])
+        result = invoke_cli(["albums", "list", "-d", str(tmp_path), "--output", "json"])
 
         assert result.exit_code == 2
 
-    def test_text_output_honors_output_file(self, tmp_path: Path) -> None:
-        # Regression: -o was ignored in text mode.
+    def test_human_output_honors_output_file(self, tmp_path: Path) -> None:
+        # Regression: the output file was ignored in the human format.
         albums_dir = tmp_path / "albums"
-        _, album_id = _album(albums_dir, "2024-07-14 - Hiking")
+        _, album_id = make_album(albums_dir, "2024-07-14 - Hiking")
         out = tmp_path / "out.txt"
 
-        result = invoke_cli(["albums", "list", "-d", str(albums_dir), "-o", str(out)])
+        result = invoke_cli(["albums", "list", "-d", str(albums_dir), "-f", str(out)])
 
         assert result.exit_code == 0, result.output
         text = out.read_text(encoding="utf-8")
@@ -66,7 +55,7 @@ class TestList:
 
     def test_csv_output_file(self, tmp_path: Path) -> None:
         albums_dir = tmp_path / "albums"
-        _album(albums_dir, "2024-07-14 - Hiking")
+        make_album(albums_dir, "2024-07-14 - Hiking")
         out = tmp_path / "out.csv"
 
         result = invoke_cli(
@@ -75,9 +64,9 @@ class TestList:
                 "list",
                 "-d",
                 str(albums_dir),
-                "--format",
+                "--output",
                 "csv",
-                "-o",
+                "-f",
                 str(out),
             ],
         )
@@ -98,10 +87,10 @@ class TestList:
         assert "photree albums fix --id --album-dir" in result.output
 
     def test_list_media_invalid_format_is_rejected(self, tmp_path: Path) -> None:
-        _album(tmp_path, "2024-07-14 - Hiking")
+        make_album(tmp_path, "2024-07-14 - Hiking")
 
         result = invoke_cli(
-            ["albums", "list-media", "-d", str(tmp_path), "--format", "xml"],
+            ["albums", "list-media", "-d", str(tmp_path), "--output", "xml"],
         )
 
         assert result.exit_code == 2
@@ -112,8 +101,8 @@ class TestRunBatchCheck:
         # Two albums colliding on the same date (cross-album failure) that are
         # also structurally incomplete (per-album failure). Regression: they
         # were counted twice and ``passed`` was never decremented.
-        a, _ = _album(tmp_path, "2024-07-14 - Hiking")
-        b, _ = _album(tmp_path, "2024-07-14 - Dinner")
+        a, _ = make_album(tmp_path, "2024-07-14 - Hiking")
+        b, _ = make_album(tmp_path, "2024-07-14 - Dinner")
 
         passed = run_batch_check(
             [a, b],
@@ -128,8 +117,8 @@ class TestRunBatchCheck:
         assert passed is False
 
     def test_exit_on_failure_raises(self, tmp_path: Path) -> None:
-        a, _ = _album(tmp_path, "2024-07-14 - Hiking")
-        b, _ = _album(tmp_path, "2024-07-14 - Dinner")
+        a, _ = make_album(tmp_path, "2024-07-14 - Hiking")
+        b, _ = make_album(tmp_path, "2024-07-14 - Dinner")
 
         with pytest.raises(typer.Exit) as exc_info:
             run_batch_check(
@@ -172,7 +161,7 @@ class TestRunBatchCheck:
     ) -> None:
         """Regression: a corrupt gallery.yaml next to the first album aborted all."""
         broken = _gallery_album(tmp_path / "a", "2024-07-14 - Hiking", LinkMode.COPY)
-        (tmp_path / "a" / PHOTREE_DIR / "gallery.yaml").write_text(
+        (tmp_path / "a" / "gallery" / PHOTREE_DIR / "gallery.yaml").write_text(
             "link_mode: [",
             encoding="utf-8",
         )
@@ -188,9 +177,9 @@ class TestRunBatchCheck:
         tmp_path: Path,
     ) -> None:
         """Regression: the cross-album scans raised, losing the summary."""
-        corrupt, _ = _album(tmp_path, "2024-07-14 - Hiking")
+        corrupt, _ = make_album(tmp_path, "2024-07-14 - Hiking")
         (corrupt / ".photree" / "album.yaml").write_text("id: [", encoding="utf-8")
-        _album(tmp_path, "2024-07-15 - Beach")
+        make_album(tmp_path, "2024-07-15 - Beach")
 
         result = invoke_cli(["albums", "check", "-d", str(tmp_path), "--no-checksum"])
 
@@ -199,6 +188,7 @@ class TestRunBatchCheck:
         assert "Done." in result.output
         investigate = result.output.split("To investigate failures:")[1]
         assert "2024-07-14 - Hiking" in investigate
+        assert "--no-checksum" in investigate, "the retry reproduces the run"
 
     def test_no_albums_returns_true_without_exit(self, tmp_path: Path) -> None:
         assert (
@@ -214,8 +204,8 @@ class TestRunBatchCheck:
         )
 
     def test_summary_counts(self, tmp_path: Path) -> None:
-        _album(tmp_path, "2024-07-14 - Hiking")
-        _album(tmp_path, "2024-07-14 - Dinner")
+        make_album(tmp_path, "2024-07-14 - Hiking")
+        make_album(tmp_path, "2024-07-14 - Dinner")
 
         result = invoke_cli(
             [
@@ -290,7 +280,7 @@ class TestRunAlbumStep:
 class TestBatchStats:
     def test_one_bad_album_does_not_abort(self, tmp_path: Path) -> None:
         # Regression: one unreadable album crashed the whole stats run.
-        good, _ = _album(tmp_path, "2024-07-14 - Hiking")
+        good, _ = make_album(tmp_path, "2024-07-14 - Hiking")
         bad = tmp_path / "not-an-album"
         bad.mkdir()
 
@@ -346,7 +336,7 @@ class TestImportCheck:
 
 class TestBatchImportRetryCommands:
     def test_failed_import_is_retried_with_import(self, tmp_path: Path) -> None:
-        failure = AlbumFailure(tmp_path / "A", "copy failed")
+        failure = AlbumFailure(tmp_path / "A", error=OSError("copy failed"))
 
         assert retry_commands(failure, tmp_path) == [
             'photree album import --album-dir "A"',
@@ -357,9 +347,13 @@ class TestBatchImportRetryCommands:
         # would only report that there is nothing to import.
         failure = AlbumFailure(
             tmp_path / "A",
-            "jpeg conversion failed: ...; face detection failed: ...",
-            frozenset({ImportFailureStage.JPEG, ImportFailureStage.FACES}),
+            jpeg_failures=(("main", JpegConversionFailure("IMG_0001.HEIC", "bad")),),
+            face_failures=(
+                ("main", FaceFailure("0001", FaceFailureStage.DETECTION, "boom")),
+            ),
         )
+
+        assert failure.stages == {ImportFailureStage.JPEG, ImportFailureStage.FACES}
 
         assert retry_commands(failure, tmp_path) == [
             'photree album refresh --refresh-jpeg --album-dir "A"',

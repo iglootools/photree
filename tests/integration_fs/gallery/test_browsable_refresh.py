@@ -1,4 +1,7 @@
+import os
 from pathlib import Path
+
+import pytest
 
 from photree.album.id import generate_album_id, generate_media_id
 from photree.album.store.media_metadata import (
@@ -345,6 +348,46 @@ class TestBrowsableRefreshMediaMembers:
             "2024-07-14 - Camera - cam - IMG_1234.jpg",
         ]
 
+    def test_collections_picking_from_one_album_each_link_their_own_files(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = make_gallery(tmp_path)
+        album_dir = gallery / "albums" / "2024" / "2024-07-14 - Trip"
+        write_file(album_dir / "ios-main" / "orig-img" / "IMG_0001.HEIC")
+        for name in ("IMG_0001.jpg", "IMG_E0001.jpg", "IMG_0002.jpg", "IMG_0003.jpg"):
+            write_file(album_dir / "main-jpg" / name)
+        save_album_metadata(album_dir, AlbumMetadata(id=generate_album_id()))
+        ids = {key: generate_media_id() for key in ("0001", "0002", "0003")}
+        save_media_metadata(
+            album_dir,
+            MediaMetadata(
+                media_sources={
+                    "main": MediaSourceMediaMetadata(
+                        images={mid: key for key, mid in ids.items()},
+                    ),
+                },
+            ),
+        )
+        _save_collection(gallery, "2024-07 - Picks", images=[ids["0001"], ids["0003"]])
+        _save_collection(gallery, "2024-07 - Best", images=[ids["0002"]])
+
+        result = refresh_browsable(gallery)
+
+        assert result.success
+        by_year = gallery / BROWSABLE_DIR / "public" / "collections" / "by-year"
+        assert {
+            name: sorted(p.name for p in (by_year / "2024" / name / "images").iterdir())
+            for name in ("2024-07 - Picks", "2024-07 - Best")
+        } == {
+            "2024-07 - Picks": [
+                "2024-07-14 - Trip - main - IMG_0001.jpg",
+                "2024-07-14 - Trip - main - IMG_0003.jpg",
+                "2024-07-14 - Trip - main - IMG_E0001.jpg",
+            ],
+            "2024-07 - Best": ["2024-07-14 - Trip - main - IMG_0002.jpg"],
+        }
+
 
 class TestBrowsableRefreshDanglingMembers:
     def test_reports_unknown_member_ids(self, tmp_path: Path) -> None:
@@ -393,6 +436,58 @@ class TestBrowsableRefreshScanErrors:
                 col_dir,
             ),
         )
+
+
+class TestBrowsableRefreshDuplicateAlbumIds:
+    def test_albums_sharing_an_id_abort_before_removing_anything(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Regression: only the last album was rendered, and the refresh passed."""
+        gallery = make_gallery(tmp_path)
+        album_dir, aid = _setup_album(gallery, "2024-07-14 - Trip")
+        assert refresh_browsable(gallery).success
+        copy, _ = _setup_album(gallery, "2024-07-15 - Trip copy")
+        save_album_metadata(copy, AlbumMetadata(id=aid))
+
+        result = refresh_browsable(gallery)
+
+        assert result.errors == (
+            BrowsableRefreshError(
+                BrowsableRefreshErrorKind.DUPLICATE_ALBUM_ID,
+                album_dir,
+                album_id=aid,
+                albums=(album_dir, copy),
+            ),
+        )
+        # The previous render survives.
+        assert (gallery / BROWSABLE_DIR / "public" / "albums").is_dir()
+
+
+class TestBrowsableRefreshFilesystemErrors:
+    @pytest.mark.skipif(
+        os.geteuid() == 0,
+        reason="root writes whatever the permissions",
+    )
+    def test_failed_write_is_an_error(self, tmp_path: Path) -> None:
+        """Regression: the OSError left as a traceback, browsable/ half-built."""
+        gallery = make_gallery(tmp_path)
+        _setup_album(gallery, "2024-07-14 - Trip")
+        gallery.chmod(0o500)
+        try:
+            result = refresh_browsable(gallery)
+        finally:
+            gallery.chmod(0o700)
+
+        assert result.errors == (
+            BrowsableRefreshError(
+                BrowsableRefreshErrorKind.FILESYSTEM_ERROR,
+                gallery / BROWSABLE_DIR,
+                reason=result.errors[0].reason,
+            ),
+        )
+        assert result.errors[0].reason
+        assert result.symlinks_created == 0
 
 
 class TestBrowsableRefreshLinkCollisions:

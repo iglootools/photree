@@ -7,8 +7,11 @@ and moves or deletes them. A move carries the media IDs of the moved keys
 along, so collections that reference them still resolve.
 """
 
+import shutil
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
+from functools import partial
 from pathlib import Path
 
 from photree.album.store.file_matching import find_files_by_key
@@ -20,7 +23,10 @@ from photree.album.store.media_metadata import (
 )
 from photree.album.store.media_source import MediaSource
 from photree.album.store.media_sources_discovery import discover_media_sources
-from photree.common.fs import delete_files, move_files
+from photree.common.fs import delete_files
+
+# Moves one file from its first path to its second, like shutil.move.
+type MoveFileFn = Callable[[Path, Path], object]
 
 # A media file sits in a directory: at least the directory and the file name.
 _MIN_PATH_PARTS = 2
@@ -46,6 +52,7 @@ class MediaOpErrorKind(StrEnum):
     UNKNOWN_DIRECTORY = "unknown-directory"
     MOVE_CONFLICT = "move-conflict"
     MEDIA_SOURCE_TYPE_MISMATCH = "media-source-type-mismatch"
+    NO_MATCHING_FILE = "no-matching-file"
 
 
 class MediaOpError(ValueError):
@@ -62,6 +69,7 @@ class MediaOpError(ValueError):
         *,
         album_dir: Path,
         rel_path: str | None = None,
+        rel_paths: tuple[str, ...] = (),
         subdir: str | None = None,
         conflicts: tuple[str, ...] = (),
         media_sources: tuple[str, ...] = (),
@@ -70,6 +78,7 @@ class MediaOpError(ValueError):
         self.kind = kind
         self.album_dir = album_dir
         self.rel_path = rel_path
+        self.rel_paths = rel_paths
         self.subdir = subdir
         self.conflicts = conflicts
         self.media_sources = media_sources
@@ -160,7 +169,7 @@ def _resolve_groups(album_dir: Path, relative_paths: list[str]) -> list[_MediaGr
     # first-seen order of the groups.
     groups = dict.fromkeys((t.ms, t.is_video) for t in targets)
 
-    return [
+    resolved = [
         _MediaGroup(
             ms=ms,
             is_video=video,
@@ -181,6 +190,34 @@ def _resolve_groups(album_dir: Path, relative_paths: list[str]) -> list[_MediaGr
         )
         for ms, video in groups
     ]
+    _require_every_path_matched(album_dir, relative_paths, targets, resolved)
+    return resolved
+
+
+def _require_every_path_matched(
+    album_dir: Path,
+    relative_paths: list[str],
+    targets: list[_Target],
+    groups: list[_MediaGroup],
+) -> None:
+    """Raise ``NO_MATCHING_FILE`` with every path whose key matches no file."""
+    found = {
+        (g.ms, g.is_video, g.ms.key_fn(f))
+        for g in groups
+        for _, files in g.variants
+        for f in files
+    }
+    unmatched = tuple(
+        rel_path
+        for rel_path, t in zip(relative_paths, targets, strict=True)
+        if (t.ms, t.is_video, t.key) not in found
+    )
+    if unmatched:
+        raise MediaOpError(
+            MediaOpErrorKind.NO_MATCHING_FILE,
+            album_dir=album_dir,
+            rel_paths=unmatched,
+        )
 
 
 def _variants_of(groups: list[_MediaGroup]) -> list[tuple[str, list[str]]]:
@@ -197,9 +234,18 @@ def resolve_variants(
     Searches across the media source directory structure.
 
     Raises :class:`MediaOpError` when a path cannot be mapped to a media
-    source.
+    source, or names a file that matches nothing (``NO_MATCHING_FILE``, with
+    every such path).
     """
     return _variants_of(_resolve_groups(album_dir, relative_paths))
+
+
+def _rmdir_if_empty(directory: Path) -> bool:
+    """Remove *directory* when it exists and is empty; return whether it did."""
+    is_empty = directory.is_dir() and not any(directory.iterdir())
+    if is_empty:
+        directory.rmdir()
+    return is_empty
 
 
 def _remove_empty_dirs(
@@ -208,14 +254,10 @@ def _remove_empty_dirs(
     *,
     dry_run: bool,
 ) -> None:
-    for subdir in subdirs:
-        directory = album_dir / subdir
-        if directory.is_dir() and not any(directory.iterdir()) and not dry_run:
-            directory.rmdir()
-            # Also remove parent if it's a nested archive dir (e.g. ios-main/orig-img)
-            parent = directory.parent
-            if parent != album_dir and parent.is_dir() and not any(parent.iterdir()):
-                parent.rmdir()
+    """Remove each emptied subdir, and the archive dir holding it once empty too."""
+    for directory in (album_dir / subdir for subdir in subdirs):
+        if not dry_run and _rmdir_if_empty(directory) and directory.parent != album_dir:
+            _rmdir_if_empty(directory.parent)
 
 
 def _check_move_conflicts(
@@ -373,12 +415,20 @@ def move_media(
     relative_paths: list[str],
     *,
     dry_run: bool = False,
+    move_file: MoveFileFn = shutil.move,
 ) -> MediaOpResult:
     """
     Move media files and all their variants to another media source.
 
+    All or nothing: when a move fails or is interrupted (a full disk, Ctrl-C),
+    the files already moved go back to the source album, so no media is left
+    split between the two. The media IDs are written only once every file is
+    in the destination. *move_file* moves one file (``shutil.move`` by
+    default, which copies then deletes across filesystems).
+
     Raises :class:`MediaOpError` before moving anything:
 
+    - ``NO_MATCHING_FILE``, with the paths, when a path matches no file.
     - ``MEDIA_SOURCE_TYPE_MISMATCH``, with the media source names, when the
       destination has a media source of the same name but the other type
       (iOS or std): moving would put an ``ios-<name>/`` and a
@@ -397,15 +447,20 @@ def move_media(
     source_ids = load_media_metadata(source_album)
     dest_ids = load_media_metadata(dest_album)
 
-    for subdir, files in variants:
-        move_files(source_album / subdir, dest_album / subdir, files, dry_run=dry_run)
     if not dry_run:
-        _save_transferred_media_ids(
+        _move_all_or_nothing(
             source_album,
             dest_album,
-            source_ids,
-            dest_ids,
-            _moved_keys(groups),
+            variants,
+            move_file=move_file,
+            then=partial(
+                _save_transferred_media_ids,
+                source_album,
+                dest_album,
+                source_ids,
+                dest_ids,
+                _moved_keys(groups),
+            ),
         )
 
     _remove_empty_dirs(
@@ -414,6 +469,59 @@ def move_media(
         dry_run=dry_run,
     )
     return MediaOpResult(files_by_dir=_files_by_dir(variants))
+
+
+def _move_all_or_nothing(
+    source_album: Path,
+    dest_album: Path,
+    variants: list[tuple[str, list[str]]],
+    *,
+    move_file: MoveFileFn,
+    then: Callable[[], None],
+) -> None:
+    """
+    Move the *variants* to *dest_album*, then run *then*; undo it all on failure.
+
+    The caller's conflict check guarantees no destination file existed
+    before, so the filesystem alone says what to undo (see
+    :func:`_undo_moves`).
+    """
+    moves = [
+        (source_album / subdir / f, dest_album / subdir / f)
+        for subdir, files in variants
+        for f in files
+    ]
+    try:
+        for src, dst in moves:
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            move_file(src, dst)
+        then()
+    except BaseException:
+        _undo_moves(moves, move_file=move_file)
+        _remove_empty_dirs(
+            dest_album,
+            [subdir for subdir, _ in variants],
+            dry_run=False,
+        )
+        raise
+
+
+def _undo_moves(moves: list[tuple[Path, Path]], *, move_file: MoveFileFn) -> None:
+    """
+    Put every moved file back, and drop a copy a cross-filesystem move left.
+
+    A *dst* without its *src* was moved and goes back; a *dst* beside its
+    *src* is the partial copy of a move interrupted before it deleted the
+    source.
+    """
+    for src, dst in reversed(moves):
+        match (src.exists(), dst.exists()):
+            case (False, True):
+                move_file(dst, src)
+            case (True, True):
+                dst.unlink()
+            case _:
+                pass
 
 
 def _save_transferred_media_ids(
@@ -431,10 +539,13 @@ def _save_transferred_media_ids(
         dest_before,
         moved_keys,
     )
-    if source_after != source_before:
-        save_media_metadata(source_album, source_after)
+    # Destination first: a run killed between the two writes leaves the moved
+    # IDs in both albums, which the source's next refresh drops as stale,
+    # rather than in neither.
     if dest_after != dest_before:
         save_media_metadata(dest_album, dest_after)
+    if source_after != source_before:
+        save_media_metadata(source_album, source_after)
 
 
 def rm_media(
@@ -447,7 +558,8 @@ def rm_media(
     Delete the files at *relative_paths* and every variant of them.
 
     Directories left empty are removed too. Raises :class:`MediaOpError`,
-    before deleting anything, when a path cannot be mapped to a media source.
+    before deleting anything, when a path cannot be mapped to a media source
+    or matches no file.
     """
     variants = resolve_variants(album_dir, relative_paths)
 

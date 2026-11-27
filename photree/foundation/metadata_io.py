@@ -16,6 +16,12 @@ from typing import cast
 import yaml
 from pydantic import BaseModel, ValidationError
 
+# libyaml's safe loader and dumper when PyYAML was built with it (its
+# wheels are): as safe as the pure-Python ones, about eight times faster on
+# the media-ids and EXIF cache files gallery-wide passes read for every album.
+_SAFE_LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+_SAFE_DUMPER = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
+
 
 class InvalidMetadataError(ValueError):
     """
@@ -39,14 +45,20 @@ def load_yaml_mapping(path: Path) -> dict[str, object] | None:
     """
     Read a YAML mapping, or ``None`` if *path* does not exist.
 
-    Raises :class:`InvalidMetadataError` when the file exists but is not
-    UTF-8, is not parseable YAML or does not hold a mapping (empty and
-    truncated files included).
+    Raises :class:`InvalidMetadataError` when the file exists but cannot be
+    read (no permission, an I/O error), is not UTF-8, is not parseable YAML
+    or does not hold a mapping (empty and truncated files included), so the
+    gallery-wide scans that report a bad file per item catch it too.
     """
     if not path.is_file():
         return None
     try:
-        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+        text = path.read_text(encoding="utf-8")
+        # ruff cannot tell that _SAFE_LOADER is a safe loader.
+        raw = yaml.load(text, Loader=_SAFE_LOADER)  # noqa: S506
+    except OSError as exc:
+        reason = exc.strerror or type(exc).__name__
+        raise InvalidMetadataError(path, f"cannot be read ({reason})") from exc
     except UnicodeDecodeError as exc:
         raise InvalidMetadataError(path, f"not valid UTF-8 ({exc})") from exc
     except yaml.YAMLError as exc:
@@ -80,7 +92,12 @@ def write_yaml(path: Path, data: object) -> None:
     only copy of its ID. A temporary file a crash leaves behind is overwritten
     by the next write.
     """
-    text = yaml.safe_dump(data, default_flow_style=False, sort_keys=False)
+    text = yaml.dump(
+        data,
+        Dumper=_SAFE_DUMPER,
+        default_flow_style=False,
+        sort_keys=False,
+    )
     tmp_path = path.with_name(f".{path.name}.tmp")
     try:
         with tmp_path.open("w", encoding="utf-8") as f:
