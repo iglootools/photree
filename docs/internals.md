@@ -461,6 +461,10 @@ date range containment:
   entire date range must fall within the collection's boundaries.
 - Private smart collections only include private members; non-private
   smart collections exclude private members.
+- A collection never lists itself, nor another date-derived smart
+  collection (`date-range` or `chapter`) with exactly the same range: that
+  one would list this collection back, and the browsable refresh would
+  fail on the cycle.
 - Writes the matched IDs into `collection.yaml`, replacing the previous
   album and collection member lists.
 - Smart collections do not support image or video members — these fields

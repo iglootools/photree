@@ -19,6 +19,7 @@ from photree.collection.store.protocol import (
     CollectionStrategy,
 )
 from photree.foundation.layout import COLLECTIONS_DIR
+from photree.gallery.browsable_refresh import refresh_browsable
 from tests.testkit import (
     make_gallery,
     make_gallery_album,
@@ -398,6 +399,41 @@ class TestSmartCollectionRefresh:
 
         meta = _load_metadata(col_dir)
         assert (meta.albums, meta.collections) == ([private_aid], [private_cid])
+
+    def test_smart_collections_with_same_range_do_not_contain_each_other(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = make_gallery(tmp_path)
+        make_gallery_album(gallery, "2024-07-14 - Trip")
+        highlights_dir, _ = _smart_collection(gallery, "2024 - Highlights")
+        family_dir, _ = _smart_collection(gallery, "2024 - Family")
+        chapter_dir, _ = _smart_collection(
+            gallery,
+            "2024 - Year",
+            CollectionStrategy.CHAPTER,
+        )
+
+        assert refresh_collections(gallery).success
+
+        assert [
+            _load_metadata(d).collections
+            for d in (highlights_dir, family_dir, chapter_dir)
+        ] == [[], [], []]
+        assert refresh_browsable(gallery).success
+
+    def test_smart_contains_manual_collection_with_same_range(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        gallery = make_gallery(tmp_path)
+        manual_dir, _ = make_gallery_collection(gallery, "2024 - Picks")
+        smart_dir, _ = _smart_collection(gallery, "2024 - Highlights")
+
+        refresh_collections(gallery)
+
+        manual_id = _load_metadata(manual_dir).id
+        assert _load_metadata(smart_dir).collections == [manual_id]
 
 
 class TestAlbumTitleSync:

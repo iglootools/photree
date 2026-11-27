@@ -127,6 +127,8 @@ def format_collection_issue(issue: CollectionCheckIssue) -> str:
                 f"chapter date range {issue.collection_date} overlaps with "
                 f"chapter '{issue.other_chapter}' ({issue.other_date})"
             )
+        case CollectionIssueCode.MEMBERSHIP_CYCLE:
+            return f"{member} contains this collection back (membership cycle)"
         case (
             CollectionIssueCode.PRIVATE_SMART_HAS_NON_PRIVATE_ALBUM
             | CollectionIssueCode.PRIVATE_SMART_HAS_NON_PRIVATE_COLLECTION

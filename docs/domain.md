@@ -31,6 +31,7 @@ algorithms behind refresh, import, and face clustering, see
   - [Strategy](#strategy)
   - [Valid Combinations](#valid-combinations)
   - [Private Tag Virality](#private-tag-virality)
+  - [No Membership Cycles](#no-membership-cycles)
 - [Identifiers](#identifiers)
 - [Browsable Tree](#browsable-tree)
 - [Faces](#faces)
@@ -447,7 +448,9 @@ The rule that selects members:
   for manual collections.
 - **`date-range`** — all albums and collections whose date range is **fully
   contained** in the collection's date range (mere overlap is not enough).
-  Default for smart explicit collections.
+  Another `date-range` or `chapter` collection with exactly the same range
+  is left out, since it would include this one back and each would contain
+  the other. Default for smart explicit collections.
 - **`album-series`** — the albums of one contiguous album series. Used by
   implicit collections.
 - **`chapter`** — like `date-range`, but chapter collections must not overlap
@@ -486,6 +489,15 @@ private collections.
 
 These rules are enforced by `collection check` (validation) and by
 `gallery refresh` (materialization for smart collections).
+
+### No Membership Cycles
+
+A collection never contains itself, directly or through its
+sub-collections: the browsable tree nests each sub-collection inside its
+parent, which a cycle would make infinite. Smart refresh never creates one
+(see `date-range` above), and `collection check` reports a manual
+`collections` list that closes one, so `gallery check` catches it before
+`gallery refresh` fails on it.
 
 ## Identifiers
 

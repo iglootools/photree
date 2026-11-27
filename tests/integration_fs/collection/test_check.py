@@ -8,7 +8,10 @@ from photree.album.store.media_metadata import (
 )
 from photree.collection.check import build_gallery_lookup, check_collection
 from photree.collection.id import generate_collection_id
-from photree.collection.store.metadata import save_collection_metadata
+from photree.collection.store.metadata import (
+    load_collection_metadata,
+    save_collection_metadata,
+)
 from photree.collection.store.protocol import (
     CollectionLifecycle,
     CollectionMembers,
@@ -364,6 +367,64 @@ class TestCheckUnreadableAlbum:
         assert result.exit_code == 0, result.output
         assert "cannot read the metadata of album" in result.output
         assert "Run 'photree album check --album-dir" in result.output
+
+
+def _add_sub_collection(col_dir: Path, sub_id: str) -> None:
+    metadata = load_collection_metadata(col_dir)
+    assert metadata is not None
+    save_collection_metadata(
+        col_dir,
+        metadata.model_copy(update={"collections": [*metadata.collections, sub_id]}),
+    )
+
+
+class TestCheckMembershipCycle:
+    def test_mutual_members_reported_on_both(self, tmp_path: Path) -> None:
+        gallery = make_gallery(tmp_path)
+        a_dir, a_id = make_gallery_collection(gallery, "2024 - A")
+        b_dir, b_id = make_gallery_collection(gallery, "2024 - B", collections=[a_id])
+        _add_sub_collection(a_dir, b_id)
+        lookup = build_gallery_lookup(gallery)
+
+        assert [
+            (i.code, i.member_id) for i in check_collection(a_dir, lookup).issues
+        ] == [("membership-cycle", b_id)]
+        assert [
+            (i.code, i.member_id) for i in check_collection(b_dir, lookup).issues
+        ] == [("membership-cycle", a_id)]
+
+    def test_self_membership_reported(self, tmp_path: Path) -> None:
+        gallery = make_gallery(tmp_path)
+        col_dir, cid = make_gallery_collection(gallery, "2024 - A")
+        _add_sub_collection(col_dir, cid)
+
+        result = check_collection(col_dir, build_gallery_lookup(gallery))
+
+        assert [i.code for i in result.issues] == ["membership-cycle"]
+
+    def test_longer_cycle_reported_only_on_its_members(self, tmp_path: Path) -> None:
+        gallery = make_gallery(tmp_path)
+        b_dir, b_id = make_gallery_collection(gallery, "2024 - B")
+        c_dir, c_id = make_gallery_collection(gallery, "2024 - C", collections=[b_id])
+        _add_sub_collection(b_dir, c_id)
+        a_dir, _ = make_gallery_collection(gallery, "2024 - A", collections=[b_id])
+        lookup = build_gallery_lookup(gallery)
+
+        assert check_collection(a_dir, lookup).success
+        assert not check_collection(b_dir, lookup).success
+        assert not check_collection(c_dir, lookup).success
+
+    def test_nested_collections_pass(self, tmp_path: Path) -> None:
+        gallery = make_gallery(tmp_path)
+        _, c_id = make_gallery_collection(gallery, "2024 - C")
+        _, b_id = make_gallery_collection(gallery, "2024 - B", collections=[c_id])
+        a_dir, _ = make_gallery_collection(
+            gallery,
+            "2024 - A",
+            collections=[b_id, c_id],
+        )
+
+        assert check_collection(a_dir, build_gallery_lookup(gallery)).success
 
 
 class TestCollectionCheckCmd:
