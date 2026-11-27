@@ -28,6 +28,15 @@ def _setup_album(album_dir: Path, *, images: bool = True) -> None:
         write_file(album_dir / "main-jpg" / "IMG_0411.jpg")
 
 
+def _snapshot(album: Path) -> dict[str, tuple[bytes, int]]:
+    """Return every file under *album* with its content and mtime."""
+    return {
+        str(f.relative_to(album)): (f.read_bytes(), f.stat().st_mtime_ns)
+        for f in album.rglob("*")
+        if f.is_file()
+    }
+
+
 class TestAlbumRefresh:
     def test_creates_media_ids(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
@@ -56,14 +65,16 @@ class TestAlbumRefresh:
         assert result.exit_code == 0
         assert "[dry-run] ✓ album refresh planned" in result.output
 
-    def test_idempotent(self, tmp_path: Path) -> None:
+    def test_second_run_changes_nothing(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_album(album, images=False)
-
         invoke_cli(["album", "refresh", "-a", str(album)])
+        after_first = _snapshot(album)
+
         result = invoke_cli(["album", "refresh", "-a", str(album)])
 
         assert result.exit_code == 0
+        assert _snapshot(album) == after_first
 
     def test_face_detection_failures_are_reported(self, tmp_path: Path) -> None:
         """Regression: face failures used to be dropped and the refresh exit 0."""
