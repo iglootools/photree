@@ -207,6 +207,19 @@ class TestListMedia:
             f"      {format_video_external_id(video_id)}: 0002",
         ]
 
+    def test_human_output_is_written_to_the_file(self, tmp_path: Path) -> None:
+        # Regression: the human format printed to stdout and ignored --file.
+        album, _, image_id, _ = _album_with_ids(tmp_path / "trip")
+        out = tmp_path / "out.txt"
+
+        result = invoke_cli(
+            ["album", "list-media", "--album-dir", str(album), "-f", str(out)],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert format_image_external_id(image_id) in out.read_text(encoding="utf-8")
+        assert result.output == ""
+
     def test_csv_has_the_header_scripts_read(self, tmp_path: Path) -> None:
         album, album_id, image_id, video_id = _album_with_ids(tmp_path / "trip")
 

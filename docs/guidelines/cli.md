@@ -218,7 +218,9 @@ asks. They follow this pattern:
 - `-o/--output` is declared with the shared `OUTPUT_FORMAT_OPTION`, an
   `OutputFormat` enum, so an unknown value is rejected rather than silently
   rendered in the human format
-- `-f/--file` is declared with `OUTPUT_FILE_OPTION`, for every format
+- `-f/--file` is declared with `OUTPUT_FILE_OPTION`, and applies to every
+  format: write the output with `write_text` and `write_csv` from
+  `clihelpers/sink.py`, never with `typer.echo`
 - CSV always includes a header row
 - Write to stdout or file, close file in `finally`
 - With `--output csv`, suppress non-CSV output (e.g., "No albums found"

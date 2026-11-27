@@ -201,6 +201,20 @@ class TestListCollections:
 
         assert result.exit_code == 2
 
+    def test_human_output_is_written_to_the_file(self, tmp_path: Path) -> None:
+        # Regression: the human format printed to stdout and ignored --file.
+        gallery = make_gallery(tmp_path, faces_enabled=False)
+        col_dir = _dangling_collection(gallery)
+        out = tmp_path / "out.txt"
+
+        result = invoke_cli(
+            ["gallery", "list-collections", "-g", str(gallery), "-f", str(out)],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert col_dir.name in out.read_text(encoding="utf-8")
+        assert col_dir.name not in result.output
+
 
 class TestGalleryAlbumDiscovery:
     def test_album_outside_the_albums_dir_is_not_listed(self, tmp_path: Path) -> None:
