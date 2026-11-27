@@ -606,7 +606,12 @@ Media IDs are derived from archive directories (`orig-img/`, `orig-vid/`).
 destination album's file for the same media source, so collections that
 reference them still resolve after the next refresh. It reads both albums'
 `media-ids` before moving any file and refuses the move when either cannot be
-read.
+read. The move is all or nothing: when a file fails to move or the run is
+interrupted, every file already moved goes back to the source album (and a
+partial cross-filesystem copy is deleted), so no media is left split between
+the two. The IDs are written once every file is in the destination, the
+destination's first, so a run killed between the two writes leaves the moved
+IDs in both files, and the source's next refresh drops them as stale.
 
 ### Collection Metadata (`.photree/collection.yaml`)
 

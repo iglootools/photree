@@ -7,8 +7,11 @@ and moves or deletes them. A move carries the media IDs of the moved keys
 along, so collections that reference them still resolve.
 """
 
+import shutil
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
+from functools import partial
 from pathlib import Path
 
 from photree.album.store.file_matching import find_files_by_key
@@ -20,7 +23,10 @@ from photree.album.store.media_metadata import (
 )
 from photree.album.store.media_source import MediaSource
 from photree.album.store.media_sources_discovery import discover_media_sources
-from photree.common.fs import delete_files, move_files
+from photree.common.fs import delete_files
+
+# Moves one file from its first path to its second, like shutil.move.
+type MoveFileFn = Callable[[Path, Path], object]
 
 # A media file sits in a directory: at least the directory and the file name.
 _MIN_PATH_PARTS = 2
@@ -409,9 +415,16 @@ def move_media(
     relative_paths: list[str],
     *,
     dry_run: bool = False,
+    move_file: MoveFileFn = shutil.move,
 ) -> MediaOpResult:
     """
     Move media files and all their variants to another media source.
+
+    All or nothing: when a move fails or is interrupted (a full disk, Ctrl-C),
+    the files already moved go back to the source album, so no media is left
+    split between the two. The media IDs are written only once every file is
+    in the destination. *move_file* moves one file (``shutil.move`` by
+    default, which copies then deletes across filesystems).
 
     Raises :class:`MediaOpError` before moving anything:
 
@@ -434,15 +447,20 @@ def move_media(
     source_ids = load_media_metadata(source_album)
     dest_ids = load_media_metadata(dest_album)
 
-    for subdir, files in variants:
-        move_files(source_album / subdir, dest_album / subdir, files, dry_run=dry_run)
     if not dry_run:
-        _save_transferred_media_ids(
+        _move_all_or_nothing(
             source_album,
             dest_album,
-            source_ids,
-            dest_ids,
-            _moved_keys(groups),
+            variants,
+            move_file=move_file,
+            then=partial(
+                _save_transferred_media_ids,
+                source_album,
+                dest_album,
+                source_ids,
+                dest_ids,
+                _moved_keys(groups),
+            ),
         )
 
     _remove_empty_dirs(
@@ -451,6 +469,59 @@ def move_media(
         dry_run=dry_run,
     )
     return MediaOpResult(files_by_dir=_files_by_dir(variants))
+
+
+def _move_all_or_nothing(
+    source_album: Path,
+    dest_album: Path,
+    variants: list[tuple[str, list[str]]],
+    *,
+    move_file: MoveFileFn,
+    then: Callable[[], None],
+) -> None:
+    """
+    Move the *variants* to *dest_album*, then run *then*; undo it all on failure.
+
+    The caller's conflict check guarantees no destination file existed
+    before, so the filesystem alone says what to undo (see
+    :func:`_undo_moves`).
+    """
+    moves = [
+        (source_album / subdir / f, dest_album / subdir / f)
+        for subdir, files in variants
+        for f in files
+    ]
+    try:
+        for src, dst in moves:
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            move_file(src, dst)
+        then()
+    except BaseException:
+        _undo_moves(moves, move_file=move_file)
+        _remove_empty_dirs(
+            dest_album,
+            [subdir for subdir, _ in variants],
+            dry_run=False,
+        )
+        raise
+
+
+def _undo_moves(moves: list[tuple[Path, Path]], *, move_file: MoveFileFn) -> None:
+    """
+    Put every moved file back, and drop a copy a cross-filesystem move left.
+
+    A *dst* without its *src* was moved and goes back; a *dst* beside its
+    *src* is the partial copy of a move interrupted before it deleted the
+    source.
+    """
+    for src, dst in reversed(moves):
+        match (src.exists(), dst.exists()):
+            case (False, True):
+                move_file(dst, src)
+            case (True, True):
+                dst.unlink()
+            case _:
+                pass
 
 
 def _save_transferred_media_ids(
@@ -468,10 +539,13 @@ def _save_transferred_media_ids(
         dest_before,
         moved_keys,
     )
-    if source_after != source_before:
-        save_media_metadata(source_album, source_after)
+    # Destination first: a run killed between the two writes leaves the moved
+    # IDs in both albums, which the source's next refresh drops as stale,
+    # rather than in neither.
     if dest_after != dest_before:
         save_media_metadata(dest_album, dest_after)
+    if source_after != source_before:
+        save_media_metadata(source_album, source_after)
 
 
 def rm_media(
