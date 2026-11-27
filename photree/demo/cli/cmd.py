@@ -35,6 +35,7 @@ from photree.album.importer.testkit.preflight import (
 )
 from photree.album.importer.testkit.validation import VALIDATION_ERRORS
 from photree.album.stats.testkit import ALBUM_STATS, ALBUMS_STATS
+from photree.albums.output import importer as batch_import_output
 from photree.clihelpers.console import console
 
 app = typer.Typer(
@@ -238,8 +239,8 @@ _SAMPLES: tuple[tuple[str, Callable[[], str]], ...] = (
         ),
     ),
     (
-        "importer_output.batch_summary()",
-        lambda: importer_output.batch_summary(imported=5, skipped=2),
+        "batch_import_output.batch_summary()",
+        lambda: batch_import_output.batch_summary(imported=5, skipped=2),
     ),
     (
         "importer_output.validation_errors()",

@@ -4,11 +4,11 @@ import pytest
 import typer
 
 from photree.album.id import format_album_external_id
-from photree.album.importer.batch import AlbumFailure, ImportFailureStage
 from photree.album.refresh import refresh_album_derived_data
 from photree.albums.batchcli.check import run_batch_check
 from photree.albums.cli.import_cmd import retry_commands
 from photree.albums.cmd_handler import AlbumStepError, run_album_step
+from photree.albums.cmd_handler.importer import AlbumFailure, ImportFailureStage
 from photree.albums.cmd_handler.stats import batch_stats
 from photree.foundation.layout import PHOTREE_DIR
 from photree.foundation.linking import LinkMode

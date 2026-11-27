@@ -75,7 +75,7 @@ class AlbumFailure(NamedTuple):
     An album whose import was attempted and failed, with the reason.
 
     *error* is what stopped the import itself, left for the CLI to word
-    (:func:`photree.album.importer.output.failure_reason`); *reason* is empty
+    (:func:`photree.albums.output.importer.failure_reason`); *reason* is empty
     then. Otherwise the import completed and *reason* says what failed after
     it. *stages* says which parts failed, so the CLI can suggest the command
     that actually retries each one.

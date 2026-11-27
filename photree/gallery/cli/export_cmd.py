@@ -6,7 +6,7 @@ from typing import Annotated
 
 import typer
 
-from photree.album.exporter import batch as _batch, output as _export_output
+from photree.album.exporter import output as _export_output
 from photree.album.exporter.settings import (
     ExportSettingsError,
     ResolvedExportSettings,
@@ -14,6 +14,8 @@ from photree.album.exporter.settings import (
     validate_export_settings,
 )
 from photree.album.store.album_discovery import discover_gallery_albums
+from photree.albums.cmd_handler import exporter as _batch
+from photree.albums.output import exporter as _batch_export_output
 from photree.clihelpers.config_errors import format_config_error
 from photree.clihelpers.console import err_console
 from photree.clihelpers.options import (
@@ -192,7 +194,7 @@ def _export(
         )
 
     typer.echo(
-        _export_output.batch_export_summary(
+        _batch_export_output.batch_export_summary(
             result.exported,
             len(result.failed),
             dry_run=dry_run,
@@ -200,7 +202,7 @@ def _export(
     )
     if result.failed:
         err_console.print(
-            _export_output.format_batch_export_failures(result.failed, cwd),
+            _batch_export_output.format_batch_export_failures(result.failed, cwd),
             markup=False,
         )
         raise typer.Exit(code=1)

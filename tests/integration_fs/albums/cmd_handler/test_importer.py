@@ -1,12 +1,12 @@
 from pathlib import Path
 
-from photree.album.importer.batch import (
+from photree.album.staging import ios_import_csv, ios_import_dir, std_import_dir
+from photree.albums.cmd_handler.importer import (
     categorize_albums,
     run_batch_import,
     scan_albums,
     validate_albums,
 )
-from photree.album.staging import ios_import_csv, ios_import_dir, std_import_dir
 from photree.foundation.linking import LinkMode
 from photree.foundation.metadata_io import InvalidMetadataError
 from tests.fakes import noop_convert

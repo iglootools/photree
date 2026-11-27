@@ -40,6 +40,7 @@ from photree.album.check.std import DuplicateStem, StdMediaSourceIntegrityResult
 from photree.album.check.troubleshoot import suggest_exif_fixes
 from photree.album.check.unexpected_dirs import UnexpectedDirsCheck
 from photree.album.id import format_album_external_id
+from photree.album.naming import BatchNamingResult
 from photree.album.store.media_source import MediaSource
 from photree.common.formatting import (
     CHECK,
@@ -155,6 +156,26 @@ def format_naming_checks(
             *_format_exif_line(result, fatal_exif=fatal_exif, album_dir=album_dir),
         ],
     )
+
+
+def format_batch_naming_issues(result: BatchNamingResult) -> str:
+    """Format cross-album naming issues (date collisions)."""
+    if result.success:
+        return f"{CHECK} no date collisions"
+    else:
+        return "\n".join(
+            [
+                f"{CROSS} date collisions: {len(result.date_collisions)} date(s)",
+                *(
+                    line
+                    for album_date, albums in result.date_collisions
+                    for line in (
+                        indent(f"{album_date}:"),
+                        *(indent(markup_escape(album), 2) for album in albums),
+                    )
+                ),
+            ],
+        )
 
 
 def _format_naming_line(result: AlbumNamingResult) -> list[str]:

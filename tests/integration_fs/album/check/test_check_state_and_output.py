@@ -29,7 +29,6 @@ from photree.album.check.output.album import (
     format_face_state_check,
     format_integrity_checks,
 )
-from photree.album.check.output.batch import duplicate_ids_report
 from photree.album.check.output.derived import derived_failures_report
 from photree.album.check.output.troubleshoot import (
     format_album_preflight_troubleshoot,
@@ -53,6 +52,7 @@ from photree.album.faces.store import FaceData, save_face_data, save_face_state
 from photree.album.faces.testkit import write_legacy_face_data
 from photree.album.jpeg import JpegConversionFailure
 from photree.album.store.media_source import ios_media_source, std_media_source
+from photree.albums.output.check import duplicate_ids_report
 
 MAIN = ios_media_source("main")
 

@@ -9,7 +9,6 @@ import typer
 from photree.album import check as album_check, naming as album_naming
 from photree.album.check.output import (
     album as album_output,
-    batch as batch_output,
     troubleshoot as troubleshoot_output,
 )
 from photree.album.cli.app import app
@@ -179,7 +178,7 @@ def _check_sibling_date_collisions(album_dir: Path) -> bool:
         if (parsed := album_naming.parse_album_name(a.name)) is not None
     ]
     batch_naming = album_naming.check_batch_date_collisions(parsed_siblings)
-    console.print(batch_output.format_batch_naming_issues(batch_naming))
+    console.print(album_output.format_batch_naming_issues(batch_naming))
     return batch_naming.success
 
 

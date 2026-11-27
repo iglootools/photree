@@ -1,4 +1,10 @@
-"""Reports on a set of albums whose IDs stop a command, shared by its commands."""
+"""
+Presentation for operations over many albums.
+
+This module holds the reports on a set of albums whose IDs stop a command,
+shared by its commands; the batch import (:mod:`.importer`), export
+(:mod:`.exporter`) and check (:mod:`.check`) have their own modules.
+"""
 
 from collections.abc import Mapping, Sequence
 from pathlib import Path

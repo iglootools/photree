@@ -1,10 +1,10 @@
 from pathlib import Path
 
-from photree.album.exporter.batch import (
+from photree.album.store.media_source import MAIN_MEDIA_SOURCE
+from photree.albums.cmd_handler.exporter import (
     find_export_dirs,
     run_batch_export,
 )
-from photree.album.store.media_source import MAIN_MEDIA_SOURCE
 from photree.foundation.linking import LinkMode
 from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 from tests.testkit import mark_album, write_files

@@ -77,6 +77,7 @@ graph TD
     collections --> foundation
     config --> foundation
     demo --> album
+    demo --> albums
     demo --> clihelpers
     gallery --> album
     gallery --> albums
@@ -186,9 +187,13 @@ by side; output helpers live next to the logic they render (`output.py`).
   `title_sync`, `implicit` / `implicit_match` / `series`, `smart`),
   orchestrated by `refresh_collections`. See
   [internals.md — Collection Refresh](./internals.md#collection-refresh).
-- **`albums/`** — `cmd_handler/` holds the pure batch logic; `batchcli/` the
-  batch presentation layer shared by the `albums` and `gallery` command groups
-  (one `run_batch_*` wrapper per operation, plus `resolution` for
+- **`albums/`** — `cmd_handler/` holds the pure batch logic, one module per
+  operation, including the batch import (`importer.py`) and export
+  (`exporter.py`) that `albums import`, `albums export` and `gallery export`
+  run; `output/` renders the batch results (the import, export and check
+  summaries and failures, and the ID reports); `batchcli/` the batch
+  presentation layer shared by the `albums` and `gallery` command groups (one
+  `run_batch_*` wrapper per operation, plus `resolution` for
   `--dir` / `--album-dir` to an album list); `cli/` only the `albums` commands
   themselves. `index.py` and `media_index.py` map IDs to paths and detect
   duplicates; `renamer.py` plans batch renames from CSV.

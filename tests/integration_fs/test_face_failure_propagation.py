@@ -10,9 +10,9 @@ from pathlib import Path
 
 from photree.album.faces.failures import FaceFailure, FaceFailureStage
 from photree.album.importer.album_import import AlbumImportResult
-from photree.album.importer.batch import result_failure
 from photree.album.importer.output import import_problems
 from photree.album.refresh import AlbumRefreshResult
+from photree.albums.cmd_handler.importer import result_failure
 from photree.albums.cmd_handler.refresh import batch_refresh
 from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
 from photree.foundation.linking import LinkMode

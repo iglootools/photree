@@ -8,9 +8,9 @@ import typer
 
 from photree.album.cli.import_preflight import run_import_preflight
 from photree.album.importer.album_import import task_has_content
-from photree.album.importer.batch import scan_albums
 from photree.album.importer.tasks import discover_import_tasks
 from photree.albums.cli.app import app
+from photree.albums.cmd_handler.importer import scan_albums
 from photree.clihelpers.console import err_console
 from photree.clihelpers.progress import BatchProgressBar
 from photree.clihelpers.runtime import runtime_of

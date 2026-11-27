@@ -8,8 +8,7 @@ from pathlib import Path
 import typer
 
 from photree.album import naming as album_naming
-from photree.album.check.output import album as album_output, batch as batch_output
-from photree.album.check.output.batch import batch_check_summary
+from photree.album.check.output import album as album_output
 from photree.album.exif_cache.refresh import refresh_exif_cache as _refresh_exif
 from photree.album.id import format_album_external_id, format_image_external_id
 from photree.album.naming import BatchNamingResult
@@ -21,6 +20,8 @@ from photree.albums.cmd_handler import BatchFailure, failures_of, run_album_step
 from photree.albums.cmd_handler.check import BatchCheckResult, batch_check
 from photree.albums.index import find_duplicate_album_ids
 from photree.albums.media_index import find_duplicate_media_ids
+from photree.albums.output import check as batch_output
+from photree.albums.output.check import batch_check_summary
 from photree.clihelpers.console import console, err_console
 from photree.clihelpers.progress import BatchProgressBar, run_with_spinner
 from photree.clihelpers.sysdeps import CHECK_DEPS, EXIF_DEPS, require_system_deps
@@ -214,7 +215,7 @@ def _print_cross_album(cross_album: _CrossAlbumResult, cwd: Path) -> None:
     typer.echo("\nCross-album checks:")
     if cross_album.naming_result is not None:
         console.print(
-            batch_output.format_batch_naming_issues(cross_album.naming_result),
+            album_output.format_batch_naming_issues(cross_album.naming_result),
         )
     for kind, duplicates, format_id in (
         ("album", cross_album.duplicate_ids, format_album_external_id),

@@ -7,11 +7,13 @@ import typer
 
 from photree.album.cli.import_preflight import run_import_preflight
 from photree.album.faces.detect import memoized_face_analyzer_factory
-from photree.album.importer import batch, output as importer_output
+from photree.album.importer import output as importer_output
 from photree.album.importer.album_import import TaskIssue
-from photree.album.importer.batch import ImportFailureStage
 from photree.album.jpeg import convert_single_file, noop_convert_single
 from photree.albums.cli.app import app
+from photree.albums.cmd_handler import importer as batch
+from photree.albums.cmd_handler.importer import ImportFailureStage
+from photree.albums.output import importer as batch_import_output
 from photree.clihelpers.console import err_console
 from photree.clihelpers.options import DRY_RUN_OPTION, LINK_MODE_OPTION
 from photree.clihelpers.progress import BatchProgressBar
@@ -84,7 +86,7 @@ def _run_import(
             on_error=lambda name, failure: progress.on_end(
                 name,
                 success=False,
-                error_labels=(importer_output.failure_reason(failure, cwd),),
+                error_labels=(batch_import_output.failure_reason(failure, cwd),),
             ),
             on_validation_error=on_validation_error,
             convert_file=noop_convert_single
@@ -124,7 +126,7 @@ def retry_commands(failure: batch.AlbumFailure, cwd: Path) -> list[str]:
 
 
 def _report_failures(result: batch.BatchResult, base: Path, cwd: Path) -> None:
-    err_console.print(importer_output.batch_failures(result.failed, base))
+    err_console.print(batch_import_output.batch_failures(result.failed, base))
     err_console.print(
         "\n".join(
             [
@@ -252,7 +254,7 @@ def import_cmd(
 
     typer.echo(
         format_dry_run(
-            importer_output.batch_summary(
+            batch_import_output.batch_summary(
                 result.imported,
                 result.skipped,
                 result.failed_count,
