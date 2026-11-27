@@ -22,6 +22,7 @@ mise run fmt                # ruff, dprint and rumdl format every file (fmt-ruff
 mise run lint-fmt           # ruff format --check + dprint check (lint-fmt-ruff, lint-fmt-dprint)
 mise run lint-ruff          # ruff check
 mise run lint-shell         # shellcheck on the tracked shell scripts
+mise run lint-github-actions # actionlint on the tracked GitHub Actions workflows
 mise run lint-markdown      # rumdl check (also what rumdl fmt would change)
 mise run lint-types         # pyright
 mise run lint-boundaries    # import-linter (module boundary contracts in pyproject.toml — see architecture.md)

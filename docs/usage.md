@@ -47,7 +47,7 @@ also take `--config <path>` to use a specific file.
 # Directory where macOS Image Capture saves imported files
 # \u2019 is the Unicode right single quotation mark (') used by macOS in device names.
 # A regular ASCII apostrophe (') won't match the actual directory name.
-image-capture-dir = "~/Pictures/Sami Dalouche\u2019s iPhone"
+image-capture-dir = "~/Pictures/Jane\u2019s iPhone"
 
 [exporter.profiles.mega]
 share-dir = "~/MEGAsync/to-share"
@@ -265,11 +265,13 @@ combinations are valid, and
 **Initialize a collection:**
 
 ```bash
-# Manual collection (default)
-photree collection init -d "2024-07 - July Highlights"
+# Manual collection (default): init takes an existing directory
+mkdir "2024-07 - July Highlights"
+photree collection init -c "2024-07 - July Highlights"
 
 # Smart collection (auto-populates by date range)
-photree collection init -d "2024 - Best of 2024" --members smart --strategy date-range
+mkdir "2024 - Best of 2024"
+photree collection init -c "2024 - Best of 2024" --members smart --strategy date-range
 ```
 
 **Import members into a collection:**
@@ -299,7 +301,7 @@ photree gallery refresh
 
 ```bash
 # Check a single collection
-photree collection check -d my-collection/ -g ~/Pictures/gallery
+photree collection check -c my-collection/ -g ~/Pictures/gallery
 
 # Check all collections in the gallery
 photree collections check
@@ -312,8 +314,8 @@ photree gallery check
 
 ```bash
 # Change kind or lifecycle
-photree collection metadata set -d my-collection/ --members smart --strategy date-range
-photree collection metadata set -d my-collection/ --lifecycle explicit
+photree collection metadata set -c my-collection/ --members smart --strategy date-range
+photree collection metadata set -c my-collection/ --lifecycle explicit
 ```
 
 A smart collection holds only albums and collections, and `gallery refresh`

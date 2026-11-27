@@ -265,8 +265,12 @@ TOML-based configuration with platform-aware search paths.
 | Format | Type | Notes |
 |--------|------|-------|
 | HEIC | Image | Native iPhone format (High Efficiency) |
+| HEIF | Image | High Efficiency images from other devices |
 | DNG | Image | Apple ProRAW |
 | JPEG/JPG | Image | Most Compatible mode, front camera, ProRAW edits |
 | PNG | Image | Screenshots |
 | MOV | Video | Standard and ProRes codec |
+| MP4 | Video | Standard media sources only |
+| AVI | Video | Standard media sources only |
+| WMV | Video | Standard media sources only |
 | AAE | Sidecar | Apple Adjustments and Edits |
