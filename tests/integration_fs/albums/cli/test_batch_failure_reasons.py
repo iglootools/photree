@@ -100,8 +100,7 @@ class TestBatchFailureReport:
             tmp_path,
         )
 
-        assert "a" in report
-        assert "disk on fire" in report
+        assert report.splitlines() == ["", "Failed albums:", "  a", "    disk on fire"]
 
 
 class TestInvestigateCommands:
