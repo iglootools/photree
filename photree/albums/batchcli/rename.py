@@ -37,6 +37,17 @@ def format_rename_plan_error(error: RenamePlanError) -> str:
             reason = f"{error.external_id}: title is required but empty"
         case RenamePlanErrorKind.DUPLICATE_ID:
             reason = f"album ID appears on more than one row: {error.external_id}"
+        case RenamePlanErrorKind.PATH_SEPARATOR:
+            reason = (
+                f"{error.external_id}: a field contains '/', which a directory"
+                f" name cannot hold: {error.new_name}"
+            )
+        case RenamePlanErrorKind.AMBIGUOUS_NAME:
+            reason = (
+                f"{error.external_id}: {error.new_name} would read back as"
+                " another series, title or location; remove ' - ', ' @ '"
+                " and '[...]' from the fields"
+            )
     return f"row {error.row}: {reason}"
 
 

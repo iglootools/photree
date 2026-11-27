@@ -262,6 +262,59 @@ class TestPlanRenamesFromCsv:
             (RenamePlanErrorKind.DUPLICATE_ID, 2),
         ]
 
+    @pytest.mark.parametrize(
+        ("series", "title", "location"),
+        [
+            ("", "Paris @ Night", ""),
+            ("", "A - B", ""),
+            ("A - B", "Trip", ""),
+            ("", "Trip", "Paris - Louvre"),
+            ("", "Trip [private]", ""),
+        ],
+    )
+    def test_name_that_parses_back_differently_is_an_error(
+        self,
+        tmp_path: Path,
+        series: str,
+        title: str,
+        location: str,
+    ) -> None:
+        index = self._make_index(tmp_path)
+        ext_id = format_album_external_id(next(iter(index)))
+        rows = [
+            {"id": ext_id, "series": series, "title": title, "location": location},
+        ]
+        actions, errors = plan_renames_from_csv(rows, index)
+        assert actions == ()
+        assert [(e.kind, e.row) for e in errors] == [
+            (RenamePlanErrorKind.AMBIGUOUS_NAME, 1),
+        ]
+
+    def test_path_separator_in_a_field_is_an_error(self, tmp_path: Path) -> None:
+        index = self._make_index(tmp_path)
+        ext_id = format_album_external_id(next(iter(index)))
+        rows = [{"id": ext_id, "series": "", "title": "AC/DC", "location": ""}]
+        actions, errors = plan_renames_from_csv(rows, index)
+        assert actions == ()
+        assert [(e.kind, e.new_name) for e in errors] == [
+            (RenamePlanErrorKind.PATH_SEPARATOR, "2024-06-15 - AC/DC"),
+        ]
+
+    def test_location_and_series_fields_build_a_name_that_round_trips(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        index = self._make_index(tmp_path)
+        ext_id = format_album_external_id(next(iter(index)))
+        rows = [
+            {"id": ext_id, "series": "Europe", "title": "Night", "location": "Paris"},
+        ]
+        actions, errors = plan_renames_from_csv(rows, index)
+        assert errors == ()
+        assert [a.new_name for a in actions] == [
+            "2024-06-15 - Europe - Night @ Paris",
+        ]
+
 
 class TestGalleryStatsWithoutCache:
     """

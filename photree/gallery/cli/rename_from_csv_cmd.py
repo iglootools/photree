@@ -42,8 +42,9 @@ def rename_from_csv_cmd(
     tags) are preserved from the current on-disk album name.
 
     The CSV needs the id, series, title and location columns; other columns
-    are ignored. A missing column, or an album ID on more than one row, stops
-    the run before anything is renamed.
+    are ignored. A missing column, an album ID on more than one row, or a
+    field that would not read back from the new name (one holding '/', ' - ',
+    ' @ ' or a '[tag]') stops the run before anything is renamed.
     """
     runtime = runtime_of(ctx)
     cwd = runtime.cwd()

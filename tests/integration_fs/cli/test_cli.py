@@ -204,6 +204,31 @@ class TestAlbumsRenameFromCsv:
         assert "rename.csv, line 2: malformed CSV (field larger" in result.output
         assert (tmp_path / "2024-06-15 - Old").is_dir()
 
+    def test_title_with_a_separator_renames_nothing(self, tmp_path: Path) -> None:
+        _, aid = make_album(tmp_path, "2024-06-15 - Trip")
+        csv_file = tmp_path / "rename.csv"
+        _write_csv(
+            csv_file,
+            [
+                {
+                    "id": format_album_external_id(aid),
+                    "series": "",
+                    "title": "Paris @ Night",
+                    "location": "",
+                },
+            ],
+        )
+        result = invoke_cli(
+            ["albums", "rename-from-csv", str(csv_file), "-d", str(tmp_path)],
+        )
+        assert result.exit_code == 1, result.output
+        output = " ".join(result.output.split())
+        assert (
+            "2024-06-15 - Paris @ Night would read back as another series,"
+            " title or location"
+        ) in output
+        assert (tmp_path / "2024-06-15 - Trip").is_dir()
+
     def test_duplicate_ids_suggest_new_ids_for_the_copy_only(
         self,
         tmp_path: Path,
