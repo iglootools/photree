@@ -36,7 +36,11 @@ from photree.album.check.ios import (
 from photree.album.check.ios.sidecar import SidecarCheck, SidecarIssue, SidecarIssueKind
 from photree.album.check.jpeg import AlbumJpegIntegrityResult, JpegCheck
 from photree.album.check.media_metadata import MediaMetadataCheck
-from photree.album.check.std import DuplicateStem, StdMediaSourceIntegrityResult
+from photree.album.check.std import (
+    DuplicateStem,
+    OrphanEdits,
+    StdMediaSourceIntegrityResult,
+)
 from photree.album.check.troubleshoot import suggest_exif_fixes
 from photree.album.check.unexpected_dirs import UnexpectedDirsCheck
 from photree.album.id import format_album_external_id
@@ -351,6 +355,14 @@ def format_duplicate_stem(dup: DuplicateStem) -> str:
     )
 
 
+def format_orphan_edits(orphans: OrphanEdits) -> str:
+    """Describe edits that have no original in plain text (not escaped)."""
+    return (
+        f"{orphans.directory}/: no original with the same stem for "
+        f"{', '.join(orphans.files)}"
+    )
+
+
 def format_miscategorized_file(mf: MiscategorizedFile) -> str:
     """Describe a file in the wrong archive directory in plain text (not escaped)."""
     match mf.kind:
@@ -401,6 +413,14 @@ def format_duplicate_stems(dups: tuple[DuplicateStem, ...]) -> str:
         )
         if dups
         else f"{CHECK} no duplicate stems"
+    )
+
+
+def _format_orphan_edits_check(orphans: tuple[OrphanEdits, ...]) -> str:
+    return (
+        _issues_block(CROSS, "orphan edits", [format_orphan_edits(o) for o in orphans])
+        if orphans
+        else f"{CHECK} no orphan edits"
     )
 
 
@@ -475,6 +495,7 @@ def _format_media_source_section(
             return [
                 *_format_browsable_and_jpeg(ms, ms_result, p),
                 format_duplicate_stems(ms_result.duplicate_stems),
+                _format_orphan_edits_check(ms_result.orphan_edits),
             ]
 
 

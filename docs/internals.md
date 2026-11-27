@@ -330,12 +330,14 @@ nothing else; hidden files such as `.DS_Store` are ignored and removed with
 them. Validation rejects anything the import would not copy (a file that is
 not an image or a video, a subdirectory, or an entry beside `orig/` and
 `edit/`), so the user moves it out rather than losing it. Duplicate stems
-within a folder are rejected; an `edit/` file with no matching `orig/` stem is
-allowed (it is imported but, as with existing std sources, omitted from the
-browsable directory). Stems are compared ignoring case, in validation, in the
-archive collision check and in `album check`: on a case-insensitive
-filesystem, the macOS default, `Photo.HEIC` becomes `Photo.jpg` in the JPEG
-directory, the same file as the copied `photo.jpg`.
+within a folder are rejected, and so is an `edit/` file with no `orig/` file
+of the same stem and kind (image or video): the browsable directory would leave
+it out and `album fix --rm-orphan` would delete it, possibly the only copy of
+the photo. `album check` reports such an edit in an existing std archive.
+Duplicate stems and archive collisions are found ignoring case, in validation
+and in `album check`: on a case-insensitive filesystem, the macOS default,
+`Photo.HEIC` becomes `Photo.jpg` in the JPEG directory, the same file as the
+copied `photo.jpg`.
 
 ## Collections
 

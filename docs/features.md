@@ -87,6 +87,8 @@ Validate that album directories are consistent and well-formed.
 - Sidecar validation: detects orphan and missing AAE files
 - Detects miscategorized files (edits in orig dirs or vice versa)
 - Detects duplicate image numbers within the same prefix category
+- Std sources: detects stems shared within a directory (ignoring case) and
+  edits with no original
 - Troubleshooting suggestions with actionable fix commands
 
 ## Linked Browsable Directories

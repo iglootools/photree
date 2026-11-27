@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from photree.album.check.std import DuplicateStem
+from photree.album.check.std import DuplicateStem, OrphanEdits
 from photree.album.importer.album_import import run_import, validate_album_import
 from photree.album.importer.collision import ArchiveCollision, ImportCollisionError
 from photree.album.importer.std import (
@@ -75,10 +75,24 @@ class TestValidateStdTask:
             ),
         )
 
-    def test_orphan_edit_allowed(self, tmp_path: Path) -> None:
-        # An edit with no matching orig is allowed (matches existing std behavior).
+    def test_orphan_edit_rejected(self, tmp_path: Path) -> None:
         album = tmp_path / "album"
         _setup_std_staging(album, "nelu", orig=["a.jpg"], edit=["b.jpg"])
+        errors = validate_std_task(_std_task(album, "nelu"))
+        assert errors == (OrphanEdits(directory="edit", files=("b.jpg",)),)
+
+    def test_edit_video_of_an_original_image_is_an_orphan(self, tmp_path: Path) -> None:
+        album = tmp_path / "album"
+        _setup_std_staging(album, "nelu", orig=["a.jpg"], edit=["a.mov"])
+        errors = validate_std_task(_std_task(album, "nelu"))
+        assert errors == (OrphanEdits(directory="edit", files=("a.mov",)),)
+
+    def test_edit_with_original_of_another_extension_accepted(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        album = tmp_path / "album"
+        _setup_std_staging(album, "nelu", orig=["a.heic"], edit=["a.jpg"])
         assert validate_std_task(_std_task(album, "nelu")) == ()
 
     def test_unsupported_entries_rejected(self, tmp_path: Path) -> None:

@@ -115,19 +115,34 @@ def _std_suggestions(
     flag: str,
     ms: MediaSource,
 ) -> list[str]:
-    """Suggestions for the std-only checks (duplicate stems)."""
+    """Suggestions for the std-only checks (duplicate stems, orphan edits)."""
     dirs = ", ".join(sorted({f"{d.directory}/" for d in integrity.duplicate_stems}))
-    return (
-        [
-            dedent(f"""\
-                Remove or rename the files sharing a stem in {ms.archive_dir}
-                ({dirs}): std sources match variants by filename stem, so each
-                stem must be unique within a directory. Then run:
-                photree album refresh {flag} --refresh-browsable --dry-run"""),
-        ]
-        if integrity.duplicate_stems
-        else []
-    )
+    return [
+        *(
+            [
+                dedent(f"""\
+                    Remove or rename the files sharing a stem in {ms.archive_dir}
+                    ({dirs}): std sources match variants by filename stem, so each
+                    stem must be unique within a directory. Then run:
+                    photree album refresh {flag} --refresh-browsable --dry-run"""),
+            ]
+            if integrity.duplicate_stems
+            else []
+        ),
+        *(
+            [
+                dedent(f"""\
+                    Put the original of each orphan edit in {ms.archive_dir}/orig-img/
+                    or orig-vid/ under the same stem, or move the edit there if it
+                    is the only version. Then run:
+                    photree album refresh {flag} --refresh-browsable --dry-run
+                    Or delete the orphan edits:
+                    photree album fix {flag} --rm-orphan --dry-run"""),
+            ]
+            if integrity.orphan_edits
+            else []
+        ),
+    ]
 
 
 def suggest_fixes(

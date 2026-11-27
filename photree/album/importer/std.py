@@ -14,7 +14,13 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from photree.album.check.std import DuplicateStem, check_duplicate_stems, folded_stem
+from photree.album.check.std import (
+    DuplicateStem,
+    OrphanEdits,
+    check_duplicate_stems,
+    find_orphan_edits,
+    folded_stem,
+)
 from photree.album.formats import IMG_EXTENSIONS, VID_EXTENSIONS
 from photree.album.importer.archive_copy import copy_into_archive
 from photree.album.importer.collision import ArchiveCollision
@@ -49,9 +55,11 @@ class StdUnsupportedEntries:
 
 
 # Validation errors for a std task: an empty staging dir, entries the import
-# would leave out, or several files sharing a stem within ``orig/`` or
-# ``edit/``.
-type StdValidationError = StdNoMediaError | StdUnsupportedEntries | DuplicateStem
+# would leave out, several files sharing a stem within ``orig/`` or ``edit/``,
+# or edits with no original.
+type StdValidationError = (
+    StdNoMediaError | StdUnsupportedEntries | DuplicateStem | OrphanEdits
+)
 
 
 @dataclass(frozen=True)
@@ -143,16 +151,32 @@ def _unsupported_entries(staging: Path) -> tuple[str, ...]:
     )
 
 
+def _orphan_edits(staging: Path) -> tuple[str, ...]:
+    """Staged edits with no original, images and videos matched apart."""
+    return tuple(
+        sorted(
+            f
+            for extensions in (IMG_EXTENSIONS, VID_EXTENSIONS)
+            for f in find_orphan_edits(
+                staging / ORIG_SUBDIR,
+                staging / EDIT_SUBDIR,
+                extensions,
+            )
+        ),
+    )
+
+
 def validate_std_task(task: ImportTask) -> tuple[StdValidationError, ...]:
     """
     Validate a std import task.
 
     Mirrors existing std media source rules (see
     :func:`photree.album.check.std.check_std_media_source_integrity`):
-    requires at least one media file, and rejects duplicate stems within
-    ``orig/`` or ``edit/``. An ``edit/`` file with no matching ``orig/`` stem
-    is allowed (same as existing std sources) — it is imported but omitted from
-    the browsable dir.
+    requires at least one media file, rejects duplicate stems within
+    ``orig/`` or ``edit/``, and rejects an ``edit/`` file with no ``orig/``
+    file of the same stem and kind (image or video), which the browsable dir
+    would leave out and ``album fix --rm-orphan`` would delete
+    (:class:`~photree.album.check.std.OrphanEdits`).
 
     Also rejects a staging dir holding anything the import would not copy
     (:class:`StdUnsupportedEntries`): the import consumes the staging dir, so
@@ -160,11 +184,13 @@ def validate_std_task(task: ImportTask) -> tuple[StdValidationError, ...]:
     """
     staging = _staging_dir(task)
     unsupported = _unsupported_entries(staging)
+    orphans = _orphan_edits(staging)
     return (
         *(() if has_media(task) else (StdNoMediaError(),)),
         *((StdUnsupportedEntries(unsupported),) if unsupported else ()),
         *check_duplicate_stems(staging / ORIG_SUBDIR, _MEDIA_EXTENSIONS),
         *check_duplicate_stems(staging / EDIT_SUBDIR, _MEDIA_EXTENSIONS),
+        *((OrphanEdits(EDIT_SUBDIR, orphans),) if orphans else ()),
     )
 
 

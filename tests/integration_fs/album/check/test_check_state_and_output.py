@@ -33,11 +33,13 @@ from photree.album.check.output.derived import derived_failures_report
 from photree.album.check.output.troubleshoot import (
     format_album_preflight_troubleshoot,
 )
+from photree.album.check.std import OrphanEdits
 from photree.album.check.testkit import (
     INTEGRITY_FAILURES,
     IOS_INTEGRITY_OK,
     PREFLIGHT_OK,
     STD_INTEGRITY_FAILURES,
+    STD_INTEGRITY_OK,
 )
 from photree.album.exif_cache.protocol import ExifCache
 from photree.album.exif_cache.store import save_exif_cache
@@ -189,6 +191,32 @@ class TestStdDuplicateStems:
         assert troubleshoot is not None
         assert "--refresh-browsable" in troubleshoot
         assert "sharing a stem" in troubleshoot
+
+
+class TestStdOrphanEdits:
+    _RESULT = AlbumIntegrityResult(
+        by_media_source=(
+            (
+                std_media_source("nelu"),
+                replace(
+                    STD_INTEGRITY_OK,
+                    orphan_edits=(OrphanEdits("edit-img", ("b.jpg",)),),
+                ),
+            ),
+        ),
+    )
+
+    def test_orphan_edits_are_printed(self) -> None:
+        output = format_integrity_checks(self._RESULT)
+        assert "orphan edits" in output
+        assert "edit-img/: no original with the same stem for b.jpg" in output
+
+    def test_orphan_edits_get_suggestions(self) -> None:
+        preflight = replace(PREFLIGHT_OK, integrity=self._RESULT)
+        troubleshoot = format_album_preflight_troubleshoot(preflight, "album")
+        assert troubleshoot is not None
+        assert "Put the original of each orphan edit" in troubleshoot
+        assert "--rm-orphan" in troubleshoot
 
 
 def _render(markup: str) -> str:

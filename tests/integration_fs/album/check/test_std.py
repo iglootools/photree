@@ -2,6 +2,7 @@ from pathlib import Path
 
 from photree.album.check.std import (
     DuplicateStem,
+    OrphanEdits,
     check_duplicate_stems,
     check_std_media_source_integrity,
 )
@@ -39,3 +40,20 @@ class TestStdMediaSourceIntegrity:
         )
         assert not result.success
         assert [d.stem for d in result.duplicate_stems] == ["photo"]
+
+    def test_edits_without_original_fail(self, tmp_path: Path) -> None:
+        ms = std_media_source("nelu")
+        write_file(tmp_path / ms.orig_img_dir / "a.heic")
+        write_file(tmp_path / ms.edit_img_dir / "a.jpg")
+        write_file(tmp_path / ms.edit_img_dir / "b.jpg")
+        write_file(tmp_path / ms.edit_vid_dir / "a.mov")
+        result = check_std_media_source_integrity(
+            tmp_path,
+            ms,
+            link_mode=LinkMode.HARDLINK,
+        )
+        assert not result.success
+        assert result.orphan_edits == (
+            OrphanEdits(directory="edit-img", files=("b.jpg",)),
+            OrphanEdits(directory="edit-vid", files=("a.mov",)),
+        )

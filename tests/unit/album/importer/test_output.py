@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 from rich.console import Console
 
+from photree.album.check.std import OrphanEdits
 from photree.album.importer.album_import import (
     AlbumImportResult,
     AlbumImportValidation,
@@ -144,6 +145,14 @@ class TestFormatTaskIssue:
         issue = TaskIssue(std_media_source("nelu"), StdNoMediaError())
         assert _render(format_task_issue(issue)) == (
             "[std:nelu] no media files found in orig/ or edit/\n"
+        )
+
+    def test_orphan_edits_named_with_the_way_out(self) -> None:
+        issue = TaskIssue(std_media_source("nelu"), OrphanEdits("edit", ("b.jpg",)))
+        assert _render(format_task_issue(issue)) == (
+            "[std:nelu] edit/: no original with the same stem for b.jpg. Std "
+            "sources need the original of every edit: put it in orig/ under the "
+            "same stem, or move the edit there if it is the only version.\n"
         )
 
     def test_user_text_in_brackets_survives_rendering(self) -> None:

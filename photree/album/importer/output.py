@@ -12,9 +12,12 @@ from collections.abc import Sequence
 from pathlib import Path
 from textwrap import dedent
 
-from photree.album.check.output.album import format_duplicate_stem
+from photree.album.check.output.album import (
+    format_duplicate_stem,
+    format_orphan_edits,
+)
 from photree.album.check.output.derived import derived_failures_report
-from photree.album.check.std import DuplicateStem
+from photree.album.check.std import DuplicateStem, OrphanEdits
 from photree.album.importer.album_import import (
     AlbumImportResult,
     AlbumImportValidation,
@@ -332,6 +335,14 @@ def _unsupported_entries_message(unsupported: StdUnsupportedEntries) -> str:
     )
 
 
+def _orphan_edits_message(orphans: OrphanEdits) -> str:
+    return (
+        f"{format_orphan_edits(orphans)}. Std sources need the original of "
+        "every edit: put it in orig/ under the same stem, or move the edit "
+        "there if it is the only version."
+    )
+
+
 def format_archive_collision(collision: ArchiveCollision) -> str:
     """
     One-line description of an archive collision, with the way out.
@@ -363,6 +374,8 @@ def _task_issue_message(detail: TaskIssueDetail) -> str:
             return _unsupported_entries_message(unsupported)
         case DuplicateStem() as dup:
             return format_duplicate_stem(dup)
+        case OrphanEdits() as orphans:
+            return _orphan_edits_message(orphans)
         case ArchiveCollision() as collision:
             return format_archive_collision(collision)
 

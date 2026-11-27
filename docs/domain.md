@@ -275,6 +275,11 @@ An item may exist as several files:
 When the same key exists in several image formats, the higher quality wins:
 DNG > HEIC > HEIF > JPG/PNG.
 
+An edited variant needs an original of the same key and kind (image or video):
+an edit without one is left out of the browsable directory, and `album fix
+--rm-orphan` deletes it. For a std source, where the edit may be the only copy
+of the photo, `album import` refuses such an edit and `album check` reports it.
+
 ### iOS Variants (Image Capture)
 
 macOS Image Capture exports iOS media with the following conventions, which
@@ -352,7 +357,8 @@ per media source to fill, named `to-import-{ios,std}-<media-source>`:
   `to-import-ios-<name>.csv` file, or both. Because only names matter, the
   selection can come from anywhere: Photos, a script, a phone, an LLM.
 - **std staging** holds the actual files, in `orig/` and optionally `edit/`.
-  They are copied into `std-<name>/`, split by extension.
+  They are copied into `std-<name>/`, split by extension. Each file in `edit/`
+  needs an original of the same stem in `orig/`.
 
 Staging entries are consumed on success. See
 [internals.md — Import Staging Directories](./internals.md#import-staging-directories).
