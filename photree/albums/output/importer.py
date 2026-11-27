@@ -15,6 +15,7 @@ from photree.album.importer.album_import import (
 )
 from photree.album.importer.output import import_refusal
 from photree.albums.cmd_handler.importer import AlbumFailure
+from photree.albums.output.refresh import format_derived_failures
 from photree.common.formatting import indent, markup_escape
 from photree.common.fs import display_path
 
@@ -23,12 +24,12 @@ def failure_reason(failure: AlbumFailure, cwd: Path) -> str:
     """
     Word why an album of a batch failed to import (plain text).
 
-    A refusal or a filesystem error that stopped the import is worded here;
-    a failure after the import already carries its reason.
+    A refusal or a filesystem error that stopped the import, or every part
+    that failed after a completed import.
     """
     match failure.error:
         case None:
-            return failure.reason
+            return _partial_failure_reason(failure)
         case NoImportTasksError() | EmptyImageCaptureDirError() as refusal:
             return import_refusal(refusal, cwd)
         case OSError(filename=str() | Path() as filename) as error:
@@ -38,6 +39,20 @@ def failure_reason(failure: AlbumFailure, cwd: Path) -> str:
             )
         case error:
             return str(error)
+
+
+def _partial_failure_reason(failure: AlbumFailure) -> str:
+    """Join what failed after a completed import, in the order it ran."""
+    return "; ".join(
+        [
+            *(
+                [f"selection entries left behind: {', '.join(failure.unprocessed)}"]
+                if failure.unprocessed
+                else []
+            ),
+            *format_derived_failures(failure.jpeg_failures, failure.face_failures),
+        ],
+    )
 
 
 def batch_summary(

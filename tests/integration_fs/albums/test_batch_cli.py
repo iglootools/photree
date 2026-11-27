@@ -3,7 +3,9 @@ from pathlib import Path
 import pytest
 import typer
 
+from photree.album.faces.failures import FaceFailure, FaceFailureStage
 from photree.album.id import format_album_external_id
+from photree.album.jpeg import JpegConversionFailure
 from photree.album.refresh import refresh_album_derived_data
 from photree.albums.batchcli.check import run_batch_check
 from photree.albums.cli.import_cmd import retry_commands
@@ -333,7 +335,7 @@ class TestImportCheck:
 
 class TestBatchImportRetryCommands:
     def test_failed_import_is_retried_with_import(self, tmp_path: Path) -> None:
-        failure = AlbumFailure(tmp_path / "A", "copy failed")
+        failure = AlbumFailure(tmp_path / "A", error=OSError("copy failed"))
 
         assert retry_commands(failure, tmp_path) == [
             'photree album import --album-dir "A"',
@@ -344,9 +346,13 @@ class TestBatchImportRetryCommands:
         # would only report that there is nothing to import.
         failure = AlbumFailure(
             tmp_path / "A",
-            "jpeg conversion failed: ...; face detection failed: ...",
-            frozenset({ImportFailureStage.JPEG, ImportFailureStage.FACES}),
+            jpeg_failures=(("main", JpegConversionFailure("IMG_0001.HEIC", "bad")),),
+            face_failures=(
+                ("main", FaceFailure("0001", FaceFailureStage.DETECTION, "boom")),
+            ),
         )
+
+        assert failure.stages == {ImportFailureStage.JPEG, ImportFailureStage.FACES}
 
         assert retry_commands(failure, tmp_path) == [
             'photree album refresh --refresh-jpeg --album-dir "A"',

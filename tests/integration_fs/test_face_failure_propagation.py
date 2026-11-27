@@ -12,7 +12,7 @@ from photree.album.faces.failures import FaceFailure, FaceFailureStage
 from photree.album.importer.album_import import AlbumImportResult
 from photree.album.importer.output import import_problems
 from photree.album.refresh import AlbumRefreshResult
-from photree.albums.cmd_handler.importer import result_failure
+from photree.albums.cmd_handler.importer import ImportFailureStage, result_failure
 from photree.albums.cmd_handler.refresh import IncompleteRefreshError, batch_refresh
 from photree.albums.output.refresh import describe_refresh_error
 from photree.foundation.gallery_metadata import GalleryMetadata, save_gallery_metadata
@@ -142,6 +142,5 @@ def test_albums_batch_import_reports_every_partial_failure(tmp_path: Path) -> No
     )
 
     assert failure is not None
-    assert failure.reason == (
-        "face detection failed: main/0001 (detection): model exploded"
-    )
+    assert failure.face_failures == _FACE_FAILURES
+    assert failure.stages == {ImportFailureStage.FACES}

@@ -4,10 +4,10 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import NamedTuple, Protocol
+from typing import Protocol
 
 from photree.album.faces.detect import FaceAnalyzerFactory
-from photree.album.faces.failures import format_face_failures
+from photree.album.faces.failures import FaceFailure
 from photree.album.importer import album_import
 from photree.album.importer.album_import import (
     AlbumImportResult,
@@ -17,7 +17,7 @@ from photree.album.importer.album_import import (
 )
 from photree.album.importer.naming_gate import ImportNamingCheck, check_import_naming
 from photree.album.importer.tasks import discover_import_tasks, has_import_tasks
-from photree.album.jpeg import ConvertFile, convert_single_file
+from photree.album.jpeg import ConvertFile, JpegConversionFailure, convert_single_file
 from photree.album.staging import ios_import_dir, std_import_dir
 from photree.album.store.album_discovery import AlbumSelectionError
 from photree.common.exif import ExifTagReader
@@ -70,21 +70,41 @@ class ImportFailureStage(StrEnum):
     UNPROCESSED_SELECTION = "unprocessed-selection"
 
 
-class AlbumFailure(NamedTuple):
+@dataclass(frozen=True)
+class AlbumFailure:
     """
-    An album whose import was attempted and failed, with the reason.
+    An album whose import was attempted and failed, and what failed.
 
-    *error* is what stopped the import itself, left for the CLI to word
-    (:func:`photree.albums.output.importer.failure_reason`); *reason* is empty
-    then. Otherwise the import completed and *reason* says what failed after
-    it. *stages* says which parts failed, so the CLI can suggest the command
-    that actually retries each one.
+    *error* is what stopped the import itself. Otherwise the import completed,
+    and *unprocessed* (selection entries left behind), *jpeg_failures* and
+    *face_failures* hold what failed after it. The CLI words them
+    (:func:`photree.albums.output.importer.failure_reason`), and suggests the
+    command that retries each of the :attr:`stages`.
     """
 
     album_dir: Path
-    reason: str
-    stages: frozenset[ImportFailureStage] = frozenset({ImportFailureStage.IMPORT})
     error: OSError | ValueError | None = None
+    unprocessed: tuple[str, ...] = ()
+    jpeg_failures: tuple[tuple[str, JpegConversionFailure], ...] = ()
+    face_failures: tuple[tuple[str, FaceFailure], ...] = ()
+
+    @property
+    def stages(self) -> frozenset[ImportFailureStage]:
+        """
+        Return the stages that failed, and so what a retry has to run.
+
+        :attr:`ImportFailureStage.IMPORT` when the import itself failed.
+        """
+        partial = frozenset(
+            stage
+            for stage, failed in (
+                (ImportFailureStage.UNPROCESSED_SELECTION, self.unprocessed),
+                (ImportFailureStage.JPEG, self.jpeg_failures),
+                (ImportFailureStage.FACES, self.face_failures),
+            )
+            if failed
+        )
+        return partial or frozenset({ImportFailureStage.IMPORT})
 
 
 @dataclass(frozen=True)
@@ -240,43 +260,18 @@ def result_failure(album_dir: Path, result: AlbumImportResult) -> AlbumFailure |
     """
     Return the failure of an import that ran to completion, if it failed in part.
 
-    Every partial failure is reported: listing only the first would hide the
+    Every partial failure is kept: reporting only the first would hide the
     others until the next run.
     """
-    jpeg = "; ".join(
-        f"{source}/{failure.filename}: {failure.reason}"
-        for source, failure in result.jpeg_failures
+    failure = AlbumFailure(
+        album_dir,
+        unprocessed=result.unprocessed,
+        jpeg_failures=result.jpeg_failures,
+        face_failures=result.face_failures,
     )
-    faces = "; ".join(format_face_failures(result.face_failures))
-    parts = [
-        *(
-            [
-                (
-                    ImportFailureStage.UNPROCESSED_SELECTION,
-                    f"selection entries left behind: {', '.join(result.unprocessed)}",
-                ),
-            ]
-            if result.unprocessed
-            else []
-        ),
-        *(
-            [(ImportFailureStage.JPEG, f"jpeg conversion failed: {jpeg}")]
-            if jpeg
-            else []
-        ),
-        *(
-            [(ImportFailureStage.FACES, f"face detection failed: {faces}")]
-            if faces
-            else []
-        ),
-    ]
     return (
-        AlbumFailure(
-            album_dir,
-            "; ".join(reason for _, reason in parts),
-            frozenset(stage for stage, _ in parts),
-        )
-        if parts
+        failure
+        if result.unprocessed or result.jpeg_failures or result.face_failures
         else None
     )
 
@@ -307,7 +302,7 @@ def _import_one(
     # batch importer. A missing system dependency is deliberately not
     # caught here — it is machine-wide, so it aborts the whole run.
     except (OSError, ValueError) as exc:
-        failure = AlbumFailure(album_dir, reason="", error=exc)
+        failure = AlbumFailure(album_dir, error=exc)
 
     match failure:
         case None:
