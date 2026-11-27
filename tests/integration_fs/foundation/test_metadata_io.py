@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -34,6 +35,24 @@ class TestYamlMetadataIO:
         with pytest.raises(InvalidMetadataError) as info:
             load_yaml_mapping(path)
         assert info.value.path == path
+
+    @pytest.mark.skipif(
+        os.geteuid() == 0,
+        reason="root reads a file whatever its permissions",
+    )
+    def test_file_that_cannot_be_read_raises(self, tmp_path: Path) -> None:
+        path = tmp_path / "album.yaml"
+        path.write_text("id: x\n", encoding="utf-8")
+        path.chmod(0)
+        try:
+            with pytest.raises(InvalidMetadataError) as info:
+                load_yaml_mapping(path)
+        finally:
+            path.chmod(0o600)
+        assert (info.value.path, info.value.reason) == (
+            path,
+            "cannot be read (Permission denied)",
+        )
 
     def test_corrupt_gallery_yaml_raises(self, tmp_path: Path) -> None:
         path = tmp_path / "gallery.yaml"
