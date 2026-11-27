@@ -13,7 +13,12 @@ from photree.album.importer.album_import import (
     AlbumImportResult,
     EmptyImageCaptureDirError,
 )
-from photree.album.importer.collision import ImportCollisionError
+from photree.album.importer.collision import (
+    ImportCollisionError,
+    MediaSourceClash,
+    MediaSourceClashError,
+    MediaSourceClashErrorKind,
+)
 from photree.album.store.media_source import std_media_source
 from photree.common.sysdeps import SystemDependency
 from photree.foundation.layout import SHARE_SENTINEL
@@ -52,6 +57,15 @@ _IMPORT_REFUSALS: list[tuple[Callable[[Path], Exception], str]] = [
     (
         lambda _album: ImportCollisionError(std_media_source("nelu"), ("DSC_0001",)),
         "Rename to-import-std-nelu",
+    ),
+    (
+        lambda _album: MediaSourceClashError(
+            MediaSourceClash(
+                std_media_source("nelu"),
+                MediaSourceClashErrorKind.EXISTING_ARCHIVE,
+            ),
+        ),
+        "the album already has ios-nelu/",
     ),
 ]
 

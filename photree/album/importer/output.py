@@ -26,7 +26,11 @@ from photree.album.importer.album_import import (
     TaskIssue,
     TaskIssueDetail,
 )
-from photree.album.importer.collision import ArchiveCollision
+from photree.album.importer.collision import (
+    ArchiveCollision,
+    MediaSourceClash,
+    MediaSourceClashErrorKind,
+)
 from photree.album.importer.image_capture import (
     DedupWarning,
     ValidationError,
@@ -360,6 +364,30 @@ def format_archive_collision(collision: ArchiveCollision) -> str:
     )
 
 
+def format_media_source_clash(clash: MediaSourceClash) -> str:
+    """
+    One-line description of a media source name clash, with the way out.
+
+    Plain text (print with ``markup=False``): :func:`format_task_issue`
+    embeds it and escapes the whole line.
+    """
+    ms = clash.media_source
+    staging = f"to-import-{ms.media_source_type}-{ms.name}"
+    match clash.kind:
+        case MediaSourceClashErrorKind.EXISTING_ARCHIVE:
+            claimed_by = f"the album already has {clash.other.archive_dir}/"
+        case MediaSourceClashErrorKind.STAGED:
+            other = clash.other
+            claimed_by = (
+                f"to-import-{other.media_source_type}-{other.name} is staged too"
+            )
+    return (
+        f"media source '{ms.name}' would have both an iOS and a std archive: "
+        f"{claimed_by}, and both would share {ms.img_dir}/ and its media IDs. "
+        f"Rename {staging} to import into a different media source."
+    )
+
+
 def _task_issue_message(detail: TaskIssueDetail) -> str:
     match detail:
         case ValidationError() as error:
@@ -378,6 +406,8 @@ def _task_issue_message(detail: TaskIssueDetail) -> str:
             return _orphan_edits_message(orphans)
         case ArchiveCollision() as collision:
             return format_archive_collision(collision)
+        case MediaSourceClash() as clash:
+            return format_media_source_clash(clash)
 
 
 def format_task_issue(issue: TaskIssue) -> str:

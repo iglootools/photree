@@ -7,7 +7,13 @@ from photree.album.importer.album_import import (
     EmptyImageCaptureDirError,
     NoImportTasksError,
 )
+from photree.album.importer.collision import (
+    MediaSourceClash,
+    MediaSourceClashError,
+    MediaSourceClashErrorKind,
+)
 from photree.album.jpeg import JpegConversionFailure
+from photree.album.store.media_source import std_media_source
 from photree.albums.cmd_handler.importer import AlbumFailure
 from photree.albums.output.importer import batch_failures, failure_reason
 
@@ -38,6 +44,16 @@ class TestFailureReason:
         assert failure_reason(failure, tmp_path) == (
             "Could not find any image capture files in ic"
         )
+
+    def test_media_source_clash_is_worded_with_the_way_out(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        ms = std_media_source("main")
+        clash = MediaSourceClash(ms, MediaSourceClashErrorKind.EXISTING_ARCHIVE)
+        failure = AlbumFailure(tmp_path / "A", error=MediaSourceClashError(clash))
+
+        assert "Rename to-import-std-main" in failure_reason(failure, tmp_path)
 
     def test_filesystem_error_names_the_file_relative_to_cwd(
         self,

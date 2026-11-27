@@ -13,6 +13,10 @@ from photree.album.importer.album_import import (
     AlbumImportValidation,
     TaskIssue,
 )
+from photree.album.importer.collision import (
+    MediaSourceClash,
+    MediaSourceClashErrorKind,
+)
 from photree.album.importer.image_capture import (
     DedupWarning,
     ImportPlan,
@@ -146,6 +150,24 @@ class TestFormatTaskIssue:
         assert _render(format_task_issue(issue)) == (
             "[std:nelu] no media files found in orig/ or edit/\n"
         )
+
+    def test_media_source_clash_with_existing_archive(self) -> None:
+        ms = std_media_source("main")
+        issue = TaskIssue(
+            ms,
+            MediaSourceClash(ms, MediaSourceClashErrorKind.EXISTING_ARCHIVE),
+        )
+        assert _render(format_task_issue(issue)) == (
+            "[std:main] media source 'main' would have both an iOS and a std "
+            "archive: the album already has ios-main/, and both would share "
+            "main-img/ and its media IDs. Rename to-import-std-main to import "
+            "into a different media source.\n"
+        )
+
+    def test_media_source_clash_with_staged_task(self) -> None:
+        ms = ios_media_source("main")
+        issue = TaskIssue(ms, MediaSourceClash(ms, MediaSourceClashErrorKind.STAGED))
+        assert "to-import-std-main is staged too" in _render(format_task_issue(issue))
 
     def test_orphan_edits_named_with_the_way_out(self) -> None:
         issue = TaskIssue(std_media_source("nelu"), OrphanEdits("edit", ("b.jpg",)))

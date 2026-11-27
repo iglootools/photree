@@ -20,7 +20,11 @@ from photree.album.importer.album_import import (
     import_stage_labels,
     validate_album_import,
 )
-from photree.album.importer.collision import ArchiveCollision, ImportCollisionError
+from photree.album.importer.collision import (
+    ArchiveCollision,
+    ImportCollisionError,
+    MediaSourceClashError,
+)
 from photree.album.importer.naming_gate import check_import_naming
 from photree.album.importer.tasks import discover_import_tasks
 from photree.album.jpeg import convert_single_file, noop_convert_single
@@ -234,6 +238,12 @@ def _run_import(
         # or the archive changed, in between): report, never a traceback.
         except (NoImportTasksError, EmptyImageCaptureDirError) as exc:
             err_console.print(importer_output.import_error(exc, cwd))
+            raise typer.Exit(code=1) from exc
+        except MediaSourceClashError as exc:
+            err_console.print(
+                importer_output.format_media_source_clash(exc.clash),
+                markup=False,
+            )
             raise typer.Exit(code=1) from exc
         except ImportCollisionError as exc:
             err_console.print(

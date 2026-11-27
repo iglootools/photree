@@ -283,8 +283,10 @@ An album is fed by one or more per-media-source staging entries, named
 discover every staging entry in the album, validate them all, import each into
 its target media source, then refresh derived data once. Validation includes
 the archive collision checks (an incoming iOS image number or std stem that
-already exists in the target archive), so a collision in any entry refuses the
-whole import before anything is copied. Each entry's files are copied into
+already exists in the target archive) and the media source name check (a name
+staged for one type while the album holds the other type's archive under it, or
+staged for both types), so a collision in any entry refuses the whole import
+before anything is copied. Each entry's files are copied into
 `.photree/import-in-progress/` first, then renamed into the archive, and
 removed from it again if a rename fails: an import interrupted part-way (a full
 disk, Ctrl-C) leaves that entry's archive and staging as they were, so

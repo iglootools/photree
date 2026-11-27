@@ -13,7 +13,8 @@ from photree.album.importer.album_import import (
     EmptyImageCaptureDirError,
     NoImportTasksError,
 )
-from photree.album.importer.output import import_refusal
+from photree.album.importer.collision import MediaSourceClashError
+from photree.album.importer.output import format_media_source_clash, import_refusal
 from photree.albums.cmd_handler.importer import AlbumFailure
 from photree.albums.output.refresh import format_derived_failures
 from photree.common.formatting import indent, markup_escape
@@ -32,6 +33,8 @@ def failure_reason(failure: AlbumFailure, cwd: Path) -> str:
             return _partial_failure_reason(failure)
         case NoImportTasksError() | EmptyImageCaptureDirError() as refusal:
             return import_refusal(refusal, cwd)
+        case MediaSourceClashError(clash=clash):
+            return format_media_source_clash(clash)
         case OSError(filename=str() | Path() as filename) as error:
             return (
                 f"{error.strerror or type(error).__name__}: "

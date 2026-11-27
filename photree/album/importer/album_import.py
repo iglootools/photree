@@ -7,14 +7,20 @@ into its target media source (iOS via :mod:`image_capture`, std via
 """
 
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from photree.album.faces.detect import FaceAnalyzerFactory
 from photree.album.faces.failures import FaceFailure
 from photree.album.id import generate_album_id
 from photree.album.importer import image_capture, std
-from photree.album.importer.collision import ArchiveCollision, ImportCollisionError
+from photree.album.importer.collision import (
+    ArchiveCollision,
+    ImportCollisionError,
+    MediaSourceClash,
+    MediaSourceClashError,
+    find_media_source_clash,
+)
 from photree.album.importer.image_capture import (
     DedupWarning,
     IosSourceImportResult,
@@ -58,14 +64,15 @@ def import_stage_labels(tasks: Sequence[ImportTask]) -> dict[str, str]:
 
 
 # What can be wrong with one import task. Errors are ValidationError,
-# StdValidationError and ArchiveCollision; ValidationWarning and DedupWarning
-# are informational.
+# StdValidationError, ArchiveCollision and MediaSourceClash; ValidationWarning
+# and DedupWarning are informational.
 TaskIssueDetail = (
     ValidationError
     | ValidationWarning
     | DedupWarning
     | StdValidationError
     | ArchiveCollision
+    | MediaSourceClash
 )
 
 
@@ -141,7 +148,7 @@ def _validate_std_task(album_dir: Path, task: ImportTask) -> AlbumImportValidati
     )
 
 
-def _validate_task(
+def _validate_task_type(
     album_dir: Path,
     task: ImportTask,
     image_capture_files: list[str],
@@ -153,6 +160,32 @@ def _validate_task(
             return _validate_std_task(album_dir, task)
 
 
+def _validate_task(
+    album_dir: Path,
+    task: ImportTask,
+    tasks: Sequence[ImportTask],
+    image_capture_files: list[str],
+) -> AlbumImportValidation:
+    validation = _validate_task_type(album_dir, task, image_capture_files)
+    clash = _find_clash(album_dir, task, tasks)
+    return replace(
+        validation,
+        errors=(
+            *validation.errors,
+            *_issues(task.media_source, [clash] if clash else []),
+        ),
+    )
+
+
+def _find_clash(
+    album_dir: Path,
+    task: ImportTask,
+    tasks: Sequence[ImportTask],
+) -> MediaSourceClash | None:
+    staged = {t.media_source for t in tasks}
+    return find_media_source_clash(album_dir, task.media_source, staged)
+
+
 def validate_album_import(
     album_dir: Path,
     image_capture_files: list[str],
@@ -162,12 +195,13 @@ def validate_album_import(
 
     IOS tasks use the selection→plan validation; std tasks use
     :func:`photree.album.importer.std.validate_std_task`. Both also check for
-    archive collisions, so every reason an import would be refused is known
-    before anything is copied.
+    archive collisions, and for a media source name that the other type
+    already claims, on disk or staged, so every reason an import would be
+    refused is known before anything is copied.
     """
+    tasks = discover_import_tasks(album_dir)
     per_task = [
-        _validate_task(album_dir, task, image_capture_files)
-        for task in discover_import_tasks(album_dir)
+        _validate_task(album_dir, task, tasks, image_capture_files) for task in tasks
     ]
     return AlbumImportValidation(
         album_dir=album_dir,
@@ -271,6 +305,22 @@ def _find_collision(
             return std.find_std_collision(album_dir, task)
 
 
+def _raise_on_clash(album_dir: Path, tasks: Sequence[ImportTask]) -> None:
+    """
+    Refuse the whole import before any mutation if any task's name clashes.
+
+    Without it, the import would copy into the archive and consume the
+    staging dir, and only the refresh that follows would find the name backed
+    by two archives, leaving the album refused by every later command.
+    """
+    clash = next(
+        (c for task in tasks if (c := _find_clash(album_dir, task, tasks))),
+        None,
+    )
+    if clash is not None:
+        raise MediaSourceClashError(clash)
+
+
 def _raise_on_collision(
     album_dir: Path,
     tasks: Sequence[ImportTask],
@@ -366,8 +416,10 @@ def run_import(
     consulted when at least one iOS task is present.
 
     Raises :class:`NoImportTasksError` / :class:`EmptyImageCaptureDirError`
-    when there is nothing to import, and :class:`ImportCollisionError` — before
-    touching the filesystem — when any task would overwrite archive keys.
+    when there is nothing to import, and — before touching the filesystem —
+    :class:`MediaSourceClashError` when a task's media source name is
+    claimed by the other type, and :class:`ImportCollisionError` when any task
+    would overwrite archive keys.
 
     Callbacks:
 
@@ -375,6 +427,7 @@ def run_import(
     """
     tasks = _require_tasks(album_dir)
     image_capture_files = _image_capture_files(tasks, image_capture_dir)
+    _raise_on_clash(album_dir, tasks)
     _raise_on_collision(album_dir, tasks, image_capture_files)
 
     if not dry_run:
