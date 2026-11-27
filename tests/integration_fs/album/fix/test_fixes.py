@@ -86,7 +86,7 @@ class TestRmUpstreamStd:
         write_files(tmp_path / "nelu-jpg", [])
 
         # The only image deleted everywhere: needs --force (would empty the archive)
-        result = rm_upstream(tmp_path, STD, force=True)
+        [result] = rm_upstream(tmp_path, [STD], dry_run=False, force=True)
 
         assert result.heic.removed_browsable == ("sunset.jpg",)
         assert result.heic.removed_rendered == ("sunset.jpg",)
@@ -101,7 +101,7 @@ class TestRmUpstreamStd:
         # Only sunset.jpg present — beach was deleted
         write_files(tmp_path / "nelu-jpg", ["sunset.jpg"])
 
-        result = rm_upstream(tmp_path, STD)
+        [result] = rm_upstream(tmp_path, [STD], dry_run=False, force=False)
 
         assert "beach.png" in result.heic.removed_orig
         assert "sunset.heic" in file_names(tmp_path / "std-nelu/orig-img")
@@ -113,7 +113,7 @@ class TestRmUpstreamStd:
         write_files(tmp_path / "nelu-img", ["beach.png"])
         write_files(tmp_path / "nelu-jpg", ["sunset.jpg", "beach.png"])
 
-        result = rm_upstream(tmp_path, STD)
+        [result] = rm_upstream(tmp_path, [STD], dry_run=False, force=False)
 
         assert result.heic.removed_jpeg == ("sunset.jpg",)
         assert result.heic.removed_orig == ("sunset.heic",)
@@ -125,7 +125,7 @@ class TestRmUpstreamStd:
         # User deleted other.mov from nelu-vid
         write_files(tmp_path / "nelu-vid", ["clip.mov"])
 
-        result = rm_upstream(tmp_path, STD)
+        [result] = rm_upstream(tmp_path, [STD], dry_run=False, force=False)
 
         assert result.mov.removed_orig == ("other.mov",)
         assert "clip.mov" in file_names(tmp_path / "std-nelu/orig-vid")
@@ -136,7 +136,7 @@ class TestRmUpstreamStd:
         write_files(tmp_path / "nelu-img", ["sunset.heic"])
         write_files(tmp_path / "nelu-jpg", ["sunset.jpg"])
 
-        result = rm_upstream(tmp_path, STD)
+        [result] = rm_upstream(tmp_path, [STD], dry_run=False, force=False)
 
         assert result.heic.removed_browsable == ()
         assert result.heic.removed_rendered == ()
@@ -146,14 +146,14 @@ class TestRmUpstreamStd:
         write_files(tmp_path / "nelu-img", ["sunset.heic"])
 
         with pytest.raises(MissingArchiveError) as exc_info:
-            rm_upstream(tmp_path, STD)
+            rm_upstream(tmp_path, [STD], dry_run=False, force=False)
         assert exc_info.value.archive_dir == "std-nelu"
 
     def test_missing_dirs_are_safe(self, tmp_path: Path) -> None:
         """No crash when archive exists but no browsable dirs."""
         write_files(tmp_path / "std-nelu/orig-img", [])
 
-        result = rm_upstream(tmp_path, STD)
+        [result] = rm_upstream(tmp_path, [STD], dry_run=False, force=False)
 
         assert result.heic.removed_browsable == ()
         assert result.mov.removed_orig == ()
@@ -163,7 +163,7 @@ class TestRmUpstreamStd:
         write_files(tmp_path / "nelu-img", ["sunset.heic"])
         write_files(tmp_path / "nelu-jpg", [])
 
-        result = rm_upstream(tmp_path, STD, dry_run=True, force=True)
+        [result] = rm_upstream(tmp_path, [STD], dry_run=True, force=True)
 
         assert result.heic.removed_browsable == ("sunset.heic",)
         assert "sunset.heic" in file_names(tmp_path / "std-nelu/orig-img")

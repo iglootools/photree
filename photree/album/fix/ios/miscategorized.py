@@ -243,18 +243,20 @@ def apply_miscategorized(
 
 def fix_miscategorized(
     album_dir: Path,
-    ms: MediaSource,
+    media_sources: list[MediaSource],
     *,
     action: MiscategorizedAction,
-    dry_run: bool = False,
-) -> MiscategorizedResult:
+    dry_run: bool,
+) -> tuple[MiscategorizedResult, ...]:
     """
-    Delete or move the files that sit in the wrong archive directory.
+    Delete or move the files of *media_sources* in the wrong archive directory.
 
-    Raises :class:`~photree.album.fix.helpers.NotAnIosMediaSourceError` for std
-    sources, and :class:`MiscategorizedMoveConflictError`, before touching any
+    Every source is planned first, so a move conflict leaves the whole album
+    untouched. Raises
+    :class:`~photree.album.fix.helpers.NotAnIosMediaSourceError` for a std
+    source, and :class:`MiscategorizedMoveConflictError`, before touching any
     file, when a move would overwrite one.
     """
-    plan = plan_miscategorized(album_dir, ms, action=action)
-    check_miscategorized_plans([plan])
-    return apply_miscategorized(plan, dry_run=dry_run)
+    plans = [plan_miscategorized(album_dir, ms, action=action) for ms in media_sources]
+    check_miscategorized_plans(plans)
+    return tuple(apply_miscategorized(plan, dry_run=dry_run) for plan in plans)

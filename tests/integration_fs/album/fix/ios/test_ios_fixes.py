@@ -37,7 +37,7 @@ class TestRmUpstreamHeic:
         write_files(tmp_path / "main-jpg", [])
 
         # The only image deleted everywhere: needs --force (would empty the archive)
-        result = rm_upstream(tmp_path, MC, force=True)
+        [result] = rm_upstream(tmp_path, [MC], dry_run=False, force=True)
 
         assert result.heic.removed_browsable == ("IMG_E0410.HEIC",)
         assert set(result.heic.removed_rendered) == {"IMG_E0410.HEIC", "IMG_O0410.AAE"}
@@ -55,7 +55,7 @@ class TestRmUpstreamHeic:
         # Only IMG_0001.jpg present — IMG_0002 was deleted
         write_files(tmp_path / "main-jpg", ["IMG_0001.jpg"])
 
-        result = rm_upstream(tmp_path, MC)
+        [result] = rm_upstream(tmp_path, [MC], dry_run=False, force=False)
 
         assert result.heic.removed_browsable == ("IMG_0002.HEIC",)
         assert "IMG_0002.HEIC" not in _names(tmp_path / "ios-main/orig-img")
@@ -68,7 +68,7 @@ class TestRmUpstreamHeic:
         write_files(tmp_path / "main-img", ["IMG_0001.HEIC"])
         write_files(tmp_path / "main-jpg", ["IMG_0001.jpg"])
 
-        result = rm_upstream(tmp_path, MC)
+        [result] = rm_upstream(tmp_path, [MC], dry_run=False, force=False)
 
         assert result.heic.removed_browsable == ()
         assert result.heic.removed_rendered == ()
@@ -81,7 +81,7 @@ class TestRmUpstreamHeic:
         # JPG was deleted from main-jpg
         write_files(tmp_path / "main-jpg", [])
 
-        result = rm_upstream(tmp_path, MC, force=True)
+        [result] = rm_upstream(tmp_path, [MC], dry_run=False, force=True)
 
         assert result.heic.removed_browsable == ("IMG_0001.JPG",)
 
@@ -95,7 +95,7 @@ class TestRmUpstreamHeic:
         write_files(tmp_path / "main-img", ["IMG_0002.HEIC"])
         write_files(tmp_path / "main-jpg", ["IMG_E0001.jpg", "IMG_0002.jpg"])
 
-        result = rm_upstream(tmp_path, MC)
+        [result] = rm_upstream(tmp_path, [MC], dry_run=False, force=False)
 
         assert result.heic.removed_jpeg == ("IMG_E0001.jpg",)
         # Already deleted by the user.
@@ -115,7 +115,7 @@ class TestRmUpstreamHeic:
         write_files(tmp_path / "main-img", ["IMG_0001.HEIC", "IMG_0003.HEIC"])
         write_files(tmp_path / "main-jpg", ["IMG_0001.jpg"])
 
-        result = rm_upstream(tmp_path, MC)
+        [result] = rm_upstream(tmp_path, [MC], dry_run=False, force=False)
 
         removed_numbers = {
             "".join(c for c in f if c.isdigit()) for f in result.heic.removed_orig
@@ -129,7 +129,7 @@ class TestRmUpstreamHeic:
         write_files(tmp_path / "main-img", ["IMG_0001.HEIC"])
         write_files(tmp_path / "main-jpg", [])
 
-        result = rm_upstream(tmp_path, MC, dry_run=True, force=True)
+        [result] = rm_upstream(tmp_path, [MC], dry_run=True, force=True)
 
         assert result.heic.removed_browsable == ("IMG_0001.HEIC",)
         assert "IMG_0001.HEIC" in _names(tmp_path / "ios-main/orig-img")
@@ -137,7 +137,7 @@ class TestRmUpstreamHeic:
 
     def test_missing_dirs_are_safe(self, tmp_path: Path) -> None:
         """No crash when directories don't exist."""
-        result = rm_upstream(tmp_path, MC)
+        [result] = rm_upstream(tmp_path, [MC], dry_run=False, force=False)
 
         assert result.heic.removed_browsable == ()
         assert result.mov.removed_orig == ()
@@ -149,7 +149,7 @@ class TestRmUpstreamMov:
         write_files(tmp_path / "ios-main/edit-vid", ["IMG_E0115.MOV"])
         write_files(tmp_path / "main-vid", [])
 
-        result = rm_upstream(tmp_path, MC, force=True)
+        [result] = rm_upstream(tmp_path, [MC], dry_run=False, force=True)
 
         assert result.mov.removed_rendered == ("IMG_E0115.MOV",)
         assert result.mov.removed_orig == ("IMG_0115.MOV",)
@@ -161,7 +161,7 @@ class TestRmUpstreamMov:
         write_files(tmp_path / "ios-main/edit-vid", ["IMG_E0001.MOV"])
         write_files(tmp_path / "main-vid", ["IMG_E0001.MOV"])
 
-        result = rm_upstream(tmp_path, MC)
+        [result] = rm_upstream(tmp_path, [MC], dry_run=False, force=False)
 
         # IMG_0002 was removed from main-vid → propagate
         assert result.mov.removed_orig == ("IMG_0002.MOV",)
@@ -172,7 +172,7 @@ class TestRmUpstreamMov:
         write_files(tmp_path / "ios-main/orig-vid", ["IMG_0001.MOV"])
         write_files(tmp_path / "main-vid", ["IMG_0001.MOV"])
 
-        result = rm_upstream(tmp_path, MC)
+        [result] = rm_upstream(tmp_path, [MC], dry_run=False, force=False)
 
         assert result.mov.removed_rendered == ()
         assert result.mov.removed_orig == ()
@@ -353,7 +353,12 @@ class TestRmMiscategorized:
         )
         write_files(tmp_path / "ios-main/edit-img", [])
 
-        result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.RM)
+        [result] = fix_miscategorized(
+            tmp_path,
+            [MC],
+            action=MiscategorizedAction.RM,
+            dry_run=False,
+        )
 
         assert set(result.heic.fixed_from_orig) == {"IMG_E0001.HEIC", "IMG_O0001.AAE"}
         assert "IMG_E0001.HEIC" not in _names(tmp_path / "ios-main/orig-img")
@@ -365,7 +370,12 @@ class TestRmMiscategorized:
         write_files(tmp_path / "ios-main/orig-img", [])
         write_files(tmp_path / "ios-main/edit-img", ["IMG_0001.HEIC", "IMG_E0001.HEIC"])
 
-        result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.RM)
+        [result] = fix_miscategorized(
+            tmp_path,
+            [MC],
+            action=MiscategorizedAction.RM,
+            dry_run=False,
+        )
 
         assert result.heic.fixed_from_rendered == ("IMG_0001.HEIC",)
         assert "IMG_0001.HEIC" not in _names(tmp_path / "ios-main/edit-img")
@@ -375,7 +385,12 @@ class TestRmMiscategorized:
         write_files(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC"])
         write_files(tmp_path / "ios-main/edit-img", ["IMG_E0001.HEIC"])
 
-        result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.RM)
+        [result] = fix_miscategorized(
+            tmp_path,
+            [MC],
+            action=MiscategorizedAction.RM,
+            dry_run=False,
+        )
 
         assert result.total == 0
 
@@ -383,7 +398,12 @@ class TestRmMiscategorized:
         write_files(tmp_path / "ios-main/orig-vid", ["IMG_E0001.MOV"])
         write_files(tmp_path / "ios-main/edit-vid", [])
 
-        result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.RM)
+        [result] = fix_miscategorized(
+            tmp_path,
+            [MC],
+            action=MiscategorizedAction.RM,
+            dry_run=False,
+        )
 
         assert result.mov.fixed_from_orig == ("IMG_E0001.MOV",)
 
@@ -391,9 +411,9 @@ class TestRmMiscategorized:
         write_files(tmp_path / "ios-main/orig-img", ["IMG_E0001.HEIC"])
         write_files(tmp_path / "ios-main/edit-img", [])
 
-        result = fix_miscategorized(
+        [result] = fix_miscategorized(
             tmp_path,
-            MC,
+            [MC],
             action=MiscategorizedAction.RM,
             dry_run=True,
         )
@@ -402,7 +422,12 @@ class TestRmMiscategorized:
         assert "IMG_E0001.HEIC" in _names(tmp_path / "ios-main/orig-img")
 
     def test_missing_dirs_are_safe(self, tmp_path: Path) -> None:
-        result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.RM)
+        [result] = fix_miscategorized(
+            tmp_path,
+            [MC],
+            action=MiscategorizedAction.RM,
+            dry_run=False,
+        )
 
         assert result.total == 0
 
@@ -412,7 +437,12 @@ class TestRmMiscategorizedSafe:
         write_files(tmp_path / "ios-main/orig-img", ["IMG_0001.HEIC", "IMG_E0001.HEIC"])
         write_files(tmp_path / "ios-main/edit-img", ["IMG_E0001.HEIC"])
 
-        result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.RM_SAFE)
+        [result] = fix_miscategorized(
+            tmp_path,
+            [MC],
+            action=MiscategorizedAction.RM_SAFE,
+            dry_run=False,
+        )
 
         assert result.heic.fixed_from_orig == ("IMG_E0001.HEIC",)
         assert "IMG_E0001.HEIC" not in _names(tmp_path / "ios-main/orig-img")
@@ -422,7 +452,12 @@ class TestRmMiscategorizedSafe:
         write_files(tmp_path / "ios-main/orig-img", ["IMG_E0001.HEIC"])
         write_files(tmp_path / "ios-main/edit-img", [])
 
-        result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.RM_SAFE)
+        [result] = fix_miscategorized(
+            tmp_path,
+            [MC],
+            action=MiscategorizedAction.RM_SAFE,
+            dry_run=False,
+        )
 
         assert result.total == 0
         assert "IMG_E0001.HEIC" in _names(tmp_path / "ios-main/orig-img")
@@ -438,7 +473,12 @@ class TestRmMiscategorizedSafe:
             ["IMG_0099.HEIC"],
         )  # 0099 exists in orig too
 
-        result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.RM_SAFE)
+        [result] = fix_miscategorized(
+            tmp_path,
+            [MC],
+            action=MiscategorizedAction.RM_SAFE,
+            dry_run=False,
+        )
 
         # IMG_E0001 is in rendered → safe to remove from orig
         assert "IMG_E0001.HEIC" in result.heic.fixed_from_orig
@@ -448,7 +488,12 @@ class TestRmMiscategorizedSafe:
         assert "IMG_0099.HEIC" in result.heic.fixed_from_rendered
 
     def test_missing_dirs_are_safe(self, tmp_path: Path) -> None:
-        result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.RM_SAFE)
+        [result] = fix_miscategorized(
+            tmp_path,
+            [MC],
+            action=MiscategorizedAction.RM_SAFE,
+            dry_run=False,
+        )
 
         assert result.total == 0
 
@@ -461,7 +506,12 @@ class TestMvMiscategorized:
         )
         write_files(tmp_path / "ios-main/edit-img", [])
 
-        result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.MV)
+        [result] = fix_miscategorized(
+            tmp_path,
+            [MC],
+            action=MiscategorizedAction.MV,
+            dry_run=False,
+        )
 
         assert set(result.heic.fixed_from_orig) == {"IMG_E0001.HEIC", "IMG_O0001.AAE"}
         assert "IMG_E0001.HEIC" in _names(tmp_path / "ios-main/edit-img")
@@ -474,7 +524,12 @@ class TestMvMiscategorized:
         write_files(tmp_path / "ios-main/orig-img", [])
         write_files(tmp_path / "ios-main/edit-img", ["IMG_0001.HEIC"])
 
-        result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.MV)
+        [result] = fix_miscategorized(
+            tmp_path,
+            [MC],
+            action=MiscategorizedAction.MV,
+            dry_run=False,
+        )
 
         assert result.heic.fixed_from_rendered == ("IMG_0001.HEIC",)
         assert "IMG_0001.HEIC" in _names(tmp_path / "ios-main/orig-img")
@@ -484,7 +539,12 @@ class TestMvMiscategorized:
         write_files(tmp_path / "ios-main/orig-img", ["IMG_E0001.HEIC"])
         # ios/edit-img doesn't exist
 
-        result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.MV)
+        [result] = fix_miscategorized(
+            tmp_path,
+            [MC],
+            action=MiscategorizedAction.MV,
+            dry_run=False,
+        )
 
         assert result.heic.fixed_from_orig == ("IMG_E0001.HEIC",)
         assert "IMG_E0001.HEIC" in _names(tmp_path / "ios-main/edit-img")
@@ -493,9 +553,9 @@ class TestMvMiscategorized:
         write_files(tmp_path / "ios-main/orig-img", ["IMG_E0001.HEIC"])
         write_files(tmp_path / "ios-main/edit-img", [])
 
-        result = fix_miscategorized(
+        [result] = fix_miscategorized(
             tmp_path,
-            MC,
+            [MC],
             action=MiscategorizedAction.MV,
             dry_run=True,
         )
@@ -505,7 +565,12 @@ class TestMvMiscategorized:
         assert "IMG_E0001.HEIC" not in _names(tmp_path / "ios-main/edit-img")
 
     def test_missing_dirs_are_safe(self, tmp_path: Path) -> None:
-        result = fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.MV)
+        [result] = fix_miscategorized(
+            tmp_path,
+            [MC],
+            action=MiscategorizedAction.MV,
+            dry_run=False,
+        )
 
         assert result.total == 0
 

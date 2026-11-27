@@ -48,7 +48,7 @@ class TestRmUpstreamSignals:
         """--skip-heic-to-jpeg leaves no main-jpg: that is not a deletion."""
         _ios_album_without_jpg(tmp_path)
 
-        result = rm_upstream(tmp_path, MC)
+        [result] = rm_upstream(tmp_path, [MC], dry_run=False, force=False)
 
         assert result.heic.removed_orig == ()
         assert file_names(tmp_path / "ios-main/orig-img") == {
@@ -64,7 +64,7 @@ class TestRmUpstreamSignals:
         _ios_album_without_jpg(tmp_path)
         write_files(tmp_path / "main-jpg", [])
 
-        result = rm_upstream(tmp_path, MC)
+        [result] = rm_upstream(tmp_path, [MC], dry_run=False, force=False)
 
         assert result.heic.removed_orig == ()
         assert len(file_names(tmp_path / "ios-main/orig-img")) == 2
@@ -76,7 +76,7 @@ class TestRmUpstreamSignals:
         write_files(tmp_path / "std-nelu/orig-vid", ["clip.mov", "other.mov"])
         write_files(tmp_path / "std-nelu/edit-vid", ["clip.mov"])
 
-        result = rm_upstream(tmp_path, STD)
+        [result] = rm_upstream(tmp_path, [STD], dry_run=False, force=False)
 
         assert result.mov.removed_orig == ()
         assert file_names(tmp_path / "std-nelu/orig-vid") == {"clip.mov", "other.mov"}
@@ -94,7 +94,7 @@ class TestRmUpstreamSignals:
         write_files(tmp_path / "main-img", ["IMG_0001.HEIC", "IMG_0002.HEIC"])
         write_files(tmp_path / "main-jpg", ["IMG_0001.jpg", "IMG_0002.jpg"])
 
-        result = rm_upstream(tmp_path, MC)
+        [result] = rm_upstream(tmp_path, [MC], dry_run=False, force=False)
 
         assert result.heic.removed_orig == ()
         assert result.heic.removed_rendered == ()
@@ -109,7 +109,7 @@ class TestRmUpstreamSignals:
         write_files(tmp_path / "main-img", ["IMG_E0001.HEIC", "IMG_0002.HEIC"])
         write_files(tmp_path / "main-jpg", ["IMG_0001.jpg", "IMG_0002.jpg"])
 
-        result = rm_upstream(tmp_path, MC)
+        [result] = rm_upstream(tmp_path, [MC], dry_run=False, force=False)
 
         assert result.heic.removed_orig == ()
         assert result.heic.removed_rendered == ()
@@ -139,7 +139,7 @@ class TestRmUpstreamAllKeysRefusal:
         write_files(tmp_path / "nelu-vid", [])
 
         with pytest.raises(RmUpstreamRefusedError) as exc_info:
-            rm_upstream(tmp_path, STD)
+            rm_upstream(tmp_path, [STD], dry_run=False, force=False)
 
         assert exc_info.value.media_source == "nelu"
         assert exc_info.value.kind == MediaKind.VIDEOS
@@ -152,7 +152,7 @@ class TestRmUpstreamAllKeysRefusal:
         write_files(tmp_path / "main-jpg", ["IMG_0001.jpg", "IMG_0002.jpg"])
 
         with pytest.raises(RmUpstreamRefusedError) as exc_info:
-            rm_upstream(tmp_path, MC)
+            rm_upstream(tmp_path, [MC], dry_run=False, force=False)
 
         assert exc_info.value.kind == MediaKind.IMAGES
         assert len(file_names(tmp_path / "ios-main/orig-img")) == 2
@@ -162,7 +162,7 @@ class TestRmUpstreamAllKeysRefusal:
         write_files(tmp_path / "std-nelu/orig-vid", ["clip.mov"])
         write_files(tmp_path / "nelu-vid", [])
 
-        result = rm_upstream(tmp_path, STD, force=True)
+        [result] = rm_upstream(tmp_path, [STD], dry_run=False, force=True)
 
         assert result.mov.removed_orig == ("clip.mov",)
 
@@ -304,7 +304,12 @@ class TestMvMiscategorizedOverwrite:
         (tmp_path / "ios-main/edit-img/IMG_E0001.HEIC").write_text("keep-me")
 
         with pytest.raises(MiscategorizedMoveConflictError) as exc_info:
-            fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.MV)
+            fix_miscategorized(
+                tmp_path,
+                [MC],
+                action=MiscategorizedAction.MV,
+                dry_run=False,
+            )
 
         assert exc_info.value.target_dir == "ios-main/edit-img"
         assert exc_info.value.conflicts == ("IMG_E0001.HEIC",)
@@ -318,7 +323,12 @@ class TestMvMiscategorizedOverwrite:
         write_files(tmp_path / "ios-main/edit-vid", ["IMG_E0002.MOV"])
 
         with pytest.raises(MiscategorizedMoveConflictError) as exc_info:
-            fix_miscategorized(tmp_path, MC, action=MiscategorizedAction.MV)
+            fix_miscategorized(
+                tmp_path,
+                [MC],
+                action=MiscategorizedAction.MV,
+                dry_run=False,
+            )
 
         assert exc_info.value.target_dir == "ios-main/edit-vid"
         assert "IMG_E0001.HEIC" in file_names(tmp_path / "ios-main/orig-img")

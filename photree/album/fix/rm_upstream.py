@@ -355,13 +355,13 @@ def apply_rm_upstream(
 
 def rm_upstream(
     album_dir: Path,
-    ms: MediaSource,
+    media_sources: list[MediaSource],
     *,
-    dry_run: bool = False,
-    force: bool = False,
-) -> RmUpstreamResult:
+    dry_run: bool,
+    force: bool,
+) -> tuple[RmUpstreamResult, ...]:
     """
-    Works for both iOS and std media sources.
+    Propagate the deletions in *media_sources*' browsable dirs to their archives.
 
     Images: deletions detected from {name}-jpg or {name}-img are
     propagated to {name}-jpg, {name}-img, edit-img, and orig-img.
@@ -369,9 +369,11 @@ def rm_upstream(
     Videos: files missing from {name}-vid (relative to orig-vid) are
     removed from edit-vid and orig-vid.
 
-    See the module docstring for when a directory is ignored as a signal and
-    when the operation is refused (:class:`RmUpstreamRefusedError`).
+    Every source is planned before anything is deleted, so one refusal
+    (:class:`RmUpstreamRefusedError`) leaves the whole album untouched. See
+    the module docstring for when a directory is ignored as a signal and when
+    the operation is refused.
     """
-    plan = plan_rm_upstream(album_dir, ms, force=force)
-    check_rm_upstream_plans([plan], force=force)
-    return apply_rm_upstream(album_dir, plan, dry_run=dry_run)
+    plans = [plan_rm_upstream(album_dir, ms, force=force) for ms in media_sources]
+    check_rm_upstream_plans(plans, force=force)
+    return tuple(apply_rm_upstream(album_dir, plan, dry_run=dry_run) for plan in plans)
