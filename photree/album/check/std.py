@@ -24,6 +24,7 @@ class DuplicateStem:
     """
     Several media files in *directory* share *stem* (e.g. ``a.heic`` + ``a.jpg``).
 
+    Stems are compared ignoring case, and *stem* is the case-folded form.
     *directory* is the directory's name relative to its parent (``orig``,
     ``orig-img``, ...), which is how the formatters display it.
     """
@@ -33,22 +34,30 @@ class DuplicateStem:
     files: tuple[str, ...]
 
 
-def _stem(filename: str) -> str:
-    return Path(filename).stem
+def folded_stem(filename: str) -> str:
+    """
+    Return the stem of *filename*, case-folded.
+
+    Std stems are compared ignoring case: on a case-insensitive filesystem,
+    the default on macOS, ``Photo.HEIC`` converts to ``Photo.jpg`` in the
+    JPEG dir, the same file there as a copied ``photo.jpg``, so one
+    overwrites the other.
+    """
+    return Path(filename).stem.casefold()
 
 
 def check_duplicate_stems(
     directory: Path,
     media_extensions: frozenset[str],
 ) -> tuple[DuplicateStem, ...]:
-    """Find the media files in *directory* that share a filename stem."""
+    """Find the media files in *directory* whose stems match, ignoring case."""
     media = sorted(
         (f for f in list_files(directory) if file_ext(f) in media_extensions),
-        key=_stem,
+        key=folded_stem,
     )
     return tuple(
         DuplicateStem(directory=directory.name, stem=key, files=files)
-        for key, group in groupby(media, key=_stem)
+        for key, group in groupby(media, key=folded_stem)
         if len(files := tuple(group)) > 1
     )
 

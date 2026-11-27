@@ -14,7 +14,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from photree.album.check.std import DuplicateStem, check_duplicate_stems
+from photree.album.check.std import DuplicateStem, check_duplicate_stems, folded_stem
 from photree.album.formats import IMG_EXTENSIONS, VID_EXTENSIONS
 from photree.album.importer.archive_copy import copy_into_archive
 from photree.album.importer.collision import ArchiveCollision
@@ -170,7 +170,7 @@ def validate_std_task(task: ImportTask) -> tuple[StdValidationError, ...]:
 
 def _existing_archive_stems(album_dir: Path, ms: MediaSource) -> set[str]:
     return {
-        Path(f).stem
+        folded_stem(f)
         for subdir in (
             ms.orig_img_dir,
             ms.orig_vid_dir,
@@ -186,11 +186,15 @@ def find_std_collision(album_dir: Path, task: ImportTask) -> ArchiveCollision | 
     """
     Find the staged filename stems that the target archive already holds.
 
-    Matched by stem regardless of extension, across the four archive dirs.
+    Matched by stem regardless of extension and of case (see
+    :func:`~photree.album.check.std.folded_stem`), across the four archive
+    dirs. The keys are the staged files' stems as they are written.
     """
     ms = task.media_source
-    incoming = {Path(f).stem for f in _staged_media(task)}
-    collisions = sorted(incoming & _existing_archive_stems(album_dir, ms))
+    existing = _existing_archive_stems(album_dir, ms)
+    collisions = sorted(
+        {Path(f).stem for f in _staged_media(task) if folded_stem(f) in existing},
+    )
     return ArchiveCollision(ms, tuple(collisions)) if collisions else None
 
 

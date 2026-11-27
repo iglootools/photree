@@ -332,7 +332,10 @@ not an image or a video, a subdirectory, or an entry beside `orig/` and
 `edit/`), so the user moves it out rather than losing it. Duplicate stems
 within a folder are rejected; an `edit/` file with no matching `orig/` stem is
 allowed (it is imported but, as with existing std sources, omitted from the
-browsable directory).
+browsable directory). Stems are compared ignoring case, in validation, in the
+archive collision check and in `album check`: on a case-insensitive
+filesystem, the macOS default, `Photo.HEIC` becomes `Photo.jpg` in the JPEG
+directory, the same file as the copied `photo.jpg`.
 
 ## Collections
 
