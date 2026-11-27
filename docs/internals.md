@@ -314,7 +314,8 @@ the second half of a Live Photo export (`IMG_0410.HEIC` + `IMG_0410.MOV`). The
 directory is removed once nothing but hidden files (`.DS_Store`) is left in it;
 no other directory of the album is touched. A CSV
 is deleted once all its numbers are processed, and otherwise rewritten with only
-its remaining rows. This
+its remaining rows, through a temporary file renamed over it, so an interrupted
+write never loses the rows still to import. This
 decouples the selection from any specific tool: exporting from Apple Photos is
 the most common workflow, but the list can equally come from a phone, a custom
 CLI, an LLM, AppleScript, or anything that produces filenames.

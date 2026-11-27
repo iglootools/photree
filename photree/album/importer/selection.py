@@ -7,6 +7,7 @@ entries are merged and deduplicated by image number.
 """
 
 import csv
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -43,9 +44,24 @@ def read_selection_csv(csv_path: Path) -> list[str]:
 
 
 def write_selection_csv(csv_path: Path, filenames: list[str]) -> None:
-    """Write *filenames* as a one-column, no-header CSV (the format read back)."""
-    with Path(csv_path).open("w", encoding="utf-8", newline="") as f:
-        csv.writer(f).writerows([name] for name in filenames)
+    """
+    Write *filenames* as a one-column, no-header CSV (the format read back).
+
+    The rows go to a hidden temporary file beside *csv_path*, flushed to
+    disk, then renamed over it, so a reader sees either the old selection or
+    the new one whole. Writing in place truncates first: a kill or a full
+    disk mid-write lost the rows the user still had to import.
+    """
+    tmp_path = csv_path.with_name(f".{csv_path.name}.tmp")
+    try:
+        with tmp_path.open("w", encoding="utf-8", newline="") as f:
+            csv.writer(f).writerows([name] for name in filenames)
+            f.flush()
+            os.fsync(f.fileno())
+        tmp_path.replace(csv_path)
+    except BaseException:
+        tmp_path.unlink(missing_ok=True)
+        raise
 
 
 def _merge_selections(dir_files: list[str], csv_files: list[str]) -> tuple[str, ...]:

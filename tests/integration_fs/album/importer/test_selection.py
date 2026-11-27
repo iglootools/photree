@@ -1,9 +1,13 @@
+from collections.abc import Iterator
 from pathlib import Path
+
+import pytest
 
 from photree.album.importer.selection import (
     has_selection,
     read_selection,
     read_selection_csv,
+    write_selection_csv,
 )
 from photree.album.staging import ios_import_csv, ios_import_dir
 
@@ -38,6 +42,36 @@ class TestReadSelectionCsv:
         csv_path = tmp_path / SEL_CSV
         csv_path.write_text("")
         assert read_selection_csv(csv_path) == []
+
+
+class _DiskFullError(OSError):
+    """The write failure a full disk would raise."""
+
+
+class _FailingAfterFirst(list[str]):
+    """A selection whose iteration fails after one row, as a full disk would."""
+
+    def __iter__(self) -> Iterator[str]:
+        yield self[0]
+        raise _DiskFullError
+
+
+class TestWriteSelectionCsv:
+    def test_written_rows_read_back(self, tmp_path: Path) -> None:
+        csv_path = tmp_path / SEL_CSV
+        write_selection_csv(csv_path, ["IMG_0001.HEIC", "IMG_0002.HEIC"])
+        assert read_selection_csv(csv_path) == ["IMG_0001.HEIC", "IMG_0002.HEIC"]
+        assert [p.name for p in tmp_path.iterdir()] == [SEL_CSV]
+
+    def test_failed_write_keeps_the_previous_selection(self, tmp_path: Path) -> None:
+        csv_path = tmp_path / SEL_CSV
+        write_selection_csv(csv_path, ["IMG_0001.HEIC", "IMG_0002.HEIC"])
+
+        with pytest.raises(_DiskFullError):
+            write_selection_csv(csv_path, _FailingAfterFirst(["IMG_0003.HEIC"]))
+
+        assert read_selection_csv(csv_path) == ["IMG_0001.HEIC", "IMG_0002.HEIC"]
+        assert [p.name for p in tmp_path.iterdir()] == [SEL_CSV]
 
 
 class TestReadSelection:
