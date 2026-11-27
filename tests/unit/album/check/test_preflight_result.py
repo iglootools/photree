@@ -1,6 +1,6 @@
 import pytest
 
-from photree.album.check import AlbumPreflightResult
+from photree.album.check import AlbumCheckWarningKind, AlbumPreflightResult
 from photree.album.check.testkit import (
     PREFLIGHT_EXIF_WARNING,
     PREFLIGHT_OK,
@@ -51,25 +51,20 @@ class TestFatalWarnings:
         )
 
     @pytest.mark.parametrize(
-        ("result", "label"),
+        ("result", "warning"),
         [
-            (PREFLIGHT_SIDECAR_WARNING, "missing sidecars"),
-            (PREFLIGHT_EXIF_WARNING, "exif date mismatch"),
+            (PREFLIGHT_SIDECAR_WARNING, AlbumCheckWarningKind.MISSING_SIDECARS),
+            (PREFLIGHT_EXIF_WARNING, AlbumCheckWarningKind.EXIF_DATE_MISMATCH),
         ],
     )
-    def test_fatal_flags_move_a_warning_label_to_the_fatal_list(
+    def test_fatal_flags_move_a_warning_to_the_fatal_list(
         self,
         result: AlbumPreflightResult,
-        label: str,
+        warning: AlbumCheckWarningKind,
     ) -> None:
-        assert result.fatal_warning_labels(fatal_sidecar=True, fatal_exif=True) == (
-            label,
+        assert result.fatal_warnings(fatal_sidecar=True, fatal_exif=True) == (warning,)
+        assert result.non_fatal_warnings(fatal_sidecar=True, fatal_exif=True) == ()
+        assert result.fatal_warnings(fatal_sidecar=False, fatal_exif=False) == ()
+        assert result.non_fatal_warnings(fatal_sidecar=False, fatal_exif=False) == (
+            warning,
         )
-        assert (
-            result.non_fatal_warning_labels(fatal_sidecar=True, fatal_exif=True) == ()
-        )
-        assert result.fatal_warning_labels(fatal_sidecar=False, fatal_exif=False) == ()
-        assert result.non_fatal_warning_labels(
-            fatal_sidecar=False,
-            fatal_exif=False,
-        ) == (label,)

@@ -1,6 +1,7 @@
 """Album checks: run every structure, integrity, naming and cache check."""
 
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 
 from photree.album.check.dir_structure import AlbumDirCheck, check_album_dir_structure
@@ -42,6 +43,28 @@ from photree.foundation.linking import LinkMode
 MediaSourceIntegrityResult = (
     IosMediaSourceIntegrityResult | StdMediaSourceIntegrityResult
 )
+
+
+class AlbumCheckFailureKind(StrEnum):
+    """A check an album failed; the output layer renders its label."""
+
+    MEDIA_SOURCE_CONFLICT = "media-source-conflict"
+    MISSING_DIRS = "missing-dirs"
+    MISSING_ALBUM_ID = "missing-album-id"
+    UNEXPECTED_DIRS = "unexpected-dirs"
+    STALE_MEDIA_METADATA = "stale-media-metadata"
+    INTEGRITY = "integrity"
+    JPEG = "jpeg"
+    NAMING = "naming"
+    STALE_FACE_STATE = "stale-face-state"
+    STALE_EXIF_CACHE = "stale-exif-cache"
+
+
+class AlbumCheckWarningKind(StrEnum):
+    """A warning an album check raised, which a fatal flag can promote to a failure."""
+
+    MISSING_SIDECARS = "missing-sidecars"
+    EXIF_DATE_MISMATCH = "exif-date-mismatch"
 
 
 @dataclass(frozen=True)
@@ -143,54 +166,60 @@ class AlbumPreflightResult:
     """
 
     @property
-    def _checks(self) -> tuple[tuple[str, bool], ...]:
+    def _checks(self) -> tuple[tuple[AlbumCheckFailureKind, bool], ...]:
         """
-        Return each check as a (label, failed) pair.
+        Return each check as a (kind, failed) pair.
 
-        The single list both :attr:`success` and :attr:`error_labels` read, so
-        a check cannot fail the album without a label, or the reverse. A check
-        that did not run (``None``) has not failed.
+        The single list both :attr:`success` and :attr:`failures` read, so a
+        check cannot fail the album without being reported, or the reverse. A
+        check that did not run (``None``) has not failed.
         """
         return (
-            ("media source conflict", bool(self.media_source_conflicts)),
-            ("missing dirs", not self.dir_check.success),
             (
-                "missing album id",
+                AlbumCheckFailureKind.MEDIA_SOURCE_CONFLICT,
+                bool(self.media_source_conflicts),
+            ),
+            (AlbumCheckFailureKind.MISSING_DIRS, not self.dir_check.success),
+            (
+                AlbumCheckFailureKind.MISSING_ALBUM_ID,
                 self.album_id_check is not None and not self.album_id_check.has_id,
             ),
             (
-                "unexpected dirs",
+                AlbumCheckFailureKind.UNEXPECTED_DIRS,
                 self.unexpected_dirs_check is not None
                 and not self.unexpected_dirs_check.success,
             ),
             (
-                "media metadata stale",
+                AlbumCheckFailureKind.STALE_MEDIA_METADATA,
                 self.media_metadata_check is not None
                 and not self.media_metadata_check.in_sync,
             ),
             (
-                "integrity errors",
+                AlbumCheckFailureKind.INTEGRITY,
                 self.integrity is not None and not self.integrity.success,
             ),
             (
-                "jpeg errors",
+                AlbumCheckFailureKind.JPEG,
                 self.jpeg_check is not None and not self.jpeg_check.success,
             ),
-            ("naming errors", self.naming is not None and not self.naming.success),
             (
-                "face state stale",
+                AlbumCheckFailureKind.NAMING,
+                self.naming is not None and not self.naming.success,
+            ),
+            (
+                AlbumCheckFailureKind.STALE_FACE_STATE,
                 self.face_state_check is not None and not self.face_state_check.success,
             ),
             (
-                "exif cache stale",
+                AlbumCheckFailureKind.STALE_EXIF_CACHE,
                 self.exif_cache_check is not None and not self.exif_cache_check.success,
             ),
         )
 
     @property
-    def error_labels(self) -> tuple[str, ...]:
-        """Return a short label for each kind of failed check."""
-        return tuple(label for label, failed in self._checks if failed)
+    def failures(self) -> tuple[AlbumCheckFailureKind, ...]:
+        """Return the checks the album failed, in report order."""
+        return tuple(kind for kind, failed in self._checks if failed)
 
     @property
     def success(self) -> bool:
@@ -200,7 +229,7 @@ class AlbumPreflightResult:
         Warnings (missing sidecars, EXIF date mismatches) do not count; see
         :meth:`has_fatal_warnings`.
         """
-        return not self.error_labels
+        return not self.failures
 
     @property
     def has_warnings(self) -> bool:
@@ -217,47 +246,62 @@ class AlbumPreflightResult:
         """Return whether some files' EXIF dates do not match the album date."""
         return self.naming is not None and self.naming.has_warnings
 
+    @property
+    def warnings(self) -> tuple[AlbumCheckWarningKind, ...]:
+        """Return the warnings the album's checks raised."""
+        return tuple(
+            kind
+            for kind, present in (
+                (AlbumCheckWarningKind.MISSING_SIDECARS, self.has_sidecar_warnings),
+                (AlbumCheckWarningKind.EXIF_DATE_MISMATCH, self.has_exif_warnings),
+            )
+            if present
+        )
+
+    def fatal_warnings(
+        self,
+        *,
+        fatal_sidecar: bool,
+        fatal_exif: bool,
+    ) -> tuple[AlbumCheckWarningKind, ...]:
+        """Return the warnings the fatal flags promote to failures."""
+        return tuple(
+            kind
+            for kind in self.warnings
+            if _is_fatal(kind, fatal_sidecar=fatal_sidecar, fatal_exif=fatal_exif)
+        )
+
+    def non_fatal_warnings(
+        self,
+        *,
+        fatal_sidecar: bool,
+        fatal_exif: bool,
+    ) -> tuple[AlbumCheckWarningKind, ...]:
+        """Return the warnings that stay warnings under the fatal flags."""
+        return tuple(
+            kind
+            for kind in self.warnings
+            if not _is_fatal(kind, fatal_sidecar=fatal_sidecar, fatal_exif=fatal_exif)
+        )
+
     def has_fatal_warnings(self, *, fatal_sidecar: bool, fatal_exif: bool) -> bool:
         """Return whether a warning the fatal flags promote to an error is present."""
-        return (fatal_sidecar and self.has_sidecar_warnings) or (
-            fatal_exif and self.has_exif_warnings
+        return bool(
+            self.fatal_warnings(fatal_sidecar=fatal_sidecar, fatal_exif=fatal_exif),
         )
 
-    def fatal_warning_labels(
-        self,
-        *,
-        fatal_sidecar: bool,
-        fatal_exif: bool,
-    ) -> tuple[str, ...]:
-        """Warning labels that are promoted to errors by fatal flags."""
-        return (
-            *(
-                ["missing sidecars"]
-                if fatal_sidecar and self.has_sidecar_warnings
-                else []
-            ),
-            *(["exif date mismatch"] if fatal_exif and self.has_exif_warnings else []),
-        )
 
-    def non_fatal_warning_labels(
-        self,
-        *,
-        fatal_sidecar: bool,
-        fatal_exif: bool,
-    ) -> tuple[str, ...]:
-        """Warning labels that remain warnings (not promoted by fatal flags)."""
-        return (
-            *(
-                ["missing sidecars"]
-                if not fatal_sidecar and self.has_sidecar_warnings
-                else []
-            ),
-            *(
-                ["exif date mismatch"]
-                if not fatal_exif and self.has_exif_warnings
-                else []
-            ),
-        )
+def _is_fatal(
+    kind: AlbumCheckWarningKind,
+    *,
+    fatal_sidecar: bool,
+    fatal_exif: bool,
+) -> bool:
+    match kind:
+        case AlbumCheckWarningKind.MISSING_SIDECARS:
+            return fatal_sidecar
+        case AlbumCheckWarningKind.EXIF_DATE_MISMATCH:
+            return fatal_exif
 
 
 def check_album_integrity(

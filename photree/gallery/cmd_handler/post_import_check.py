@@ -5,6 +5,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from photree.album import check as album_check
+from photree.album.check.output.album import format_check_labels
 from photree.common.exif import ExifTagReader, exiftool_session
 from photree.common.progress import ItemEnd
 from photree.common.sysdeps import WhichFn
@@ -63,6 +64,6 @@ def _check_one(
         on_end(
             target_name,
             success=check_result.success,
-            error_labels=check_result.error_labels,
+            error_labels=format_check_labels(check_result.failures),
         )
     return check_result.success

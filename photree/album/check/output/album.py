@@ -14,6 +14,8 @@ result with markup enabled and must not escape it again.
 from collections.abc import Sequence
 
 from photree.album.check import (
+    AlbumCheckFailureKind,
+    AlbumCheckWarningKind,
     AlbumIntegrityResult,
     AlbumMediaSourceSummary,
     AlbumPreflightResult,
@@ -54,6 +56,42 @@ from photree.common.formatting import (
     indent,
     markup_escape,
 )
+
+
+def format_check_label(kind: AlbumCheckFailureKind | AlbumCheckWarningKind) -> str:
+    """Return the short plain-text label of a failed check or a warning."""
+    match kind:
+        case AlbumCheckFailureKind.MEDIA_SOURCE_CONFLICT:
+            return "media source conflict"
+        case AlbumCheckFailureKind.MISSING_DIRS:
+            return "missing dirs"
+        case AlbumCheckFailureKind.MISSING_ALBUM_ID:
+            return "missing album id"
+        case AlbumCheckFailureKind.UNEXPECTED_DIRS:
+            return "unexpected dirs"
+        case AlbumCheckFailureKind.STALE_MEDIA_METADATA:
+            return "media metadata stale"
+        case AlbumCheckFailureKind.INTEGRITY:
+            return "integrity errors"
+        case AlbumCheckFailureKind.JPEG:
+            return "jpeg errors"
+        case AlbumCheckFailureKind.NAMING:
+            return "naming errors"
+        case AlbumCheckFailureKind.STALE_FACE_STATE:
+            return "face state stale"
+        case AlbumCheckFailureKind.STALE_EXIF_CACHE:
+            return "exif cache stale"
+        case AlbumCheckWarningKind.MISSING_SIDECARS:
+            return "missing sidecars"
+        case AlbumCheckWarningKind.EXIF_DATE_MISMATCH:
+            return "exif date mismatch"
+
+
+def format_check_labels(
+    kinds: Sequence[AlbumCheckFailureKind | AlbumCheckWarningKind],
+) -> tuple[str, ...]:
+    """Return the label of each failed check or warning, in order."""
+    return tuple(format_check_label(kind) for kind in kinds)
 
 
 def _bullets(items: Sequence[str]) -> list[str]:

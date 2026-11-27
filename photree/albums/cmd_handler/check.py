@@ -6,6 +6,7 @@ from functools import partial
 from pathlib import Path
 
 from photree.album import check as album_check, naming as album_naming
+from photree.album.check.output.album import format_check_labels
 from photree.album.exif_cache.refresh import refresh_exif_cache
 from photree.album.id import format_album_external_id
 from photree.album.naming import BatchNamingResult
@@ -79,14 +80,18 @@ def _check_one(
     fatal = {"fatal_sidecar": opts.fatal_sidecar, "fatal_exif": opts.fatal_exif}
     ok = result.success and not result.has_fatal_warnings(**fatal)
     err_labels = (
-        () if ok else (*result.error_labels, *result.fatal_warning_labels(**fatal))
+        ()
+        if ok
+        else format_check_labels(
+            (*result.failures, *result.fatal_warnings(**fatal)),
+        )
     )
     if on_end:
         on_end(
             _album_label(album_name, result),
             success=ok,
             error_labels=err_labels,
-            warning_labels=result.non_fatal_warning_labels(**fatal),
+            warning_labels=format_check_labels(result.non_fatal_warnings(**fatal)),
         )
     return _AlbumOutcome(album_dir, ok, ok and result.has_warnings)
 

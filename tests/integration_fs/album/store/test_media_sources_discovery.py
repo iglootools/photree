@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from photree.album.check import run_album_check
+from photree.album.check import AlbumCheckFailureKind, run_album_check
 from photree.album.check.output.album import format_album_preflight_checks
 from photree.album.store.album_discovery import has_media_sources
 from photree.album.store.media_source import (
@@ -206,7 +206,7 @@ class TestMediaSourceConflicts:
 
         assert result.media_source_conflicts == ("main",)
         assert not result.success
-        assert "media source conflict" in result.error_labels
+        assert AlbumCheckFailureKind.MEDIA_SOURCE_CONFLICT in result.failures
         assert result.naming is not None
         assert result.naming.success
         assert "ios-<name>/ and std-<name>/ both present for: main" in (
