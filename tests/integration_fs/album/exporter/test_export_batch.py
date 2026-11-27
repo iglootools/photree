@@ -7,7 +7,7 @@ from photree.album.exporter.batch import (
 from photree.album.store.media_source import MAIN_MEDIA_SOURCE
 from photree.foundation.linking import LinkMode
 from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
-from tests.testkit import write_files
+from tests.testkit import mark_album, write_files
 
 
 def _setup_ios_album(album_dir: Path) -> Path:
@@ -169,8 +169,7 @@ class TestBatchExport:
 
     def test_by_month_archive_layout(self, tmp_path: Path) -> None:
         album = _setup_ios_album(tmp_path / "2024-06-15 - Vacation")
-        (album / ".photree").mkdir()
-        (album / ".photree" / "album.yaml").write_text("id: abc\n")
+        mark_album(album)
         share_dir = tmp_path / "share"
         share_dir.mkdir()
 

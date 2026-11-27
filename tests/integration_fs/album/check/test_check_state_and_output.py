@@ -40,6 +40,8 @@ from photree.album.check.testkit import (
     PREFLIGHT_OK,
     STD_INTEGRITY_FAILURES,
 )
+from photree.album.exif_cache.protocol import ExifCache
+from photree.album.exif_cache.store import save_exif_cache
 from photree.album.faces.failures import FaceFailure, FaceFailureStage
 from photree.album.faces.protocol import (
     DEFAULT_MODEL_NAME,
@@ -51,7 +53,6 @@ from photree.album.faces.store import FaceData, save_face_data, save_face_state
 from photree.album.faces.testkit import write_legacy_face_data
 from photree.album.jpeg import JpegConversionFailure
 from photree.album.store.media_source import ios_media_source, std_media_source
-from photree.foundation.layout import PHOTREE_DIR
 
 MAIN = ios_media_source("main")
 
@@ -141,9 +142,7 @@ class TestExifCacheState:
         assert check_exif_cache_state(tmp_path, [MAIN]) is None
 
     def test_complete_cache_reports_success(self, tmp_path: Path) -> None:
-        cache_dir = tmp_path / PHOTREE_DIR / "cache" / "exif"
-        cache_dir.mkdir(parents=True)
-        (cache_dir / "main.yaml").write_text("files: {}\n", encoding="utf-8")
+        save_exif_cache(tmp_path, MAIN.name, ExifCache())
 
         check = check_exif_cache_state(tmp_path, [MAIN])
 

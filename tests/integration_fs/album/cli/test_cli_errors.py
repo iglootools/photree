@@ -19,7 +19,7 @@ from photree.common.sysdeps import SystemDependency
 from photree.foundation.layout import SHARE_SENTINEL
 from photree.foundation.metadata_io import InvalidMetadataError
 from tests.fakes import fake_album_runtime, invoke_cli
-from tests.testkit import add_emptied_std_media_source, write_file
+from tests.testkit import add_emptied_std_media_source, mark_album, write_file
 
 _TRUNCATED_YAML = "id: [0192d4e1"
 
@@ -316,10 +316,7 @@ class TestAlbumImport:
         album = _std_staged_album(tmp_path)
         sibling = tmp_path / "2024-07-14 - Dinner"
         write_file(sibling / "std-main/orig-img/DSC_0002.JPG")
-        write_file(
-            sibling / ".photree/album.yaml",
-            "id: 0192d4e1-7c3f-7b4a-8c5e-f6a7b8c9d0e1\n",
-        )
+        mark_album(sibling)
         (tmp_path / "ic").mkdir()
 
         result = invoke_cli(

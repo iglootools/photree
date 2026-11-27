@@ -4,6 +4,7 @@ import pytest
 import yaml
 
 from photree.foundation.gallery_metadata import (
+    GALLERY_YAML,
     GalleryMetadata,
     GalleryNotFoundError,
     load_gallery_metadata,
@@ -22,20 +23,9 @@ from photree.foundation.metadata_io import (
 
 class TestGalleryMetadata:
     def test_yaml_roundtrip(self, tmp_path: Path) -> None:
-        path = tmp_path / PHOTREE_DIR / "gallery.yaml"
-        path.parent.mkdir(parents=True)
-        path.write_text(
-            yaml.safe_dump(
-                GalleryMetadata(link_mode=LinkMode.SYMLINK).model_dump(
-                    by_alias=True,
-                    mode="json",
-                ),
-                default_flow_style=False,
-                sort_keys=False,
-            ),
-        )
+        save_gallery_metadata(tmp_path, GalleryMetadata(link_mode=LinkMode.SYMLINK))
 
-        loaded = load_gallery_metadata(path)
+        loaded = load_gallery_metadata(tmp_path / PHOTREE_DIR / GALLERY_YAML)
         assert loaded.link_mode == LinkMode.SYMLINK
 
     def test_yaml_uses_kebab_case(self) -> None:
@@ -58,9 +48,12 @@ class TestGalleryMetadata:
         tmp_path: Path,
         threshold: float,
     ) -> None:
-        path = tmp_path / "gallery.yaml"
-        write_yaml(path, {"face-cluster-threshold": threshold})
-        assert load_gallery_metadata(path).face_cluster_threshold == threshold
+        save_gallery_metadata(
+            tmp_path,
+            GalleryMetadata(face_cluster_threshold=threshold),
+        )
+        loaded = load_gallery_metadata(tmp_path / PHOTREE_DIR / GALLERY_YAML)
+        assert loaded.face_cluster_threshold == threshold
 
     @pytest.mark.parametrize("threshold", [-0.1, 1.5, 5])
     def test_load_rejects_threshold_out_of_range(
@@ -80,9 +73,7 @@ class TestResolveGalleryMetadata:
         assert resolve_gallery_metadata(tmp_path) is None
 
     def test_finds_gallery_yaml_in_parent(self, tmp_path: Path) -> None:
-        gallery_yaml = tmp_path / PHOTREE_DIR / "gallery.yaml"
-        gallery_yaml.parent.mkdir(parents=True)
-        gallery_yaml.write_text("link-mode: symlink\n")
+        save_gallery_metadata(tmp_path, GalleryMetadata(link_mode=LinkMode.SYMLINK))
 
         child = tmp_path / "subdir"
         child.mkdir()
@@ -92,9 +83,7 @@ class TestResolveGalleryMetadata:
         assert result.link_mode == LinkMode.SYMLINK
 
     def test_finds_gallery_yaml_in_grandparent(self, tmp_path: Path) -> None:
-        gallery_yaml = tmp_path / PHOTREE_DIR / "gallery.yaml"
-        gallery_yaml.parent.mkdir(parents=True)
-        gallery_yaml.write_text("link-mode: copy\n")
+        save_gallery_metadata(tmp_path, GalleryMetadata(link_mode=LinkMode.COPY))
 
         grandchild = tmp_path / "a" / "b"
         grandchild.mkdir(parents=True)
@@ -106,16 +95,12 @@ class TestResolveGalleryMetadata:
 
 class TestResolveLinkMode:
     def test_explicit_overrides_gallery(self, tmp_path: Path) -> None:
-        gallery_yaml = tmp_path / PHOTREE_DIR / "gallery.yaml"
-        gallery_yaml.parent.mkdir(parents=True)
-        gallery_yaml.write_text("link-mode: symlink\n")
+        save_gallery_metadata(tmp_path, GalleryMetadata(link_mode=LinkMode.SYMLINK))
 
         assert resolve_link_mode(LinkMode.COPY, tmp_path) == LinkMode.COPY
 
     def test_gallery_overrides_default(self, tmp_path: Path) -> None:
-        gallery_yaml = tmp_path / PHOTREE_DIR / "gallery.yaml"
-        gallery_yaml.parent.mkdir(parents=True)
-        gallery_yaml.write_text("link-mode: symlink\n")
+        save_gallery_metadata(tmp_path, GalleryMetadata(link_mode=LinkMode.SYMLINK))
 
         assert resolve_link_mode(None, tmp_path) == LinkMode.SYMLINK
 

@@ -40,7 +40,7 @@ class TestAlbumMetadata:
     def test_load_empty_file_raises(self, tmp_path: Path) -> None:
         photree_dir = tmp_path / PHOTREE_DIR
         photree_dir.mkdir()
-        (photree_dir / ALBUM_YAML).write_text("")
+        (photree_dir / ALBUM_YAML).write_text("", encoding="utf-8")
         with pytest.raises(InvalidMetadataError) as exc_info:
             load_album_metadata(tmp_path)
         assert exc_info.value.path == photree_dir / ALBUM_YAML
