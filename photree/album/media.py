@@ -202,20 +202,24 @@ def resolve_variants(
     return _variants_of(_resolve_groups(album_dir, relative_paths))
 
 
+def _rmdir_if_empty(directory: Path) -> bool:
+    """Remove *directory* when it exists and is empty; return whether it did."""
+    is_empty = directory.is_dir() and not any(directory.iterdir())
+    if is_empty:
+        directory.rmdir()
+    return is_empty
+
+
 def _remove_empty_dirs(
     album_dir: Path,
     subdirs: list[str],
     *,
     dry_run: bool,
 ) -> None:
-    for subdir in subdirs:
-        directory = album_dir / subdir
-        if directory.is_dir() and not any(directory.iterdir()) and not dry_run:
-            directory.rmdir()
-            # Also remove parent if it's a nested archive dir (e.g. ios-main/orig-img)
-            parent = directory.parent
-            if parent != album_dir and parent.is_dir() and not any(parent.iterdir()):
-                parent.rmdir()
+    """Remove each emptied subdir, and the archive dir holding it once empty too."""
+    for directory in (album_dir / subdir for subdir in subdirs):
+        if not dry_run and _rmdir_if_empty(directory) and directory.parent != album_dir:
+            _rmdir_if_empty(directory.parent)
 
 
 def _check_move_conflicts(
