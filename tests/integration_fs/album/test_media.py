@@ -461,6 +461,44 @@ class TestMoveMedia:
         assert "IMG_0410.HEIC" in file_names(src / "ios-main/orig-img")
 
 
+class TestUnmatchedPaths:
+    def test_rm_media_refuses_a_path_matching_no_file(self, tmp_path: Path) -> None:
+        album = tmp_path / "album"
+        _setup_ios_album(album)
+
+        with pytest.raises(MediaOpError) as exc_info:
+            rm_media(album, ["main-jpg/IMG_E0410.jpg", "main-jpg/IMG_9999.jpg"])
+
+        assert exc_info.value.kind == MediaOpErrorKind.NO_MATCHING_FILE
+        assert exc_info.value.rel_paths == ("main-jpg/IMG_9999.jpg",)
+        assert "IMG_E0410.jpg" in file_names(album / "main-jpg")
+
+    def test_mv_media_refuses_a_path_matching_no_file(self, tmp_path: Path) -> None:
+        src = tmp_path / "src-album"
+        dst = tmp_path / "dst-album"
+        _setup_ios_album(src)
+        write_files(dst / PHOTREE_DIR, [])
+        mark_album(dst)
+
+        with pytest.raises(MediaOpError) as exc_info:
+            move_media(src, dst, ["main-jpg/IMG_E0410.jpg", "main-jpg/IMG_9999.jpg"])
+
+        assert exc_info.value.kind == MediaOpErrorKind.NO_MATCHING_FILE
+        assert "IMG_E0410.jpg" in file_names(src / "main-jpg")
+        assert not (dst / "main-jpg").exists()
+
+    def test_error_lists_every_unmatched_path(self, tmp_path: Path) -> None:
+        album = tmp_path / "album"
+        _setup_ios_album(album)
+
+        with pytest.raises(MediaOpError) as exc_info:
+            rm_media(album, ["main-jpg/IMG_9998.jpg", "main-vid/IMG_9999.MOV"])
+
+        message = format_media_op_error(exc_info.value, tmp_path)
+        assert "main-jpg/IMG_9998.jpg" in message
+        assert "main-vid/IMG_9999.MOV" in message
+
+
 class TestRmMedia:
     def test_ios_removes_all_variants(self, tmp_path: Path) -> None:
         album = tmp_path / "album"

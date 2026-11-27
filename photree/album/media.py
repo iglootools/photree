@@ -46,6 +46,7 @@ class MediaOpErrorKind(StrEnum):
     UNKNOWN_DIRECTORY = "unknown-directory"
     MOVE_CONFLICT = "move-conflict"
     MEDIA_SOURCE_TYPE_MISMATCH = "media-source-type-mismatch"
+    NO_MATCHING_FILE = "no-matching-file"
 
 
 class MediaOpError(ValueError):
@@ -62,6 +63,7 @@ class MediaOpError(ValueError):
         *,
         album_dir: Path,
         rel_path: str | None = None,
+        rel_paths: tuple[str, ...] = (),
         subdir: str | None = None,
         conflicts: tuple[str, ...] = (),
         media_sources: tuple[str, ...] = (),
@@ -70,6 +72,7 @@ class MediaOpError(ValueError):
         self.kind = kind
         self.album_dir = album_dir
         self.rel_path = rel_path
+        self.rel_paths = rel_paths
         self.subdir = subdir
         self.conflicts = conflicts
         self.media_sources = media_sources
@@ -160,7 +163,7 @@ def _resolve_groups(album_dir: Path, relative_paths: list[str]) -> list[_MediaGr
     # first-seen order of the groups.
     groups = dict.fromkeys((t.ms, t.is_video) for t in targets)
 
-    return [
+    resolved = [
         _MediaGroup(
             ms=ms,
             is_video=video,
@@ -181,6 +184,34 @@ def _resolve_groups(album_dir: Path, relative_paths: list[str]) -> list[_MediaGr
         )
         for ms, video in groups
     ]
+    _require_every_path_matched(album_dir, relative_paths, targets, resolved)
+    return resolved
+
+
+def _require_every_path_matched(
+    album_dir: Path,
+    relative_paths: list[str],
+    targets: list[_Target],
+    groups: list[_MediaGroup],
+) -> None:
+    """Raise ``NO_MATCHING_FILE`` with every path whose key matches no file."""
+    found = {
+        (g.ms, g.is_video, g.ms.key_fn(f))
+        for g in groups
+        for _, files in g.variants
+        for f in files
+    }
+    unmatched = tuple(
+        rel_path
+        for rel_path, t in zip(relative_paths, targets, strict=True)
+        if (t.ms, t.is_video, t.key) not in found
+    )
+    if unmatched:
+        raise MediaOpError(
+            MediaOpErrorKind.NO_MATCHING_FILE,
+            album_dir=album_dir,
+            rel_paths=unmatched,
+        )
 
 
 def _variants_of(groups: list[_MediaGroup]) -> list[tuple[str, list[str]]]:
@@ -197,7 +228,8 @@ def resolve_variants(
     Searches across the media source directory structure.
 
     Raises :class:`MediaOpError` when a path cannot be mapped to a media
-    source.
+    source, or names a file that matches nothing (``NO_MATCHING_FILE``, with
+    every such path).
     """
     return _variants_of(_resolve_groups(album_dir, relative_paths))
 
@@ -383,6 +415,7 @@ def move_media(
 
     Raises :class:`MediaOpError` before moving anything:
 
+    - ``NO_MATCHING_FILE``, with the paths, when a path matches no file.
     - ``MEDIA_SOURCE_TYPE_MISMATCH``, with the media source names, when the
       destination has a media source of the same name but the other type
       (iOS or std): moving would put an ``ios-<name>/`` and a
@@ -451,7 +484,8 @@ def rm_media(
     Delete the files at *relative_paths* and every variant of them.
 
     Directories left empty are removed too. Raises :class:`MediaOpError`,
-    before deleting anything, when a path cannot be mapped to a media source.
+    before deleting anything, when a path cannot be mapped to a media source
+    or matches no file.
     """
     variants = resolve_variants(album_dir, relative_paths)
 

@@ -30,6 +30,14 @@ def format_media_op_error(exc: MediaOpError, cwd: Path) -> str:
             return (
                 f'Directory "{exc.subdir}" does not match any media source in {album}.'
             )
+        case MediaOpErrorKind.NO_MATCHING_FILE:
+            return "\n".join(
+                [
+                    f"No file in {album} matches these requested path(s):",
+                    *(indent(p) for p in exc.rel_paths),
+                    "Nothing was changed.",
+                ],
+            )
         case MediaOpErrorKind.MOVE_CONFLICT:
             return _format_move_conflicts(exc.conflicts, album)
         case MediaOpErrorKind.MEDIA_SOURCE_TYPE_MISMATCH:
