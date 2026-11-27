@@ -43,6 +43,9 @@ class BrowsableRefreshErrorKind(StrEnum):
     ALBUM_UNPARSEABLE_NAME = "album-unparseable-name"
     """``path``: album whose name has no parseable date."""
 
+    DUPLICATE_ALBUM_ID = "duplicate-album-id"
+    """``album_id``: an ID several albums share; ``albums``: those albums."""
+
     COLLECTION_UNREADABLE_METADATA = "collection-unreadable-metadata"
     """``path``: collection whose ``collection.yaml`` cannot be read."""
 
@@ -61,6 +64,8 @@ class BrowsableRefreshError:
     path: Path
     collection_id: str | None = None
     targets: tuple[Path, ...] = ()
+    album_id: str | None = None
+    albums: tuple[Path, ...] = ()
 
 
 class DanglingMemberKind(StrEnum):
@@ -231,16 +236,48 @@ def _scan_album_entries(
     dict[str, _MediaLocation],
     tuple[BrowsableRefreshError, ...],
 ]:
-    """Scan albums and build album + media location lookups."""
+    """
+    Scan albums and build album + media location lookups.
+
+    Albums that share an ID (a copied album directory) are an error: only one
+    of them could be rendered, and their media IDs would collide too.
+    """
     results = [_try_scan_album(d) for d in discover_gallery_albums(gallery_dir)]
-    albums = {r.album_id: r for r in results if isinstance(r, _AlbumEntry)}
+    entries = [r for r in results if isinstance(r, _AlbumEntry)]
+    albums = {entry.album_id: entry for entry in entries}
     media_locations = {
         mid: loc
         for album in albums.values()
         for mid, loc in _build_media_locations(album).items()
     }
-    errors = tuple(r for r in results if isinstance(r, BrowsableRefreshError))
+    errors = (
+        *(r for r in results if isinstance(r, BrowsableRefreshError)),
+        *_duplicate_id_errors(entries),
+    )
     return albums, media_locations, errors
+
+
+def _duplicate_id_errors(
+    entries: list[_AlbumEntry],
+) -> tuple[BrowsableRefreshError, ...]:
+    """Return one error per album ID that several of *entries* share."""
+    paths_by_id = {
+        album_id: tuple(entry.path for entry in group)
+        for album_id, group in groupby(
+            sorted(entries, key=attrgetter("album_id")),
+            key=attrgetter("album_id"),
+        )
+    }
+    return tuple(
+        BrowsableRefreshError(
+            BrowsableRefreshErrorKind.DUPLICATE_ALBUM_ID,
+            paths[0],
+            album_id=album_id,
+            albums=paths,
+        )
+        for album_id, paths in paths_by_id.items()
+        if len(paths) > 1
+    )
 
 
 def _collection_entry(col_dir: Path, meta: CollectionMetadata) -> _CollectionEntry:
@@ -543,9 +580,10 @@ def refresh_browsable(
     3. Remove the existing browsable/ directory
     4. Create the planned links
 
-    Unreadable albums or collections, and links two targets would claim,
-    abort before anything is removed; dangling collection members are
-    reported and skipped, and a member listed twice is rendered once.
+    Unreadable albums or collections, albums sharing an ID, and links two
+    targets would claim, abort before anything is removed; dangling
+    collection members are reported and skipped, and a member listed twice is
+    rendered once.
     """
     browsable_dir = gallery_dir / BROWSABLE_DIR
     safety_error = _validate_browsable_dir(browsable_dir)

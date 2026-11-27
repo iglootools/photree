@@ -395,6 +395,32 @@ class TestBrowsableRefreshScanErrors:
         )
 
 
+class TestBrowsableRefreshDuplicateAlbumIds:
+    def test_albums_sharing_an_id_abort_before_removing_anything(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Regression: only the last album was rendered, and the refresh passed."""
+        gallery = make_gallery(tmp_path)
+        album_dir, aid = _setup_album(gallery, "2024-07-14 - Trip")
+        assert refresh_browsable(gallery).success
+        copy, _ = _setup_album(gallery, "2024-07-15 - Trip copy")
+        save_album_metadata(copy, AlbumMetadata(id=aid))
+
+        result = refresh_browsable(gallery)
+
+        assert result.errors == (
+            BrowsableRefreshError(
+                BrowsableRefreshErrorKind.DUPLICATE_ALBUM_ID,
+                album_dir,
+                album_id=aid,
+                albums=(album_dir, copy),
+            ),
+        )
+        # The previous render survives.
+        assert (gallery / BROWSABLE_DIR / "public" / "albums").is_dir()
+
+
 class TestBrowsableRefreshLinkCollisions:
     def test_album_listed_twice_in_a_collection_renders_once(
         self,

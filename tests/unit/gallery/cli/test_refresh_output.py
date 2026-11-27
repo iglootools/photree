@@ -210,6 +210,29 @@ class TestFormatBrowsableError:
             "browsable/), then run 'photree gallery refresh'."
         )
 
+    def test_duplicate_album_id_names_every_album_and_the_fix(self) -> None:
+        copy = ALBUM.with_name("2024-07-15 - Trip copy")
+        error = BrowsableRefreshError(
+            BrowsableRefreshErrorKind.DUPLICATE_ALBUM_ID,
+            ALBUM,
+            album_id=SOME_ID,
+            albums=(ALBUM, copy),
+        )
+
+        assert format_browsable_error(error, CWD) == (
+            "Duplicate album IDs found:\n"
+            f"  {format_album_external_id(SOME_ID)}:\n"
+            "    albums/2024/2024-07-14 - Trip\n"
+            "    albums/2024/2024-07-15 - Trip copy\n"
+            "\n"
+            "Run 'photree albums fix --new-id --album-dir "
+            '"albums/2024/2024-07-15 - Trip copy"\' to give new IDs to all but '
+            "the first album of each ID.\n"
+            "If collections or faces refer to another of them, name the others "
+            "instead.\n"
+            "Then run 'photree gallery refresh'."
+        )
+
     def test_album_missing_metadata(self) -> None:
         error = BrowsableRefreshError(
             BrowsableRefreshErrorKind.ALBUM_MISSING_METADATA,

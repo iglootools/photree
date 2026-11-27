@@ -13,6 +13,7 @@ from photree.album.id import (
     format_image_external_id,
     format_video_external_id,
 )
+from photree.albums.output import format_duplicate_ids_report
 from photree.collection.id import format_collection_external_id
 from photree.collection.refresh.result import (
     CollectionRefreshError,
@@ -166,6 +167,11 @@ def format_browsable_error(err: BrowsableRefreshError, cwd: Path) -> str:
             return (
                 f"collection {_path(err.path, cwd)}: collection metadata cannot "
                 f"be read\nRun {_collection_check(err.path, cwd)} to investigate."
+            )
+        case BrowsableRefreshErrorKind.DUPLICATE_ALBUM_ID:
+            return (
+                format_duplicate_ids_report({err.album_id or "?": err.albums}, cwd)
+                + "\nThen run 'photree gallery refresh'."
             )
         case BrowsableRefreshErrorKind.CYCLE:
             collection_id = (
