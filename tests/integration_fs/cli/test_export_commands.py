@@ -237,3 +237,77 @@ class TestDryRun:
         assert result.exit_code == 0, result.output
         assert "[dry-run] 2 album(s) would be exported, 0 failed." in result.output
         assert sorted(p.name for p in share.iterdir()) == [SHARE_SENTINEL]
+
+
+class TestSettingsErrorExitCodes:
+    """Settings wrong whatever is on disk exit 2; a missing sentinel exits 1."""
+
+    @pytest.mark.parametrize("command", ["album", "albums", "gallery"])
+    def test_missing_share_dir_exits_2(self, tmp_path: Path, command: str) -> None:
+        album = _album(tmp_path / "2024-07-14 - Trip")
+
+        result = invoke_cli(
+            [command, "export", "--album-dir", str(album)],
+            runtime=fake_runtime(),
+        )
+
+        assert result.exit_code == 2, result.output
+        assert "No --share-dir specified" in result.output
+
+    def test_albums_share_layout_without_all_exits_2(self, tmp_path: Path) -> None:
+        album = _album(tmp_path / "2024-07-14 - Trip")
+        share = _share(tmp_path)
+
+        result = invoke_cli(
+            [
+                "album",
+                "export",
+                "--album-dir",
+                str(album),
+                "--share-dir",
+                str(share),
+                "--share-layout",
+                "albums",
+                "--album-layout",
+                "browsable",
+            ],
+            runtime=fake_runtime(),
+        )
+
+        assert result.exit_code == 2, result.output
+        assert sorted(p.name for p in share.iterdir()) == [SHARE_SENTINEL]
+
+    def test_unknown_profile_exits_2(self, tmp_path: Path) -> None:
+        album = _album(tmp_path / "2024-07-14 - Trip")
+        config = tmp_path / "config.toml"
+        write_file(config, "")
+
+        result = invoke_cli(
+            [
+                "albums",
+                "export",
+                "--album-dir",
+                str(album),
+                "--profile",
+                "nosuch",
+                "--config",
+                str(config),
+            ],
+            runtime=fake_runtime(),
+        )
+
+        assert result.exit_code == 2, result.output
+        assert 'Unknown profile "nosuch"' in result.output
+
+    def test_share_dir_without_sentinel_exits_1(self, tmp_path: Path) -> None:
+        album = _album(tmp_path / "2024-07-14 - Trip")
+        share = tmp_path / "share"
+        share.mkdir()
+
+        result = invoke_cli(
+            ["gallery", "export", "--album-dir", str(album), "--share-dir", str(share)],
+            runtime=fake_runtime(),
+        )
+
+        assert result.exit_code == 1, result.output
+        assert "sentinel file" in result.output

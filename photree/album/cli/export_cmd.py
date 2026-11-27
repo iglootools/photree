@@ -11,6 +11,7 @@ from photree.album.exporter import output as export_output, single as album_expo
 from photree.album.exporter.settings import (
     ExportSettingsError,
     ResolvedExportSettings,
+    is_usage_error,
     resolve_export_settings,
     validate_export_settings,
 )
@@ -123,7 +124,11 @@ def _resolve_settings_or_exit(
     cwd: Path,
     load: Callable[[str | None], PhotreeConfig],
 ) -> ResolvedExportSettings:
-    """Resolve and validate the export settings; config errors exit 2, others 1."""
+    """
+    Resolve and validate the export settings, or print why not and exit.
+
+    A bad config file or flag exits 2; a share dir without its sentinel, 1.
+    """
     try:
         settings = resolve_export_settings(
             profile_name=profile,
@@ -144,7 +149,7 @@ def _resolve_settings_or_exit(
             export_output.format_export_settings_error(exc, cwd, "album export"),
             markup=False,
         )
-        raise typer.Exit(code=1) from exc
+        raise typer.Exit(code=2 if is_usage_error(exc.kind) else 1) from exc
     return settings
 
 

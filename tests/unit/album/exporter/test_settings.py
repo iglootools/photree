@@ -8,6 +8,7 @@ from photree.album.exporter.settings import (
     ExportSettingsError,
     ExportSettingsErrorKind,
     ResolvedExportSettings,
+    is_usage_error,
     resolve_export_settings,
     validate_export_settings,
 )
@@ -206,3 +207,22 @@ class TestValidateExportSettings:
 
         assert info.value.kind == ExportSettingsErrorKind.MISSING_SENTINEL
         assert info.value.share_dir == tmp_path
+
+
+class TestIsUsageError:
+    @pytest.mark.parametrize(
+        "kind",
+        [
+            ExportSettingsErrorKind.UNKNOWN_PROFILE,
+            ExportSettingsErrorKind.NO_SHARE_DIR,
+            ExportSettingsErrorKind.ALBUMS_LAYOUT_NEEDS_ALL,
+        ],
+    )
+    def test_settings_wrong_whatever_is_on_disk_are_usage_errors(
+        self,
+        kind: ExportSettingsErrorKind,
+    ) -> None:
+        assert is_usage_error(kind)
+
+    def test_missing_sentinel_is_not_a_usage_error(self) -> None:
+        assert not is_usage_error(ExportSettingsErrorKind.MISSING_SENTINEL)
