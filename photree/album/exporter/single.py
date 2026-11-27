@@ -100,8 +100,8 @@ def compute_target_dir(
 
     The ``albums`` layout nests it under its year and ``by-month`` under its
     month, both parsed from the name's date prefix; ``flat`` puts it directly
-    under *share_dir*. Raises :class:`ValueError` when the layout needs a date
-    the name does not start with.
+    under *share_dir*. Raises :class:`~photree.dates.DatePrefixError` when the
+    layout needs a date the name does not start with.
     """
     match share_layout:
         case ShareDirectoryLayout.FLAT:
