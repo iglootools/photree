@@ -14,6 +14,26 @@ from photree.common.formatting import format_dry_run, format_flags
 from photree.foundation.gallery_metadata import resolve_link_mode
 
 
+def refresh_retry_flags(
+    *,
+    force_browsable: bool,
+    force_jpeg: bool,
+    force_exif_cache: bool,
+    redetect_faces: bool,
+    refresh_face_thumbs: bool,
+    dry_run: bool,
+) -> list[tuple[str, bool]]:
+    """Pair each flag a ``refresh`` retry repeats with whether the run used it."""
+    return [
+        ("--refresh-browsable", force_browsable),
+        ("--refresh-jpeg", force_jpeg),
+        ("--refresh-exif-cache", force_exif_cache),
+        ("--redetect-faces", redetect_faces),
+        ("--refresh-face-thumbs", refresh_face_thumbs),
+        ("--dry-run", dry_run),
+    ]
+
+
 def run_batch_refresh(
     albums: list[Path],
     display_base: Path | None,
@@ -75,13 +95,13 @@ def run_batch_refresh(
         "refresh",
         cwd,
         extra_flags=format_flags(
-            [
-                ("--refresh-browsable", force_browsable),
-                ("--refresh-jpeg", force_jpeg),
-                ("--refresh-exif-cache", force_exif_cache),
-                ("--redetect-faces", redetect_faces),
-                ("--refresh-face-thumbs", refresh_face_thumbs),
-                ("--dry-run", dry_run),
-            ],
+            refresh_retry_flags(
+                force_browsable=force_browsable,
+                force_jpeg=force_jpeg,
+                force_exif_cache=force_exif_cache,
+                redetect_faces=redetect_faces,
+                refresh_face_thumbs=refresh_face_thumbs,
+                dry_run=dry_run,
+            ),
         ),
     )

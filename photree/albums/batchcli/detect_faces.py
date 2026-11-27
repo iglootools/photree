@@ -12,6 +12,20 @@ from photree.clihelpers.progress import BatchProgressBar
 from photree.common.formatting import format_dry_run, format_flags
 
 
+def detect_faces_retry_flags(
+    *,
+    redetect: bool,
+    refresh_thumbs: bool,
+    dry_run: bool,
+) -> list[tuple[str, bool]]:
+    """Pair each flag a ``detect-faces`` retry repeats with whether the run used it."""
+    return [
+        ("--redetect", redetect),
+        ("--refresh-thumbs", refresh_thumbs),
+        ("--dry-run", dry_run),
+    ]
+
+
 def run_batch_detect_faces(
     albums: list[Path],
     display_base: Path | None,
@@ -58,10 +72,10 @@ def run_batch_detect_faces(
         "detect-faces",
         cwd,
         extra_flags=format_flags(
-            [
-                ("--redetect", redetect),
-                ("--refresh-thumbs", refresh_thumbs),
-                ("--dry-run", dry_run),
-            ],
+            detect_faces_retry_flags(
+                redetect=redetect,
+                refresh_thumbs=refresh_thumbs,
+                dry_run=dry_run,
+            ),
         ),
     )

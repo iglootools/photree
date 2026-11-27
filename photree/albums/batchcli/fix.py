@@ -35,6 +35,51 @@ def _print_reports[R](
         typer.echo(album_reports_block(reports), color=True)
 
 
+def fix_retry_flags(
+    *,
+    fix_id: bool,
+    new_id: bool,
+    rm_upstream: bool,
+    rm_orphan: bool,
+    force: bool,
+    dry_run: bool,
+) -> list[tuple[str, bool]]:
+    """
+    Pair each flag a ``fix`` retry repeats with whether the run used it.
+
+    The single-album retry must carry the same fixes, or it only prints
+    "No fix specified".
+    """
+    return [
+        ("--id", fix_id),
+        ("--new-id", new_id),
+        ("--rm-upstream", rm_upstream),
+        ("--rm-orphan", rm_orphan),
+        ("--force", force),
+        ("--dry-run", dry_run),
+    ]
+
+
+def fix_ios_retry_flags(
+    *,
+    rm_orphan_sidecar: bool,
+    prefer_higher_quality_when_dups: bool,
+    rm_miscategorized: bool,
+    rm_miscategorized_safe: bool,
+    mv_miscategorized: bool,
+    dry_run: bool,
+) -> list[tuple[str, bool]]:
+    """Pair each flag a ``fix-ios`` retry repeats with whether the run used it."""
+    return [
+        ("--rm-orphan-sidecar", rm_orphan_sidecar),
+        ("--prefer-higher-quality-when-dups", prefer_higher_quality_when_dups),
+        ("--rm-miscategorized", rm_miscategorized),
+        ("--rm-miscategorized-safe", rm_miscategorized_safe),
+        ("--mv-miscategorized", mv_miscategorized),
+        ("--dry-run", dry_run),
+    ]
+
+
 def run_batch_fix(
     albums: list[Path],
     display_base: Path | None,
@@ -79,17 +124,15 @@ def run_batch_fix(
             markup=True,
         ),
     )
-    # The single-album retry must carry the same fixes, or it only prints
-    # "No fix specified".
     retry_flags = format_flags(
-        [
-            ("--id", fix_id),
-            ("--new-id", new_id),
-            ("--rm-upstream", rm_upstream),
-            ("--rm-orphan", rm_orphan),
-            ("--force", force),
-            ("--dry-run", dry_run),
-        ],
+        fix_retry_flags(
+            fix_id=fix_id,
+            new_id=new_id,
+            rm_upstream=rm_upstream,
+            rm_orphan=rm_orphan,
+            force=force,
+            dry_run=dry_run,
+        ),
     )
     exit_with_failures(result.failures, "fix", cwd, extra_flags=retry_flags)
 
@@ -143,16 +186,13 @@ def run_batch_fix_ios(
         "fix-ios",
         cwd,
         extra_flags=format_flags(
-            [
-                ("--rm-orphan-sidecar", rm_orphan_sidecar),
-                (
-                    "--prefer-higher-quality-when-dups",
-                    prefer_higher_quality_when_dups,
-                ),
-                ("--rm-miscategorized", rm_miscategorized),
-                ("--rm-miscategorized-safe", rm_miscategorized_safe),
-                ("--mv-miscategorized", mv_miscategorized),
-                ("--dry-run", dry_run),
-            ],
+            fix_ios_retry_flags(
+                rm_orphan_sidecar=rm_orphan_sidecar,
+                prefer_higher_quality_when_dups=prefer_higher_quality_when_dups,
+                rm_miscategorized=rm_miscategorized,
+                rm_miscategorized_safe=rm_miscategorized_safe,
+                mv_miscategorized=mv_miscategorized,
+                dry_run=dry_run,
+            ),
         ),
     )
