@@ -44,14 +44,33 @@ def format_gallery_not_found(exc: GalleryNotFoundError, cwd: Path) -> str:
 def format_invalid_metadata(exc: InvalidMetadataError, cwd: Path) -> str:
     """Render an :class:`InvalidMetadataError` with a relative path and a fix."""
     fix = (
-        "This cache is derived from the album's files: delete it, or force its "
-        "refresh ('photree album refresh --refresh-exif-cache' for the EXIF "
-        "cache, '--redetect-faces' for the face cache), and photree rebuilds it."
+        _derived_cache_fix(exc.path, cwd)
         if exc.derived
         else "Restore the file from a backup or fix its content; photree does not "
         "regenerate it, because a fresh file would carry fresh IDs."
     )
     return f"Invalid metadata in {display_path(exc.path, cwd)}: {exc.reason}\n{fix}"
+
+
+def _derived_cache_fix(path: Path, cwd: Path) -> str:
+    """
+    Suggest rebuilding a derived cache, targeting the album that holds *path*.
+
+    The album is the directory holding the ``.photree/`` the cache lives in;
+    the suggested command names it, so it does not refresh whatever
+    directory the user happens to be in.
+    """
+    album_dir = next((p.parent for p in path.parents if p.name == PHOTREE_DIR), None)
+    refresh = (
+        "photree album refresh"
+        if album_dir is None
+        else f'photree album refresh --album-dir "{display_path(album_dir, cwd)}"'
+    )
+    return (
+        "This cache is derived from the album's files: delete it, or force its "
+        f"refresh ('{refresh} --refresh-exif-cache' for the EXIF cache, "
+        f"'{refresh} --redetect-faces' for the face cache), and photree rebuilds it."
+    )
 
 
 def resolve_gallery_or_exit(

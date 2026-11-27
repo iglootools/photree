@@ -164,11 +164,17 @@ def post_import_check(
             exiftool=exiftool,
             link_mode=link_mode,
         )
-    console.print(album_output.format_album_preflight_checks(check_result))
+    target_display = str(display_path(target_dir, cwd))
+    console.print(
+        album_output.format_album_preflight_checks(
+            check_result,
+            album_dir=target_display,
+        ),
+    )
     if not check_result.success:
         err_console.print(
             "\nTo investigate, run 'photree album check --album-dir "
-            f'"{display_path(target_dir, cwd)}"\'.',
+            f'"{target_display}"\'.',
             markup=False,
         )
     return check_result.success

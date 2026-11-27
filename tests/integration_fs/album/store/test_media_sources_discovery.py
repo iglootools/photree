@@ -210,7 +210,7 @@ class TestMediaSourceConflicts:
         assert result.naming is not None
         assert result.naming.success
         assert "ios-<name>/ and std-<name>/ both present for: main" in (
-            format_album_preflight_checks(result)
+            format_album_preflight_checks(result, album_dir=album.name)
         )
 
     def test_batch_check_continues_past_conflict(self, tmp_path: Path) -> None:

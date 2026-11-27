@@ -557,8 +557,14 @@ def format_face_sync_issue(issue: FaceSyncIssue) -> str:
     return f"{issue.media_source}: {detail}"
 
 
-def format_face_state_check(check: FaceStateCheck) -> str:
-    """Format the face state check, as Rich markup."""
+def format_face_state_check(check: FaceStateCheck, *, album_dir: str) -> str:
+    """
+    Format the face state check, as Rich markup.
+
+    *album_dir* is the album as the user would type it, quoted into the
+    suggested fix so it targets this album from any working directory.
+    """
+    flag = f'--album-dir "{album_dir}"'
     if check.success:
         return f"{CHECK} face state"
     else:
@@ -574,8 +580,9 @@ def format_face_state_check(check: FaceStateCheck) -> str:
                             for e in check.npz_yaml_sync_errors
                         ),
                         (
-                            "Run 'photree album refresh' or"
-                            " 'photree album detect-faces --redetect' to fix."
+                            f"Run 'photree album refresh {flag}' or"
+                            f" 'photree album detect-faces {flag} --redetect'"
+                            " to fix."
                         ),
                     )
                 ),
@@ -604,8 +611,14 @@ def _format_issue_group(
     )
 
 
-def format_exif_cache_check(check: ExifCacheStateCheck) -> str:
-    """Format the EXIF cache check, as Rich markup."""
+def format_exif_cache_check(check: ExifCacheStateCheck, *, album_dir: str) -> str:
+    """
+    Format the EXIF cache check, as Rich markup.
+
+    *album_dir* is the album as the user would type it, quoted into the
+    suggested fix so it targets this album from any working directory.
+    """
+    flag = f'--album-dir "{album_dir}"'
     if check.success:
         return f"{CHECK} exif cache"
     else:
@@ -617,8 +630,9 @@ def format_exif_cache_check(check: ExifCacheStateCheck) -> str:
                     for line in (
                         *_format_issue_group("missing cache", check.missing_sources),
                         (
-                            "Run 'photree album refresh' or"
-                            " 'photree album check --refresh-exif-cache' to fix."
+                            f"Run 'photree album refresh {flag}' or"
+                            f" 'photree album check {flag} --refresh-exif-cache'"
+                            " to fix."
                         ),
                     )
                 ),
@@ -631,14 +645,19 @@ def format_album_preflight_checks(
     *,
     fatal_sidecar: bool = False,
     fatal_exif: bool = False,
-    album_dir: str = ".",
+    album_dir: str,
 ) -> str:
-    """Format all album preflight check lines, grouped by category."""
+    """
+    Format all album preflight check lines, grouped by category.
+
+    *album_dir* is the album as the user would type it (a path relative to
+    the working directory), which the suggested fixes target.
+    """
     sections = [
         _format_structure_section(result),
         _format_media_section(result, fatal_sidecar=fatal_sidecar),
         _format_naming_section(result, fatal_exif=fatal_exif, album_dir=album_dir),
-        _format_cache_section(result),
+        _format_cache_section(result, album_dir=album_dir),
     ]
     return "\n\n".join(s for s in sections if s)
 
@@ -760,7 +779,11 @@ def _format_naming_section(
         )
 
 
-def _format_cache_section(result: AlbumPreflightResult) -> str | None:
+def _format_cache_section(
+    result: AlbumPreflightResult,
+    *,
+    album_dir: str,
+) -> str | None:
     if result.face_state_check is None and result.exif_cache_check is None:
         return None
     else:
@@ -768,12 +791,22 @@ def _format_cache_section(result: AlbumPreflightResult) -> str | None:
             [
                 "Cache:",
                 *(
-                    [format_face_state_check(result.face_state_check)]
+                    [
+                        format_face_state_check(
+                            result.face_state_check,
+                            album_dir=album_dir,
+                        ),
+                    ]
                     if result.face_state_check is not None
                     else []
                 ),
                 *(
-                    [format_exif_cache_check(result.exif_cache_check)]
+                    [
+                        format_exif_cache_check(
+                            result.exif_cache_check,
+                            album_dir=album_dir,
+                        ),
+                    ]
                     if result.exif_cache_check is not None
                     else []
                 ),

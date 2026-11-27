@@ -88,15 +88,24 @@ _SAMPLES: tuple[tuple[str, Callable[[], str]], ...] = (
     ),
     (
         "album_output.format_album_preflight_checks (ios, all ok)",
-        lambda: album_output.format_album_preflight_checks(PREFLIGHT_OK),
+        lambda: album_output.format_album_preflight_checks(
+            PREFLIGHT_OK,
+            album_dir="/path/to/album",
+        ),
     ),
     (
         "album_output.format_album_preflight_checks (ios, failures)",
-        lambda: album_output.format_album_preflight_checks(PREFLIGHT_FAILURES),
+        lambda: album_output.format_album_preflight_checks(
+            PREFLIGHT_FAILURES,
+            album_dir="/path/to/album",
+        ),
     ),
     (
         "album_output.format_album_preflight_checks (other)",
-        lambda: album_output.format_album_preflight_checks(PREFLIGHT_STD),
+        lambda: album_output.format_album_preflight_checks(
+            PREFLIGHT_STD,
+            album_dir="/path/to/album",
+        ),
     ),
     (
         "troubleshoot_output.format_album_preflight_troubleshoot (failures)",

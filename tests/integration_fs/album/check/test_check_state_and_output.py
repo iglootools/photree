@@ -150,7 +150,7 @@ class TestExifCacheState:
 
         assert check is not None
         assert check.success
-        assert "exif cache" in format_exif_cache_check(check)
+        assert "exif cache" in format_exif_cache_check(check, album_dir="album")
 
 
 class TestIntegrityOutputLabels:
@@ -295,23 +295,38 @@ class TestCacheCheckOutput:
             ),
         )
 
-        output = _render(format_face_state_check(check))
+        output = _render(format_face_state_check(check, album_dir="trips/Hike [1]"))
 
         assert "✗ face state (3 issue(s))" in output
         assert "model version mismatch" in output
         assert "main [old]: .yaml records faces but the .npz is missing" in output
         assert "nelu: .npz array lengths inconsistent" in output
-        assert "photree album detect-faces --redetect" in output
+        assert (
+            "Run 'photree album refresh --album-dir \"trips/Hike [1]\"' or 'photree"
+            ' album detect-faces --album-dir "trips/Hike [1]" --redetect\' to fix.'
+        ) in " ".join(output.split())
 
     def test_exif_cache_lists_at_most_five_sources(self) -> None:
         sources = tuple(f"ms{i} [x]" for i in range(7))
 
-        output = _render(format_exif_cache_check(ExifCacheStateCheck(sources)))
+        output = _render(
+            format_exif_cache_check(ExifCacheStateCheck(sources), album_dir="album"),
+        )
 
         assert "✗ exif cache (7 issue(s))" in output
         assert "missing cache: ms0 [x], ms1 [x], ms2 [x], ms3 [x], ms4 [x]" in output
         assert "ms5 [x]" not in output
         assert "... and 2 more" in output
+
+    def test_exif_cache_fix_targets_the_album(self) -> None:
+        output = _render(
+            format_exif_cache_check(ExifCacheStateCheck(("main",)), album_dir="a b"),
+        )
+
+        assert (
+            "Run 'photree album refresh --album-dir \"a b\"' or 'photree album"
+            ' check --album-dir "a b" --refresh-exif-cache\' to fix.'
+        ) in " ".join(output.split())
 
 
 class TestMediaSourceConflictTroubleshoot:
