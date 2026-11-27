@@ -58,9 +58,14 @@ done
 [[ -n "$src" ]] || exit 1
 if $query; then
     # Same layout as real sips: the path, then indented "key: value" lines.
-    # Pillow is a photree dependency, so the environment running photree has it.
-    python -c 'import sys; from PIL import Image
-w, h = Image.open(sys.argv[1]).size
+    # opencv-python is a declared photree dependency, so the environment running
+    # photree has cv2; Pillow is only there transitively. cv2 decodes by content,
+    # and the seeded files are JPEG or PNG whatever their extension.
+    python -c 'import sys, cv2
+image = cv2.imread(sys.argv[1])
+if image is None:
+    sys.exit(f"sips shim: cannot read {sys.argv[1]}")
+h, w = image.shape[:2]
 print(f"{sys.argv[1]}\n  pixelWidth: {w}\n  pixelHeight: {h}")' "$src"
 else
     [[ -n "$dst" ]] && cp "$src" "$dst"
