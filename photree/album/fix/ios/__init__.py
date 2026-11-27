@@ -19,13 +19,12 @@ from photree.album.fix.ios.miscategorized import (
     fix_miscategorized,
 )
 from photree.album.fix.ios.prefer_higher_quality import (
-    PreferHigherQualityResult,
     prefer_higher_quality_when_dups,
 )
 from photree.album.fix.ios.rm_orphan_sidecar import (
-    RmOrphanSidecarResult,
     rm_orphan_sidecar,
 )
+from photree.album.fix.removed_files import RemovedFiles
 from photree.album.store.media_source import MediaSource
 from photree.album.store.media_sources_discovery import discover_media_sources
 
@@ -38,8 +37,6 @@ __all__ = [
     "MiscategorizedDirResult",
     "MiscategorizedMoveConflictError",
     "MiscategorizedResult",
-    "PreferHigherQualityResult",
-    "RmOrphanSidecarResult",
     "prefer_higher_quality_when_dups",
     "rm_orphan_sidecar",
     "run_fix_ios",
@@ -191,7 +188,7 @@ def _run_miscategorized(
 
 
 def _removed_by_dir(
-    fix: Callable[..., PreferHigherQualityResult | RmOrphanSidecarResult],
+    fix: Callable[..., RemovedFiles],
     album_dir: Path,
     media_sources: list[MediaSource],
     *,

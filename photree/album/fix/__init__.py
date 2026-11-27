@@ -11,7 +11,8 @@ from enum import StrEnum
 from pathlib import Path
 
 from photree.album.fix.helpers import MissingArchiveError
-from photree.album.fix.rm_orphan import RmOrphanDirResult, RmOrphanResult, rm_orphan
+from photree.album.fix.removed_files import RemovedFiles
+from photree.album.fix.rm_orphan import RmOrphanResult, rm_orphan
 from photree.album.fix.rm_upstream import (
     RmUpstreamHeicResult,
     RmUpstreamMovResult,
@@ -32,7 +33,7 @@ __all__ = [
     "FixValidationErrorKind",
     "LinkMode",
     "MissingArchiveError",
-    "RmOrphanDirResult",
+    "RemovedFiles",
     "RmOrphanResult",
     "RmUpstreamHeicResult",
     "RmUpstreamMovResult",

@@ -1,9 +1,9 @@
 """The fix that removes iOS sidecars (AAE) whose media file is gone."""
 
-from dataclasses import dataclass
 from pathlib import Path
 
 from photree.album.fix.helpers import require_ios
+from photree.album.fix.removed_files import RemovedFiles
 from photree.album.formats import IOS_SIDECAR_EXTENSIONS
 from photree.album.store.file_matching import ios_is_media
 from photree.album.store.media_source import MediaSource, ios_img_number
@@ -22,23 +22,6 @@ def _find_orphan_sidecars(directory: Path) -> list[str]:
     )
 
 
-@dataclass(frozen=True)
-class RmOrphanSidecarResult:
-    """
-    The orphan sidecars removed from a media source.
-
-    *removed_by_dir* pairs each directory name with the files removed from
-    it; directories with nothing removed are left out.
-    """
-
-    removed_by_dir: tuple[tuple[str, tuple[str, ...]], ...]
-
-    @property
-    def total(self) -> int:
-        """Return the number of sidecars removed."""
-        return sum(len(files) for _, files in self.removed_by_dir)
-
-
 def _remove_orphans_in_dir(directory: Path, *, dry_run: bool) -> tuple[str, ...]:
     orphans = _find_orphan_sidecars(directory)
     delete_files(directory, orphans, dry_run=dry_run)
@@ -50,7 +33,7 @@ def rm_orphan_sidecar(
     ms: MediaSource,
     *,
     dry_run: bool = False,
-) -> RmOrphanSidecarResult:
+) -> RemovedFiles:
     """Remove orphan sidecars from orig-img/, edit-img/, orig-vid/, and edit-vid/."""
     require_ios(ms)
     directories = (
@@ -59,7 +42,7 @@ def rm_orphan_sidecar(
         album_dir / ms.orig_vid_dir,
         album_dir / ms.edit_vid_dir,
     )
-    return RmOrphanSidecarResult(
+    return RemovedFiles(
         removed_by_dir=tuple(
             (d.name, removed)
             for d in directories

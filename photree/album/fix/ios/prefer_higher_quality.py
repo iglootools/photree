@@ -1,9 +1,9 @@
 """The fix that keeps only the best format of each iOS image number."""
 
-from dataclasses import dataclass
 from pathlib import Path
 
 from photree.album.fix.helpers import require_ios
+from photree.album.fix.removed_files import RemovedFiles
 from photree.album.formats import IOS_IMG_EXTENSIONS, PICTURE_PRIORITY_EXTENSIONS
 from photree.album.store.file_matching import group_by_key, pick_media_priority
 from photree.album.store.media_source import MediaSource, ios_img_number
@@ -34,23 +34,6 @@ def _find_lower_quality_dups_in_dir(
     )
 
 
-@dataclass(frozen=True)
-class PreferHigherQualityResult:
-    """
-    The lower-quality duplicates removed from a media source.
-
-    *removed_by_dir* pairs each directory name with the files removed from
-    it; directories with nothing removed are left out.
-    """
-
-    removed_by_dir: tuple[tuple[str, tuple[str, ...]], ...]
-
-    @property
-    def total(self) -> int:
-        """Return the number of files removed."""
-        return sum(len(files) for _, files in self.removed_by_dir)
-
-
 def _remove_dups_in_dir(directory: Path, *, dry_run: bool) -> tuple[str, ...]:
     dups = _find_lower_quality_dups_in_dir(directory, IOS_IMG_EXTENSIONS)
     delete_files(directory, dups, dry_run=dry_run)
@@ -62,7 +45,7 @@ def prefer_higher_quality_when_dups(
     ms: MediaSource,
     *,
     dry_run: bool = False,
-) -> PreferHigherQualityResult:
+) -> RemovedFiles:
     """
     Keep the highest-quality variant of each image number and delete the rest.
 
@@ -76,7 +59,7 @@ def prefer_higher_quality_when_dups(
         album_dir / ms.img_dir,
         album_dir / ms.jpg_dir,
     )
-    return PreferHigherQualityResult(
+    return RemovedFiles(
         removed_by_dir=tuple(
             (d.name, removed)
             for d in directories

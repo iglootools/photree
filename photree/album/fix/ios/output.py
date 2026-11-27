@@ -2,24 +2,7 @@
 
 from photree.album.fix.ios import FixIosMiscategorizedResult, FixIosResult
 from photree.album.fix.ios.miscategorized import MiscategorizedAction
-
-
-def _removal_summary(
-    removed_by_dir: tuple[tuple[str, tuple[str, ...]], ...],
-    *,
-    what: str,
-    none_found: str,
-    dry_run: bool,
-) -> str:
-    total = sum(len(files) for _, files in removed_by_dir)
-    if total == 0:
-        return none_found if dry_run else f"Done. {none_found}"
-    parts = ", ".join(f"{len(files)} from {name}" for name, files in removed_by_dir)
-    return (
-        f"Would remove {total} {what}: {parts}."
-        if dry_run
-        else f"Done. Removed {total} {what}: {parts}."
-    )
+from photree.album.fix.output import format_removal_summary
 
 
 def rm_orphan_sidecar_summary(
@@ -28,7 +11,7 @@ def rm_orphan_sidecar_summary(
     dry_run: bool = False,
 ) -> str:
     """Return the line reporting the orphan sidecars removed, or that none were."""
-    return _removal_summary(
+    return format_removal_summary(
         removed_by_dir,
         what="orphan sidecar(s)",
         none_found="No orphan sidecars found.",
@@ -42,7 +25,7 @@ def prefer_higher_quality_summary(
     dry_run: bool = False,
 ) -> str:
     """Return the line reporting the lower-quality duplicates removed, or none."""
-    return _removal_summary(
+    return format_removal_summary(
         removed_by_dir,
         what="lower-quality duplicate(s)",
         none_found="No duplicates found.",

@@ -55,20 +55,41 @@ def rm_upstream_skip_line(skip: RmUpstreamSkip) -> str:
     return f"Skipped {skip.directory} as a deletion signal: {why}."
 
 
+def format_removal_summary(
+    removed_by_dir: tuple[tuple[str, tuple[str, ...]], ...],
+    *,
+    what: str,
+    none_found: str,
+    dry_run: bool = False,
+) -> str:
+    """
+    Return the line reporting the files a fix removed, per directory.
+
+    *what* names the removed files (``"orphan(s)"``), and *none_found* is the
+    sentence printed when there were none.
+    """
+    total = sum(len(files) for _, files in removed_by_dir)
+    if total == 0:
+        return none_found if dry_run else f"Done. {none_found}"
+    parts = ", ".join(f"{len(files)} from {name}" for name, files in removed_by_dir)
+    return (
+        f"Would remove {total} {what}: {parts}."
+        if dry_run
+        else f"Done. Removed {total} {what}: {parts}."
+    )
+
+
 def rm_orphan_summary(
     removed_by_dir: tuple[tuple[str, tuple[str, ...]], ...],
     *,
     dry_run: bool = False,
 ) -> str:
     """Return the line reporting the orphans removed, or that none were found."""
-    total = sum(len(files) for _, files in removed_by_dir)
-    if total == 0:
-        return "No orphans found." if dry_run else "Done. No orphans found."
-    parts = ", ".join(f"{len(files)} from {name}" for name, files in removed_by_dir)
-    return (
-        f"Would remove {total} orphan(s): {parts}."
-        if dry_run
-        else f"Done. Removed {total} orphan(s): {parts}."
+    return format_removal_summary(
+        removed_by_dir,
+        what="orphan(s)",
+        none_found="No orphans found.",
+        dry_run=dry_run,
     )
 
 
