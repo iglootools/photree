@@ -86,7 +86,7 @@ def _xdg_config_home(environ: Mapping[str, str], home: Path) -> Path:
 
 
 def find_config_file(
-    config_path: str | None = None,
+    config_path: Path | None = None,
     *,
     environ: Mapping[str, str] = os.environ,
     home: Path | None = None,
@@ -100,11 +100,10 @@ def find_config_file(
     Raises :class:`ConfigError` when an explicit *config_path* does not exist.
     """
     if config_path is not None:
-        p = Path(config_path)
-        if not p.is_file():
-            raise ConfigError(ConfigErrorKind.FILE_NOT_FOUND, path=p)
+        if not config_path.is_file():
+            raise ConfigError(ConfigErrorKind.FILE_NOT_FOUND, path=config_path)
         else:
-            return p
+            return config_path
     else:
         search = config_search_paths(
             environ=environ,
@@ -315,7 +314,7 @@ def _read_toml(path: Path) -> dict[str, object]:
 
 
 def load_config(
-    config_path: str | None = None,
+    config_path: Path | None = None,
     *,
     environ: Mapping[str, str] = os.environ,
     home: Path | None = None,

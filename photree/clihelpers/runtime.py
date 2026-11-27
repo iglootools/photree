@@ -44,7 +44,7 @@ class Runtime:
     cpu_count: Callable[[], int | None] = os.cpu_count
     """How many workers a parallel step may start."""
 
-    def load_config(self, config_path: str | None) -> PhotreeConfig:
+    def load_config(self, config_path: Path | None) -> PhotreeConfig:
         """Load the config file, searched for in this runtime's environment."""
         return load_config(
             config_path,

@@ -136,7 +136,7 @@ $ photree album export [OPTIONS]
 * `-a, --album-dir <directory>`: Album directory to export.  [default: .]
 * `-s, --share-dir <directory>`: Base directory to export into (subdirectories with album names are created).
 * `-p, --profile <str>`: Exporter profile name from config.
-* `-c, --config <str>`: Path to config file.
+* `--config <path>`: Path to config file.
 * `--share-layout <flat|albums|by-month>`: Share layout: flat (default), albums (by year), or by-month (by month).
 * `--album-layout <browsable-jpg|browsable|all|archive>`: Export layout: browsable-jpg (default), browsable, all, or archive (originals + edits + .photree metadata only).
 * `--link-mode <copy|hardlink|symlink>`: How to create main files in all layout: hardlink (default), symlink, or copy.
@@ -272,7 +272,7 @@ $ photree album import-check [OPTIONS]
 
 * `-a, --album-dir <directory>`: Album directory (with to-import-{ios,std}-&lt;name&gt; staging dirs).  [default: .]
 * `-s, --source <directory>`: Image Capture output directory. Overrides config and default.
-* `-c, --config <str>`: Path to config file.
+* `--config <path>`: Path to config file.
 * `--help`: Show this message and exit.
 
 ### `photree album import`
@@ -302,7 +302,7 @@ $ photree album import [OPTIONS]
 
 * `-a, --album-dir <directory>`: Album directory (with to-import-{ios,std}-&lt;name&gt; staging dirs).  [default: .]
 * `-s, --source <directory>`: Image Capture output directory. Overrides config and default.
-* `-c, --config <str>`: Path to config file.
+* `--config <path>`: Path to config file.
 * `--link-mode <copy|hardlink|symlink>`: How to create main files: hardlink (default), symlink, or copy.
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `-f, --force`: Skip preflight checks on the source directory.
@@ -534,7 +534,7 @@ $ photree albums export [OPTIONS]
 * `-a, --album-dir <directory>`: Album directory (repeatable).
 * `-s, --share-dir <directory>`: Base directory to export into (subdirectories with album names are created).
 * `-p, --profile <str>`: Exporter profile name from config.
-* `-c, --config <str>`: Path to config file.
+* `--config <path>`: Path to config file.
 * `--share-layout <flat|albums|by-month>`: Share layout: flat (default), albums (by year), or by-month (by month).
 * `--album-layout <browsable-jpg|browsable|all|archive>`: Export layout: browsable-jpg (default), browsable, all, or archive (originals + edits + .photree metadata only).
 * `--link-mode <copy|hardlink|symlink>`: How to create main files in all layout: hardlink (default), symlink, or copy.
@@ -609,7 +609,7 @@ $ photree albums import-check [OPTIONS]
 * `-d, --dir <directory>`: Parent directory containing album subdirectories.
 * `-a, --album-dir <directory>`: Album directory (repeatable).
 * `-s, --source <directory>`: Image Capture output directory. Overrides config and default.
-* `-c, --config <str>`: Path to config file.
+* `--config <path>`: Path to config file.
 * `--help`: Show this message and exit.
 
 ### `photree albums import`
@@ -633,7 +633,7 @@ $ photree albums import [OPTIONS]
 * `-d, --dir <directory>`: Parent directory containing album subdirectories.
 * `-a, --album-dir <directory>`: Album directory to import (repeatable).
 * `-s, --source <directory>`: Image Capture output directory. Overrides config and default.
-* `-c, --config <str>`: Path to config file.
+* `--config <path>`: Path to config file.
 * `--link-mode <copy|hardlink|symlink>`: How to create main files: hardlink (default), symlink, or copy.
 * `-n, --dry-run`: Print what would happen without modifying files.
 * `-f, --force`: Skip preflight checks on the source directory.
@@ -1125,7 +1125,7 @@ $ photree gallery export [OPTIONS]
 * `-g, --gallery-dir <directory>`: Gallery root directory (or resolved from cwd via .photree/gallery.yaml).
 * `-s, --share-dir <directory>`: Base directory to export into (subdirectories with album names are created).
 * `-p, --profile <str>`: Exporter profile name from config.
-* `-c, --config <str>`: Path to config file.
+* `--config <path>`: Path to config file.
 * `--share-layout <flat|albums|by-month>`: Share layout: flat (default), albums (by year), or by-month (by month).
 * `--album-layout <browsable-jpg|browsable|all|archive>`: Export layout: browsable-jpg (default), browsable, all, or archive (originals + edits + .photree metadata only).
 * `--link-mode <copy|hardlink|symlink>`: How to create main files in all layout: hardlink (default), symlink, or copy.

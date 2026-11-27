@@ -25,12 +25,12 @@ _MEGA = ExporterProfile(
 
 
 def _loader(
-    loaded: list[str | None],
+    loaded: list[Path | None],
     **profiles: ExporterProfile,
-) -> Callable[[str | None], PhotreeConfig]:
+) -> Callable[[Path | None], PhotreeConfig]:
     """Return a ``load`` that records each config path and serves *profiles*."""
 
-    def load(config_path: str | None) -> PhotreeConfig:
+    def load(config_path: Path | None) -> PhotreeConfig:
         loaded.append(config_path)
         return PhotreeConfig(
             exporter=ExporterConfig(profiles=MappingProxyType(profiles)),
@@ -40,14 +40,14 @@ def _loader(
 
 
 def _resolve(
-    load: Callable[[str | None], PhotreeConfig],
+    load: Callable[[Path | None], PhotreeConfig],
     *,
     profile_name: str | None = None,
     share_dir: Path | None = None,
     share_layout: ShareDirectoryLayout | None = None,
     album_layout: AlbumShareLayout | None = None,
     link_mode: LinkMode | None = None,
-    config_path: str | None = None,
+    config_path: Path | None = None,
 ) -> ResolvedExportSettings:
     return resolve_export_settings(
         profile_name=profile_name,
@@ -113,22 +113,22 @@ class TestResolveExportSettings:
         )
 
     def test_config_is_not_read_without_a_profile_or_config(self) -> None:
-        loaded: list[str | None] = []
+        loaded: list[Path | None] = []
 
         _resolve(_loader(loaded), share_dir=Path("/share"))
 
         assert loaded == []
 
     def test_explicit_config_is_read_without_a_profile(self) -> None:
-        loaded: list[str | None] = []
+        loaded: list[Path | None] = []
 
         settings = _resolve(
             _loader(loaded, mega=_MEGA),
             share_dir=Path("/share"),
-            config_path="my.toml",
+            config_path=Path("my.toml"),
         )
 
-        assert loaded == ["my.toml"]
+        assert loaded == [Path("my.toml")]
         # No profile is named, so none of the config's profiles applies.
         assert settings.album_layout == AlbumShareLayout.BROWSABLE_JPG
 

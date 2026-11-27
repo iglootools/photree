@@ -120,9 +120,9 @@ def _resolve_settings_or_exit(
     share_layout: ShareDirectoryLayout | None,
     album_layout: AlbumShareLayout | None,
     link_mode: LinkMode | None,
-    config: str | None,
+    config: Path | None,
     cwd: Path,
-    load: Callable[[str | None], PhotreeConfig],
+    load: Callable[[Path | None], PhotreeConfig],
 ) -> ResolvedExportSettings:
     """
     Resolve and validate the export settings, or print why not and exit.

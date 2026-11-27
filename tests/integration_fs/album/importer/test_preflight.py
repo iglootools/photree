@@ -28,10 +28,10 @@ def _populate(path: Path, filenames: list[str]) -> None:
 
 
 class TestResolveImageCaptureDir:
-    def _config(self, tmp_path: Path, body: str = "") -> str:
+    def _config(self, tmp_path: Path, body: str = "") -> Path:
         config = tmp_path / "config.toml"
         config.write_text(body, encoding="utf-8")
-        return str(config)
+        return config
 
     def test_explicit_source_wins(self, tmp_path: Path) -> None:
         config = self._config(tmp_path, '[importer]\nimage-capture-dir = "/cfg"\n')
@@ -43,7 +43,7 @@ class TestResolveImageCaptureDir:
     ) -> None:
         missing = tmp_path / "nope.toml"
         with pytest.raises(ConfigError) as info:
-            resolve_image_capture_dir(tmp_path / "src", str(missing))
+            resolve_image_capture_dir(tmp_path / "src", missing)
         assert info.value.kind == ConfigErrorKind.FILE_NOT_FOUND
         assert info.value.path == missing
 

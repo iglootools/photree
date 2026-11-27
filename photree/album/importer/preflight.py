@@ -22,10 +22,10 @@ def default_image_capture_dir(home: Path) -> Path:
 
 def resolve_image_capture_dir(
     source: Path | None,
-    config_path: str | None,
+    config_path: Path | None,
     *,
     home: Callable[[], Path] = Path.home,
-    load: Callable[[str | None], PhotreeConfig] = load_config,
+    load: Callable[[Path | None], PhotreeConfig] = load_config,
 ) -> Path:
     """
     Resolve the Image Capture directory: CLI flag > config > default.

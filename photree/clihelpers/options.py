@@ -244,10 +244,9 @@ PROFILE_OPTION = Annotated[
 ]
 
 CONFIG_OPTION = Annotated[
-    str | None,
+    Path | None,
     typer.Option(
         "--config",
-        "-c",
         help="Path to config file.",
     ),
 ]

@@ -74,8 +74,8 @@ def resolve_export_settings(
     share_layout: ShareDirectoryLayout | None,
     album_layout: AlbumShareLayout | None,
     link_mode: LinkMode | None,
-    config_path: str | None,
-    load: Callable[[str | None], PhotreeConfig] = load_config,
+    config_path: Path | None,
+    load: Callable[[Path | None], PhotreeConfig] = load_config,
 ) -> ResolvedExportSettings:
     """
     Resolve export settings: CLI flags > profile > defaults.

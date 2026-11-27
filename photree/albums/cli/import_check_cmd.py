@@ -12,6 +12,7 @@ from photree.album.importer.tasks import discover_import_tasks
 from photree.albums.cli.app import app
 from photree.albums.cmd_handler.importer import scan_albums
 from photree.clihelpers.console import err_console
+from photree.clihelpers.options import CONFIG_OPTION
 from photree.clihelpers.progress import BatchProgressBar
 from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.usage import mutually_exclusive_error
@@ -148,14 +149,7 @@ def import_check_cmd(
             resolve_path=True,
         ),
     ] = None,
-    config: Annotated[
-        str | None,
-        typer.Option(
-            "--config",
-            "-c",
-            help="Path to config file.",
-        ),
-    ] = None,
+    config: CONFIG_OPTION = None,
 ) -> None:
     """
     Check system prerequisites and import tasks for batch import.

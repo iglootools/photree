@@ -417,7 +417,7 @@ class TestExplicitConfigIsAlwaysLoaded:
                 share_layout=None,
                 album_layout=None,
                 link_mode=None,
-                config_path=str(missing),
+                config_path=missing,
             )
         assert info.value.kind == ConfigErrorKind.FILE_NOT_FOUND
 

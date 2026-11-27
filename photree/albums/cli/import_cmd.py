@@ -15,7 +15,7 @@ from photree.albums.cmd_handler import importer as batch
 from photree.albums.cmd_handler.importer import ImportFailureStage
 from photree.albums.output import importer as batch_import_output
 from photree.clihelpers.console import err_console
-from photree.clihelpers.options import DRY_RUN_OPTION, LINK_MODE_OPTION
+from photree.clihelpers.options import CONFIG_OPTION, DRY_RUN_OPTION, LINK_MODE_OPTION
 from photree.clihelpers.progress import BatchProgressBar
 from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.usage import mutually_exclusive_error
@@ -178,14 +178,7 @@ def import_cmd(
             resolve_path=True,
         ),
     ] = None,
-    config: Annotated[
-        str | None,
-        typer.Option(
-            "--config",
-            "-c",
-            help="Path to config file.",
-        ),
-    ] = None,
+    config: CONFIG_OPTION = None,
     link_mode: LINK_MODE_OPTION = None,
     dry_run: DRY_RUN_OPTION = False,
     force: Annotated[
