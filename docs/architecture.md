@@ -84,7 +84,6 @@ graph TD
     gallery --> clihelpers
     gallery --> collection
     gallery --> common
-    gallery --> config
     gallery --> dates
     gallery --> foundation
 ```

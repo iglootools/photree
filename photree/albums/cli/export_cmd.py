@@ -1,25 +1,17 @@
 """The ``photree albums export`` command."""
 
-from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
-from photree.album.exporter import output as export_output
-from photree.album.exporter.settings import (
-    ExportSettingsError,
-    ResolvedExportSettings,
-    resolve_export_settings,
-    validate_export_settings,
+from photree.albums.batchcli.export import (
+    resolve_export_settings_or_exit,
+    run_batch_export,
 )
 from photree.albums.cli.app import app
 from photree.albums.cli.options import ALBUM_DIR_OPTION
-from photree.albums.cmd_handler import exporter as batch
-from photree.albums.cmd_handler.exporter import BatchExportResult
-from photree.albums.output import exporter as batch_export_output
-from photree.clihelpers.config_errors import format_config_error
-from photree.clihelpers.console import err_console
+from photree.albums.cmd_handler.exporter import find_export_dirs
 from photree.clihelpers.options import (
     ALBUM_LAYOUT_OPTION,
     CONFIG_OPTION,
@@ -29,12 +21,8 @@ from photree.clihelpers.options import (
     SHARE_DIR_OPTION,
     SHARE_LAYOUT_OPTION,
 )
-from photree.clihelpers.progress import BatchProgressBar
 from photree.clihelpers.runtime import runtime_of
 from photree.clihelpers.usage import mutually_exclusive_error
-from photree.config import ConfigError, PhotreeConfig
-from photree.foundation.linking import LinkMode
-from photree.foundation.share_layout import AlbumShareLayout, ShareDirectoryLayout
 
 
 @app.command("export")
@@ -75,7 +63,7 @@ def export_cmd(
             command="albums export",
         )
 
-    settings = _resolve_settings_or_exit(
+    settings = resolve_export_settings_or_exit(
         profile=profile,
         share_dir=share_dir,
         share_layout=share_layout,
@@ -84,97 +72,11 @@ def export_cmd(
         config=config,
         cwd=cwd,
         load=runtime.load_config,
+        command="albums export",
     )
-    scan_dir = None if album_dirs is not None else (base_dir or cwd)
     albums = (
         list(album_dirs)
         if album_dirs is not None
-        else batch.find_export_dirs(scan_dir or cwd)
+        else find_export_dirs(base_dir or cwd)
     )
-    if not albums:
-        typer.echo("No albums found.")
-        raise typer.Exit(code=0)
-
-    result = _export(albums, scan_dir, album_dirs, settings, cwd, dry_run=dry_run)
-    typer.echo(
-        batch_export_output.batch_export_summary(
-            result.exported,
-            len(result.failed),
-            dry_run=dry_run,
-        ),
-    )
-    if result.failed:
-        err_console.print(
-            batch_export_output.format_batch_export_failures(result.failed, cwd),
-            markup=False,
-        )
-        raise typer.Exit(code=1)
-
-
-def _resolve_settings_or_exit(
-    *,
-    profile: str | None,
-    share_dir: Path | None,
-    share_layout: ShareDirectoryLayout | None,
-    album_layout: AlbumShareLayout | None,
-    link_mode: LinkMode | None,
-    config: str | None,
-    cwd: Path,
-    load: Callable[[str | None], PhotreeConfig],
-) -> ResolvedExportSettings:
-    """Resolve and validate export settings; config errors exit 2, others 1."""
-    try:
-        settings = resolve_export_settings(
-            profile_name=profile,
-            share_dir=share_dir,
-            share_layout=share_layout,
-            album_layout=album_layout,
-            link_mode=link_mode,
-            config_path=config,
-            load=load,
-        )
-        validate_export_settings(settings)
-    except ConfigError as exc:
-        err_console.print(format_config_error(exc), markup=False)
-        raise typer.Exit(code=2) from exc
-    except ExportSettingsError as exc:
-        err_console.print(
-            export_output.format_export_settings_error(exc, cwd, "albums export"),
-            markup=False,
-        )
-        raise typer.Exit(code=1) from exc
-    return settings
-
-
-def _export(
-    albums: list[Path],
-    scan_dir: Path | None,
-    album_dirs: list[Path] | None,
-    settings: ResolvedExportSettings,
-    cwd: Path,
-    *,
-    dry_run: bool,
-) -> BatchExportResult:
-    with BatchProgressBar(
-        total=len(albums),
-        description="Exporting",
-        done_description="export",
-    ) as progress:
-        return batch.run_batch_export(
-            base_dir=scan_dir,
-            album_dirs=album_dirs,
-            share_dir=settings.share_dir,
-            share_layout=settings.share_layout,
-            album_layout=settings.album_layout,
-            link_mode=settings.link_mode,
-            dry_run=dry_run,
-            on_exporting=progress.on_start,
-            on_exported=lambda name: progress.on_end(name, success=True),
-            on_error=lambda name, failure: progress.on_end(
-                name,
-                success=False,
-                error_labels=(
-                    batch_export_output.format_export_failure_reason(failure, cwd),
-                ),
-            ),
-        )
+    run_batch_export(albums, settings, dry_run=dry_run, cwd=cwd)
