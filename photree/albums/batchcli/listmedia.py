@@ -17,9 +17,9 @@ from photree.album.store.media_metadata import (
 )
 from photree.album.store.metadata import load_album_metadata
 from photree.albums.batchcli.resolution import display_name
-from photree.albums.batchcli.sink import write_csv, write_text
 from photree.clihelpers.console import err_console
 from photree.clihelpers.options import OutputFormat
+from photree.clihelpers.sink import write_csv, write_text
 from photree.common.formatting import indent
 
 _CSV_HEADER = ("album_id", "media_source", "type", "id", "key")
