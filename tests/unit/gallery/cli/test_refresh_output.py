@@ -74,7 +74,7 @@ class TestFormatCollectionRefreshError:
             naming_issues=(NamingIssue(NamingIssueCode.INVALID_DATE, "invalid date"),),
         )
 
-        assert format_collection_refresh_error(error, CWD) == (
+        assert format_collection_refresh_error(error, CWD, CWD) == (
             "album albums/2024/2024-07-14 - Trip: name breaks the naming "
             "convention\n"
             "  invalid date\n"
@@ -87,7 +87,7 @@ class TestFormatCollectionRefreshError:
             path=ALBUM,
         )
 
-        assert format_collection_refresh_error(error, CWD) == (
+        assert format_collection_refresh_error(error, CWD, CWD) == (
             "album albums/2024/2024-07-14 - Trip: album metadata cannot be read\n"
             f"Run {ALBUM_CHECK} to investigate."
         )
@@ -98,7 +98,7 @@ class TestFormatCollectionRefreshError:
             path=COLLECTION,
         )
 
-        assert format_collection_refresh_error(error, CWD) == (
+        assert format_collection_refresh_error(error, CWD, CWD) == (
             "collection collections/2024/2024-07 - Summer: collection metadata "
             f"cannot be read\nRun {COLLECTION_CHECK} to investigate."
         )
@@ -110,7 +110,7 @@ class TestFormatCollectionRefreshError:
             album_names=("2024-07-14 - A", "2024-07-14 - B"),
         )
 
-        assert format_collection_refresh_error(error, CWD) == (
+        assert format_collection_refresh_error(error, CWD, CWD) == (
             "date collision on 2024-07-14: 2024-07-14 - A, 2024-07-14 - B\n"
             "Add part numbers to disambiguate; run 'photree gallery check' for "
             "the full report."
@@ -123,7 +123,7 @@ class TestFormatCollectionRefreshError:
             target=CWD / "albums" / "2024" / "2024-07-14 - Hike",
         )
 
-        assert format_collection_refresh_error(error, CWD) == (
+        assert format_collection_refresh_error(error, CWD, CWD) == (
             "album albums/2024/2024-07-14 - Trip: cannot sync its title, "
             "albums/2024/2024-07-14 - Hike is already taken\n"
             "Rename one of the two albums, then run 'photree gallery refresh'."
@@ -136,7 +136,7 @@ class TestFormatCollectionRefreshError:
             target=CWD / "collections" / "2024" / "2024-07 - Taken",
         )
 
-        assert format_collection_refresh_error(error, CWD) == (
+        assert format_collection_refresh_error(error, CWD, CWD) == (
             "cannot rename collections/2024/2024-07 - Summer: "
             "collections/2024/2024-07 - Taken already exists\n"
             "Move the existing directory away, then run 'photree gallery refresh'."
@@ -148,7 +148,7 @@ class TestFormatCollectionRefreshError:
             target=COLLECTION,
         )
 
-        assert format_collection_refresh_error(error, CWD).startswith(
+        assert format_collection_refresh_error(error, CWD, CWD).startswith(
             "cannot create implicit collection: "
             "collections/2024/2024-07 - Summer already exists\n",
         )
@@ -159,7 +159,7 @@ class TestFormatCollectionRefreshError:
             name="2024-07 - Trip",
         )
 
-        assert format_collection_refresh_error(error, CWD) == (
+        assert format_collection_refresh_error(error, CWD, CWD) == (
             "implicit collection '2024-07 - Trip' is claimed by two separate "
             "runs of the same series on the same dates\n"
             "Give the runs distinct series names, then run "
@@ -180,7 +180,7 @@ class TestFormatCollectionRefreshError:
             "cannot rename collections/2024/2024-07 - Summer to "
             "collections/2025/2025-07 - Summer: File exists"
         )
-        assert format_collection_refresh_error(error, CWD).split("\n")[:2] == [
+        assert format_collection_refresh_error(error, CWD, CWD).split("\n")[:2] == [
             failure,
             "  left under a temporary name: collections/2024/.photree-moving-x",
         ]
@@ -191,7 +191,7 @@ class TestFormatCollectionRefreshError:
             path=COLLECTION.with_name(".photree-moving-x"),
         )
 
-        assert format_collection_refresh_error(error, CWD).startswith(
+        assert format_collection_refresh_error(error, CWD, CWD).startswith(
             "collection collections/2024/.photree-moving-x was left under a "
             "temporary name by an interrupted refresh\n",
         )
@@ -206,7 +206,7 @@ class TestFormatCollectionFilesystemError:
             reason="Permission denied",
         )
 
-        assert format_collection_refresh_error(error, CWD) == (
+        assert format_collection_refresh_error(error, CWD, CWD) == (
             "cannot write albums/2024/2024-07-14 - Trip -> "
             "albums/2024/2024-07-14 - Hike: Permission denied\n"
             "The changes listed above were applied. Fix the cause, then run "
@@ -221,7 +221,7 @@ class TestFormatBrowsableError:
             CWD / "browsable" / "notes.txt",
         )
 
-        assert format_browsable_error(error, CWD) == (
+        assert format_browsable_error(error, CWD, CWD) == (
             "browsable/ contains a regular file: browsable/notes.txt\n"
             "Expected only directories and symlinks. Remove the file (or "
             "browsable/), then run 'photree gallery refresh'."
@@ -234,7 +234,7 @@ class TestFormatBrowsableError:
             reason="Permission denied",
         )
 
-        assert format_browsable_error(error, CWD) == (
+        assert format_browsable_error(error, CWD, CWD) == (
             "cannot write browsable: Permission denied\n"
             "browsable/ is left incomplete. Fix the cause, then run "
             "'photree gallery refresh'."
@@ -249,7 +249,7 @@ class TestFormatBrowsableError:
             albums=(ALBUM, copy),
         )
 
-        assert format_browsable_error(error, CWD) == (
+        assert format_browsable_error(error, CWD, CWD) == (
             "Duplicate album IDs found:\n"
             f"  {format_album_external_id(SOME_ID)}:\n"
             "    albums/2024/2024-07-14 - Trip\n"
@@ -269,7 +269,7 @@ class TestFormatBrowsableError:
             ALBUM,
         )
 
-        assert format_browsable_error(error, CWD) == (
+        assert format_browsable_error(error, CWD, CWD) == (
             "album albums/2024/2024-07-14 - Trip: album metadata cannot be read\n"
             f"Run {ALBUM_CHECK} to investigate."
         )
@@ -280,7 +280,7 @@ class TestFormatBrowsableError:
             ALBUM,
         )
 
-        assert format_browsable_error(error, CWD) == (
+        assert format_browsable_error(error, CWD, CWD) == (
             "album albums/2024/2024-07-14 - Trip: name has no parseable date\n"
             f"Rename the album; run {ALBUM_CHECK} for details."
         )
@@ -291,7 +291,7 @@ class TestFormatBrowsableError:
             COLLECTION,
         )
 
-        assert format_browsable_error(error, CWD) == (
+        assert format_browsable_error(error, CWD, CWD) == (
             "collection collections/2024/2024-07 - Summer: collection metadata "
             f"cannot be read\nRun {COLLECTION_CHECK} to investigate."
         )
@@ -303,7 +303,7 @@ class TestFormatBrowsableError:
             collection_id=SOME_ID,
         )
 
-        assert format_browsable_error(error, CWD) == (
+        assert format_browsable_error(error, CWD, CWD) == (
             "cycle detected: collection collections/2024/2024-07 - Summer "
             f"({format_collection_external_id(SOME_ID)}) contains itself "
             f"through its members\nRun {COLLECTION_CHECK} to investigate."
@@ -319,7 +319,7 @@ class TestFormatBrowsableError:
             ),
         )
 
-        assert format_browsable_error(error, CWD) == (
+        assert format_browsable_error(error, CWD, CWD) == (
             "browsable link browsable/public/Trip/main-jpg would point to more "
             "than one target:\n"
             "  albums/a/Trip/main-jpg\n"
@@ -336,7 +336,7 @@ class TestFormatDanglingMembers:
             DanglingMember(COLLECTION, DanglingMemberKind.IMAGE, SOME_ID),
         )
 
-        assert format_dangling_members(members, CWD) == (
+        assert format_dangling_members(members, CWD, CWD) == (
             "2 collection member(s) not found in the gallery (skipped):\n"
             "  collections/2024/2024-07 - Summer: album "
             f"{format_album_external_id(SOME_ID)}\n"
@@ -344,4 +344,40 @@ class TestFormatDanglingMembers:
             f"{format_image_external_id(SOME_ID)}\n"
             "To investigate, run:\n"
             f"  {COLLECTION_CHECK}"
+        )
+
+
+class TestGalleryFlagInSuggestions:
+    def test_suggestions_name_the_gallery_when_run_from_outside_it(self) -> None:
+        outside = Path("/home/me")
+        error = BrowsableRefreshError(
+            BrowsableRefreshErrorKind.CYCLE,
+            COLLECTION,
+            collection_id=SOME_ID,
+        )
+
+        assert format_browsable_error(error, outside, CWD).endswith(
+            "Run 'photree collection check --dir "
+            '"/gallery/collections/2024/2024-07 - Summer" '
+            '--gallery-dir "/gallery"\' to investigate.',
+        )
+
+    def test_refresh_suggestion_names_the_gallery_relative_to_cwd(self) -> None:
+        error = CollectionRefreshError(
+            CollectionRefreshErrorKind.SERIES_NAME_CONFLICT,
+            name="2024-07-14 - Trip",
+        )
+
+        assert format_collection_refresh_error(error, CWD.parent, CWD).endswith(
+            "then run 'photree gallery refresh --gallery-dir \"gallery\"'.",
+        )
+
+    def test_suggestions_omit_the_gallery_when_run_inside_it(self) -> None:
+        error = CollectionRefreshError(
+            CollectionRefreshErrorKind.SERIES_NAME_CONFLICT,
+            name="2024-07-14 - Trip",
+        )
+
+        assert format_collection_refresh_error(error, CWD / "albums", CWD).endswith(
+            "then run 'photree gallery refresh'.",
         )

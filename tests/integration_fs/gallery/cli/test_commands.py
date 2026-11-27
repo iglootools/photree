@@ -61,6 +61,24 @@ class TestGalleryCheckPhases:
         assert "not found in gallery" in result.output
         assert "Face clusters:" in result.output
 
+    def test_collection_hint_names_the_gallery_from_outside_it(
+        self,
+        tmp_path: Path,
+        chdir: Callable[[Path], None],
+    ) -> None:
+        """Regression: the copied command searched for the gallery from cwd."""
+        gallery = make_gallery(tmp_path, faces_enabled=False)
+        _dangling_collection(gallery)
+        chdir(tmp_path)
+
+        result = invoke_cli(["gallery", "check", "-g", str(gallery)])
+
+        assert result.exit_code == 1
+        assert (
+            "'photree collection check --dir "
+            '"gallery/collections/2024/2024-07 - Summer" --gallery-dir "gallery"\''
+        ) in result.output
+
 
 class TestFaceClusterThreshold:
     @pytest.mark.parametrize("value", ["-0.1", "1.5"])

@@ -6,6 +6,7 @@ from typing import Annotated
 import typer
 
 from photree.clihelpers.console import err_console
+from photree.clihelpers.resolution import format_gallery_flag
 from photree.clihelpers.runtime import runtime_of
 from photree.common.formatting import indent
 from photree.common.fs import display_path
@@ -48,7 +49,8 @@ def init_cmd(
     if gallery_yaml.is_file():
         err_console.print(
             f"Gallery already initialized: {display_path(gallery_yaml, cwd)}\n"
-            "Use 'photree gallery metadata set' to change settings.",
+            "Use 'photree gallery metadata set"
+            f"{format_gallery_flag(gallery_dir, cwd)}' to change settings.",
             markup=False,
         )
         raise typer.Exit(code=1)

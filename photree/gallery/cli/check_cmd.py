@@ -19,7 +19,10 @@ from photree.clihelpers.options import (
     GALLERY_DIR_OPTION,
 )
 from photree.clihelpers.progress import run_with_spinner
-from photree.clihelpers.resolution import resolve_gallery_or_exit
+from photree.clihelpers.resolution import (
+    format_gallery_flag,
+    resolve_gallery_or_exit,
+)
 from photree.clihelpers.runtime import runtime_of
 from photree.collection.check import build_gallery_lookup, check_all_collections
 from photree.collection.output import format_collection_issue
@@ -118,6 +121,7 @@ def _check_collections(gallery_dir: Path, cwd: Path) -> bool:
         ),
     )
     failed = [r.collection_dir for r in col_results if not r.success]
+    gallery_flag = format_gallery_flag(gallery_dir, cwd)
     if failed:
         err_console.print(
             "\n".join(
@@ -126,7 +130,7 @@ def _check_collections(gallery_dir: Path, cwd: Path) -> bool:
                     *(
                         indent(
                             "'photree collection check --dir "
-                            f'"{display_path(d, cwd)}"\'',
+                            f'"{display_path(d, cwd)}"{gallery_flag}\'',
                         )
                         for d in failed
                     ),
@@ -157,7 +161,12 @@ def _check_faces(gallery_dir: Path, cwd: Path) -> bool:
     console.print(f"{CROSS} face clusters ({len(result.issues)} issue(s))")
     typer.echo("\n".join(indent(format_face_issue(i, cwd), 2) for i in result.issues))
     err_console.print(
-        indent("Run 'photree gallery cluster-faces --redetect' to rebuild.", 2),
+        indent(
+            "Run 'photree gallery cluster-faces --redetect"
+            f"{format_gallery_flag(gallery_dir, cwd)}' to rebuild.",
+            2,
+        ),
+        markup=False,
     )
     return False
 

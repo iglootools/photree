@@ -52,6 +52,26 @@ class TestGalleryInit:
         assert "photree gallery metadata set" in result.output
         assert _gallery_yaml(tmp_path).read_bytes() == before
 
+    def test_already_initialized_hint_names_the_gallery_from_outside_it(
+        self,
+        tmp_path: Path,
+        chdir: Callable[[Path], None],
+    ) -> None:
+        gallery = tmp_path / "gallery"
+        gallery.mkdir()
+        chdir(tmp_path)
+        invoke_cli(["gallery", "init", "-g", str(gallery)], runtime=fake_runtime())
+
+        result = invoke_cli(
+            ["gallery", "init", "-g", str(gallery)],
+            runtime=fake_runtime(),
+        )
+
+        assert result.exit_code == 1
+        assert (
+            "'photree gallery metadata set --gallery-dir \"gallery\"'" in result.output
+        )
+
     def test_next_steps_name_the_gallery_from_outside_it(
         self,
         tmp_path: Path,

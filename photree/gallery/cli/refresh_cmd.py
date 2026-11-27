@@ -127,7 +127,7 @@ def _refresh_collections(gallery_dir: Path, cwd: Path, *, dry_run: bool) -> None
     if not result.success:
         err_console.print(
             "\n".join(
-                indent(format_collection_refresh_error(error, cwd))
+                indent(format_collection_refresh_error(error, cwd, gallery_dir))
                 for error in result.errors
             ),
             markup=False,
@@ -144,12 +144,17 @@ def _refresh_browsable(gallery_dir: Path, cwd: Path, *, dry_run: bool) -> None:
     )
     if result.dangling_members:
         err_console.print(
-            indent(format_dangling_members(result.dangling_members, cwd)),
+            indent(
+                format_dangling_members(result.dangling_members, cwd, gallery_dir),
+            ),
             markup=False,
         )
     if not result.success:
         err_console.print(
-            "\n".join(indent(format_browsable_error(e, cwd)) for e in result.errors),
+            "\n".join(
+                indent(format_browsable_error(e, cwd, gallery_dir))
+                for e in result.errors
+            ),
             markup=False,
         )
         raise typer.Exit(code=1)

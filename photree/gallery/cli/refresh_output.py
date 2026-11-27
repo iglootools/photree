@@ -14,6 +14,7 @@ from photree.album.id import (
     format_video_external_id,
 )
 from photree.albums.output import format_duplicate_ids_report
+from photree.clihelpers.resolution import format_gallery_flag
 from photree.collection.id import format_collection_external_id
 from photree.collection.refresh.result import (
     CollectionRefreshError,
@@ -38,12 +39,27 @@ def _album_check(path: Path | None, cwd: Path) -> str:
     return f"'photree album check --album-dir \"{_path(path, cwd)}\"'"
 
 
-def _collection_check(path: Path | None, cwd: Path) -> str:
-    return f"'photree collection check --dir \"{_path(path, cwd)}\"'"
+def _collection_check(path: Path | None, cwd: Path, gallery_dir: Path) -> str:
+    flag = format_gallery_flag(gallery_dir, cwd)
+    return f"'photree collection check --dir \"{_path(path, cwd)}\"{flag}'"
 
 
-def format_collection_refresh_error(err: CollectionRefreshError, cwd: Path) -> str:
-    """Describe one collection refresh error and how to resolve it."""
+def _gallery_command(command: str, cwd: Path, gallery_dir: Path) -> str:
+    """Return ``'photree gallery <command>'``, naming the gallery when cwd does not."""
+    return f"'photree gallery {command}{format_gallery_flag(gallery_dir, cwd)}'"
+
+
+def format_collection_refresh_error(
+    err: CollectionRefreshError,
+    cwd: Path,
+    gallery_dir: Path,
+) -> str:
+    """
+    Describe one collection refresh error and how to resolve it.
+
+    Suggested gallery commands name *gallery_dir* unless *cwd* is inside it.
+    """
+    refresh = _gallery_command("refresh", cwd, gallery_dir)
     match err.kind:
         case CollectionRefreshErrorKind.ALBUM_NAMING:
             return "\n".join(
@@ -61,19 +77,20 @@ def format_collection_refresh_error(err: CollectionRefreshError, cwd: Path) -> s
         case CollectionRefreshErrorKind.COLLECTION_UNREADABLE_METADATA:
             return (
                 f"collection {_path(err.path, cwd)}: collection metadata cannot "
-                f"be read\nRun {_collection_check(err.path, cwd)} to investigate."
+                f"be read\nRun {_collection_check(err.path, cwd, gallery_dir)} to "
+                "investigate."
             )
         case CollectionRefreshErrorKind.DATE_COLLISION:
             return (
                 f"date collision on {err.name}: {', '.join(err.album_names)}\n"
-                "Add part numbers to disambiguate; run 'photree gallery check' "
-                "for the full report."
+                "Add part numbers to disambiguate; run "
+                f"{_gallery_command('check', cwd, gallery_dir)} for the full report."
             )
         case CollectionRefreshErrorKind.ALBUM_RENAME_CONFLICT:
             return (
                 f"album {_path(err.path, cwd)}: cannot sync its title, "
                 f"{_path(err.target, cwd)} is already taken\n"
-                "Rename one of the two albums, then run 'photree gallery refresh'."
+                f"Rename one of the two albums, then run {refresh}."
             )
         case CollectionRefreshErrorKind.COLLECTION_TARGET_EXISTS:
             source = (
@@ -83,7 +100,7 @@ def format_collection_refresh_error(err: CollectionRefreshError, cwd: Path) -> s
             )
             return (
                 f"{source}: {_path(err.target, cwd)} already exists\n"
-                "Move the existing directory away, then run 'photree gallery refresh'."
+                f"Move the existing directory away, then run {refresh}."
             )
         case CollectionRefreshErrorKind.FILESYSTEM_ERROR:
             paths = " -> ".join(
@@ -92,14 +109,13 @@ def format_collection_refresh_error(err: CollectionRefreshError, cwd: Path) -> s
             return (
                 f"cannot write {paths or '?'}: {err.reason}\n"
                 "The changes listed above were applied. Fix the cause, then run "
-                "'photree gallery refresh'."
+                f"{refresh}."
             )
         case CollectionRefreshErrorKind.SERIES_NAME_CONFLICT:
             return (
                 f"implicit collection '{err.name}' is claimed by two separate "
                 "runs of the same series on the same dates\n"
-                "Give the runs distinct series names, then run "
-                "'photree gallery refresh'."
+                f"Give the runs distinct series names, then run {refresh}."
             )
         case CollectionRefreshErrorKind.COLLECTION_MOVE_FAILED:
             failure = (
@@ -153,14 +169,23 @@ def format_collection_changes(result: CollectionRefreshResult) -> list[str]:
     ]
 
 
-def format_browsable_error(err: BrowsableRefreshError, cwd: Path) -> str:
-    """Describe one browsable refresh error and how to resolve it."""
+def format_browsable_error(
+    err: BrowsableRefreshError,
+    cwd: Path,
+    gallery_dir: Path,
+) -> str:
+    """
+    Describe one browsable refresh error and how to resolve it.
+
+    Suggested gallery commands name *gallery_dir* unless *cwd* is inside it.
+    """
+    refresh = _gallery_command("refresh", cwd, gallery_dir)
     match err.kind:
         case BrowsableRefreshErrorKind.REGULAR_FILE:
             return (
                 f"browsable/ contains a regular file: {_path(err.path, cwd)}\n"
                 "Expected only directories and symlinks. Remove the file (or "
-                "browsable/), then run 'photree gallery refresh'."
+                f"browsable/), then run {refresh}."
             )
         case BrowsableRefreshErrorKind.ALBUM_MISSING_METADATA:
             return (
@@ -175,12 +200,13 @@ def format_browsable_error(err: BrowsableRefreshError, cwd: Path) -> str:
         case BrowsableRefreshErrorKind.COLLECTION_UNREADABLE_METADATA:
             return (
                 f"collection {_path(err.path, cwd)}: collection metadata cannot "
-                f"be read\nRun {_collection_check(err.path, cwd)} to investigate."
+                f"be read\nRun {_collection_check(err.path, cwd, gallery_dir)} to "
+                "investigate."
             )
         case BrowsableRefreshErrorKind.DUPLICATE_ALBUM_ID:
             return (
                 format_duplicate_ids_report({err.album_id or "?": err.albums}, cwd)
-                + "\nThen run 'photree gallery refresh'."
+                + f"\nThen run {refresh}."
             )
         case BrowsableRefreshErrorKind.CYCLE:
             collection_id = (
@@ -191,13 +217,14 @@ def format_browsable_error(err: BrowsableRefreshError, cwd: Path) -> str:
             return (
                 f"cycle detected: collection {_path(err.path, cwd)} "
                 f"({collection_id}) contains itself through its members\n"
-                f"Run {_collection_check(err.path, cwd)} to investigate."
+                f"Run {_collection_check(err.path, cwd, gallery_dir)} to "
+                "investigate."
             )
         case BrowsableRefreshErrorKind.FILESYSTEM_ERROR:
             return (
                 f"cannot write {_path(err.path, cwd)}: {err.reason}\n"
                 "browsable/ is left incomplete. Fix the cause, then run "
-                "'photree gallery refresh'."
+                f"{refresh}."
             )
         case BrowsableRefreshErrorKind.LINK_COLLISION:
             return "\n".join(
@@ -209,7 +236,7 @@ def format_browsable_error(err: BrowsableRefreshError, cwd: Path) -> str:
                     *(indent(_path(target, cwd)) for target in err.targets),
                     (
                         "Two albums or collections share a name there: rename "
-                        "one of them, then run 'photree gallery refresh'."
+                        f"one of them, then run {refresh}."
                     ),
                 ],
             )
@@ -227,7 +254,11 @@ def _member_external_id(member: DanglingMember) -> str:
             return format_video_external_id(member.member_id)
 
 
-def format_dangling_members(members: tuple[DanglingMember, ...], cwd: Path) -> str:
+def format_dangling_members(
+    members: tuple[DanglingMember, ...],
+    cwd: Path,
+    gallery_dir: Path,
+) -> str:
     """Report collection members that resolve to nothing (skipped when rendering)."""
     collections = list(dict.fromkeys(m.collection_path for m in members))
     return "\n".join(
@@ -241,6 +272,6 @@ def format_dangling_members(members: tuple[DanglingMember, ...], cwd: Path) -> s
                 for m in members
             ),
             "To investigate, run:",
-            *(indent(_collection_check(c, cwd)) for c in collections),
+            *(indent(_collection_check(c, cwd, gallery_dir)) for c in collections),
         ],
     )

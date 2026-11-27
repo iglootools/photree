@@ -41,6 +41,21 @@ def format_gallery_not_found(exc: GalleryNotFoundError, cwd: Path) -> str:
             )
 
 
+def format_gallery_flag(gallery_dir: Path, cwd: Path) -> str:
+    """
+    Return the ``--gallery-dir`` flag a suggested command needs, with a leading space.
+
+    Empty when *cwd* is inside *gallery_dir*: the command run from there finds
+    the gallery itself. Otherwise the copied command would search from *cwd*
+    and fail, so the flag names the gallery, relative to *cwd* when possible.
+    """
+    return (
+        ""
+        if cwd.is_relative_to(gallery_dir)
+        else f' --gallery-dir "{display_path(gallery_dir, cwd)}"'
+    )
+
+
 def format_invalid_metadata(exc: InvalidMetadataError, cwd: Path) -> str:
     """Render an :class:`InvalidMetadataError` with a relative path and a fix."""
     fix = (
